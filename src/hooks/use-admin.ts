@@ -101,3 +101,19 @@ export async function createAuditLog(
     console.error("Error creating audit log:", error);
   }
 }
+
+/**
+ * Hook wrapper for audit logging
+ */
+export function useAuditLog() {
+  const logAction = async (
+    action: string,
+    entityType: string,
+    entityId: string | null,
+    data?: Record<string, unknown>
+  ) => {
+    await createAuditLog(action, entityType, entityId, undefined, data as Json);
+  };
+
+  return { logAction };
+}
