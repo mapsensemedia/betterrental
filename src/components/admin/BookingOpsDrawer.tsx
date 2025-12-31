@@ -8,7 +8,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
+import { useRecordPayment, type PaymentMethod } from "@/hooks/use-payments";
 import { 
   Car, 
   MapPin, 
@@ -23,7 +42,8 @@ import {
   DollarSign,
   Fuel,
   Gauge,
-  FileText
+  FileText,
+  Banknote,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -50,9 +70,20 @@ const statusFlow: BookingStatus[] = ["pending", "confirmed", "active", "complete
 export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerProps) {
   const { data: booking, isLoading } = useBookingById(bookingId);
   const updateStatus = useUpdateBookingStatus();
+  const recordPayment = useRecordPayment();
+  
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; status: BookingStatus | null }>({ 
     open: false, 
     status: null 
+  });
+  
+  // Payment recording state
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    amount: "",
+    method: "cash" as PaymentMethod,
+    reference: "",
+    notes: "",
   });
 
   const handleStatusChange = (newStatus: BookingStatus) => {
@@ -86,6 +117,45 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
     const total = booking.payments.reduce((sum: number, p: any) => 
       p.status === "completed" ? sum + Number(p.amount) : sum, 0);
     return total >= booking.total_amount ? "paid" : "partial";
+  };
+
+  const getTotalPaid = () => {
+    if (!booking?.payments?.length) return 0;
+    return booking.payments.reduce((sum: number, p: any) => 
+      p.status === "completed" ? sum + Number(p.amount) : sum, 0);
+  };
+
+  const getAmountDue = () => {
+    if (!booking) return 0;
+    return Number(booking.total_amount) - getTotalPaid();
+  };
+
+  const handleOpenPaymentDialog = () => {
+    const amountDue = getAmountDue();
+    setPaymentData({
+      amount: amountDue > 0 ? amountDue.toFixed(2) : "",
+      method: "cash",
+      reference: "",
+      notes: "",
+    });
+    setPaymentDialogOpen(true);
+  };
+
+  const handleRecordPayment = () => {
+    if (!bookingId || !paymentData.amount) return;
+    
+    recordPayment.mutate({
+      bookingId,
+      amount: parseFloat(paymentData.amount),
+      method: paymentData.method,
+      reference: paymentData.reference || undefined,
+      notes: paymentData.notes || undefined,
+    }, {
+      onSuccess: () => {
+        setPaymentDialogOpen(false);
+        setPaymentData({ amount: "", method: "cash", reference: "", notes: "" });
+      },
+    });
   };
 
   if (!open) return null;
@@ -291,6 +361,23 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                           </div>
                         )}
                         
+                        {/* Amount Due / Record Payment */}
+                        <Separator />
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="text-sm text-muted-foreground">Amount Due</span>
+                            <p className={`font-semibold ${getAmountDue() <= 0 ? "text-green-600" : "text-destructive"}`}>
+                              ${getAmountDue().toFixed(2)}
+                            </p>
+                          </div>
+                          {getAmountDue() > 0 && (
+                            <Button size="sm" onClick={handleOpenPaymentDialog}>
+                              <Banknote className="h-4 w-4 mr-2" />
+                              Record Payment
+                            </Button>
+                          )}
+                        </div>
+
                         {booking.payments?.length > 0 && (
                           <>
                             <Separator />
@@ -505,6 +592,78 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Record Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record In-Person Payment</DialogTitle>
+            <DialogDescription>
+              Record a cash, card terminal, or e-transfer payment for this booking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={paymentData.amount}
+                onChange={(e) => setPaymentData(prev => ({ ...prev, amount: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="method">Payment Method</Label>
+              <Select
+                value={paymentData.method}
+                onValueChange={(value: PaymentMethod) => setPaymentData(prev => ({ ...prev, method: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="card_terminal">Card Terminal</SelectItem>
+                  <SelectItem value="e_transfer">E-Transfer</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reference">Reference (optional)</Label>
+              <Input
+                id="reference"
+                placeholder="Transaction ID or reference"
+                value={paymentData.reference}
+                onChange={(e) => setPaymentData(prev => ({ ...prev, reference: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Any additional notes..."
+                value={paymentData.notes}
+                onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleRecordPayment} 
+              disabled={!paymentData.amount || recordPayment.isPending}
+            >
+              {recordPayment.isPending ? "Recording..." : "Record Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -14,6 +14,7 @@ import BookingDetail from "./pages/BookingDetail";
 import Locations from "./pages/Locations";
 import LocationDetail from "./pages/LocationDetail";
 import NotFound from "./pages/NotFound";
+import CheckIn from "./pages/CheckIn";
 
 // Admin Pages
 import AdminOverview from "./pages/admin/Overview";
@@ -51,6 +52,7 @@ const App = () => (
           <Route path="/booking/:id" element={<BookingDetail />} />
           <Route path="/locations" element={<Locations />} />
           <Route path="/location/:id" element={<LocationDetail />} />
+          <Route path="/check-in" element={<CheckIn />} />
 
           {/* Admin Routes - Protected */}
           <Route path="/admin" element={<AdminProtectedRoute><AdminOverview /></AdminProtectedRoute>} />
