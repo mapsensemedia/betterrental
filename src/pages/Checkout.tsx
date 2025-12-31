@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHold, useExpireHold } from "@/hooks/use-hold";
 import { useVehicle } from "@/hooks/use-vehicles";
-import { useLocation } from "@/hooks/use-locations";
+import { useLocations } from "@/hooks/use-locations";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,8 +55,16 @@ export default function Checkout() {
   // Fetch data
   const { data: hold, isLoading: holdLoading } = useHold(holdId);
   const { data: vehicle, isLoading: vehicleLoading } = useVehicle(vehicleId);
-  const { data: location } = useLocation(vehicle?.locationId || null);
+  const { data: locations = [] } = useLocations();
   const { data: addOns = [], isLoading: addOnsLoading } = useAddOns();
+  
+  // Use vehicle's location or fallback to first available location
+  const location = useMemo(() => {
+    if (vehicle?.locationId) {
+      return locations.find(loc => loc.id === vehicle.locationId) || locations[0] || null;
+    }
+    return locations[0] || null;
+  }, [vehicle?.locationId, locations]);
   const expireHold = useExpireHold();
 
   // Parse dates
