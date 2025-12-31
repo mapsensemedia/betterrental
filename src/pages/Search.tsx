@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Filter, SlidersHorizontal, Grid, List, ArrowUpDown } from "lucide-react";
+import { Filter, Grid, List, ArrowUpDown, Car, X } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { VehicleCard } from "@/components/landing/VehicleCard";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -16,107 +18,54 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useVehicles, type Vehicle } from "@/hooks/use-vehicles";
 
-import bmwImage from "@/assets/cars/bmw-i4.jpg";
-import audiImage from "@/assets/cars/audi-a7.jpg";
-import porscheImage from "@/assets/cars/porsche-911.jpg";
-import gleImage from "@/assets/cars/mercedes-gle.jpg";
+const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Sedan"];
+const transmissions = ["All", "Automatic", "Manual"];
+const fuelTypes = ["All", "Petrol", "Electric", "Hybrid", "Diesel"];
+const seatsOptions = [2, 4, 5, 7];
 
-const vehicles = [
-  {
-    id: "1",
-    make: "BMW",
-    model: "i4 M50",
-    year: 2024,
-    category: "Electric",
-    dailyRate: 280,
-    imageUrl: bmwImage,
-    seats: 5,
-    fuelType: "Electric",
-    transmission: "Automatic",
-    isFeatured: true,
-  },
-  {
-    id: "2",
-    make: "Audi",
-    model: "A7",
-    year: 2024,
-    category: "Luxury",
-    dailyRate: 320,
-    imageUrl: audiImage,
-    seats: 5,
-    fuelType: "Hybrid",
-    transmission: "Automatic",
-  },
-  {
-    id: "3",
-    make: "Mercedes-Benz",
-    model: "GLE 450",
-    year: 2024,
-    category: "SUV",
-    dailyRate: 380,
-    imageUrl: gleImage,
-    seats: 7,
-    fuelType: "Hybrid",
-    transmission: "Automatic",
-  },
-  {
-    id: "4",
-    make: "Porsche",
-    model: "911 Carrera",
-    year: 2024,
-    category: "Sports",
-    dailyRate: 550,
-    imageUrl: porscheImage,
-    seats: 2,
-    fuelType: "Petrol",
-    transmission: "Automatic",
-    isFeatured: true,
-  },
-  {
-    id: "5",
-    make: "Mercedes-Benz",
-    model: "AMG GT",
-    year: 2024,
-    category: "Sports",
-    dailyRate: 450,
-    seats: 2,
-    fuelType: "Petrol",
-    transmission: "Automatic",
-  },
-  {
-    id: "6",
-    make: "Tesla",
-    model: "Model S Plaid",
-    year: 2024,
-    category: "Electric",
-    dailyRate: 420,
-    seats: 5,
-    fuelType: "Electric",
-    transmission: "Automatic",
-  },
-];
-
-const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Exotic"];
-const makes = ["All", "Mercedes-Benz", "BMW", "Audi", "Porsche", "Tesla"];
-const fuelTypes = ["All", "Petrol", "Electric", "Hybrid"];
+type SortOption = "recommended" | "price-low" | "price-high" | "newest";
 
 export default function Search() {
   const [searchParams] = useSearchParams();
+  const { data: allVehicles = [], isLoading } = useVehicles();
+
+  // Filter state
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "All");
-  const [priceRange, setPriceRange] = useState([100, 1000]);
-  const [sortBy, setSortBy] = useState("recommended");
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get("category") || "All"
+  );
+  const [priceRange, setPriceRange] = useState([0, 2000]);
+  const [selectedTransmission, setSelectedTransmission] = useState("All");
+  const [selectedFuelType, setSelectedFuelType] = useState("All");
+  const [minSeats, setMinSeats] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("recommended");
   const [compareList, setCompareList] = useState<string[]>([]);
 
-  const toggleCompare = (id: string) => {
+  // Parse search params for date context
+  const startAt = searchParams.get("startAt");
+  const endAt = searchParams.get("endAt");
+  const locationId = searchParams.get("locationId");
+
+  // Calculate rental days from search params
+  const rentalDays = useMemo(() => {
+    if (startAt && endAt) {
+      const start = new Date(startAt);
+      const end = new Date(endAt);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays || 1;
+    }
+    return 1;
+  }, [startAt, endAt]);
+
+  // Toggle compare
+  const toggleCompare = useCallback((id: string) => {
     setCompareList((prev) =>
       prev.includes(id)
         ? prev.filter((x) => x !== id)
@@ -124,24 +73,105 @@ export default function Search() {
         ? [...prev, id]
         : prev
     );
+  }, []);
+
+  // Filter and sort vehicles
+  const filteredVehicles = useMemo(() => {
+    let result = allVehicles.filter((v) => {
+      // Category filter
+      if (selectedCategory !== "All" && v.category !== selectedCategory) {
+        return false;
+      }
+      // Price filter
+      if (v.dailyRate < priceRange[0] || v.dailyRate > priceRange[1]) {
+        return false;
+      }
+      // Transmission filter
+      if (
+        selectedTransmission !== "All" &&
+        v.transmission !== selectedTransmission
+      ) {
+        return false;
+      }
+      // Fuel type filter
+      if (selectedFuelType !== "All" && v.fuelType !== selectedFuelType) {
+        return false;
+      }
+      // Seats filter
+      if (minSeats && (v.seats || 5) < minSeats) {
+        return false;
+      }
+      // Location filter (if provided)
+      if (locationId && v.locationId !== locationId) {
+        return false;
+      }
+      return true;
+    });
+
+    // Sort
+    switch (sortBy) {
+      case "price-low":
+        result = [...result].sort((a, b) => a.dailyRate - b.dailyRate);
+        break;
+      case "price-high":
+        result = [...result].sort((a, b) => b.dailyRate - a.dailyRate);
+        break;
+      case "newest":
+        result = [...result].sort((a, b) => b.year - a.year);
+        break;
+      default:
+        // Recommended: featured first, then by price
+        result = [...result].sort((a, b) => {
+          if (a.isFeatured && !b.isFeatured) return -1;
+          if (!a.isFeatured && b.isFeatured) return 1;
+          return a.dailyRate - b.dailyRate;
+        });
+    }
+
+    return result;
+  }, [
+    allVehicles,
+    selectedCategory,
+    priceRange,
+    selectedTransmission,
+    selectedFuelType,
+    minSeats,
+    locationId,
+    sortBy,
+  ]);
+
+  const resetFilters = () => {
+    setSelectedCategory("All");
+    setPriceRange([0, 2000]);
+    setSelectedTransmission("All");
+    setSelectedFuelType("All");
+    setMinSeats(null);
   };
 
-  const filteredVehicles = vehicles.filter(
-    (v) =>
-      (selectedCategory === "All" || v.category === selectedCategory) &&
-      v.dailyRate >= priceRange[0] &&
-      v.dailyRate <= priceRange[1]
-  );
+  const activeFiltersCount = [
+    selectedCategory !== "All",
+    priceRange[0] > 0 || priceRange[1] < 2000,
+    selectedTransmission !== "All",
+    selectedFuelType !== "All",
+    minSeats !== null,
+  ].filter(Boolean).length;
 
   return (
     <CustomerLayout>
-      <PageContainer className="pt-28">
+      <PageContainer className="pt-28 pb-16">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="heading-2 mb-2">Browse Vehicles</h1>
             <p className="text-muted-foreground">
-              {filteredVehicles.length} vehicles available
+              {isLoading
+                ? "Loading..."
+                : `${filteredVehicles.length} vehicles available`}
+              {startAt && endAt && (
+                <span className="ml-2">
+                  • {rentalDays} day{rentalDays > 1 ? "s" : ""} rental
+                </span>
+              )}
             </p>
           </div>
 
@@ -156,7 +186,10 @@ export default function Search() {
             )}
 
             {/* Sort */}
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select
+              value={sortBy}
+              onValueChange={(v) => setSortBy(v as SortOption)}
+            >
               <SelectTrigger className="w-[180px]">
                 <ArrowUpDown className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Sort by" />
@@ -173,13 +206,21 @@ export default function Search() {
             <div className="hidden md:flex border border-border rounded-lg p-1">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`p-2 rounded ${viewMode === "grid" ? "bg-primary text-primary-foreground" : ""}`}
+                className={`p-2 rounded ${
+                  viewMode === "grid"
+                    ? "bg-primary text-primary-foreground"
+                    : ""
+                }`}
               >
                 <Grid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`p-2 rounded ${viewMode === "list" ? "bg-primary text-primary-foreground" : ""}`}
+                className={`p-2 rounded ${
+                  viewMode === "list"
+                    ? "bg-primary text-primary-foreground"
+                    : ""
+                }`}
               >
                 <List className="w-4 h-4" />
               </button>
@@ -188,24 +229,35 @@ export default function Search() {
             {/* Mobile Filter */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" className="md:hidden">
+                <Button variant="outline" className="md:hidden relative">
                   <Filter className="w-4 h-4 mr-2" />
                   Filters
+                  {activeFiltersCount > 0 && (
+                    <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                      {activeFiltersCount}
+                    </span>
+                  )}
                 </Button>
               </SheetTrigger>
-              <SheetContent>
+              <SheetContent className="overflow-y-auto">
                 <SheetHeader>
                   <SheetTitle>Filters</SheetTitle>
-                  <SheetDescription>
-                    Refine your search results
-                  </SheetDescription>
                 </SheetHeader>
-                <FilterContent
-                  selectedCategory={selectedCategory}
-                  setSelectedCategory={setSelectedCategory}
-                  priceRange={priceRange}
-                  setPriceRange={setPriceRange}
-                />
+                <div className="mt-6">
+                  <FilterContent
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                    priceRange={priceRange}
+                    setPriceRange={setPriceRange}
+                    selectedTransmission={selectedTransmission}
+                    setSelectedTransmission={setSelectedTransmission}
+                    selectedFuelType={selectedFuelType}
+                    setSelectedFuelType={setSelectedFuelType}
+                    minSeats={minSeats}
+                    setMinSeats={setMinSeats}
+                    onReset={resetFilters}
+                  />
+                </div>
               </SheetContent>
             </Sheet>
           </div>
@@ -213,18 +265,25 @@ export default function Search() {
 
         <div className="flex gap-8">
           {/* Desktop Sidebar Filters */}
-          <aside className="hidden md:block w-64 shrink-0">
+          <aside className="hidden md:block w-72 shrink-0">
             <div className="sticky top-28 space-y-6">
               <FilterContent
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
                 priceRange={priceRange}
                 setPriceRange={setPriceRange}
+                selectedTransmission={selectedTransmission}
+                setSelectedTransmission={setSelectedTransmission}
+                selectedFuelType={selectedFuelType}
+                setSelectedFuelType={setSelectedFuelType}
+                minSeats={minSeats}
+                setMinSeats={setMinSeats}
+                onReset={resetFilters}
               />
             </div>
           </aside>
 
-          {/* Results Grid */}
+          {/* Results */}
           <div className="flex-1">
             {/* Category Pills */}
             <div className="flex gap-2 flex-wrap mb-6">
@@ -243,37 +302,102 @@ export default function Search() {
               ))}
             </div>
 
-            {/* Vehicle Grid */}
-            <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
-              {filteredVehicles.map((vehicle) => (
-                <div key={vehicle.id} className="relative">
-                  <VehicleCard {...vehicle} />
-                  {/* Compare Checkbox */}
-                  <button
-                    onClick={() => toggleCompare(vehicle.id)}
-                    className={`absolute top-4 right-14 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                      compareList.includes(vehicle.id)
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-card/80 text-foreground hover:bg-card"
-                    }`}
+            {/* Compare Selection Bar */}
+            {compareList.length > 0 && (
+              <div className="mb-6 p-4 bg-primary/5 rounded-xl border border-primary/20 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {compareList.length} vehicle{compareList.length > 1 ? "s" : ""} selected
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCompareList([])}
+                    className="h-8"
                   >
-                    <Checkbox checked={compareList.includes(vehicle.id)} />
-                  </button>
+                    <X className="w-3 h-3 mr-1" />
+                    Clear
+                  </Button>
                 </div>
-              ))}
-            </div>
+                {compareList.length >= 2 && (
+                  <Button size="sm" asChild>
+                    <Link to={`/compare?ids=${compareList.join(",")}`}>
+                      Compare Now
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            )}
 
-            {filteredVehicles.length === 0 && (
-              <div className="text-center py-16">
-                <p className="text-muted-foreground">No vehicles match your criteria</p>
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => {
-                    setSelectedCategory("All");
-                    setPriceRange([100, 1000]);
-                  }}
-                >
+            {/* Loading State */}
+            {isLoading ? (
+              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="rounded-2xl border border-border overflow-hidden"
+                  >
+                    <Skeleton className="h-48" />
+                    <div className="p-5 space-y-3">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-8 w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredVehicles.length > 0 ? (
+              <div
+                className={`grid gap-6 ${
+                  viewMode === "grid"
+                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                    : "grid-cols-1"
+                }`}
+              >
+                {filteredVehicles.map((vehicle) => (
+                  <div key={vehicle.id} className="relative group">
+                    <VehicleCard
+                      id={vehicle.id}
+                      make={vehicle.make}
+                      model={vehicle.model}
+                      year={vehicle.year}
+                      category={vehicle.category}
+                      dailyRate={vehicle.dailyRate}
+                      imageUrl={vehicle.imageUrl || ""}
+                      seats={vehicle.seats || 5}
+                      fuelType={vehicle.fuelType || "Petrol"}
+                      transmission={vehicle.transmission || "Automatic"}
+                      isFeatured={vehicle.isFeatured || false}
+                    />
+                    {/* Compare Checkbox */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleCompare(vehicle.id);
+                      }}
+                      className={`absolute top-4 right-16 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                        compareList.includes(vehicle.id)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card/90 backdrop-blur-sm text-foreground opacity-0 group-hover:opacity-100 hover:bg-card"
+                      }`}
+                      title="Add to compare"
+                    >
+                      <Checkbox
+                        checked={compareList.includes(vehicle.id)}
+                        className="pointer-events-none"
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 bg-card rounded-2xl border border-border">
+                <Car className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-lg font-medium mb-2">No vehicles found</p>
+                <p className="text-muted-foreground mb-6">
+                  Try adjusting your filters to see more results
+                </p>
+                <Button variant="outline" onClick={resetFilters}>
                   Reset Filters
                 </Button>
               </div>
@@ -285,17 +409,33 @@ export default function Search() {
   );
 }
 
+interface FilterContentProps {
+  selectedCategory: string;
+  setSelectedCategory: (value: string) => void;
+  priceRange: number[];
+  setPriceRange: (value: number[]) => void;
+  selectedTransmission: string;
+  setSelectedTransmission: (value: string) => void;
+  selectedFuelType: string;
+  setSelectedFuelType: (value: string) => void;
+  minSeats: number | null;
+  setMinSeats: (value: number | null) => void;
+  onReset: () => void;
+}
+
 function FilterContent({
   selectedCategory,
   setSelectedCategory,
   priceRange,
   setPriceRange,
-}: {
-  selectedCategory: string;
-  setSelectedCategory: (value: string) => void;
-  priceRange: number[];
-  setPriceRange: (value: number[]) => void;
-}) {
+  selectedTransmission,
+  setSelectedTransmission,
+  selectedFuelType,
+  setSelectedFuelType,
+  minSeats,
+  setMinSeats,
+  onReset,
+}: FilterContentProps) {
   return (
     <div className="space-y-6">
       {/* Price Range */}
@@ -304,8 +444,8 @@ function FilterContent({
         <Slider
           value={priceRange}
           onValueChange={setPriceRange}
-          max={1500}
-          min={50}
+          max={2000}
+          min={0}
           step={50}
           className="mb-4"
         />
@@ -315,14 +455,20 @@ function FilterContent({
         </div>
       </div>
 
-      {/* Make */}
+      {/* Transmission */}
       <div className="p-4 bg-card rounded-2xl border border-border">
-        <h3 className="font-semibold mb-4">Make</h3>
+        <h3 className="font-semibold mb-4">Transmission</h3>
         <div className="space-y-2">
-          {makes.map((make) => (
-            <label key={make} className="flex items-center gap-2 cursor-pointer">
-              <Checkbox />
-              <span className="text-sm">{make}</span>
+          {transmissions.map((trans) => (
+            <label
+              key={trans}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <Checkbox
+                checked={selectedTransmission === trans}
+                onCheckedChange={() => setSelectedTransmission(trans)}
+              />
+              <span className="text-sm">{trans}</span>
             </label>
           ))}
         </div>
@@ -334,12 +480,50 @@ function FilterContent({
         <div className="space-y-2">
           {fuelTypes.map((fuel) => (
             <label key={fuel} className="flex items-center gap-2 cursor-pointer">
-              <Checkbox />
+              <Checkbox
+                checked={selectedFuelType === fuel}
+                onCheckedChange={() => setSelectedFuelType(fuel)}
+              />
               <span className="text-sm">{fuel}</span>
             </label>
           ))}
         </div>
       </div>
+
+      {/* Seats */}
+      <div className="p-4 bg-card rounded-2xl border border-border">
+        <h3 className="font-semibold mb-4">Minimum Seats</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setMinSeats(null)}
+            className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+              minSeats === null
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            Any
+          </button>
+          {seatsOptions.map((seats) => (
+            <button
+              key={seats}
+              onClick={() => setMinSeats(seats)}
+              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                minSeats === seats
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {seats}+
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Reset Button */}
+      <Button variant="outline" className="w-full" onClick={onReset}>
+        Reset Filters
+      </Button>
     </div>
   );
 }
