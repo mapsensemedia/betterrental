@@ -28,6 +28,9 @@ import AdminDamages from "./pages/admin/Damages";
 import AdminTickets from "./pages/admin/Tickets";
 import AdminSettings from "./pages/admin/Settings";
 
+// Admin Protection
+import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -49,18 +52,18 @@ const App = () => (
           <Route path="/locations" element={<Locations />} />
           <Route path="/location/:id" element={<LocationDetail />} />
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminOverview />} />
-          <Route path="/admin/alerts" element={<AdminAlerts />} />
-          <Route path="/admin/bookings" element={<AdminBookings />} />
-          <Route path="/admin/billing" element={<AdminBilling />} />
-          <Route path="/admin/handovers" element={<AdminHandovers />} />
-          <Route path="/admin/returns" element={<AdminReturns />} />
-          <Route path="/admin/inventory" element={<AdminInventory />} />
-          <Route path="/admin/calendar" element={<AdminCalendar />} />
-          <Route path="/admin/damages" element={<AdminDamages />} />
-          <Route path="/admin/tickets" element={<AdminTickets />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
+          {/* Admin Routes - Protected */}
+          <Route path="/admin" element={<AdminProtectedRoute><AdminOverview /></AdminProtectedRoute>} />
+          <Route path="/admin/alerts" element={<AdminProtectedRoute><AdminAlerts /></AdminProtectedRoute>} />
+          <Route path="/admin/bookings" element={<AdminProtectedRoute><AdminBookings /></AdminProtectedRoute>} />
+          <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
+          <Route path="/admin/handovers" element={<AdminProtectedRoute><AdminHandovers /></AdminProtectedRoute>} />
+          <Route path="/admin/returns" element={<AdminProtectedRoute><AdminReturns /></AdminProtectedRoute>} />
+          <Route path="/admin/inventory" element={<AdminProtectedRoute><AdminInventory /></AdminProtectedRoute>} />
+          <Route path="/admin/calendar" element={<AdminProtectedRoute><AdminCalendar /></AdminProtectedRoute>} />
+          <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
+          <Route path="/admin/tickets" element={<AdminProtectedRoute><AdminTickets /></AdminProtectedRoute>} />
+          <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
