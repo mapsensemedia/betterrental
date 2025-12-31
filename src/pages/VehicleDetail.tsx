@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
+import { format, addDays } from "date-fns";
 import {
   MapPin,
-  Calendar,
+  Calendar as CalendarIcon,
   Users,
   Fuel,
   Gauge,
@@ -23,6 +24,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useVehicle } from "@/hooks/use-vehicles";
 import { useLocation } from "@/hooks/use-locations";
 import { useVehicleAvailability } from "@/hooks/use-availability";
@@ -48,23 +56,56 @@ const defaultFeatures = [
 
 export default function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const { user, isLoading: authLoading } = useAuth();
+  const { user } = useAuth();
   const createHold = useCreateHold();
 
   // Fetch vehicle data
   const { data: vehicle, isLoading: vehicleLoading } = useVehicle(id || null);
   const { data: location } = useLocation(vehicle?.locationId || null);
 
-  // Parse date context from URL
+  // Parse date context from URL or use state
   const startAtParam = searchParams.get("startAt");
   const endAtParam = searchParams.get("endAt");
 
-  const startAt = startAtParam ? new Date(startAtParam) : null;
-  const endAt = endAtParam ? new Date(endAtParam) : null;
+  const [pickupDate, setPickupDate] = useState<Date | undefined>(
+    startAtParam ? new Date(startAtParam) : undefined
+  );
+  const [returnDate, setReturnDate] = useState<Date | undefined>(
+    endAtParam ? new Date(endAtParam) : undefined
+  );
+
+  // Use state values for availability and pricing
+  const startAt = pickupDate || null;
+  const endAt = returnDate || null;
+
+  // Update URL params when dates change
+  const handlePickupDateChange = (date: Date | undefined) => {
+    setPickupDate(date);
+    if (date) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("startAt", date.toISOString());
+      // If return date is before pickup, reset it
+      if (returnDate && returnDate <= date) {
+        const newReturnDate = addDays(date, 1);
+        setReturnDate(newReturnDate);
+        newParams.set("endAt", newReturnDate.toISOString());
+      }
+      setSearchParams(newParams, { replace: true });
+    }
+  };
+
+  const handleReturnDateChange = (date: Date | undefined) => {
+    setReturnDate(date);
+    if (date) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("endAt", date.toISOString());
+      setSearchParams(newParams, { replace: true });
+    }
+  };
 
   // Check availability
   const { data: isAvailable, isLoading: availabilityLoading } =
@@ -140,13 +181,6 @@ export default function VehicleDetail() {
     });
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
 
   if (vehicleLoading) {
     return (
@@ -395,37 +429,66 @@ export default function VehicleDetail() {
 
               <Separator className="mb-6" />
 
-              {/* Date Display */}
-              {startAt && endAt ? (
-                <div className="mb-6 p-4 rounded-xl bg-muted/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">Pick-up</span>
-                    </div>
-                    <span className="text-sm">{formatDate(startAt)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">Return</span>
-                    </div>
-                    <span className="text-sm">{formatDate(endAt)}</span>
-                  </div>
+              {/* Date Pickers */}
+              <div className="mb-6 space-y-3">
+                {/* Pickup Date Picker */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Pick-up Date</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !pickupDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {pickupDate ? format(pickupDate, "PPP") : <span>Select pickup date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={pickupDate}
+                        onSelect={handlePickupDateChange}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              ) : (
-                <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
-                  <div className="flex items-start gap-3">
-                    <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Select dates to see pricing</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Choose your rental dates from the search page
-                      </p>
-                    </div>
-                  </div>
+
+                {/* Return Date Picker */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Return Date</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !returnDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {returnDate ? format(returnDate, "PPP") : <span>Select return date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={returnDate}
+                        onSelect={handleReturnDateChange}
+                        disabled={(date) => date <= (pickupDate || new Date())}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              )}
+              </div>
 
               {/* Availability Status */}
               {startAt && endAt && (
