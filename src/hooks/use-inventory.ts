@@ -158,6 +158,17 @@ export function useUpdateVehicle() {
       updates: Partial<{
         is_available: boolean;
         cleaning_buffer_hours: number;
+        make: string;
+        model: string;
+        year: number;
+        category: string;
+        daily_rate: number;
+        seats: number;
+        fuel_type: string;
+        transmission: string;
+        image_url: string;
+        location_id: string;
+        is_featured: boolean;
       }>;
     }) => {
       const { data, error } = await supabase
@@ -176,11 +187,110 @@ export function useUpdateVehicle() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-vehicles"] });
       queryClient.invalidateQueries({ queryKey: ["admin-vehicle"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-calendar"] });
       toast.success("Vehicle updated");
     },
     onError: (error) => {
       console.error("Failed to update vehicle:", error);
       toast.error("Failed to update vehicle");
+    },
+  });
+}
+
+export interface CreateVehicleData {
+  make: string;
+  model: string;
+  year: number;
+  category: string;
+  dailyRate: number;
+  seats?: number;
+  fuelType?: string;
+  transmission?: string;
+  imageUrl?: string;
+  locationId?: string;
+  isAvailable?: boolean;
+  isFeatured?: boolean;
+  cleaningBufferHours?: number;
+}
+
+export function useCreateVehicle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vehicleData: CreateVehicleData) => {
+      const { data, error } = await supabase
+        .from("vehicles")
+        .insert([{
+          make: vehicleData.make,
+          model: vehicleData.model,
+          year: vehicleData.year,
+          category: vehicleData.category,
+          daily_rate: vehicleData.dailyRate,
+          seats: vehicleData.seats || 5,
+          fuel_type: vehicleData.fuelType || "Petrol",
+          transmission: vehicleData.transmission || "Automatic",
+          image_url: vehicleData.imageUrl || null,
+          location_id: vehicleData.locationId || null,
+          is_available: vehicleData.isAvailable ?? true,
+          is_featured: vehicleData.isFeatured ?? false,
+          cleaning_buffer_hours: vehicleData.cleaningBufferHours || 2,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await createAuditLog("vehicle_created", "vehicles", data.id, undefined, {
+        make: vehicleData.make,
+        model: vehicleData.model,
+        year: vehicleData.year,
+      } as any);
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-vehicles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      toast.success("Vehicle added to inventory");
+    },
+    onError: (error) => {
+      console.error("Failed to create vehicle:", error);
+      toast.error("Failed to add vehicle");
+    },
+  });
+}
+
+export function useDeleteVehicle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vehicleId: string) => {
+      // Note: We don't actually delete, just mark as unavailable
+      // since there may be historical bookings
+      const { data, error } = await supabase
+        .from("vehicles")
+        .update({ is_available: false })
+        .eq("id", vehicleId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await createAuditLog("vehicle_deactivated", "vehicles", vehicleId, undefined, {
+        is_available: false,
+      } as any);
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-vehicles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-calendar"] });
+      toast.success("Vehicle removed from inventory");
+    },
+    onError: (error) => {
+      console.error("Failed to delete vehicle:", error);
+      toast.error("Failed to remove vehicle");
     },
   });
 }

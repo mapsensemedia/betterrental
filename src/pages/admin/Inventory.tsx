@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { useAdminVehicles, useAdminVehicle, useUpdateVehicle } from "@/hooks/use-inventory";
+import { useAdminVehicles, useAdminVehicle, useUpdateVehicle, useCreateVehicle, type CreateVehicleData } from "@/hooks/use-inventory";
 import { useLocations } from "@/hooks/use-locations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,8 +55,14 @@ import {
   Fuel,
   Cog,
   ShieldAlert,
+  Plus,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
+
+const CATEGORIES = ["Sedan", "SUV", "Sports", "Luxury", "Electric", "Convertible", "Compact"];
+const FUEL_TYPES = ["Petrol", "Diesel", "Electric", "Hybrid"];
+const TRANSMISSIONS = ["Automatic", "Manual"];
 
 export default function AdminInventory() {
   const [filters, setFilters] = useState({
@@ -72,11 +79,30 @@ export default function AdminInventory() {
     isAvailable: boolean;
     bufferHours: number;
   }>({ open: false, vehicleId: null, isAvailable: true, bufferHours: 2 });
+  
+  // Add vehicle dialog state
+  const [addVehicleOpen, setAddVehicleOpen] = useState(false);
+  const [newVehicle, setNewVehicle] = useState<CreateVehicleData>({
+    make: "",
+    model: "",
+    year: new Date().getFullYear(),
+    category: "Sedan",
+    dailyRate: 100,
+    seats: 5,
+    fuelType: "Petrol",
+    transmission: "Automatic",
+    imageUrl: "",
+    locationId: "",
+    isAvailable: true,
+    isFeatured: false,
+    cleaningBufferHours: 2,
+  });
 
   const { data: vehicles, isLoading, refetch } = useAdminVehicles(filters);
   const { data: locations } = useLocations();
   const { data: vehicleDetail } = useAdminVehicle(selectedVehicleId);
   const updateVehicle = useUpdateVehicle();
+  const createVehicle = useCreateVehicle();
 
   const categories = [...new Set(vehicles?.map(v => v.category) || [])];
 
@@ -107,6 +133,35 @@ export default function AdminInventory() {
     }
   };
 
+  const handleAddVehicle = () => {
+    if (!newVehicle.make || !newVehicle.model || !newVehicle.year || !newVehicle.dailyRate) {
+      return;
+    }
+    createVehicle.mutate({
+      ...newVehicle,
+      locationId: newVehicle.locationId || undefined,
+    }, {
+      onSuccess: () => {
+        setAddVehicleOpen(false);
+        setNewVehicle({
+          make: "",
+          model: "",
+          year: new Date().getFullYear(),
+          category: "Sedan",
+          dailyRate: 100,
+          seats: 5,
+          fuelType: "Petrol",
+          transmission: "Automatic",
+          imageUrl: "",
+          locationId: "",
+          isAvailable: true,
+          isFeatured: false,
+          cleaningBufferHours: 2,
+        });
+      },
+    });
+  };
+
   return (
     <AdminShell>
       <div className="space-y-6">
@@ -118,10 +173,16 @@ export default function AdminInventory() {
               Manage your vehicle fleet
             </p>
           </div>
-          <Button onClick={() => refetch()} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => refetch()} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button onClick={() => setAddVehicleOpen(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Vehicle
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -545,6 +606,213 @@ export default function AdminInventory() {
             </Button>
             <Button onClick={handleSaveEdit} disabled={updateVehicle.isPending}>
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Vehicle Dialog */}
+      <Dialog open={addVehicleOpen} onOpenChange={setAddVehicleOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Vehicle</DialogTitle>
+            <DialogDescription>
+              Add a new vehicle to your inventory. It will be immediately available for booking.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-6 py-4">
+            {/* Basic Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="make">Make *</Label>
+                <Input
+                  id="make"
+                  placeholder="e.g., BMW, Mercedes, Audi"
+                  value={newVehicle.make}
+                  onChange={(e) => setNewVehicle(v => ({ ...v, make: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="model">Model *</Label>
+                <Input
+                  id="model"
+                  placeholder="e.g., 3 Series, C-Class, A4"
+                  value={newVehicle.model}
+                  onChange={(e) => setNewVehicle(v => ({ ...v, model: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="year">Year *</Label>
+                <Input
+                  id="year"
+                  type="number"
+                  min={2000}
+                  max={new Date().getFullYear() + 1}
+                  value={newVehicle.year}
+                  onChange={(e) => setNewVehicle(v => ({ ...v, year: parseInt(e.target.value) || new Date().getFullYear() }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dailyRate">Daily Rate ($) *</Label>
+                <Input
+                  id="dailyRate"
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={newVehicle.dailyRate}
+                  onChange={(e) => setNewVehicle(v => ({ ...v, dailyRate: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="seats">Seats</Label>
+                <Input
+                  id="seats"
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={newVehicle.seats}
+                  onChange={(e) => setNewVehicle(v => ({ ...v, seats: parseInt(e.target.value) || 5 }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={newVehicle.category}
+                  onValueChange={(val) => setNewVehicle(v => ({ ...v, category: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Fuel Type</Label>
+                <Select
+                  value={newVehicle.fuelType}
+                  onValueChange={(val) => setNewVehicle(v => ({ ...v, fuelType: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FUEL_TYPES.map((fuel) => (
+                      <SelectItem key={fuel} value={fuel}>{fuel}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Transmission</Label>
+                <Select
+                  value={newVehicle.transmission}
+                  onValueChange={(val) => setNewVehicle(v => ({ ...v, transmission: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRANSMISSIONS.map((trans) => (
+                      <SelectItem key={trans} value={trans}>{trans}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <Select
+                value={newVehicle.locationId || "none"}
+                onValueChange={(val) => setNewVehicle(v => ({ ...v, locationId: val === "none" ? "" : val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Location</SelectItem>
+                  {locations?.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="imageUrl">Image URL</Label>
+              <Input
+                id="imageUrl"
+                placeholder="https://example.com/car-image.jpg"
+                value={newVehicle.imageUrl}
+                onChange={(e) => setNewVehicle(v => ({ ...v, imageUrl: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter a URL to a vehicle image (optional)
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cleaning Buffer</Label>
+                <Select
+                  value={(newVehicle.cleaningBufferHours || 2).toString()}
+                  onValueChange={(val) => setNewVehicle(v => ({ ...v, cleaningBufferHours: parseInt(val) }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 hour</SelectItem>
+                    <SelectItem value="2">2 hours</SelectItem>
+                    <SelectItem value="3">3 hours</SelectItem>
+                    <SelectItem value="4">4 hours</SelectItem>
+                    <SelectItem value="6">6 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-4 pt-6">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="isAvailable"
+                    checked={newVehicle.isAvailable}
+                    onCheckedChange={(checked) => setNewVehicle(v => ({ ...v, isAvailable: checked }))}
+                  />
+                  <Label htmlFor="isAvailable">Available for booking</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="isFeatured"
+                    checked={newVehicle.isFeatured}
+                    onCheckedChange={(checked) => setNewVehicle(v => ({ ...v, isFeatured: checked }))}
+                  />
+                  <Label htmlFor="isFeatured">Featured vehicle</Label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddVehicleOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddVehicle} 
+              disabled={createVehicle.isPending || !newVehicle.make || !newVehicle.model}
+            >
+              {createVehicle.isPending ? "Adding..." : "Add Vehicle"}
             </Button>
           </DialogFooter>
         </DialogContent>

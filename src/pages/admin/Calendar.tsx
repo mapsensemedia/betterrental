@@ -89,12 +89,12 @@ export default function AdminCalendar() {
 
           <div className="flex items-center gap-2">
             {/* Location Filter */}
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All Locations" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Locations</SelectItem>
+                <SelectItem value="all">All Locations</SelectItem>
                 {locations?.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     {loc.name}
