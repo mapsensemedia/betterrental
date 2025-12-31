@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import {
   MapPin,
@@ -15,6 +15,7 @@ import {
   Clock,
   Info,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -25,12 +26,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useVehicle } from "@/hooks/use-vehicles";
 import { useLocation } from "@/hooks/use-locations";
 import { useVehicleAvailability } from "@/hooks/use-availability";
+import { useCreateHold } from "@/hooks/use-hold";
+import { useAuth } from "@/hooks/use-auth";
+import { toast } from "@/hooks/use-toast";
 
 // Fallback images
 import bmwImage from "@/assets/cars/bmw-i4.jpg";
 import audiImage from "@/assets/cars/audi-a7.jpg";
 
-const TAX_RATE = 0.1; // 10% tax
+const TAX_RATE = 0.1;
 const DEFAULT_DEPOSIT = 500;
 
 const defaultFeatures = [
@@ -47,6 +51,9 @@ export default function VehicleDetail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const { user, isLoading: authLoading } = useAuth();
+  const createHold = useCreateHold();
 
   // Fetch vehicle data
   const { data: vehicle, isLoading: vehicleLoading } = useVehicle(id || null);
@@ -102,11 +109,35 @@ export default function VehicleDetail() {
   }, [vehicle]);
 
   const handleReserve = () => {
-    const params = new URLSearchParams();
-    params.set("vehicleId", id || "");
-    if (startAtParam) params.set("startAt", startAtParam);
-    if (endAtParam) params.set("endAt", endAtParam);
-    navigate(`/checkout?${params.toString()}`);
+    // Must have dates selected
+    if (!startAt || !endAt) {
+      toast({
+        title: "Select dates",
+        description: "Please select pickup and return dates first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Must be logged in
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to reserve a vehicle",
+        variant: "destructive",
+      });
+      // Store return URL and redirect to auth
+      const returnUrl = window.location.pathname + window.location.search;
+      navigate(`/auth?returnUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
+    // Create hold
+    createHold.mutate({
+      vehicleId: id!,
+      startAt,
+      endAt,
+    });
   };
 
   const formatDate = (date: Date) => {
@@ -159,6 +190,7 @@ export default function VehicleDetail() {
   }
 
   const depositAmount = DEFAULT_DEPOSIT;
+  const canReserve = startAt && endAt && isAvailable && !createHold.isPending;
 
   return (
     <CustomerLayout>
@@ -443,9 +475,16 @@ export default function VehicleDetail() {
                 size="lg"
                 className="w-full"
                 onClick={handleReserve}
-                disabled={startAt && endAt && !isAvailable}
+                disabled={!canReserve}
               >
-                Reserve Now
+                {createHold.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Reserving...
+                  </>
+                ) : (
+                  "Reserve Now"
+                )}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground mt-4">
@@ -454,9 +493,15 @@ export default function VehicleDetail() {
 
               {/* Trust Badges */}
               <div className="mt-6 pt-6 border-t border-border">
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Shield className="w-5 h-5 text-success" />
-                  <span>Comprehensive insurance included</span>
+                <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Shield className="w-4 h-4" />
+                    <span>Insured</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Check className="w-4 h-4" />
+                    <span>Verified</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -465,24 +510,29 @@ export default function VehicleDetail() {
       </PageContainer>
 
       {/* Mobile Sticky CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-card border-t border-border lg:hidden z-50">
-        <div className="flex items-center justify-between">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border z-40">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <span className="text-2xl font-bold">${vehicle.dailyRate}</span>
-            <span className="text-muted-foreground">/day</span>
-            {startAt && endAt && (
-              <p className="text-xs text-muted-foreground">
-                ${total.toFixed(0)} total for {rentalDays} days
-              </p>
-            )}
+            <div className="text-lg font-bold">${total.toFixed(0)}</div>
+            <div className="text-xs text-muted-foreground">
+              {rentalDays} day{rentalDays > 1 ? "s" : ""} total
+            </div>
           </div>
           <Button
             variant="default"
             size="lg"
             onClick={handleReserve}
-            disabled={startAt && endAt && !isAvailable}
+            disabled={!canReserve}
+            className="flex-1"
           >
-            Reserve Now
+            {createHold.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Reserving...
+              </>
+            ) : (
+              "Reserve Now"
+            )}
           </Button>
         </div>
       </div>

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import {
   Clock,
   Shield,
@@ -9,86 +9,116 @@ import {
   MapPin,
   Calendar,
   AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  Loader2,
 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useHold, useExpireHold } from "@/hooks/use-hold";
+import { useVehicle } from "@/hooks/use-vehicles";
+import { useLocation } from "@/hooks/use-locations";
+import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 import bmwImage from "@/assets/cars/bmw-i4.jpg";
 
-const vehicle = {
-  id: "1",
-  make: "BMW",
-  model: "i4 M50",
-  year: 2024,
-  dailyRate: 280,
-  depositAmount: 500,
-  imageUrl: bmwImage,
-};
-
-const addOns = [
-  {
-    id: "1",
-    name: "GPS Navigation",
-    description: "Premium GPS with live traffic",
-    dailyRate: 15,
-    oneTimeFee: 0,
-  },
-  {
-    id: "2",
-    name: "Child Seat",
-    description: "ISOFIX compatible",
-    dailyRate: 12,
-    oneTimeFee: 0,
-  },
-  {
-    id: "3",
-    name: "Additional Driver",
-    description: "Add an extra authorized driver",
-    dailyRate: 20,
-    oneTimeFee: 0,
-  },
-  {
-    id: "4",
-    name: "Premium Insurance",
-    description: "Zero deductible coverage",
-    dailyRate: 45,
-    oneTimeFee: 0,
-  },
-  {
-    id: "5",
-    name: "Prepaid Fuel",
-    description: "Start full, return empty",
-    dailyRate: 0,
-    oneTimeFee: 75,
-  },
-];
+const TAX_RATE = 0.1;
+const DEFAULT_DEPOSIT = 500;
 
 export default function Checkout() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const holdId = searchParams.get("holdId");
+  const vehicleId = searchParams.get("vehicleId");
+  const startAtParam = searchParams.get("startAt");
+  const endAtParam = searchParams.get("endAt");
+
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
-  const [holdTimer] = useState(15 * 60); // 15 minutes in seconds
   const [step, setStep] = useState(1);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [isExpired, setIsExpired] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState<{ bookingCode: string } | null>(null);
 
-  const days = 3;
-  const basePrice = vehicle.dailyRate * days;
-  const addOnPrice = selectedAddOns.reduce((acc, id) => {
-    const addOn = addOns.find((a) => a.id === id);
-    return acc + (addOn ? addOn.dailyRate * days + addOn.oneTimeFee : 0);
-  }, 0);
-  const subtotal = basePrice + addOnPrice;
-  const taxAmount = subtotal * 0.1;
-  const total = subtotal + taxAmount;
+  // Fetch data
+  const { data: hold, isLoading: holdLoading } = useHold(holdId);
+  const { data: vehicle, isLoading: vehicleLoading } = useVehicle(vehicleId);
+  const { data: location } = useLocation(vehicle?.locationId || null);
+  const { data: addOns = [], isLoading: addOnsLoading } = useAddOns();
+  const expireHold = useExpireHold();
 
+  // Parse dates
+  const startAt = startAtParam ? new Date(startAtParam) : hold?.startAt || null;
+  const endAt = endAtParam ? new Date(endAtParam) : hold?.endAt || null;
+
+  // Calculate rental days
+  const rentalDays = useMemo(() => {
+    if (!startAt || !endAt) return 1;
+    const diffTime = Math.abs(endAt.getTime() - startAt.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+  }, [startAt, endAt]);
+
+  // Calculate pricing
+  const pricing = useMemo(() => {
+    if (!vehicle) return { basePrice: 0, addOnsTotal: 0, subtotal: 0, taxAmount: 0, total: 0 };
+    
+    const basePrice = vehicle.dailyRate * rentalDays;
+    const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, selectedAddOns, rentalDays);
+    const subtotal = basePrice + addOnsTotal;
+    const taxAmount = subtotal * TAX_RATE;
+    const total = subtotal + taxAmount;
+
+    return { basePrice, addOnsTotal, subtotal, taxAmount, total, itemized };
+  }, [vehicle, rentalDays, addOns, selectedAddOns]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (!hold || hold.status !== "active") return;
+
+    const updateTimer = () => {
+      const now = new Date();
+      const expires = new Date(hold.expiresAt);
+      const diff = Math.max(0, Math.floor((expires.getTime() - now.getTime()) / 1000));
+      
+      setRemainingSeconds(diff);
+      
+      if (diff <= 0) {
+        setIsExpired(true);
+        expireHold.mutate(hold.id);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [hold]);
+
+  // Format timer
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   const toggleAddOn = (id: string) => {
@@ -97,14 +127,213 @@ export default function Checkout() {
     );
   };
 
+  const handleConfirmBooking = async () => {
+    if (!holdId || !vehicleId || !vehicle || !startAt || !endAt || !location) {
+      toast({ title: "Missing information", variant: "destructive" });
+      return;
+    }
+
+    if (!termsAccepted) {
+      toast({ title: "Please accept the terms", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({ title: "Session expired", description: "Please sign in again", variant: "destructive" });
+        navigate("/auth");
+        return;
+      }
+
+      const response = await supabase.functions.invoke("create-booking", {
+        body: {
+          holdId,
+          vehicleId,
+          locationId: location.id,
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
+          dailyRate: vehicle.dailyRate,
+          totalDays: rentalDays,
+          subtotal: pricing.subtotal,
+          taxAmount: pricing.taxAmount,
+          depositAmount: DEFAULT_DEPOSIT,
+          totalAmount: pricing.total,
+          addOns: selectedAddOns.map((id) => {
+            const addon = addOns.find((a) => a.id === id);
+            return {
+              addOnId: id,
+              price: addon ? addon.dailyRate * rentalDays + (addon.oneTimeFee || 0) : 0,
+              quantity: 1,
+            };
+          }),
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Booking failed");
+      }
+
+      const result = response.data;
+
+      if (result.error) {
+        if (result.error === "reservation_expired") {
+          setIsExpired(true);
+          toast({ title: "Reservation expired", description: result.message, variant: "destructive" });
+        } else {
+          toast({ title: "Booking failed", description: result.message, variant: "destructive" });
+        }
+        return;
+      }
+
+      // Success!
+      setBookingSuccess({ bookingCode: result.booking.bookingCode });
+      toast({ title: "Booking confirmed!", description: `Confirmation: ${result.booking.bookingCode}` });
+
+    } catch (error: any) {
+      console.error("Booking error:", error);
+      toast({ title: "Booking failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReturnToSearch = () => {
+    const params = new URLSearchParams();
+    if (startAt) params.set("startAt", startAt.toISOString());
+    if (endAt) params.set("endAt", endAt.toISOString());
+    navigate(`/search?${params.toString()}`);
+  };
+
+  // Loading state
+  if (holdLoading || vehicleLoading) {
+    return (
+      <CustomerLayout>
+        <PageContainer className="pt-28 pb-12">
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-20 rounded-2xl" />
+              <Skeleton className="h-48 rounded-2xl" />
+            </div>
+            <Skeleton className="h-96 rounded-3xl" />
+          </div>
+        </PageContainer>
+      </CustomerLayout>
+    );
+  }
+
+  // No hold or expired
+  if (!holdId || isExpired || (hold && hold.status !== "active")) {
+    return (
+      <CustomerLayout>
+        <PageContainer className="pt-28 pb-12">
+          <div className="max-w-lg mx-auto text-center py-16">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="w-8 h-8 text-destructive" />
+            </div>
+            <h1 className="heading-2 mb-4">Reservation Expired</h1>
+            <p className="text-muted-foreground mb-8">
+              Your 15-minute reservation window has ended. The vehicle may no longer be available.
+              Please return to search and try again.
+            </p>
+            <Button variant="default" size="lg" onClick={handleReturnToSearch}>
+              Return to Search
+            </Button>
+          </div>
+        </PageContainer>
+      </CustomerLayout>
+    );
+  }
+
+  // Booking success
+  if (bookingSuccess) {
+    return (
+      <CustomerLayout>
+        <PageContainer className="pt-28 pb-12">
+          <div className="max-w-lg mx-auto text-center py-16">
+            <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
+              <Check className="w-10 h-10 text-success" />
+            </div>
+            <h1 className="heading-2 mb-2">Booking Confirmed!</h1>
+            <p className="text-xl text-muted-foreground mb-4">
+              Your confirmation code
+            </p>
+            <div className="bg-muted rounded-2xl p-6 mb-8">
+              <p className="text-3xl font-bold font-mono tracking-wider">
+                {bookingSuccess.bookingCode}
+              </p>
+            </div>
+            
+            {vehicle && (
+              <div className="bg-card rounded-2xl border border-border p-6 mb-8 text-left">
+                <div className="flex gap-4 mb-4">
+                  <img
+                    src={vehicle.imageUrl || bmwImage}
+                    alt={`${vehicle.make} ${vehicle.model}`}
+                    className="w-24 h-16 object-cover rounded-xl"
+                  />
+                  <div>
+                    <p className="font-semibold">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                    <p className="text-sm text-muted-foreground">{vehicle.category}</p>
+                  </div>
+                </div>
+                <Separator className="my-4" />
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pick-up</span>
+                    <span>{startAt && formatDate(startAt)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Return</span>
+                    <span>{endAt && formatDate(endAt)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Location</span>
+                    <span>{location?.name}</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-semibold">
+                    <span>Total Paid</span>
+                    <span>${pricing.total.toFixed(0)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-4 justify-center">
+              <Button variant="outline" asChild>
+                <Link to="/">Return Home</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/dashboard">View My Bookings</Link>
+              </Button>
+            </div>
+          </div>
+        </PageContainer>
+      </CustomerLayout>
+    );
+  }
+
+  // Main checkout
   return (
     <CustomerLayout>
       <PageContainer className="pt-28 pb-12">
         {/* Hold Timer Banner */}
-        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 mb-8 flex items-center justify-between">
+        <div className={`rounded-2xl p-4 mb-8 flex items-center justify-between ${
+          remainingSeconds && remainingSeconds < 120 
+            ? "bg-destructive/10 border border-destructive/20" 
+            : "bg-primary/10 border border-primary/20"
+        }`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-primary" />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              remainingSeconds && remainingSeconds < 120 ? "bg-destructive/20" : "bg-primary/20"
+            }`}>
+              <Clock className={`w-5 h-5 ${
+                remainingSeconds && remainingSeconds < 120 ? "text-destructive" : "text-primary"
+              }`} />
             </div>
             <div>
               <p className="font-medium">Vehicle reserved for you</p>
@@ -113,8 +342,10 @@ export default function Checkout() {
               </p>
             </div>
           </div>
-          <div className="text-2xl font-bold text-primary">
-            {formatTime(holdTimer)}
+          <div className={`text-2xl font-bold ${
+            remainingSeconds && remainingSeconds < 120 ? "text-destructive" : "text-primary"
+          }`}>
+            {remainingSeconds !== null ? formatTime(remainingSeconds) : "--:--"}
           </div>
         </div>
 
@@ -138,9 +369,7 @@ export default function Checkout() {
                   </div>
                   <span
                     className={
-                      step >= idx + 1
-                        ? "font-medium"
-                        : "text-muted-foreground"
+                      step >= idx + 1 ? "font-medium" : "text-muted-foreground"
                     }
                   >
                     {label}
@@ -162,48 +391,57 @@ export default function Checkout() {
                   </p>
                 </div>
 
-                <div className="grid gap-4">
-                  {addOns.map((addOn) => (
-                    <div
-                      key={addOn.id}
-                      onClick={() => toggleAddOn(addOn.id)}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                        selectedAddOns.includes(addOn.id)
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Checkbox
-                            checked={selectedAddOns.includes(addOn.id)}
-                          />
-                          <div>
-                            <p className="font-medium">{addOn.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {addOn.description}
-                            </p>
+                {addOnsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-20 rounded-2xl" />
+                    ))}
+                  </div>
+                ) : addOns.length === 0 ? (
+                  <div className="p-6 rounded-2xl bg-muted text-center">
+                    <p className="text-muted-foreground">No add-ons available</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {addOns.map((addOn) => (
+                      <div
+                        key={addOn.id}
+                        onClick={() => toggleAddOn(addOn.id)}
+                        className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                          selectedAddOns.includes(addOn.id)
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <Checkbox
+                              checked={selectedAddOns.includes(addOn.id)}
+                              onCheckedChange={() => toggleAddOn(addOn.id)}
+                            />
+                            <div>
+                              <p className="font-medium">{addOn.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {addOn.description}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {addOn.dailyRate > 0 && (
+                              <p className="font-medium">${addOn.dailyRate}/day</p>
+                            )}
+                            {(addOn.oneTimeFee || 0) > 0 && (
+                              <p className="font-medium">${addOn.oneTimeFee} one-time</p>
+                            )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          {addOn.dailyRate > 0 && (
-                            <p className="font-medium">
-                              ${addOn.dailyRate}/day
-                            </p>
-                          )}
-                          {addOn.oneTimeFee > 0 && (
-                            <p className="font-medium">
-                              ${addOn.oneTimeFee} one-time
-                            </p>
-                          )}
-                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 <Button
-                  variant="hero"
+                  variant="default"
                   size="lg"
                   className="w-full"
                   onClick={() => setStep(2)}
@@ -220,39 +458,32 @@ export default function Checkout() {
                 <div>
                   <h2 className="heading-3 mb-2">Your details</h2>
                   <p className="text-muted-foreground">
-                    Enter your information to complete the booking
+                    Confirm your information for this booking
                   </p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>First Name</Label>
-                    <Input placeholder="John" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Last Name</Label>
-                    <Input placeholder="Doe" />
-                  </div>
-                  <div className="space-y-2">
                     <Label>Email</Label>
-                    <Input type="email" placeholder="john@example.com" />
+                    <Input 
+                      type="email" 
+                      value={user?.email || ""} 
+                      disabled 
+                      className="bg-muted"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Phone</Label>
+                    <Label>Phone (optional)</Label>
                     <Input type="tel" placeholder="+1 (555) 123-4567" />
                   </div>
                 </div>
 
                 <div className="flex gap-4">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setStep(1)}
-                  >
+                  <Button variant="outline" size="lg" onClick={() => setStep(1)}>
                     Back
                   </Button>
                   <Button
-                    variant="hero"
+                    variant="default"
                     size="lg"
                     className="flex-1"
                     onClick={() => setStep(3)}
@@ -299,7 +530,11 @@ export default function Checkout() {
 
                 {/* Terms */}
                 <div className="flex items-start gap-3">
-                  <Checkbox id="terms" />
+                  <Checkbox 
+                    id="terms" 
+                    checked={termsAccepted}
+                    onCheckedChange={(checked) => setTermsAccepted(!!checked)}
+                  />
                   <label htmlFor="terms" className="text-sm text-muted-foreground">
                     I agree to the rental terms, cancellation policy, and confirm
                     that I have a valid driver's license.
@@ -307,18 +542,27 @@ export default function Checkout() {
                 </div>
 
                 <div className="flex gap-4">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setStep(2)}
-                  >
+                  <Button variant="outline" size="lg" onClick={() => setStep(2)}>
                     Back
                   </Button>
-                  <Button variant="hero" size="lg" className="flex-1" asChild>
-                    <Link to="/dashboard">
-                      <Shield className="w-4 h-4 mr-2" />
-                      Complete Booking
-                    </Link>
+                  <Button 
+                    variant="default" 
+                    size="lg" 
+                    className="flex-1"
+                    onClick={handleConfirmBooking}
+                    disabled={isSubmitting || !termsAccepted}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-4 h-4 mr-2" />
+                        Complete Booking
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -331,32 +575,38 @@ export default function Checkout() {
               <h3 className="font-semibold mb-4">Order Summary</h3>
 
               {/* Vehicle */}
-              <div className="flex gap-4 mb-6">
-                <img
-                  src={vehicle.imageUrl}
-                  alt={`${vehicle.make} ${vehicle.model}`}
-                  className="w-24 h-16 object-cover rounded-xl"
-                />
-                <div>
-                  <p className="font-medium">
-                    {vehicle.make} {vehicle.model}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {vehicle.year}
-                  </p>
+              {vehicle && (
+                <div className="flex gap-4 mb-6">
+                  <img
+                    src={vehicle.imageUrl || bmwImage}
+                    alt={`${vehicle.make} ${vehicle.model}`}
+                    className="w-24 h-16 object-cover rounded-xl"
+                  />
+                  <div>
+                    <p className="font-medium">
+                      {vehicle.make} {vehicle.model}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{vehicle.year}</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Dates */}
               <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span>Jan 15 - Jan 18, 2024 ({days} days)</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span>Downtown Premium Hub</span>
-                </div>
+                {startAt && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span>
+                      {formatDate(startAt)} - {endAt && formatDate(endAt)} ({rentalDays} day{rentalDays > 1 ? "s" : ""})
+                    </span>
+                  </div>
+                )}
+                {location && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <span>{location.name}</span>
+                  </div>
+                )}
               </div>
 
               <Separator className="mb-6" />
@@ -365,39 +615,40 @@ export default function Checkout() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    ${vehicle.dailyRate} × {days} days
+                    ${vehicle?.dailyRate || 0} × {rentalDays} days
                   </span>
-                  <span>${basePrice}</span>
+                  <span>${pricing.basePrice.toFixed(0)}</span>
                 </div>
-                {selectedAddOns.length > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Add-ons</span>
-                    <span>${addOnPrice}</span>
-                  </div>
+                {pricing.itemized && pricing.itemized.length > 0 && (
+                  <>
+                    {pricing.itemized.map((item) => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{item.name}</span>
+                        <span>${item.total.toFixed(0)}</span>
+                      </div>
+                    ))}
+                  </>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Taxes & fees</span>
-                  <span>${taxAmount.toFixed(0)}</span>
+                  <span className="text-muted-foreground">Taxes & fees (10%)</span>
+                  <span>${pricing.taxAmount.toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Security deposit</span>
-                  <span className="text-muted-foreground">
-                    ${vehicle.depositAmount} (refundable)
-                  </span>
+                  <span className="text-muted-foreground">${DEFAULT_DEPOSIT} (refundable)</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span>${total.toFixed(0)}</span>
+                  <span>${pricing.total.toFixed(0)}</span>
                 </div>
               </div>
 
               {/* Notice */}
               <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                <AlertCircle className="w-4 h-4 mt-0.5" />
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                 <p>
-                  Free cancellation up to 72 hours before pickup. Deposit
-                  refunded within 7-10 business days after return.
+                  Free cancellation up to 72 hours before pickup. Deposit refunded within 7-10 business days after return.
                 </p>
               </div>
             </div>
