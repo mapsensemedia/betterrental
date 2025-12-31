@@ -296,7 +296,7 @@ export default function Checkout() {
                   </div>
                   <Separator className="my-2" />
                   <div className="flex justify-between font-semibold">
-                    <span>Total Paid</span>
+                    <span>Total Due at Pickup</span>
                     <span>${pricing.total.toFixed(0)}</span>
                   </div>
                 </div>
@@ -354,7 +354,7 @@ export default function Checkout() {
           <div className="lg:col-span-2 space-y-8">
             {/* Progress Steps */}
             <div className="flex items-center gap-4">
-              {["Add-ons", "Details", "Payment"].map((label, idx) => (
+              {["Add-ons", "Details", "Confirm"].map((label, idx) => (
                 <div key={label} className="flex items-center gap-2">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -495,36 +495,43 @@ export default function Checkout() {
               </div>
             )}
 
-            {/* Step 3: Payment */}
+            {/* Step 3: Confirm & Reserve */}
             {step === 3 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="heading-3 mb-2">Payment</h2>
+                  <h2 className="heading-3 mb-2">Confirm Reservation</h2>
                   <p className="text-muted-foreground">
-                    Complete your booking securely
+                    Reserve now and pay at pickup
                   </p>
                 </div>
 
-                <div className="p-6 rounded-2xl border border-border">
-                  <div className="flex items-center gap-3 mb-4">
-                    <CreditCard className="w-5 h-5 text-muted-foreground" />
-                    <span className="font-medium">Card Details</span>
+                {/* Pay at Pickup Info */}
+                <div className="p-6 rounded-2xl border border-primary/20 bg-primary/5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">Pay at Pickup</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        No payment required now. Pay the full amount when you pick up your vehicle at the location.
+                      </p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Check className="w-4 h-4 text-success" />
+                        <span>Cash, card, or e-transfer accepted</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Card Number</Label>
-                      <Input placeholder="4242 4242 4242 4242" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Expiry Date</Label>
-                        <Input placeholder="MM/YY" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>CVC</Label>
-                        <Input placeholder="123" />
-                      </div>
-                    </div>
+                </div>
+
+                {/* Security Deposit Notice */}
+                <div className="p-4 rounded-xl bg-muted/50 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium mb-1">Security Deposit Required</p>
+                    <p className="text-muted-foreground">
+                      A ${DEFAULT_DEPOSIT} refundable security deposit will be collected at pickup and returned within 7-10 business days after the vehicle is returned.
+                    </p>
                   </div>
                 </div>
 
@@ -555,12 +562,12 @@ export default function Checkout() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Processing...
+                        Reserving...
                       </>
                     ) : (
                       <>
-                        <Shield className="w-4 h-4 mr-2" />
-                        Complete Booking
+                        <Check className="w-4 h-4 mr-2" />
+                        Reserve Now
                       </>
                     )}
                   </Button>
