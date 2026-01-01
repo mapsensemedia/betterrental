@@ -471,6 +471,56 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_logs: {
+        Row: {
+          booking_id: string | null
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          notification_type: string
+          provider_id: string | null
+          sent_at: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          booking_id?: string | null
+          channel: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key: string
+          notification_type: string
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          booking_id?: string | null
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          notification_type?: string
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
