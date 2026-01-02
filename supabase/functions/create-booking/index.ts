@@ -223,6 +223,50 @@ Deno.serve(async (req) => {
 
     console.log("Booking complete:", booking.booking_code);
 
+    // Step 7: Trigger notifications (fire and forget)
+    const notificationPromises = [];
+
+    // Send SMS notification
+    try {
+      notificationPromises.push(
+        fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            bookingId: booking.id,
+            templateType: "confirmation",
+          }),
+        }).catch(err => console.error("SMS notification failed:", err))
+      );
+    } catch (e) {
+      console.error("Failed to trigger SMS:", e);
+    }
+
+    // Send email notification
+    try {
+      notificationPromises.push(
+        fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            bookingId: booking.id,
+            templateType: "confirmation",
+          }),
+        }).catch(err => console.error("Email notification failed:", err))
+      );
+    } catch (e) {
+      console.error("Failed to trigger email:", e);
+    }
+
+    // Don't await notifications - let them run in background
+    Promise.all(notificationPromises).catch(console.error);
+
     return new Response(
       JSON.stringify({ 
         success: true,
