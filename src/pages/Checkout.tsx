@@ -29,6 +29,7 @@ import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { OtpVerification } from "@/components/checkout/OtpVerification";
 
 import bmwImage from "@/assets/cars/bmw-i4.jpg";
 
@@ -52,6 +53,28 @@ export default function Checkout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<{ bookingId: string; bookingCode: string } | null>(null);
+  const [pendingBooking, setPendingBooking] = useState<{ bookingId: string; bookingCode: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ email?: string; phone?: string } | null>(null);
+
+  // Fetch user profile for OTP
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, phone")
+        .eq("id", user.id)
+        .single();
+      
+      setUserProfile({
+        email: profile?.email || user.email,
+        phone: profile?.phone || user.user_metadata?.phone,
+      });
+    };
+    
+    fetchProfile();
+  }, [user]);
 
   // Restore success state if user refreshes after booking
   useEffect(() => {
@@ -215,28 +238,41 @@ export default function Checkout() {
         return;
       }
 
-      // Success!
-      const payload = { bookingId: result.booking.id, bookingCode: result.booking.bookingCode };
-      setBookingSuccess(payload);
-
-      try {
-        sessionStorage.setItem(`bookingByHold:${holdId}`, JSON.stringify(payload));
-      } catch {
-        // ignore storage errors
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["my-bookings", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["available-vehicles"] });
-      queryClient.invalidateQueries({ queryKey: ["vehicle-availability"] });
-      queryClient.invalidateQueries({ queryKey: ["hold", holdId] });
-
-      toast({ title: "Booking confirmed!", description: `Confirmation: ${payload.bookingCode}` });
+      // Booking created - now go to OTP verification step
+      const booking = { bookingId: result.booking.id, bookingCode: result.booking.bookingCode };
+      setPendingBooking(booking);
+      setStep(4); // OTP verification step
+      
+      toast({ 
+        title: "Booking created", 
+        description: "Please verify your booking with the code we'll send you" 
+      });
     } catch (error: any) {
       console.error("Booking error:", error);
       toast({ title: "Booking failed", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOtpVerified = () => {
+    if (!pendingBooking) return;
+    
+    // Mark as success
+    setBookingSuccess(pendingBooking);
+    
+    try {
+      sessionStorage.setItem(`bookingByHold:${holdId}`, JSON.stringify(pendingBooking));
+    } catch {
+      // ignore storage errors
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["my-bookings", user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["available-vehicles"] });
+    queryClient.invalidateQueries({ queryKey: ["vehicle-availability"] });
+    queryClient.invalidateQueries({ queryKey: ["hold", holdId] });
+
+    toast({ title: "Booking confirmed!", description: `Confirmation: ${pendingBooking.bookingCode}` });
   };
 
   const handleReturnToSearch = () => {
@@ -423,8 +459,8 @@ export default function Checkout() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Progress Steps */}
-            <div className="flex items-center gap-4">
-              {["Add-ons", "Details", "Confirm"].map((label, idx) => (
+            <div className="flex items-center gap-4 flex-wrap">
+              {["Add-ons", "Details", "Confirm", "Verify"].map((label, idx) => (
                 <div key={label} className="flex items-center gap-2">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -444,7 +480,7 @@ export default function Checkout() {
                   >
                     {label}
                   </span>
-                  {idx < 2 && (
+                  {idx < 3 && (
                     <ChevronRight className="w-4 h-4 text-muted-foreground mx-2" />
                   )}
                 </div>
@@ -643,6 +679,18 @@ export default function Checkout() {
                   </Button>
                 </div>
               </div>
+            )}
+
+            {/* Step 4: OTP Verification */}
+            {step === 4 && pendingBooking && (
+              <OtpVerification
+                bookingId={pendingBooking.bookingId}
+                bookingCode={pendingBooking.bookingCode}
+                userEmail={userProfile?.email}
+                userPhone={userProfile?.phone}
+                onVerified={handleOtpVerified}
+                onBack={() => setStep(3)}
+              />
             )}
           </div>
 
