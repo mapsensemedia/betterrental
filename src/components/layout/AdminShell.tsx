@@ -18,6 +18,9 @@ import {
   LogOut,
   User,
   ChevronDown,
+  Camera,
+  FileCheck,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,12 +48,15 @@ const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/alerts", label: "Alerts", icon: Bell, badge: true },
   { href: "/admin/bookings", label: "Bookings", icon: BookOpen },
-  { href: "/admin/billing", label: "Billing", icon: Receipt },
+  { href: "/admin/pickups", label: "Pickups", icon: KeyRound },
   { href: "/admin/handovers", label: "Handovers", icon: ArrowRightLeft },
   { href: "/admin/returns", label: "Returns", icon: RotateCcw },
   { href: "/admin/inventory", label: "Inventory", icon: Car },
   { href: "/admin/calendar", label: "Calendar", icon: Calendar },
+  { href: "/admin/photos", label: "Photos", icon: Camera },
+  { href: "/admin/verifications", label: "Verifications", icon: FileCheck },
   { href: "/admin/damages", label: "Damages", icon: AlertTriangle },
+  { href: "/admin/billing", label: "Billing", icon: Receipt },
   { href: "/admin/tickets", label: "Tickets", icon: MessageSquare },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
