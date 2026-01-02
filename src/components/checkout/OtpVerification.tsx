@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Loader2, Mail, Phone, ArrowLeft, Check, RefreshCw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, Phone, Check, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   InputOTP,
@@ -12,8 +12,7 @@ import { toast } from "@/hooks/use-toast";
 interface OtpVerificationProps {
   bookingId: string;
   bookingCode: string;
-  userEmail?: string;
-  userPhone?: string;
+  userPhone: string;
   onVerified: () => void;
   onBack: () => void;
 }
@@ -21,27 +20,40 @@ interface OtpVerificationProps {
 export function OtpVerification({
   bookingId,
   bookingCode,
-  userEmail,
   userPhone,
   onVerified,
   onBack,
 }: OtpVerificationProps) {
-  const [channel, setChannel] = useState<"email" | "sms" | null>(null);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [sentTo, setSentTo] = useState("");
   const [remainingAttempts, setRemainingAttempts] = useState(5);
-  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
 
-  const handleSendOtp = async (selectedChannel: "email" | "sms") => {
+  // Auto-send OTP on mount
+  useEffect(() => {
+    if (!otpSent && userPhone) {
+      handleSendOtp();
+    }
+  }, []);
+
+  const handleSendOtp = async () => {
+    if (!userPhone) {
+      toast({ 
+        title: "Phone number required", 
+        description: "Please provide a phone number in the details step", 
+        variant: "destructive" 
+      });
+      onBack();
+      return;
+    }
+
     setIsSending(true);
-    setChannel(selectedChannel);
 
     try {
       const response = await supabase.functions.invoke("send-booking-otp", {
-        body: { bookingId, channel: selectedChannel },
+        body: { bookingId, channel: "sms" },
       });
 
       if (response.error) {
@@ -60,11 +72,10 @@ export function OtpVerification({
       }
 
       setOtpSent(true);
-      setSentTo(result.sentTo || "");
-      setExpiresAt(result.expiresAt ? new Date(result.expiresAt) : null);
+      setSentTo(result.sentTo || `***${userPhone.slice(-4)}`);
       toast({ 
         title: "Verification code sent", 
-        description: `Check your ${selectedChannel === "email" ? "email" : "phone"} for the code` 
+        description: "Check your phone for the SMS code" 
       });
     } catch (error: any) {
       console.error("Send OTP error:", error);
@@ -125,75 +136,38 @@ export function OtpVerification({
   };
 
   const handleResend = () => {
-    setOtpSent(false);
     setOtp("");
     setRemainingAttempts(5);
+    handleSendOtp();
   };
 
-  // Channel selection screen
+  // Sending screen
   if (!otpSent) {
     return (
       <div className="space-y-6">
         <div>
           <h2 className="heading-3 mb-2">Verify your booking</h2>
           <p className="text-muted-foreground">
-            We'll send a verification code to confirm booking <span className="font-mono font-medium">{bookingCode}</span>
+            Sending verification code to <span className="font-medium">***{userPhone.slice(-4)}</span>
           </p>
         </div>
 
-        <div className="space-y-4">
-          {userEmail && (
-            <button
-              onClick={() => handleSendOtp("email")}
-              disabled={isSending}
-              className="w-full p-4 rounded-2xl border border-border hover:border-primary/50 transition-all flex items-center gap-4 text-left disabled:opacity-50"
-            >
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Mail className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">Send to Email</p>
-                <p className="text-sm text-muted-foreground">
-                  {userEmail.replace(/(.{2})(.*)(@.*)/, "$1***$3")}
-                </p>
-              </div>
-              {isSending && channel === "email" && (
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
-              )}
-            </button>
-          )}
-
-          {userPhone && (
-            <button
-              onClick={() => handleSendOtp("sms")}
-              disabled={isSending}
-              className="w-full p-4 rounded-2xl border border-border hover:border-primary/50 transition-all flex items-center gap-4 text-left disabled:opacity-50"
-            >
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Phone className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">Send to Phone</p>
-                <p className="text-sm text-muted-foreground">
-                  ***{userPhone.slice(-4)}
-                </p>
-              </div>
-              {isSending && channel === "sms" && (
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
-              )}
-            </button>
-          )}
-
-          {!userEmail && !userPhone && (
-            <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
-              No email or phone number on file. Please update your profile.
+        <div className="flex justify-center py-12">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Phone className="w-8 h-8 text-primary" />
             </div>
-          )}
+            {isSending && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Sending SMS...</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <Button variant="outline" size="lg" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
+        <Button variant="outline" size="lg" onClick={onBack} className="w-full">
+          Cancel
         </Button>
       </div>
     );
@@ -254,9 +228,13 @@ export function OtpVerification({
         </Button>
 
         <div className="flex gap-3">
-          <Button variant="outline" size="lg" className="flex-1" onClick={handleResend}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Send New Code
+          <Button variant="outline" size="lg" className="flex-1" onClick={handleResend} disabled={isSending}>
+            {isSending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            Resend Code
           </Button>
           <Button variant="ghost" size="lg" onClick={onBack}>
             Cancel
@@ -265,7 +243,7 @@ export function OtpVerification({
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Code expires in 10 minutes. Didn't receive it? Check spam folder or try sending to a different method.
+        Code expires in 10 minutes. Didn't receive it? Check your phone and try resending.
       </p>
     </div>
   );
