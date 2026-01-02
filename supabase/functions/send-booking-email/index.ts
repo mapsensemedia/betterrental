@@ -87,8 +87,19 @@ serve(async (req) => {
       .eq("id", booking.user_id)
       .single();
 
-    if (!profile?.email) {
-      console.log("No email for user");
+    // If no profile email, try to get email from auth.users
+    let userEmail = profile?.email;
+    let userName = profile?.full_name;
+    
+    if (!userEmail) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(booking.user_id);
+      userEmail = authUser?.user?.email;
+      userName = authUser?.user?.user_metadata?.full_name || userName;
+      console.log("Fetched email from auth.users:", userEmail);
+    }
+
+    if (!userEmail) {
+      console.log("No email for user:", booking.user_id);
       return new Response(
         JSON.stringify({ error: "No email on file" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -143,7 +154,7 @@ serve(async (req) => {
     const vehicleName = `${vehicleData?.year} ${vehicleData?.make} ${vehicleData?.model}`;
     const locationName = locationData?.name || "our location";
     const locationAddress = locationData?.address || "";
-    const customerName = profile.full_name || "Valued Customer";
+    const customerName = userName || "Valued Customer";
 
     // Build email based on template
     let subject = "";
@@ -247,7 +258,7 @@ serve(async (req) => {
     }
 
     // Send email via Resend
-    const emailResponse = await sendWithResend(resendApiKey, profile.email, subject, htmlContent);
+    const emailResponse = await sendWithResend(resendApiKey, userEmail, subject, htmlContent);
 
     console.log("Resend response:", emailResponse);
 
