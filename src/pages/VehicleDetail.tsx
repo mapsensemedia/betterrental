@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
-import { format, addDays } from "date-fns";
+import { format, addDays, addMonths } from "date-fns";
 import {
   MapPin,
   Calendar as CalendarIcon,
@@ -14,9 +14,9 @@ import {
   Star,
   Navigation,
   Clock,
-  Info,
   ArrowLeft,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -24,18 +24,28 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useVehicle } from "@/hooks/use-vehicles";
 import { useLocation } from "@/hooks/use-locations";
 import { useVehicleAvailability } from "@/hooks/use-availability";
 import { useCreateHold } from "@/hooks/use-hold";
-import { useAuth } from "@/hooks/use-auth";
+import { useRequireAuth } from "@/hooks/use-require-auth";
+import { useBookingContext } from "@/contexts/BookingContext";
+import { useBlockedDates } from "@/hooks/use-blocked-dates";
+import { LocationSelector } from "@/components/shared/LocationSelector";
+import { AvailabilityCalendar } from "@/components/shared/AvailabilityCalendar";
 import { toast } from "@/hooks/use-toast";
 
 // Fallback images
@@ -59,13 +69,20 @@ export default function VehicleDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
-  const { user } = useAuth();
+  const { user, requireAuth } = useRequireAuth();
   const createHold = useCreateHold();
+  const { locationId, setLocationId, locationName } = useBookingContext();
 
   // Fetch vehicle data
   const { data: vehicle, isLoading: vehicleLoading } = useVehicle(id || null);
-  const { data: location } = useLocation(vehicle?.locationId || null);
+  const { data: vehicleLocation } = useLocation(vehicle?.locationId || null);
+  const { data: selectedLocation } = useLocation(locationId);
+
+  // Use location from context or vehicle's default location
+  const effectiveLocationId = locationId || vehicle?.locationId || null;
+  const effectiveLocationName = locationName || vehicleLocation?.name || null;
 
   // Parse date context from URL or use state
   const startAtParam = searchParams.get("startAt");
@@ -81,6 +98,18 @@ export default function VehicleDetail() {
   // Use state values for availability and pricing
   const startAt = pickupDate || null;
   const endAt = returnDate || null;
+
+  // Fetch blocked dates for calendar
+  const fromDate = new Date();
+  const toDate = addMonths(fromDate, 3);
+  const { data: blockedDatesData } = useBlockedDates(id || null, fromDate, toDate);
+
+  // Show location modal if no location is selected
+  useEffect(() => {
+    if (!vehicleLoading && vehicle && !effectiveLocationId) {
+      setShowLocationModal(true);
+    }
+  }, [vehicleLoading, vehicle, effectiveLocationId]);
 
   // Update URL params when dates change
   const handlePickupDateChange = (date: Date | undefined) => {
@@ -105,6 +134,11 @@ export default function VehicleDetail() {
       newParams.set("endAt", date.toISOString());
       setSearchParams(newParams, { replace: true });
     }
+  };
+
+  const handleLocationSelect = (locId: string) => {
+    setLocationId(locId);
+    setShowLocationModal(false);
   };
 
   // Check availability
@@ -149,7 +183,25 @@ export default function VehicleDetail() {
     return defaultFeatures;
   }, [vehicle]);
 
+  // Determine CTA state
+  const getCtaState = () => {
+    if (!effectiveLocationId) return { text: "Select Location", disabled: true, action: () => setShowLocationModal(true) };
+    if (!startAt || !endAt) return { text: "Select Dates", disabled: true, action: () => {} };
+    if (!user) return { text: "Sign in to Reserve", disabled: false, action: () => requireAuth() };
+    if (availabilityLoading) return { text: "Checking...", disabled: true, action: () => {} };
+    if (!isAvailable) return { text: "Not Available", disabled: true, action: () => {} };
+    return { text: "Reserve Now", disabled: false, action: handleReserve };
+  };
+
+  const ctaState = getCtaState();
+
   const handleReserve = () => {
+    // Must have location
+    if (!effectiveLocationId) {
+      setShowLocationModal(true);
+      return;
+    }
+
     // Must have dates selected
     if (!startAt || !endAt) {
       toast({
@@ -161,15 +213,7 @@ export default function VehicleDetail() {
     }
 
     // Must be logged in
-    if (!user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to reserve a vehicle",
-        variant: "destructive",
-      });
-      // Store return URL and redirect to auth
-      const returnUrl = window.location.pathname + window.location.search;
-      navigate(`/auth?returnUrl=${encodeURIComponent(returnUrl)}`);
+    if (!requireAuth()) {
       return;
     }
 
@@ -180,7 +224,6 @@ export default function VehicleDetail() {
       endAt,
     });
   };
-
 
   if (vehicleLoading) {
     return (
@@ -224,10 +267,32 @@ export default function VehicleDetail() {
   }
 
   const depositAmount = DEFAULT_DEPOSIT;
-  const canReserve = startAt && endAt && isAvailable && !createHold.isPending;
+  const canReserve = effectiveLocationId && startAt && endAt && isAvailable && !createHold.isPending;
 
   return (
     <CustomerLayout>
+      {/* Location Selection Modal */}
+      <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" />
+              Select Pickup Location
+            </DialogTitle>
+            <DialogDescription>
+              Choose where you'd like to pick up this vehicle
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <LocationSelector
+              value={effectiveLocationId}
+              onChange={handleLocationSelect}
+              className="w-full"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <PageContainer className="pt-28 pb-32">
         {/* Back Button */}
         <Link
@@ -237,6 +302,26 @@ export default function VehicleDetail() {
           <ArrowLeft className="w-4 h-4" />
           Back to Search
         </Link>
+
+        {/* Location Banner */}
+        {effectiveLocationName && (
+          <div className="mb-6 p-3 bg-primary/10 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-primary" />
+              <span className="text-sm">
+                Available from <span className="font-semibold">{effectiveLocationName}</span>
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowLocationModal(true)}
+              className="text-primary hover:text-primary"
+            >
+              Change
+            </Button>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Images & Details */}
@@ -310,10 +395,10 @@ export default function VehicleDetail() {
                       <span>4.9</span>
                       <span className="text-sm">(128 reviews)</span>
                     </div>
-                    {location && (
+                    {effectiveLocationName && (
                       <div className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
-                        <span>{location.name}</span>
+                        <span>{effectiveLocationName}</span>
                       </div>
                     )}
                   </div>
@@ -354,7 +439,7 @@ export default function VehicleDetail() {
             </div>
 
             {/* Pickup Location */}
-            {location && (
+            {(selectedLocation || vehicleLocation) && (
               <div>
                 <h2 className="heading-4 mb-4">Pickup Location</h2>
                 <div className="rounded-2xl overflow-hidden border border-border">
@@ -362,12 +447,12 @@ export default function VehicleDetail() {
                     <div className="text-center">
                       <MapPin className="w-8 h-8 mx-auto mb-2 text-primary" />
                       <p className="text-sm text-muted-foreground mb-3">
-                        {location.address}, {location.city}
+                        {(selectedLocation || vehicleLocation)?.address}, {(selectedLocation || vehicleLocation)?.city}
                       </p>
                       <Button variant="outline" size="sm" asChild>
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                            `${location.address}, ${location.city}`
+                            `${(selectedLocation || vehicleLocation)?.address}, ${(selectedLocation || vehicleLocation)?.city}`
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -379,9 +464,9 @@ export default function VehicleDetail() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <p className="font-semibold">{location.name}</p>
+                    <p className="font-semibold">{(selectedLocation || vehicleLocation)?.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {location.address}, {location.city}
+                      {(selectedLocation || vehicleLocation)?.address}, {(selectedLocation || vehicleLocation)?.city}
                     </p>
                   </div>
                 </div>
@@ -429,7 +514,37 @@ export default function VehicleDetail() {
 
               <Separator className="mb-6" />
 
-              {/* Date Pickers */}
+              {/* Location Selector */}
+              {!effectiveLocationId && (
+                <div className="mb-4 p-3 bg-warning/10 rounded-xl flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-warning">Select pickup location</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Choose a location to check availability
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {effectiveLocationId && (
+                <div className="mb-4 p-3 bg-muted rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">{effectiveLocationName}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowLocationModal(true)}
+                    className="h-7 px-2 text-xs"
+                  >
+                    Change
+                  </Button>
+                </div>
+              )}
+
+              {/* Date Pickers with Availability Calendar */}
               <div className="mb-6 space-y-3">
                 {/* Pickup Date Picker */}
                 <div>
@@ -448,13 +563,13 @@ export default function VehicleDetail() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
+                      <AvailabilityCalendar
                         mode="single"
                         selected={pickupDate}
                         onSelect={handlePickupDateChange}
+                        blockedDates={blockedDatesData?.blockedDates || []}
                         disabled={(date) => date < new Date()}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
+                        fromDate={new Date()}
                       />
                     </PopoverContent>
                   </Popover>
@@ -477,21 +592,33 @@ export default function VehicleDetail() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
+                      <AvailabilityCalendar
                         mode="single"
                         selected={returnDate}
                         onSelect={handleReturnDateChange}
+                        blockedDates={blockedDatesData?.blockedDates || []}
                         disabled={(date) => date <= (pickupDate || new Date())}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
+                        fromDate={pickupDate ? addDays(pickupDate, 1) : new Date()}
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
+
+                {/* Calendar Legend */}
+                <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground pt-2">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-success/20 border border-success/30" />
+                    <span>Available</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-destructive/20 border border-destructive/30" />
+                    <span>Booked</span>
+                  </div>
+                </div>
               </div>
 
               {/* Availability Status */}
-              {startAt && endAt && (
+              {startAt && endAt && effectiveLocationId && (
                 <div className={`mb-6 p-3 rounded-xl text-center text-sm font-medium ${
                   availabilityLoading
                     ? "bg-muted text-muted-foreground"
@@ -537,8 +664,8 @@ export default function VehicleDetail() {
                 variant="default"
                 size="lg"
                 className="w-full"
-                onClick={handleReserve}
-                disabled={!canReserve}
+                onClick={ctaState.action}
+                disabled={ctaState.disabled || createHold.isPending}
               >
                 {createHold.isPending ? (
                   <>
@@ -546,7 +673,7 @@ export default function VehicleDetail() {
                     Reserving...
                   </>
                 ) : (
-                  "Reserve Now"
+                  ctaState.text
                 )}
               </Button>
 
@@ -584,8 +711,8 @@ export default function VehicleDetail() {
           <Button
             variant="default"
             size="lg"
-            onClick={handleReserve}
-            disabled={!canReserve}
+            onClick={ctaState.action}
+            disabled={ctaState.disabled || createHold.isPending}
             className="flex-1"
           >
             {createHold.isPending ? (
@@ -594,7 +721,7 @@ export default function VehicleDetail() {
                 Reserving...
               </>
             ) : (
-              "Reserve Now"
+              ctaState.text
             )}
           </Button>
         </div>
