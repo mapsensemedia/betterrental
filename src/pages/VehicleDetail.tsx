@@ -183,18 +183,7 @@ export default function VehicleDetail() {
     return defaultFeatures;
   }, [vehicle]);
 
-  // Determine CTA state
-  const getCtaState = () => {
-    if (!effectiveLocationId) return { text: "Select Location", disabled: true, action: () => setShowLocationModal(true) };
-    if (!startAt || !endAt) return { text: "Select Dates", disabled: true, action: () => {} };
-    if (!user) return { text: "Sign in to Reserve", disabled: false, action: () => requireAuth() };
-    if (availabilityLoading) return { text: "Checking...", disabled: true, action: () => {} };
-    if (!isAvailable) return { text: "Not Available", disabled: true, action: () => {} };
-    return { text: "Reserve Now", disabled: false, action: handleReserve };
-  };
-
-  const ctaState = getCtaState();
-
+  // Handle reserve action - defined before getCtaState to avoid temporal dead zone
   const handleReserve = () => {
     // Must have location
     if (!effectiveLocationId) {
@@ -224,6 +213,18 @@ export default function VehicleDetail() {
       endAt,
     });
   };
+
+  // Determine CTA state
+  const getCtaState = () => {
+    if (!effectiveLocationId) return { text: "Select Location", disabled: true, action: () => setShowLocationModal(true) };
+    if (!startAt || !endAt) return { text: "Select Dates", disabled: true, action: () => {} };
+    if (!user) return { text: "Sign in to Reserve", disabled: false, action: () => requireAuth() };
+    if (availabilityLoading) return { text: "Checking...", disabled: true, action: () => {} };
+    if (!isAvailable) return { text: "Not Available", disabled: true, action: () => {} };
+    return { text: "Reserve Now", disabled: false, action: handleReserve };
+  };
+
+  const ctaState = getCtaState();
 
   if (vehicleLoading) {
     return (
