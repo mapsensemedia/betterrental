@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.send-booking-sms]
 verify_jwt = false
+
+[functions.send-booking-otp]
+verify_jwt = false
+
+[functions.verify-booking-otp]
+verify_jwt = false

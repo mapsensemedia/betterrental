@@ -185,6 +185,50 @@ export type Database = {
           },
         ]
       }
+      booking_otps: {
+        Row: {
+          attempts: number | null
+          booking_id: string
+          channel: string
+          created_at: string
+          expires_at: string
+          id: string
+          otp_hash: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          booking_id: string
+          channel: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          otp_hash: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          booking_id?: string
+          channel?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          otp_hash?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_otps_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           actual_return_at: string | null
