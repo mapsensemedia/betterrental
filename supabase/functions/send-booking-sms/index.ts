@@ -61,14 +61,26 @@ serve(async (req) => {
       );
     }
 
-    // Fetch user profile for phone number
+    // Fetch user profile for phone number (fallback to auth user metadata)
     const { data: profile } = await supabase
       .from("profiles")
       .select("phone, full_name")
       .eq("id", booking.user_id)
-      .single();
+      .maybeSingle();
 
-    if (!profile?.phone) {
+    let toPhone = profile?.phone || "";
+
+    if (!toPhone) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(booking.user_id);
+      const metaPhone = authUser?.user?.user_metadata?.phone;
+
+      if (typeof metaPhone === "string" && metaPhone.trim()) {
+        toPhone = metaPhone.trim();
+        console.log("Fetched phone from auth.users metadata");
+      }
+    }
+
+    if (!toPhone) {
       console.log("No phone number for user");
       return new Response(
         JSON.stringify({ error: "No phone number on file" }),
@@ -139,7 +151,7 @@ serve(async (req) => {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
-        To: profile.phone,
+        To: toPhone,
         From: twilioFrom,
         Body: message,
       }),

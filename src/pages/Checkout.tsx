@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import {
   Clock,
@@ -37,8 +38,8 @@ const DEFAULT_DEPOSIT = 500;
 export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  
   const holdId = searchParams.get("holdId");
   const vehicleId = searchParams.get("vehicleId");
   const startAtParam = searchParams.get("startAt");
@@ -50,7 +51,24 @@ export default function Checkout() {
   const [isExpired, setIsExpired] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState<{ bookingCode: string } | null>(null);
+  const [bookingSuccess, setBookingSuccess] = useState<{ bookingId: string; bookingCode: string } | null>(null);
+
+  // Restore success state if user refreshes after booking
+  useEffect(() => {
+    if (bookingSuccess || !holdId) return;
+
+    const raw = sessionStorage.getItem(`bookingByHold:${holdId}`);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.bookingId && parsed?.bookingCode) {
+        setBookingSuccess(parsed);
+      }
+    } catch {
+      // ignore
+    }
+  }, [holdId, bookingSuccess]);
 
   // Fetch data
   const { data: hold, isLoading: holdLoading } = useHold(holdId);
@@ -198,9 +216,21 @@ export default function Checkout() {
       }
 
       // Success!
-      setBookingSuccess({ bookingCode: result.booking.bookingCode });
-      toast({ title: "Booking confirmed!", description: `Confirmation: ${result.booking.bookingCode}` });
+      const payload = { bookingId: result.booking.id, bookingCode: result.booking.bookingCode };
+      setBookingSuccess(payload);
 
+      try {
+        sessionStorage.setItem(`bookingByHold:${holdId}`, JSON.stringify(payload));
+      } catch {
+        // ignore storage errors
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["my-bookings", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["available-vehicles"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-availability"] });
+      queryClient.invalidateQueries({ queryKey: ["hold", holdId] });
+
+      toast({ title: "Booking confirmed!", description: `Confirmation: ${payload.bookingCode}` });
     } catch (error: any) {
       console.error("Booking error:", error);
       toast({ title: "Booking failed", description: error.message, variant: "destructive" });
@@ -233,30 +263,7 @@ export default function Checkout() {
     );
   }
 
-  // No hold or expired
-  if (!holdId || isExpired || (hold && hold.status !== "active")) {
-    return (
-      <CustomerLayout>
-        <PageContainer className="pt-28 pb-12">
-          <div className="max-w-lg mx-auto text-center py-16">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
-              <AlertTriangle className="w-8 h-8 text-destructive" />
-            </div>
-            <h1 className="heading-2 mb-4">Reservation Expired</h1>
-            <p className="text-muted-foreground mb-8">
-              Your 15-minute reservation window has ended. The vehicle may no longer be available.
-              Please return to search and try again.
-            </p>
-            <Button variant="default" size="lg" onClick={handleReturnToSearch}>
-              Return to Search
-            </Button>
-          </div>
-        </PageContainer>
-      </CustomerLayout>
-    );
-  }
-
-  // Booking success
+  // Booking success (or restored from sessionStorage)
   if (bookingSuccess) {
     return (
       <CustomerLayout>
@@ -266,15 +273,25 @@ export default function Checkout() {
               <Check className="w-10 h-10 text-success" />
             </div>
             <h1 className="heading-2 mb-2">Booking Confirmed!</h1>
-            <p className="text-xl text-muted-foreground mb-4">
-              Your confirmation code
-            </p>
-            <div className="bg-muted rounded-2xl p-6 mb-8">
+            <p className="text-xl text-muted-foreground mb-4">Your confirmation code</p>
+            <div className="bg-muted rounded-2xl p-6 mb-6">
               <p className="text-3xl font-bold font-mono tracking-wider">
                 {bookingSuccess.bookingCode}
               </p>
             </div>
-            
+
+            <div className="rounded-2xl border border-border bg-card p-4 text-left mb-8">
+              <div className="flex gap-3">
+                <AlertCircle className="w-5 h-5 text-muted-foreground mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium">Confirmation message</p>
+                  <p className="text-muted-foreground">
+                    Your booking is confirmed in-app using the code above. Email/SMS delivery depends on notification service setup and may not arrive while email is in test mode.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {vehicle && (
               <div className="bg-card rounded-2xl border border-border p-6 mb-8 text-left">
                 <div className="flex gap-4 mb-4">
@@ -313,12 +330,57 @@ export default function Checkout() {
 
             <div className="flex gap-4 justify-center">
               <Button variant="outline" asChild>
-                <Link to="/">Return Home</Link>
+                <Link to="/dashboard">Go to Dashboard</Link>
               </Button>
               <Button asChild>
-                <Link to="/dashboard">View My Bookings</Link>
+                <Link to={`/booking/${bookingSuccess.bookingId}`}>View Booking</Link>
               </Button>
             </div>
+          </div>
+        </PageContainer>
+      </CustomerLayout>
+    );
+  }
+
+  // No hold or expired (but do NOT treat "converted" as expired)
+  if (!holdId || isExpired || (hold && hold.status === "expired")) {
+    return (
+      <CustomerLayout>
+        <PageContainer className="pt-28 pb-12">
+          <div className="max-w-lg mx-auto text-center py-16">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="w-8 h-8 text-destructive" />
+            </div>
+            <h1 className="heading-2 mb-4">Reservation Expired</h1>
+            <p className="text-muted-foreground mb-8">
+              Your 15-minute reservation window has ended. The vehicle may no longer be available.
+              Please return to search and try again.
+            </p>
+            <Button variant="default" size="lg" onClick={handleReturnToSearch}>
+              Return to Search
+            </Button>
+          </div>
+        </PageContainer>
+      </CustomerLayout>
+    );
+  }
+
+  // Hold already converted (booking was created) but user refreshed/returned
+  if (hold && hold.status === "converted") {
+    return (
+      <CustomerLayout>
+        <PageContainer className="pt-28 pb-12">
+          <div className="max-w-lg mx-auto text-center py-16">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+              <Check className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="heading-2 mb-4">Booking Already Confirmed</h1>
+            <p className="text-muted-foreground mb-8">
+              This reservation has already been converted to a booking. You can view it in your dashboard.
+            </p>
+            <Button variant="default" size="lg" asChild>
+              <Link to="/dashboard">View My Bookings</Link>
+            </Button>
           </div>
         </PageContainer>
       </CustomerLayout>
