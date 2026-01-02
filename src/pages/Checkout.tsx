@@ -54,23 +54,22 @@ export default function Checkout() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState<{ bookingId: string; bookingCode: string } | null>(null);
   const [pendingBooking, setPendingBooking] = useState<{ bookingId: string; bookingCode: string } | null>(null);
-  const [userProfile, setUserProfile] = useState<{ email?: string; phone?: string } | null>(null);
+  const [userPhone, setUserPhone] = useState("");
 
-  // Fetch user profile for OTP
+  // Fetch user profile phone for OTP
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user?.id) return;
       
       const { data: profile } = await supabase
         .from("profiles")
-        .select("email, phone")
+        .select("phone")
         .eq("id", user.id)
         .single();
       
-      setUserProfile({
-        email: profile?.email || user.email,
-        phone: profile?.phone || user.user_metadata?.phone,
-      });
+      if (profile?.phone) {
+        setUserPhone(profile.phone);
+      }
     };
     
     fetchProfile();
@@ -187,6 +186,12 @@ export default function Checkout() {
       return;
     }
 
+    if (!userPhone) {
+      toast({ title: "Phone number required", description: "Please enter your phone number in the details step", variant: "destructive" });
+      setStep(2);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -211,6 +216,7 @@ export default function Checkout() {
           taxAmount: pricing.taxAmount,
           depositAmount: DEFAULT_DEPOSIT,
           totalAmount: pricing.total,
+          userPhone,
           addOns: selectedAddOns.map((id) => {
             const addon = addOns.find((a) => a.id === id);
             return {
@@ -580,8 +586,17 @@ export default function Checkout() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Phone (optional)</Label>
-                    <Input type="tel" placeholder="+1 (555) 123-4567" />
+                    <Label>Phone Number <span className="text-destructive">*</span></Label>
+                    <Input 
+                      type="tel" 
+                      placeholder="+1 (555) 123-4567" 
+                      value={userPhone}
+                      onChange={(e) => setUserPhone(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      We'll send a verification code to this number
+                    </p>
                   </div>
                 </div>
 
@@ -687,8 +702,7 @@ export default function Checkout() {
               <OtpVerification
                 bookingId={pendingBooking.bookingId}
                 bookingCode={pendingBooking.bookingCode}
-                userEmail={userProfile?.email}
-                userPhone={userProfile?.phone}
+                userPhone={userPhone}
                 onVerified={handleOtpVerified}
                 onBack={() => setStep(3)}
               />

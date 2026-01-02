@@ -18,6 +18,7 @@ interface CreateBookingRequest {
   taxAmount: number;
   depositAmount: number;
   totalAmount: number;
+  userPhone: string;
   addOns: Array<{
     addOnId: string;
     price: number;
@@ -76,9 +77,24 @@ Deno.serve(async (req) => {
       taxAmount,
       depositAmount,
       totalAmount,
+      userPhone,
       addOns,
       notes,
     } = body;
+
+    // Save phone number to user profile for OTP
+    if (userPhone) {
+      console.log("Saving phone to profile:", userPhone);
+      await supabaseAdmin
+        .from("profiles")
+        .upsert({ 
+          id: user.id, 
+          phone: userPhone,
+          updated_at: new Date().toISOString()
+        }, { 
+          onConflict: "id" 
+        });
+    }
 
     // Step 1: Verify hold is still active and belongs to user
     const { data: hold, error: holdError } = await supabaseAdmin
