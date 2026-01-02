@@ -402,7 +402,8 @@ export default function Checkout() {
   }
 
   // Hold already converted (booking was created) but user refreshed/returned
-  if (hold && hold.status === "converted") {
+  // IMPORTANT: Don't show this if we have a pending booking (user is in OTP verification flow)
+  if (hold && hold.status === "converted" && !pendingBooking) {
     return (
       <CustomerLayout>
         <PageContainer className="pt-28 pb-12">
