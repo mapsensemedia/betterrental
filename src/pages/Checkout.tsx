@@ -593,10 +593,17 @@ export default function Checkout() {
                       value={userPhone}
                       onChange={(e) => setUserPhone(e.target.value)}
                       required
+                      className={!userPhone.trim() ? "border-destructive" : ""}
                     />
                     <p className="text-xs text-muted-foreground">
                       We'll send a verification code to this number
                     </p>
+                    {!userPhone.trim() && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Phone number is required to continue
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -609,6 +616,7 @@ export default function Checkout() {
                     size="lg"
                     className="flex-1"
                     onClick={() => setStep(3)}
+                    disabled={!userPhone.trim()}
                   >
                     Continue to Payment
                     <ChevronRight className="w-4 h-4 ml-2" />

@@ -241,7 +241,7 @@ export function useSendTicketMessage() {
   const { logAction } = useAuditLog();
 
   return useMutation({
-    mutationFn: async ({ ticketId, message }: { ticketId: string; message: string }) => {
+    mutationFn: async ({ ticketId, message, isStaff = true }: { ticketId: string; message: string; isStaff?: boolean }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
@@ -251,22 +251,29 @@ export function useSendTicketMessage() {
           ticket_id: ticketId,
           sender_id: user.id,
           message,
-          is_staff: true,
+          is_staff: isStaff,
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      // Update ticket updated_at and set to in_progress if open
-      await supabase
-        .from("tickets")
-        .update({ 
-          updated_at: new Date().toISOString(),
-          status: "in_progress",
-        })
-        .eq("id", ticketId)
-        .eq("status", "open");
+      // Update ticket updated_at and set to in_progress if open (only for staff)
+      if (isStaff) {
+        await supabase
+          .from("tickets")
+          .update({ 
+            updated_at: new Date().toISOString(),
+            status: "in_progress",
+          })
+          .eq("id", ticketId)
+          .eq("status", "open");
+      } else {
+        await supabase
+          .from("tickets")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", ticketId);
+      }
 
       await logAction("ticket_reply", "ticket", ticketId, { message_id: data.id });
 
@@ -275,11 +282,174 @@ export function useSendTicketMessage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
       queryClient.invalidateQueries({ queryKey: ["admin-ticket"] });
-      toast.success("Reply sent");
+      queryClient.invalidateQueries({ queryKey: ["customer-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-ticket"] });
+      toast.success("Message sent");
     },
     onError: (error) => {
-      console.error("Failed to send reply:", error);
-      toast.error("Failed to send reply");
+      console.error("Failed to send message:", error);
+      toast.error("Failed to send message");
     },
+  });
+}
+
+// Customer: Create a new ticket
+export function useCreateTicket() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      subject, 
+      message, 
+      bookingId 
+    }: { 
+      subject: string; 
+      message: string; 
+      bookingId?: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Create ticket
+      const { data: ticket, error: ticketError } = await supabase
+        .from("tickets")
+        .insert({
+          user_id: user.id,
+          subject,
+          booking_id: bookingId || null,
+          status: "open",
+          priority: "normal",
+        })
+        .select()
+        .single();
+
+      if (ticketError) throw ticketError;
+
+      // Create first message
+      const { error: messageError } = await supabase
+        .from("ticket_messages")
+        .insert({
+          ticket_id: ticket.id,
+          sender_id: user.id,
+          message,
+          is_staff: false,
+        });
+
+      if (messageError) throw messageError;
+
+      return ticket;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
+      toast.success("Support ticket created");
+    },
+    onError: (error) => {
+      console.error("Failed to create ticket:", error);
+      toast.error("Failed to create ticket");
+    },
+  });
+}
+
+// Customer: Fetch their tickets
+export function useCustomerTickets() {
+  return useQuery({
+    queryKey: ["customer-tickets"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("tickets")
+        .select(`
+          *,
+          bookings (booking_code)
+        `)
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch last message for each ticket
+      const ticketIds = data.map(t => t.id);
+      const { data: messages } = await supabase
+        .from("ticket_messages")
+        .select("ticket_id, message, created_at, is_staff")
+        .in("ticket_id", ticketIds)
+        .order("created_at", { ascending: false });
+
+      const lastMessageMap = new Map<string, { message: string; createdAt: string; isStaff: boolean }>();
+      (messages || []).forEach(m => {
+        if (!lastMessageMap.has(m.ticket_id)) {
+          lastMessageMap.set(m.ticket_id, {
+            message: m.message,
+            createdAt: m.created_at,
+            isStaff: m.is_staff || false,
+          });
+        }
+      });
+
+      return data.map(t => ({
+        id: t.id,
+        subject: t.subject,
+        status: t.status,
+        bookingId: t.booking_id,
+        bookingCode: t.bookings?.booking_code || null,
+        createdAt: t.created_at,
+        updatedAt: t.updated_at,
+        lastMessage: lastMessageMap.get(t.id) || null,
+      }));
+    },
+  });
+}
+
+// Customer: Fetch a single ticket with messages
+export function useCustomerTicketById(ticketId: string | null) {
+  return useQuery({
+    queryKey: ["customer-ticket", ticketId],
+    queryFn: async () => {
+      if (!ticketId) return null;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data: ticket, error } = await supabase
+        .from("tickets")
+        .select(`*, bookings (booking_code)`)
+        .eq("id", ticketId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!ticket) return null;
+
+      // Fetch messages
+      const { data: messages } = await supabase
+        .from("ticket_messages")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at", { ascending: true });
+
+      // Get sender names
+      const senderIds = [...new Set((messages || []).map(m => m.sender_id))];
+      const { data: senders } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", senderIds);
+      const senderMap = new Map(senders?.map(s => [s.id, s.full_name]) || []);
+
+      return {
+        ...ticket,
+        bookingCode: ticket.bookings?.booking_code || null,
+        messages: (messages || []).map(m => ({
+          id: m.id,
+          message: m.message,
+          isStaff: m.is_staff || false,
+          createdAt: m.created_at,
+          senderName: senderMap.get(m.sender_id) || (m.is_staff ? "Support Team" : "You"),
+        })),
+      };
+    },
+    enabled: !!ticketId,
   });
 }

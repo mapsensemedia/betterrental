@@ -14,13 +14,15 @@ import {
   Calendar,
   User,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  X
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -34,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -49,6 +52,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useBookingsForReceipt, useCreateReceipt, useIssueReceipt } from "@/hooks/use-receipts";
 
 interface ReceiptData {
   id: string;
@@ -96,6 +100,13 @@ interface Payment {
   };
 }
 
+interface LineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
 export default function AdminBilling() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -103,6 +114,17 @@ export default function AdminBilling() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [activeTab, setActiveTab] = useState<"receipts" | "payments">("receipts");
+
+  // Create Receipt state
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [bookingSearch, setBookingSearch] = useState("");
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [receiptNotes, setReceiptNotes] = useState("");
+
+  const { data: searchedBookings = [], isLoading: searchingBookings } = useBookingsForReceipt(bookingSearch);
+  const createReceipt = useCreateReceipt();
+  const issueReceipt = useIssueReceipt();
 
   const { data: receipts = [], isLoading: receiptsLoading } = useQuery({
     queryKey: ["admin-receipts", statusFilter],
@@ -203,6 +225,80 @@ export default function AdminBilling() {
     },
   });
 
+  // Build line items from selected booking
+  const buildLineItemsFromBooking = (booking: any) => {
+    const items: LineItem[] = [];
+    
+    // Base rental
+    items.push({
+      description: `Vehicle Rental (${booking.total_days} days @ $${booking.daily_rate}/day)`,
+      quantity: booking.total_days,
+      unitPrice: Number(booking.daily_rate),
+      total: Number(booking.daily_rate) * booking.total_days,
+    });
+
+    // Add-ons
+    (booking.addOns || []).forEach((addon: any) => {
+      items.push({
+        description: addon.name,
+        quantity: 1,
+        unitPrice: Number(addon.price),
+        total: Number(addon.price),
+      });
+    });
+
+    return items;
+  };
+
+  const handleSelectBooking = (booking: any) => {
+    setSelectedBooking(booking);
+    setLineItems(buildLineItemsFromBooking(booking));
+    setBookingSearch("");
+  };
+
+  const handleCreateReceipt = () => {
+    if (!selectedBooking) return;
+
+    const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+    const tax = Number(selectedBooking.tax_amount) || subtotal * 0.1;
+    const total = subtotal + tax;
+
+    createReceipt.mutate({
+      bookingId: selectedBooking.id,
+      lineItems,
+      totals: { subtotal, tax, total },
+      notes: receiptNotes || undefined,
+    }, {
+      onSuccess: () => {
+        setShowCreateDialog(false);
+        setSelectedBooking(null);
+        setLineItems([]);
+        setReceiptNotes("");
+      },
+    });
+  };
+
+  const handleAddLineItem = () => {
+    setLineItems([...lineItems, { description: "", quantity: 1, unitPrice: 0, total: 0 }]);
+  };
+
+  const handleUpdateLineItem = (index: number, field: keyof LineItem, value: string | number) => {
+    const updated = [...lineItems];
+    if (field === "description") {
+      updated[index].description = value as string;
+    } else {
+      updated[index][field] = Number(value);
+      if (field === "quantity" || field === "unitPrice") {
+        updated[index].total = updated[index].quantity * updated[index].unitPrice;
+      }
+    }
+    setLineItems(updated);
+  };
+
+  const handleRemoveLineItem = (index: number) => {
+    setLineItems(lineItems.filter((_, i) => i !== index));
+  };
+
   const filteredReceipts = receipts.filter((receipt) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
@@ -265,6 +361,10 @@ export default function AdminBilling() {
               Manage receipts, invoices, and payment records
             </p>
           </div>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Receipt
+          </Button>
         </div>
 
         {/* Stats */}
@@ -568,6 +668,217 @@ export default function AdminBilling() {
                   <Button variant="outline">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Receipt Dialog */}
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Create Receipt
+              </DialogTitle>
+              <DialogDescription>
+                Search for a booking and generate a receipt
+              </DialogDescription>
+            </DialogHeader>
+
+            {!selectedBooking ? (
+              <div className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by booking code..."
+                    value={bookingSearch}
+                    onChange={(e) => setBookingSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {searchingBookings && (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                    Searching...
+                  </div>
+                )}
+
+                {!searchingBookings && bookingSearch.length >= 2 && searchedBookings.length === 0 && (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No bookings found
+                  </div>
+                )}
+
+                {searchedBookings.length > 0 && (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {searchedBookings.map((booking) => (
+                      <div
+                        key={booking.id}
+                        className={`p-4 border rounded-xl cursor-pointer transition-all hover:border-primary ${
+                          booking.hasReceipt ? "opacity-50" : ""
+                        }`}
+                        onClick={() => !booking.hasReceipt && handleSelectBooking(booking)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="font-mono">
+                                {booking.booking_code}
+                              </Badge>
+                              {booking.hasReceipt && (
+                                <Badge className="bg-amber-500/10 text-amber-600 text-xs">
+                                  Receipt exists
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="font-medium">
+                              {booking.vehicle?.year} {booking.vehicle?.make} {booking.vehicle?.model}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {booking.profile?.full_name || "Unknown"} • {booking.total_days} days
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold">${Number(booking.total_amount).toFixed(2)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Selected Booking Info */}
+                <div className="p-4 bg-muted rounded-xl">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <Badge variant="outline" className="font-mono mb-2">
+                        {selectedBooking.booking_code}
+                      </Badge>
+                      <p className="font-medium">
+                        {selectedBooking.vehicle?.year} {selectedBooking.vehicle?.make} {selectedBooking.vehicle?.model}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedBooking.profile?.full_name}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedBooking(null);
+                        setLineItems([]);
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Line Items */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label>Line Items</Label>
+                    <Button variant="outline" size="sm" onClick={handleAddLineItem}>
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Item
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {lineItems.map((item, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-5">
+                          <Input
+                            placeholder="Description"
+                            value={item.description}
+                            onChange={(e) => handleUpdateLineItem(index, "description", e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Input
+                            type="number"
+                            placeholder="Qty"
+                            value={item.quantity}
+                            onChange={(e) => handleUpdateLineItem(index, "quantity", e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Input
+                            type="number"
+                            placeholder="Price"
+                            value={item.unitPrice}
+                            onChange={(e) => handleUpdateLineItem(index, "unitPrice", e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2 text-right font-medium">
+                          ${item.total.toFixed(2)}
+                        </div>
+                        <div className="col-span-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveLineItem(index)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Totals */}
+                  <div className="pt-4 border-t space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span>${lineItems.reduce((s, i) => s + i.total, 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tax</span>
+                      <span>${(Number(selectedBooking.tax_amount) || lineItems.reduce((s, i) => s + i.total, 0) * 0.1).toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between font-bold">
+                      <span>Total</span>
+                      <span>
+                        ${(
+                          lineItems.reduce((s, i) => s + i.total, 0) + 
+                          (Number(selectedBooking.tax_amount) || lineItems.reduce((s, i) => s + i.total, 0) * 0.1)
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-2">
+                  <Label>Notes (optional)</Label>
+                  <Textarea
+                    placeholder="Add any notes for this receipt..."
+                    value={receiptNotes}
+                    onChange={(e) => setReceiptNotes(e.target.value)}
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleCreateReceipt}
+                    disabled={createReceipt.isPending || lineItems.length === 0}
+                  >
+                    {createReceipt.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileText className="w-4 h-4 mr-2" />
+                    )}
+                    Create Draft Receipt
                   </Button>
                 </DialogFooter>
               </div>

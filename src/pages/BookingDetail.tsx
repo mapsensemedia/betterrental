@@ -11,6 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Car,
   MapPin,
@@ -23,8 +33,20 @@ import {
   Loader2,
   ArrowLeft,
   AlertCircle,
+  MessageCircle,
+  Receipt,
+  Send,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useBookingReceipts } from "@/hooks/use-receipts";
+import { useCreateTicket, useCustomerTickets, useCustomerTicketById, useSendTicketMessage } from "@/hooks/use-tickets";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface BookingData {
   id: string;
@@ -64,6 +86,25 @@ export default function BookingDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  
+  // Ticket creation state
+  const [showTicketDialog, setShowTicketDialog] = useState(false);
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [ticketMessage, setTicketMessage] = useState("");
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [replyMessage, setReplyMessage] = useState("");
+  
+  // Receipt state
+  const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
+  
+  const { data: receipts = [] } = useBookingReceipts(id || null);
+  const { data: tickets = [] } = useCustomerTickets();
+  const { data: ticketThread } = useCustomerTicketById(selectedTicketId);
+  const createTicket = useCreateTicket();
+  const sendMessage = useSendTicketMessage();
+  
+  // Filter tickets for this booking
+  const bookingTickets = tickets.filter(t => t.bookingId === id);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -136,6 +177,40 @@ export default function BookingDetail() {
   const checkInUrl = booking 
     ? `${window.location.origin}/check-in?code=${booking.booking_code}`
     : "";
+
+  const handleCreateTicket = () => {
+    if (!ticketSubject.trim() || !ticketMessage.trim()) {
+      toast.error("Please fill in subject and message");
+      return;
+    }
+    
+    createTicket.mutate({
+      subject: ticketSubject,
+      message: ticketMessage,
+      bookingId: id,
+    }, {
+      onSuccess: () => {
+        setShowTicketDialog(false);
+        setTicketSubject("");
+        setTicketMessage("");
+        toast.success("Support ticket created!");
+      },
+    });
+  };
+
+  const handleSendReply = () => {
+    if (!replyMessage.trim() || !selectedTicketId) return;
+    
+    sendMessage.mutate({
+      ticketId: selectedTicketId,
+      message: replyMessage,
+      isStaff: false,
+    }, {
+      onSuccess: () => {
+        setReplyMessage("");
+      },
+    });
+  };
 
   // Loading state
   if (loading || authLoading) {
@@ -373,16 +448,264 @@ export default function BookingDetail() {
                       View Location Details
                     </Link>
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Clock className="h-4 w-4 mr-2" />
-                    Modify Reservation
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start opacity-50 cursor-not-allowed">
+                          <Clock className="h-4 w-4 mr-2" />
+                          Modify Reservation
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Modifications coming soon — please contact support or cancel/rebook.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setShowTicketDialog(true)}
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Contact Support
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* Receipts */}
+              {receipts.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Receipt className="h-4 w-4" />
+                      Receipts
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {receipts.map((receipt: any) => (
+                      <div
+                        key={receipt.id}
+                        className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => setSelectedReceipt(receipt)}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-mono text-sm font-medium">{receipt.receipt_number}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(receipt.issued_at), "MMM d, yyyy")}
+                            </p>
+                          </div>
+                          <Badge className="bg-green-500/10 text-green-600">
+                            ${(receipt.totals_json as any)?.total?.toFixed(2)}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Support Tickets for this booking */}
+              {bookingTickets.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4" />
+                      Support Tickets
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {bookingTickets.map((ticket) => (
+                      <div
+                        key={ticket.id}
+                        className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => setSelectedTicketId(ticket.id)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{ticket.subject}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {ticket.lastMessage?.message || "No messages"}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {ticket.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>
       </PageContainer>
+
+      {/* Create Ticket Dialog */}
+      <Dialog open={showTicketDialog} onOpenChange={setShowTicketDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              Contact Support
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Input
+                placeholder="Brief description of your issue"
+                value={ticketSubject}
+                onChange={(e) => setTicketSubject(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Message</Label>
+              <Textarea
+                placeholder="Describe your issue in detail..."
+                value={ticketMessage}
+                onChange={(e) => setTicketMessage(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This ticket will be linked to booking {booking.booking_code}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTicketDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateTicket}
+              disabled={createTicket.isPending || !ticketSubject.trim() || !ticketMessage.trim()}
+            >
+              {createTicket.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Submit Ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ticket Thread Dialog */}
+      <Dialog open={!!selectedTicketId} onOpenChange={() => setSelectedTicketId(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              {ticketThread?.subject || "Support Ticket"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {ticketThread && (
+            <>
+              <div className="flex-1 overflow-y-auto space-y-3 py-4 min-h-[200px] max-h-[400px]">
+                {ticketThread.messages.map((msg: any) => (
+                  <div
+                    key={msg.id}
+                    className={`p-3 rounded-xl max-w-[85%] ${
+                      msg.isStaff
+                        ? "bg-primary/10 mr-auto"
+                        : "bg-muted ml-auto"
+                    }`}
+                  >
+                    <p className="text-xs font-medium mb-1">
+                      {msg.isStaff ? "Support Team" : "You"}
+                    </p>
+                    <p className="text-sm">{msg.message}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {format(new Date(msg.createdAt), "MMM d, h:mm a")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              
+              {ticketThread.status !== "closed" && ticketThread.status !== "resolved" && (
+                <div className="flex gap-2 pt-4 border-t">
+                  <Input
+                    placeholder="Type your reply..."
+                    value={replyMessage}
+                    onChange={(e) => setReplyMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendReply()}
+                  />
+                  <Button
+                    onClick={handleSendReply}
+                    disabled={sendMessage.isPending || !replyMessage.trim()}
+                  >
+                    {sendMessage.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Detail Dialog */}
+      <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Receipt Details
+            </DialogTitle>
+          </DialogHeader>
+          {selectedReceipt && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-muted-foreground">Receipt Number</p>
+                  <p className="font-mono font-bold text-lg">{selectedReceipt.receipt_number}</p>
+                </div>
+                <Badge className="bg-green-500/10 text-green-600">Issued</Badge>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                {(selectedReceipt.line_items_json as any[])?.map((item: any, i: number) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{item.description}</span>
+                    <span>${Number(item.total).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 bg-muted rounded-xl space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>${(selectedReceipt.totals_json as any)?.subtotal?.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tax</span>
+                  <span>${(selectedReceipt.totals_json as any)?.tax?.toFixed(2)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total</span>
+                  <span>${(selectedReceipt.totals_json as any)?.total?.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {selectedReceipt.notes && (
+                <div className="p-4 bg-muted/50 rounded-xl">
+                  <p className="text-sm text-muted-foreground mb-1">Notes</p>
+                  <p className="text-sm">{selectedReceipt.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </CustomerLayout>
   );
 }
