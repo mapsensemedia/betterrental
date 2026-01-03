@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/dialog";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useRecordPayment, type PaymentMethod } from "@/hooks/use-payments";
+import { useBookingReceipts, useCreateReceipt, useIssueReceipt } from "@/hooks/use-receipts";
+import { useUpdateVerificationStatus } from "@/hooks/use-verification";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Car, 
   MapPin, 
@@ -44,6 +47,8 @@ import {
   Gauge,
   FileText,
   Banknote,
+  Receipt,
+  Eye,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -71,6 +76,10 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   const { data: booking, isLoading } = useBookingById(bookingId);
   const updateStatus = useUpdateBookingStatus();
   const recordPayment = useRecordPayment();
+  const { data: receipts = [] } = useBookingReceipts(bookingId);
+  const createReceipt = useCreateReceipt();
+  const issueReceipt = useIssueReceipt();
+  const updateVerification = useUpdateVerificationStatus();
   
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; status: BookingStatus | null }>({ 
     open: false, 
@@ -85,6 +94,18 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
     reference: "",
     notes: "",
   });
+  
+  // Receipt creation state
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [receiptDraft, setReceiptDraft] = useState<{
+    lineItems: Array<{ description: string; quantity: number; unitPrice: number; total: number }>;
+    notes: string;
+  }>({ lineItems: [], notes: "" });
+  
+  // Verification review state
+  const [verificationReviewOpen, setVerificationReviewOpen] = useState(false);
+  const [selectedVerification, setSelectedVerification] = useState<any | null>(null);
+  const [verificationNotes, setVerificationNotes] = useState("");
 
   const handleStatusChange = (newStatus: BookingStatus) => {
     setConfirmDialog({ open: true, status: newStatus });
@@ -154,6 +175,83 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
       onSuccess: () => {
         setPaymentDialogOpen(false);
         setPaymentData({ amount: "", method: "cash", reference: "", notes: "" });
+      },
+    });
+  };
+
+  const hasReceipt = receipts.length > 0;
+  const draftReceipt = receipts.find((r: any) => r.status === 'draft');
+  const issuedReceipts = receipts.filter((r: any) => r.status === 'issued');
+
+  const handleOpenReceiptDialog = () => {
+    if (!booking) return;
+    
+    // Build line items from booking
+    const lineItems: Array<{ description: string; quantity: number; unitPrice: number; total: number }> = [];
+    
+    // Base rental
+    lineItems.push({
+      description: `${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model} - ${booking.total_days} days`,
+      quantity: booking.total_days,
+      unitPrice: Number(booking.daily_rate),
+      total: Number(booking.subtotal),
+    });
+    
+    // Add-ons
+    booking.addOns?.forEach((addon: any) => {
+      lineItems.push({
+        description: addon.add_ons?.name || 'Add-on',
+        quantity: addon.quantity || 1,
+        unitPrice: Number(addon.price) / (addon.quantity || 1),
+        total: Number(addon.price),
+      });
+    });
+    
+    setReceiptDraft({ lineItems, notes: "" });
+    setReceiptDialogOpen(true);
+  };
+
+  const handleCreateAndIssueReceipt = async () => {
+    if (!booking) return;
+    
+    const subtotal = receiptDraft.lineItems.reduce((sum, item) => sum + item.total, 0);
+    const tax = Number(booking.tax_amount) || 0;
+    const total = subtotal + tax;
+    
+    try {
+      const result = await createReceipt.mutateAsync({
+        bookingId: booking.id,
+        lineItems: receiptDraft.lineItems,
+        totals: { subtotal, tax, total },
+        notes: receiptDraft.notes || undefined,
+      });
+      
+      // Issue immediately
+      await issueReceipt.mutateAsync(result.id);
+      setReceiptDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to create receipt:', error);
+    }
+  };
+
+  const handleVerificationReview = (verification: any) => {
+    setSelectedVerification(verification);
+    setVerificationNotes(verification.reviewer_notes || "");
+    setVerificationReviewOpen(true);
+  };
+
+  const handleUpdateVerification = (status: 'verified' | 'rejected') => {
+    if (!selectedVerification) return;
+    
+    updateVerification.mutate({
+      requestId: selectedVerification.id,
+      status,
+      notes: verificationNotes,
+    }, {
+      onSuccess: () => {
+        setVerificationReviewOpen(false);
+        setSelectedVerification(null);
+        setVerificationNotes("");
       },
     });
   };
@@ -419,13 +517,30 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                           <div className="space-y-3">
                             {booking.verifications.map((v: any) => (
                               <div key={v.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                                <div>
+                                <div className="flex-1">
                                   <p className="font-medium text-sm">{v.document_type}</p>
                                   <p className="text-xs text-muted-foreground">
                                     Submitted {format(new Date(v.created_at), "PPp")}
                                   </p>
+                                  {v.reviewer_notes && (
+                                    <p className="text-xs text-muted-foreground mt-1 italic">
+                                      Note: {v.reviewer_notes}
+                                    </p>
+                                  )}
                                 </div>
-                                <StatusBadge status={v.status} />
+                                <div className="flex items-center gap-2">
+                                  <StatusBadge status={v.status} />
+                                  {v.status === 'pending' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleVerificationReview(v)}
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      Review
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -545,18 +660,60 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                   </TabsContent>
                 </Tabs>
 
+                {/* Receipts Section */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Receipt className="h-4 w-4" />
+                        Receipts
+                      </CardTitle>
+                      {issuedReceipts.length > 0 && (
+                        <Badge variant="default" className="bg-green-500">
+                          {issuedReceipts.length} issued
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {issuedReceipts.length > 0 ? (
+                      <div className="space-y-2">
+                        {issuedReceipts.map((receipt: any) => (
+                          <div key={receipt.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                            <div>
+                              <p className="font-mono text-sm">{receipt.receipt_number}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Issued {format(new Date(receipt.issued_at), "PPp")}
+                              </p>
+                            </div>
+                            <Badge className="bg-green-500/10 text-green-600">
+                              ${(receipt.totals_json as any)?.total?.toFixed(2)}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No receipts issued yet</p>
+                    )}
+                    
+                    <Button 
+                      size="sm" 
+                      className="w-full"
+                      onClick={handleOpenReceiptDialog}
+                      disabled={createReceipt.isPending || issueReceipt.isPending}
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      {hasReceipt ? "Create New Receipt" : "Create Receipt"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
                 {/* Quick Actions */}
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={`/admin/billing?booking=${booking.id}`}>
-                        <DollarSign className="h-4 w-4 mr-2" />
-                        Generate Receipt
-                      </a>
-                    </Button>
                     <Button variant="outline" size="sm" asChild>
                       <a href={`/admin/damages?booking=${booking.id}`}>
                         <AlertTriangle className="h-4 w-4 mr-2" />
@@ -660,6 +817,140 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
               disabled={!paymentData.amount || recordPayment.isPending}
             >
               {recordPayment.isPending ? "Recording..." : "Record Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Creation Dialog */}
+      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Create Receipt
+            </DialogTitle>
+            <DialogDescription>
+              Review line items and create a receipt for this booking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
+              {receiptDraft.lineItems.map((item, i) => (
+                <div key={i} className="flex justify-between items-center p-2 bg-muted/50 rounded-lg text-sm">
+                  <div className="flex-1">
+                    <p className="font-medium">{item.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.quantity} × ${item.unitPrice.toFixed(2)}
+                    </p>
+                  </div>
+                  <span className="font-medium">${item.total.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            
+            {booking && (
+              <div className="p-3 bg-muted rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>${receiptDraft.lineItems.reduce((sum, item) => sum + item.total, 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Tax</span>
+                  <span>${Number(booking.tax_amount || 0).toFixed(2)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>${(receiptDraft.lineItems.reduce((sum, item) => sum + item.total, 0) + Number(booking.tax_amount || 0)).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="receipt-notes">Notes (optional)</Label>
+              <Textarea
+                id="receipt-notes"
+                placeholder="Additional notes for this receipt..."
+                value={receiptDraft.notes}
+                onChange={(e) => setReceiptDraft(prev => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateAndIssueReceipt}
+              disabled={createReceipt.isPending || issueReceipt.isPending}
+            >
+              {createReceipt.isPending || issueReceipt.isPending ? "Creating..." : "Create & Issue Receipt"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Verification Review Dialog */}
+      <Dialog open={verificationReviewOpen} onOpenChange={setVerificationReviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileCheck className="h-5 w-5" />
+              Review Verification Document
+            </DialogTitle>
+          </DialogHeader>
+          {selectedVerification && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Document Type</Label>
+                <p className="text-sm font-medium">{selectedVerification.document_type}</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Document</Label>
+                <div className="border rounded-lg p-2">
+                  <img
+                    src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/verification-documents/${selectedVerification.document_url}`}
+                    alt="Verification document"
+                    className="max-w-full max-h-[300px] object-contain rounded"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/placeholder.svg';
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="verification-notes">Review Notes</Label>
+                <Textarea
+                  id="verification-notes"
+                  placeholder="Add notes about this verification..."
+                  value={verificationNotes}
+                  onChange={(e) => setVerificationNotes(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setVerificationReviewOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => handleUpdateVerification('rejected')}
+              disabled={updateVerification.isPending}
+            >
+              Reject
+            </Button>
+            <Button
+              onClick={() => handleUpdateVerification('verified')}
+              disabled={updateVerification.isPending}
+            >
+              Approve
             </Button>
           </DialogFooter>
         </DialogContent>

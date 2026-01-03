@@ -47,6 +47,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { VerificationUpload } from "@/components/booking/VerificationUpload";
+import { ConditionPhotosUpload } from "@/components/booking/ConditionPhotosUpload";
+import { VerificationModal } from "@/components/booking/VerificationModal";
 
 interface BookingData {
   id: string;
@@ -96,6 +99,9 @@ export default function BookingDetail() {
   
   // Receipt state
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
+  
+  // Verification modal state (show after booking confirmation)
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
   
   const { data: receipts = [] } = useBookingReceipts(id || null);
   const { data: tickets = [] } = useCustomerTickets();
@@ -385,6 +391,18 @@ export default function BookingDetail() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Verification Upload */}
+              {id && (
+                <div data-verification-section>
+                  <VerificationUpload bookingId={id} />
+                </div>
+              )}
+
+              {/* Vehicle Condition Photos */}
+              {id && (
+                <ConditionPhotosUpload bookingId={id} bookingStatus={booking.status} />
+              )}
             </div>
 
             {/* Sidebar - QR Code */}
@@ -706,6 +724,19 @@ export default function BookingDetail() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Verification Modal - appears after booking loaded with pending status */}
+      <VerificationModal
+        open={showVerificationModal}
+        onOpenChange={setShowVerificationModal}
+        bookingCode={booking?.booking_code || ""}
+        onUploadNow={() => {
+          setShowVerificationModal(false);
+          // Scroll to verification section
+          const verificationSection = document.querySelector('[data-verification-section]');
+          verificationSection?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
     </CustomerLayout>
   );
 }
