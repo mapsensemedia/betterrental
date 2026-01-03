@@ -214,24 +214,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 5: Create payment record (mock - pending)
-    const { error: paymentError } = await supabaseAdmin
-      .from("payments")
-      .insert({
-        booking_id: booking.id,
-        user_id: user.id,
-        amount: totalAmount,
-        payment_type: "rental",
-        status: "completed",
-        payment_method: "card",
-        transaction_id: `mock_${Date.now()}`,
-      });
+    // NOTE: Payment record is NOT created automatically during booking.
+    // Payments should only be recorded when:
+    // 1. Admin manually records an in-person payment via "Record Payment" action
+    // 2. A payment gateway webhook confirms successful payment
+    // This prevents the "payment moves ahead automatically" bug.
 
-    if (paymentError) {
-      console.error("Error creating payment:", paymentError);
-    }
-
-    // Step 6: Mark hold as converted
+    // Step 5: Mark hold as converted
     await supabaseAdmin
       .from("reservation_holds")
       .update({ status: "converted" })
