@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.verify-booking-otp]
 verify_jwt = false
+
+[functions.confirm-admin-email]
+verify_jwt = true
