@@ -70,6 +70,7 @@ import { useCheckInRecord } from "@/hooks/use-checkin";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { useOpsNextStep } from "@/hooks/use-ops-next-step";
+import { useSignedStorageUrl } from "@/hooks/use-signed-storage-url";
 
 import { 
   CreditCard, 
@@ -180,6 +181,13 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   const [verificationReviewOpen, setVerificationReviewOpen] = useState(false);
   const [selectedVerification, setSelectedVerification] = useState<any | null>(null);
   const [verificationNotes, setVerificationNotes] = useState("");
+
+  const { data: selectedVerificationUrl } = useSignedStorageUrl({
+    bucket: "verification-documents",
+    path: selectedVerification?.document_url ?? null,
+    expiresIn: 60 * 30,
+    enabled: verificationReviewOpen,
+  });
 
   const handleStatusChange = (newStatus: BookingStatus) => {
     if (newStatus === "active" && booking?.status === "confirmed") {
@@ -781,10 +789,13 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
               </div>
               <div className="border rounded-lg p-2">
                 <img
-                  src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/verification-documents/${selectedVerification.document_url}`}
-                  alt="Document"
+                  src={selectedVerificationUrl || "/placeholder.svg"}
+                  alt="Verification document"
+                  loading="lazy"
                   className="max-w-full max-h-[300px] object-contain rounded"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                  }}
                 />
               </div>
               <div className="space-y-2">

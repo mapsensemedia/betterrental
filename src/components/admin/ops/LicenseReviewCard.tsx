@@ -14,9 +14,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useUpdateVerificationStatus } from "@/hooks/use-verification";
-import { 
-  CheckCircle2, 
-  XCircle, 
+import { useSignedStorageUrl } from "@/hooks/use-signed-storage-url";
+import {
+  CheckCircle2,
+  XCircle,
   Clock,
   Eye,
   Download,
@@ -30,42 +31,54 @@ export function LicenseReviewCard({ verification }: LicenseReviewCardProps) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [notes, setNotes] = useState(verification.reviewer_notes || "");
   const updateVerification = useUpdateVerificationStatus();
-  
+
+  const { data: signedUrl } = useSignedStorageUrl({
+    bucket: "verification-documents",
+    path: verification?.document_url ?? null,
+    expiresIn: 60 * 30,
+  });
+
+  const imageSrc = signedUrl || "/placeholder.svg";
+
   const getDocLabel = (type: string) => {
-    if (type === 'drivers_license_front') return 'Front';
-    if (type === 'drivers_license_back') return 'Back';
+    if (type === "drivers_license_front") return "Front";
+    if (type === "drivers_license_back") return "Back";
     return type;
   };
-  
-  const handleUpdateStatus = (status: 'verified' | 'rejected') => {
-    updateVerification.mutate({
-      requestId: verification.id,
-      status,
-      notes: notes || undefined,
-    }, {
-      onSuccess: () => {
-        setReviewOpen(false);
+
+  const handleUpdateStatus = (status: "verified" | "rejected") => {
+    updateVerification.mutate(
+      {
+        requestId: verification.id,
+        status,
+        notes: notes || undefined,
       },
-    });
+      {
+        onSuccess: () => {
+          setReviewOpen(false);
+        },
+      }
+    );
   };
-  
-  const imageUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/verification-documents/${verification.document_url}`;
-  
+
   return (
     <>
       <Card className="overflow-hidden">
         <CardContent className="p-3">
           <div className="flex items-center gap-3">
             {/* Thumbnail */}
-            <div 
+            <div
               className="w-16 h-12 rounded bg-muted flex items-center justify-center overflow-hidden cursor-pointer"
               onClick={() => setReviewOpen(true)}
             >
-              <img 
-                src={imageUrl}
-                alt="License"
+              <img
+                src={imageSrc}
+                alt="Driver's license thumbnail"
+                loading="lazy"
                 className="w-full h-full object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/placeholder.svg";
+                }}
               />
             </div>
             
@@ -112,20 +125,30 @@ export function LicenseReviewCard({ verification }: LicenseReviewCardProps) {
             {/* Document Image */}
             <div className="border rounded-lg overflow-hidden">
               <img
-                src={imageUrl}
-                alt="License document"
+                src={imageSrc}
+                alt="Driver's license document"
+                loading="lazy"
                 className="w-full max-h-[300px] object-contain bg-muted"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/placeholder.svg";
+                }}
               />
             </div>
-            
+
             {/* Download Link */}
-            <Button variant="outline" size="sm" asChild>
-              <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+            {signedUrl ? (
+              <Button variant="outline" size="sm" asChild>
+                <a href={signedUrl} target="_blank" rel="noopener noreferrer">
+                  <Download className="w-4 h-4 mr-2" />
+                  Open Full Size
+                </a>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" disabled>
                 <Download className="w-4 h-4 mr-2" />
                 Open Full Size
-              </a>
-            </Button>
+              </Button>
+            )}
             
             {/* Notes */}
             <div className="space-y-2">
