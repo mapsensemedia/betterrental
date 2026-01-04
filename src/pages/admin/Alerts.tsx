@@ -45,6 +45,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAdminAlerts, useResolveAlert, useAcknowledgeAlert, type AdminAlert } from "@/hooks/use-alerts";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
+import { PendingVerificationsCard } from "@/components/admin/alerts/PendingVerificationsCard";
 
 const alertTypeLabels: Record<string, string> = {
   verification_pending: "Verification Pending",
@@ -128,6 +129,9 @@ export default function AdminAlerts() {
             </p>
           </div>
         </div>
+
+        {/* Pending Verifications Card */}
+        <PendingVerificationsCard />
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
