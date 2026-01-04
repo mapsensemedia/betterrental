@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { BookingOpsDrawer } from "@/components/admin/BookingOpsDrawer";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useAdminBookings, type BookingFilters } from "@/hooks/use-bookings";
 import { useLocations } from "@/hooks/use-locations";
@@ -41,12 +40,11 @@ const statusOptions: { value: BookingStatus | "all"; label: string }[] = [
 
 export default function AdminBookings() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<BookingFilters>({
     status: "all",
     search: searchParams.get("code") || "",
   });
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { data: bookings, isLoading, refetch } = useAdminBookings(filters);
   const { data: locations } = useLocations();
@@ -57,22 +55,16 @@ export default function AdminBookings() {
     if (code && bookings) {
       const booking = bookings.find(b => b.bookingCode.toLowerCase() === code.toLowerCase());
       if (booking) {
-        setSelectedBookingId(booking.id);
-        setDrawerOpen(true);
-        // Clear the URL param after opening
+        // Navigate to full-screen ops page
+        navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin/bookings`);
+        // Clear the URL param
         setSearchParams({});
       }
     }
-  }, [searchParams, bookings, setSearchParams]);
+  }, [searchParams, bookings, setSearchParams, navigate]);
 
   const handleOpenBooking = (bookingId: string) => {
-    setSelectedBookingId(bookingId);
-    setDrawerOpen(true);
-  };
-
-  const handleCloseDrawer = () => {
-    setDrawerOpen(false);
-    setSelectedBookingId(null);
+    navigate(`/admin/bookings/${bookingId}/ops?returnTo=/admin/bookings`);
   };
 
   const handleFilterChange = (key: keyof BookingFilters, value: string) => {
@@ -271,13 +263,6 @@ export default function AdminBookings() {
           </div>
         )}
       </div>
-
-      {/* Booking Ops Drawer */}
-      <BookingOpsDrawer
-        bookingId={selectedBookingId}
-        open={drawerOpen}
-        onClose={handleCloseDrawer}
-      />
     </AdminShell>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useAdminBookings } from "@/hooks/use-bookings";
 import { useAdminAlerts } from "@/hooks/use-alerts";
@@ -143,6 +143,7 @@ const quickGuide = [
 ];
 
 export default function AdminOverview() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const { data: bookings = [], isLoading: bookingsLoading } = useAdminBookings();
   const { data: alerts = [] } = useAdminAlerts();
@@ -294,11 +295,14 @@ export default function AdminOverview() {
                             </p>
                           </div>
                         </div>
-                        <Link to={`/admin/bookings?code=${booking.bookingCode}`}>
-                          <Button size="sm" variant="outline" className="shrink-0">
-                            Open
-                          </Button>
-                        </Link>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="shrink-0"
+                          onClick={() => navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin`)}
+                        >
+                          Open
+                        </Button>
                       </div>
                     ))}
                 </CardContent>

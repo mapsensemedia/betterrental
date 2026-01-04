@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { 
@@ -67,6 +68,7 @@ interface Booking {
 }
 
 export default function AdminPickups() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState<string>("today");
@@ -288,15 +290,23 @@ export default function AdminPickups() {
                           </div>
 
                           {/* Actions */}
-                          <Button
-                            onClick={() => {
-                              setSelectedBooking(booking);
-                              setPickupNotes(booking.notes || "");
-                            }}
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Confirm Pickup
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin/pickups`)}
+                            >
+                              Open Ops
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setSelectedBooking(booking);
+                                setPickupNotes(booking.notes || "");
+                              }}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Confirm
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
