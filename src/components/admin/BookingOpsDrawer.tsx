@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { IntakeChecklist } from "./IntakeChecklist";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +31,7 @@ import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useRecordPayment, type PaymentMethod } from "@/hooks/use-payments";
 import { useBookingReceipts, useCreateReceipt, useIssueReceipt } from "@/hooks/use-receipts";
 import { useUpdateVerificationStatus } from "@/hooks/use-verification";
+import { useIntakeStatus } from "@/hooks/use-intake-status";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Car, 
@@ -80,6 +82,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   const createReceipt = useCreateReceipt();
   const issueReceipt = useIssueReceipt();
   const updateVerification = useUpdateVerificationStatus();
+  const intakeStatus = useIntakeStatus(booking);
   
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; status: BookingStatus | null }>({ 
     open: false, 
@@ -339,6 +342,11 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Intake Checklist - Show for pending/confirmed bookings */}
+                {(booking.status === "pending" || booking.status === "confirmed") && (
+                  <IntakeChecklist intakeStatus={intakeStatus} />
+                )}
 
                 {/* Quick Info Grid */}
                 <div className="grid grid-cols-2 gap-4">
