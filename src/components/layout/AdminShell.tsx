@@ -43,10 +43,11 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { usePendingAlertsCount } from "@/hooks/use-pending-alerts-count";
 
 const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/alerts", label: "Alerts", icon: Bell, badge: true },
+  { href: "/admin/alerts", label: "Alerts", icon: Bell, badgeKey: "alerts" as const },
   { href: "/admin/bookings", label: "Bookings", icon: BookOpen },
   { href: "/admin/pickups", label: "Pickups", icon: KeyRound },
   { href: "/admin/active-rentals", label: "Active Rentals", icon: Car },
@@ -72,6 +73,7 @@ export function AdminShell({ children, dateFilter, onDateFilterChange, hideNav }
   const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [bookingCode, setBookingCode] = useState("");
+  const { count: pendingAlertsCount } = usePendingAlertsCount();
 
   const handleBookingSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,9 +133,9 @@ export function AdminShell({ children, dateFilter, onDateFilterChange, hideNav }
             >
               <item.icon className="w-4 h-4" />
               {item.label}
-              {item.badge && (
+              {item.badgeKey === "alerts" && pendingAlertsCount > 0 && (
                 <Badge variant="destructive" className="ml-auto text-[10px] px-1.5 py-0 h-4">
-                  3
+                  {pendingAlertsCount}
                 </Badge>
               )}
             </Link>
