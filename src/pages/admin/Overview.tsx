@@ -190,13 +190,12 @@ export default function AdminOverview() {
   const pendingAlerts = alerts.filter(a => a.status === "pending").length;
   const pendingVerifications = verifications.filter(v => v.status === "pending").length;
 
+  // Simplified: 4 key stats only
   const stats = [
-    { label: "Active Rentals", value: activeBookings, icon: Car, color: "text-primary", bgColor: "bg-primary/10" },
-    { label: "Pending Bookings", value: pendingBookings + confirmedBookings, icon: Clock, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-    { label: "Today's Pickups", value: todayPickups, icon: KeyRound, color: "text-green-500", bgColor: "bg-green-500/10" },
-    { label: "Today's Returns", value: todayReturns, icon: RotateCcw, color: "text-orange-500", bgColor: "bg-orange-500/10" },
-    { label: "Pending Alerts", value: pendingAlerts, icon: Bell, color: pendingAlerts > 0 ? "text-destructive" : "text-muted-foreground", bgColor: pendingAlerts > 0 ? "bg-destructive/10" : "bg-muted" },
-    { label: "Pending Verifications", value: pendingVerifications, icon: FileCheck, color: pendingVerifications > 0 ? "text-purple-500" : "text-muted-foreground", bgColor: pendingVerifications > 0 ? "bg-purple-500/10" : "bg-muted" },
+    { label: "Active", value: activeBookings, icon: Car, color: "text-primary", bgColor: "bg-primary/10" },
+    { label: "Pickups Today", value: todayPickups, icon: KeyRound, color: "text-green-500", bgColor: "bg-green-500/10" },
+    { label: "Returns Today", value: todayReturns, icon: RotateCcw, color: "text-orange-500", bgColor: "bg-orange-500/10" },
+    { label: "Alerts", value: pendingAlerts, icon: Bell, color: pendingAlerts > 0 ? "text-destructive" : "text-muted-foreground", bgColor: pendingAlerts > 0 ? "bg-destructive/10" : "bg-muted" },
   ];
 
   const quickLinks = [
@@ -239,18 +238,21 @@ export default function AdminOverview() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6 mt-6">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {/* Compact Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {stats.map((stat) => (
-                <Card key={stat.label} className="border-0 shadow-sm">
-                  <CardContent className="p-4">
-                    <div className={`w-10 h-10 rounded-xl ${stat.bgColor} flex items-center justify-center mb-3`}>
-                      <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                    </div>
-                    <p className="text-2xl font-bold">{bookingsLoading ? "..." : stat.value}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
-                  </CardContent>
-                </Card>
+                <div 
+                  key={stat.label} 
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                >
+                  <div className={`w-9 h-9 rounded-lg ${stat.bgColor} flex items-center justify-center shrink-0`}>
+                    <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold leading-none">{bookingsLoading ? "..." : stat.value}</p>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  </div>
+                </div>
               ))}
             </div>
 
@@ -273,36 +275,31 @@ export default function AdminOverview() {
                     Confirmed bookings ready for handover
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-2">
                   {bookings
                     .filter(b => b.status === "confirmed")
                     .slice(0, 5)
                     .map((booking) => (
-                      <Link
+                      <div
                         key={booking.id}
-                        to={`/admin/bookings?code=${booking.bookingCode}`}
-                        className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                            <Car className="w-5 h-5 text-muted-foreground" />
-                          </div>
+                        <div className="flex items-center gap-3 min-w-0">
                           <div>
-                            <p className="text-sm font-medium">
+                            <p className="text-sm font-medium truncate">
                               {booking.vehicle?.make} {booking.vehicle?.model}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {booking.profile?.fullName || "Customer"} • {format(parseISO(booking.startAt), "MMM d, h:mm a")}
+                              {booking.profile?.fullName || "Customer"} • {format(parseISO(booking.startAt), "h:mm a")}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs font-mono">
-                            {booking.bookingCode}
-                          </Badge>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                      </Link>
+                        <Link to={`/admin/bookings?code=${booking.bookingCode}`}>
+                          <Button size="sm" variant="outline" className="shrink-0">
+                            Open
+                          </Button>
+                        </Link>
+                      </div>
                     ))}
                 </CardContent>
               </Card>

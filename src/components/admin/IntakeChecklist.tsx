@@ -25,7 +25,7 @@ function StatusIcon({ status }: { status: IntakeItem["status"] }) {
 }
 
 export function IntakeChecklist({ intakeStatus, onConfirmItem, className }: IntakeChecklistProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false); // Collapsed by default for cleaner UX
   const { items, isComplete, completedCount, totalRequired, missingRequired } = intakeStatus;
 
   const progress = totalRequired > 0 ? (completedCount / totalRequired) * 100 : 0;
