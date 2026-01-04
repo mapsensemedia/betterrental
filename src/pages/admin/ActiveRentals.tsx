@@ -250,7 +250,7 @@ export default function AdminActiveRentals() {
                   <div
                     key={rental.id}
                     className={`p-4 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50 ${getStatusColor(rental)}`}
-                    onClick={() => navigate(`/admin/bookings/${rental.id}/ops?returnTo=/admin/active-rentals`)}
+                    onClick={() => navigate(`/admin/active-rentals/${rental.id}`)}
                   >
                     <div className="flex items-start justify-between gap-4">
                       {/* Left side - Vehicle & Customer info */}
