@@ -4,14 +4,13 @@ import { Footer } from "./Footer";
 
 interface CustomerLayoutProps {
   children: ReactNode;
-  transparentNav?: boolean;
 }
 
-export function CustomerLayout({ children, transparentNav = false }: CustomerLayoutProps) {
+export function CustomerLayout({ children }: CustomerLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
-      <TopNav transparent={transparentNav} />
-      <main className={transparentNav ? "" : "pt-20"}>
+      <TopNav />
+      <main className="pt-16">
         {children}
       </main>
       <Footer />
