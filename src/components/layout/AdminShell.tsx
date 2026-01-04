@@ -98,9 +98,9 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
   return (
     <div className="min-h-screen bg-background flex">
       {/* Desktop Sidebar */}
-      <aside className="w-64 border-r border-border bg-card hidden lg:flex flex-col">
-        <div className="p-6 border-b border-border">
-          <Link to="/" className="text-xl font-bold flex items-center gap-2">
+      <aside className="w-60 border-r border-border bg-card hidden lg:flex flex-col">
+        <div className="p-5 border-b border-border">
+          <Link to="/" className="text-lg font-bold flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Car className="w-4 h-4 text-primary-foreground" />
             </div>
@@ -109,22 +109,22 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
           <p className="text-xs text-muted-foreground mt-1">Admin Console</p>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto scrollbar-thin">
           {navItems.map((item) => (
             <Link
               key={item.href}
               to={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
               <item.icon className="w-4 h-4" />
               {item.label}
               {item.badge && (
-                <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0">
+                <Badge variant="destructive" className="ml-auto text-[10px] px-1.5 py-0 h-4">
                   3
                 </Badge>
               )}
@@ -134,7 +134,7 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
 
         <div className="p-4 border-t border-border">
           <p className="text-xs text-muted-foreground">
-            © 2024 LuxeRide Admin
+            © 2024 LuxeRide
           </p>
         </div>
       </aside>
@@ -146,24 +146,24 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
             className="absolute inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border p-4">
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border p-4 animate-slide-up">
             <div className="flex items-center justify-between mb-6">
-              <span className="text-xl font-bold">LuxeRide Admin</span>
+              <span className="text-lg font-bold">LuxeRide Admin</span>
               <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   to={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                    "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                     isActive(item.href)
                       ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                   )}
                 >
                   <item.icon className="w-4 h-4" />
@@ -178,7 +178,7 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top Bar */}
-        <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40 flex items-center px-4 lg:px-6 gap-4">
+        <header className="h-14 border-b border-border bg-card sticky top-0 z-40 flex items-center px-4 lg:px-5 gap-3">
           {/* Mobile Menu Toggle */}
           <Button 
             variant="ghost" 
@@ -190,15 +190,15 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
           </Button>
 
           {/* Booking Code Scanner */}
-          <form onSubmit={handleBookingSearch} className="flex-1 max-w-sm">
+          <form onSubmit={handleBookingSearch} className="flex-1 max-w-xs">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Scan booking code..."
+                placeholder="Search booking..."
                 value={bookingCode}
                 onChange={(e) => setBookingCode(e.target.value.toUpperCase())}
-                className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1"
+                className="pl-9 h-9 bg-secondary border-0"
               />
             </div>
           </form>
@@ -206,7 +206,7 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
           {/* Date Quick Filter */}
           {onDateFilterChange && (
             <Select value={dateFilter || "today"} onValueChange={onDateFilterChange}>
-              <SelectTrigger className="w-[140px] h-9 bg-muted/50 border-0">
+              <SelectTrigger className="w-[130px] h-9 bg-secondary border-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -224,14 +224,14 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-4 h-4 text-primary" />
+              <Button variant="ghost" size="sm" className="gap-2">
+                <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+                  <User className="w-3.5 h-3.5 text-muted-foreground" />
                 </div>
-                <span className="hidden sm:inline text-sm">
+                <span className="hidden sm:inline text-sm font-medium">
                   {user?.email?.split("@")[0] || "Admin"}
                 </span>
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -251,7 +251,7 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="flex-1 p-4 lg:p-5">
           {children}
         </main>
       </div>
