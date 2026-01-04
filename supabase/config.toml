@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.confirm-admin-email]
 verify_jwt = true
+
+[functions.send-payment-request]
+verify_jwt = false
+
+[functions.send-payment-confirmation]
+verify_jwt = false
