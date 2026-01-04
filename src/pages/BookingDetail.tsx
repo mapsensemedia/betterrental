@@ -50,6 +50,7 @@ import {
 import { VerificationUpload } from "@/components/booking/VerificationUpload";
 import { ConditionPhotosUpload } from "@/components/booking/ConditionPhotosUpload";
 import { VerificationModal } from "@/components/booking/VerificationModal";
+import { TripContextBar } from "@/components/shared/TripContextBar";
 
 interface BookingData {
   id: string;
