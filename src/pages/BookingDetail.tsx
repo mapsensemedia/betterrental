@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/tooltip";
 import { DriverLicenseUpload } from "@/components/booking/DriverLicenseUpload";
 import { VerificationModal } from "@/components/booking/VerificationModal";
-import { TripContextBar } from "@/components/shared/TripContextBar";
+import { useBookingVerification } from "@/hooks/use-verification";
 
 interface BookingData {
   id: string;
@@ -100,8 +100,20 @@ export default function BookingDetail() {
   // Receipt state
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   
-  // Verification modal state (show after booking confirmation)
+  // Driver's license is required before verification
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+
+  const { data: verificationRequests = [], isLoading: verificationLoading } = useBookingVerification(id || null);
+
+  const licenseFront = verificationRequests?.find((v) => v.document_type === "drivers_license_front") || null;
+  const licenseBack = verificationRequests?.find((v) => v.document_type === "drivers_license_back") || null;
+
+  // For gating, we only require upload (pending or verified). Rejected counts as incomplete.
+  const isLicenseComplete =
+    !!licenseFront &&
+    !!licenseBack &&
+    licenseFront.status !== "rejected" &&
+    licenseBack.status !== "rejected";
   
   const { data: receipts = [] } = useBookingReceipts(id || null);
   const { data: tickets = [] } = useCustomerTickets();
@@ -167,6 +179,19 @@ export default function BookingDetail() {
       fetchBooking();
     }
   }, [id, user]);
+
+  // Nudge customer to upload license (once per session) when booking is confirmed
+  useEffect(() => {
+    if (!id || !booking) return;
+    if (booking.status !== "confirmed") return;
+    if (verificationLoading) return;
+    if (isLicenseComplete) return;
+
+    const key = `license-required-modal:${id}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    setShowVerificationModal(true);
+  }, [id, booking, verificationLoading, isLicenseComplete]);
 
   const handleCopyCode = async () => {
     if (!booking?.booking_code) return;
@@ -286,6 +311,33 @@ export default function BookingDetail() {
             </div>
           </div>
 
+          {/* Driver's License Required Callout */}
+          {booking.status === "confirmed" && !isLicenseComplete && (
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardContent className="pt-6 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-start gap-3 flex-1">
+                  <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Driver’s license required</p>
+                    <p className="text-sm text-muted-foreground">
+                      Upload your driver’s license (front & back). This is required before pickup.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    document
+                      .querySelector("[data-license-section]")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }
+                >
+                  Upload now
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid md:grid-cols-3 gap-6">
             {/* Main content - 2 columns */}
             <div className="md:col-span-2 space-y-6">
@@ -357,6 +409,13 @@ export default function BookingDetail() {
                 </CardContent>
               </Card>
 
+              {/* Driver's License Upload - Required before verification */}
+              {id && (
+                <div data-license-section data-verification-section>
+                  <DriverLicenseUpload bookingId={id} />
+                </div>
+              )}
+
               {/* Payment Summary */}
               <Card>
                 <CardHeader>
@@ -391,13 +450,6 @@ export default function BookingDetail() {
                   )}
                 </CardContent>
               </Card>
-
-              {/* Driver's License Upload - Required before verification */}
-              {id && (
-                <div data-license-section>
-                  <DriverLicenseUpload bookingId={id} />
-                </div>
-              )}
             </div>
 
             {/* Sidebar - QR Code */}
@@ -434,14 +486,20 @@ export default function BookingDetail() {
                   </div>
 
                   {/* QR Code */}
-                  <div className="bg-white rounded-xl p-4 inline-block">
-                    <QRCodeSVG
-                      value={checkInUrl}
-                      size={180}
-                      level="M"
-                      includeMargin={false}
-                    />
-                  </div>
+                  {isLicenseComplete ? (
+                    <div className="bg-card rounded-xl p-4 inline-block border border-border">
+                      <QRCodeSVG
+                        value={checkInUrl}
+                        size={180}
+                        level="M"
+                        includeMargin={false}
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
+                      Upload your driver's license to unlock pickup check-in QR.
+                    </div>
+                  )}
 
                   <p className="text-xs text-muted-foreground">
                     Show this at pickup. If scanning fails, staff can type the code.
@@ -727,9 +785,8 @@ export default function BookingDetail() {
         bookingCode={booking?.booking_code || ""}
         onUploadNow={() => {
           setShowVerificationModal(false);
-          // Scroll to verification section
-          const verificationSection = document.querySelector('[data-verification-section]');
-          verificationSection?.scrollIntoView({ behavior: 'smooth' });
+          const licenseSection = document.querySelector('[data-license-section]');
+          licenseSection?.scrollIntoView({ behavior: 'smooth' });
         }}
       />
     </CustomerLayout>
