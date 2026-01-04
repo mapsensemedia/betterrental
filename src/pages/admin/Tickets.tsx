@@ -82,8 +82,17 @@ export default function AdminTickets() {
 
   const handleSendReply = () => {
     if (!selectedId || !replyMessage.trim()) return;
-    sendMessage.mutate({ ticketId: selectedId, message: replyMessage.trim() });
-    setReplyMessage("");
+    sendMessage.mutate(
+      { ticketId: selectedId, message: replyMessage.trim(), isStaff: true },
+      {
+        onSuccess: () => {
+          setReplyMessage("");
+        },
+        onError: (error) => {
+          console.error("Failed to send reply:", error);
+        },
+      }
+    );
   };
 
   const handleStatusChange = (status: TicketStatus) => {
@@ -237,7 +246,7 @@ export default function AdminTickets() {
               {selectedTicket.bookings && (
                 <div className="px-6 py-3 border-b bg-muted/50">
                   <Link 
-                    to={`/admin/bookings?id=${selectedTicket.booking_id}`}
+                    to={`/admin/bookings/${selectedTicket.booking_id}/ops`}
                     className="flex items-center gap-2 text-sm text-primary hover:underline"
                   >
                     <ExternalLink className="h-4 w-4" />
@@ -326,8 +335,12 @@ export default function AdminTickets() {
                     onClick={handleSendReply} 
                     disabled={!replyMessage.trim() || sendMessage.isPending}
                   >
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Reply
+                    {sendMessage.isPending ? (
+                      <span className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    {sendMessage.isPending ? "Sending..." : "Send Reply"}
                   </Button>
                 </div>
               </div>

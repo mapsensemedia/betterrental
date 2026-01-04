@@ -181,10 +181,17 @@ export function ReportIssueDialog({
 
           {/* Emergency callout */}
           {category === "breakdown" && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 space-y-2">
               <p className="text-sm text-destructive font-medium">
-                For immediate roadside assistance, please also call our emergency line.
+                For immediate roadside assistance:
               </p>
+              <a 
+                href="tel:+18005551234" 
+                className="flex items-center gap-2 text-destructive font-bold text-lg hover:underline"
+              >
+                📞 +1 (800) 555-1234
+              </a>
+              <p className="text-xs text-destructive/80">Available 24/7</p>
             </div>
           )}
         </div>
