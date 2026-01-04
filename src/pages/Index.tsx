@@ -35,36 +35,37 @@ const Index = () => {
   return (
     <CustomerLayout transparentNav>
       {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col">
-        {/* Background Image */}
-        <div className="absolute inset-0">
-          <img
-            src={heroImage}
-            alt="Premium luxury car"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 hero-gradient" />
-        </div>
+      <section className="bg-background pt-32 pb-16">
+        <div className="container-page">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Hero Content */}
+            <div className="max-w-xl animate-slide-up">
+              <h1 className="heading-1 text-foreground mb-6">
+                Premium car
+                <br />
+                rental
+              </h1>
+              <p className="text-lg text-muted-foreground mb-8">
+                We want you to have a stress-free rental experience, so we make it
+                easy to hire a car – by providing simple search tools, customer
+                reviews and plenty of pick-up locations across the city.
+              </p>
+            </div>
 
-        {/* Hero Content */}
-        <div className="relative z-10 flex-1 flex flex-col justify-center container-page pt-32 pb-40">
-          <div className="max-w-2xl animate-slide-up">
-            <h1 className="heading-1 text-card mb-6">
-              Premium car
-              <br />
-              rental
-            </h1>
-            <p className="text-lg text-card/80 mb-8 max-w-md">
-              We want you to have a stress-free rental experience, so we make it
-              easy to hire a car – by providing simple search tools, customer
-              reviews and plenty of pick-up locations across the city.
-            </p>
+            {/* Hero Image */}
+            <div className="relative animate-fade-in animation-delay-200">
+              <img
+                src={heroImage}
+                alt="Premium luxury car"
+                className="w-full h-auto rounded-2xl shadow-card object-cover"
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Glass Search Bar - Positioned at bottom of hero */}
-        <div className="relative z-20 container-page -mt-24 pb-12">
-          <GlassSearchBar className="animate-scale-in animation-delay-300" />
+          {/* Search Bar */}
+          <div className="mt-12 animate-scale-in animation-delay-300">
+            <GlassSearchBar />
+          </div>
         </div>
       </section>
 
