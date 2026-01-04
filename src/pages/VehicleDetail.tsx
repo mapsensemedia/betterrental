@@ -48,6 +48,7 @@ import { LocationSelector } from "@/components/shared/LocationSelector";
 import { AvailabilityCalendar } from "@/components/shared/AvailabilityCalendar";
 import { TripContextBar } from "@/components/shared/TripContextBar";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
+import { PriceWithDisclaimer, PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 import { toast } from "@/hooks/use-toast";
 
 // Fallback images
@@ -477,12 +478,11 @@ export default function VehicleDetail() {
             <div className="sticky top-28 p-6 bg-card rounded-3xl border border-border shadow-soft">
               {/* Price */}
               <div className="text-center mb-6">
-                <div className="text-3xl font-bold">
-                  ${vehicle.dailyRate}
-                  <span className="text-lg font-normal text-muted-foreground">
-                    /day
-                  </span>
-                </div>
+                <PriceWithDisclaimer
+                  amount={vehicle.dailyRate}
+                  suffix="/day"
+                  variant="detail"
+                />
               </div>
 
               <Separator className="mb-6" />
@@ -611,7 +611,7 @@ export default function VehicleDetail() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    ${vehicle.dailyRate} × {rentalDays} day{rentalDays > 1 ? "s" : ""}
+                    ${vehicle.dailyRate}* × {rentalDays} day{rentalDays > 1 ? "s" : ""}
                   </span>
                   <span>${subtotal.toFixed(0)}</span>
                 </div>
@@ -630,6 +630,7 @@ export default function VehicleDetail() {
                   <span>Total</span>
                   <span>${total.toFixed(0)}</span>
                 </div>
+                <PriceDisclaimer variant="detail" className="text-center pt-2" />
               </div>
 
               {/* CTA */}
@@ -676,7 +677,7 @@ export default function VehicleDetail() {
       <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border z-40">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-lg font-bold">${total.toFixed(0)}</div>
+            <div className="text-lg font-bold">${total.toFixed(0)}<span className="text-destructive">*</span></div>
             <div className="text-xs text-muted-foreground">
               {rentalDays} day{rentalDays > 1 ? "s" : ""} total
             </div>

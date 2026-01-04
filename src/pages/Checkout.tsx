@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { OtpVerification } from "@/components/checkout/OtpVerification";
 import { TripContextBar } from "@/components/shared/TripContextBar";
+import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 
 import bmwImage from "@/assets/cars/bmw-i4.jpg";
 
@@ -366,8 +367,9 @@ export default function Checkout() {
                   <Separator className="my-2" />
                   <div className="flex justify-between font-semibold">
                     <span>Total Due at Pickup</span>
-                    <span>${pricing.total.toFixed(0)}</span>
+                    <span>${pricing.total.toFixed(0)}<span className="text-destructive">*</span></span>
                   </div>
+                  <PriceDisclaimer variant="summary" className="text-right pt-1" />
                 </div>
               </div>
             )}
@@ -770,7 +772,7 @@ export default function Checkout() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    ${vehicle?.dailyRate || 0} × {rentalDays} days
+                    ${vehicle?.dailyRate || 0}* × {rentalDays} days
                   </span>
                   <span>${pricing.basePrice.toFixed(0)}</span>
                 </div>
@@ -797,6 +799,7 @@ export default function Checkout() {
                   <span>Total</span>
                   <span>${pricing.total.toFixed(0)}</span>
                 </div>
+                <PriceDisclaimer variant="summary" className="text-center pt-1" />
               </div>
 
               {/* Notice */}

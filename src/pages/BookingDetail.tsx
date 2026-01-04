@@ -55,6 +55,7 @@ import { useBookingVerification } from "@/hooks/use-verification";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { CustomerWalkaroundAcknowledge } from "@/components/booking/CustomerWalkaroundAcknowledge";
 import { ReportIssueDialog } from "@/components/booking/ReportIssueDialog";
+import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 
 interface BookingData {
   id: string;
@@ -445,7 +446,7 @@ export default function BookingDetail() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ${Number(booking.daily_rate).toFixed(2)} × {booking.total_days} days
+                      ${Number(booking.daily_rate).toFixed(2)}* × {booking.total_days} days
                     </span>
                     <span>${Number(booking.subtotal).toFixed(2)}</span>
                   </div>
@@ -466,6 +467,7 @@ export default function BookingDetail() {
                       <span>${Number(booking.deposit_amount).toFixed(2)}</span>
                     </div>
                   )}
+                  <PriceDisclaimer variant="summary" className="pt-2" />
                 </CardContent>
               </Card>
             </div>
