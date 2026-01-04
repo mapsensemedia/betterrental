@@ -5,7 +5,6 @@ import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { 
   KeyRound, 
   Search, 
-  Filter, 
   CheckCircle, 
   Clock,
   Car,
@@ -14,13 +13,23 @@ import {
   Phone,
   Calendar,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Play,
+  Flag,
+  RefreshCw,
+  CreditCard,
+  FileCheck,
+  Sparkles,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -34,123 +43,62 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useHandovers, type HandoverBooking } from "@/hooks/use-handovers";
+import { useLocations } from "@/hooks/use-locations";
+import { useUpdateBookingStatus } from "@/hooks/use-bookings";
+import { useCreateAlert } from "@/hooks/use-alerts";
 
-interface Booking {
-  id: string;
-  booking_code: string;
-  status: string;
-  start_at: string;
-  end_at: string;
-  daily_rate: number;
-  total_amount: number;
-  notes: string | null;
-  user_id: string;
-  vehicle?: {
-    make: string;
-    model: string;
-    year: number;
-    image_url: string | null;
-  };
-  location?: {
-    name: string;
-    address: string;
-  };
-  profile?: {
-    full_name: string | null;
-    email: string | null;
-    phone: string | null;
-  };
-}
+type DateFilter = "today" | "next24h" | "week";
+
+// Readiness badge component
+const ReadinessBadge = ({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: any }) => (
+  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
+    ok ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"
+  }`}>
+    <Icon className="h-3 w-3" />
+    {label}
+  </div>
+);
 
 export default function AdminPickups() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<string>("today");
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [pickupNotes, setPickupNotes] = useState("");
-
-  const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ["admin-pickups", dateFilter],
-    queryFn: async () => {
-      const now = new Date();
-      let startDate = now;
-      let endDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-      if (dateFilter === "tomorrow") {
-        startDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        endDate = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-      } else if (dateFilter === "week") {
-        endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      } else if (dateFilter === "all") {
-        startDate = new Date(0);
-        endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-      }
-
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(`
-          *,
-          vehicle:vehicles(make, model, year, image_url),
-          location:locations(name, address)
-        `)
-        .in("status", ["confirmed", "pending"])
-        .gte("start_at", startDate.toISOString())
-        .lt("start_at", endDate.toISOString())
-        .order("start_at", { ascending: true });
-
-      if (error) throw error;
-      
-      // Fetch profiles separately
-      const userIds = [...new Set(data.map(b => b.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, phone")
-        .in("id", userIds);
-      
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      
-      return data.map(booking => ({
-        ...booking,
-        profile: profileMap.get(booking.user_id) || null,
-      })) as Booking[];
-    },
+  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
+  
+  // Handover checklist dialog state
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [checklistBooking, setChecklistBooking] = useState<HandoverBooking | null>(null);
+  const [checklistState, setChecklistState] = useState({
+    verificationConfirmed: false,
+    paymentConfirmed: false,
+    inspectionConfirmed: false,
+    notes: "",
   });
 
-  const confirmPickupMutation = useMutation({
-    mutationFn: async ({ bookingId, notes }: { bookingId: string; notes: string }) => {
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "active",
-          notes: notes || null,
-        })
-        .eq("id", bookingId);
+  // Queries
+  const { data: handovers = [], isLoading, refetch } = useHandovers(
+    dateFilter,
+    locationFilter !== "all" ? locationFilter : undefined
+  );
+  const { data: locations } = useLocations();
+  const updateStatus = useUpdateBookingStatus();
+  const createAlert = useCreateAlert();
 
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-pickups"] });
-      toast({ title: "Pickup confirmed", description: "Booking is now active" });
-      setSelectedBooking(null);
-      setPickupNotes("");
-    },
-    onError: (error: any) => {
-      toast({ title: "Confirmation failed", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const filteredBookings = bookings.filter((booking) => {
+  // Filter by search
+  const filteredBookings = handovers.filter((booking) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
-      booking.booking_code?.toLowerCase().includes(searchLower) ||
-      booking.profile?.full_name?.toLowerCase().includes(searchLower) ||
+      booking.bookingCode?.toLowerCase().includes(searchLower) ||
+      booking.profile?.fullName?.toLowerCase().includes(searchLower) ||
       booking.profile?.email?.toLowerCase().includes(searchLower) ||
       booking.vehicle?.make?.toLowerCase().includes(searchLower) ||
       booking.vehicle?.model?.toLowerCase().includes(searchLower)
@@ -164,18 +112,68 @@ export default function AdminPickups() {
     return format(date, "MMM d");
   };
 
-  const handleConfirmPickup = () => {
-    if (!selectedBooking) return;
-    confirmPickupMutation.mutate({ bookingId: selectedBooking.id, notes: pickupNotes });
-  };
-
   // Group bookings by date
   const groupedBookings = filteredBookings.reduce((acc, booking) => {
-    const dateKey = format(parseISO(booking.start_at), "yyyy-MM-dd");
+    const dateKey = format(parseISO(booking.startAt), "yyyy-MM-dd");
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(booking);
     return acc;
-  }, {} as Record<string, Booking[]>);
+  }, {} as Record<string, HandoverBooking[]>);
+
+  const getReadinessScore = (booking: HandoverBooking) => {
+    let score = 0;
+    if (booking.paymentStatus === "paid") score++;
+    if (booking.verificationStatus === "verified") score++;
+    if (booking.vehicleReady) score++;
+    if (booking.bufferCleared) score++;
+    return score;
+  };
+
+  const handleStartHandover = (booking: HandoverBooking) => {
+    setChecklistBooking(booking);
+    setChecklistState({
+      verificationConfirmed: booking.verificationStatus === "verified",
+      paymentConfirmed: booking.paymentStatus === "paid",
+      inspectionConfirmed: false,
+      notes: "",
+    });
+    setChecklistOpen(true);
+  };
+
+  const handleCompleteHandover = () => {
+    if (checklistBooking) {
+      updateStatus.mutate({
+        bookingId: checklistBooking.id,
+        newStatus: "active",
+        notes: checklistState.notes || undefined,
+      }, {
+        onSuccess: () => {
+          toast({ title: "Handover complete", description: "Booking is now active" });
+          setChecklistOpen(false);
+          setChecklistBooking(null);
+          refetch();
+        },
+        onError: (error: any) => {
+          toast({ title: "Handover failed", description: error.message, variant: "destructive" });
+        },
+      });
+    }
+  };
+
+  const handleFlagIssue = async (booking: HandoverBooking) => {
+    await createAlert.mutateAsync({
+      alertType: "verification_pending",
+      title: `Handover issue: ${booking.bookingCode}`,
+      message: `Handover flagged for booking ${booking.bookingCode}. Vehicle: ${booking.vehicle?.year} ${booking.vehicle?.make} ${booking.vehicle?.model}`,
+      bookingId: booking.id,
+      vehicleId: booking.vehicleId,
+    });
+    toast({ title: "Issue flagged", description: "Alert created for this booking" });
+  };
+
+  // Stats
+  const readyCount = filteredBookings.filter(h => getReadinessScore(h) === 4).length;
+  const needsAttentionCount = filteredBookings.filter(h => getReadinessScore(h) < 4).length;
 
   return (
     <AdminShell>
@@ -185,16 +183,19 @@ export default function AdminPickups() {
           <div>
             <h1 className="heading-2 flex items-center gap-3">
               <KeyRound className="w-8 h-8 text-primary" />
-              Pickup Confirmations
+              Pickups & Handovers
             </h1>
             <p className="text-muted-foreground mt-1">
-              Confirm vehicle pickups and hand over keys
+              Manage scheduled pickups and complete handovers
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-lg px-4 py-2">
-              {bookings.length} Scheduled
+              {filteredBookings.length} Scheduled
             </Badge>
+            <Button onClick={() => refetch()} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
@@ -209,21 +210,34 @@ export default function AdminPickups() {
               className="pl-10"
             />
           </div>
-          <Select value={dateFilter} onValueChange={setDateFilter}>
+          <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
             <SelectTrigger className="w-[160px]">
               <Calendar className="w-4 h-4 mr-2" />
               <SelectValue placeholder="Date" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="tomorrow">Tomorrow</SelectItem>
+              <SelectItem value="next24h">Next 24 Hours</SelectItem>
               <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="all">All Upcoming</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="w-[180px]">
+              <MapPin className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {locations?.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Bookings by Date */}
+        {/* Bookings List */}
         {isLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -241,169 +255,252 @@ export default function AdminPickups() {
               <div key={dateKey}>
                 <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-primary" />
-                  {getDateLabel(dateBookings[0].start_at)} - {format(parseISO(dateKey), "EEEE, MMMM d")}
+                  {getDateLabel(dateBookings[0].startAt)} - {format(parseISO(dateKey), "EEEE, MMMM d")}
                 </h3>
                 <div className="grid gap-4">
-                  {dateBookings.map((booking) => (
-                    <Card key={booking.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col md:flex-row md:items-center gap-4">
-                          {/* Vehicle Image */}
-                          <div className="w-24 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                            {booking.vehicle?.image_url ? (
-                              <img
-                                src={booking.vehicle.image_url}
-                                alt={`${booking.vehicle.make} ${booking.vehicle.model}`}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Car className="w-8 h-8 text-muted-foreground" />
+                  {dateBookings.map((booking) => {
+                    const readiness = getReadinessScore(booking);
+                    const allReady = readiness === 4;
+
+                    return (
+                      <Card key={booking.id} className={`${!allReady ? "border-amber-500/50" : ""}`}>
+                        <CardContent className="p-4">
+                          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                            {/* Time & Code */}
+                            <div className="flex items-center gap-4 min-w-[200px]">
+                              <div className="flex flex-col items-center justify-center w-16 h-16 rounded-lg bg-primary/10">
+                                <span className="text-lg font-bold text-primary">
+                                  {format(parseISO(booking.startAt), "HH:mm")}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(parseISO(booking.startAt), "MMM d")}
+                                </span>
                               </div>
-                            )}
-                          </div>
+                              <div>
+                                <Badge variant="outline" className="font-mono text-sm mb-1">
+                                  {booking.bookingCode}
+                                </Badge>
+                                <p className="text-sm text-muted-foreground">
+                                  {booking.profile?.fullName || booking.profile?.email || "Unknown"}
+                                </p>
+                              </div>
+                            </div>
 
-                          {/* Booking Details */}
-                          <div className="flex-1 space-y-1">
+                            {/* Vehicle & Location */}
+                            <div className="flex-1 flex flex-wrap gap-4">
+                              <div className="flex items-center gap-2 min-w-[180px]">
+                                <Car className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">
+                                  {booking.vehicle?.year} {booking.vehicle?.make} {booking.vehicle?.model}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">{booking.location?.name}</span>
+                              </div>
+                            </div>
+
+                            {/* Readiness Badges */}
+                            <div className="flex flex-wrap gap-2">
+                              <ReadinessBadge
+                                ok={booking.paymentStatus === "paid"}
+                                label="Payment"
+                                icon={CreditCard}
+                              />
+                              <ReadinessBadge
+                                ok={booking.verificationStatus === "verified"}
+                                label="Verified"
+                                icon={FileCheck}
+                              />
+                              <ReadinessBadge
+                                ok={booking.vehicleReady}
+                                label="Vehicle"
+                                icon={Car}
+                              />
+                              <ReadinessBadge
+                                ok={booking.bufferCleared}
+                                label="Buffer"
+                                icon={Sparkles}
+                              />
+                            </div>
+
+                            {/* Actions */}
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="font-mono">
-                                {booking.booking_code}
-                              </Badge>
-                              <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                                <Clock className="w-3 h-3 mr-1" />
-                                {format(parseISO(booking.start_at), "h:mm a")}
-                              </Badge>
-                            </div>
-                            <p className="font-medium">
-                              {booking.vehicle?.year} {booking.vehicle?.make} {booking.vehicle?.model}
-                            </p>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <User className="w-4 h-4" />
-                                {booking.profile?.full_name || "Unknown"}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-4 h-4" />
-                                {booking.location?.name}
-                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin/pickups`)}
+                              >
+                                Open Ops
+                              </Button>
+                              <Button
+                                variant={allReady ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleStartHandover(booking)}
+                              >
+                                <Play className="h-4 w-4 mr-2" />
+                                Handover
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                onClick={() => handleFlagIssue(booking)}
+                              >
+                                <Flag className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
 
-                          {/* Actions */}
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin/pickups`)}
-                            >
-                              Open Ops
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                setSelectedBooking(booking);
-                                setPickupNotes(booking.notes || "");
-                              }}
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Confirm
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          {/* Warnings */}
+                          {!allReady && (
+                            <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
+                              {booking.paymentStatus !== "paid" && (
+                                <Badge variant="secondary" className="bg-amber-500/10 text-amber-700">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Payment {booking.paymentStatus}
+                                </Badge>
+                              )}
+                              {booking.verificationStatus !== "verified" && (
+                                <Badge variant="secondary" className="bg-amber-500/10 text-amber-700">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Verification {booking.verificationStatus}
+                                </Badge>
+                              )}
+                              {!booking.vehicleReady && (
+                                <Badge variant="secondary" className="bg-red-500/10 text-red-700">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Vehicle not available
+                                </Badge>
+                              )}
+                              {!booking.bufferCleared && (
+                                <Badge variant="secondary" className="bg-amber-500/10 text-amber-700">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Cleaning buffer not cleared
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Pickup Confirmation Dialog */}
-        <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
-          <DialogContent className="max-w-lg">
+        {/* Stats Footer */}
+        {filteredBookings.length > 0 && (
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>{filteredBookings.length} pickup{filteredBookings.length !== 1 ? "s" : ""} scheduled</span>
+            <span>
+              {readyCount} ready, {needsAttentionCount} need attention
+            </span>
+          </div>
+        )}
+
+        {/* Handover Checklist Dialog */}
+        <Dialog open={checklistOpen} onOpenChange={setChecklistOpen}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <KeyRound className="w-5 h-5" />
-                Confirm Pickup
-              </DialogTitle>
+              <DialogTitle>Handover Checklist</DialogTitle>
+              <DialogDescription>
+                Confirm all items before completing handover for booking{" "}
+                <span className="font-mono font-medium">{checklistBooking?.bookingCode}</span>
+              </DialogDescription>
             </DialogHeader>
-            {selectedBooking && (
-              <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-xl space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Booking Code</span>
-                    <Badge variant="outline" className="font-mono">{selectedBooking.booking_code}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Vehicle</span>
-                    <span className="font-medium">
-                      {selectedBooking.vehicle?.year} {selectedBooking.vehicle?.make} {selectedBooking.vehicle?.model}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Customer</span>
-                    <span className="font-medium">{selectedBooking.profile?.full_name}</span>
-                  </div>
-                  {selectedBooking.profile?.phone && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Phone</span>
-                      <a href={`tel:${selectedBooking.profile.phone}`} className="flex items-center gap-1 text-primary">
-                        <Phone className="w-4 h-4" />
-                        {selectedBooking.profile.phone}
-                      </a>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Pickup Time</span>
-                    <span>{format(parseISO(selectedBooking.start_at), "h:mm a")}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Return Date</span>
-                    <span>{format(parseISO(selectedBooking.end_at), "MMM d, yyyy")}</span>
-                  </div>
-                </div>
 
-                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                  <div className="flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                    <div className="text-sm">
-                      <p className="font-medium text-amber-600">Pre-pickup Checklist</p>
-                      <ul className="text-amber-700 mt-1 space-y-1">
-                        <li>• Verify customer ID matches booking</li>
-                        <li>• Check driver's license is valid</li>
-                        <li>• Complete vehicle walk-around inspection</li>
-                        <li>• Collect security deposit if required</li>
-                      </ul>
-                    </div>
-                  </div>
+            <div className="space-y-4 py-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="verification"
+                  checked={checklistState.verificationConfirmed}
+                  onCheckedChange={(checked) =>
+                    setChecklistState((s) => ({ ...s, verificationConfirmed: !!checked }))
+                  }
+                />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="verification" className="font-medium">
+                    Identity Verified
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Customer ID matches booking details
+                  </p>
                 </div>
-
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Pickup Notes (optional)</p>
-                  <Textarea
-                    placeholder="Add any notes about the pickup..."
-                    value={pickupNotes}
-                    onChange={(e) => setPickupNotes(e.target.value)}
-                  />
-                </div>
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setSelectedBooking(null)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleConfirmPickup}
-                    disabled={confirmPickupMutation.isPending}
-                  >
-                    {confirmPickupMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                    )}
-                    Confirm Pickup
-                  </Button>
-                </DialogFooter>
               </div>
-            )}
+
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="payment"
+                  checked={checklistState.paymentConfirmed}
+                  onCheckedChange={(checked) =>
+                    setChecklistState((s) => ({ ...s, paymentConfirmed: !!checked }))
+                  }
+                />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="payment" className="font-medium">
+                    Payment Confirmed
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Full payment received or deposit collected
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="inspection"
+                  checked={checklistState.inspectionConfirmed}
+                  onCheckedChange={(checked) =>
+                    setChecklistState((s) => ({ ...s, inspectionConfirmed: !!checked }))
+                  }
+                />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="inspection" className="font-medium">
+                    Pickup Inspection Complete
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Photos taken and fuel/odometer recorded
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Staff Notes (optional)</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Any notes about the handover..."
+                  value={checklistState.notes}
+                  onChange={(e) =>
+                    setChecklistState((s) => ({ ...s, notes: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setChecklistOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCompleteHandover}
+                disabled={
+                  !checklistState.verificationConfirmed ||
+                  !checklistState.paymentConfirmed ||
+                  !checklistState.inspectionConfirmed ||
+                  updateStatus.isPending
+                }
+              >
+                {updateStatus.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                )}
+                Complete Handover
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

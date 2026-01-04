@@ -22,20 +22,20 @@ import AdminOverview from "./pages/admin/Overview";
 import AdminAlerts from "./pages/admin/Alerts";
 import AdminBookings from "./pages/admin/Bookings";
 import AdminBilling from "./pages/admin/Billing";
-import AdminHandovers from "./pages/admin/Handovers";
 import AdminReturns from "./pages/admin/Returns";
 import AdminInventory from "./pages/admin/Inventory";
 import AdminCalendar from "./pages/admin/Calendar";
 import AdminDamages from "./pages/admin/Damages";
 import AdminTickets from "./pages/admin/Tickets";
 import AdminSettings from "./pages/admin/Settings";
-import AdminConditionPhotos from "./pages/admin/ConditionPhotos";
-import AdminVerifications from "./pages/admin/Verifications";
 import AdminPickups from "./pages/admin/Pickups";
 import BookingOps from "./pages/admin/BookingOps";
 
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
+
+// Redirects for removed nav items
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -67,15 +67,17 @@ const App = () => (
             <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
             <Route path="/admin/pickups" element={<AdminProtectedRoute><AdminPickups /></AdminProtectedRoute>} />
             <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
-            <Route path="/admin/handovers" element={<AdminProtectedRoute><AdminHandovers /></AdminProtectedRoute>} />
             <Route path="/admin/returns" element={<AdminProtectedRoute><AdminReturns /></AdminProtectedRoute>} />
             <Route path="/admin/inventory" element={<AdminProtectedRoute><AdminInventory /></AdminProtectedRoute>} />
             <Route path="/admin/calendar" element={<AdminProtectedRoute><AdminCalendar /></AdminProtectedRoute>} />
-            <Route path="/admin/photos" element={<AdminProtectedRoute><AdminConditionPhotos /></AdminProtectedRoute>} />
-            <Route path="/admin/verifications" element={<AdminProtectedRoute><AdminVerifications /></AdminProtectedRoute>} />
             <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
             <Route path="/admin/tickets" element={<AdminProtectedRoute><AdminTickets /></AdminProtectedRoute>} />
             <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
+
+            {/* Redirects for removed nav items */}
+            <Route path="/admin/handovers" element={<Navigate to="/admin/pickups" replace />} />
+            <Route path="/admin/photos" element={<Navigate to="/admin/damages" replace />} />
+            <Route path="/admin/verifications" element={<Navigate to="/admin/alerts?type=verification_pending" replace />} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

@@ -201,13 +201,13 @@ export default function AdminOverview() {
 
   const quickLinks = [
     { label: "Bookings", href: "/admin/bookings", icon: BookOpen, description: "View all reservations" },
-    { label: "Pickups", href: "/admin/pickups", icon: KeyRound, description: "Today's handovers" },
+    { label: "Pickups", href: "/admin/pickups", icon: KeyRound, description: "Pickups & handovers" },
     { label: "Returns", href: "/admin/returns", icon: RotateCcw, description: "Due returns" },
-    { label: "Alerts", href: "/admin/alerts", icon: Bell, description: "Action required", badge: pendingAlerts },
-    { label: "Verifications", href: "/admin/verifications", icon: FileCheck, description: "Review documents", badge: pendingVerifications },
+    { label: "Alerts", href: "/admin/alerts", icon: Bell, description: "Action required", badge: pendingAlerts + pendingVerifications },
     { label: "Billing", href: "/admin/billing", icon: Receipt, description: "Receipts & payments" },
     { label: "Inventory", href: "/admin/inventory", icon: Car, description: "Fleet management" },
     { label: "Calendar", href: "/admin/calendar", icon: Calendar, description: "Booking schedule" },
+    { label: "Damages", href: "/admin/damages", icon: AlertTriangle, description: "Damage reports" },
   ];
 
   return (
@@ -376,7 +376,7 @@ export default function AdminOverview() {
                   )}
                   {pendingVerifications > 0 && (
                     <Link 
-                      to="/admin/verifications"
+                      to="/admin/alerts?type=verification_pending"
                       className="flex items-center justify-between py-2 border-b border-border hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
                     >
                       <div className="flex items-center gap-3">
