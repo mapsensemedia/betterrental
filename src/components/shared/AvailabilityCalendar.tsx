@@ -49,8 +49,8 @@ export function AvailabilityCalendar({
   };
 
   const modifiersClassNames = {
-    blocked: "!bg-destructive/20 !text-destructive line-through cursor-not-allowed",
-    available: "!bg-success/10 !text-success hover:!bg-success/20",
+    blocked: "!bg-destructive !text-destructive-foreground line-through cursor-not-allowed hover:!bg-destructive",
+    available: "!bg-success/20 !text-success-foreground hover:!bg-success/30",
   };
 
   const baseProps = {

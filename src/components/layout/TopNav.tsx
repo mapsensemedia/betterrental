@@ -13,11 +13,7 @@ const navLinks = [
   { href: "/locations", label: "Locations" },
 ];
 
-interface TopNavProps {
-  transparent?: boolean;
-}
-
-export function TopNav({ transparent = false }: TopNavProps) {
+export function TopNav() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,24 +35,16 @@ export function TopNav({ transparent = false }: TopNavProps) {
 
   return (
     <header
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-200",
-        transparent ? "bg-transparent" : "bg-card/95 backdrop-blur-lg border-b border-border",
-      )}
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-200 bg-card border-b border-border"
     >
       <div className="container-page">
         <nav className="flex items-center justify-between h-16" aria-label="Primary">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5" aria-label="LuxeRide home">
-            <div
-              className={cn(
-                "flex items-center justify-center w-9 h-9 rounded-lg",
-                transparent ? "bg-card/20 backdrop-blur-sm" : "bg-primary",
-              )}
-            >
-              <Car className={cn("w-4 h-4", transparent ? "text-card" : "text-primary-foreground")} />
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
+              <Car className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className={cn("text-lg font-bold tracking-tight", transparent ? "text-card" : "text-background")}>
+            <span className="text-lg font-bold tracking-tight text-foreground">
               LuxeRide
             </span>
           </Link>
@@ -70,12 +58,8 @@ export function TopNav({ transparent = false }: TopNavProps) {
                 className={cn(
                   "text-sm font-medium transition-colors",
                   location.pathname === link.href
-                    ? transparent
-                      ? "text-card"
-                      : "text-foreground"
-                    : transparent
-                      ? "text-card/70 hover:text-card"
-                      : "text-muted-foreground hover:text-foreground",
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {link.label}
@@ -85,7 +69,7 @@ export function TopNav({ transparent = false }: TopNavProps) {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-2">
-            <Button variant={transparent ? "hero-outline" : "ghost"} size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild>
               <Link to="/search">
                 <Search className="w-4 h-4" />
                 Search
@@ -94,18 +78,18 @@ export function TopNav({ transparent = false }: TopNavProps) {
 
             {user ? (
               <>
-                <Button variant={transparent ? "hero" : "default"} size="sm" asChild>
+                <Button variant="default" size="sm" asChild>
                   <Link to="/dashboard">
                     <LayoutDashboard className="w-4 h-4" />
                     Dashboard
                   </Link>
                 </Button>
-                <Button variant={transparent ? "hero-outline" : "outline"} size="sm" onClick={handleSignOut}>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
                   <LogOut className="w-4 h-4" />
                 </Button>
               </>
             ) : (
-              <Button variant={transparent ? "hero" : "default"} size="sm" asChild>
+              <Button variant="default" size="sm" asChild>
                 <Link to="/auth">
                   <User className="w-4 h-4" />
                   Sign In
@@ -117,10 +101,7 @@ export function TopNav({ transparent = false }: TopNavProps) {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={cn(
-              "md:hidden p-2 rounded-lg transition-colors",
-              transparent ? "text-card hover:bg-card/10" : "text-foreground hover:bg-secondary",
-            )}
+            className="md:hidden p-2 rounded-lg transition-colors text-foreground hover:bg-secondary"
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-expanded={isOpen}
           >

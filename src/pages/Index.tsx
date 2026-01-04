@@ -6,14 +6,12 @@ import { VehicleCard } from "@/components/landing/VehicleCard";
 import { CategoryCard } from "@/components/landing/CategoryCard";
 import { SectionHeader } from "@/components/landing/SectionHeader";
 import { TrustStrip } from "@/components/landing/TrustStrip";
-import { PromoBanner } from "@/components/landing/PromoBanner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useVehicles } from "@/hooks/use-vehicles";
 
 // Images
 import heroImage from "@/assets/hero-car.jpg";
-import promoImage from "@/assets/promo-tesla.jpg";
 import mercedesCat from "@/assets/categories/mercedes.jpg";
 import audiCat from "@/assets/categories/audi.jpg";
 import bmwCat from "@/assets/categories/bmw.jpg";
@@ -33,9 +31,9 @@ const Index = () => {
   const trendingVehicles = vehicles.slice(0, 4);
 
   return (
-    <CustomerLayout transparentNav>
+    <CustomerLayout>
       {/* Hero Section */}
-      <section className="bg-background pt-32 pb-16">
+      <section className="bg-background pt-16 pb-16">
         <div className="container-page">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Hero Content */}
@@ -86,19 +84,18 @@ const Index = () => {
       </section>
 
       {/* Trending Vehicles Section */}
-      <section className="py-20 bg-foreground">
+      <section className="py-20 bg-muted">
         <div className="container-page">
           <SectionHeader
             title="Trending Vehicles"
             action={
-              <Button variant="hero" asChild>
+              <Button variant="default" asChild>
                 <Link to="/search">
                   View all
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
             }
-            className="[&_h2]:text-card"
           />
           
           {isLoading ? (
@@ -116,7 +113,7 @@ const Index = () => {
             </div>
           ) : trendingVehicles.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {trendingVehicles.map((vehicle, index) => (
+              {trendingVehicles.map((vehicle) => (
                 <VehicleCard
                   key={vehicle.id}
                   id={vehicle.id}
@@ -130,13 +127,12 @@ const Index = () => {
                   fuelType={vehicle.fuelType || "Petrol"}
                   transmission={vehicle.transmission || "Automatic"}
                   isFeatured={vehicle.isFeatured || false}
-                  variant={index === 0 ? "dark" : "default"}
                   className="animate-fade-in"
                 />
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-card/70">
+            <div className="text-center py-12 text-muted-foreground">
               <p>No vehicles available at the moment.</p>
             </div>
           )}
@@ -145,21 +141,6 @@ const Index = () => {
 
       {/* Trust Strip */}
       <TrustStrip />
-
-      {/* Promo Banner */}
-      <section className="section-spacing bg-background">
-        <div className="container-page">
-          <PromoBanner
-            title="Book Tesla with a big discount"
-            subtitle="Experience the future of driving with our electric fleet. Zero emissions, maximum performance."
-            discount="50%"
-            discountLabel="For everyone Tesla cars"
-            ctaText="Book Now"
-            ctaLink="/search?make=tesla"
-            imageUrl={promoImage}
-          />
-        </div>
-      </section>
     </CustomerLayout>
   );
 };
