@@ -319,6 +319,86 @@ export type Database = {
           },
         ]
       }
+      checkin_records: {
+        Row: {
+          age_notes: string | null
+          age_verified: boolean | null
+          arrival_time: string | null
+          blocked_reason: string | null
+          booking_id: string
+          check_in_status: string
+          checked_in_at: string | null
+          checked_in_by: string | null
+          created_at: string
+          customer_dob: string | null
+          id: string
+          identity_notes: string | null
+          identity_verified: boolean | null
+          license_expiry_date: string | null
+          license_name_matches: boolean | null
+          license_notes: string | null
+          license_valid: boolean | null
+          license_verified: boolean | null
+          timing_notes: string | null
+          timing_status: string | null
+          updated_at: string
+        }
+        Insert: {
+          age_notes?: string | null
+          age_verified?: boolean | null
+          arrival_time?: string | null
+          blocked_reason?: string | null
+          booking_id: string
+          check_in_status?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          created_at?: string
+          customer_dob?: string | null
+          id?: string
+          identity_notes?: string | null
+          identity_verified?: boolean | null
+          license_expiry_date?: string | null
+          license_name_matches?: boolean | null
+          license_notes?: string | null
+          license_valid?: boolean | null
+          license_verified?: boolean | null
+          timing_notes?: string | null
+          timing_status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          age_notes?: string | null
+          age_verified?: boolean | null
+          arrival_time?: string | null
+          blocked_reason?: string | null
+          booking_id?: string
+          check_in_status?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          created_at?: string
+          customer_dob?: string | null
+          id?: string
+          identity_notes?: string | null
+          identity_verified?: boolean | null
+          license_expiry_date?: string | null
+          license_name_matches?: boolean | null
+          license_notes?: string | null
+          license_valid?: boolean | null
+          license_verified?: boolean | null
+          timing_notes?: string | null
+          timing_status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkin_records_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       condition_photos: {
         Row: {
           booking_id: string
