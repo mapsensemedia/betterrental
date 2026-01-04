@@ -141,6 +141,20 @@ const quickGuide = [
       "Alerts auto-resolve when the underlying issue is fixed",
     ],
   },
+  {
+    id: "active-rentals",
+    title: "Monitoring Active Rentals",
+    icon: Car,
+    color: "text-primary",
+    steps: [
+      "The **Active Rentals Monitor** is shown on the Dashboard main page",
+      "It displays all currently active rentals with their status",
+      "**Red** items indicate overdue returns that need immediate attention",
+      "**Amber** items are approaching return time (within 2 hours)",
+      "Click any rental to open its booking details",
+      "You can also access all active rentals via the **Returns** tab",
+    ],
+  },
 ];
 
 export default function AdminOverview() {
@@ -310,10 +324,8 @@ export default function AdminOverview() {
               </Card>
             )}
 
-            {/* Active Rentals Monitor */}
-            {activeBookings > 0 && (
-              <ActiveRentalsMonitor />
-            )}
+            {/* Active Rentals Monitor - Always visible */}
+            <ActiveRentalsMonitor />
 
             {/* Upcoming Summary */}
             <div className="grid md:grid-cols-2 gap-6">
