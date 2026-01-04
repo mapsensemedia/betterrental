@@ -397,39 +397,23 @@ export default function Search() {
                 }`}
               >
                 {filteredVehicles.map((vehicle) => (
-                  <div key={vehicle.id} className="relative group">
-                    <VehicleCard
-                      id={vehicle.id}
-                      make={vehicle.make}
-                      model={vehicle.model}
-                      year={vehicle.year}
-                      category={vehicle.category}
-                      dailyRate={vehicle.dailyRate}
-                      imageUrl={vehicle.imageUrl || ""}
-                      seats={vehicle.seats || 5}
-                      fuelType={vehicle.fuelType || "Petrol"}
-                      transmission={vehicle.transmission || "Automatic"}
-                      isFeatured={vehicle.isFeatured || false}
-                    />
-                    {/* Compare Checkbox */}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleCompare(vehicle.id);
-                      }}
-                      className={`absolute top-4 right-16 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                        compareList.includes(vehicle.id)
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card/90 backdrop-blur-sm text-foreground opacity-0 group-hover:opacity-100 hover:bg-card"
-                      }`}
-                      title="Add to compare"
-                    >
-                      <Checkbox
-                        checked={compareList.includes(vehicle.id)}
-                        className="pointer-events-none"
-                      />
-                    </button>
-                  </div>
+                  <VehicleCard
+                    key={vehicle.id}
+                    id={vehicle.id}
+                    make={vehicle.make}
+                    model={vehicle.model}
+                    year={vehicle.year}
+                    category={vehicle.category}
+                    dailyRate={vehicle.dailyRate}
+                    imageUrl={vehicle.imageUrl || ""}
+                    seats={vehicle.seats || 5}
+                    fuelType={vehicle.fuelType || "Petrol"}
+                    transmission={vehicle.transmission || "Automatic"}
+                    isFeatured={vehicle.isFeatured || false}
+                    showCompare
+                    isCompareSelected={compareList.includes(vehicle.id)}
+                    onCompareToggle={toggleCompare}
+                  />
                 ))}
               </div>
             ) : (
