@@ -54,6 +54,10 @@ const alertTypeLabels: Record<string, string> = {
   damage_reported: "Damage Reported",
   late_return: "Late Return",
   hold_expiring: "Hold Expiring",
+  return_due_soon: "Return Due Soon",
+  overdue: "Overdue",
+  customer_issue: "Customer Issue",
+  emergency: "Emergency",
 };
 
 const alertTypeIcons: Record<string, typeof AlertTriangle> = {
@@ -63,6 +67,10 @@ const alertTypeIcons: Record<string, typeof AlertTriangle> = {
   damage_reported: AlertTriangle,
   late_return: Clock,
   hold_expiring: Clock,
+  return_due_soon: Clock,
+  overdue: AlertTriangle,
+  customer_issue: Info,
+  emergency: AlertTriangle,
 };
 
 const statusColors: Record<string, string> = {

@@ -5,6 +5,7 @@ import { useAdminBookings } from "@/hooks/use-bookings";
 import { useAdminAlerts } from "@/hooks/use-alerts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import {
   Car,
   Calendar,
@@ -307,6 +308,11 @@ export default function AdminOverview() {
                     ))}
                 </CardContent>
               </Card>
+            )}
+
+            {/* Active Rentals Monitor */}
+            {activeBookings > 0 && (
+              <ActiveRentalsMonitor />
             )}
 
             {/* Upcoming Summary */}

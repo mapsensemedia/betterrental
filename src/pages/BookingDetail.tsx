@@ -52,6 +52,7 @@ import { VerificationModal } from "@/components/booking/VerificationModal";
 import { useBookingVerification } from "@/hooks/use-verification";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { CustomerWalkaroundAcknowledge } from "@/components/booking/CustomerWalkaroundAcknowledge";
+import { ReportIssueDialog } from "@/components/booking/ReportIssueDialog";
 
 interface BookingData {
   id: string;
@@ -104,6 +105,9 @@ export default function BookingDetail() {
   
   // Driver's license is required before verification
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+  
+  // Issue reporting (for active rentals)
+  const [showIssueDialog, setShowIssueDialog] = useState(false);
 
   const { data: verificationRequests = [], isLoading: verificationLoading } = useBookingVerification(id || null);
 
@@ -552,6 +556,17 @@ export default function BookingDetail() {
                     <MessageCircle className="h-4 w-4 mr-2" />
                     Contact Support
                   </Button>
+                  {/* Report Issue - Only for active rentals */}
+                  {booking.status === "active" && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                      onClick={() => setShowIssueDialog(true)}
+                    >
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      Report an Issue
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
 
@@ -801,6 +816,16 @@ export default function BookingDetail() {
           licenseSection?.scrollIntoView({ behavior: 'smooth' });
         }}
       />
+
+      {/* Report Issue Dialog - for active rentals */}
+      {booking && (
+        <ReportIssueDialog
+          open={showIssueDialog}
+          onOpenChange={setShowIssueDialog}
+          bookingId={booking.id}
+          bookingCode={booking.booking_code}
+        />
+      )}
     </CustomerLayout>
   );
 }
