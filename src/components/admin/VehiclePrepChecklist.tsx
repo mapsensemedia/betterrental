@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Wrench, CheckCircle2 } from 'lucide-react';
+import { Loader2, Wrench, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 import { 
   useVehiclePrepStatus, 
   useUpdateVehiclePrep,
@@ -16,6 +19,7 @@ interface VehiclePrepChecklistProps {
 export function VehiclePrepChecklist({ bookingId }: VehiclePrepChecklistProps) {
   const { data: prepStatus, isLoading } = useVehiclePrepStatus(bookingId);
   const updatePrep = useUpdateVehiclePrep();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleToggle = (itemKey: PrepChecklistKey, checked: boolean) => {
     updatePrep.mutate({
@@ -27,11 +31,9 @@ export function VehiclePrepChecklist({ bookingId }: VehiclePrepChecklistProps) {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-6 flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+      <div className="p-4 flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
@@ -39,37 +41,48 @@ export function VehiclePrepChecklist({ bookingId }: VehiclePrepChecklistProps) {
 
   const progressPercent = (prepStatus.completedCount / prepStatus.totalCount) * 100;
 
+  // Compact summary view
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Wrench className="h-4 w-4" />
-            Vehicle Prep Checklist
-          </CardTitle>
+    <div className="space-y-3">
+      {/* Summary row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
           {prepStatus.allComplete ? (
-            <Badge className="bg-green-500">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              Complete
-            </Badge>
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           ) : (
-            <Badge variant="secondary">
-              {prepStatus.completedCount}/{prepStatus.totalCount}
-            </Badge>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
           )}
+          <span className={cn(
+            "text-sm font-medium",
+            prepStatus.allComplete && "text-emerald-600"
+          )}>
+            {prepStatus.allComplete ? "Prep complete" : `${prepStatus.completedCount}/${prepStatus.totalCount} items`}
+          </span>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Progress value={progressPercent} className="h-2" />
-        
-        <div className="space-y-3">
+        <Badge 
+          variant={prepStatus.allComplete ? "default" : "secondary"}
+          className={cn(prepStatus.allComplete && "bg-emerald-500")}
+        >
+          {prepStatus.allComplete ? "Ready" : "In Progress"}
+        </Badge>
+      </div>
+
+      <Progress value={progressPercent} className="h-1.5" />
+
+      {/* Expandable checklist */}
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+        <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronDown className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-180")} />
+          {isExpanded ? "Hide checklist" : "View checklist"}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3 space-y-2">
           {prepStatus.items.map((item) => (
             <div
               key={item.id}
-              className={`
-                flex items-center gap-3 p-3 rounded-lg border transition-colors
-                ${item.checked ? 'bg-green-500/5 border-green-500/30' : 'border-border'}
-              `}
+              className={cn(
+                "flex items-center gap-3 p-2.5 rounded-lg border transition-colors",
+                item.checked ? "bg-emerald-500/5 border-emerald-500/30" : "border-border"
+              )}
             >
               <Checkbox
                 id={item.id}
@@ -81,20 +94,20 @@ export function VehiclePrepChecklist({ bookingId }: VehiclePrepChecklistProps) {
               />
               <label
                 htmlFor={item.id}
-                className={`
-                  flex-1 text-sm cursor-pointer
-                  ${item.checked ? 'text-green-700 line-through' : ''}
-                `}
+                className={cn(
+                  "flex-1 text-sm cursor-pointer",
+                  item.checked && "text-emerald-700 dark:text-emerald-400 line-through"
+                )}
               >
                 {item.label}
               </label>
               {item.checked && (
-                <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
               )}
             </div>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }
