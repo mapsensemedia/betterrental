@@ -37,6 +37,8 @@ import {
   Receipt,
   Send,
   FileText,
+  Phone,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBookingReceipts } from "@/hooks/use-receipts";
@@ -567,6 +569,36 @@ export default function BookingDetail() {
                       Report an Issue
                     </Button>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Emergency Contact Card */}
+              <Card className="border-destructive/20 bg-destructive/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-destructive" />
+                    Emergency Contact
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <a 
+                    href="tel:+18005551234" 
+                    className="flex items-center gap-2 text-destructive font-semibold hover:underline"
+                  >
+                    <Phone className="h-4 w-4" />
+                    +1 (800) 555-1234
+                  </a>
+                  <p className="text-xs text-muted-foreground">
+                    Available 24/7 for roadside assistance & emergencies
+                  </p>
+                  <Separator />
+                  <a 
+                    href="mailto:support@luxurydrives.com" 
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <Mail className="h-4 w-4" />
+                    support@luxurydrives.com
+                  </a>
                 </CardContent>
               </Card>
 

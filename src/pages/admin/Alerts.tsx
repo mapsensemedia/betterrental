@@ -333,7 +333,7 @@ export default function AdminAlerts() {
                   <h4 className="text-sm font-medium">Related</h4>
                   {selectedAlert.bookingId && (
                     <Link 
-                      to={`/admin/bookings?code=${selectedAlert.bookingId}`}
+                      to={`/admin/bookings/${selectedAlert.bookingId}/ops`}
                       className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
                     >
                       <div className="flex items-center gap-3">
