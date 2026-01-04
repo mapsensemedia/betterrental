@@ -13,6 +13,7 @@ import { VehiclePrepChecklist } from "./VehiclePrepChecklist";
 import { PreInspectionPhotos } from "./PreInspectionPhotos";
 import { VehicleReadyGate } from "./VehicleReadyGate";
 import { VehicleAssignment } from "./VehicleAssignment";
+import { CheckInSection } from "./CheckInSection";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -371,6 +372,30 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                     <PreInspectionPhotos bookingId={booking.id} />
                     <VehicleReadyGate bookingId={booking.id} currentStatus={booking.status} />
                   </div>
+                )}
+
+                {/* Customer Check-In Section - Show for confirmed bookings */}
+                {booking.status === "confirmed" && (
+                  <CheckInSection
+                    bookingId={booking.id}
+                    bookingStartAt={booking.start_at}
+                    customerName={booking.profiles?.full_name || null}
+                    hasLicenseUploaded={
+                      booking.verifications?.some(
+                        (v: any) =>
+                          v.document_type === "drivers_license_front" ||
+                          v.document_type === "drivers_license_back"
+                      ) || false
+                    }
+                    licenseVerified={
+                      booking.verifications?.every(
+                        (v: any) =>
+                          (v.document_type === "drivers_license_front" ||
+                            v.document_type === "drivers_license_back") &&
+                          v.status === "verified"
+                      ) || false
+                    }
+                  />
                 )}
 
                 {/* Quick Info Grid */}
