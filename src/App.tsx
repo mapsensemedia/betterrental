@@ -30,6 +30,7 @@ import AdminTickets from "./pages/admin/Tickets";
 import AdminSettings from "./pages/admin/Settings";
 import AdminPickups from "./pages/admin/Pickups";
 import AdminActiveRentals from "./pages/admin/ActiveRentals";
+import ActiveRentalDetail from "./pages/admin/ActiveRentalDetail";
 import BookingOps from "./pages/admin/BookingOps";
 
 // Admin Protection
@@ -68,6 +69,7 @@ const App = () => (
             <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
             <Route path="/admin/pickups" element={<AdminProtectedRoute><AdminPickups /></AdminProtectedRoute>} />
             <Route path="/admin/active-rentals" element={<AdminProtectedRoute><AdminActiveRentals /></AdminProtectedRoute>} />
+            <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
             <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
             <Route path="/admin/returns" element={<AdminProtectedRoute><AdminReturns /></AdminProtectedRoute>} />
             <Route path="/admin/inventory" element={<AdminProtectedRoute><AdminInventory /></AdminProtectedRoute>} />
