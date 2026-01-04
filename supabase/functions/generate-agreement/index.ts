@@ -35,8 +35,7 @@ serve(async (req) => {
       .select(`
         *,
         vehicles (id, make, model, year, category, fuel_type, transmission, seats),
-        locations (id, name, address, city, phone),
-        profiles:user_id (id, full_name, email, phone)
+        locations (id, name, address, city, phone)
       `)
       .eq("id", bookingId)
       .single();
@@ -50,6 +49,15 @@ serve(async (req) => {
     }
 
     console.log(`Found booking: ${booking.booking_code}`);
+
+    // Fetch profile separately since there's no FK relationship
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, phone")
+      .eq("id", booking.user_id)
+      .maybeSingle();
+
+    console.log(`Found profile: ${profile?.full_name || 'N/A'}`);
 
     // Check if agreement already exists
     const { data: existingAgreement } = await supabase
@@ -94,9 +102,9 @@ serve(async (req) => {
         phone: booking.locations?.phone,
       },
       customer: {
-        name: booking.profiles?.full_name,
-        email: booking.profiles?.email,
-        phone: booking.profiles?.phone,
+        name: profile?.full_name,
+        email: profile?.email,
+        phone: profile?.phone,
       },
       mileageLimits: {
         dailyLimit: 200,
@@ -131,9 +139,9 @@ Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'l
 PARTIES TO THIS AGREEMENT
 
 RENTER:
-Name: ${booking.profiles?.full_name || 'N/A'}
-Email: ${booking.profiles?.email || 'N/A'}
-Phone: ${booking.profiles?.phone || 'N/A'}
+Name: ${profile?.full_name || 'N/A'}
+Email: ${profile?.email || 'N/A'}
+Phone: ${profile?.phone || 'N/A'}
 
 RENTAL COMPANY:
 Location: ${booking.locations?.name || 'N/A'}
