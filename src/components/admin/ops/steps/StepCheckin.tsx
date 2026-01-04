@@ -9,21 +9,20 @@ interface StepCheckinProps {
     identityVerified: boolean;
     timingConfirmed: boolean;
   };
+  verifications?: any[];
 }
 
-export function StepCheckin({ booking, completion }: StepCheckinProps) {
-  const hasLicenseUploaded = booking.verifications?.some(
+export function StepCheckin({ booking, completion, verifications = [] }: StepCheckinProps) {
+  const licenseVerifications = verifications.filter(
     (v: any) =>
       v.document_type === "drivers_license_front" ||
       v.document_type === "drivers_license_back"
-  ) || false;
+  );
   
-  const licenseVerified = booking.verifications?.every(
-    (v: any) =>
-      (v.document_type === "drivers_license_front" ||
-        v.document_type === "drivers_license_back") &&
-      v.status === "verified"
-  ) || false;
+  const hasLicenseUploaded = licenseVerifications.length > 0;
+  
+  const licenseVerified = licenseVerifications.length >= 2 && 
+    licenseVerifications.every((v: any) => v.status === "verified");
   
   return (
     <div className="space-y-4">
