@@ -1128,6 +1128,74 @@ export type Database = {
           },
         ]
       }
+      walkaround_inspections: {
+        Row: {
+          booking_id: string
+          completed_at: string | null
+          conducted_at: string
+          conducted_by: string
+          created_at: string
+          customer_acknowledged: boolean
+          customer_acknowledged_at: string | null
+          customer_signature: string | null
+          exterior_notes: string | null
+          fuel_level: number | null
+          id: string
+          inspection_complete: boolean
+          interior_condition: string | null
+          interior_notes: string | null
+          odometer_reading: number | null
+          scratches_dents: Json | null
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          completed_at?: string | null
+          conducted_at?: string
+          conducted_by: string
+          created_at?: string
+          customer_acknowledged?: boolean
+          customer_acknowledged_at?: string | null
+          customer_signature?: string | null
+          exterior_notes?: string | null
+          fuel_level?: number | null
+          id?: string
+          inspection_complete?: boolean
+          interior_condition?: string | null
+          interior_notes?: string | null
+          odometer_reading?: number | null
+          scratches_dents?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          completed_at?: string | null
+          conducted_at?: string
+          conducted_by?: string
+          created_at?: string
+          customer_acknowledged?: boolean
+          customer_acknowledged_at?: string | null
+          customer_signature?: string | null
+          exterior_notes?: string | null
+          fuel_level?: number | null
+          id?: string
+          inspection_complete?: boolean
+          interior_condition?: string | null
+          interior_notes?: string | null
+          odometer_reading?: number | null
+          scratches_dents?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "walkaround_inspections_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
