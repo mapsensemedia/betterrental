@@ -50,6 +50,7 @@ import {
 import { DriverLicenseUpload } from "@/components/booking/DriverLicenseUpload";
 import { VerificationModal } from "@/components/booking/VerificationModal";
 import { useBookingVerification } from "@/hooks/use-verification";
+import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 
 interface BookingData {
   id: string;
@@ -414,6 +415,11 @@ export default function BookingDetail() {
                 <div data-license-section data-verification-section>
                   <DriverLicenseUpload bookingId={id} />
                 </div>
+              )}
+
+              {/* Rental Agreement - Customer signing */}
+              {id && booking.status === "confirmed" && (
+                <RentalAgreementSign bookingId={id} />
               )}
 
               {/* Payment Summary */}

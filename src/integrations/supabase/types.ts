@@ -813,6 +813,59 @@ export type Database = {
           },
         ]
       }
+      rental_agreements: {
+        Row: {
+          agreement_content: string
+          booking_id: string
+          created_at: string
+          customer_ip_address: string | null
+          customer_signature: string | null
+          customer_signed_at: string | null
+          id: string
+          staff_confirmed_at: string | null
+          staff_confirmed_by: string | null
+          status: string
+          terms_json: Json
+          updated_at: string
+        }
+        Insert: {
+          agreement_content: string
+          booking_id: string
+          created_at?: string
+          customer_ip_address?: string | null
+          customer_signature?: string | null
+          customer_signed_at?: string | null
+          id?: string
+          staff_confirmed_at?: string | null
+          staff_confirmed_by?: string | null
+          status?: string
+          terms_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          agreement_content?: string
+          booking_id?: string
+          created_at?: string
+          customer_ip_address?: string | null
+          customer_signature?: string | null
+          customer_signed_at?: string | null
+          id?: string
+          staff_confirmed_at?: string | null
+          staff_confirmed_by?: string | null
+          status?: string
+          terms_json?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rental_agreements_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_holds: {
         Row: {
           created_at: string
