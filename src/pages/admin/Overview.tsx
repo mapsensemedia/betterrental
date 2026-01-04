@@ -254,6 +254,60 @@ export default function AdminOverview() {
               ))}
             </div>
 
+            {/* Awaiting Pickup - Confirmed bookings with completeness */}
+            {confirmedBookings > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <KeyRound className="w-4 h-4 text-green-500" />
+                      Awaiting Pickup
+                    </CardTitle>
+                    <Link to="/admin/pickups">
+                      <Button variant="ghost" size="sm" className="gap-1">
+                        View all <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                  <CardDescription>
+                    Confirmed bookings ready for handover
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {bookings
+                    .filter(b => b.status === "confirmed")
+                    .slice(0, 5)
+                    .map((booking) => (
+                      <Link
+                        key={booking.id}
+                        to={`/admin/bookings?code=${booking.bookingCode}`}
+                        className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                            <Car className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">
+                              {booking.vehicle?.make} {booking.vehicle?.model}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {booking.profile?.fullName || "Customer"} • {format(parseISO(booking.startAt), "MMM d, h:mm a")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs font-mono">
+                            {booking.bookingCode}
+                          </Badge>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      </Link>
+                    ))}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Upcoming Summary */}
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
