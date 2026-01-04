@@ -5,11 +5,14 @@
 
 export type BookingStage = 
   | "intake"        // Initial booking created
+  | "license"       // Customer uploads driver's license
+  | "verification"  // License verification by ops
   | "prep"          // Vehicle preparation
-  | "check_in"      // Customer arrival/verification
+  | "vehicle_ready" // Vehicle ready for handover
+  | "check_in"      // Customer arrival
   | "payment"       // Payment/deposit collection
   | "agreement"     // Contract signing
-  | "walkaround"    // Pre-rental inspection
+  | "walkaround"    // Pre-rental inspection (ops uploads photos)
   | "handover"      // Keys given, rental active
   | "active"        // Rental in progress
   | "monitoring"    // Tracking during rental
@@ -32,15 +35,33 @@ export const BOOKING_STAGES: StageInfo[] = [
     requiredFor: ["pending", "confirmed", "active", "completed"],
   },
   {
+    id: "license",
+    label: "License",
+    description: "Customer uploads driver's license (front & back)",
+    requiredFor: ["pending", "confirmed", "active", "completed"],
+  },
+  {
+    id: "verification",
+    label: "Verification",
+    description: "Ops team verifies driver's license",
+    requiredFor: ["confirmed", "active", "completed"],
+  },
+  {
     id: "prep",
     label: "Preparation",
-    description: "Vehicle cleaning and preparation",
+    description: "Vehicle cleaning, prep checklist, and pre-inspection photos",
+    requiredFor: ["confirmed", "active", "completed"],
+  },
+  {
+    id: "vehicle_ready",
+    label: "Vehicle Ready",
+    description: "Vehicle fully prepared for customer handover",
     requiredFor: ["confirmed", "active", "completed"],
   },
   {
     id: "check_in",
     label: "Check-in",
-    description: "Customer verification and identity check",
+    description: "Customer arrival at location",
     requiredFor: ["confirmed", "active", "completed"],
   },
   {
@@ -58,7 +79,7 @@ export const BOOKING_STAGES: StageInfo[] = [
   {
     id: "walkaround",
     label: "Walkaround",
-    description: "Pre-rental vehicle inspection",
+    description: "Joint vehicle inspection with customer",
     requiredFor: ["active", "completed"],
   },
   {
@@ -104,7 +125,9 @@ export const BOOKING_STAGES: StageInfo[] = [
  */
 export function getCurrentStage(
   status: string,
+  hasLicense: boolean,
   hasVerification: boolean,
+  hasVehicleReady: boolean,
   hasPayment: boolean,
   hasPickupPhotos: boolean,
   hasReturnPhotos: boolean
@@ -119,12 +142,16 @@ export function getCurrentStage(
   
   if (status === "confirmed") {
     if (hasPickupPhotos) return "handover";
-    if (hasPayment && hasVerification) return "walkaround";
-    if (hasPayment) return "agreement";
-    if (hasVerification) return "payment";
-    return "check_in";
+    if (hasPayment && hasVerification && hasVehicleReady) return "walkaround";
+    if (hasPayment && hasVerification) return "agreement";
+    if (hasVerification && hasVehicleReady) return "payment";
+    if (hasVerification) return "vehicle_ready";
+    if (hasLicense) return "verification";
+    return "prep";
   }
   
+  // Pending status
+  if (hasLicense) return "license";
   return "intake";
 }
 

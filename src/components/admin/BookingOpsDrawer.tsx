@@ -9,6 +9,10 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { IntakeChecklist } from "./IntakeChecklist";
+import { VehiclePrepChecklist } from "./VehiclePrepChecklist";
+import { PreInspectionPhotos } from "./PreInspectionPhotos";
+import { VehicleReadyGate } from "./VehicleReadyGate";
+import { VehicleAssignment } from "./VehicleAssignment";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -346,6 +350,27 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                 {/* Intake Checklist - Show for pending/confirmed bookings */}
                 {(booking.status === "pending" || booking.status === "confirmed") && (
                   <IntakeChecklist intakeStatus={intakeStatus} />
+                )}
+
+                {/* Vehicle Assignment - Show for pending/confirmed bookings */}
+                {(booking.status === "pending" || booking.status === "confirmed") && (
+                  <VehicleAssignment
+                    bookingId={booking.id}
+                    currentVehicleId={booking.vehicle_id}
+                    currentVehicle={booking.vehicles}
+                    locationId={booking.location_id}
+                    startAt={booking.start_at}
+                    endAt={booking.end_at}
+                  />
+                )}
+
+                {/* Vehicle Prep Section - Show for confirmed bookings */}
+                {booking.status === "confirmed" && (
+                  <div className="space-y-4">
+                    <VehiclePrepChecklist bookingId={booking.id} />
+                    <PreInspectionPhotos bookingId={booking.id} />
+                    <VehicleReadyGate bookingId={booking.id} currentStatus={booking.status} />
+                  </div>
                 )}
 
                 {/* Quick Info Grid */}

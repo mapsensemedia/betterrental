@@ -47,8 +47,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { VerificationUpload } from "@/components/booking/VerificationUpload";
-import { ConditionPhotosUpload } from "@/components/booking/ConditionPhotosUpload";
+import { DriverLicenseUpload } from "@/components/booking/DriverLicenseUpload";
 import { VerificationModal } from "@/components/booking/VerificationModal";
 import { TripContextBar } from "@/components/shared/TripContextBar";
 
@@ -393,16 +392,11 @@ export default function BookingDetail() {
                 </CardContent>
               </Card>
 
-              {/* Verification Upload */}
+              {/* Driver's License Upload - Required before verification */}
               {id && (
-                <div data-verification-section>
-                  <VerificationUpload bookingId={id} />
+                <div data-license-section>
+                  <DriverLicenseUpload bookingId={id} />
                 </div>
-              )}
-
-              {/* Vehicle Condition Photos */}
-              {id && (
-                <ConditionPhotosUpload bookingId={id} bookingStatus={booking.status} />
               )}
             </div>
 
