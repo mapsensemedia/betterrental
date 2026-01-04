@@ -31,11 +31,11 @@ export function VerificationModal({
             <FileCheck className="h-6 w-6 text-primary" />
           </div>
           <DialogTitle className="text-center">
-            Booking Confirmed!
+            Booking Confirmed
           </DialogTitle>
           <DialogDescription className="text-center">
-            Your booking <span className="font-mono font-semibold">{bookingCode}</span> has been created.
-            Please upload your verification documents to finalize your reservation.
+            Your booking <span className="font-mono font-semibold">{bookingCode}</span> is confirmed.
+            Please upload your driver's license (front & back) to continue.
           </DialogDescription>
         </DialogHeader>
 
@@ -43,20 +43,20 @@ export function VerificationModal({
           <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
             <Upload className="h-5 w-5 text-primary mt-0.5" />
             <div>
-              <p className="font-medium text-sm">Required Documents</p>
+              <p className="font-medium text-sm">Required</p>
               <ul className="text-sm text-muted-foreground mt-1 space-y-1">
-                <li>• Driver's License (Front & Back)</li>
-                <li>• Proof of Insurance (Optional)</li>
+                <li>• Driver's License (Front)</li>
+                <li>• Driver's License (Back)</li>
               </ul>
             </div>
           </div>
 
           <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-            <Clock className="h-5 w-5 text-yellow-500 mt-0.5" />
+            <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
             <div>
-              <p className="font-medium text-sm">Review Time</p>
+              <p className="font-medium text-sm">Why we need this</p>
               <p className="text-sm text-muted-foreground">
-                Documents are typically reviewed within 24 hours before pickup.
+                This is required to verify eligibility and prepare your pickup.
               </p>
             </div>
           </div>
@@ -65,14 +65,14 @@ export function VerificationModal({
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Button onClick={onUploadNow} className="w-full">
             <Upload className="h-4 w-4 mr-2" />
-            Upload Now
+            Upload Driver's License
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => onOpenChange(false)}
             className="w-full"
           >
-            I'll Do This Later
+            I’ll upload before pickup
           </Button>
         </DialogFooter>
       </DialogContent>
