@@ -40,27 +40,27 @@ export function TopNav({ transparent = false }: TopNavProps) {
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-200",
         transparent
           ? "bg-transparent"
-          : "bg-card/95 backdrop-blur-xl border-b border-border/50 shadow-soft"
+          : "bg-card/95 backdrop-blur-lg border-b border-border"
       )}
     >
       <div className="container-page">
-        <nav className="flex items-center justify-between h-20" aria-label="Primary">
+        <nav className="flex items-center justify-between h-16" aria-label="Primary">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2" aria-label="LuxeRide home">
+          <Link to="/" className="flex items-center gap-2.5" aria-label="LuxeRide home">
             <div
               className={cn(
-                "flex items-center justify-center w-10 h-10 rounded-xl",
+                "flex items-center justify-center w-9 h-9 rounded-lg",
                 transparent ? "bg-card/20 backdrop-blur-sm" : "bg-primary"
               )}
             >
-              <Car className={cn("w-5 h-5", transparent ? "text-card" : "text-primary-foreground")} />
+              <Car className={cn("w-4 h-4", transparent ? "text-card" : "text-primary-foreground")} />
             </div>
             <span
               className={cn(
-                "text-xl font-bold tracking-tight",
+                "text-lg font-bold tracking-tight",
                 transparent ? "text-card" : "text-foreground"
               )}
             >
@@ -69,20 +69,20 @@ export function TopNav({ transparent = false }: TopNavProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
                 className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary",
+                  "text-sm font-medium transition-colors",
                   location.pathname === link.href
                     ? transparent
                       ? "text-card"
-                      : "text-primary"
+                      : "text-foreground"
                     : transparent
-                      ? "text-card/80"
-                      : "text-muted-foreground"
+                      ? "text-card/70 hover:text-card"
+                      : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {link.label}
@@ -91,7 +91,7 @@ export function TopNav({ transparent = false }: TopNavProps) {
           </div>
 
           {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
             <Button variant={transparent ? "hero-outline" : "ghost"} size="sm" asChild>
               <Link to="/search">
                 <Search className="w-4 h-4" />
@@ -109,7 +109,6 @@ export function TopNav({ transparent = false }: TopNavProps) {
                 </Button>
                 <Button variant={transparent ? "hero-outline" : "outline"} size="sm" onClick={handleSignOut}>
                   <LogOut className="w-4 h-4" />
-                  Sign Out
                 </Button>
               </>
             ) : (
@@ -128,30 +127,30 @@ export function TopNav({ transparent = false }: TopNavProps) {
             className={cn(
               "md:hidden p-2 rounded-lg transition-colors",
               transparent
-                ? "text-card hover:bg-card/20"
-                : "text-foreground hover:bg-accent"
+                ? "text-card hover:bg-card/10"
+                : "text-foreground hover:bg-secondary"
             )}
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-expanded={isOpen}
           >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </nav>
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-border/50 bg-card/95 backdrop-blur-xl rounded-b-2xl">
-            <div className="flex flex-col gap-2">
+          <div className="md:hidden py-4 border-t border-border bg-card rounded-b-xl animate-fade-in">
+            <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   to={link.href}
                   onClick={() => setIsOpen(false)}
                   className={cn(
-                    "px-4 py-3 rounded-xl text-sm font-medium transition-colors",
+                    "px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
                     location.pathname === link.href
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-accent"
+                      ? "bg-secondary text-foreground"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                   )}
                 >
                   {link.label}
@@ -172,8 +171,8 @@ export function TopNav({ transparent = false }: TopNavProps) {
                         Dashboard
                       </Link>
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1" onClick={handleSignOut}>
-                      Sign Out
+                    <Button variant="outline" size="sm" onClick={handleSignOut}>
+                      <LogOut className="w-4 h-4" />
                     </Button>
                   </>
                 ) : (
