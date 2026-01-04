@@ -27,9 +27,11 @@ import { useVehicle } from "@/hooks/use-vehicles";
 import { useLocations } from "@/hooks/use-locations";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { useAuth } from "@/hooks/use-auth";
+import { useBookingContext } from "@/contexts/BookingContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { OtpVerification } from "@/components/checkout/OtpVerification";
+import { TripContextBar } from "@/components/shared/TripContextBar";
 
 import bmwImage from "@/assets/cars/bmw-i4.jpg";
 
@@ -434,6 +436,11 @@ export default function Checkout() {
   return (
     <CustomerLayout>
       <PageContainer className="pt-28 pb-12">
+        {/* Trip Context Bar */}
+        <div className="mb-4">
+          <TripContextBar compact />
+        </div>
+
         {/* Hold Timer Banner */}
         <div className={`rounded-2xl p-4 mb-8 flex items-center justify-between ${
           remainingSeconds && remainingSeconds < 120 

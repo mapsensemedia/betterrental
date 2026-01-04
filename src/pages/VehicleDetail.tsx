@@ -46,6 +46,8 @@ import { useBookingContext } from "@/contexts/BookingContext";
 import { useBlockedDates } from "@/hooks/use-blocked-dates";
 import { LocationSelector } from "@/components/shared/LocationSelector";
 import { AvailabilityCalendar } from "@/components/shared/AvailabilityCalendar";
+import { TripContextBar } from "@/components/shared/TripContextBar";
+import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
 import { toast } from "@/hooks/use-toast";
 
 // Fallback images
@@ -69,11 +71,19 @@ export default function VehicleDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showContextPrompt, setShowContextPrompt] = useState(false);
 
   const { user, requireAuth } = useRequireAuth();
   const createHold = useCreateHold();
-  const { locationId, setLocationId, locationName } = useBookingContext();
+  const { 
+    locationId, 
+    setLocationId, 
+    locationName,
+    startDate: contextStartDate,
+    endDate: contextEndDate,
+    setStartDate,
+    setEndDate 
+  } = useBookingContext();
 
   // Fetch vehicle data
   const { data: vehicle, isLoading: vehicleLoading } = useVehicle(id || null);
@@ -84,43 +94,44 @@ export default function VehicleDetail() {
   const effectiveLocationId = locationId || vehicle?.locationId || null;
   const effectiveLocationName = locationName || vehicleLocation?.name || null;
 
-  // Parse date context from URL or use state
-  const startAtParam = searchParams.get("startAt");
-  const endAtParam = searchParams.get("endAt");
+  // Use context dates directly, synced from URL on first load
+  useEffect(() => {
+    const startAtParam = searchParams.get("startAt");
+    const endAtParam = searchParams.get("endAt");
+    
+    if (startAtParam && !contextStartDate) {
+      setStartDate(new Date(startAtParam));
+    }
+    if (endAtParam && !contextEndDate) {
+      setEndDate(new Date(endAtParam));
+    }
+  }, []);
 
-  const [pickupDate, setPickupDate] = useState<Date | undefined>(
-    startAtParam ? new Date(startAtParam) : undefined
-  );
-  const [returnDate, setReturnDate] = useState<Date | undefined>(
-    endAtParam ? new Date(endAtParam) : undefined
-  );
+  const pickupDate = contextStartDate || undefined;
+  const returnDate = contextEndDate || undefined;
 
-  // Use state values for availability and pricing
-  const startAt = pickupDate || null;
-  const endAt = returnDate || null;
+  // Use context values for availability and pricing
+  const startAt = contextStartDate || null;
+  const endAt = contextEndDate || null;
 
   // Fetch blocked dates for calendar
   const fromDate = new Date();
   const toDate = addMonths(fromDate, 3);
   const { data: blockedDatesData } = useBlockedDates(id || null, fromDate, toDate);
 
-  // Show location modal if no location is selected
-  useEffect(() => {
-    if (!vehicleLoading && vehicle && !effectiveLocationId) {
-      setShowLocationModal(true);
-    }
-  }, [vehicleLoading, vehicle, effectiveLocationId]);
+  // Show prompt if no trip context when trying to reserve
+  const hasContext = effectiveLocationId && startAt && endAt;
 
-  // Update URL params when dates change
+  // Update context and URL params when dates change
   const handlePickupDateChange = (date: Date | undefined) => {
-    setPickupDate(date);
+    setStartDate(date || null);
     if (date) {
       const newParams = new URLSearchParams(searchParams);
       newParams.set("startAt", date.toISOString());
       // If return date is before pickup, reset it
       if (returnDate && returnDate <= date) {
         const newReturnDate = addDays(date, 1);
-        setReturnDate(newReturnDate);
+        setEndDate(newReturnDate);
         newParams.set("endAt", newReturnDate.toISOString());
       }
       setSearchParams(newParams, { replace: true });
@@ -128,7 +139,7 @@ export default function VehicleDetail() {
   };
 
   const handleReturnDateChange = (date: Date | undefined) => {
-    setReturnDate(date);
+    setEndDate(date || null);
     if (date) {
       const newParams = new URLSearchParams(searchParams);
       newParams.set("endAt", date.toISOString());
@@ -138,7 +149,7 @@ export default function VehicleDetail() {
 
   const handleLocationSelect = (locId: string) => {
     setLocationId(locId);
-    setShowLocationModal(false);
+    setShowContextPrompt(false);
   };
 
   // Check availability
@@ -185,19 +196,9 @@ export default function VehicleDetail() {
 
   // Handle reserve action - defined before getCtaState to avoid temporal dead zone
   const handleReserve = () => {
-    // Must have location
-    if (!effectiveLocationId) {
-      setShowLocationModal(true);
-      return;
-    }
-
-    // Must have dates selected
-    if (!startAt || !endAt) {
-      toast({
-        title: "Select dates",
-        description: "Please select pickup and return dates first",
-        variant: "destructive",
-      });
+    // Must have location and dates
+    if (!hasContext) {
+      setShowContextPrompt(true);
       return;
     }
 
@@ -209,15 +210,15 @@ export default function VehicleDetail() {
     // Create hold
     createHold.mutate({
       vehicleId: id!,
-      startAt,
-      endAt,
+      startAt: startAt!,
+      endAt: endAt!,
     });
   };
 
   // Determine CTA state
   const getCtaState = () => {
-    if (!effectiveLocationId) return { text: "Select Location", disabled: true, action: () => setShowLocationModal(true) };
-    if (!startAt || !endAt) return { text: "Select Dates", disabled: true, action: () => {} };
+    if (!effectiveLocationId) return { text: "Select Location", disabled: false, action: () => setShowContextPrompt(true) };
+    if (!startAt || !endAt) return { text: "Select Dates", disabled: false, action: () => setShowContextPrompt(true) };
     if (!user) return { text: "Sign in to Reserve", disabled: false, action: () => requireAuth() };
     if (availabilityLoading) return { text: "Checking...", disabled: true, action: () => {} };
     if (!isAvailable) return { text: "Not Available", disabled: true, action: () => {} };
@@ -272,27 +273,13 @@ export default function VehicleDetail() {
 
   return (
     <CustomerLayout>
-      {/* Location Selection Modal */}
-      <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Select Pickup Location
-            </DialogTitle>
-            <DialogDescription>
-              Choose where you'd like to pick up this vehicle
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <LocationSelector
-              value={effectiveLocationId}
-              onChange={handleLocationSelect}
-              className="w-full"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Trip Context Prompt */}
+      <TripContextPrompt
+        open={showContextPrompt}
+        onOpenChange={setShowContextPrompt}
+        title="Set your trip details"
+        description="Select pickup location and dates to check availability"
+      />
 
       <PageContainer className="pt-28 pb-32">
         {/* Back Button */}
@@ -304,25 +291,10 @@ export default function VehicleDetail() {
           Back to Search
         </Link>
 
-        {/* Location Banner */}
-        {effectiveLocationName && (
-          <div className="mb-6 p-3 bg-primary/10 rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-primary" />
-              <span className="text-sm">
-                Available from <span className="font-semibold">{effectiveLocationName}</span>
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowLocationModal(true)}
-              className="text-primary hover:text-primary"
-            >
-              Change
-            </Button>
-          </div>
-        )}
+        {/* Trip Context Bar */}
+        <div className="mb-6">
+          <TripContextBar showClear />
+        </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Images & Details */}
@@ -537,7 +509,7 @@ export default function VehicleDetail() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowLocationModal(true)}
+                    onClick={() => setShowContextPrompt(true)}
                     className="h-7 px-2 text-xs"
                   >
                     Change

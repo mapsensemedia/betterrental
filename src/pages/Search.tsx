@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Filter, Grid, List, ArrowUpDown, Car, X } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -23,6 +23,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useVehicles, type Vehicle } from "@/hooks/use-vehicles";
+import { useBookingContext } from "@/contexts/BookingContext";
+import { TripContextBar } from "@/components/shared/TripContextBar";
+import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
 
 const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Sedan"];
 const transmissions = ["All", "Automatic", "Manual"];
@@ -32,8 +35,19 @@ const seatsOptions = [2, 4, 5, 7];
 type SortOption = "recommended" | "price-low" | "price-high" | "newest";
 
 export default function Search() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: allVehicles = [], isLoading } = useVehicles();
+  const { 
+    locationId: contextLocationId, 
+    setLocationId,
+    startDate, 
+    endDate,
+    setStartDate,
+    setEndDate 
+  } = useBookingContext();
+
+  // Show prompt if no trip context
+  const [showContextPrompt, setShowContextPrompt] = useState(false);
 
   // Filter state
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -47,22 +61,35 @@ export default function Search() {
   const [sortBy, setSortBy] = useState<SortOption>("recommended");
   const [compareList, setCompareList] = useState<string[]>([]);
 
-  // Parse search params for date context
-  const startAt = searchParams.get("startAt");
-  const endAt = searchParams.get("endAt");
-  const locationId = searchParams.get("locationId");
+  // Sync URL params with context on mount
+  useEffect(() => {
+    const startAtParam = searchParams.get("startAt");
+    const endAtParam = searchParams.get("endAt");
+    const locationIdParam = searchParams.get("locationId");
 
-  // Calculate rental days from search params
+    if (startAtParam && !startDate) {
+      setStartDate(new Date(startAtParam));
+    }
+    if (endAtParam && !endDate) {
+      setEndDate(new Date(endAtParam));
+    }
+    if (locationIdParam && !contextLocationId) {
+      setLocationId(locationIdParam);
+    }
+  }, []);
+
+  // Use context values, fallback to URL params
+  const locationId = contextLocationId || searchParams.get("locationId");
+
+  // Calculate rental days from context
   const rentalDays = useMemo(() => {
-    if (startAt && endAt) {
-      const start = new Date(startAt);
-      const end = new Date(endAt);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
+    if (startDate && endDate) {
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays || 1;
     }
     return 1;
-  }, [startAt, endAt]);
+  }, [startDate, endDate]);
 
   // Toggle compare
   const toggleCompare = useCallback((id: string) => {
@@ -156,9 +183,24 @@ export default function Search() {
     minSeats !== null,
   ].filter(Boolean).length;
 
+  const hasContext = contextLocationId || startDate || endDate;
+
   return (
     <CustomerLayout>
       <PageContainer className="pt-28 pb-16">
+        {/* Trip Context Prompt */}
+        <TripContextPrompt 
+          open={showContextPrompt} 
+          onOpenChange={setShowContextPrompt}
+        />
+
+        {/* Sticky Trip Context Bar */}
+        {hasContext && (
+          <div className="mb-6">
+            <TripContextBar showClear />
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -167,7 +209,7 @@ export default function Search() {
               {isLoading
                 ? "Loading..."
                 : `${filteredVehicles.length} vehicles available`}
-              {startAt && endAt && (
+              {startDate && endDate && (
                 <span className="ml-2">
                   • {rentalDays} day{rentalDays > 1 ? "s" : ""} rental
                 </span>
