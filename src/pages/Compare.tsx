@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useVehicle, type Vehicle } from "@/hooks/use-vehicles";
+import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 
 const defaultFeatures = [
   "Air Conditioning",
@@ -153,11 +154,12 @@ export default function Compare() {
                         <Badge variant="secondary">{vehicle.category}</Badge>
                       </div>
                       <div className="text-2xl font-bold text-primary">
-                        ${vehicle.dailyRate}
+                        ${vehicle.dailyRate}<span className="text-destructive">*</span>
                         <span className="text-sm font-normal text-muted-foreground">
                           /day
                         </span>
                       </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">*Price does not include taxes and fees</p>
                       <Button className="w-full mt-4" size="sm" asChild>
                         <Link to={`/vehicle/${vehicle.id}`}>View Details</Link>
                       </Button>
@@ -211,22 +213,25 @@ export default function Compare() {
                     label="Daily Rate"
                     values={vehicles.map((v) => (
                       <span key={v.id} className="font-semibold text-primary">
-                        ${v.dailyRate}/day
+                        ${v.dailyRate}*/day
                       </span>
                     ))}
                   />
                   <CompareRow
                     label="3-Day Total"
                     values={vehicles.map((v) => (
-                      <span key={v.id}>${(v.dailyRate * 3 * 1.1).toFixed(0)}</span>
+                      <span key={v.id}>${(v.dailyRate * 3 * 1.1).toFixed(0)}*</span>
                     ))}
                   />
                   <CompareRow
                     label="7-Day Total"
                     values={vehicles.map((v) => (
-                      <span key={v.id}>${(v.dailyRate * 7 * 1.1).toFixed(0)}</span>
+                      <span key={v.id}>${(v.dailyRate * 7 * 1.1).toFixed(0)}*</span>
                     ))}
                   />
+                  <div className="p-3 bg-muted/50">
+                    <PriceDisclaimer variant="summary" />
+                  </div>
                 </CompareSection>
 
                 {/* Features */}

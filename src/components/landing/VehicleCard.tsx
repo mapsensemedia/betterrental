@@ -3,6 +3,7 @@ import { Fuel, Users, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { PriceWithDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 
 interface VehicleCardProps {
   id: string;
@@ -128,20 +129,13 @@ export function VehicleCard({
 
         {/* Price & CTA */}
         <div className="flex items-center justify-between">
-          <div>
-            <span className={cn(
-              "text-xl font-bold",
-              isDark ? "text-background" : "text-foreground"
-            )}>
-              ${dailyRate}
-            </span>
-            <span className={cn(
-              "text-sm",
-              isDark ? "text-background/50" : "text-muted-foreground"
-            )}>
-              /day
-            </span>
-          </div>
+          <PriceWithDisclaimer
+            amount={dailyRate}
+            suffix="/day"
+            variant="card"
+            showDisclaimer
+            isDark={isDark}
+          />
           <Button
             variant={isDark ? "secondary" : "default"}
             size="sm"
