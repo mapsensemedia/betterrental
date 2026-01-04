@@ -41,9 +41,7 @@ export function TopNav({ transparent = false }: TopNavProps) {
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-200",
-        transparent
-          ? "bg-transparent"
-          : "bg-card/95 backdrop-blur-lg border-b border-border"
+        transparent ? "bg-transparent" : "bg-card/95 backdrop-blur-lg border-b border-border",
       )}
     >
       <div className="container-page">
@@ -53,17 +51,12 @@ export function TopNav({ transparent = false }: TopNavProps) {
             <div
               className={cn(
                 "flex items-center justify-center w-9 h-9 rounded-lg",
-                transparent ? "bg-card/20 backdrop-blur-sm" : "bg-primary"
+                transparent ? "bg-card/20 backdrop-blur-sm" : "bg-primary",
               )}
             >
               <Car className={cn("w-4 h-4", transparent ? "text-card" : "text-primary-foreground")} />
             </div>
-            <span
-              className={cn(
-                "text-lg font-bold tracking-tight",
-                transparent ? "text-card" : "text-foreground"
-              )}
-            >
+            <span className={cn("text-lg font-bold tracking-tight", transparent ? "text-card" : "text-background")}>
               LuxeRide
             </span>
           </Link>
@@ -82,7 +75,7 @@ export function TopNav({ transparent = false }: TopNavProps) {
                       : "text-foreground"
                     : transparent
                       ? "text-card/70 hover:text-card"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {link.label}
@@ -126,9 +119,7 @@ export function TopNav({ transparent = false }: TopNavProps) {
             onClick={() => setIsOpen(!isOpen)}
             className={cn(
               "md:hidden p-2 rounded-lg transition-colors",
-              transparent
-                ? "text-card hover:bg-card/10"
-                : "text-foreground hover:bg-secondary"
+              transparent ? "text-card hover:bg-card/10" : "text-foreground hover:bg-secondary",
             )}
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-expanded={isOpen}
@@ -150,7 +141,7 @@ export function TopNav({ transparent = false }: TopNavProps) {
                     "px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
                     location.pathname === link.href
                       ? "bg-secondary text-foreground"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                   )}
                 >
                   {link.label}
