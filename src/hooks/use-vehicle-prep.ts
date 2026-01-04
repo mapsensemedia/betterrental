@@ -36,12 +36,12 @@ export function useVehiclePrepStatus(bookingId: string | null) {
     queryFn: async () => {
       if (!bookingId) return null;
 
-      // Get inspection metrics for this booking (pickup phase)
+      // Get inspection metrics for this booking (pickup phase - we store prep data here)
       const { data: inspection, error } = await supabase
         .from('inspection_metrics')
         .select('*')
         .eq('booking_id', bookingId)
-        .eq('phase', 'prep')
+        .eq('phase', 'pickup')
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
@@ -97,12 +97,12 @@ export function useUpdateVehiclePrep() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get existing prep data
+      // Get existing prep data (stored in pickup phase record)
       const { data: existing } = await supabase
         .from('inspection_metrics')
         .select('*')
         .eq('booking_id', bookingId)
-        .eq('phase', 'prep')
+        .eq('phase', 'pickup')
         .maybeSingle();
 
       let prepData: Record<string, { checked: boolean; checkedAt: string | null; checkedBy: string | null }> = {};
@@ -137,7 +137,7 @@ export function useUpdateVehiclePrep() {
           .from('inspection_metrics')
           .insert({
             booking_id: bookingId,
-            phase: 'prep',
+            phase: 'pickup',
             exterior_notes: JSON.stringify(prepData),
             recorded_by: user.id,
           });
