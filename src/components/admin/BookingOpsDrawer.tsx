@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import { VehicleAssignment } from "./VehicleAssignment";
 import { CheckInSection } from "./CheckInSection";
 import { PaymentDepositPanel } from "./PaymentDepositPanel";
 import { RentalAgreementPanel } from "./RentalAgreementPanel";
+import { WalkaroundInspection } from "./WalkaroundInspection";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +41,7 @@ import { useRecordPayment, type PaymentMethod } from "@/hooks/use-payments";
 import { useBookingReceipts, useCreateReceipt, useIssueReceipt } from "@/hooks/use-receipts";
 import { useUpdateVerificationStatus } from "@/hooks/use-verification";
 import { useIntakeStatus } from "@/hooks/use-intake-status";
+import { useWalkaroundInspection } from "@/hooks/use-walkaround";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Car, 
@@ -90,6 +93,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   const issueReceipt = useIssueReceipt();
   const updateVerification = useUpdateVerificationStatus();
   const intakeStatus = useIntakeStatus(booking);
+  const { data: walkaround } = useWalkaroundInspection(bookingId);
   
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; status: BookingStatus | null }>({ 
     open: false, 
@@ -118,6 +122,13 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   const [verificationNotes, setVerificationNotes] = useState("");
 
   const handleStatusChange = (newStatus: BookingStatus) => {
+    // Gate: Block marking as active if walkaround not complete
+    if (newStatus === "active" && booking?.status === "confirmed") {
+      if (!walkaround?.inspection_complete) {
+        toast.error("Walkaround inspection must be completed before handover");
+        return;
+      }
+    }
     setConfirmDialog({ open: true, status: newStatus });
   };
 
@@ -408,6 +419,11 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                 {/* Rental Agreement Panel - Show for confirmed bookings */}
                 {booking.status === "confirmed" && (
                   <RentalAgreementPanel bookingId={booking.id} />
+                )}
+
+                {/* Walkaround Inspection - Show for confirmed bookings */}
+                {booking.status === "confirmed" && (
+                  <WalkaroundInspection bookingId={booking.id} />
                 )}
 
                 {/* Quick Info Grid */}

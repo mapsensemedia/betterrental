@@ -51,6 +51,7 @@ import { DriverLicenseUpload } from "@/components/booking/DriverLicenseUpload";
 import { VerificationModal } from "@/components/booking/VerificationModal";
 import { useBookingVerification } from "@/hooks/use-verification";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
+import { CustomerWalkaroundAcknowledge } from "@/components/booking/CustomerWalkaroundAcknowledge";
 
 interface BookingData {
   id: string;
@@ -420,6 +421,11 @@ export default function BookingDetail() {
               {/* Rental Agreement - Customer signing */}
               {id && booking.status === "confirmed" && (
                 <RentalAgreementSign bookingId={id} />
+              )}
+
+              {/* Walkaround Acknowledgement - Customer confirms vehicle condition */}
+              {id && booking.status === "confirmed" && (
+                <CustomerWalkaroundAcknowledge bookingId={id} />
               )}
 
               {/* Payment Summary */}
