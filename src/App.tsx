@@ -32,6 +32,7 @@ import AdminSettings from "./pages/admin/Settings";
 import AdminConditionPhotos from "./pages/admin/ConditionPhotos";
 import AdminVerifications from "./pages/admin/Verifications";
 import AdminPickups from "./pages/admin/Pickups";
+import BookingOps from "./pages/admin/BookingOps";
 
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/admin" element={<AdminProtectedRoute><AdminOverview /></AdminProtectedRoute>} />
             <Route path="/admin/alerts" element={<AdminProtectedRoute><AdminAlerts /></AdminProtectedRoute>} />
             <Route path="/admin/bookings" element={<AdminProtectedRoute><AdminBookings /></AdminProtectedRoute>} />
+            <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
             <Route path="/admin/pickups" element={<AdminProtectedRoute><AdminPickups /></AdminProtectedRoute>} />
             <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
             <Route path="/admin/handovers" element={<AdminProtectedRoute><AdminHandovers /></AdminProtectedRoute>} />

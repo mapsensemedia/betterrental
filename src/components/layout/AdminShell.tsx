@@ -65,9 +65,10 @@ interface AdminShellProps {
   children: ReactNode;
   dateFilter?: string;
   onDateFilterChange?: (value: string) => void;
+  hideNav?: boolean;
 }
 
-export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminShellProps) {
+export function AdminShell({ children, dateFilter, onDateFilterChange, hideNav }: AdminShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -94,6 +95,15 @@ export function AdminShell({ children, dateFilter, onDateFilterChange }: AdminSh
     }
     return location.pathname.startsWith(href);
   };
+
+  // Full-screen mode (no nav)
+  if (hideNav) {
+    return (
+      <div className="min-h-screen bg-background">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
