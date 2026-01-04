@@ -15,6 +15,7 @@ import { VehicleReadyGate } from "./VehicleReadyGate";
 import { VehicleAssignment } from "./VehicleAssignment";
 import { CheckInSection } from "./CheckInSection";
 import { PaymentDepositPanel } from "./PaymentDepositPanel";
+import { RentalAgreementPanel } from "./RentalAgreementPanel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -402,6 +403,11 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                 {/* Payment & Deposit Panel - Show for confirmed bookings after check-in */}
                 {booking.status === "confirmed" && (
                   <PaymentDepositPanel bookingId={booking.id} />
+                )}
+
+                {/* Rental Agreement Panel - Show for confirmed bookings */}
+                {booking.status === "confirmed" && (
+                  <RentalAgreementPanel bookingId={booking.id} />
                 )}
 
                 {/* Quick Info Grid */}
