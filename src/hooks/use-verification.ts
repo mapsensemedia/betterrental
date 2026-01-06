@@ -158,10 +158,12 @@ export function useUpdateVerificationStatus() {
       requestId,
       status,
       notes,
+      bookingId,
     }: {
       requestId: string;
       status: 'verified' | 'rejected';
       notes?: string;
+      bookingId?: string;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -177,6 +179,20 @@ export function useUpdateVerificationStatus() {
         .eq('id', requestId);
 
       if (error) throw error;
+
+      // Send notification to customer
+      if (bookingId) {
+        try {
+          await supabase.functions.invoke('send-booking-notification', {
+            body: {
+              bookingId,
+              stage: status === 'verified' ? 'license_approved' : 'license_rejected',
+            },
+          });
+        } catch (e) {
+          console.error('Failed to send verification notification:', e);
+        }
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['verification'] });
