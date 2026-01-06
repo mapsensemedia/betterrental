@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { DeliveryAddressAutocomplete } from "./DeliveryAddressAutocomplete";
 import { DeliveryMap } from "./DeliveryMap";
+import { DeliveryPricingDisplay } from "./DeliveryPricingDisplay";
 
 interface RentalSearchCardProps {
   className?: string;
@@ -459,7 +460,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
 
       {/* Delivery Map */}
       {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
           <DeliveryMap
             customerLat={deliveryCoords.lat}
             customerLng={deliveryCoords.lng}
@@ -467,6 +468,13 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
             dealershipLng={closestDealership.lng}
             dealershipName={closestDealership.name}
             onRouteCalculated={handleRouteCalculated}
+          />
+          
+          {/* Delivery Pricing Display */}
+          <DeliveryPricingDisplay
+            fee={searchData.deliveryFee}
+            distanceKm={searchData.deliveryDistanceKm}
+            eta={searchData.deliveryEta}
           />
         </div>
       )}

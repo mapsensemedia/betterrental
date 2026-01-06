@@ -17,6 +17,8 @@ import LocationDetail from "./pages/LocationDetail";
 import NotFound from "./pages/NotFound";
 import CheckIn from "./pages/CheckIn";
 import Protection from "./pages/Protection";
+import AddOns from "./pages/AddOns";
+import NewCheckout from "./pages/NewCheckout";
 
 // Admin Pages
 import AdminOverview from "./pages/admin/Overview";
@@ -56,13 +58,14 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/checkout" element={<NewCheckout />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/booking/:id" element={<BookingDetail />} />
             <Route path="/locations" element={<Locations />} />
             <Route path="/location/:id" element={<LocationDetail />} />
             <Route path="/check-in" element={<CheckIn />} />
             <Route path="/protection" element={<Protection />} />
+            <Route path="/add-ons" element={<AddOns />} />
 
             {/* Redirects for removed vehicle detail pages */}
             <Route path="/vehicle/:id" element={<Navigate to="/search" replace />} />

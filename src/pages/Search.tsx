@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/sheet";
 import { useVehicles, type Vehicle } from "@/hooks/use-vehicles";
 import { useBookingContext } from "@/contexts/BookingContext";
-import { TripContextBar } from "@/components/shared/TripContextBar";
+import { SearchModifyBar } from "@/components/search/SearchModifyBar";
+import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
 
 const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Sedan"];
@@ -45,6 +46,7 @@ export default function Search() {
     setStartDate,
     setEndDate 
   } = useBookingContext();
+  const { searchData, isSearchValid } = useRentalBooking();
 
   // Show prompt if no trip context
   const [showContextPrompt, setShowContextPrompt] = useState(false);
@@ -187,19 +189,15 @@ export default function Search() {
 
   return (
     <CustomerLayout>
-      <PageContainer className="pt-28 pb-16">
+      {/* Search Modify Bar at top */}
+      {isSearchValid && <SearchModifyBar />}
+
+      <PageContainer className="pt-8 pb-16">
         {/* Trip Context Prompt */}
         <TripContextPrompt 
           open={showContextPrompt} 
           onOpenChange={setShowContextPrompt}
         />
-
-        {/* Sticky Trip Context Bar */}
-        {hasContext && (
-          <div className="mb-6">
-            <TripContextBar showClear />
-          </div>
-        )}
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
