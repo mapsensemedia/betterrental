@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BookingProvider } from "@/contexts/BookingContext";
+import { RentalBookingProvider } from "@/contexts/RentalBookingContext";
 import Index from "./pages/Index";
 import Search from "./pages/Search";
 import VehicleDetail from "./pages/VehicleDetail";
@@ -46,8 +47,9 @@ const App = () => (
     <TooltipProvider>
       <BrowserRouter>
         <BookingProvider>
-          <Toaster />
-          <Sonner />
+          <RentalBookingProvider>
+            <Toaster />
+            <Sonner />
           <Routes>
             {/* Customer Routes */}
             <Route path="/" element={<Index />} />
@@ -86,6 +88,7 @@ const App = () => (
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </RentalBookingProvider>
         </BookingProvider>
       </BrowserRouter>
     </TooltipProvider>
