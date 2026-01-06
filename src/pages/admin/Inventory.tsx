@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { useAdminVehicles, useAdminVehicle, useUpdateVehicle, useCreateVehicle, type CreateVehicleData } from "@/hooks/use-inventory";
+import { useAdminVehicles, useAdminVehicle, useUpdateVehicle, useCreateVehicle, useDeleteVehicle, type CreateVehicleData } from "@/hooks/use-inventory";
 import { useLocations } from "@/hooks/use-locations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -57,6 +67,7 @@ import {
   ShieldAlert,
   Plus,
   X,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -98,11 +109,19 @@ export default function AdminInventory() {
     cleaningBufferHours: 2,
   });
 
+  // Delete confirmation state
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    vehicleId: string | null;
+    vehicleName: string;
+  }>({ open: false, vehicleId: null, vehicleName: "" });
+
   const { data: vehicles, isLoading, refetch } = useAdminVehicles(filters);
   const { data: locations } = useLocations();
   const { data: vehicleDetail } = useAdminVehicle(selectedVehicleId);
   const updateVehicle = useUpdateVehicle();
   const createVehicle = useCreateVehicle();
+  const deleteVehicle = useDeleteVehicle();
 
   const categories = [...new Set(vehicles?.map(v => v.category) || [])];
 
@@ -133,8 +152,29 @@ export default function AdminInventory() {
     }
   };
 
+  const handleOpenDeleteConfirm = (vehicle: any) => {
+    setDeleteDialog({
+      open: true,
+      vehicleId: vehicle.id,
+      vehicleName: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteDialog.vehicleId) {
+      deleteVehicle.mutate(deleteDialog.vehicleId);
+      setDeleteDialog({ open: false, vehicleId: null, vehicleName: "" });
+    }
+  };
+
   const handleAddVehicle = () => {
     if (!newVehicle.make || !newVehicle.model || !newVehicle.year || !newVehicle.dailyRate) {
+      return;
+    }
+    if (newVehicle.dailyRate <= 0) {
+      return;
+    }
+    if ((newVehicle.seats || 5) < 1) {
       return;
     }
     createVehicle.mutate({
@@ -354,6 +394,14 @@ export default function AdminInventory() {
                             onClick={() => handleOpenEdit(vehicle)}
                           >
                             <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenDeleteConfirm(vehicle)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -817,6 +865,29 @@ export default function AdminInventory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, vehicleId: null, vehicleName: "" })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Vehicle from Inventory</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <strong>{deleteDialog.vehicleName}</strong> from your inventory?
+              <br /><br />
+              This will mark the vehicle as unavailable and hide it from customers. Historical bookings will remain intact.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteVehicle.isPending ? "Removing..." : "Remove Vehicle"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminShell>
   );
 }

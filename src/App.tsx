@@ -7,7 +7,6 @@ import { BookingProvider } from "@/contexts/BookingContext";
 import { RentalBookingProvider } from "@/contexts/RentalBookingContext";
 import Index from "./pages/Index";
 import Search from "./pages/Search";
-import VehicleDetail from "./pages/VehicleDetail";
 import Compare from "./pages/Compare";
 import Auth from "./pages/Auth";
 import Checkout from "./pages/Checkout";
@@ -54,7 +53,6 @@ const App = () => (
             {/* Customer Routes */}
             <Route path="/" element={<Index />} />
             <Route path="/search" element={<Search />} />
-            <Route path="/vehicle/:id" element={<VehicleDetail />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/checkout" element={<Checkout />} />
@@ -63,6 +61,12 @@ const App = () => (
             <Route path="/locations" element={<Locations />} />
             <Route path="/location/:id" element={<LocationDetail />} />
             <Route path="/check-in" element={<CheckIn />} />
+
+            {/* Redirects for removed vehicle detail pages */}
+            <Route path="/vehicle/:id" element={<Navigate to="/search" replace />} />
+            <Route path="/car/:id" element={<Navigate to="/search" replace />} />
+            <Route path="/browse/:id" element={<Navigate to="/search" replace />} />
+            <Route path="/details/:id" element={<Navigate to="/search" replace />} />
 
             {/* Admin Routes - Protected */}
             <Route path="/admin" element={<AdminProtectedRoute><AdminOverview /></AdminProtectedRoute>} />
