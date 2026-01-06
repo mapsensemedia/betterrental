@@ -124,19 +124,23 @@ serve(async (req) => {
 
     // Build message based on template
     let message = "";
+    
+    // Get the app URL for booking links
+    const appUrl = Deno.env.get("APP_URL") || "https://c2crental.ca";
+    const bookingLink = `${appUrl}/booking/${bookingId}`;
 
     switch (templateType) {
       case "confirmation":
-        message = `C2C Rental: Your booking ${booking.booking_code} is confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nLocation: ${locationName}\n\nPLEASE UPLOAD your driver's license photos to expedite pickup. See your email for details.`;
+        message = `C2C Rental: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nLocation: ${locationName}\n\nUPLOAD your driver's license here:\n${bookingLink}`;
         break;
       case "update":
-        message = `C2C Rental: Your booking ${booking.booking_code} has been updated.\n\nPickup: ${startDate}\nLocation: ${locationName}\n\nView details in your account.`;
+        message = `C2C Rental: Booking ${booking.booking_code} updated.\n\nPickup: ${startDate}\nLocation: ${locationName}\n\nView details:\n${bookingLink}`;
         break;
       case "cancellation":
-        message = `C2C Rental: Your booking ${booking.booking_code} has been cancelled.\n\nIf you have questions, contact us.`;
+        message = `C2C Rental: Booking ${booking.booking_code} cancelled.\n\nQuestions? Contact us.`;
         break;
       case "reminder":
-        message = `C2C Rental Reminder: Your pickup for ${vehicleName} is tomorrow at ${startDate}!\n\nBooking: ${booking.booking_code}\nLocation: ${locationName}`;
+        message = `C2C Rental: Pickup tomorrow!\n\n${vehicleName}\n${startDate}\nLocation: ${locationName}\n\nView booking:\n${bookingLink}`;
         break;
     }
 
