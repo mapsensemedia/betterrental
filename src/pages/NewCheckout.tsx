@@ -490,105 +490,71 @@ export default function NewCheckout() {
 
               {/* Payment Method */}
               <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-6">How would you like to pay?</h2>
+                <h2 className="text-xl font-semibold mb-6">Payment Method</h2>
 
-                {/* Payment Method Toggle */}
-                <div className="flex gap-3 mb-6">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("pay-now")}
+                {/* Payment Method Radio Cards */}
+                <div className="space-y-3">
+                  {/* Pay Now Option */}
+                  <label
                     className={cn(
-                      "flex-1 p-4 rounded-xl border-2 transition-all text-left",
+                      "flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all",
                       paymentMethod === "pay-now"
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-muted-foreground/50"
                     )}
                   >
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="w-5 h-5" />
-                      <div>
-                        <p className="font-medium">Pay Now</p>
-                        <p className="text-sm text-muted-foreground">
-                          Secure online payment
-                        </p>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      checked={paymentMethod === "pay-now"}
+                      onChange={() => setPaymentMethod("pay-now")}
+                      className="mt-1 w-4 h-4 text-primary"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-5 h-5" />
+                        <span className="font-medium">Pay Now</span>
                       </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Secure payment via Stripe. Instant confirmation.
+                      </p>
                     </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("pay-later")}
+                  </label>
+
+                  {/* Pay at Pickup Option */}
+                  <label
                     className={cn(
-                      "flex-1 p-4 rounded-xl border-2 transition-all text-left",
+                      "flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all",
                       paymentMethod === "pay-later"
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-muted-foreground/50"
                     )}
                   >
-                    <div className="flex items-center gap-3">
-                      <MapPin className="w-5 h-5" />
-                      <div>
-                        <p className="font-medium">Pay at Pickup</p>
-                        <p className="text-sm text-muted-foreground">
-                          Pay when you collect car
-                        </p>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      checked={paymentMethod === "pay-later"}
+                      onChange={() => setPaymentMethod("pay-later")}
+                      className="mt-1 w-4 h-4 text-primary"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-5 h-5" />
+                        <span className="font-medium">Pay at Pickup</span>
                       </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Pay when you pick up the vehicle.
+                      </p>
                     </div>
-                  </button>
+                  </label>
                 </div>
 
-                {/* Pay Now Form */}
+                {/* Pay Now Info */}
                 {paymentMethod === "pay-now" && (
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="cardNumber">Card number</Label>
-                      <Input
-                        id="cardNumber"
-                        placeholder="1234 1234 1234 1234"
-                        value={formData.cardNumber}
-                        onChange={(e) => handleInputChange("cardNumber", e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="cardName">Cardholder name</Label>
-                      <Input
-                        id="cardName"
-                        value={formData.cardName}
-                        onChange={(e) => handleInputChange("cardName", e.target.value)}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="expiryDate">Expiration date</Label>
-                        <Input
-                          id="expiryDate"
-                          placeholder="MM/YY"
-                          value={formData.expiryDate}
-                          onChange={(e) => handleInputChange("expiryDate", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="cvv">CVV</Label>
-                        <Input
-                          id="cvv"
-                          placeholder="123"
-                          value={formData.cvv}
-                          onChange={(e) => handleInputChange("cvv", e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 py-2">
-                      <div className="w-10 h-6 bg-muted rounded flex items-center justify-center text-xs">AMEX</div>
-                      <div className="w-10 h-6 bg-muted rounded flex items-center justify-center text-xs">MC</div>
-                      <div className="w-10 h-6 bg-muted rounded flex items-center justify-center text-xs">DISC</div>
-                      <div className="w-10 h-6 bg-muted rounded flex items-center justify-center text-xs">JCB</div>
-                      <div className="w-10 h-6 bg-muted rounded flex items-center justify-center text-xs">VISA</div>
-                    </div>
-
-                    <p className="text-sm text-muted-foreground">
-                      The payment method must be under the renter's name and physically presented at pickup.
+                  <div className="mt-4 p-4 bg-muted/50 rounded-lg border border-border">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Secure payment via Stripe. You'll be redirected to complete your payment.
                     </p>
                   </div>
                 )}

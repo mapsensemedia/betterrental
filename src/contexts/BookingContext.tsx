@@ -14,7 +14,7 @@ interface BookingContextType {
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
-const STORAGE_KEY = "luxeride_booking_context";
+const STORAGE_KEY = "c2c_rental_booking_context";
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const { data: locations = [] } = useLocations();

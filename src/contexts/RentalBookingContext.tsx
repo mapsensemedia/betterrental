@@ -81,7 +81,7 @@ interface RentalBookingContextType {
 
 const RentalBookingContext = createContext<RentalBookingContextType | undefined>(undefined);
 
-const STORAGE_KEY = "luxeride_rental_context";
+const STORAGE_KEY = "c2c_rental_context";
 
 const defaultSearchData: RentalSearchData = {
   pickupLocationId: null,

@@ -131,7 +131,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "LuxeRide <onboarding@resend.dev>",
+          from: "C2C Rental <onboarding@resend.dev>",
           to: [userEmail],
           subject: `Payment Request - $${amount.toFixed(2)} - ${booking.booking_code}`,
           html: emailHtml,
@@ -159,7 +159,7 @@ serve(async (req) => {
     if ((channel === "sms" || channel === "both") && twilioSid && twilioToken && twilioFrom && userPhone) {
       const idempotencyKey = `payment_request_sms_${bookingId}_${Date.now()}`;
 
-      const smsMessage = `LuxeRide: Payment of $${amount.toFixed(2)} is due for booking ${booking.booking_code}. Pay now: ${paymentLink}`;
+      const smsMessage = `C2C Rental: Payment of $${amount.toFixed(2)} is due for booking ${booking.booking_code}. Pay now: ${paymentLink}`;
 
       const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
       const authHeader = btoa(`${twilioSid}:${twilioToken}`);
