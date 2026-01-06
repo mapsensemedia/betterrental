@@ -27,6 +27,7 @@ import { useBookingContext } from "@/contexts/BookingContext";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
+import { BookingStepper } from "@/components/shared/BookingStepper";
 
 const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Sedan"];
 const transmissions = ["All", "Automatic", "Manual"];
@@ -189,6 +190,13 @@ export default function Search() {
 
   return (
     <CustomerLayout>
+      {/* Step Progress Indicator */}
+      <div className="bg-background border-b border-border py-4">
+        <div className="container mx-auto px-4">
+          <BookingStepper currentStep={2} />
+        </div>
+      </div>
+
       {/* Search Modify Bar at top */}
       {isSearchValid && <SearchModifyBar />}
 

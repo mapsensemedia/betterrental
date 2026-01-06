@@ -43,11 +43,11 @@ export function Footer() {
               <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-background">
                 <Car className="w-4 h-4 text-foreground" />
               </div>
-              <span className="text-lg font-bold tracking-tight">LuxeRide</span>
+              <span className="text-lg font-bold tracking-tight">C2C Rental</span>
             </Link>
             <p className="text-background/60 mb-5 max-w-sm text-sm leading-relaxed">
-              Premium car rental experience with a curated fleet of luxury vehicles.
-              Drive the extraordinary.
+              Premium car rental experience with a curated fleet of vehicles.
+              Drive with confidence.
             </p>
             
             {/* Newsletter */}
@@ -124,13 +124,13 @@ export function Footer() {
                 <Phone className="w-4 h-4" />
                 +1 (555) 123-4567
               </a>
-              <a href="mailto:info@luxeride.com" className="flex items-center gap-2 hover:text-background transition-colors">
+              <a href="mailto:info@c2crental.com" className="flex items-center gap-2 hover:text-background transition-colors">
                 <Mail className="w-4 h-4" />
-                info@luxeride.com
+                info@c2crental.com
               </a>
               <span className="flex items-center gap-2">
                 <MapPin className="w-4 h-4" />
-                New York, Los Angeles, Miami
+                Surrey, Langley, Abbotsford BC
               </span>
             </div>
 
@@ -151,7 +151,7 @@ export function Footer() {
 
         {/* Copyright */}
         <div className="mt-8 pt-6 border-t border-background/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-background/40">
-          <p>© 2024 LuxeRide. All rights reserved.</p>
+          <p>© 2024 C2C Rental. All rights reserved.</p>
           <div className="flex gap-5">
             <Link to="/terms" className="hover:text-background transition-colors">Terms</Link>
             <Link to="/privacy" className="hover:text-background transition-colors">Privacy</Link>

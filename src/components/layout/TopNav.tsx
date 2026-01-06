@@ -40,12 +40,12 @@ export function TopNav() {
       <div className="container-page">
         <nav className="flex items-center justify-between h-16" aria-label="Primary">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5" aria-label="LuxeRide home">
+          <Link to="/" className="flex items-center gap-2.5" aria-label="C2C Rental home">
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
               <Car className="w-4 h-4 text-primary-foreground" />
             </div>
             <span className="text-lg font-bold tracking-tight text-foreground">
-              LuxeRide
+              C2C Rental
             </span>
           </Link>
 

@@ -41,13 +41,7 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
               <h2 className="text-xl font-bold">Book car in easy steps</h2>
               <p className="text-sm text-muted-foreground">
                 Renting a car brings you freedom, and we'll help you find the best car for you at a great price.
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="px-2 py-0.5 bg-muted text-xs rounded">1k</span>
-                <span className="px-2 py-0.5 bg-muted text-xs rounded">2k</span>
-                <span className="px-2 py-0.5 bg-muted text-xs rounded">3k</span>
-                <span className="text-xs text-muted-foreground">Trusted by 10k+ customers</span>
-              </div>
+            </p>
             </div>
 
             {/* Right: Search criteria display */}

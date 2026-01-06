@@ -20,7 +20,7 @@ async function sendWithResend(apiKey: string, to: string, subject: string, html:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "LuxeRide <onboarding@resend.dev>",
+      from: "C2C Rental <onboarding@resend.dev>",
       to: [to],
       subject,
       html,
@@ -167,7 +167,7 @@ serve(async (req) => {
       color: white;
     `;
 
-    const baseTemplate = (title: string, content: string) => `
+    const baseTemplate = (title: string, content: string, qrCodeUrl?: string) => `
       <!DOCTYPE html>
       <html>
       <head>
@@ -177,13 +177,20 @@ serve(async (req) => {
       <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5;">
         <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <div style="${headerStyle}">
-            <h1 style="margin: 0; font-size: 28px; font-weight: 700;">LuxeRide</h1>
+            <h1 style="margin: 0; font-size: 28px; font-weight: 700;">C2C Rental</h1>
             <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.9;">Premium Car Rentals</p>
           </div>
           <div style="padding: 40px 30px;">
             <h2 style="margin: 0 0 20px; color: #18181b; font-size: 24px;">${title}</h2>
             <p style="color: #52525b; line-height: 1.6; margin-bottom: 30px;">Hello ${customerName},</p>
             ${content}
+            ${qrCodeUrl ? `
+            <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f4f4f5; border-radius: 8px;">
+              <h3 style="margin: 0 0 15px; color: #18181b; font-size: 16px;">Your Booking QR Code</h3>
+              <img src="${qrCodeUrl}" alt="Booking QR Code" style="width: 150px; height: 150px; margin-bottom: 10px;" />
+              <p style="margin: 0; font-size: 12px; color: #71717a;">Show this at pickup for faster check-in</p>
+            </div>
+            ` : ''}
             <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin: 30px 0;">
               <h3 style="margin: 0 0 15px; color: #18181b; font-size: 16px;">Booking Details</h3>
               <table style="width: 100%; border-collapse: collapse;">
@@ -216,12 +223,19 @@ serve(async (req) => {
           </div>
           <div style="background-color: #18181b; padding: 30px; text-align: center;">
             <p style="margin: 0 0 10px; color: white; font-size: 14px;">Questions? Contact us anytime</p>
-            <p style="margin: 0; color: #a1a1aa; font-size: 12px;">© 2024 LuxeRide. All rights reserved.</p>
+            <p style="margin: 0; color: #a1a1aa; font-size: 12px;">© 2024 C2C Rental. All rights reserved.</p>
           </div>
         </div>
       </body>
       </html>
     `;
+
+    // Generate QR code URL using a public QR code service
+    const qrData = encodeURIComponent(JSON.stringify({
+      bookingCode: booking.booking_code,
+      bookingId: booking.id,
+    }));
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}`;
 
     switch (templateType) {
       case "confirmation":
@@ -229,14 +243,25 @@ serve(async (req) => {
         htmlContent = baseTemplate(
           "Your Booking is Confirmed!",
           `<p style="color: #52525b; line-height: 1.6;">Great news! Your reservation has been confirmed. We're excited to have you drive with us.</p>
-           <p style="color: #52525b; line-height: 1.6;">Please bring a valid driver's license and the credit card used for booking when you arrive for pickup.</p>`
+           
+           <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
+             <h4 style="margin: 0 0 10px; color: #92400e; font-size: 14px;">⚠️ Action Required: Upload Your Driver's License</h4>
+             <p style="margin: 0; color: #78350f; font-size: 13px; line-height: 1.5;">
+               To expedite your pickup, please upload clear photos of the front and back of your driver's license. 
+               You can do this by logging into your account or replying to this email with the images attached.
+             </p>
+           </div>
+           
+           <p style="color: #52525b; line-height: 1.6;">Please bring a valid driver's license and the credit card used for booking when you arrive for pickup.</p>`,
+          qrCodeUrl
         );
         break;
       case "update":
         subject = `Booking Updated - ${booking.booking_code}`;
         htmlContent = baseTemplate(
           "Your Booking Has Been Updated",
-          `<p style="color: #52525b; line-height: 1.6;">Your booking details have been updated. Please review the changes below.</p>`
+          `<p style="color: #52525b; line-height: 1.6;">Your booking details have been updated. Please review the changes below.</p>`,
+          qrCodeUrl
         );
         break;
       case "cancellation":
@@ -252,7 +277,8 @@ serve(async (req) => {
         htmlContent = baseTemplate(
           "Your Pickup is Tomorrow!",
           `<p style="color: #52525b; line-height: 1.6;">Just a friendly reminder that your vehicle pickup is scheduled for tomorrow.</p>
-           <p style="color: #52525b; line-height: 1.6;">Don't forget to bring your driver's license and the credit card used for booking.</p>`
+           <p style="color: #52525b; line-height: 1.6;">Don't forget to bring your driver's license and the credit card used for booking.</p>`,
+          qrCodeUrl
         );
         break;
     }
