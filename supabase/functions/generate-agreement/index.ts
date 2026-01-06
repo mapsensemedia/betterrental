@@ -275,6 +275,27 @@ Date: ________________________________
       new_data: { booking_id: bookingId, booking_code: booking.booking_code },
     });
 
+    // Send notification to customer that agreement is ready for signing
+    try {
+      console.log(`Sending agreement_ready notification for booking: ${bookingId}`);
+      const notificationResponse = await fetch(`${supabaseUrl}/functions/v1/send-agreement-notification`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          bookingId: bookingId,
+          notificationType: "agreement_ready",
+        }),
+      });
+      const notificationResult = await notificationResponse.json();
+      console.log("Agreement notification result:", notificationResult);
+    } catch (notifyError) {
+      console.error("Failed to send agreement notification (non-blocking):", notifyError);
+      // Don't fail the agreement generation if notification fails
+    }
+
     return new Response(
       JSON.stringify({ agreementId: agreement.id, success: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
