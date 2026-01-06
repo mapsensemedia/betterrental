@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
-import { GlassSearchBar } from "@/components/landing/GlassSearchBar";
+import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { VehicleCard } from "@/components/landing/VehicleCard";
 import { CategoryCard } from "@/components/landing/CategoryCard";
 import { SectionHeader } from "@/components/landing/SectionHeader";
@@ -60,9 +60,9 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Search Bar */}
+          {/* Search Card */}
           <div className="mt-12 animate-scale-in animation-delay-300">
-            <GlassSearchBar />
+            <RentalSearchCard />
           </div>
         </div>
       </section>
