@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +40,9 @@ import {
   FileText,
   Phone,
   Mail,
+  Bell,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBookingReceipts } from "@/hooks/use-receipts";
@@ -56,6 +60,22 @@ import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { CustomerWalkaroundAcknowledge } from "@/components/booking/CustomerWalkaroundAcknowledge";
 import { ReportIssueDialog } from "@/components/booking/ReportIssueDialog";
 import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
+
+// Notification type labels
+const NOTIFICATION_LABELS: Record<string, string> = {
+  booking_confirmed: "Booking Confirmed",
+  payment_confirmation: "Payment Received",
+  license_approved: "License Approved",
+  license_rejected: "License Rejected",
+  vehicle_assigned: "Vehicle Assigned",
+  agreement_generated: "Agreement Ready",
+  agreement_signed: "Agreement Signed",
+  checkin_complete: "Check-in Complete",
+  walkaround_complete: "Walkaround Complete",
+  rental_activated: "Rental Started",
+  rental_completed: "Rental Completed",
+  payment_request: "Payment Request",
+};
 
 interface BookingData {
   id: string;
@@ -129,6 +149,23 @@ export default function BookingDetail() {
   const { data: ticketThread } = useCustomerTicketById(selectedTicketId);
   const createTicket = useCreateTicket();
   const sendMessage = useSendTicketMessage();
+  
+  // Fetch notification history for this booking
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["booking-notifications", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("notification_logs")
+        .select("*")
+        .eq("booking_id", id)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
   
   // Filter tickets for this booking
   const bookingTickets = tickets.filter(t => t.bookingId === id);
@@ -425,8 +462,8 @@ export default function BookingDetail() {
                 </div>
               )}
 
-              {/* Rental Agreement - Customer signing */}
-              {id && booking.status === "confirmed" && (
+              {/* Rental Agreement - Customer signing (show for confirmed and active) */}
+              {id && (booking.status === "confirmed" || booking.status === "active") && (
                 <RentalAgreementSign bookingId={id} />
               )}
 
@@ -637,7 +674,49 @@ export default function BookingDetail() {
                 </Card>
               )}
 
-              {/* Support Tickets for this booking */}
+              {/* Notification History */}
+              {notifications.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Bell className="h-4 w-4" />
+                      Updates & Notifications
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {notifications.slice(0, 5).map((notif: any) => (
+                      <div
+                        key={notif.id}
+                        className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50"
+                      >
+                        <div className="mt-0.5">
+                          {notif.status === "sent" ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : notif.status === "failed" ? (
+                            <XCircle className="h-4 w-4 text-destructive" />
+                          ) : (
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">
+                            {NOTIFICATION_LABELS[notif.notification_type] || notif.notification_type}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {notif.channel === "email" ? "Email" : "SMS"} • {format(new Date(notif.created_at), "MMM d, h:mm a")}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {notifications.length > 5 && (
+                      <p className="text-xs text-center text-muted-foreground pt-2">
+                        +{notifications.length - 5} more updates
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {bookingTickets.length > 0 && (
                 <Card>
                   <CardHeader className="pb-2">

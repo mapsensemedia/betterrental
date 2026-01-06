@@ -18,7 +18,6 @@ import CheckIn from "./pages/CheckIn";
 import Protection from "./pages/Protection";
 import AddOns from "./pages/AddOns";
 import NewCheckout from "./pages/NewCheckout";
-import CustomerPortal from "./pages/CustomerPortal";
 
 // Admin Pages
 import AdminOverview from "./pages/admin/Overview";
@@ -66,8 +65,9 @@ const App = () => (
             <Route path="/check-in" element={<CheckIn />} />
             <Route path="/protection" element={<Protection />} />
             <Route path="/add-ons" element={<AddOns />} />
-            <Route path="/my-booking" element={<CustomerPortal />} />
-            <Route path="/my-booking/:bookingCode" element={<CustomerPortal />} />
+            {/* Redirect my-booking to dashboard */}
+            <Route path="/my-booking" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/my-booking/:bookingCode" element={<Navigate to="/dashboard" replace />} />
 
             {/* Redirects for removed vehicle detail pages */}
             <Route path="/vehicle/:id" element={<Navigate to="/search" replace />} />
