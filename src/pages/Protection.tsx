@@ -138,8 +138,8 @@ export default function Protection() {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -148,22 +148,22 @@ export default function Protection() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <h1 className="text-lg font-semibold uppercase tracking-wide">
-                Which Protection Package Do You Need?
+              <h1 className="text-sm sm:text-lg font-semibold uppercase tracking-wide truncate">
+                Protection Package
               </h1>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total:</p>
-                <p className="text-2xl font-bold">
+                <p className="text-xs sm:text-sm text-muted-foreground">Total:</p>
+                <p className="text-lg sm:text-2xl font-bold">
                   CA${totalPrice.toFixed(2)}
                 </p>
               </div>
               <Button
                 onClick={handleContinue}
-                size="lg"
-                className="bg-primary hover:bg-primary/90"
+                size="default"
+                className="bg-primary hover:bg-primary/90 hidden sm:flex"
               >
                 Continue
               </Button>
@@ -172,9 +172,9 @@ export default function Protection() {
         </div>
 
         {/* Content */}
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-6 sm:py-8 pb-24 sm:pb-8">
           {/* Protection Packages */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {protectionPackages.map((pkg) => (
               <Card
                 key={pkg.id}
@@ -331,6 +331,17 @@ export default function Protection() {
               </div>
             </Card>
           )}
+        </div>
+
+        {/* Mobile Fixed Bottom Bar */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border sm:hidden">
+          <Button
+            onClick={handleContinue}
+            className="w-full"
+            size="lg"
+          >
+            Continue
+          </Button>
         </div>
       </div>
     </CustomerLayout>

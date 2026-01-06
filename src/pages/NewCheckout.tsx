@@ -331,8 +331,8 @@ export default function NewCheckout() {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -341,20 +341,20 @@ export default function NewCheckout() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <h1 className="text-lg font-semibold uppercase tracking-wide">
-                Review Your Booking
+              <h1 className="text-sm sm:text-lg font-semibold uppercase tracking-wide truncate">
+                Review Booking
               </h1>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total:</p>
-                <p className="text-2xl font-bold">
+                <p className="text-xs sm:text-sm text-muted-foreground">Total:</p>
+                <p className="text-lg sm:text-2xl font-bold">
                   CA${pricing.total.toFixed(2)}
                 </p>
                 <button
                   onClick={() => setPriceDetailsOpen(!priceDetailsOpen)}
-                  className="text-xs text-primary underline"
+                  className="text-xs text-primary underline hidden sm:block"
                 >
                   Price details
                 </button>
@@ -383,7 +383,7 @@ export default function NewCheckout() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstName">First name *</Label>
                       <Input
@@ -415,7 +415,7 @@ export default function NewCheckout() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="countryCode">Country</Label>
                       <Select

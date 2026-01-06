@@ -299,7 +299,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
       </div>
 
       {/* Search Fields */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
         {/* Location Field */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -438,7 +438,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
       )}
 
       {/* Age Confirmation & Search Button */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-6 pt-4 border-t border-border/50">
+      <div className="flex flex-col gap-4 mt-6 pt-4 border-t border-border/50">
         <div className="flex items-center gap-2">
           <Checkbox
             id="ageConfirm"
@@ -455,7 +455,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
 
         <Button
           onClick={handleSearch}
-          className="h-12 px-8"
+          className="h-12 px-8 w-full sm:w-auto"
           variant="default"
         >
           <Search className="w-4 h-4 mr-2" />

@@ -392,13 +392,13 @@ export default function BookingDetail() {
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <Badge variant="outline" className="text-lg px-4 py-1 font-mono">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                <Badge variant="outline" className="text-sm sm:text-lg px-2 sm:px-4 py-1 font-mono">
                   {booking.booking_code}
                 </Badge>
                 <StatusBadge status={booking.status as any} />
               </div>
-              <h1 className="heading-2">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
                 {booking.vehicles?.year} {booking.vehicles?.make} {booking.vehicles?.model}
               </h1>
             </div>

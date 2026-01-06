@@ -104,19 +104,19 @@ export default function AdminActiveRentals() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           <Card 
             className={`cursor-pointer transition-all ${filter === "all" ? "ring-2 ring-primary" : ""}`}
             onClick={() => setFilter("all")}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Car className="w-5 h-5 text-primary" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Car className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{isLoading ? "..." : stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Active</p>
+                  <p className="text-xl sm:text-2xl font-bold">{isLoading ? "..." : stats.total}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
                 </div>
               </div>
             </CardContent>
@@ -126,14 +126,14 @@ export default function AdminActiveRentals() {
             className={`cursor-pointer transition-all ${filter === "overdue" ? "ring-2 ring-destructive" : ""}`}
             onClick={() => setFilter("overdue")}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-destructive" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-destructive">{isLoading ? "..." : stats.overdue}</p>
-                  <p className="text-xs text-muted-foreground">Overdue</p>
+                  <p className="text-xl sm:text-2xl font-bold text-destructive">{isLoading ? "..." : stats.overdue}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Overdue</p>
                 </div>
               </div>
             </CardContent>
@@ -143,48 +143,48 @@ export default function AdminActiveRentals() {
             className={`cursor-pointer transition-all ${filter === "approaching" ? "ring-2 ring-amber-500" : ""}`}
             onClick={() => setFilter("approaching")}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Timer className="w-5 h-5 text-amber-500" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <Timer className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-amber-500">{isLoading ? "..." : stats.approaching}</p>
-                  <p className="text-xs text-muted-foreground">Due Soon</p>
+                  <p className="text-xl sm:text-2xl font-bold text-amber-500">{isLoading ? "..." : stats.approaching}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Due Soon</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card 
-            className={`cursor-pointer transition-all ${filter === "warning" ? "ring-2 ring-yellow-500" : ""}`}
+            className={`cursor-pointer transition-all ${filter === "warning" ? "ring-2 ring-yellow-500" : ""} hidden sm:block`}
             onClick={() => setFilter("warning")}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-yellow-500" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-yellow-600">{isLoading ? "..." : stats.warning}</p>
-                  <p className="text-xs text-muted-foreground">Within 6h</p>
+                  <p className="text-xl sm:text-2xl font-bold text-yellow-600">{isLoading ? "..." : stats.warning}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Within 6h</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card 
-            className={`cursor-pointer transition-all ${filter === "healthy" ? "ring-2 ring-green-500" : ""}`}
+            className={`cursor-pointer transition-all ${filter === "healthy" ? "ring-2 ring-green-500" : ""} hidden sm:block`}
             onClick={() => setFilter("healthy")}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-green-600">{isLoading ? "..." : stats.healthy}</p>
-                  <p className="text-xs text-muted-foreground">On Schedule</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-600">{isLoading ? "..." : stats.healthy}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">On Track</p>
                 </div>
               </div>
             </CardContent>
