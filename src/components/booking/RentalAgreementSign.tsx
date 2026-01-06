@@ -28,6 +28,7 @@ export function RentalAgreementSign({ bookingId }: RentalAgreementSignProps) {
     signAgreement.mutate({
       agreementId: agreement.id,
       signature: signature.trim(),
+      bookingId, // Pass bookingId for notification
     });
   };
 
