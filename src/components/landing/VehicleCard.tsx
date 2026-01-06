@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Fuel, Users, Gauge, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { PriceWithDisclaimer } from "@/components/shared/PriceWithDisclaimer";
+import { useRentalBooking } from "@/contexts/RentalBookingContext";
+import { toast } from "sonner";
 
 interface VehicleCardProps {
   id: string;
@@ -44,6 +45,39 @@ export function VehicleCard({
   showCompare = false,
 }: VehicleCardProps) {
   const isDark = variant === "dark";
+  const navigate = useNavigate();
+  const { searchData, setSelectedVehicle, isSearchValid } = useRentalBooking();
+
+  const handleRentNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Check if search prerequisites are met (location + dates)
+    if (!isSearchValid) {
+      toast.error("Please select location and dates first", {
+        description: "You'll be redirected to the search page to set your trip details.",
+        action: {
+          label: "Go to Search",
+          onClick: () => navigate("/search"),
+        },
+      });
+      navigate("/search");
+      return;
+    }
+
+    // Set selected vehicle in context
+    setSelectedVehicle(id);
+
+    // Navigate to checkout with vehicle info
+    // Build URL params from context
+    const params = new URLSearchParams();
+    params.set("vehicleId", id);
+    if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
+    if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
+    if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
+
+    navigate(`/checkout?${params.toString()}`);
+  };
 
   return (
     <div
@@ -219,9 +253,9 @@ export function VehicleCard({
             variant={isDark ? "secondary" : "default"}
             size="sm"
             className="w-full sm:w-auto shrink-0"
-            asChild
+            onClick={handleRentNow}
           >
-            <Link to={`/vehicle/${id}`}>View Details</Link>
+            Rent Now
           </Button>
         </div>
       </div>
