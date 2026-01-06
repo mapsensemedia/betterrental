@@ -57,7 +57,7 @@ export function BookingStepper({ currentStep, className }: BookingStepperProps) 
   };
 
   return (
-    <div className={cn("flex items-center justify-center gap-0", className)}>
+    <div className={cn("flex items-center justify-center gap-0 px-2", className)}>
       {STEPS.map((step, index) => {
         const isCompleted = step.id < currentStep;
         const isCurrent = step.id === currentStep;
@@ -71,21 +71,21 @@ export function BookingStepper({ currentStep, className }: BookingStepperProps) 
                 <Link to={getStepPath(step.id)} className="flex flex-col items-center group">
                   <div
                     className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+                      "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium transition-colors",
                       isCompleted && "bg-primary text-primary-foreground",
                       isCurrent && "bg-primary text-primary-foreground",
                       !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
                     )}
                   >
                     {isCompleted ? (
-                      <Check className="w-4 h-4" />
+                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     ) : (
                       step.id
                     )}
                   </div>
                   <span
                     className={cn(
-                      "text-xs mt-1 whitespace-nowrap group-hover:text-primary",
+                      "text-[10px] sm:text-xs mt-1 whitespace-nowrap group-hover:text-primary",
                       isCurrent && "font-medium text-foreground",
                       isCompleted && "text-foreground",
                       !isCompleted && !isCurrent && "text-muted-foreground"
@@ -98,21 +98,21 @@ export function BookingStepper({ currentStep, className }: BookingStepperProps) 
                 <div className="flex flex-col items-center">
                   <div
                     className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+                      "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium transition-colors",
                       isCompleted && "bg-primary text-primary-foreground",
                       isCurrent && "bg-primary text-primary-foreground",
                       !isCompleted && !isCurrent && "bg-muted text-muted-foreground"
                     )}
                   >
                     {isCompleted ? (
-                      <Check className="w-4 h-4" />
+                      <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     ) : (
                       step.id
                     )}
                   </div>
                   <span
                     className={cn(
-                      "text-xs mt-1 whitespace-nowrap",
+                      "text-[10px] sm:text-xs mt-1 whitespace-nowrap",
                       isCurrent && "font-medium text-foreground",
                       isCompleted && "text-foreground",
                       !isCompleted && !isCurrent && "text-muted-foreground"
@@ -124,11 +124,11 @@ export function BookingStepper({ currentStep, className }: BookingStepperProps) 
               )}
             </div>
 
-            {/* Connector Line */}
+            {/* Connector Line - shorter on mobile */}
             {index < STEPS.length - 1 && (
               <div
                 className={cn(
-                  "w-16 h-0.5 mx-2",
+                  "w-6 sm:w-12 md:w-16 h-0.5 mx-1 sm:mx-2",
                   step.id < currentStep ? "bg-primary" : "bg-muted"
                 )}
               />
