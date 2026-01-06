@@ -255,6 +255,17 @@ export function useCompleteCheckIn() {
         validations: validations.map(v => ({ field: v.field, passed: v.passed })),
       });
 
+      // Send notification to customer about check-in complete
+      if (status === "passed") {
+        try {
+          await supabase.functions.invoke("send-booking-notification", {
+            body: { bookingId, stage: "checkin_complete" },
+          });
+        } catch (e) {
+          console.error("Failed to send check-in notification:", e);
+        }
+      }
+
       return { status, blockedReason };
     },
     onSuccess: (result, { bookingId }) => {
@@ -263,7 +274,7 @@ export function useCompleteCheckIn() {
       queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
 
       if (result.status === "passed") {
-        toast.success("Check-in completed successfully");
+        toast.success("Check-in completed - customer notified");
       } else {
         toast.warning("Check-in needs review", {
           description: result.blockedReason || undefined,

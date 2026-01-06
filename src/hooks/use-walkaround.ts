@@ -241,11 +241,24 @@ export function useCompleteWalkaround() {
         user_id: user.user?.id,
         new_data: { booking_id: inspection.booking_id },
       });
+
+      // Send notification to customer
+      if (inspection.booking_id) {
+        try {
+          await supabase.functions.invoke("send-booking-notification", {
+            body: { bookingId: inspection.booking_id, stage: "walkaround_complete" },
+          });
+        } catch (e) {
+          console.error("Failed to send walkaround notification:", e);
+        }
+      }
+
+      return { bookingId: inspection.booking_id };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
       queryClient.invalidateQueries({ queryKey: ["booking"] });
-      toast.success("Walkaround inspection completed");
+      toast.success("Walkaround completed - customer notified");
     },
     onError: (error: Error) => {
       toast.error(error.message);

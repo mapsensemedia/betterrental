@@ -243,12 +243,30 @@ export function useUpdateBookingStatus() {
         notes 
       });
 
+      // Send notification based on new status
+      let notificationStage: string | null = null;
+      if (newStatus === "active") {
+        notificationStage = "rental_activated";
+      } else if (newStatus === "completed") {
+        notificationStage = "rental_completed";
+      }
+
+      if (notificationStage) {
+        try {
+          await supabase.functions.invoke("send-booking-notification", {
+            body: { bookingId, stage: notificationStage },
+          });
+        } catch (e) {
+          console.error("Failed to send status notification:", e);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["admin-booking"] });
-      toast.success("Booking status updated");
+      toast.success("Booking status updated - customer notified");
     },
     onError: (error) => {
       console.error("Failed to update booking:", error);

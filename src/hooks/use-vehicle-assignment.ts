@@ -145,6 +145,15 @@ export function useAssignVehicle() {
 
       if (updateError) throw updateError;
 
+      // Send notification to customer
+      try {
+        await supabase.functions.invoke('send-booking-notification', {
+          body: { bookingId, stage: 'vehicle_assigned' },
+        });
+      } catch (e) {
+        console.error('Failed to send vehicle assignment notification:', e);
+      }
+
       return { bookingId, vehicleId };
     },
     onSuccess: (_, variables) => {
@@ -154,7 +163,7 @@ export function useAssignVehicle() {
       queryClient.invalidateQueries({ queryKey: ['available-vehicles'] });
       toast({
         title: 'Vehicle assigned',
-        description: 'The vehicle has been assigned to this booking.',
+        description: 'The vehicle has been assigned and customer notified.',
       });
     },
     onError: (error: Error) => {

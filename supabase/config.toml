@@ -38,3 +38,12 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.send-booking-notification]
+verify_jwt = false
+
+[functions.send-agreement-notification]
+verify_jwt = false
+
+[functions.get-mapbox-token]
+verify_jwt = false

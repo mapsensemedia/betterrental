@@ -49,6 +49,18 @@ export function useGenerateAgreement() {
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Send notification to customer about agreement ready for signing
+      if (!data.alreadyExists) {
+        try {
+          await supabase.functions.invoke("send-booking-notification", {
+            body: { bookingId, stage: "agreement_generated" },
+          });
+        } catch (e) {
+          console.error("Failed to send agreement notification:", e);
+        }
+      }
+
       return data;
     },
     onSuccess: (data, bookingId) => {
@@ -56,7 +68,7 @@ export function useGenerateAgreement() {
       if (data.alreadyExists) {
         toast.info("Agreement already exists for this booking");
       } else {
-        toast.success("Rental agreement generated");
+        toast.success("Rental agreement generated and customer notified");
       }
     },
     onError: (error: Error) => {
@@ -73,9 +85,11 @@ export function useSignAgreement() {
     mutationFn: async ({
       agreementId,
       signature,
+      bookingId,
     }: {
       agreementId: string;
       signature: string;
+      bookingId?: string;
     }) => {
       const { error } = await supabase
         .from("rental_agreements")
@@ -88,6 +102,17 @@ export function useSignAgreement() {
         .eq("id", agreementId);
 
       if (error) throw error;
+
+      // Send notification about agreement signed
+      if (bookingId) {
+        try {
+          await supabase.functions.invoke("send-booking-notification", {
+            body: { bookingId, stage: "agreement_signed" },
+          });
+        } catch (e) {
+          console.error("Failed to send signed notification:", e);
+        }
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["rental-agreement"] });
