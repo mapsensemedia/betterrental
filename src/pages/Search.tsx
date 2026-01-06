@@ -109,8 +109,8 @@ export default function Search() {
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
     let result = allVehicles.filter((v) => {
-      // Category filter
-      if (selectedCategory !== "All" && v.category !== selectedCategory) {
+      // Category filter (case-insensitive)
+      if (selectedCategory !== "All" && v.category?.toLowerCase() !== selectedCategory.toLowerCase()) {
         return false;
       }
       // Price filter
