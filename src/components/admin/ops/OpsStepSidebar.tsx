@@ -66,12 +66,7 @@ export function OpsStepSidebar({
             const displayComplete = isRentalActive || isComplete;
             
             // Allow clicking on any step if all steps are complete or rental is active
-            const allStepsComplete = Object.values(completion).every(step => {
-              if (typeof step === 'object') {
-                return Object.values(step).every(v => v === true);
-              }
-              return step;
-            });
+            const allStepsComplete = OPS_STEPS.every(s => checkStepComplete(s.id, completion));
             const canNavigate = isRentalActive || allStepsComplete || !isLocked;
             
             return (
