@@ -11,6 +11,7 @@ import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { useVehicles } from "@/hooks/use-vehicles";
 import { cn } from "@/lib/utils";
+import { BookingStepper } from "@/components/shared/BookingStepper";
 
 interface ProtectionPackage {
   id: string;
@@ -127,6 +128,13 @@ export default function Protection() {
 
   return (
     <CustomerLayout>
+      {/* Step Progress Indicator */}
+      <div className="bg-background border-b border-border py-4">
+        <div className="container mx-auto px-4">
+          <BookingStepper currentStep={3} />
+        </div>
+      </div>
+
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border">

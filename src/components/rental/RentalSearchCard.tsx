@@ -316,7 +316,12 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
               <SelectContent>
                 {pickupLocations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name} - {loc.city}
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{loc.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {loc.address}
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>

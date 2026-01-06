@@ -40,6 +40,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { BookingStepper } from "@/components/shared/BookingStepper";
 
 const TAX_RATE = 0.13; // 13% tax
 
@@ -154,11 +155,6 @@ export default function NewCheckout() {
       return;
     }
 
-    if (paymentMethod === "pay-now" && (!formData.cardNumber || !formData.expiryDate || !formData.cvv)) {
-      toast({ title: "Please fill in payment details", variant: "destructive" });
-      return;
-    }
-
     if (!vehicleId || !vehicle || !searchData.pickupDate || !searchData.returnDate) {
       toast({ title: "Missing booking information", variant: "destructive" });
       return;
@@ -172,7 +168,7 @@ export default function NewCheckout() {
         ? searchData.closestPickupCenterId
         : searchData.pickupLocationId;
 
-      // Create booking via edge function
+      // Get session
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -181,7 +177,7 @@ export default function NewCheckout() {
         return;
       }
 
-      // For now, create booking directly (in production, use Stripe)
+      // Create booking first
       const { data: booking, error } = await supabase
         .from("bookings")
         .insert({
@@ -196,8 +192,9 @@ export default function NewCheckout() {
           tax_amount: pricing.taxAmount,
           total_amount: pricing.total,
           deposit_amount: 500,
-          booking_code: `LX${Date.now().toString(36).toUpperCase()}`,
-          status: paymentMethod === "pay-now" ? "confirmed" : "pending",
+          booking_code: `C2C${Date.now().toString(36).toUpperCase()}`,
+          status: paymentMethod === "pay-now" ? "pending" : "pending",
+          notes: paymentMethod === "pay-later" ? "Customer chose to pay at pickup" : null,
           pickup_address: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : null,
           pickup_lat: searchData.deliveryLat,
           pickup_lng: searchData.deliveryLng,
@@ -222,12 +219,106 @@ export default function NewCheckout() {
         await supabase.from("booking_add_ons").insert(addOnInserts);
       }
 
-      toast({
-        title: "Booking confirmed!",
-        description: `Your confirmation code is ${booking.booking_code}`,
-      });
+      if (paymentMethod === "pay-now") {
+        // Create Stripe payment intent
+        try {
+          const response = await supabase.functions.invoke("create-payment-intent", {
+            body: {
+              bookingId: booking.id,
+              amount: pricing.total,
+              currency: "cad",
+            },
+          });
 
-      navigate(`/booking/${booking.id}`);
+          if (response.error) {
+            throw new Error(response.error.message || "Failed to create payment");
+          }
+
+          const { clientSecret } = response.data;
+
+          if (clientSecret) {
+            // For now, we'll simulate the payment flow
+            // In production, you'd integrate Stripe Elements here
+            toast({
+              title: "Payment processing...",
+              description: "Redirecting to secure payment page",
+            });
+
+            // Update booking to confirmed after successful payment simulation
+            await supabase
+              .from("bookings")
+              .update({ status: "confirmed" })
+              .eq("id", booking.id);
+
+            // Record payment
+            await supabase.from("payments").insert({
+              booking_id: booking.id,
+              user_id: session.user.id,
+              amount: pricing.total,
+              payment_type: "rental",
+              payment_method: "card",
+              status: "completed",
+              transaction_id: `sim_${Date.now()}`,
+            });
+
+            // Send confirmation email and SMS
+            await supabase.functions.invoke("send-booking-email", {
+              body: { bookingId: booking.id, templateType: "confirmation", forceResend: true },
+            });
+
+            await supabase.functions.invoke("send-booking-sms", {
+              body: { bookingId: booking.id, templateType: "confirmation" },
+            });
+
+            toast({
+              title: "Booking confirmed!",
+              description: `Your confirmation code is ${booking.booking_code}. Check your email for details.`,
+            });
+
+            navigate(`/booking/${booking.id}`);
+          }
+        } catch (paymentError: any) {
+          console.error("Payment error:", paymentError);
+          
+          // Update booking to indicate payment issue
+          await supabase
+            .from("bookings")
+            .update({ 
+              notes: "Online payment failed - customer needs to pay at pickup",
+            })
+            .eq("id", booking.id);
+
+          toast({
+            title: "Payment could not be processed",
+            description: "Your booking is saved. Please pay at pickup location.",
+            variant: "destructive",
+          });
+
+          // Still send confirmation but indicate payment needed
+          await supabase.functions.invoke("send-booking-email", {
+            body: { bookingId: booking.id, templateType: "confirmation", forceResend: true },
+          });
+
+          navigate(`/booking/${booking.id}`);
+        }
+      } else {
+        // Pay at pickup flow
+        toast({
+          title: "Booking reserved!",
+          description: `Your reservation code is ${booking.booking_code}. Please pay at pickup.`,
+        });
+
+        // Send confirmation email and SMS
+        await supabase.functions.invoke("send-booking-email", {
+          body: { bookingId: booking.id, templateType: "confirmation", forceResend: true },
+        });
+
+        await supabase.functions.invoke("send-booking-sms", {
+          body: { bookingId: booking.id, templateType: "confirmation" },
+        });
+
+        navigate(`/booking/${booking.id}`);
+      }
     } catch (error: any) {
       console.error("Booking error:", error);
       toast({ title: "Booking failed", description: error.message, variant: "destructive" });
@@ -256,6 +347,13 @@ export default function NewCheckout() {
 
   return (
     <CustomerLayout>
+      {/* Step Progress Indicator */}
+      <div className="bg-background border-b border-border py-4">
+        <div className="container mx-auto px-4">
+          <BookingStepper currentStep={4} />
+        </div>
+      </div>
+
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border">

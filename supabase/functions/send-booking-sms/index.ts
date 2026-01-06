@@ -127,16 +127,16 @@ serve(async (req) => {
 
     switch (templateType) {
       case "confirmation":
-        message = `LuxeRide: Your booking ${booking.booking_code} is confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nLocation: ${locationName}\n\nSee you soon!`;
+        message = `C2C Rental: Your booking ${booking.booking_code} is confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nLocation: ${locationName}\n\nPLEASE UPLOAD your driver's license photos to expedite pickup. See your email for details.`;
         break;
       case "update":
-        message = `LuxeRide: Your booking ${booking.booking_code} has been updated.\n\nPickup: ${startDate}\nLocation: ${locationName}\n\nView details in your account.`;
+        message = `C2C Rental: Your booking ${booking.booking_code} has been updated.\n\nPickup: ${startDate}\nLocation: ${locationName}\n\nView details in your account.`;
         break;
       case "cancellation":
-        message = `LuxeRide: Your booking ${booking.booking_code} has been cancelled.\n\nIf you have questions, contact us.`;
+        message = `C2C Rental: Your booking ${booking.booking_code} has been cancelled.\n\nIf you have questions, contact us.`;
         break;
       case "reminder":
-        message = `LuxeRide Reminder: Your pickup for ${vehicleName} is tomorrow at ${startDate}!\n\nBooking: ${booking.booking_code}\nLocation: ${locationName}`;
+        message = `C2C Rental Reminder: Your pickup for ${vehicleName} is tomorrow at ${startDate}!\n\nBooking: ${booking.booking_code}\nLocation: ${locationName}`;
         break;
     }
 

@@ -11,6 +11,7 @@ import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { useVehicles } from "@/hooks/use-vehicles";
 import { useAddOns } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
+import { BookingStepper } from "@/components/shared/BookingStepper";
 
 const ADDON_ICONS: Record<string, typeof Users> = {
   "additional driver": Users,
@@ -104,6 +105,13 @@ export default function AddOns() {
 
   return (
     <CustomerLayout>
+      {/* Step Progress Indicator */}
+      <div className="bg-background border-b border-border py-4">
+        <div className="container mx-auto px-4">
+          <BookingStepper currentStep={3} />
+        </div>
+      </div>
+
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border">
