@@ -110,7 +110,7 @@ export default function Protection() {
   const totalPrice = vehicleTotal + protectionTotal;
 
   const handleContinue = () => {
-    // Build URL params for checkout
+    // Build URL params for add-ons step
     const params = new URLSearchParams();
     if (vehicleId) params.set("vehicleId", vehicleId);
     if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
@@ -118,7 +118,7 @@ export default function Protection() {
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     params.set("protection", selectedPackage);
 
-    navigate(`/checkout?${params.toString()}`);
+    navigate(`/add-ons?${params.toString()}`);
   };
 
   const handleBack = () => {
