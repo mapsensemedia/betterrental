@@ -60,6 +60,8 @@ import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { CustomerWalkaroundAcknowledge } from "@/components/booking/CustomerWalkaroundAcknowledge";
 import { ReportIssueDialog } from "@/components/booking/ReportIssueDialog";
 import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
+import { BookingProgressStepper } from "@/components/booking/BookingProgressStepper";
+import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 
 // Notification type labels
 const NOTIFICATION_LABELS: Record<string, string> = {
@@ -150,6 +152,43 @@ export default function BookingDetail() {
   const createTicket = useCreateTicket();
   const sendMessage = useSendTicketMessage();
   
+  // Fetch rental agreement for stepper state
+  const { data: agreement } = useRentalAgreement(id || null);
+  
+  // Fetch payment info for stepper
+  const { data: payments = [] } = useQuery({
+    queryKey: ["booking-payments", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("booking_id", id)
+        .eq("status", "completed");
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+  
+  // Fetch walkaround inspection for stepper
+  const { data: walkarounds = [] } = useQuery({
+    queryKey: ["booking-walkarounds", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("walkaround_inspections")
+        .select("*")
+        .eq("booking_id", id)
+        .eq("customer_acknowledged", true);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+  
   // Fetch notification history for this booking
   const { data: notifications = [] } = useQuery({
     queryKey: ["booking-notifications", id],
@@ -166,6 +205,14 @@ export default function BookingDetail() {
     },
     enabled: !!id,
   });
+  
+  // Stepper state calculations
+  const isLicenseVerified = !!licenseFront && !!licenseBack && 
+    licenseFront.status === "verified" && licenseBack.status === "verified";
+  const hasAgreementGenerated = !!agreement;
+  const hasAgreementSigned = !!agreement && (agreement.status === "signed" || agreement.status === "confirmed");
+  const hasPayment = payments.length > 0;
+  const hasWalkaround = walkarounds.length > 0;
   
   // Filter tickets for this booking
   const bookingTickets = tickets.filter(t => t.bookingId === id);
@@ -357,8 +404,22 @@ export default function BookingDetail() {
             </div>
           </div>
 
+          {/* Progress Stepper */}
+          <Card>
+            <CardContent className="pt-6 pb-4">
+              <BookingProgressStepper
+                bookingStatus={booking.status}
+                hasLicenseVerified={isLicenseVerified}
+                hasAgreementGenerated={hasAgreementGenerated}
+                hasAgreementSigned={hasAgreementSigned}
+                hasPayment={hasPayment}
+                hasWalkaround={hasWalkaround}
+              />
+            </CardContent>
+          </Card>
+
           {/* Driver's License Required Callout */}
-          {booking.status === "confirmed" && !isLicenseComplete && (
+          {(booking.status === "pending" || booking.status === "confirmed") && !isLicenseComplete && (
             <Card className="border-destructive/30 bg-destructive/5">
               <CardContent className="pt-6 flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex items-start gap-3 flex-1">
@@ -462,13 +523,13 @@ export default function BookingDetail() {
                 </div>
               )}
 
-              {/* Rental Agreement - Customer signing (show for confirmed and active) */}
-              {id && (booking.status === "confirmed" || booking.status === "active") && (
+              {/* Rental Agreement - Show for all non-completed/cancelled statuses when agreement exists, or always for pending/confirmed/active */}
+              {id && booking.status !== "cancelled" && booking.status !== "completed" && (
                 <RentalAgreementSign bookingId={id} />
               )}
 
               {/* Walkaround Acknowledgement - Customer confirms vehicle condition */}
-              {id && booking.status === "confirmed" && (
+              {id && (booking.status === "confirmed" || booking.status === "active") && (
                 <CustomerWalkaroundAcknowledge bookingId={id} />
               )}
 
