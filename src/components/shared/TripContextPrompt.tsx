@@ -11,7 +11,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useBookingContext } from "@/contexts/BookingContext";
+import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { LocationSelector } from "./LocationSelector";
 
 interface TripContextPromptProps {
@@ -30,26 +30,28 @@ export function TripContextPrompt({
   onComplete,
 }: TripContextPromptProps) {
   const {
-    locationId,
-    setLocationId,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-  } = useBookingContext();
+    searchData,
+    setPickupLocation,
+    setPickupDateTime,
+    setReturnDateTime,
+  } = useRentalBooking();
+
+  const locationId = searchData.pickupLocationId;
+  const startDate = searchData.pickupDate;
+  const endDate = searchData.returnDate;
 
   const [step, setStep] = useState<"location" | "dates">(
     locationId ? "dates" : "location"
   );
 
   const handleLocationSelect = (id: string) => {
-    setLocationId(id);
+    setPickupLocation(id);
     setStep("dates");
   };
 
   const handleDateSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    setStartDate(range?.from || null);
-    setEndDate(range?.to || null);
+    setPickupDateTime(range?.from || null, searchData.pickupTime);
+    setReturnDateTime(range?.to || null, searchData.returnTime);
   };
 
   const handleContinue = () => {

@@ -23,7 +23,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useVehicles, type Vehicle } from "@/hooks/use-vehicles";
-import { useBookingContext } from "@/contexts/BookingContext";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
@@ -40,14 +39,16 @@ export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: allVehicles = [], isLoading } = useVehicles();
   const { 
-    locationId: contextLocationId, 
-    setLocationId,
-    startDate, 
-    endDate,
-    setStartDate,
-    setEndDate 
-  } = useBookingContext();
-  const { searchData, isSearchValid } = useRentalBooking();
+    searchData, 
+    isSearchValid,
+    setPickupLocation,
+    setPickupDateTime,
+    setReturnDateTime,
+  } = useRentalBooking();
+  
+  const contextLocationId = searchData.pickupLocationId;
+  const startDate = searchData.pickupDate;
+  const endDate = searchData.returnDate;
 
   // Show prompt if no trip context
   const [showContextPrompt, setShowContextPrompt] = useState(false);
@@ -71,13 +72,13 @@ export default function Search() {
     const locationIdParam = searchParams.get("locationId");
 
     if (startAtParam && !startDate) {
-      setStartDate(new Date(startAtParam));
+      setPickupDateTime(new Date(startAtParam), searchData.pickupTime);
     }
     if (endAtParam && !endDate) {
-      setEndDate(new Date(endAtParam));
+      setReturnDateTime(new Date(endAtParam), searchData.returnTime);
     }
     if (locationIdParam && !contextLocationId) {
-      setLocationId(locationIdParam);
+      setPickupLocation(locationIdParam);
     }
   }, []);
 

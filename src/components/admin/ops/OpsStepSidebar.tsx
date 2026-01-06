@@ -65,15 +65,25 @@ export function OpsStepSidebar({
             const displayStatus = isRentalActive ? "complete" : status;
             const displayComplete = isRentalActive || isComplete;
             
+            // Allow clicking on any step if all steps are complete or rental is active
+            const allStepsComplete = Object.values(completion).every(step => {
+              if (typeof step === 'object') {
+                return Object.values(step).every(v => v === true);
+              }
+              return step;
+            });
+            const canNavigate = isRentalActive || allStepsComplete || !isLocked;
+            
             return (
               <button
                 key={step.id}
-                onClick={() => onStepClick(step.id)}
+                onClick={() => canNavigate && onStepClick(step.id)}
+                disabled={!canNavigate}
                 className={cn(
                   "w-full text-left p-3 rounded-lg transition-all",
                   "hover:bg-muted/50",
                   isActive && "bg-primary/10 border border-primary/20",
-                  isLocked && !isRentalActive && "opacity-60 cursor-not-allowed"
+                  !canNavigate && "opacity-60 cursor-not-allowed"
                 )}
               >
                 <div className="flex items-start gap-3">

@@ -3,14 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { BookingProvider } from "@/contexts/BookingContext";
 import { RentalBookingProvider } from "@/contexts/RentalBookingContext";
 import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import Index from "./pages/Index";
 import Search from "./pages/Search";
 import Compare from "./pages/Compare";
 import Auth from "./pages/Auth";
-import Checkout from "./pages/Checkout";
 import Dashboard from "./pages/Dashboard";
 import BookingDetail from "./pages/BookingDetail";
 import Locations from "./pages/Locations";
@@ -20,6 +18,7 @@ import CheckIn from "./pages/CheckIn";
 import Protection from "./pages/Protection";
 import AddOns from "./pages/AddOns";
 import NewCheckout from "./pages/NewCheckout";
+import CustomerPortal from "./pages/CustomerPortal";
 
 // Admin Pages
 import AdminOverview from "./pages/admin/Overview";
@@ -49,11 +48,10 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <BrowserRouter>
-        <BookingProvider>
-          <RentalBookingProvider>
-            <ScrollToTop />
-            <Toaster />
-            <Sonner />
+        <RentalBookingProvider>
+          <ScrollToTop />
+          <Toaster />
+          <Sonner />
           <Routes>
             {/* Customer Routes */}
             <Route path="/" element={<Index />} />
@@ -68,6 +66,8 @@ const App = () => (
             <Route path="/check-in" element={<CheckIn />} />
             <Route path="/protection" element={<Protection />} />
             <Route path="/add-ons" element={<AddOns />} />
+            <Route path="/my-booking" element={<CustomerPortal />} />
+            <Route path="/my-booking/:bookingCode" element={<CustomerPortal />} />
 
             {/* Redirects for removed vehicle detail pages */}
             <Route path="/vehicle/:id" element={<Navigate to="/search" replace />} />
@@ -99,8 +99,7 @@ const App = () => (
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-          </RentalBookingProvider>
-        </BookingProvider>
+        </RentalBookingProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

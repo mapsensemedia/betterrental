@@ -59,55 +59,97 @@ serve(async (req) => {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const bookingId = session.metadata?.booking_id;
+        const paymentType = session.metadata?.payment_type || "rental";
 
         if (bookingId && session.payment_status === "paid") {
-          console.log(`Checkout session completed for booking ${bookingId}`);
+          console.log(`Checkout session completed for booking ${bookingId}, type: ${paymentType}`);
 
-          // Update booking status
-          await supabase
+          // Get booking user_id
+          const { data: booking } = await supabase
             .from("bookings")
-            .update({ status: "confirmed" })
-            .eq("id", bookingId);
+            .select("user_id, status")
+            .eq("id", bookingId)
+            .single();
 
-          // Record payment
-          await supabase.from("payments").insert({
-            booking_id: bookingId,
-            user_id: session.metadata?.user_id || "",
-            amount: (session.amount_total || 0) / 100,
-            payment_type: "rental",
-            payment_method: "card",
-            status: "completed",
-            transaction_id: session.payment_intent as string || session.id,
-          });
+          const userId = booking?.user_id || session.metadata?.user_id || "";
 
-          // Send confirmation notifications
-          const notifyUrl = `${supabaseUrl}/functions/v1/send-booking-email`;
-          await fetch(notifyUrl, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${supabaseServiceKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              bookingId,
-              templateType: "confirmation",
-              forceResend: true,
-            }),
-          });
+          if (paymentType === "payment_request") {
+            // Payment request - record as rental payment (balance payment)
+            await supabase.from("payments").insert({
+              booking_id: bookingId,
+              user_id: userId,
+              amount: (session.amount_total || 0) / 100,
+              payment_type: "rental",
+              payment_method: "card",
+              status: "completed",
+              transaction_id: session.payment_intent as string || session.id,
+            });
 
-          // Also send SMS
-          const smsUrl = `${supabaseUrl}/functions/v1/send-booking-sms`;
-          await fetch(smsUrl, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${supabaseServiceKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              bookingId,
-              templateType: "confirmation",
-            }),
-          });
+            // Resolve any pending payment alerts
+            await supabase
+              .from("admin_alerts")
+              .update({ status: "resolved", resolved_at: new Date().toISOString() })
+              .eq("booking_id", bookingId)
+              .eq("alert_type", "payment_pending")
+              .eq("status", "pending");
+
+            console.log("Payment request payment recorded successfully");
+
+            // Send notification
+            try {
+              await supabase.functions.invoke("send-booking-notification", {
+                body: { bookingId, stage: "payment_received" },
+              });
+            } catch (notifyErr) {
+              console.warn("Failed to send payment notification:", notifyErr);
+            }
+          } else {
+            // Initial booking payment - update status to confirmed
+            await supabase
+              .from("bookings")
+              .update({ status: "confirmed" })
+              .eq("id", bookingId);
+
+            // Record payment
+            await supabase.from("payments").insert({
+              booking_id: bookingId,
+              user_id: userId,
+              amount: (session.amount_total || 0) / 100,
+              payment_type: "rental",
+              payment_method: "card",
+              status: "completed",
+              transaction_id: session.payment_intent as string || session.id,
+            });
+
+            // Send confirmation notifications
+            const notifyUrl = `${supabaseUrl}/functions/v1/send-booking-email`;
+            await fetch(notifyUrl, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${supabaseServiceKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                bookingId,
+                templateType: "confirmation",
+                forceResend: true,
+              }),
+            });
+
+            // Also send SMS
+            const smsUrl = `${supabaseUrl}/functions/v1/send-booking-sms`;
+            await fetch(smsUrl, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${supabaseServiceKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                bookingId,
+                templateType: "confirmation",
+              }),
+            });
+          }
         }
         break;
       }
