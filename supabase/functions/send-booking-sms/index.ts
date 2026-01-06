@@ -21,13 +21,13 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
     const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const twilioFrom = Deno.env.get("TWILIO_FROM_NUMBER");
+    const twilioFrom = Deno.env.get("TWILIO_PHONE_NUMBER");
 
     if (!twilioSid || !twilioToken || !twilioFrom) {
-      console.error("Twilio credentials not configured");
+      console.warn("Twilio credentials not configured - skipping SMS");
       return new Response(
-        JSON.stringify({ error: "SMS service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, skipped: true, reason: "SMS service not configured" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
