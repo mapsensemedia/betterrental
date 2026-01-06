@@ -271,7 +271,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           className={cn(
             "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-medium transition-colors border",
             deliveryMode === "pickup"
-              ? "bg-background text-foreground border-border"
+              ? "bg-foreground text-background border-foreground"
               : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
           )}
         >

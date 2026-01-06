@@ -39,14 +39,14 @@ const Index = () => {
             {/* Hero Content */}
             <div className="max-w-xl animate-slide-up">
               <h1 className="heading-1 text-foreground mb-6">
-                Premium car
+                C2C Rental
                 <br />
-                rental
+                <span className="text-muted-foreground">Made Simple</span>
               </h1>
               <p className="text-lg text-muted-foreground mb-8">
-                We want you to have a stress-free rental experience, so we make it
-                easy to hire a car – by providing simple search tools, customer
-                reviews and plenty of pick-up locations across the city.
+                Skip the hassle. Rent quality vehicles with transparent pricing,
+                flexible pickup options, and 24/7 support. Your next adventure
+                starts here.
               </p>
             </div>
 

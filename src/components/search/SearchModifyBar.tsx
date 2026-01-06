@@ -19,9 +19,10 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
   const { searchData, rentalDays } = useRentalBooking();
   const [showModifyDialog, setShowModifyDialog] = useState(false);
 
+  // Display full address including city
   const locationDisplay = searchData.deliveryMode === "delivery"
     ? searchData.deliveryAddress
-    : searchData.pickupLocationName;
+    : searchData.pickupLocationAddress || searchData.pickupLocationName;
 
   const pickupDateDisplay = searchData.pickupDate
     ? format(searchData.pickupDate, "d MMMM")

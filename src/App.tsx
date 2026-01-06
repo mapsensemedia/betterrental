@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BookingProvider } from "@/contexts/BookingContext";
 import { RentalBookingProvider } from "@/contexts/RentalBookingContext";
+import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import Index from "./pages/Index";
 import Search from "./pages/Search";
 import Compare from "./pages/Compare";
@@ -50,6 +51,7 @@ const App = () => (
       <BrowserRouter>
         <BookingProvider>
           <RentalBookingProvider>
+            <ScrollToTop />
             <Toaster />
             <Sonner />
           <Routes>
