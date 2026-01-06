@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -67,6 +67,14 @@ export default function BookingOps() {
     open: false, 
     action: null 
   });
+
+  // Prevent the auto-advance effect from overriding manual navigation
+  const hasInitializedStepRef = useRef(false);
+
+  const handleStepClick = (stepId: OpsStepId) => {
+    hasInitializedStepRef.current = true;
+    setActiveStep(stepId);
+  };
   
   // Compute completion status
   const pickupPhotos = photos?.pickup || [];
@@ -116,10 +124,20 @@ export default function BookingOps() {
   
   const currentStepIndex = getCurrentStepIndex(completion);
   
-  // Auto-advance when step completes
+  // Set initial step to the current step, then only auto-advance when the user completes the active step
   useEffect(() => {
+    // Initial sync once data is loaded
+    if (!hasInitializedStepRef.current) {
+      const step = OPS_STEPS[currentStepIndex];
+      if (step && step.id !== activeStep) {
+        setActiveStep(step.id);
+      }
+      hasInitializedStepRef.current = true;
+      return;
+    }
+
     const activeStepIndex = OPS_STEPS.findIndex(s => s.id === activeStep);
-    if (activeStepIndex < currentStepIndex && currentStepIndex < OPS_STEPS.length) {
+    if (activeStepIndex === currentStepIndex - 1 && currentStepIndex < OPS_STEPS.length) {
       const nextStep = OPS_STEPS[currentStepIndex];
       setActiveStep(nextStep.id);
       toast.success(`Step completed — moving to ${nextStep.title}`);
@@ -278,7 +296,7 @@ export default function BookingOps() {
             activeStep={activeStep}
             completion={completion}
             currentStepIndex={currentStepIndex}
-            onStepClick={setActiveStep}
+            onStepClick={handleStepClick}
             isRentalActive={isRentalActive}
           />
           
