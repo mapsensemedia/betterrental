@@ -115,35 +115,37 @@ export default function AddOns() {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border">
-          <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleBack}
-                className="shrink-0"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <h1 className="text-sm sm:text-lg font-semibold uppercase tracking-wide truncate">
-                Add-Ons
-              </h1>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-              <div className="text-right">
-                <p className="text-xs sm:text-sm text-muted-foreground">Total:</p>
-                <p className="text-lg sm:text-2xl font-bold">
-                  CA${totalPrice.toFixed(2)}
-                </p>
+          <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleBack}
+                  className="shrink-0 h-8 w-8"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <h1 className="text-xs sm:text-lg font-semibold uppercase tracking-wide line-clamp-1">
+                  Which add-ons do you need?
+                </h1>
               </div>
-              <Button
-                onClick={handleContinue}
-                size="default"
-                className="bg-primary hover:bg-primary/90 hidden sm:flex"
-              >
-                Continue
-              </Button>
+
+              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                <div className="text-right">
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">Total:</p>
+                  <p className="text-base sm:text-2xl font-bold whitespace-nowrap">
+                    CA${totalPrice.toFixed(2)}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleContinue}
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90 hidden sm:flex"
+                >
+                  Continue
+                </Button>
+              </div>
             </div>
           </div>
         </div>
