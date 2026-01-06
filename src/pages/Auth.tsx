@@ -124,7 +124,7 @@ export default function Auth() {
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary">
             <Car className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold tracking-tight">LuxeRide</span>
+          <span className="text-xl font-bold tracking-tight">C2C Rental</span>
         </Link>
 
         <div className="max-w-md">

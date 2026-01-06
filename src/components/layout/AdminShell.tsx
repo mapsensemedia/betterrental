@@ -114,7 +114,7 @@ export function AdminShell({ children, dateFilter, onDateFilterChange, hideNav }
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Car className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span>LuxeRide</span>
+            <span>C2C Rental</span>
           </Link>
           <p className="text-xs text-muted-foreground mt-1">Admin Console</p>
         </div>
@@ -144,7 +144,7 @@ export function AdminShell({ children, dateFilter, onDateFilterChange, hideNav }
 
         <div className="p-4 border-t border-border">
           <p className="text-xs text-muted-foreground">
-            © 2024 LuxeRide
+            © 2024 C2C Rental
           </p>
         </div>
       </aside>
@@ -158,7 +158,7 @@ export function AdminShell({ children, dateFilter, onDateFilterChange, hideNav }
           />
           <aside className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border p-4 animate-slide-up">
             <div className="flex items-center justify-between mb-6">
-              <span className="text-lg font-bold">LuxeRide Admin</span>
+              <span className="text-lg font-bold">C2C Rental Admin</span>
               <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
                 <X className="w-5 h-5" />
               </Button>

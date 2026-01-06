@@ -167,7 +167,7 @@ serve(async (req) => {
                 </p>
               </div>
               <div style="background-color: #18181b; padding: 30px; text-align: center;">
-                <p style="margin: 0; color: #a1a1aa; font-size: 12px;">© 2024 LuxeRide. All rights reserved.</p>
+                <p style="margin: 0; color: #a1a1aa; font-size: 12px;">© 2024 C2C Rental. All rights reserved.</p>
               </div>
             </div>
           </body>
@@ -181,7 +181,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "LuxeRide <onboarding@resend.dev>",
+            from: "C2C Rental <onboarding@resend.dev>",
             to: [userEmail],
             subject: `Payment Confirmed - ${booking.booking_code}`,
             html: emailHtml,
@@ -217,7 +217,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!existing) {
-        const smsMessage = `LuxeRide: Payment of $${totalPaid.toFixed(2)} confirmed for booking ${booking.booking_code}. ${depositHeld > 0 ? `Deposit: $${depositHeld.toFixed(2)} held. ` : ''}Pickup: ${startDate} at ${locationName}. See you soon!`;
+        const smsMessage = `C2C Rental: Payment of $${totalPaid.toFixed(2)} confirmed for booking ${booking.booking_code}. ${depositHeld > 0 ? `Deposit: $${depositHeld.toFixed(2)} held. ` : ''}Pickup: ${startDate} at ${locationName}. See you soon!`;
 
         const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
         const authHeader = btoa(`${twilioSid}:${twilioToken}`);
