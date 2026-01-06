@@ -1,11 +1,10 @@
 /**
  * RentalSearchCard - Main search card with pickup/delivery toggle
- * Replaces GlassSearchBar with enhanced functionality
+ * Includes Mapbox-powered address autocomplete and route map
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  MapPin,
   Calendar,
   Clock,
   Search,
@@ -13,11 +12,11 @@ import {
   Building2,
   AlertCircle,
   Check,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -25,10 +24,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
-import { RENTAL_LOCATIONS, findClosestLocation, calculateDeliveryFee } from "@/constants/rentalLocations";
+import { findClosestLocation, calculateDeliveryFee, getLocationById } from "@/constants/rentalLocations";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { DeliveryAddressAutocomplete } from "./DeliveryAddressAutocomplete";
+import { DeliveryMap } from "./DeliveryMap";
 
 interface RentalSearchCardProps {
   className?: string;
@@ -46,7 +48,6 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     setDeliveryDetails,
     setClosestCenter,
     setAgeConfirmed,
-    canProceedToSelectCar,
     pickupLocations,
   } = useRentalBooking();
 
@@ -70,9 +71,23 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
   );
   const [ageConfirmed, setLocalAgeConfirmed] = useState(searchData.ageConfirmed);
 
-  // Delivery calculation state
-  const [isCalculatingDelivery, setIsCalculatingDelivery] = useState(false);
+  // Delivery state
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
+  const [deliveryCoords, setDeliveryCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(searchData.deliveryLat && searchData.deliveryLng ? {
+    lat: searchData.deliveryLat,
+    lng: searchData.deliveryLng,
+  } : null);
+  const [closestDealership, setClosestDealership] = useState<{
+    id: string;
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
@@ -93,6 +108,25 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     setLocalDeliveryMode(searchData.deliveryMode);
     setLocalDeliveryAddress(searchData.deliveryAddress || "");
     setLocalAgeConfirmed(searchData.ageConfirmed);
+
+    // Restore delivery coords if available
+    if (searchData.deliveryLat && searchData.deliveryLng && searchData.closestPickupCenterId) {
+      setDeliveryCoords({
+        lat: searchData.deliveryLat,
+        lng: searchData.deliveryLng,
+      });
+      const loc = getLocationById(searchData.closestPickupCenterId);
+      if (loc) {
+        setClosestDealership({
+          id: loc.id,
+          name: loc.name,
+          address: loc.address,
+          lat: loc.lat,
+          lng: loc.lng,
+        });
+        setShowMap(true);
+      }
+    }
   }, [searchData]);
 
   // Handle location change
@@ -107,6 +141,9 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     setDeliveryMode(mode);
     if (mode === "pickup") {
       setDeliveryError(null);
+      setShowMap(false);
+      setDeliveryCoords(null);
+      setClosestDealership(null);
     }
   };
 
@@ -116,64 +153,14 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     setAgeConfirmed(checked);
   };
 
-  // Calculate delivery (simplified - no Mapbox yet, uses haversine)
-  const handleDeliveryAddressBlur = async () => {
-    if (deliveryMode !== "delivery" || !deliveryAddress.trim()) {
-      return;
-    }
-
-    setIsCalculatingDelivery(true);
-    setDeliveryError(null);
-
-    try {
-      // For now, we'll use a simple geocoding approach
-      // In Phase 3, we'll add Mapbox integration
-      // For demonstration, we'll use BC coordinates
-      
-      // Placeholder: Calculate based on address keywords
-      // This will be replaced with actual Mapbox geocoding
-      let estimatedLat = 49.1;
-      let estimatedLng = -122.8;
-
-      // Simple address-based estimation for BC
-      const lowerAddress = deliveryAddress.toLowerCase();
-      if (lowerAddress.includes("vancouver")) {
-        estimatedLat = 49.2827;
-        estimatedLng = -123.1207;
-      } else if (lowerAddress.includes("surrey")) {
-        estimatedLat = 49.1044;
-        estimatedLng = -122.8011;
-      } else if (lowerAddress.includes("langley")) {
-        estimatedLat = 49.1044;
-        estimatedLng = -122.6598;
-      } else if (lowerAddress.includes("abbotsford")) {
-        estimatedLat = 49.0504;
-        estimatedLng = -122.3045;
-      } else if (lowerAddress.includes("burnaby")) {
-        estimatedLat = 49.2488;
-        estimatedLng = -122.9805;
-      } else if (lowerAddress.includes("coquitlam")) {
-        estimatedLat = 49.2838;
-        estimatedLng = -122.7932;
-      } else if (lowerAddress.includes("richmond")) {
-        estimatedLat = 49.1666;
-        estimatedLng = -123.1336;
-      } else if (lowerAddress.includes("new westminster")) {
-        estimatedLat = 49.2057;
-        estimatedLng = -122.9109;
-      } else if (lowerAddress.includes("delta")) {
-        estimatedLat = 49.0847;
-        estimatedLng = -123.0586;
-      } else if (lowerAddress.includes("chilliwack")) {
-        estimatedLat = 49.1579;
-        estimatedLng = -121.9514;
-      }
+  // Handle address selection from autocomplete
+  const handleAddressSelect = useCallback(
+    (address: string, lat: number, lng: number, placeName: string) => {
+      setLocalDeliveryAddress(address);
+      setDeliveryCoords({ lat, lng });
 
       // Find closest center
-      const { location: closest, distanceKm } = findClosestLocation(
-        estimatedLat,
-        estimatedLng
-      );
+      const { location: closest, distanceKm } = findClosestLocation(lat, lng);
 
       // Calculate fee
       const feeResult = calculateDeliveryFee(distanceKm);
@@ -182,26 +169,44 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         setDeliveryError(
           "Delivery address is outside our 50km service area. Please choose a closer address or select pickup."
         );
+        setShowMap(false);
         setDeliveryDetails(0, distanceKm, null);
         return;
       }
 
       // Update context
-      setDeliveryAddress(deliveryAddress, estimatedLat, estimatedLng, deliveryAddress);
+      setDeliveryError(null);
+      setDeliveryAddress(address, lat, lng, placeName);
       setDeliveryDetails(feeResult.fee, distanceKm, `~${Math.round(distanceKm * 2)} mins`);
       setClosestCenter(closest.id, closest.name, closest.address);
+
+      // Set dealership for map
+      setClosestDealership({
+        id: closest.id,
+        name: closest.name,
+        address: closest.address,
+        lat: closest.lat,
+        lng: closest.lng,
+      });
+      setShowMap(true);
 
       toast({
         title: "Delivery available",
         description: `${distanceKm.toFixed(1)}km from ${closest.name}. Delivery fee: $${feeResult.fee}`,
       });
-    } catch (error) {
-      console.error("Delivery calculation error:", error);
-      setDeliveryError("Could not calculate delivery. Please try again.");
-    } finally {
-      setIsCalculatingDelivery(false);
-    }
-  };
+    },
+    [setDeliveryAddress, setDeliveryDetails, setClosestCenter]
+  );
+
+  // Handle route calculation from map
+  const handleRouteCalculated = useCallback(
+    (distanceKm: number, durationMins: number) => {
+      // Update with actual driving distance
+      const feeResult = calculateDeliveryFee(distanceKm);
+      setDeliveryDetails(feeResult.fee, distanceKm, `~${durationMins} mins`);
+    },
+    [setDeliveryDetails]
+  );
 
   // Handle search
   const handleSearch = () => {
@@ -252,44 +257,50 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     setPickupDateTime(new Date(`${pickupDate}T${pickupTime}`), pickupTime);
     setReturnDateTime(new Date(`${returnDate}T${returnTime}`), returnTime);
 
-    // Navigate to select car
+    // Navigate to browse cars
     navigate("/search");
   };
 
   return (
     <div className={cn("glass rounded-2xl p-6 shadow-xl", className)}>
       {/* Delivery Mode Toggle */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-2 mb-6">
         <button
           onClick={() => handleDeliveryModeChange("pickup")}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors",
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-medium transition-colors border",
             deliveryMode === "pickup"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
+              ? "bg-background text-foreground border-border"
+              : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
           )}
         >
           <Building2 className="w-4 h-4" />
-          Pick up at center
+          Pick up at location
         </button>
         <button
           onClick={() => handleDeliveryModeChange("delivery")}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors",
+            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-medium transition-colors border relative",
             deliveryMode === "delivery"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
+              ? "bg-foreground text-background border-foreground"
+              : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
           )}
         >
           <Truck className="w-4 h-4" />
           Bring car to me
+          <Badge 
+            variant="destructive" 
+            className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0.5"
+          >
+            NEW
+          </Badge>
         </button>
       </div>
 
       {/* Search Fields */}
-      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 items-end">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-end">
         {/* Location Field */}
-        <div className="space-y-2 lg:col-span-2">
+        <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {deliveryMode === "pickup" ? "Pickup Location" : "Delivery Address"}
           </label>
@@ -310,24 +321,19 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
               </SelectContent>
             </Select>
           ) : (
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <Input
-                type="text"
-                placeholder="Enter your address"
-                value={deliveryAddress}
-                onChange={(e) => setLocalDeliveryAddress(e.target.value)}
-                onBlur={handleDeliveryAddressBlur}
-                className="h-12 pl-10 rounded-xl"
-              />
-            </div>
+            <DeliveryAddressAutocomplete
+              value={deliveryAddress}
+              onChange={setLocalDeliveryAddress}
+              onSelect={handleAddressSelect}
+              placeholder="Enter your address"
+            />
           )}
         </div>
 
-        {/* Pickup Date & Time */}
+        {/* Pickup Date */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Pickup Date
+            {deliveryMode === "delivery" ? "Delivery Date" : "Pickup Date"}
           </label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -348,9 +354,10 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           </div>
         </div>
 
+        {/* Pickup Time */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Pickup Time
+            {deliveryMode === "delivery" ? "Delivery Time" : "Pickup Time"}
           </label>
           <div className="relative">
             <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -363,7 +370,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           </div>
         </div>
 
-        {/* Return Date & Time */}
+        {/* Return Date */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Return Date
@@ -380,6 +387,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           </div>
         </div>
 
+        {/* Return Time */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Return Time
@@ -397,7 +405,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
       </div>
 
       {/* Delivery Info Banner */}
-      {deliveryMode === "delivery" && searchData.closestPickupCenterName && (
+      {deliveryMode === "delivery" && searchData.closestPickupCenterName && !deliveryError && (
         <div className="mt-4 p-3 rounded-xl bg-success/10 border border-success/20 flex items-center gap-3">
           <Check className="w-5 h-5 text-success" />
           <div className="flex-1">
@@ -443,12 +451,25 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           onClick={handleSearch}
           className="h-12 px-8"
           variant="default"
-          disabled={isCalculatingDelivery}
         >
           <Search className="w-4 h-4 mr-2" />
-          {isCalculatingDelivery ? "Calculating..." : "Search Vehicles"}
+          Search
         </Button>
       </div>
+
+      {/* Delivery Map */}
+      {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
+        <div className="mt-6">
+          <DeliveryMap
+            customerLat={deliveryCoords.lat}
+            customerLng={deliveryCoords.lng}
+            dealershipLat={closestDealership.lat}
+            dealershipLng={closestDealership.lng}
+            dealershipName={closestDealership.name}
+            onRouteCalculated={handleRouteCalculated}
+          />
+        </div>
+      )}
     </div>
   );
 }
