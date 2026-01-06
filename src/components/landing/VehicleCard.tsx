@@ -68,7 +68,7 @@ export function VehicleCard({
     // Set selected vehicle in context
     setSelectedVehicle(id);
 
-    // Navigate to checkout with vehicle info
+    // Navigate to protection selection page
     // Build URL params from context
     const params = new URLSearchParams();
     params.set("vehicleId", id);
@@ -76,7 +76,7 @@ export function VehicleCard({
     if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
 
-    navigate(`/checkout?${params.toString()}`);
+    navigate(`/protection?${params.toString()}`);
   };
 
   return (
