@@ -303,9 +303,10 @@ serve(async (req) => {
 
     if (!emailResponse.ok) {
       console.error("Resend error:", emailResponse.data);
+      // Return success with warning so booking flow continues
       return new Response(
-        JSON.stringify({ error: "Failed to send email", details: emailResponse.data }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, skipped: true, reason: "Email delivery failed", details: emailResponse.data }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
