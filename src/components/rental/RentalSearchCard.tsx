@@ -263,7 +263,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
   };
 
   return (
-    <div className={cn("glass rounded-2xl p-6 shadow-xl", className)}>
+    <div className={cn("glass rounded-2xl p-4 sm:p-6 shadow-xl overflow-hidden", className)}>
       {/* Delivery Mode Toggle */}
       <div className="flex items-center gap-2 mb-6">
         <button
@@ -361,19 +361,28 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </div>
 
         {/* Pickup Time */}
-        <div className="space-y-2">
+        <div className="space-y-2 overflow-hidden">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {deliveryMode === "delivery" ? "Delivery Time" : "Pickup Time"}
           </label>
-          <div className="relative">
-            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="time"
-              value={pickupTime}
-              onChange={(e) => setPickupTime(e.target.value)}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
+          <Select value={pickupTime} onValueChange={setPickupTime}>
+            <SelectTrigger className="h-12 rounded-xl border-border bg-background">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="Select time" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 24 }, (_, i) => {
+                const hour = i.toString().padStart(2, '0');
+                return (
+                  <SelectItem key={`${hour}:00`} value={`${hour}:00`}>
+                    {i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Return Date */}
@@ -394,19 +403,28 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </div>
 
         {/* Return Time */}
-        <div className="space-y-2">
+        <div className="space-y-2 overflow-hidden">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Return Time
           </label>
-          <div className="relative">
-            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="time"
-              value={returnTime}
-              onChange={(e) => setReturnTime(e.target.value)}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
+          <Select value={returnTime} onValueChange={setReturnTime}>
+            <SelectTrigger className="h-12 rounded-xl border-border bg-background">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="Select time" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 24 }, (_, i) => {
+                const hour = i.toString().padStart(2, '0');
+                return (
+                  <SelectItem key={`${hour}:00`} value={`${hour}:00`}>
+                    {i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
