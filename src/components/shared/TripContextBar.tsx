@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { useBookingContext } from "@/contexts/BookingContext";
+import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { LocationSelector } from "./LocationSelector";
 
 interface TripContextBarProps {
@@ -26,15 +26,17 @@ export function TripContextBar({
   compact = false 
 }: TripContextBarProps) {
   const { 
-    locationId, 
-    setLocationId, 
-    locationName, 
-    startDate, 
-    setStartDate, 
-    endDate, 
-    setEndDate,
-    clearBookingContext 
-  } = useBookingContext();
+    searchData,
+    setPickupLocation,
+    setPickupDateTime,
+    setReturnDateTime,
+    clearSearch,
+  } = useRentalBooking();
+
+  const locationId = searchData.pickupLocationId;
+  const locationName = searchData.pickupLocationName;
+  const startDate = searchData.pickupDate;
+  const endDate = searchData.returnDate;
 
   const hasContext = locationId || startDate || endDate;
   
@@ -43,7 +45,7 @@ export function TripContextBar({
   }
 
   const handleClear = () => {
-    clearBookingContext();
+    clearSearch();
     onClear?.();
   };
 
@@ -108,7 +110,7 @@ export function TripContextBar({
               <p className="text-sm font-medium">Pickup Location</p>
               <LocationSelector 
                 value={locationId} 
-                onChange={setLocationId} 
+                onChange={setPickupLocation} 
                 className="w-full"
               />
             </div>
@@ -152,8 +154,8 @@ export function TripContextBar({
                   to: endDate || undefined,
                 }}
                 onSelect={(range) => {
-                  setStartDate(range?.from || null);
-                  setEndDate(range?.to || null);
+                  setPickupDateTime(range?.from || null, searchData.pickupTime);
+                  setReturnDateTime(range?.to || null, searchData.returnTime);
                 }}
                 numberOfMonths={2}
                 disabled={(date) => date < new Date()}
