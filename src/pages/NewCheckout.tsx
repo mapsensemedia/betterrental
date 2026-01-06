@@ -225,62 +225,31 @@ export default function NewCheckout() {
       }
 
       if (paymentMethod === "pay-now") {
-        // Create Stripe payment intent
+        // Create Stripe Checkout Session and redirect
         try {
-          const response = await supabase.functions.invoke("create-payment-intent", {
+          const baseUrl = window.location.origin;
+          const response = await supabase.functions.invoke("create-checkout-session", {
             body: {
               bookingId: booking.id,
               amount: pricing.total,
               currency: "cad",
+              successUrl: `${baseUrl}/booking/${booking.id}?payment=success`,
+              cancelUrl: `${baseUrl}/checkout?vehicleId=${vehicleId}&protection=${protection}&payment=cancelled`,
             },
           });
 
           if (response.error) {
-            throw new Error(response.error.message || "Failed to create payment");
+            throw new Error(response.error.message || "Failed to create checkout session");
           }
 
-          const { clientSecret } = response.data;
+          const { url } = response.data;
 
-          if (clientSecret) {
-            // For now, we'll simulate the payment flow
-            // In production, you'd integrate Stripe Elements here
-            toast({
-              title: "Payment processing...",
-              description: "Redirecting to secure payment page",
-            });
-
-            // Update booking to confirmed after successful payment simulation
-            await supabase
-              .from("bookings")
-              .update({ status: "confirmed" })
-              .eq("id", booking.id);
-
-            // Record payment
-            await supabase.from("payments").insert({
-              booking_id: booking.id,
-              user_id: session.user.id,
-              amount: pricing.total,
-              payment_type: "rental",
-              payment_method: "card",
-              status: "completed",
-              transaction_id: `sim_${Date.now()}`,
-            });
-
-            // Send confirmation email and SMS
-            await supabase.functions.invoke("send-booking-email", {
-              body: { bookingId: booking.id, templateType: "confirmation", forceResend: true },
-            });
-
-            await supabase.functions.invoke("send-booking-sms", {
-              body: { bookingId: booking.id, templateType: "confirmation" },
-            });
-
-            toast({
-              title: "Booking confirmed!",
-              description: `Your confirmation code is ${booking.booking_code}. Check your email for details.`,
-            });
-
-            navigate(`/booking/${booking.id}`);
+          if (url) {
+            // Redirect to Stripe Checkout
+            window.location.href = url;
+            return; // Stop execution - we're redirecting
+          } else {
+            throw new Error("No checkout URL returned");
           }
         } catch (paymentError: any) {
           console.error("Payment error:", paymentError);
@@ -289,7 +258,7 @@ export default function NewCheckout() {
           await supabase
             .from("bookings")
             .update({ 
-              notes: "Online payment failed - customer needs to pay at pickup",
+              notes: "Online payment setup failed - customer needs to pay at pickup",
             })
             .eq("id", booking.id);
 

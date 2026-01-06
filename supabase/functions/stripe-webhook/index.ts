@@ -56,12 +56,12 @@ serve(async (req) => {
     console.log("Received Stripe event:", event.type);
 
     switch (event.type) {
-      case "payment_intent.succeeded": {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const bookingId = paymentIntent.metadata?.booking_id;
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const bookingId = session.metadata?.booking_id;
 
-        if (bookingId) {
-          console.log(`Payment succeeded for booking ${bookingId}`);
+        if (bookingId && session.payment_status === "paid") {
+          console.log(`Checkout session completed for booking ${bookingId}`);
 
           // Update booking status
           await supabase
@@ -72,13 +72,90 @@ serve(async (req) => {
           // Record payment
           await supabase.from("payments").insert({
             booking_id: bookingId,
-            user_id: paymentIntent.metadata?.user_id || "",
-            amount: paymentIntent.amount / 100,
+            user_id: session.metadata?.user_id || "",
+            amount: (session.amount_total || 0) / 100,
             payment_type: "rental",
-            payment_method: paymentIntent.payment_method_types?.[0] || "card",
+            payment_method: "card",
             status: "completed",
-            transaction_id: paymentIntent.id,
+            transaction_id: session.payment_intent as string || session.id,
           });
+
+          // Send confirmation notifications
+          const notifyUrl = `${supabaseUrl}/functions/v1/send-booking-email`;
+          await fetch(notifyUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              bookingId,
+              templateType: "confirmation",
+              forceResend: true,
+            }),
+          });
+
+          // Also send SMS
+          const smsUrl = `${supabaseUrl}/functions/v1/send-booking-sms`;
+          await fetch(smsUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              bookingId,
+              templateType: "confirmation",
+            }),
+          });
+        }
+        break;
+      }
+
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const bookingId = paymentIntent.metadata?.booking_id;
+
+        if (bookingId) {
+          console.log(`Payment intent succeeded for booking ${bookingId}`);
+
+          // Check if booking is already confirmed (from checkout.session.completed)
+          const { data: booking } = await supabase
+            .from("bookings")
+            .select("status")
+            .eq("id", bookingId)
+            .single();
+
+          if (booking?.status === "confirmed") {
+            console.log("Booking already confirmed via checkout session");
+            break;
+          }
+
+          // Update booking status
+          await supabase
+            .from("bookings")
+            .update({ status: "confirmed" })
+            .eq("id", bookingId);
+
+          // Check if payment already recorded
+          const { data: existingPayment } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("transaction_id", paymentIntent.id)
+            .single();
+
+          if (!existingPayment) {
+            // Record payment
+            await supabase.from("payments").insert({
+              booking_id: bookingId,
+              user_id: paymentIntent.metadata?.user_id || "",
+              amount: paymentIntent.amount / 100,
+              payment_type: "rental",
+              payment_method: paymentIntent.payment_method_types?.[0] || "card",
+              status: "completed",
+              transaction_id: paymentIntent.id,
+            });
+          }
 
           // Send confirmation notifications
           const notifyUrl = `${supabaseUrl}/functions/v1/send-booking-email`;
