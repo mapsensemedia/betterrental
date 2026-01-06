@@ -145,38 +145,40 @@ export default function Dashboard() {
           <p className="text-muted-foreground">View your upcoming and past bookings.</p>
         </header>
 
-        <section className="grid md:grid-cols-4 gap-6 mb-10" aria-label="Booking summary">
-          <div className="p-6 bg-card rounded-2xl border border-border">
-            <h2 className="font-semibold mb-2">Upcoming Bookings</h2>
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-10" aria-label="Booking summary">
+          <div className="p-4 sm:p-6 bg-card rounded-2xl border border-border">
+            <h2 className="font-semibold mb-2 text-sm sm:text-base">Upcoming</h2>
             {bookingsLoading ? (
-              <Skeleton className="h-10 w-16" />
+              <Skeleton className="h-8 w-12" />
             ) : (
-              <p className="text-3xl font-bold text-primary">{activeCount}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-primary">{activeCount}</p>
             )}
           </div>
-          <div className="p-6 bg-card rounded-2xl border border-border">
-            <h2 className="font-semibold mb-2">Past Rentals</h2>
+          <div className="p-4 sm:p-6 bg-card rounded-2xl border border-border">
+            <h2 className="font-semibold mb-2 text-sm sm:text-base">Past</h2>
             {bookingsLoading ? (
-              <Skeleton className="h-10 w-16" />
+              <Skeleton className="h-8 w-12" />
             ) : (
-              <p className="text-3xl font-bold">{pastCount}</p>
+              <p className="text-2xl sm:text-3xl font-bold">{pastCount}</p>
             )}
           </div>
-          <div className="p-6 bg-card rounded-2xl border border-border">
-            <h2 className="font-semibold mb-2 flex items-center gap-2">
+          <div className="p-4 sm:p-6 bg-card rounded-2xl border border-border">
+            <h2 className="font-semibold mb-2 text-sm sm:text-base flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Pending Verification
+              <span className="hidden sm:inline">Pending Verification</span>
+              <span className="sm:hidden">Pending</span>
             </h2>
-            <p className={`text-3xl font-bold ${pendingVerifications > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+            <p className={`text-2xl sm:text-3xl font-bold ${pendingVerifications > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
               {pendingVerifications}
             </p>
           </div>
-          <div className="p-6 bg-card rounded-2xl border border-border">
-            <h2 className="font-semibold mb-2 flex items-center gap-2">
+          <div className="p-4 sm:p-6 bg-card rounded-2xl border border-border">
+            <h2 className="font-semibold mb-2 text-sm sm:text-base flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Awaiting Signature
+              <span className="hidden sm:inline">Awaiting Signature</span>
+              <span className="sm:hidden">Signature</span>
             </h2>
-            <p className={`text-3xl font-bold ${pendingAgreements > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+            <p className={`text-2xl sm:text-3xl font-bold ${pendingAgreements > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
               {pendingAgreements}
             </p>
           </div>

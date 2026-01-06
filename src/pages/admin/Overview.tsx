@@ -257,18 +257,18 @@ export default function AdminOverview() {
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6 mt-6">
             {/* Compact Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
               {stats.map((stat) => (
                 <div 
                   key={stat.label} 
-                  className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                  className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border bg-card"
                 >
-                  <div className={`w-9 h-9 rounded-lg ${stat.bgColor} flex items-center justify-center shrink-0`}>
+                  <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg ${stat.bgColor} flex items-center justify-center shrink-0`}>
                     <stat.icon className={`w-4 h-4 ${stat.color}`} />
                   </div>
-                  <div>
-                    <p className="text-xl font-bold leading-none">{bookingsLoading ? "..." : stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  <div className="min-w-0">
+                    <p className="text-lg sm:text-xl font-bold leading-none">{bookingsLoading ? "..." : stat.value}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{stat.label}</p>
                   </div>
                 </div>
               ))}

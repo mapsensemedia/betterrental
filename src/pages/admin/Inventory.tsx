@@ -206,21 +206,21 @@ export default function AdminInventory() {
     <AdminShell>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="heading-2">Inventory</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm">
               Manage your vehicle fleet
             </p>
           </div>
           <div className="flex gap-2">
             <Button onClick={() => refetch()} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              <RefreshCw className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
             <Button onClick={() => setAddVehicleOpen(true)} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Vehicle
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Vehicle</span>
             </Button>
           </div>
         </div>
@@ -228,7 +228,7 @@ export default function AdminInventory() {
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -294,8 +294,8 @@ export default function AdminInventory() {
 
         {/* Vehicles Table */}
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Vehicle</TableHead>

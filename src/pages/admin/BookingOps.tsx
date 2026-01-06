@@ -43,6 +43,7 @@ import { useBookingVerification } from "@/hooks/use-verification";
 // Types
 import { OPS_STEPS, type OpsStepId, type StepCompletion, getCurrentStepIndex, checkStepComplete } from "@/lib/ops-steps";
 import { ArrowLeft, MoreVertical, X, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -234,41 +235,42 @@ export default function BookingOps() {
   
   return (
     <AdminShell hideNav>
-      <div className="h-[calc(100vh-2rem)] flex flex-col">
+      <div className="h-[calc(100vh-2rem)] lg:h-[calc(100vh-2rem)] flex flex-col">
         {/* Top Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-background shrink-0">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={handleBack}>
+        <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b bg-background shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-lg font-semibold">Operations Console</h1>
-                <Badge variant="outline" className="font-mono">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <h1 className="text-base sm:text-lg font-semibold truncate">Operations</h1>
+                <Badge variant="outline" className="font-mono text-xs shrink-0">
                   {booking.booking_code}
                 </Badge>
                 <Badge 
-                  className={
+                  className={cn(
+                    "shrink-0",
                     booking.status === "active" ? "bg-emerald-500" :
                     booking.status === "confirmed" ? "bg-blue-500" :
                     booking.status === "cancelled" ? "bg-destructive" :
                     "bg-amber-500"
-                  }
+                  )}
                 >
                   {booking.status}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {booking.profiles?.full_name} • {vehicleName} • {format(new Date(booking.start_at), "PPp")}
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">
+                {booking.profiles?.full_name} • {vehicleName}
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {!isRentalActive && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -282,14 +284,14 @@ export default function BookingOps() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Button variant="ghost" size="icon" onClick={handleBack}>
+            <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 sm:h-9 sm:w-9">
               <X className="h-5 w-5" />
             </Button>
           </div>
         </div>
         
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Left Stepper Panel */}
           <OpsStepSidebar
             steps={OPS_STEPS}
@@ -301,9 +303,9 @@ export default function BookingOps() {
           />
           
           {/* Main Content Panel */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             <ScrollArea className="flex-1">
-              <div className="p-6 max-w-3xl">
+              <div className="p-4 sm:p-6 max-w-3xl">
                 <OpsStepContent
                   stepId={activeStep}
                   booking={booking}

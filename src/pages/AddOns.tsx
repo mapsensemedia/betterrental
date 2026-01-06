@@ -115,8 +115,8 @@ export default function AddOns() {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -125,22 +125,22 @@ export default function AddOns() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <h1 className="text-lg font-semibold uppercase tracking-wide">
-                Which Add-Ons Do You Need?
+              <h1 className="text-sm sm:text-lg font-semibold uppercase tracking-wide truncate">
+                Add-Ons
               </h1>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total:</p>
-                <p className="text-2xl font-bold">
+                <p className="text-xs sm:text-sm text-muted-foreground">Total:</p>
+                <p className="text-lg sm:text-2xl font-bold">
                   CA${totalPrice.toFixed(2)}
                 </p>
               </div>
               <Button
                 onClick={handleContinue}
-                size="lg"
-                className="bg-primary hover:bg-primary/90"
+                size="default"
+                className="bg-primary hover:bg-primary/90 hidden sm:flex"
               >
                 Continue
               </Button>
@@ -149,8 +149,8 @@ export default function AddOns() {
         </div>
 
         {/* Content */}
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="container mx-auto px-4 py-6 sm:py-8 pb-24 sm:pb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Add-ons List */}
             <div className="lg:col-span-2 space-y-4">
               {addOns.length > 0 ? (
@@ -254,6 +254,17 @@ export default function AddOns() {
               </Card>
             </div>
           </div>
+        </div>
+
+        {/* Mobile Fixed Bottom Bar */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border sm:hidden">
+          <Button
+            onClick={handleContinue}
+            className="w-full"
+            size="lg"
+          >
+            Continue
+          </Button>
         </div>
       </div>
     </CustomerLayout>

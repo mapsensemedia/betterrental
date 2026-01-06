@@ -224,10 +224,10 @@ export default function Search() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {/* Compare Button */}
             {compareList.length > 1 && (
-              <Button variant="default" asChild>
+              <Button variant="default" asChild size="sm">
                 <Link to={`/compare?ids=${compareList.join(",")}`}>
                   Compare ({compareList.length})
                 </Link>
@@ -239,9 +239,9 @@ export default function Search() {
               value={sortBy}
               onValueChange={(v) => setSortBy(v as SortOption)}
             >
-              <SelectTrigger className="w-[180px]">
-                <ArrowUpDown className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Sort by" />
+              <SelectTrigger className="w-[140px] sm:w-[180px]">
+                <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
+                <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="recommended">Recommended</SelectItem>
