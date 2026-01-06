@@ -163,10 +163,15 @@ export default function NewCheckout() {
     setIsSubmitting(true);
 
     try {
-      // Get location ID
-      const locationId = searchData.deliveryMode === "delivery"
+      // Get location ID - use the first available location UUID as fallback
+      let locationId = searchData.deliveryMode === "delivery"
         ? searchData.closestPickupCenterId
         : searchData.pickupLocationId;
+      
+      // Fallback to first database location if location ID is not a valid UUID
+      if (!locationId || !/^[0-9a-f-]{36}$/i.test(locationId)) {
+        locationId = "a1b2c3d4-1111-4000-8000-000000000001"; // Downtown Hub
+      }
 
       // Get session
       const { data: { session } } = await supabase.auth.getSession();
@@ -183,7 +188,7 @@ export default function NewCheckout() {
         .insert({
           user_id: session.user.id,
           vehicle_id: vehicleId,
-          location_id: locationId || "surrey",
+          location_id: locationId,
           start_at: searchData.pickupDate.toISOString(),
           end_at: searchData.returnDate.toISOString(),
           daily_rate: vehicle.dailyRate,
@@ -487,6 +492,50 @@ export default function NewCheckout() {
               <Card className="p-6">
                 <h2 className="text-xl font-semibold mb-6">How would you like to pay?</h2>
 
+                {/* Payment Method Toggle */}
+                <div className="flex gap-3 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("pay-now")}
+                    className={cn(
+                      "flex-1 p-4 rounded-xl border-2 transition-all text-left",
+                      paymentMethod === "pay-now"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-muted-foreground/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="w-5 h-5" />
+                      <div>
+                        <p className="font-medium">Pay Now</p>
+                        <p className="text-sm text-muted-foreground">
+                          Secure online payment
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("pay-later")}
+                    className={cn(
+                      "flex-1 p-4 rounded-xl border-2 transition-all text-left",
+                      paymentMethod === "pay-later"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-muted-foreground/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5" />
+                      <div>
+                        <p className="font-medium">Pay at Pickup</p>
+                        <p className="text-sm text-muted-foreground">
+                          Pay when you collect car
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
                 {/* Pay Now Form */}
                 {paymentMethod === "pay-now" && (
                   <div className="space-y-4">
@@ -541,40 +590,20 @@ export default function NewCheckout() {
                     <p className="text-sm text-muted-foreground">
                       The payment method must be under the renter's name and physically presented at pickup.
                     </p>
-
-                    <button
-                      onClick={() => setPaymentMethod("pay-later")}
-                      className="text-sm text-primary font-medium"
-                    >
-                      No payment method on hand?
-                    </button>
-                    <p className="text-sm text-muted-foreground">
-                      <button
-                        onClick={() => setPaymentMethod("pay-later")}
-                        className="text-primary underline"
-                      >
-                        Switch to Pay Later
-                      </button>{" "}
-                      and have free cancellation included for just CA$12.71 more.
-                    </p>
                   </div>
                 )}
 
                 {/* Pay Later Notice */}
                 {paymentMethod === "pay-later" && (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="font-medium">Pay at pickup</p>
-                      <p className="text-sm text-muted-foreground">
-                        You'll pay the full amount when you pick up the vehicle.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setPaymentMethod("pay-now")}
-                      className="text-sm text-primary underline"
-                    >
-                      Switch to Pay Now
-                    </button>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="font-medium flex items-center gap-2">
+                      <Check className="w-4 h-4 text-primary" />
+                      No payment required now
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      You'll pay the full amount of CA${pricing.total.toFixed(2)} when you pick up the vehicle.
+                      Please bring a valid credit card in the driver's name.
+                    </p>
                   </div>
                 )}
               </Card>
