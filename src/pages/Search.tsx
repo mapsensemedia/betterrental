@@ -131,8 +131,8 @@ export default function Search() {
       if (minSeats && (v.seats || 5) < minSeats) {
         return false;
       }
-      // Location filter (if provided)
-      if (locationId && v.locationId !== locationId) {
+      // Location filter (if provided) - show vehicles with matching location OR no location assigned
+      if (locationId && v.locationId && v.locationId !== locationId) {
         return false;
       }
       return true;
