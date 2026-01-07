@@ -6,6 +6,7 @@ import { useReturns } from "@/hooks/use-returns";
 import { useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useLocations } from "@/hooks/use-locations";
 import { useCreateAlert } from "@/hooks/use-alerts";
+import { usePaymentDepositStatus, useReleaseDeposit } from "@/hooks/use-payment-deposit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +40,7 @@ import {
   MapPin,
   ShieldAlert,
   DollarSign,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -62,6 +64,7 @@ export default function AdminReturns() {
   const { data: locations } = useLocations();
   const updateStatus = useUpdateBookingStatus();
   const createAlert = useCreateAlert();
+  const releaseDeposit = useReleaseDeposit();
 
   const handleOpenBooking = (bookingId: string) => {
     setSelectedBookingId(bookingId);
@@ -94,11 +97,43 @@ export default function AdminReturns() {
       }
       updateStatus.mutate({ bookingId: booking.id, newStatus: "completed" });
     } else if (type === "settle") {
-      updateStatus.mutate({ bookingId: booking.id, newStatus: "completed" });
-      toast.success("Booking settled, deposit can be released");
+      // Complete the booking and release the deposit
+      try {
+        // First, update the booking status to completed
+        await updateStatus.mutateAsync({ bookingId: booking.id, newStatus: "completed" });
+        
+        // Then release the deposit if there is one
+        if (booking.depositAmount && booking.depositAmount > 0) {
+          // Fetch the deposit payment to get the payment ID
+          const { data: payments } = await (await import("@/integrations/supabase/client")).supabase
+            .from("payments")
+            .select("id")
+            .eq("booking_id", booking.id)
+            .eq("payment_type", "deposit")
+            .eq("status", "completed")
+            .limit(1);
+          
+          if (payments && payments.length > 0) {
+            await releaseDeposit.mutateAsync({
+              bookingId: booking.id,
+              paymentId: payments[0].id,
+              reason: "Vehicle returned - no damages",
+            });
+            toast.success("Booking settled and deposit refunded");
+          } else {
+            toast.success("Booking settled, no deposit to refund");
+          }
+        } else {
+          toast.success("Booking settled successfully");
+        }
+      } catch (error) {
+        console.error("Settlement error:", error);
+        toast.error("Failed to complete settlement");
+      }
     }
 
     setConfirmDialog({ open: false, type: null, booking: null });
+    refetch();
   };
 
   const handleFlagMissingEvidence = async (booking: any) => {
