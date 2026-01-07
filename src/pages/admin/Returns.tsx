@@ -1,12 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { BookingOpsDrawer } from "@/components/admin/BookingOpsDrawer";
 import { useReturns } from "@/hooks/use-returns";
-import { useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useLocations } from "@/hooks/use-locations";
-import { useCreateAlert } from "@/hooks/use-alerts";
-import { usePaymentDepositStatus, useReleaseDeposit } from "@/hooks/use-payment-deposit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,28 +46,18 @@ import { toast } from "sonner";
 type DateFilter = "today" | "next24h" | "week";
 
 export default function AdminReturns() {
+  const navigate = useNavigate();
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
   const [locationFilter, setLocationFilter] = useState<string>("all");
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    type: "return" | "settle" | null;
-    booking: any;
-  }>({ open: false, type: null, booking: null });
 
   const { data: returns, isLoading, refetch } = useReturns(
     dateFilter,
     locationFilter !== "all" ? locationFilter : undefined
   );
   const { data: locations } = useLocations();
-  const updateStatus = useUpdateBookingStatus();
-  const createAlert = useCreateAlert();
-  const releaseDeposit = useReleaseDeposit();
 
-  const handleOpenBooking = (bookingId: string) => {
-    setSelectedBookingId(bookingId);
-    setDrawerOpen(true);
+  const handleOpenReturnConsole = (bookingId: string) => {
+    navigate(`/admin/returns/${bookingId}`);
   };
 
   const handleMarkReturned = (booking: any) => {
