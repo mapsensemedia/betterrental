@@ -13,6 +13,10 @@ export interface ReturnBooking {
   userId: string;
   vehicleId: string;
   locationId: string;
+  // Delivery info
+  pickupAddress: string | null;
+  pickupLat: number | null;
+  pickupLng: number | null;
   vehicle: {
     id: string;
     make: string;
@@ -24,6 +28,7 @@ export interface ReturnBooking {
     id: string;
     name: string;
     city: string;
+    address?: string;
   } | null;
   profile: {
     fullName: string | null;
@@ -70,7 +75,7 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
         .select(`
           *,
           vehicles (id, make, model, year, image_url),
-          locations (id, name, city)
+          locations (id, name, city, address)
         `)
         .eq("status", "active")
         .gte("end_at", startDate.toISOString())
@@ -155,6 +160,9 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
           userId: b.user_id,
           vehicleId: b.vehicle_id,
           locationId: b.location_id,
+          pickupAddress: b.pickup_address,
+          pickupLat: b.pickup_lat,
+          pickupLng: b.pickup_lng,
           vehicle: b.vehicles ? {
             id: b.vehicles.id,
             make: b.vehicles.make,
@@ -166,6 +174,7 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
             id: b.locations.id,
             name: b.locations.name,
             city: b.locations.city,
+            address: b.locations.address,
           } : null,
           profile: profile ? {
             fullName: profile.full_name,

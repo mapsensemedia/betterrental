@@ -41,7 +41,9 @@ import {
   ShieldAlert,
   DollarSign,
   Loader2,
+  Truck,
 } from "lucide-react";
+import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 import { toast } from "sonner";
 
 type DateFilter = "today" | "next24h" | "week";
@@ -271,6 +273,9 @@ export default function AdminReturns() {
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">{booking.location?.name}</span>
+                        {booking.pickupAddress && (
+                          <DeliveryBadge hasDelivery={true} />
+                        )}
                       </div>
                       {booking.depositAmount && (
                         <div className="flex items-center gap-2">

@@ -125,26 +125,27 @@ export default function BookingOps() {
   
   const currentStepIndex = getCurrentStepIndex(completion);
   
-  // Set initial step to the current step, then only auto-advance when the user completes the active step
+  // Set initial step only once when data loads - no auto-advance
   useEffect(() => {
-    // Initial sync once data is loaded
-    if (!hasInitializedStepRef.current) {
+    if (!hasInitializedStepRef.current && booking) {
+      // Start on the first incomplete step, or last step if all complete
       const step = OPS_STEPS[currentStepIndex];
       if (step && step.id !== activeStep) {
         setActiveStep(step.id);
       }
       hasInitializedStepRef.current = true;
-      return;
     }
-
-    const activeStepIndex = OPS_STEPS.findIndex(s => s.id === activeStep);
-    if (activeStepIndex === currentStepIndex - 1 && currentStepIndex < OPS_STEPS.length) {
-      const nextStep = OPS_STEPS[currentStepIndex];
-      setActiveStep(nextStep.id);
-      toast.success(`Step completed — moving to ${nextStep.title}`);
-    }
-  }, [currentStepIndex, activeStep]);
+  }, [booking, currentStepIndex]);
   
+  // Handle manual step completion - move to next step when user clicks button
+  const handleCompleteStep = () => {
+    const activeStepIndex = OPS_STEPS.findIndex(s => s.id === activeStep);
+    const nextIndex = activeStepIndex + 1;
+    if (nextIndex < OPS_STEPS.length) {
+      setActiveStep(OPS_STEPS[nextIndex].id);
+      toast.success(`Moving to ${OPS_STEPS[nextIndex].title}`);
+    }
+  };
   const handleBack = () => {
     const returnTo = searchParams.get("returnTo") || "/admin/bookings";
     navigate(returnTo);
@@ -197,13 +198,6 @@ export default function BookingOps() {
     }
     
     setConfirmDialog({ open: false, action: null });
-  };
-  
-  const handleCompleteStep = () => {
-    const nextIndex = currentStepIndex + 1;
-    if (nextIndex < OPS_STEPS.length) {
-      setActiveStep(OPS_STEPS[nextIndex].id);
-    }
   };
   
   if (isLoading) {

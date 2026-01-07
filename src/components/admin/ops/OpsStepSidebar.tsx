@@ -90,25 +90,17 @@ export function OpsStepSidebar({
             {steps.map((step) => {
               const isComplete = isRentalActive || checkStepComplete(step.id, completion);
               const isActive = activeStep === step.id;
-              const { status } = getStepStatus(step.id, completion, currentStepIndex);
-              const isLocked = status === "locked" && !isRentalActive;
-              const allStepsComplete = OPS_STEPS.every(s => checkStepComplete(s.id, completion));
-              const canNavigate = isRentalActive || allStepsComplete || !isLocked;
               
               return (
                 <button
                   key={step.id}
                   onClick={() => {
-                    if (canNavigate) {
-                      onStepClick(step.id);
-                      setMobileExpanded(false);
-                    }
+                    onStepClick(step.id);
+                    setMobileExpanded(false);
                   }}
-                  disabled={!canNavigate}
                   className={cn(
                     "w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors",
-                    isActive && "bg-primary/10",
-                    !canNavigate && "opacity-50"
+                    isActive && "bg-primary/10"
                   )}
                 >
                   <div className={cn(
@@ -144,26 +136,19 @@ export function OpsStepSidebar({
               const { status, reason, missingCount } = getStepStatus(step.id, completion, currentStepIndex);
               const isActive = activeStep === step.id;
               const isComplete = checkStepComplete(step.id, completion);
-              const isLocked = status === "locked";
               
               // Override status if rental is active - all steps are complete
               const displayStatus = isRentalActive ? "complete" : status;
               const displayComplete = isRentalActive || isComplete;
               
-              // Allow clicking on any step if all steps are complete or rental is active
-              const allStepsComplete = OPS_STEPS.every(s => checkStepComplete(s.id, completion));
-              const canNavigate = isRentalActive || allStepsComplete || !isLocked;
-              
               return (
                 <button
                   key={step.id}
-                  onClick={() => canNavigate && onStepClick(step.id)}
-                  disabled={!canNavigate}
+                  onClick={() => onStepClick(step.id)}
                   className={cn(
                     "w-full text-left p-3 rounded-lg transition-all",
                     "hover:bg-muted/50",
-                    isActive && "bg-primary/10 border border-primary/20",
-                    !canNavigate && "opacity-60 cursor-not-allowed"
+                    isActive && "bg-primary/10 border border-primary/20"
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -172,13 +157,10 @@ export function OpsStepSidebar({
                       "w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold",
                       displayComplete && "bg-emerald-500 text-white",
                       !displayComplete && isActive && "bg-primary text-primary-foreground",
-                      !displayComplete && !isActive && !isLocked && "bg-muted text-muted-foreground",
-                      isLocked && !isRentalActive && "bg-muted text-muted-foreground"
+                      !displayComplete && !isActive && "bg-muted text-muted-foreground"
                     )}>
                       {displayComplete ? (
                         <Check className="w-4 h-4" />
-                      ) : isLocked && !isRentalActive ? (
-                        <Lock className="w-3.5 h-3.5" />
                       ) : (
                         step.number
                       )}
@@ -201,13 +183,9 @@ export function OpsStepSidebar({
                       </div>
                       <p className={cn(
                         "text-xs mt-0.5 truncate",
-                        displayComplete ? "text-emerald-600 dark:text-emerald-400" :
-                        isLocked && !isRentalActive ? "text-muted-foreground" :
-                        "text-muted-foreground"
+                        displayComplete ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
                       )}>
-                        {displayComplete ? "Complete" : 
-                         isLocked && !isRentalActive ? reason : 
-                         step.description}
+                        {displayComplete ? "Complete" : step.description}
                       </p>
                     </div>
                   </div>

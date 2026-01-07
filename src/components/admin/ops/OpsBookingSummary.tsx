@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { DeliveryDetailsCard } from "@/components/admin/DeliveryDetailsCard";
 import { 
   User, 
   Car, 
@@ -94,12 +95,21 @@ export function OpsBookingSummary({ booking }: OpsBookingSummaryProps) {
         </CardContent>
       </Card>
       
+      {/* Delivery Details (if applicable) */}
+      <DeliveryDetailsCard
+        pickupAddress={booking.pickup_address}
+        pickupLat={booking.pickup_lat}
+        pickupLng={booking.pickup_lng}
+        locationName={booking.locations?.name}
+        locationAddress={booking.locations?.address}
+      />
+      
       {/* Location */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <MapPin className="h-4 w-4" />
-            Location
+            {booking.pickup_address ? "Pickup Center" : "Location"}
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm">
