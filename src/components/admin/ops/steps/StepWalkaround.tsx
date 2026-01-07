@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WalkaroundInspection } from "@/components/admin/WalkaroundInspection";
-import { CheckCircle2, XCircle, Clock, Eye } from "lucide-react";
+import { CheckCircle2, XCircle, Eye } from "lucide-react";
 
 interface StepWalkaroundProps {
   bookingId: string;
@@ -46,19 +46,12 @@ function StatusIndicator({
   inspectionComplete: boolean; 
   customerAcknowledged: boolean;
 }) {
-  if (inspectionComplete && customerAcknowledged) {
+  // Inspection complete is the primary requirement
+  if (inspectionComplete) {
     return (
       <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
         <CheckCircle2 className="w-3 h-3 mr-1" />
-        Complete & Acknowledged
-      </Badge>
-    );
-  }
-  if (inspectionComplete) {
-    return (
-      <Badge variant="outline" className="text-amber-600 border-amber-300 dark:border-amber-700">
-        <Clock className="w-3 h-3 mr-1" />
-        Awaiting Acknowledgement
+        Complete{customerAcknowledged ? " & Acknowledged" : ""}
       </Badge>
     );
   }

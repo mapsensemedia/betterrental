@@ -151,7 +151,8 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion)
     case "agreement":
       return completion.agreement.agreementSigned;
     case "walkaround":
-      return completion.walkaround.inspectionComplete && completion.walkaround.customerAcknowledged;
+      // Only inspection is required - customer acknowledgement is optional (admin can override)
+      return completion.walkaround.inspectionComplete;
     case "handover":
       return completion.handover.activated;
     default:
@@ -184,7 +185,7 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion): 
       break;
     case "walkaround":
       if (!completion.walkaround.inspectionComplete) missing.push("Inspection");
-      if (!completion.walkaround.customerAcknowledged) missing.push("Customer acknowledgement");
+      // Customer acknowledgement is optional - admin can override
       break;
     case "handover":
       if (!completion.handover.activated) missing.push("Rental activation");

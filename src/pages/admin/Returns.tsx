@@ -138,17 +138,6 @@ export default function AdminReturns() {
     refetch();
   };
 
-  const handleFlagMissingEvidence = async (booking: any) => {
-    await createAlert.mutateAsync({
-      alertType: "late_return",
-      title: `Missing return evidence: ${booking.bookingCode}`,
-      message: `Return flagged for missing evidence. Photos: ${booking.hasReturnPhotos ? "Yes" : "No"}, Fuel/Odometer: ${booking.hasFuelOdometerPhotos ? "Yes" : "No"}`,
-      bookingId: booking.id,
-      vehicleId: booking.vehicleId,
-    });
-    toast.success("Alert created for review");
-  };
-
   const EvidenceBadge = ({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: any }) => (
     <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
       ok ? "bg-emerald-500/10 text-emerald-600" : "bg-destructive/10 text-destructive"
@@ -305,7 +294,7 @@ export default function AdminReturns() {
                       )}
                     </div>
 
-                    {/* Actions */}
+                    {/* Actions - Simplified to single primary action */}
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
@@ -314,14 +303,6 @@ export default function AdminReturns() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleMarkReturned(booking)}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Return
-                      </Button>
                       {booking.canSettle ? (
                         <Button
                           variant="default"
@@ -329,40 +310,35 @@ export default function AdminReturns() {
                           onClick={() => handleMarkSettled(booking)}
                         >
                           <DollarSign className="h-4 w-4 mr-2" />
-                          Settle
+                          Complete Return
                         </Button>
                       ) : (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                          onClick={() => handleFlagMissingEvidence(booking)}
+                          onClick={() => handleMarkReturned(booking)}
                         >
-                          <AlertTriangle className="h-4 w-4" />
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Return (Partial)
                         </Button>
                       )}
                     </div>
                   </div>
 
-                  {/* Settlement Guidance */}
-                  <div className="mt-4 pt-4 border-t">
-                    {booking.canSettle ? (
-                      <div className="flex items-center gap-2 text-sm text-emerald-600">
-                        <CheckCircle className="h-4 w-4" />
-                        <span>Eligible to settle - all evidence present, no damages</span>
-                      </div>
-                    ) : (
+                  {/* Settlement Guidance - Simplified */}
+                  {!booking.canSettle && (
+                    <div className="mt-4 pt-4 border-t">
                       <div className="flex items-center gap-2 text-sm text-amber-600">
                         <AlertTriangle className="h-4 w-4" />
                         <span>
-                          Under review - 
-                          {!booking.hasReturnPhotos && " missing return photos"}
-                          {!booking.hasFuelOdometerPhotos && " missing fuel/odometer"}
-                          {booking.hasDamageReport && " damage reported"}
+                          Missing: 
+                          {!booking.hasReturnPhotos && " return photos"}
+                          {!booking.hasFuelOdometerPhotos && " fuel/odometer"}
+                          {booking.hasDamageReport && " (damage reported)"}
                         </span>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
