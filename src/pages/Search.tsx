@@ -23,6 +23,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useVehicles, type Vehicle } from "@/hooks/use-vehicles";
+import { useAvailableVehicles } from "@/hooks/use-availability";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
@@ -37,7 +38,6 @@ type SortOption = "recommended" | "price-low" | "price-high" | "newest";
 
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: allVehicles = [], isLoading } = useVehicles();
   const { 
     searchData, 
     isSearchValid,
@@ -49,6 +49,22 @@ export default function Search() {
   const contextLocationId = searchData.pickupLocationId;
   const startDate = searchData.pickupDate;
   const endDate = searchData.returnDate;
+
+  // Use availability-aware hook when dates are set, otherwise fallback to all vehicles
+  const hasValidDateRange = !!(contextLocationId && startDate && endDate);
+  
+  const availabilityQuery = hasValidDateRange ? {
+    locationId: contextLocationId!,
+    startAt: startDate!,
+    endAt: endDate!,
+  } : null;
+  
+  const { data: availableVehicles = [], isLoading: isLoadingAvailable } = useAvailableVehicles(availabilityQuery);
+  const { data: allVehiclesFallback = [], isLoading: isLoadingAll } = useVehicles();
+  
+  // Use available vehicles when dates are set, otherwise show all
+  const allVehicles = hasValidDateRange ? availableVehicles : allVehiclesFallback;
+  const isLoading = hasValidDateRange ? isLoadingAvailable : isLoadingAll;
 
   // Show prompt if no trip context
   const [showContextPrompt, setShowContextPrompt] = useState(false);
@@ -132,8 +148,9 @@ export default function Search() {
       if (minSeats && (v.seats || 5) < minSeats) {
         return false;
       }
-      // Location filter (if provided) - show vehicles with matching location OR no location assigned
-      if (locationId && v.locationId && v.locationId !== locationId) {
+      // Location filter - only needed when NOT using availability hook (which already filters by location)
+      // Check if 'locationId' exists on the vehicle (it does for Vehicle type, not AvailableVehicle)
+      if (!hasValidDateRange && locationId && 'locationId' in v && (v as any).locationId && (v as any).locationId !== locationId) {
         return false;
       }
       return true;
