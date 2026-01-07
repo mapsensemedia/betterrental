@@ -15,33 +15,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Car,
   Clock,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Eye,
   Camera,
   Fuel,
   RefreshCw,
   MapPin,
   ShieldAlert,
   DollarSign,
-  Loader2,
-  Truck,
+  AlertTriangle,
+  ArrowRight,
 } from "lucide-react";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
-import { toast } from "sonner";
 
 type DateFilter = "today" | "next24h" | "week";
 
@@ -58,71 +43,6 @@ export default function AdminReturns() {
 
   const handleOpenReturnConsole = (bookingId: string) => {
     navigate(`/admin/returns/${bookingId}`);
-  };
-
-  const handleMarkReturned = (booking: any) => {
-    setConfirmDialog({ open: true, type: "return", booking });
-  };
-
-  const handleMarkSettled = (booking: any) => {
-    setConfirmDialog({ open: true, type: "settle", booking });
-  };
-
-  const confirmAction = async () => {
-    const { type, booking } = confirmDialog;
-    if (!booking) return;
-
-    if (type === "return") {
-      // If missing evidence, create alert
-      if (!booking.hasReturnPhotos || !booking.hasFuelOdometerPhotos) {
-        await createAlert.mutateAsync({
-          alertType: "late_return",
-          title: `Missing return evidence: ${booking.bookingCode}`,
-          message: `Return processed with missing evidence. Photos: ${booking.hasReturnPhotos ? "Yes" : "No"}, Fuel/Odometer: ${booking.hasFuelOdometerPhotos ? "Yes" : "No"}`,
-          bookingId: booking.id,
-          vehicleId: booking.vehicleId,
-        });
-        toast.warning("Alert created for missing evidence");
-      }
-      updateStatus.mutate({ bookingId: booking.id, newStatus: "completed" });
-    } else if (type === "settle") {
-      // Complete the booking and release the deposit
-      try {
-        // First, update the booking status to completed
-        await updateStatus.mutateAsync({ bookingId: booking.id, newStatus: "completed" });
-        
-        // Then release the deposit if there is one
-        if (booking.depositAmount && booking.depositAmount > 0) {
-          // Fetch the deposit payment to get the payment ID
-          const { data: payments } = await (await import("@/integrations/supabase/client")).supabase
-            .from("payments")
-            .select("id")
-            .eq("booking_id", booking.id)
-            .eq("payment_type", "deposit")
-            .eq("status", "completed")
-            .limit(1);
-          
-          if (payments && payments.length > 0) {
-            await releaseDeposit.mutateAsync({
-              bookingId: booking.id,
-              paymentId: payments[0].id,
-              reason: "Vehicle returned - no damages",
-            });
-            toast.success("Booking settled and deposit refunded");
-          } else {
-            toast.success("Booking settled, no deposit to refund");
-          }
-        } else {
-          toast.success("Booking settled successfully");
-        }
-      } catch (error) {
-        console.error("Settlement error:", error);
-        toast.error("Failed to complete settlement");
-      }
-    }
-
-    setConfirmDialog({ open: false, type: null, booking: null });
-    refetch();
   };
 
   const EvidenceBadge = ({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: any }) => (
@@ -208,13 +128,14 @@ export default function AdminReturns() {
             {returns?.map((booking) => (
               <Card 
                 key={booking.id} 
-                className={`${
+                className={`cursor-pointer hover:border-primary/50 transition-colors ${
                   booking.hasDamageReport 
                     ? "border-red-500/50" 
                     : !booking.canSettle 
                       ? "border-amber-500/50" 
                       : ""
                 }`}
+                onClick={() => handleOpenReturnConsole(booking.id)}
               >
                 <CardContent className="pt-6">
                   <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -281,38 +202,21 @@ export default function AdminReturns() {
                       )}
                     </div>
 
-                    {/* Actions - Simplified to single primary action */}
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenBooking(booking.id)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {booking.canSettle ? (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleMarkSettled(booking)}
-                        >
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          Complete Return
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleMarkReturned(booking)}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Return (Partial)
-                        </Button>
-                      )}
-                    </div>
+                    {/* Process Return Button */}
+                    <Button
+                      variant={booking.canSettle ? "default" : "outline"}
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenReturnConsole(booking.id);
+                      }}
+                    >
+                      Process Return
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
                   </div>
 
-                  {/* Settlement Guidance - Simplified */}
+                  {/* Settlement Guidance */}
                   {!booking.canSettle && (
                     <div className="mt-4 pt-4 border-t">
                       <div className="flex items-center gap-2 text-sm text-amber-600">
@@ -343,47 +247,6 @@ export default function AdminReturns() {
           </div>
         )}
       </div>
-
-      {/* Booking Ops Drawer */}
-      <BookingOpsDrawer
-        bookingId={selectedBookingId}
-        open={drawerOpen}
-        onClose={() => {
-          setDrawerOpen(false);
-          setSelectedBookingId(null);
-        }}
-      />
-
-      {/* Confirm Dialog */}
-      <AlertDialog 
-        open={confirmDialog.open} 
-        onOpenChange={(open) => !open && setConfirmDialog({ open: false, type: null, booking: null })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmDialog.type === "return" ? "Mark as Returned" : "Settle Booking"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmDialog.type === "return" ? (
-                confirmDialog.booking?.canSettle ? (
-                  "This will mark the booking as returned. All evidence is present."
-                ) : (
-                  "Warning: Some evidence is missing. An alert will be created for review."
-                )
-              ) : (
-                "This will settle the booking and release the deposit."
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmAction}>
-              Confirm
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AdminShell>
   );
 }
