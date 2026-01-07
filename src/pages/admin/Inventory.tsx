@@ -87,9 +87,36 @@ export default function AdminInventory() {
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
     vehicleId: string | null;
+    make: string;
+    model: string;
+    year: number;
+    category: string;
+    dailyRate: number;
+    seats: number;
+    fuelType: string;
+    transmission: string;
+    imageUrl: string;
+    locationId: string;
     isAvailable: boolean;
+    isFeatured: boolean;
     bufferHours: number;
-  }>({ open: false, vehicleId: null, isAvailable: true, bufferHours: 2 });
+  }>({
+    open: false,
+    vehicleId: null,
+    make: "",
+    model: "",
+    year: new Date().getFullYear(),
+    category: "Sedan",
+    dailyRate: 100,
+    seats: 5,
+    fuelType: "Petrol",
+    transmission: "Automatic",
+    imageUrl: "",
+    locationId: "",
+    isAvailable: true,
+    isFeatured: false,
+    bufferHours: 2,
+  });
   
   // Add vehicle dialog state
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
@@ -134,7 +161,18 @@ export default function AdminInventory() {
     setEditDialog({
       open: true,
       vehicleId: vehicle.id,
+      make: vehicle.make || "",
+      model: vehicle.model || "",
+      year: vehicle.year || new Date().getFullYear(),
+      category: vehicle.category || "Sedan",
+      dailyRate: vehicle.dailyRate || 100,
+      seats: vehicle.seats || 5,
+      fuelType: vehicle.fuelType || "Petrol",
+      transmission: vehicle.transmission || "Automatic",
+      imageUrl: vehicle.imageUrl || "",
+      locationId: vehicle.locationId || "",
       isAvailable: vehicle.isAvailable ?? true,
+      isFeatured: vehicle.isFeatured ?? false,
       bufferHours: vehicle.cleaningBufferHours ?? 2,
     });
   };
@@ -144,11 +182,38 @@ export default function AdminInventory() {
       updateVehicle.mutate({
         vehicleId: editDialog.vehicleId,
         updates: {
+          make: editDialog.make,
+          model: editDialog.model,
+          year: editDialog.year,
+          category: editDialog.category,
+          daily_rate: editDialog.dailyRate,
+          seats: editDialog.seats,
+          fuel_type: editDialog.fuelType,
+          transmission: editDialog.transmission,
+          image_url: editDialog.imageUrl || null,
+          location_id: editDialog.locationId || null,
           is_available: editDialog.isAvailable,
+          is_featured: editDialog.isFeatured,
           cleaning_buffer_hours: editDialog.bufferHours,
         },
       });
-      setEditDialog({ open: false, vehicleId: null, isAvailable: true, bufferHours: 2 });
+      setEditDialog({
+        open: false,
+        vehicleId: null,
+        make: "",
+        model: "",
+        year: new Date().getFullYear(),
+        category: "Sedan",
+        dailyRate: 100,
+        seats: 5,
+        fuelType: "Petrol",
+        transmission: "Automatic",
+        imageUrl: "",
+        locationId: "",
+        isAvailable: true,
+        isFeatured: false,
+        bufferHours: 2,
+      });
     }
   };
 
@@ -595,61 +660,232 @@ export default function AdminInventory() {
       </Sheet>
 
       {/* Edit Dialog */}
-      <Dialog open={editDialog.open} onOpenChange={(open) => !open && setEditDialog({ open: false, vehicleId: null, isAvailable: true, bufferHours: 2 })}>
-        <DialogContent>
+      <Dialog open={editDialog.open} onOpenChange={(open) => !open && setEditDialog(prev => ({
+        ...prev,
+        open: false,
+        vehicleId: null,
+        make: "",
+        model: "",
+        year: new Date().getFullYear(),
+        category: "Sedan",
+        dailyRate: 100,
+        seats: 5,
+        fuelType: "Petrol",
+        transmission: "Automatic",
+        imageUrl: "",
+        locationId: "",
+        isAvailable: true,
+        isFeatured: false,
+        bufferHours: 2,
+      }))}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Vehicle Settings</DialogTitle>
+            <DialogTitle>Edit Vehicle</DialogTitle>
             <DialogDescription>
-              Update availability status and cleaning buffer time.
+              Update vehicle details, category, location, and settings.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Available for Booking</Label>
-                <p className="text-sm text-muted-foreground">
-                  Toggle to make vehicle available or unavailable
-                </p>
+          <div className="grid gap-6 py-4">
+            {/* Basic Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-make">Make *</Label>
+                <Input
+                  id="edit-make"
+                  placeholder="e.g., BMW, Mercedes, Audi"
+                  value={editDialog.make}
+                  onChange={(e) => setEditDialog(v => ({ ...v, make: e.target.value }))}
+                />
               </div>
-              <Switch
-                checked={editDialog.isAvailable}
-                onCheckedChange={(checked) =>
-                  setEditDialog((s) => ({ ...s, isAvailable: checked }))
-                }
+              <div className="space-y-2">
+                <Label htmlFor="edit-model">Model *</Label>
+                <Input
+                  id="edit-model"
+                  placeholder="e.g., 3 Series, C-Class, A4"
+                  value={editDialog.model}
+                  onChange={(e) => setEditDialog(v => ({ ...v, model: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-year">Year *</Label>
+                <Input
+                  id="edit-year"
+                  type="number"
+                  min={2000}
+                  max={new Date().getFullYear() + 1}
+                  value={editDialog.year}
+                  onChange={(e) => setEditDialog(v => ({ ...v, year: parseInt(e.target.value) || new Date().getFullYear() }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-dailyRate">Daily Rate ($) *</Label>
+                <Input
+                  id="edit-dailyRate"
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={editDialog.dailyRate}
+                  onChange={(e) => setEditDialog(v => ({ ...v, dailyRate: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-seats">Seats</Label>
+                <Input
+                  id="edit-seats"
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={editDialog.seats}
+                  onChange={(e) => setEditDialog(v => ({ ...v, seats: parseInt(e.target.value) || 5 }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={editDialog.category}
+                  onValueChange={(val) => setEditDialog(v => ({ ...v, category: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Fuel Type</Label>
+                <Select
+                  value={editDialog.fuelType}
+                  onValueChange={(val) => setEditDialog(v => ({ ...v, fuelType: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FUEL_TYPES.map((fuel) => (
+                      <SelectItem key={fuel} value={fuel}>{fuel}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Transmission</Label>
+                <Select
+                  value={editDialog.transmission}
+                  onValueChange={(val) => setEditDialog(v => ({ ...v, transmission: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRANSMISSIONS.map((trans) => (
+                      <SelectItem key={trans} value={trans}>{trans}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Select
+                  value={editDialog.locationId || "none"}
+                  onValueChange={(val) => setEditDialog(v => ({ ...v, locationId: val === "none" ? "" : val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Location</SelectItem>
+                    {locations?.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Cleaning Buffer</Label>
+                <Select
+                  value={editDialog.bufferHours.toString()}
+                  onValueChange={(v) => setEditDialog((s) => ({ ...s, bufferHours: parseInt(v) }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 hour</SelectItem>
+                    <SelectItem value="2">2 hours</SelectItem>
+                    <SelectItem value="3">3 hours</SelectItem>
+                    <SelectItem value="4">4 hours</SelectItem>
+                    <SelectItem value="6">6 hours</SelectItem>
+                    <SelectItem value="8">8 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-imageUrl">Image URL</Label>
+              <Input
+                id="edit-imageUrl"
+                placeholder="https://example.com/car-image.jpg"
+                value={editDialog.imageUrl}
+                onChange={(e) => setEditDialog(v => ({ ...v, imageUrl: e.target.value }))}
               />
             </div>
 
             <Separator />
 
-            <div className="space-y-2">
-              <Label>Cleaning Buffer (hours)</Label>
-              <Select
-                value={editDialog.bufferHours.toString()}
-                onValueChange={(v) =>
-                  setEditDialog((s) => ({ ...s, bufferHours: parseInt(v) }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 hour</SelectItem>
-                  <SelectItem value="2">2 hours</SelectItem>
-                  <SelectItem value="3">3 hours</SelectItem>
-                  <SelectItem value="4">4 hours</SelectItem>
-                  <SelectItem value="6">6 hours</SelectItem>
-                  <SelectItem value="8">8 hours</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                Time required between bookings for cleaning
-              </p>
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-isAvailable"
+                  checked={editDialog.isAvailable}
+                  onCheckedChange={(checked) => setEditDialog((s) => ({ ...s, isAvailable: checked }))}
+                />
+                <Label htmlFor="edit-isAvailable">Available for Booking</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-isFeatured"
+                  checked={editDialog.isFeatured}
+                  onCheckedChange={(checked) => setEditDialog((s) => ({ ...s, isFeatured: checked }))}
+                />
+                <Label htmlFor="edit-isFeatured">Featured Vehicle</Label>
+              </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialog({ open: false, vehicleId: null, isAvailable: true, bufferHours: 2 })}>
+            <Button variant="outline" onClick={() => setEditDialog(prev => ({
+              ...prev,
+              open: false,
+              vehicleId: null,
+              make: "",
+              model: "",
+              year: new Date().getFullYear(),
+              category: "Sedan",
+              dailyRate: 100,
+              seats: 5,
+              fuelType: "Petrol",
+              transmission: "Automatic",
+              imageUrl: "",
+              locationId: "",
+              isAvailable: true,
+              isFeatured: false,
+              bufferHours: 2,
+            }))}>
               Cancel
             </Button>
             <Button onClick={handleSaveEdit} disabled={updateVehicle.isPending}>
