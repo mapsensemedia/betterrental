@@ -24,7 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Eye, Car, Calendar, MapPin, RefreshCw } from "lucide-react";
+import { Search, Filter, Eye, Car, Calendar, MapPin, RefreshCw, Truck } from "lucide-react";
+import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 import type { Database } from "@/integrations/supabase/types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -226,6 +227,9 @@ export default function AdminBookings() {
                         <div className="flex items-center gap-2 text-sm">
                           <MapPin className="h-4 w-4 text-muted-foreground" />
                           <span>{booking.location?.name}</span>
+                          {booking.pickupAddress && (
+                            <DeliveryBadge hasDelivery={true} />
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

@@ -12,6 +12,10 @@ export interface HandoverBooking {
   userId: string;
   vehicleId: string;
   locationId: string;
+  // Delivery info
+  pickupAddress: string | null;
+  pickupLat: number | null;
+  pickupLng: number | null;
   vehicle: {
     id: string;
     make: string;
@@ -25,6 +29,7 @@ export interface HandoverBooking {
     id: string;
     name: string;
     city: string;
+    address?: string;
   } | null;
   profile: {
     fullName: string | null;
@@ -71,7 +76,7 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
         .select(`
           *,
           vehicles (id, make, model, year, image_url, is_available, cleaning_buffer_hours),
-          locations (id, name, city)
+          locations (id, name, city, address)
         `)
         .in("status", ["pending", "confirmed"])
         .gte("start_at", startDate.toISOString())
@@ -169,6 +174,9 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
           userId: b.user_id,
           vehicleId: b.vehicle_id,
           locationId: b.location_id,
+          pickupAddress: b.pickup_address,
+          pickupLat: b.pickup_lat,
+          pickupLng: b.pickup_lng,
           vehicle: vehicle ? {
             id: vehicle.id,
             make: vehicle.make,
@@ -182,6 +190,7 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
             id: b.locations.id,
             name: b.locations.name,
             city: b.locations.city,
+            address: b.locations.address,
           } : null,
           profile: profile ? {
             fullName: profile.full_name,

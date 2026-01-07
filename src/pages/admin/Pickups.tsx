@@ -22,7 +22,9 @@ import {
   Sparkles,
   AlertTriangle,
   XCircle,
+  Truck,
 } from "lucide-react";
+import { DeliveryBadge, DeliveryDetailsCard } from "@/components/admin/DeliveryDetailsCard";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -297,6 +299,9 @@ export default function AdminPickups() {
                               <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm">{booking.location?.name}</span>
+                                {booking.pickupAddress && (
+                                  <DeliveryBadge hasDelivery={true} />
+                                )}
                               </div>
                             </div>
 
