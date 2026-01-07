@@ -59,34 +59,7 @@ export function OpsStepContent({
   const isLocked = status === "locked" && !isRentalActive;
   const missing = getMissingItems(stepId, completion);
   
-  // If rental is active, show completion state for all steps
-  if (isRentalActive) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-              <Check className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">{step.title}</h2>
-              <p className="text-muted-foreground">{step.description}</p>
-            </div>
-          </div>
-        </div>
-        
-        <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          <AlertTitle className="text-emerald-700 dark:text-emerald-400">Rental Active</AlertTitle>
-          <AlertDescription className="text-emerald-600 dark:text-emerald-500">
-            This step was completed successfully. The rental is now active.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-  
-  // If step is locked, show locked state
+  // For locked steps (prior to completion), show locked state
   if (isLocked) {
     return (
       <div className="space-y-6">

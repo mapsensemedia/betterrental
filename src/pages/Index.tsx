@@ -6,6 +6,9 @@ import { VehicleCard } from "@/components/landing/VehicleCard";
 import { CategoryCard } from "@/components/landing/CategoryCard";
 import { SectionHeader } from "@/components/landing/SectionHeader";
 import { TrustStrip } from "@/components/landing/TrustStrip";
+import { WhyChooseSection } from "@/components/landing/WhyChooseSection";
+import { CTABanner } from "@/components/landing/CTABanner";
+import { LocationsSection } from "@/components/landing/LocationsSection";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useVehicles } from "@/hooks/use-vehicles";
@@ -138,6 +141,15 @@ const Index = () => {
           )}
         </div>
       </section>
+
+      {/* Why Choose Section */}
+      <WhyChooseSection />
+
+      {/* CTA Banner */}
+      <CTABanner />
+
+      {/* Our Locations Section */}
+      <LocationsSection />
 
       {/* Trust Strip */}
       <TrustStrip />
