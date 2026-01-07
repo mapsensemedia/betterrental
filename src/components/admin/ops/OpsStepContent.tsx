@@ -31,6 +31,8 @@ import { StepAgreement } from "./steps/StepAgreement";
 import { StepWalkaround } from "./steps/StepWalkaround";
 import { StepHandover } from "./steps/StepHandover";
 
+type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "cancelled";
+
 interface OpsStepContentProps {
   stepId: OpsStepId;
   booking: any;
@@ -39,6 +41,14 @@ interface OpsStepContentProps {
   onCompleteStep: () => void;
   onActivate: () => void;
   isRentalActive: boolean;
+}
+
+// Helper to check if we can advance to the next step
+function canAdvanceToNextStep(stepId: OpsStepId, completion: StepCompletion): boolean {
+  const currentStepComplete = checkStepComplete(stepId, completion);
+  const currentIndex = OPS_STEPS.findIndex(s => s.id === stepId);
+  const hasNextStep = currentIndex < OPS_STEPS.length - 1;
+  return currentStepComplete && hasNextStep;
 }
 
 export function OpsStepContent({ 
@@ -53,11 +63,16 @@ export function OpsStepContent({
   const step = OPS_STEPS.find(s => s.id === stepId);
   if (!step) return null;
   
+  const bookingStatus = booking?.status as BookingStatus;
+  const isBookingCompleted = bookingStatus === "completed";
+  const isBookingCancelled = bookingStatus === "cancelled";
+  
   const currentStepIndex = getCurrentStepIndex(completion);
   const { status, reason } = getStepStatus(stepId, completion, currentStepIndex);
   const isComplete = checkStepComplete(stepId, completion);
   const isLocked = status === "locked" && !isRentalActive;
   const missing = getMissingItems(stepId, completion);
+  const showNextStepButton = canAdvanceToNextStep(stepId, completion) && stepId !== "handover";
   
   // For locked steps (prior to completion), show locked state
   if (isLocked) {
@@ -166,12 +181,13 @@ export function OpsStepContent({
             booking={booking}
             completion={completion}
             onActivate={onActivate}
+            isBookingCompleted={isBookingCompleted}
           />
         )}
       </div>
       
-      {/* Complete Step Button */}
-      {isComplete && stepId !== "handover" && (
+      {/* Continue to Next Step Button - Only show if step is complete and there's a next step */}
+      {showNextStepButton && !isBookingCompleted && !isBookingCancelled && (
         <div className="pt-4 flex justify-end">
           <Button onClick={onCompleteStep}>
             Continue to Next Step

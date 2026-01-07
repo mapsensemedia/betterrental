@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { MapPin, Phone, Clock, Navigation } from "lucide-react";
+import { MapPin, Phone, Clock, Navigation, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocations, type Location } from "@/hooks/use-locations";
@@ -22,7 +22,7 @@ function formatHours(hoursJson: Record<string, string> | null): string {
   return weekdayHours || weekendHours || "Hours not available";
 }
 
-function LocationCard({ location, isReversed }: { location: Location; isReversed?: boolean }) {
+function LocationCard({ location }: { location: Location }) {
   const handleGetDirections = () => {
     if (location.lat && location.lng) {
       window.open(
@@ -37,72 +37,51 @@ function LocationCard({ location, isReversed }: { location: Location; isReversed
     }
   };
 
-  const mapContent = (
-    <div className="aspect-[4/3] lg:aspect-auto lg:h-full rounded-xl overflow-hidden bg-muted relative">
-      {location.lat && location.lng ? (
-        <iframe
-          src={`https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - 0.01}%2C${location.lat - 0.008}%2C${location.lng + 0.01}%2C${location.lat + 0.008}&layer=mapnik&marker=${location.lat}%2C${location.lng}`}
-          className="w-full h-full border-0"
-          loading="lazy"
-          title={`Map of ${location.name}`}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-muted">
-          <MapPin className="w-8 h-8 text-muted-foreground" />
-        </div>
-      )}
-    </div>
-  );
-
-  const infoContent = (
-    <div className="p-6 flex flex-col justify-center">
-      <h3 className="text-xl font-semibold text-foreground mb-4">{location.name}</h3>
-      
-      <div className="space-y-3 text-sm">
-        <div className="flex items-start gap-3">
-          <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-          <span className="text-primary">{location.address}</span>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
-          <a href={`tel:${location.phone}`} className="text-muted-foreground hover:text-foreground">
-            {location.phone}
-          </a>
-        </div>
-        
-        <div className="flex items-start gap-3">
-          <Clock className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-          <span className="text-muted-foreground">
-            {formatHours(location.hoursJson)}
-          </span>
-        </div>
-      </div>
-      
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className="mt-6 w-fit"
-        onClick={handleGetDirections}
-      >
-        <Navigation className="w-4 h-4 mr-2" />
-        Get Directions
-      </Button>
-    </div>
-  );
-
   return (
-    <Card className="overflow-hidden animate-fade-in">
-      <CardContent className="p-0">
-        <div className={cn(
-          "grid lg:grid-cols-2 gap-0",
-          isReversed && "lg:grid-flow-dense"
-        )}>
-          <div className={isReversed ? "lg:col-start-2" : ""}>
-            {mapContent}
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow animate-fade-in">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-4">
+          {/* Map Pin Icon */}
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <MapPin className="w-6 h-6 text-primary" />
           </div>
-          <div className={isReversed ? "lg:col-start-1" : ""}>
-            {infoContent}
+          
+          {/* Location Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-foreground mb-2">{location.name}</h3>
+            
+            <div className="space-y-2 text-sm">
+              <p className="text-muted-foreground">{location.address}</p>
+              
+              {location.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <a 
+                    href={`tel:${location.phone}`} 
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {location.phone}
+                  </a>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="text-muted-foreground text-xs">
+                  {formatHours(location.hoursJson)}
+                </span>
+              </div>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-4"
+              onClick={handleGetDirections}
+            >
+              <Navigation className="w-4 h-4 mr-2" />
+              Get Directions
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -120,24 +99,23 @@ export function LocationsSection({ className }: LocationsSectionProps) {
         <div className="text-center mb-12">
           <h2 className="heading-2 text-foreground mb-3">Our Locations</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Visit any of our convenient locations across the Lower Mainland
+            Visit any of our convenient locations across the Lower Mainland, or let us bring the car to you
           </p>
         </div>
 
-        {/* Location Cards */}
+        {/* Location Cards Grid */}
         {isLoading ? (
-          <div className="space-y-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
-                <CardContent className="p-0">
-                  <div className="grid lg:grid-cols-2 gap-0">
-                    <Skeleton className="aspect-[4/3] lg:aspect-auto lg:h-[250px]" />
-                    <div className="p-6 space-y-4">
-                      <Skeleton className="h-6 w-48" />
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <Skeleton className="w-12 h-12 rounded-xl" />
+                    <div className="flex-1 space-y-3">
+                      <Skeleton className="h-5 w-3/4" />
                       <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-48" />
-                      <Skeleton className="h-9 w-32" />
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-9 w-32 mt-2" />
                     </div>
                   </div>
                 </CardContent>
@@ -145,13 +123,9 @@ export function LocationsSection({ className }: LocationsSectionProps) {
             ))}
           </div>
         ) : locations && locations.length > 0 ? (
-          <div className="space-y-6">
-            {locations.map((location, index) => (
-              <LocationCard 
-                key={location.id} 
-                location={location} 
-                isReversed={index % 2 === 1}
-              />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {locations.map((location) => (
+              <LocationCard key={location.id} location={location} />
             ))}
           </div>
         ) : (
@@ -164,8 +138,11 @@ export function LocationsSection({ className }: LocationsSectionProps) {
         {/* View All Link */}
         {locations && locations.length > 0 && (
           <div className="text-center mt-8">
-            <Button asChild variant="outline">
-              <Link to="/locations">View All Locations</Link>
+            <Button asChild>
+              <Link to="/locations">
+                View All Locations
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
             </Button>
           </div>
         )}
