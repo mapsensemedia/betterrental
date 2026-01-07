@@ -18,9 +18,13 @@ interface StepHandoverProps {
   booking: any;
   completion: StepCompletion;
   onActivate: () => void;
+  isBookingCompleted?: boolean;
 }
 
-export function StepHandover({ booking, completion, onActivate }: StepHandoverProps) {
+export function StepHandover({ booking, completion, onActivate, isBookingCompleted }: StepHandoverProps) {
+  const isRentalActive = booking?.status === "active";
+  const isCompleted = booking?.status === "completed" || isBookingCompleted;
+  
   const allPrerequisitesMet = 
     completion.intake.vehicleAssigned &&
     completion.intake.licenseApproved &&
@@ -96,7 +100,54 @@ export function StepHandover({ booking, completion, onActivate }: StepHandoverPr
       </Card>
       
       {/* Activation Section */}
-      {allPrerequisitesMet ? (
+      {isCompleted ? (
+        <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              Rental Completed
+            </CardTitle>
+            <CardDescription className="text-emerald-600 dark:text-emerald-500">
+              This rental has been completed and the vehicle has been returned.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 bg-background rounded-lg border space-y-2">
+              <h4 className="font-medium">Handover Summary</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>✓ Vehicle keys were handed to customer</li>
+                <li>✓ Customer reviewed vehicle condition</li>
+                <li>✓ Emergency contact information provided</li>
+                <li>✓ Fuel policy and return procedures explained</li>
+                <li>✓ Rental completed successfully</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      ) : isRentalActive ? (
+        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-blue-700 dark:text-blue-400 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              Rental Active
+            </CardTitle>
+            <CardDescription className="text-blue-600 dark:text-blue-500">
+              This rental is currently active. The customer has the vehicle.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 bg-background rounded-lg border space-y-2">
+              <h4 className="font-medium">Handover Completed</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>✓ Vehicle keys handed to customer</li>
+                <li>✓ Customer reviewed vehicle condition</li>
+                <li>✓ Emergency contact information provided</li>
+                <li>✓ Fuel policy and return procedures explained</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      ) : allPrerequisitesMet ? (
         <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30">
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-emerald-700 dark:text-emerald-400 flex items-center gap-2">

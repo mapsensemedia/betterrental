@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle } from "lucide-react";
+import { ArrowRight, Car, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -17,16 +17,19 @@ export function CTABanner({ className }: CTABannerProps) {
             {/* Content */}
             <div className="max-w-xl">
               <Badge className="bg-primary text-primary-foreground mb-4 px-3 py-1.5">
-                <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
-                Premium Experience
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                New Feature Available
               </Badge>
               <h2 className="text-2xl md:text-3xl font-bold mb-4">
-                Ready to hit the road?
+                Skip the Pickup — We Bring the Car to You!
               </h2>
-              <p className="text-background/70 text-base md:text-lg">
-                Browse our extensive fleet and find the perfect vehicle for your next adventure. 
-                Flexible booking, no hidden fees, and 24/7 support.
+              <p className="text-background/70 text-base md:text-lg mb-4">
+                Experience our premium delivery service. Select "Bring Car to Me" at checkout and we'll deliver your vehicle right to your doorstep.
               </p>
+              <div className="flex items-center gap-2 text-sm text-background/60">
+                <Car className="w-4 h-4" />
+                <span>Available within 50km of our locations</span>
+              </div>
             </div>
 
             {/* Buttons */}
@@ -47,7 +50,7 @@ export function CTABanner({ className }: CTABannerProps) {
                 size="lg"
                 className="border-background/30 text-background hover:bg-background/10 hover:text-background"
               >
-                <Link to="/locations">
+                <Link to="/contact">
                   Contact Us
                 </Link>
               </Button>

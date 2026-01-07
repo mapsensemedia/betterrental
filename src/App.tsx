@@ -18,6 +18,8 @@ import CheckIn from "./pages/CheckIn";
 import Protection from "./pages/Protection";
 import AddOns from "./pages/AddOns";
 import NewCheckout from "./pages/NewCheckout";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 
 // Admin Pages
 import AdminOverview from "./pages/admin/Overview";
@@ -65,6 +67,8 @@ const App = () => (
             <Route path="/check-in" element={<CheckIn />} />
             <Route path="/protection" element={<Protection />} />
             <Route path="/add-ons" element={<AddOns />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
             {/* Redirect my-booking to dashboard */}
             <Route path="/my-booking" element={<Navigate to="/dashboard" replace />} />
             <Route path="/my-booking/:bookingCode" element={<Navigate to="/dashboard" replace />} />
