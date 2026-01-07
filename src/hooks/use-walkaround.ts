@@ -265,3 +265,56 @@ export function useCompleteWalkaround() {
     },
   });
 }
+
+// Admin override - complete walkaround without customer acknowledgement
+export function useAdminCompleteWalkaround() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (inspectionId: string) => {
+      const { data: user } = await supabase.auth.getUser();
+
+      // Get the inspection
+      const { data: inspection, error: fetchError } = await supabase
+        .from("walkaround_inspections")
+        .select("booking_id")
+        .eq("id", inspectionId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update inspection - mark as complete with admin override
+      const { error } = await supabase
+        .from("walkaround_inspections")
+        .update({
+          inspection_complete: true,
+          completed_at: new Date().toISOString(),
+          customer_acknowledged: true,
+          customer_acknowledged_at: new Date().toISOString(),
+          customer_signature: "Admin Override",
+        })
+        .eq("id", inspectionId);
+
+      if (error) throw error;
+
+      // Log to audit with admin override note
+      await supabase.from("audit_logs").insert({
+        entity_type: "walkaround_inspection",
+        entity_id: inspectionId,
+        action: "walkaround_admin_override",
+        user_id: user.user?.id,
+        new_data: { booking_id: inspection.booking_id, admin_override: true },
+      });
+
+      return { bookingId: inspection.booking_id };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
+      queryClient.invalidateQueries({ queryKey: ["booking"] });
+      toast.success("Walkaround completed (admin override)");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to complete walkaround: ${error.message}`);
+    },
+  });
+}

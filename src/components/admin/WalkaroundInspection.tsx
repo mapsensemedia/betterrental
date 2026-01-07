@@ -51,9 +51,11 @@ import {
   useStartWalkaround,
   useUpdateWalkaround,
   useCompleteWalkaround,
+  useAdminCompleteWalkaround,
   type ScratchDent,
 } from "@/hooks/use-walkaround";
 import { useBookingConditionPhotos, PHOTO_LABELS, type PhotoType } from "@/hooks/use-condition-photos";
+import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { format } from "date-fns";
 
 interface WalkaroundInspectionProps {
@@ -95,10 +97,12 @@ export function WalkaroundInspection({ bookingId }: WalkaroundInspectionProps) {
   const startWalkaround = useStartWalkaround();
   const updateWalkaround = useUpdateWalkaround();
   const completeWalkaround = useCompleteWalkaround();
+  const adminCompleteWalkaround = useAdminCompleteWalkaround();
 
   const [showPhotoDialog, setShowPhotoDialog] = useState(false);
   const [showAddDamageDialog, setShowAddDamageDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showAdminOverrideDialog, setShowAdminOverrideDialog] = useState(false);
 
   // Form state for editing
   const [exteriorNotes, setExteriorNotes] = useState("");
@@ -169,6 +173,13 @@ export function WalkaroundInspection({ bookingId }: WalkaroundInspectionProps) {
     if (!inspection) return;
     completeWalkaround.mutate(inspection.id, {
       onSuccess: () => setShowCompleteDialog(false),
+    });
+  };
+
+  const handleAdminOverride = () => {
+    if (!inspection) return;
+    adminCompleteWalkaround.mutate(inspection.id, {
+      onSuccess: () => setShowAdminOverrideDialog(false),
     });
   };
 
@@ -463,33 +474,47 @@ export function WalkaroundInspection({ bookingId }: WalkaroundInspectionProps) {
 
           {/* Actions */}
           {!isComplete && (
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={handleSave}
-                disabled={updateWalkaround.isPending}
-                className="flex-1"
-              >
-                {updateWalkaround.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Save Progress"
-                )}
-              </Button>
-              <Button
-                onClick={() => setShowCompleteDialog(true)}
-                disabled={!canComplete}
-                className="flex-1 gap-1"
-              >
-                <CheckCircle className="h-4 w-4" />
-                Complete Walkaround
-              </Button>
+            <div className="flex flex-col gap-2 pt-2">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={updateWalkaround.isPending}
+                  className="flex-1"
+                >
+                  {updateWalkaround.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Save Progress"
+                  )}
+                </Button>
+                <Button
+                  onClick={() => setShowCompleteDialog(true)}
+                  disabled={!canComplete}
+                  className="flex-1 gap-1"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Complete Walkaround
+                </Button>
+              </div>
+              
+              {/* Admin override option when customer hasn't acknowledged */}
+              {!inspection.customer_acknowledged && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAdminOverrideDialog(true)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Skip customer acknowledgement (admin override)
+                </Button>
+              )}
             </div>
           )}
 
           {!inspection.customer_acknowledged && !isComplete && (
             <p className="text-xs text-muted-foreground text-center">
-              Customer must acknowledge vehicle condition before completing
+              Customer acknowledgement pending
             </p>
           )}
         </CardContent>
@@ -510,8 +535,9 @@ export function WalkaroundInspection({ bookingId }: WalkaroundInspectionProps) {
                 {pickupPhotos.map((photo) => (
                   <div key={photo.id} className="space-y-2">
                     <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-                      <img
-                        src={photo.photo_url}
+                      <SignedStorageImage
+                        bucket="condition-photos"
+                        path={photo.photo_url}
                         alt={PHOTO_LABELS[photo.photo_type as PhotoType] || photo.photo_type}
                         className="w-full h-full object-cover"
                       />
@@ -607,6 +633,30 @@ export function WalkaroundInspection({ bookingId }: WalkaroundInspectionProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleComplete} disabled={completeWalkaround.isPending}>
               {completeWalkaround.isPending ? "Completing..." : "Complete Inspection"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Admin Override Confirmation Dialog */}
+      <AlertDialog open={showAdminOverrideDialog} onOpenChange={setShowAdminOverrideDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Skip Customer Acknowledgement</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will complete the walkaround WITHOUT customer acknowledgement. 
+              Use this only when the customer is present but unable to use the digital acknowledgement system. 
+              This action will be logged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleAdminOverride} 
+              disabled={adminCompleteWalkaround.isPending}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {adminCompleteWalkaround.isPending ? "Processing..." : "Complete (Admin Override)"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
