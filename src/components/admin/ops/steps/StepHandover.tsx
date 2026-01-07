@@ -25,6 +25,7 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
   const isRentalActive = booking?.status === "active";
   const isCompleted = booking?.status === "completed" || isBookingCompleted;
   
+  // Customer acknowledgement is optional - admin can complete walkaround without it
   const allPrerequisitesMet = 
     completion.intake.vehicleAssigned &&
     completion.intake.licenseApproved &&
@@ -34,8 +35,7 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
     completion.payment.paymentComplete &&
     completion.payment.depositCollected &&
     completion.agreement.agreementSigned &&
-    completion.walkaround.inspectionComplete &&
-    completion.walkaround.customerAcknowledged;
+    completion.walkaround.inspectionComplete;
     
   const prerequisites = [
     { label: "Vehicle Assigned", complete: completion.intake.vehicleAssigned },
@@ -47,7 +47,6 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
     { label: "Deposit Held", complete: completion.payment.depositCollected },
     { label: "Agreement Signed", complete: completion.agreement.agreementSigned },
     { label: "Walkaround Complete", complete: completion.walkaround.inspectionComplete },
-    { label: "Customer Acknowledged", complete: completion.walkaround.customerAcknowledged },
   ];
   
   const incompleteItems = prerequisites.filter(p => !p.complete);
