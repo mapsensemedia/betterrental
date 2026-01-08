@@ -155,14 +155,14 @@ export function VehicleEditDialog({
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
                 <Select
-                  value={formData.location_id || "none"}
-                  onValueChange={(value) => updateField("location_id", value === "none" ? null : value)}
+                  value={formData.location_id || "all"}
+                  onValueChange={(value) => updateField("location_id", value === "all" ? null : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select location" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No Location</SelectItem>
+                    <SelectItem value="all">Available at all locations</SelectItem>
                     {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
                         {loc.name}
