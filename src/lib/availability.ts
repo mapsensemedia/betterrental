@@ -47,11 +47,11 @@ export async function getAvailableVehicles(
 ): Promise<AvailableVehicle[]> {
   const { locationId, startAt, endAt, filters } = query;
 
-  // Get all vehicles at location that are marked available
+  // Get all vehicles at location OR available at all locations (location_id = null)
   let vehicleQuery = supabase
     .from("vehicles")
     .select("*")
-    .eq("location_id", locationId)
+    .or(`location_id.eq.${locationId},location_id.is.null`)
     .eq("is_available", true);
 
   // Apply filters
@@ -237,7 +237,7 @@ export async function getVehiclesByLocation(
   const { data: vehicles, error } = await supabase
     .from("vehicles")
     .select("*")
-    .eq("location_id", locationId)
+    .or(`location_id.eq.${locationId},location_id.is.null`)
     .eq("is_available", true);
 
   if (error) {
