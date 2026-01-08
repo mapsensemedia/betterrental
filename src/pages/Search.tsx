@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
-import { Filter, Grid, List, ArrowUpDown, Car, X } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Filter, Grid, List, ArrowUpDown, Car } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { VehicleCard } from "@/components/landing/VehicleCard";
@@ -28,10 +28,10 @@ import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
 import { BookingStepper } from "@/components/shared/BookingStepper";
+import { displayFuelType, displayTransmission } from "@/lib/utils";
 
 const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Sedan"];
-const transmissions = ["All", "Automatic", "Manual"];
-const fuelTypes = ["All", "Petrol", "Electric", "Hybrid", "Diesel"];
+const fuelTypes = ["All", "Gas", "Electric", "Hybrid", "Diesel"];
 const seatsOptions = [2, 4, 5, 7];
 
 type SortOption = "recommended" | "price-low" | "price-high" | "newest";
@@ -75,11 +75,10 @@ export default function Search() {
     searchParams.get("category") || "All"
   );
   const [priceRange, setPriceRange] = useState([0, 2000]);
-  const [selectedTransmission, setSelectedTransmission] = useState("All");
   const [selectedFuelType, setSelectedFuelType] = useState("All");
   const [minSeats, setMinSeats] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("recommended");
-  const [compareList, setCompareList] = useState<string[]>([]);
+  // Compare feature removed
 
   // Sync URL params with context on mount
   useEffect(() => {
@@ -111,16 +110,7 @@ export default function Search() {
     return 1;
   }, [startDate, endDate]);
 
-  // Toggle compare
-  const toggleCompare = useCallback((id: string) => {
-    setCompareList((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : prev.length < 3
-        ? [...prev, id]
-        : prev
-    );
-  }, []);
+  // Compare feature removed
 
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
@@ -133,16 +123,15 @@ export default function Search() {
       if (v.dailyRate < priceRange[0] || v.dailyRate > priceRange[1]) {
         return false;
       }
-      // Transmission filter
-      if (
-        selectedTransmission !== "All" &&
-        v.transmission !== selectedTransmission
-      ) {
-        return false;
-      }
-      // Fuel type filter
-      if (selectedFuelType !== "All" && v.fuelType !== selectedFuelType) {
-        return false;
+      // Transmission filter - all vehicles show as Automatic now
+      // No filtering needed since we only show Automatic
+      // Fuel type filter (map "Gas" to "petrol" for comparison)
+      if (selectedFuelType !== "All") {
+        const vehicleFuel = v.fuelType?.toLowerCase();
+        const filterFuel = selectedFuelType.toLowerCase() === "gas" ? "petrol" : selectedFuelType.toLowerCase();
+        if (vehicleFuel !== filterFuel) {
+          return false;
+        }
       }
       // Seats filter
       if (minSeats && (v.seats || 5) < minSeats) {
@@ -181,7 +170,6 @@ export default function Search() {
     allVehicles,
     selectedCategory,
     priceRange,
-    selectedTransmission,
     selectedFuelType,
     minSeats,
     locationId,
@@ -191,7 +179,6 @@ export default function Search() {
   const resetFilters = () => {
     setSelectedCategory("All");
     setPriceRange([0, 2000]);
-    setSelectedTransmission("All");
     setSelectedFuelType("All");
     setMinSeats(null);
   };
@@ -199,7 +186,6 @@ export default function Search() {
   const activeFiltersCount = [
     selectedCategory !== "All",
     priceRange[0] > 0 || priceRange[1] < 2000,
-    selectedTransmission !== "All",
     selectedFuelType !== "All",
     minSeats !== null,
   ].filter(Boolean).length;
@@ -242,14 +228,6 @@ export default function Search() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* Compare Button */}
-            {compareList.length > 1 && (
-              <Button variant="default" asChild size="sm">
-                <Link to={`/compare?ids=${compareList.join(",")}`}>
-                  Compare ({compareList.length})
-                </Link>
-              </Button>
-            )}
 
             {/* Sort */}
             <Select
@@ -315,8 +293,6 @@ export default function Search() {
                     setSelectedCategory={setSelectedCategory}
                     priceRange={priceRange}
                     setPriceRange={setPriceRange}
-                    selectedTransmission={selectedTransmission}
-                    setSelectedTransmission={setSelectedTransmission}
                     selectedFuelType={selectedFuelType}
                     setSelectedFuelType={setSelectedFuelType}
                     minSeats={minSeats}
@@ -338,8 +314,6 @@ export default function Search() {
                 setSelectedCategory={setSelectedCategory}
                 priceRange={priceRange}
                 setPriceRange={setPriceRange}
-                selectedTransmission={selectedTransmission}
-                setSelectedTransmission={setSelectedTransmission}
                 selectedFuelType={selectedFuelType}
                 setSelectedFuelType={setSelectedFuelType}
                 minSeats={minSeats}
@@ -351,49 +325,6 @@ export default function Search() {
 
           {/* Results */}
           <div className="flex-1">
-            {/* Category Pills */}
-            <div className="flex gap-2 flex-wrap mb-6">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedCategory === cat
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Compare Selection Bar */}
-            {compareList.length > 0 && (
-              <div className="mb-6 p-4 bg-primary/5 rounded-xl border border-primary/20 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {compareList.length} vehicle{compareList.length > 1 ? "s" : ""} selected
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCompareList([])}
-                    className="h-8"
-                  >
-                    <X className="w-3 h-3 mr-1" />
-                    Clear
-                  </Button>
-                </div>
-                {compareList.length >= 2 && (
-                  <Button size="sm" asChild>
-                    <Link to={`/compare?ids=${compareList.join(",")}`}>
-                      Compare Now
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            )}
 
             {/* Loading State */}
             {isLoading ? (
@@ -431,12 +362,9 @@ export default function Search() {
                     dailyRate={vehicle.dailyRate}
                     imageUrl={vehicle.imageUrl || ""}
                     seats={vehicle.seats || 5}
-                    fuelType={vehicle.fuelType || "Petrol"}
-                    transmission={vehicle.transmission || "Automatic"}
+                    fuelType={displayFuelType(vehicle.fuelType)}
+                    transmission={displayTransmission(vehicle.transmission)}
                     isFeatured={vehicle.isFeatured || false}
-                    showCompare
-                    isCompareSelected={compareList.includes(vehicle.id)}
-                    onCompareToggle={toggleCompare}
                   />
                 ))}
               </div>
@@ -464,8 +392,6 @@ interface FilterContentProps {
   setSelectedCategory: (value: string) => void;
   priceRange: number[];
   setPriceRange: (value: number[]) => void;
-  selectedTransmission: string;
-  setSelectedTransmission: (value: string) => void;
   selectedFuelType: string;
   setSelectedFuelType: (value: string) => void;
   minSeats: number | null;
@@ -478,8 +404,6 @@ function FilterContent({
   setSelectedCategory,
   priceRange,
   setPriceRange,
-  selectedTransmission,
-  setSelectedTransmission,
   selectedFuelType,
   setSelectedFuelType,
   minSeats,
@@ -488,6 +412,26 @@ function FilterContent({
 }: FilterContentProps) {
   return (
     <div className="space-y-6">
+      {/* Category */}
+      <div className="p-4 bg-card rounded-2xl border border-border">
+        <h3 className="font-semibold mb-4">Category</h3>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                selectedCategory === cat
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Price Range */}
       <div className="p-4 bg-card rounded-2xl border border-border">
         <h3 className="font-semibold mb-4">Price Range</h3>
@@ -502,25 +446,6 @@ function FilterContent({
         <div className="flex justify-between text-sm text-muted-foreground">
           <span>${priceRange[0]}/day</span>
           <span>${priceRange[1]}/day</span>
-        </div>
-      </div>
-
-      {/* Transmission */}
-      <div className="p-4 bg-card rounded-2xl border border-border">
-        <h3 className="font-semibold mb-4">Transmission</h3>
-        <div className="space-y-2">
-          {transmissions.map((trans) => (
-            <label
-              key={trans}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <Checkbox
-                checked={selectedTransmission === trans}
-                onCheckedChange={() => setSelectedTransmission(trans)}
-              />
-              <span className="text-sm">{trans}</span>
-            </label>
-          ))}
         </div>
       </div>
 
