@@ -102,6 +102,9 @@ export function OpsBookingSummary({ booking }: OpsBookingSummaryProps) {
         pickupLng={booking.pickup_lng}
         locationName={booking.locations?.name}
         locationAddress={booking.locations?.address}
+        bookingId={booking.id}
+        assignedDriverId={booking.assigned_driver_id}
+        showDriverAssignment={true}
       />
       
       {/* Location */}

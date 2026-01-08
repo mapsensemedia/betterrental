@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { VehicleAssignment } from "@/components/admin/VehicleAssignment";
 import { LicenseReviewCard } from "../LicenseReviewCard";
+import { DeliveryDetailsCard } from "@/components/admin/DeliveryDetailsCard";
 import { 
   CheckCircle2, 
   XCircle, 
@@ -28,6 +29,8 @@ export function StepIntake({ booking, completion, verifications }: StepIntakePro
   const licenseVerifications = verifications.filter(v => 
     v.document_type === 'drivers_license_front' || v.document_type === 'drivers_license_back'
   );
+  
+  const isDeliveryBooking = !!booking.pickup_address;
   
   return (
     <div className="space-y-4">
@@ -58,6 +61,20 @@ export function StepIntake({ booking, completion, verifications }: StepIntakePro
           </div>
         </CardContent>
       </Card>
+      
+      {/* Delivery Details & Driver Assignment */}
+      {isDeliveryBooking && (
+        <DeliveryDetailsCard
+          pickupAddress={booking.pickup_address}
+          pickupLat={booking.pickup_lat}
+          pickupLng={booking.pickup_lng}
+          locationName={booking.locations?.name}
+          locationAddress={booking.locations?.address}
+          bookingId={booking.id}
+          assignedDriverId={booking.assigned_driver_id}
+          showDriverAssignment={true}
+        />
+      )}
       
       {/* Vehicle Assignment */}
       <Card>
