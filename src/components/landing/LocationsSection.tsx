@@ -23,18 +23,16 @@ function formatHours(hoursJson: Record<string, string> | null): string {
 }
 
 function LocationCard({ location }: { location: Location }) {
-  const handleGetDirections = () => {
-    if (location.lat && location.lng) {
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`,
-        "_blank"
-      );
-    } else {
-      window.open(
-        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`,
-        "_blank"
-      );
-    }
+  const handleGetDirections = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const url = location.lat && location.lng
+      ? `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`;
+    
+    // Use location.href for better mobile compatibility
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -76,8 +74,10 @@ function LocationCard({ location }: { location: Location }) {
             <Button 
               variant="outline" 
               size="sm" 
+              type="button"
               className="mt-4"
               onClick={handleGetDirections}
+              onTouchEnd={handleGetDirections}
             >
               <Navigation className="w-4 h-4 mr-2" />
               Get Directions
