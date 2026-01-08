@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { Fuel, Users, Gauge, GitCompare } from "lucide-react";
+import { Fuel, Users, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, displayFuelType, displayTransmission } from "@/lib/utils";
 import { PriceWithDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { toast } from "sonner";
@@ -21,9 +21,6 @@ interface VehicleCardProps {
   isFeatured?: boolean;
   className?: string;
   variant?: "default" | "compact" | "dark";
-  isCompareSelected?: boolean;
-  onCompareToggle?: (id: string) => void;
-  showCompare?: boolean;
 }
 
 export function VehicleCard({
@@ -35,14 +32,11 @@ export function VehicleCard({
   dailyRate,
   imageUrl,
   seats = 5,
-  fuelType = "Petrol",
-  transmission = "Automatic",
+  fuelType,
+  transmission,
   isFeatured = false,
   className,
   variant = "default",
-  isCompareSelected = false,
-  onCompareToggle,
-  showCompare = false,
 }: VehicleCardProps) {
   const isDark = variant === "dark";
   const navigate = useNavigate();
@@ -127,29 +121,6 @@ export function VehicleCard({
             {category}
           </Badge>
         </div>
-
-        {/* Compare Button - Top Right (always visible when showCompare is true) */}
-        {showCompare && onCompareToggle && (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onCompareToggle(id);
-            }}
-            className={cn(
-              "absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all",
-              isCompareSelected
-                ? "bg-primary text-primary-foreground"
-                : "bg-card/90 backdrop-blur-sm text-foreground border border-border/50 hover:bg-card"
-            )}
-            title={isCompareSelected ? "Remove from compare" : "Add to compare"}
-          >
-            <GitCompare className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {isCompareSelected ? "Selected" : "Compare"}
-            </span>
-          </button>
-        )}
       </div>
 
       {/* Content */}
@@ -208,7 +179,7 @@ export function VehicleCard({
               "text-xs sm:text-sm font-medium truncate w-full",
               isDark ? "text-background/80" : "text-foreground"
             )}>
-              {fuelType}
+              {displayFuelType(fuelType)}
             </span>
             <span className={cn(
               "text-[10px] sm:text-xs",
@@ -229,7 +200,7 @@ export function VehicleCard({
               "text-xs sm:text-sm font-medium truncate w-full",
               isDark ? "text-background/80" : "text-foreground"
             )}>
-              {transmission === "Automatic" ? "Auto" : transmission}
+              {displayTransmission(transmission) === "Automatic" ? "Auto" : displayTransmission(transmission)}
             </span>
             <span className={cn(
               "text-[10px] sm:text-xs",

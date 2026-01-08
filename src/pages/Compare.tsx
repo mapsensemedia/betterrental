@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useVehicle, type Vehicle } from "@/hooks/use-vehicles";
 import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
+import { displayFuelType, displayTransmission } from "@/lib/utils";
 
 const defaultFeatures = [
   "Air Conditioning",
@@ -186,7 +187,7 @@ export default function Compare() {
                     values={vehicles.map((v) => (
                       <div key={v.id} className="flex items-center gap-2">
                         <Fuel className="w-4 h-4 text-muted-foreground" />
-                        <span>{v.fuelType || "Petrol"}</span>
+                        <span>{displayFuelType(v.fuelType)}</span>
                       </div>
                     ))}
                   />
@@ -195,7 +196,7 @@ export default function Compare() {
                     values={vehicles.map((v) => (
                       <div key={v.id} className="flex items-center gap-2">
                         <Gauge className="w-4 h-4 text-muted-foreground" />
-                        <span>{v.transmission || "Automatic"}</span>
+                        <span>{displayTransmission(v.transmission)}</span>
                       </div>
                     ))}
                   />

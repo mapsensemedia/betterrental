@@ -217,8 +217,8 @@ export default function LocationDetail() {
                 dailyRate={vehicle.dailyRate}
                 imageUrl={vehicle.imageUrl || ""}
                 seats={vehicle.seats || 5}
-                fuelType={vehicle.fuelType || "Petrol"}
-                transmission={vehicle.transmission || "Automatic"}
+                fuelType={vehicle.fuelType}
+                transmission={vehicle.transmission}
                 isFeatured={vehicle.isFeatured || false}
               />
             ))}
