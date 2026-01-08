@@ -230,7 +230,6 @@ export function useRecordPaymentDeposit() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payment-deposit-status', variables.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ['admin-booking', variables.bookingId] });
       queryClient.invalidateQueries({ queryKey: ['booking', variables.bookingId] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       
@@ -325,7 +324,7 @@ export function useReleaseDeposit() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payment-deposit-status', variables.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ['admin-booking', variables.bookingId] });
+      queryClient.invalidateQueries({ queryKey: ['booking', variables.bookingId] });
       
       toast({
         title: 'Deposit released',

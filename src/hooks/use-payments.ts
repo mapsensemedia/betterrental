@@ -100,7 +100,7 @@ export function useRecordPayment() {
       return payment;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-booking"] });
+      queryClient.invalidateQueries({ queryKey: ["booking"] });
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["handovers"] });
       queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });

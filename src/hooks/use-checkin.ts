@@ -179,7 +179,7 @@ export function useCreateOrUpdateCheckIn() {
     },
     onSuccess: (_, { bookingId }) => {
       queryClient.invalidateQueries({ queryKey: ["checkin-record", bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["admin-booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       toast.success("Check-in updated");
     },
     onError: (error) => {
@@ -270,7 +270,7 @@ export function useCompleteCheckIn() {
     },
     onSuccess: (result, { bookingId }) => {
       queryClient.invalidateQueries({ queryKey: ["checkin-record", bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["admin-booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
 
       if (result.status === "passed") {

@@ -164,7 +164,7 @@ export function useAdminBookings(filters: BookingFilters = {}) {
 
 export function useBookingById(id: string | null) {
   return useQuery({
-    queryKey: ["admin-booking", id],
+    queryKey: ["booking", id],
     queryFn: async () => {
       if (!id) return null;
 
@@ -265,7 +265,7 @@ export function useUpdateBookingStatus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-booking"] });
+      queryClient.invalidateQueries({ queryKey: ["booking"] });
       toast.success("Booking status updated - customer notified");
     },
     onError: (error) => {

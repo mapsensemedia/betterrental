@@ -232,6 +232,7 @@ export type Database = {
       bookings: {
         Row: {
           actual_return_at: string | null
+          assigned_driver_id: string | null
           booking_code: string
           created_at: string
           daily_rate: number
@@ -256,6 +257,7 @@ export type Database = {
         }
         Insert: {
           actual_return_at?: string | null
+          assigned_driver_id?: string | null
           booking_code: string
           created_at?: string
           daily_rate: number
@@ -280,6 +282,7 @@ export type Database = {
         }
         Update: {
           actual_return_at?: string | null
+          assigned_driver_id?: string | null
           booking_code?: string
           created_at?: string
           daily_rate?: number
