@@ -263,35 +263,35 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
   };
 
   return (
-    <div className={cn("glass rounded-2xl p-4 sm:p-6 shadow-xl overflow-hidden", className)}>
+    <div className={cn("glass rounded-2xl p-4 sm:p-6 shadow-xl overflow-x-hidden", className)}>
       {/* Delivery Mode Toggle */}
       <div className="flex items-center gap-2 mb-6">
         <button
           onClick={() => handleDeliveryModeChange("pickup")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-medium transition-colors border",
+            "flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-full text-xs sm:text-sm font-medium transition-colors border min-w-0",
             deliveryMode === "pickup"
               ? "bg-foreground text-background border-foreground"
               : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
           )}
         >
-          <Building2 className="w-4 h-4" />
-          Pick up at location
+          <Building2 className="w-4 h-4 shrink-0" />
+          <span className="truncate">Pick up at location</span>
         </button>
         <button
           onClick={() => handleDeliveryModeChange("delivery")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-full text-sm font-medium transition-colors border relative",
+            "flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-full text-xs sm:text-sm font-medium transition-colors border relative min-w-0",
             deliveryMode === "delivery"
               ? "bg-foreground text-background border-foreground"
               : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
           )}
         >
-          <Truck className="w-4 h-4" />
-          Bring car to me
+          <Truck className="w-4 h-4 shrink-0" />
+          <span className="truncate">Bring car to me</span>
           <Badge 
             variant="destructive" 
-            className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0.5"
+            className="absolute -top-2 -right-1 text-[10px] px-1 py-0.5"
           >
             NEW
           </Badge>
@@ -299,18 +299,20 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
       </div>
 
       {/* Search Fields */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end overflow-hidden">
         {/* Location Field */}
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {deliveryMode === "pickup" ? "Pickup Location" : "Delivery Address"}
           </label>
           {deliveryMode === "pickup" ? (
             <Select value={locationId} onValueChange={handleLocationChange}>
-              <SelectTrigger className="h-12 rounded-xl border-border bg-background">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <SelectValue placeholder="Select pickup location" />
+              <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                <div className="flex items-center gap-2 min-w-0">
+                  <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="truncate">
+                    <SelectValue placeholder="Select pickup location" />
+                  </span>
                 </div>
               </SelectTrigger>
               <SelectContent>
@@ -318,7 +320,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
                   <SelectItem key={loc.id} value={loc.id}>
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{loc.name}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                         {loc.address}
                       </span>
                     </div>
@@ -337,12 +339,12 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </div>
 
         {/* Pickup Date */}
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {deliveryMode === "delivery" ? "Delivery Date" : "Pickup Date"}
           </label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
             <input
               type="date"
               min={today}
@@ -355,21 +357,23 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
                   setReturnDate(nextDay.toISOString().split("T")[0]);
                 }
               }}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             />
           </div>
         </div>
 
         {/* Pickup Time */}
-        <div className="space-y-2 overflow-hidden">
+        <div className="space-y-2 min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {deliveryMode === "delivery" ? "Delivery Time" : "Pickup Time"}
           </label>
           <Select value={pickupTime} onValueChange={setPickupTime}>
-            <SelectTrigger className="h-12 rounded-xl border-border bg-background">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <SelectValue placeholder="Select time" />
+            <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+              <div className="flex items-center gap-2 min-w-0">
+                <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="truncate">
+                  <SelectValue placeholder="Time" />
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
@@ -386,32 +390,34 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </div>
 
         {/* Return Date */}
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Return Date
           </label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
             <input
               type="date"
               min={pickupDate || today}
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             />
           </div>
         </div>
 
         {/* Return Time */}
-        <div className="space-y-2 overflow-hidden">
+        <div className="space-y-2 min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Return Time
           </label>
           <Select value={returnTime} onValueChange={setReturnTime}>
-            <SelectTrigger className="h-12 rounded-xl border-border bg-background">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <SelectValue placeholder="Select time" />
+            <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+              <div className="flex items-center gap-2 min-w-0">
+                <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="truncate">
+                  <SelectValue placeholder="Time" />
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>

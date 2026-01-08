@@ -8,9 +8,9 @@ interface CustomerLayoutProps {
 
 export function CustomerLayout({ children }: CustomerLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden">
       <TopNav />
-      <main className="pt-16">
+      <main className="pt-16 flex-1 overflow-x-hidden">
         {children}
       </main>
       <Footer />

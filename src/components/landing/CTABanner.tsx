@@ -33,7 +33,7 @@ export function CTABanner({ className }: CTABannerProps) {
             </div>
 
             {/* Buttons */}
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3">
               <Button 
                 asChild 
                 size="lg"
@@ -48,7 +48,7 @@ export function CTABanner({ className }: CTABannerProps) {
                 asChild 
                 variant="outline" 
                 size="lg"
-                className="border-background/30 text-background hover:bg-background/10 hover:text-background"
+                className="border-background/50 text-background bg-background/10 hover:bg-background/20 hover:text-background"
               >
                 <Link to="/contact">
                   Contact Us

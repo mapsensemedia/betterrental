@@ -166,15 +166,17 @@ export function DeliveryDetailsCard({
             <p className="font-medium text-purple-700 dark:text-purple-400">Delivery Address</p>
             <p className="text-muted-foreground">{pickupAddress}</p>
             {pickupLat && pickupLng && (
-              <a 
-                href={`https://www.google.com/maps?q=${pickupLat},${pickupLng}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-purple-600 hover:underline mt-1 inline-flex items-center gap-1"
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${pickupLat},${pickupLng}`, "_blank", "noopener,noreferrer");
+                }}
+                className="text-xs text-purple-600 hover:underline mt-1 inline-flex items-center gap-1 cursor-pointer"
               >
                 <Navigation className="h-3 w-3" />
-                Open in Maps
-              </a>
+                Get Directions
+              </button>
             )}
           </div>
         </div>

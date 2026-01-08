@@ -130,10 +130,13 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
 
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 }
 
@@ -170,6 +173,31 @@
   /* Container */
   .container-page {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    max-width: 100%;
+  }
+
+  @screen sm {
+    .container-page {
+      max-width: 640px;
+    }
+  }
+
+  @screen md {
+    .container-page {
+      max-width: 768px;
+    }
+  }
+
+  @screen lg {
+    .container-page {
+      max-width: 1024px;
+    }
+  }
+
+  @screen xl {
+    .container-page {
+      max-width: 1280px;
+    }
   }
 
   .section-spacing {
