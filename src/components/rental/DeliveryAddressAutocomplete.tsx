@@ -145,7 +145,7 @@ export function DeliveryAddressAutocomplete({
 
       {/* Suggestions dropdown */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden">
+        <div className="absolute z-[100] w-full mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
           {suggestions.map((suggestion) => (
             <button
               key={suggestion.id}
