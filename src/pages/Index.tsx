@@ -58,6 +58,9 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Why Choose Section */}
+      <WhyChooseSection />
+
       {/* Trending Vehicles Section */}
       <section className="py-20 bg-muted">
         <div className="container-page">
@@ -113,9 +116,6 @@ const Index = () => {
           )}
         </div>
       </section>
-
-      {/* Why Choose Section */}
-      <WhyChooseSection />
 
       {/* CTA Banner */}
       <CTABanner />
