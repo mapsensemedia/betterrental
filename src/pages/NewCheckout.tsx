@@ -1,8 +1,8 @@
 /**
  * NewCheckout - Full checkout page with driver info, payment, and booking summary
  */
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useNavigate, useSearchParams, Link, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ArrowLeft,
@@ -41,6 +41,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
+import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
 
 const TAX_RATE = 0.13; // 13% tax
 
@@ -60,11 +61,15 @@ const protectionRates: Record<string, { name: string; rate: number }> = {
 
 export default function NewCheckout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { searchData, rentalDays } = useRentalBooking();
   const { data: vehicles } = useVehicles();
   const { data: addOns = [] } = useAddOns();
+  const saveAbandonedCart = useSaveAbandonedCart();
+  const markCartConverted = useMarkCartConverted();
+  const hasCompletedBooking = useRef(false);
 
   // URL params
   const vehicleId = searchParams.get("vehicleId") || searchData.selectedVehicleId;
@@ -97,6 +102,13 @@ export default function NewCheckout() {
 
   const vehicle = vehicles?.find((v) => v.id === vehicleId);
 
+  // Update email when user loads
+  useEffect(() => {
+    if (user?.email && !formData.email) {
+      setFormData(prev => ({ ...prev, email: user.email || "" }));
+    }
+  }, [user?.email]);
+
   // Calculate pricing
   const pricing = useMemo(() => {
     const vehicleTotal = (vehicle?.dailyRate || 0) * rentalDays;
@@ -124,11 +136,68 @@ export default function NewCheckout() {
     };
   }, [vehicle, rentalDays, protection, addOns, addOnIds, searchData]);
 
+  // Save abandoned cart when user leaves with info filled in
+  const saveCartData = useCallback(() => {
+    if (hasCompletedBooking.current) return; // Don't save if booking completed
+    
+    // Only save if user has entered some data
+    const hasContactInfo = formData.email || formData.phone || formData.firstName || formData.lastName;
+    const hasVehicle = vehicleId;
+    
+    if (!hasContactInfo && !hasVehicle) return;
+    
+    const locationId = searchData.deliveryMode === "delivery"
+      ? searchData.closestPickupCenterId
+      : searchData.pickupLocationId;
+    
+    saveAbandonedCart.mutate({
+      email: formData.email || undefined,
+      phone: formData.phone ? `${formData.countryCode}${formData.phone}` : undefined,
+      firstName: formData.firstName || undefined,
+      lastName: formData.lastName || undefined,
+      vehicleId: vehicleId || undefined,
+      pickupDate: searchData.pickupDate?.toISOString(),
+      returnDate: searchData.returnDate?.toISOString(),
+      locationId: locationId && /^[0-9a-f-]{36}$/i.test(locationId) ? locationId : undefined,
+      deliveryMode: searchData.deliveryMode || undefined,
+      deliveryAddress: searchData.deliveryAddress || undefined,
+      protection,
+      addOnIds: addOnIds.length > 0 ? addOnIds : undefined,
+      totalAmount: pricing.total,
+      fullCartData: {
+        formData: { ...formData, cardNumber: undefined, cvv: undefined }, // Exclude sensitive data
+        searchData,
+        protection,
+        addOnIds,
+        rentalDays,
+      },
+    });
+  }, [formData, vehicleId, searchData, protection, addOnIds, pricing.total, rentalDays, saveAbandonedCart]);
+
+  // Save cart on page unload or visibility change
+  useEffect(() => {
+    const handleBeforeUnload = () => saveCartData();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') saveCartData();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [saveCartData]);
+
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleBack = () => {
+    // Save cart when navigating away
+    saveCartData();
+    
     const params = new URLSearchParams();
     if (vehicleId) params.set("vehicleId", vehicleId);
     if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
@@ -177,8 +246,13 @@ export default function NewCheckout() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
+        // Save cart before redirecting to auth
+        saveCartData();
+        
+        // Construct return URL with all current state
+        const currentUrl = `${location.pathname}${location.search}`;
         toast({ title: "Please sign in to complete booking", variant: "destructive" });
-        navigate("/auth");
+        navigate(`/auth?returnUrl=${encodeURIComponent(currentUrl)}`);
         return;
       }
 
@@ -208,6 +282,10 @@ export default function NewCheckout() {
         .single();
 
       if (error) throw error;
+
+      // Mark abandoned cart as converted
+      hasCompletedBooking.current = true;
+      markCartConverted.mutate(booking.id);
 
       // Add selected add-ons to booking
       if (addOnIds.length > 0) {
