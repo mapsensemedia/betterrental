@@ -80,9 +80,10 @@ interface RentalBookingContextType {
   pickupLocations: RentalLocation[];
 }
 
-const RentalBookingContext = createContext<RentalBookingContextType | undefined>(undefined);
-
 const STORAGE_KEY = "c2c_rental_context";
+
+// Create context with a proper undefined check that will be handled by the provider
+const RentalBookingContext = createContext<RentalBookingContextType | null>(null);
 
 const defaultSearchData: RentalSearchData = {
   pickupLocationId: null,
@@ -349,7 +350,7 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
 
 export function useRentalBooking() {
   const context = useContext(RentalBookingContext);
-  if (context === undefined) {
+  if (context === null) {
     throw new Error("useRentalBooking must be used within a RentalBookingProvider");
   }
   return context;
