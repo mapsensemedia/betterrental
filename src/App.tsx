@@ -37,6 +37,7 @@ import AdminActiveRentals from "./pages/admin/ActiveRentals";
 import ActiveRentalDetail from "./pages/admin/ActiveRentalDetail";
 import BookingOps from "./pages/admin/BookingOps";
 import ReturnOps from "./pages/admin/ReturnOps";
+import AbandonedCarts from "./pages/admin/AbandonedCarts";
 
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
@@ -95,6 +96,7 @@ const App = () => (
             <Route path="/admin/calendar" element={<AdminProtectedRoute><AdminCalendar /></AdminProtectedRoute>} />
             <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
             <Route path="/admin/tickets" element={<AdminProtectedRoute><AdminTickets /></AdminProtectedRoute>} />
+            <Route path="/admin/abandoned-carts" element={<AdminProtectedRoute><AbandonedCarts /></AdminProtectedRoute>} />
             <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
 
             {/* Redirects for removed nav items */}

@@ -14,6 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
+      abandoned_carts: {
+        Row: {
+          abandoned_at: string
+          add_on_ids: string[] | null
+          cart_data: Json | null
+          contact_notes: string | null
+          contacted_at: string | null
+          converted_at: string | null
+          created_at: string
+          delivery_address: string | null
+          delivery_mode: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          location_id: string | null
+          phone: string | null
+          pickup_date: string | null
+          protection: string | null
+          return_date: string | null
+          session_id: string
+          total_amount: number | null
+          updated_at: string
+          user_id: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          abandoned_at?: string
+          add_on_ids?: string[] | null
+          cart_data?: Json | null
+          contact_notes?: string | null
+          contacted_at?: string | null
+          converted_at?: string | null
+          created_at?: string
+          delivery_address?: string | null
+          delivery_mode?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          location_id?: string | null
+          phone?: string | null
+          pickup_date?: string | null
+          protection?: string | null
+          return_date?: string | null
+          session_id: string
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          abandoned_at?: string
+          add_on_ids?: string[] | null
+          cart_data?: Json | null
+          contact_notes?: string | null
+          contacted_at?: string | null
+          converted_at?: string | null
+          created_at?: string
+          delivery_address?: string | null
+          delivery_mode?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          location_id?: string | null
+          phone?: string | null
+          pickup_date?: string | null
+          protection?: string | null
+          return_date?: string | null
+          session_id?: string
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abandoned_carts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abandoned_carts_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       add_ons: {
         Row: {
           created_at: string
