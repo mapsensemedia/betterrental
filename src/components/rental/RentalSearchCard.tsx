@@ -15,7 +15,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -70,8 +70,11 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
   const [deliveryAddress, setLocalDeliveryAddress] = useState(
     searchData.deliveryAddress || ""
   );
-  const [ageConfirmed, setLocalAgeConfirmed] = useState(searchData.ageConfirmed);
+  const [ageRange, setLocalAgeRange] = useState<"21-25" | "25-70" | null>(searchData.ageRange);
 
+  // Form validation state
+  const [showAgeError, setShowAgeError] = useState(false);
+  
   // Delivery state
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
@@ -108,7 +111,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     setReturnTime(searchData.returnTime);
     setLocalDeliveryMode(searchData.deliveryMode);
     setLocalDeliveryAddress(searchData.deliveryAddress || "");
-    setLocalAgeConfirmed(searchData.ageConfirmed);
+    setLocalAgeRange(searchData.ageRange);
 
     // Restore delivery coords if available
     if (searchData.deliveryLat && searchData.deliveryLng && searchData.closestPickupCenterId) {
@@ -148,10 +151,11 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     }
   };
 
-  // Handle age confirmation
-  const handleAgeConfirmedChange = (checked: boolean) => {
-    setLocalAgeConfirmed(checked);
-    setAgeConfirmed(checked);
+  // Handle age range selection
+  const handleAgeRangeChange = (range: "21-25" | "25-70") => {
+    setLocalAgeRange(range);
+    setAgeConfirmed(true, range);
+    setShowAgeError(false);
   };
 
   // Handle address selection from autocomplete
@@ -236,12 +240,8 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
       return;
     }
 
-    if (!ageConfirmed) {
-      toast({
-        title: "Age confirmation required",
-        description: "Please confirm you are between 25-70 years old",
-        variant: "destructive",
-      });
+    if (!ageRange) {
+      setShowAgeError(true);
       return;
     }
 
@@ -474,18 +474,39 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
 
       {/* Age Confirmation & Search Button */}
       <div className="flex flex-col gap-4 mt-6 pt-4 border-t border-border/50">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="ageConfirm"
-            checked={ageConfirmed}
-            onCheckedChange={(checked) => handleAgeConfirmedChange(checked as boolean)}
-          />
-          <Label
-            htmlFor="ageConfirm"
-            className="text-sm text-muted-foreground cursor-pointer"
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Label className={cn(
+              "text-sm font-medium",
+              showAgeError ? "text-destructive" : "text-foreground"
+            )}>
+              Driver's Age <span className="text-destructive">*</span>
+            </Label>
+          </div>
+          <RadioGroup
+            value={ageRange || ""}
+            onValueChange={(value) => handleAgeRangeChange(value as "21-25" | "25-70")}
+            className="flex flex-wrap gap-4"
           >
-            I confirm the driver is between 25-70 years old
-          </Label>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="25-70" id="age-25-70" />
+              <Label htmlFor="age-25-70" className="text-sm text-muted-foreground cursor-pointer">
+                25-70 years old
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="21-25" id="age-21-25" />
+              <Label htmlFor="age-21-25" className="text-sm text-muted-foreground cursor-pointer">
+                21-25 years old <span className="text-xs text-amber-600">(Young driver fee applies)</span>
+              </Label>
+            </div>
+          </RadioGroup>
+          {showAgeError && (
+            <p className="text-xs text-destructive flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              Please select your age range to continue
+            </p>
+          )}
         </div>
 
         <Button

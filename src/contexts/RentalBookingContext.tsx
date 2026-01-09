@@ -41,6 +41,7 @@ export interface RentalSearchData {
   
   // Age confirmation
   ageConfirmed: boolean;
+  ageRange: "21-25" | "25-70" | null;
   
   // Selected vehicle
   selectedVehicleId: string | null;
@@ -61,7 +62,7 @@ interface RentalBookingContextType {
   setDeliveryAddress: (address: string | null, lat: number | null, lng: number | null, placeName: string | null) => void;
   setDeliveryDetails: (fee: number, distanceKm: number | null, eta: string | null) => void;
   setClosestCenter: (id: string | null, name: string | null, address: string | null) => void;
-  setAgeConfirmed: (confirmed: boolean) => void;
+  setAgeConfirmed: (confirmed: boolean, range?: "21-25" | "25-70" | null) => void;
   setSelectedVehicle: (vehicleId: string | null) => void;
   setSelectedAddOns: (addOnIds: string[]) => void;
   toggleAddOn: (addOnId: string) => void;
@@ -104,6 +105,7 @@ const defaultSearchData: RentalSearchData = {
   closestPickupCenterName: null,
   closestPickupCenterAddress: null,
   ageConfirmed: false,
+  ageRange: null,
   selectedVehicleId: null,
   selectedAddOnIds: [],
 };
@@ -234,10 +236,11 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
   );
 
   // Set age confirmed
-  const setAgeConfirmed = useCallback((confirmed: boolean) => {
+  const setAgeConfirmed = useCallback((confirmed: boolean, range?: "21-25" | "25-70" | null) => {
     setSearchData((prev) => ({
       ...prev,
       ageConfirmed: confirmed,
+      ageRange: range ?? prev.ageRange,
     }));
   }, []);
 
