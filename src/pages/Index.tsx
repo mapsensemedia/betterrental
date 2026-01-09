@@ -5,7 +5,6 @@ import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { VehicleCard } from "@/components/landing/VehicleCard";
 
 import { SectionHeader } from "@/components/landing/SectionHeader";
-import { TrustStrip } from "@/components/landing/TrustStrip";
 import { WhyChooseSection } from "@/components/landing/WhyChooseSection";
 import { CTABanner } from "@/components/landing/CTABanner";
 import { LocationsSection } from "@/components/landing/LocationsSection";
@@ -58,9 +57,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-
-      {/* Features Section (Trust Strip) */}
-      <TrustStrip />
 
       {/* Trending Vehicles Section */}
       <section className="py-20 bg-muted">
