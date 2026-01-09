@@ -1,9 +1,9 @@
-import { Calendar, Crown, Clock, Receipt, ArrowUpRight } from "lucide-react";
+import { CalendarDays, Crown, Clock, ReceiptText, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const features = [
   {
-    icon: Calendar,
+    icon: CalendarDays,
     title: "Seamless Booking",
     description: "Book online in minutes with our streamlined process",
   },
@@ -18,7 +18,7 @@ const features = [
     description: "Free cancellation up to 24 hours before pickup",
   },
   {
-    icon: Receipt,
+    icon: ReceiptText,
     title: "No Hidden Fees",
     description: "Transparent pricing with everything included",
   },
@@ -45,14 +45,6 @@ export function WhyChooseSection({ className }: WhyChooseSectionProps) {
               className="group relative aspect-[4/3] rounded-2xl overflow-hidden bg-foreground animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              {/* Gradient Overlay for depth */}
-              <div className="absolute inset-0 bg-gradient-to-br from-foreground via-foreground/95 to-foreground/80" />
-              
-              {/* Icon as subtle background element */}
-              <div className="absolute bottom-4 left-4 opacity-10">
-                <feature.icon className="w-24 h-24 text-background" />
-              </div>
-
               {/* Content */}
               <div className="absolute inset-0 p-5 flex flex-col justify-between">
                 {/* Title & Description at top */}
@@ -60,13 +52,20 @@ export function WhyChooseSection({ className }: WhyChooseSectionProps) {
                   <h3 className="text-xl font-semibold text-background mb-2">
                     {feature.title}
                   </h3>
-                  <p className="text-sm text-background/70 leading-relaxed">
+                  <p className="text-sm text-background/60 leading-relaxed">
                     {feature.description}
                   </p>
                 </div>
 
-                {/* Arrow Button at bottom right */}
-                <div className="flex justify-end">
+                {/* Icon at bottom left, Arrow at bottom right */}
+                <div className="flex items-end justify-between">
+                  {/* Large outline icon */}
+                  <feature.icon 
+                    className="w-16 h-16 text-background/30" 
+                    strokeWidth={1}
+                  />
+                  
+                  {/* Arrow Button */}
                   <div className="w-10 h-10 rounded-full bg-background/20 flex items-center justify-center transition-all duration-300 group-hover:bg-background/30 group-hover:scale-110">
                     <ArrowUpRight className="w-5 h-5 text-background" />
                   </div>
