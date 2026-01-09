@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "@/hooks/use-locations";
 import { useVehiclesByLocation } from "@/hooks/use-availability";
-
+import { LocationsMap } from "@/components/shared/LocationsMap";
 export default function LocationDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: location, isLoading: locationLoading } = useLocation(id || null);
@@ -72,34 +72,25 @@ export default function LocationDetail() {
 
         <div className="grid lg:grid-cols-2 gap-8 mb-12">
           {/* Map Section */}
-          <div className="relative h-80 lg:h-auto min-h-[320px] rounded-2xl overflow-hidden bg-muted">
-            {location.lat && location.lng ? (
-              <>
-                {/* Static map fallback */}
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <div className="text-center">
-                    <MapPin className="w-12 h-12 text-primary mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {location.address}, {location.city}
-                    </p>
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={getDirectionsUrl()} target="_blank" rel="noopener noreferrer">
-                        <Navigation className="w-4 h-4 mr-2" />
-                        Open in Google Maps
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">Map unavailable</p>
-                </div>
+          {location.lat && location.lng ? (
+            <LocationsMap 
+              locations={[{
+                id: location.id,
+                name: location.name,
+                address: location.address,
+                lat: location.lat,
+                lng: location.lng,
+              }]}
+              className="h-80 lg:h-auto min-h-[320px]"
+            />
+          ) : (
+            <div className="relative h-80 lg:h-auto min-h-[320px] rounded-2xl overflow-hidden bg-muted flex items-center justify-center">
+              <div className="text-center">
+                <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Map unavailable</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Location Details */}
           <div className="space-y-6">
@@ -165,11 +156,16 @@ export default function LocationDetail() {
               )}
             </div>
 
-            <Button className="w-full" size="lg" asChild>
-              <a href={getDirectionsUrl()} target="_blank" rel="noopener noreferrer">
-                <Navigation className="w-4 h-4 mr-2" />
-                Get Directions
-              </a>
+            <Button 
+              className="w-full" 
+              size="lg" 
+              onClick={() => {
+                const url = getDirectionsUrl();
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+            >
+              <Navigation className="w-4 h-4 mr-2" />
+              Get Directions
             </Button>
           </div>
         </div>

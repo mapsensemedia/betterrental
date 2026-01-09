@@ -76,7 +76,7 @@ export function VehicleCard({
   return (
     <div
       className={cn(
-        "group rounded-2xl overflow-hidden transition-all duration-200 flex flex-col",
+        "group rounded-2xl overflow-hidden transition-all duration-200 flex flex-col h-full",
         isDark
           ? "bg-foreground text-background"
           : "bg-card border border-border hover:shadow-lg hover:-translate-y-0.5",
