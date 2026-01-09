@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { VehicleCard } from "@/components/landing/VehicleCard";
-import { CategoryCard } from "@/components/landing/CategoryCard";
+
 import { SectionHeader } from "@/components/landing/SectionHeader";
 import { TrustStrip } from "@/components/landing/TrustStrip";
 import { WhyChooseSection } from "@/components/landing/WhyChooseSection";
@@ -15,17 +15,6 @@ import { useVehicles } from "@/hooks/use-vehicles";
 
 // Images
 import heroImage from "@/assets/hero-car.jpg";
-import mercedesCat from "@/assets/categories/mercedes.jpg";
-import audiCat from "@/assets/categories/audi.jpg";
-import bmwCat from "@/assets/categories/bmw.jpg";
-import porscheCat from "@/assets/categories/porsche.jpg";
-
-const categories = [
-  { name: "Mercedes-Benz", slug: "mercedes", imageUrl: mercedesCat },
-  { name: "Audi", slug: "audi", imageUrl: audiCat },
-  { name: "BMW", slug: "bmw", imageUrl: bmwCat },
-  { name: "Porsche", slug: "porsche", imageUrl: porscheCat },
-];
 
 const Index = () => {
   const { data: vehicles = [], isLoading } = useVehicles();
@@ -70,21 +59,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="section-spacing bg-background">
-        <div className="container-page">
-          <SectionHeader title="Browse by Brand" />
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {categories.map((category) => (
-              <CategoryCard
-                key={category.slug}
-                {...category}
-                className="animate-fade-in"
-              />
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Features Section (Trust Strip) */}
+      <TrustStrip />
 
       {/* Trending Vehicles Section */}
       <section className="py-20 bg-muted">
@@ -151,8 +127,6 @@ const Index = () => {
       {/* Our Locations Section */}
       <LocationsSection />
 
-      {/* Trust Strip */}
-      <TrustStrip />
     </CustomerLayout>
   );
 };

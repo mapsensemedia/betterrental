@@ -299,9 +299,9 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
       </div>
 
       {/* Search Fields */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end overflow-hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
         {/* Location Field */}
-        <div className="space-y-2 min-w-0">
+        <div className="space-y-2 min-w-0 relative z-20">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {deliveryMode === "pickup" ? "Pickup Location" : "Delivery Address"}
           </label>
@@ -434,6 +434,17 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </div>
       </div>
 
+      {/* Delivery Pricing Display - Show above when address selected */}
+      {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
+        <div className="mt-4">
+          <DeliveryPricingDisplay
+            fee={searchData.deliveryFee}
+            distanceKm={searchData.deliveryDistanceKm}
+            eta={searchData.deliveryEta}
+          />
+        </div>
+      )}
+
       {/* Delivery Info Banner */}
       {deliveryMode === "delivery" && searchData.closestPickupCenterName && !deliveryError && (
         <div className="mt-4 p-3 rounded-xl bg-success/10 border border-success/20 flex items-center gap-3">
@@ -479,7 +490,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
 
         <Button
           onClick={handleSearch}
-          className="h-12 px-8 w-full sm:w-auto"
+          className="h-12 px-8 w-full"
           variant="default"
         >
           <Search className="w-4 h-4 mr-2" />
@@ -487,9 +498,9 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </Button>
       </div>
 
-      {/* Delivery Map */}
+      {/* Delivery Map - Below the search button */}
       {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6">
           <DeliveryMap
             customerLat={deliveryCoords.lat}
             customerLng={deliveryCoords.lng}
@@ -497,13 +508,6 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
             dealershipLng={closestDealership.lng}
             dealershipName={closestDealership.name}
             onRouteCalculated={handleRouteCalculated}
-          />
-          
-          {/* Delivery Pricing Display */}
-          <DeliveryPricingDisplay
-            fee={searchData.deliveryFee}
-            distanceKm={searchData.deliveryDistanceKm}
-            eta={searchData.deliveryEta}
           />
         </div>
       )}
