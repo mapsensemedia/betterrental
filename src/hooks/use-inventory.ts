@@ -266,31 +266,81 @@ export function useDeleteVehicle() {
 
   return useMutation({
     mutationFn: async (vehicleId: string) => {
-      // Note: We don't actually delete, just mark as unavailable
-      // since there may be historical bookings
-      const { data, error } = await supabase
+      // First, delete all related data in order to avoid foreign key violations
+      
+      // Get all booking IDs for this vehicle
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("vehicle_id", vehicleId);
+      
+      const bookingIds = bookings?.map(b => b.id) || [];
+      
+      if (bookingIds.length > 0) {
+        // Delete booking-related data
+        await supabase.from("booking_add_ons").delete().in("booking_id", bookingIds);
+        await supabase.from("condition_photos").delete().in("booking_id", bookingIds);
+        await supabase.from("walkaround_inspections").delete().in("booking_id", bookingIds);
+        await supabase.from("rental_agreements").delete().in("booking_id", bookingIds);
+        await supabase.from("checkin_records").delete().in("booking_id", bookingIds);
+        await supabase.from("inspection_metrics").delete().in("booking_id", bookingIds);
+        await supabase.from("payments").delete().in("booking_id", bookingIds);
+        await supabase.from("verification_requests").delete().in("booking_id", bookingIds);
+        await supabase.from("booking_otps").delete().in("booking_id", bookingIds);
+        await supabase.from("notification_logs").delete().in("booking_id", bookingIds);
+        await supabase.from("admin_alerts").delete().in("booking_id", bookingIds);
+        
+        // Delete ticket messages for tickets related to these bookings
+        const { data: tickets } = await supabase
+          .from("tickets")
+          .select("id")
+          .in("booking_id", bookingIds);
+        
+        if (tickets && tickets.length > 0) {
+          await supabase.from("ticket_messages").delete().in("ticket_id", tickets.map(t => t.id));
+        }
+        await supabase.from("tickets").delete().in("booking_id", bookingIds);
+        
+        // Delete receipt events for receipts related to these bookings
+        const { data: receipts } = await supabase
+          .from("receipts")
+          .select("id")
+          .in("booking_id", bookingIds);
+        
+        if (receipts && receipts.length > 0) {
+          await supabase.from("receipt_events").delete().in("receipt_id", receipts.map(r => r.id));
+        }
+        await supabase.from("receipts").delete().in("booking_id", bookingIds);
+        
+        // Delete bookings
+        await supabase.from("bookings").delete().in("id", bookingIds);
+      }
+      
+      // Delete vehicle-related data
+      await supabase.from("admin_alerts").delete().eq("vehicle_id", vehicleId);
+      await supabase.from("damage_reports").delete().eq("vehicle_id", vehicleId);
+      await supabase.from("audit_logs").delete().eq("entity_id", vehicleId).eq("entity_type", "vehicles");
+      
+      // Finally delete the vehicle
+      const { error } = await supabase
         .from("vehicles")
-        .update({ is_available: false })
-        .eq("id", vehicleId)
-        .select()
-        .single();
+        .delete()
+        .eq("id", vehicleId);
 
       if (error) throw error;
 
-      await createAuditLog("vehicle_deactivated", "vehicles", vehicleId, undefined, {
-        is_available: false,
-      } as any);
-
-      return data;
+      return { id: vehicleId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-vehicles"] });
       queryClient.invalidateQueries({ queryKey: ["admin-calendar"] });
-      toast.success("Vehicle removed from inventory");
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      queryClient.invalidateQueries({ queryKey: ["featured-vehicles"] });
+      toast.success("Vehicle permanently deleted");
     },
     onError: (error) => {
       console.error("Failed to delete vehicle:", error);
-      toast.error("Failed to remove vehicle");
+      toast.error("Failed to delete vehicle");
     },
   });
 }
