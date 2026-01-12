@@ -6,6 +6,7 @@ import { useAdminAlerts } from "@/hooks/use-alerts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
+import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
 import {
   Car,
   Calendar,
@@ -328,6 +329,9 @@ export default function AdminOverview() {
 
             {/* Active Rentals Monitor - Always visible */}
             <ActiveRentalsMonitor />
+
+            {/* Analytics Panel */}
+            <AnalyticsPanel />
 
             {/* Upcoming Summary */}
             <div className="grid md:grid-cols-2 gap-6">
