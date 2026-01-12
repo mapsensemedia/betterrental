@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ import { ShieldAlert, Upload, X, Loader2 } from "lucide-react";
 import { useCreateDamage } from "@/hooks/use-damages";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 interface DamageReportDialogProps {
   open: boolean;
@@ -57,13 +58,33 @@ const VEHICLE_LOCATIONS = [
   "Other",
 ];
 
+// Fetch recent bookings for a vehicle
+function useVehicleBookings(vehicleId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["vehicle-bookings", vehicleId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("id, booking_code, start_at, end_at, status")
+        .eq("vehicle_id", vehicleId)
+        .in("status", ["confirmed", "active", "completed"])
+        .order("start_at", { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled,
+  });
+}
+
 export function DamageReportDialog({
   open,
   onOpenChange,
   vehicleId,
   vehicleName,
-  bookingId,
-  bookingCode,
+  bookingId: initialBookingId,
+  bookingCode: initialBookingCode,
 }: DamageReportDialogProps) {
   const [description, setDescription] = useState("");
   const [locationOnVehicle, setLocationOnVehicle] = useState("");
@@ -71,8 +92,21 @@ export function DamageReportDialog({
   const [estimatedCost, setEstimatedCost] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState(initialBookingId || "");
+
+  const { data: vehicleBookings, isLoading: loadingBookings } = useVehicleBookings(
+    vehicleId,
+    open && !initialBookingId
+  );
 
   const createDamage = useCreateDamage();
+
+  // Reset selected booking when dialog opens with initial value
+  useEffect(() => {
+    if (open && initialBookingId) {
+      setSelectedBookingId(initialBookingId);
+    }
+  }, [open, initialBookingId]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -115,9 +149,14 @@ export function DamageReportDialog({
   const handleSubmit = () => {
     if (!description.trim() || !locationOnVehicle) return;
 
+    if (!selectedBookingId) {
+      toast.error("Please select a booking to associate with this damage");
+      return;
+    }
+
     createDamage.mutate({
       vehicleId,
-      bookingId: bookingId || "",
+      bookingId: selectedBookingId,
       description: description.trim(),
       locationOnVehicle,
       severity,
@@ -131,13 +170,16 @@ export function DamageReportDialog({
         setSeverity("minor");
         setEstimatedCost("");
         setPhotoUrls([]);
+        setSelectedBookingId("");
       }
     });
   };
 
+  const showBookingSelector = !initialBookingId;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldAlert className="w-5 h-5 text-red-500" />
@@ -145,11 +187,39 @@ export function DamageReportDialog({
           </DialogTitle>
           <DialogDescription>
             {vehicleName}
-            {bookingCode && <span className="ml-2 font-mono text-xs">({bookingCode})</span>}
+            {initialBookingCode && <span className="ml-2 font-mono text-xs">({initialBookingCode})</span>}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Booking Selector - shown when no booking is pre-selected */}
+          {showBookingSelector && (
+            <div>
+              <Label>Associated Booking *</Label>
+              <Select value={selectedBookingId} onValueChange={setSelectedBookingId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingBookings ? "Loading bookings..." : "Select booking..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicleBookings?.length === 0 && (
+                    <SelectItem value="none" disabled>No bookings found</SelectItem>
+                  )}
+                  {vehicleBookings?.map(booking => (
+                    <SelectItem key={booking.id} value={booking.id}>
+                      <span className="font-mono">{booking.booking_code}</span>
+                      <span className="text-muted-foreground ml-2 text-xs">
+                        ({booking.status})
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Select the booking during which this damage occurred
+              </p>
+            </div>
+          )}
+
           <div>
             <Label>Location on Vehicle *</Label>
             <Select value={locationOnVehicle} onValueChange={setLocationOnVehicle}>
@@ -249,7 +319,7 @@ export function DamageReportDialog({
           </Button>
           <Button 
             onClick={handleSubmit}
-            disabled={!description.trim() || !locationOnVehicle || createDamage.isPending}
+            disabled={!description.trim() || !locationOnVehicle || !selectedBookingId || createDamage.isPending}
             variant="destructive"
           >
             {createDamage.isPending ? "Submitting..." : "Report Damage"}
