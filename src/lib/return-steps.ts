@@ -3,8 +3,7 @@
 export type ReturnStepId = 
   | "intake"
   | "evidence"
-  | "flags"
-  | "fees"
+  | "issues"
   | "closeout"
   | "deposit";
 
@@ -32,29 +31,22 @@ export const RETURN_STEPS: ReturnStep[] = [
     icon: "camera",
   },
   {
-    id: "flags",
+    id: "issues",
     number: 3,
-    title: "Flags & Issues",
-    description: "Review any flagged issues or late returns",
-    icon: "flag",
-  },
-  {
-    id: "fees",
-    number: 4,
-    title: "Fees & Damages",
-    description: "Add additional fees or damage charges",
-    icon: "dollar-sign",
+    title: "Issues & Damages",
+    description: "Review flags, issues, and report any damages",
+    icon: "alert-triangle",
   },
   {
     id: "closeout",
-    number: 5,
+    number: 4,
     title: "Closeout",
     description: "Complete the return and update booking status",
     icon: "check-circle",
   },
   {
     id: "deposit",
-    number: 6,
+    number: 5,
     title: "Deposit Release",
     description: "Release or withhold security deposit",
     icon: "wallet",
@@ -70,10 +62,7 @@ export interface ReturnCompletion {
   evidence: {
     photosComplete: boolean;
   };
-  flags: {
-    reviewed: boolean;
-  };
-  fees: {
+  issues: {
     reviewed: boolean;
     damagesRecorded: boolean;
   };
@@ -91,10 +80,8 @@ export function checkReturnStepComplete(stepId: ReturnStepId, completion: Return
       return completion.intake.timeRecorded || completion.intake.odometerRecorded || completion.intake.fuelRecorded;
     case "evidence":
       return completion.evidence.photosComplete;
-    case "flags":
-      return completion.flags.reviewed;
-    case "fees":
-      return completion.fees.reviewed;
+    case "issues":
+      return completion.issues.reviewed;
     case "closeout":
       return completion.closeout.completed;
     case "deposit":
@@ -115,11 +102,8 @@ export function getReturnMissingItems(stepId: ReturnStepId, completion: ReturnCo
     case "evidence":
       if (!completion.evidence.photosComplete) missing.push("Return photos");
       break;
-    case "flags":
-      if (!completion.flags.reviewed) missing.push("Issue review");
-      break;
-    case "fees":
-      if (!completion.fees.reviewed) missing.push("Fees review");
+    case "issues":
+      if (!completion.issues.reviewed) missing.push("Issues review");
       break;
     case "closeout":
       if (!completion.closeout.completed) missing.push("Return completion");
