@@ -1,13 +1,11 @@
 /**
- * Full Analytics Page for Admin Dashboard
- * Shows complete conversion funnel, detailed metrics, and trends
+ * Analytics Dashboard - Clean, minimal layout matching admin style
  */
 import { useState, useMemo } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import {
   BarChart3,
   TrendingUp,
-  TrendingDown,
   Eye,
   MousePointerClick,
   ShoppingCart,
@@ -19,15 +17,12 @@ import {
   Shield,
   Gift,
   CreditCard,
-  Calendar,
-  Filter,
-  Download,
   ArrowRight,
+  MapPin,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -37,18 +32,19 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { getAnalyticsData, clearAnalyticsData, type AnalyticsEvent } from "@/lib/analytics";
-import { format, subDays, isAfter, startOfDay, eachDayOfInterval } from "date-fns";
+import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
+import { useLocations } from "@/hooks/use-locations";
+import { format, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 
 // Full funnel stages
 const FUNNEL_STAGES = [
   { key: "search_performed", label: "Search", icon: Search, color: "hsl(var(--primary))" },
-  { key: "vehicle_viewed", label: "Vehicle Viewed", icon: Eye, color: "#3b82f6" },
+  { key: "vehicle_viewed", label: "Viewed", icon: Eye, color: "#3b82f6" },
   { key: "vehicle_selected", label: "Selected", icon: MousePointerClick, color: "#8b5cf6" },
   { key: "protection_selected", label: "Protection", icon: Shield, color: "#6366f1" },
   { key: "addons_selected", label: "Add-ons", icon: Gift, color: "#ec4899" },
   { key: "checkout_started", label: "Checkout", icon: ShoppingCart, color: "#f97316" },
-  { key: "checkout_payment_method_selected", label: "Payment Method", icon: CreditCard, color: "#eab308" },
+  { key: "checkout_payment_method_selected", label: "Payment", icon: CreditCard, color: "#eab308" },
   { key: "booking_completed", label: "Completed", icon: CheckCircle, color: "#22c55e" },
 ] as const;
 
@@ -57,12 +53,17 @@ const chartConfig = {
   conversions: { label: "Conversions", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig;
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
+const COLORS = ["hsl(var(--primary))", "#22c55e", "#f97316", "#8b5cf6", "#3b82f6", "#ec4899"];
+
+type DateFilter = "today" | "week" | "month" | "all";
 
 export default function AdminAnalytics() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [dateRange, setDateRange] = useState<"7d" | "14d" | "30d" | "all">("7d");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("week");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
+
+  const { data: locations } = useLocations();
 
   const data = useMemo(() => {
     return getAnalyticsData();
@@ -77,7 +78,7 @@ export default function AdminAnalytics() {
   };
 
   const handleClearData = () => {
-    if (confirm("Are you sure you want to clear all analytics data? This cannot be undone.")) {
+    if (confirm("Clear all analytics data? This cannot be undone.")) {
       clearAnalyticsData();
       setRefreshKey((k) => k + 1);
     }
@@ -85,11 +86,21 @@ export default function AdminAnalytics() {
 
   // Filter events by date range
   const filteredEvents = useMemo(() => {
-    if (dateRange === "all") return data.events;
-    const days = dateRange === "7d" ? 7 : dateRange === "14d" ? 14 : 30;
-    const cutoff = subDays(new Date(), days);
-    return data.events.filter((e) => isAfter(new Date(e.timestamp), cutoff));
-  }, [data.events, dateRange]);
+    let events = data.events;
+    
+    if (dateFilter === "today") {
+      events = events.filter((e) => isToday(new Date(e.timestamp)));
+    } else if (dateFilter === "week") {
+      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+      events = events.filter((e) => isAfter(new Date(e.timestamp), weekStart));
+    } else if (dateFilter === "month") {
+      const monthStart = startOfMonth(new Date());
+      events = events.filter((e) => isAfter(new Date(e.timestamp), monthStart));
+    }
+    
+    // Location filter would apply here if events had location data
+    return events;
+  }, [data.events, dateFilter, locationFilter]);
 
   // Calculate funnel stats
   const funnelStats = useMemo(() => {
@@ -105,12 +116,7 @@ export default function AdminAnalytics() {
       const prevCount = idx > 0 ? funnelStats[idx - 1].count : stage.count;
       const dropoff = prevCount > 0 ? ((prevCount - stage.count) / prevCount) * 100 : 0;
       const conversion = prevCount > 0 ? (stage.count / prevCount) * 100 : 0;
-      return {
-        ...stage,
-        dropoff,
-        conversion,
-        prevCount,
-      };
+      return { ...stage, dropoff, conversion, prevCount };
     });
   }, [funnelStats]);
 
@@ -123,7 +129,7 @@ export default function AdminAnalytics() {
 
   // Daily trend data
   const dailyTrend = useMemo(() => {
-    const days = dateRange === "7d" ? 7 : dateRange === "14d" ? 14 : dateRange === "30d" ? 30 : 7;
+    const days = dateFilter === "today" ? 1 : dateFilter === "week" ? 7 : dateFilter === "month" ? 30 : 7;
     const interval = eachDayOfInterval({
       start: subDays(new Date(), days - 1),
       end: new Date(),
@@ -143,10 +149,9 @@ export default function AdminAnalytics() {
         date: format(date, "MMM d"),
         views: dayEvents.filter((e) => e.event === "vehicle_viewed").length,
         conversions: dayEvents.filter((e) => e.event === "booking_completed").length,
-        searches: dayEvents.filter((e) => e.event === "search_performed").length,
       };
     });
-  }, [filteredEvents, dateRange]);
+  }, [filteredEvents, dateFilter]);
 
   // Event distribution for pie chart
   const eventDistribution = useMemo(() => {
@@ -162,32 +167,44 @@ export default function AdminAnalytics() {
 
   // Error count
   const errorCount = filteredEvents.filter((e) => e.event === "error").length;
+  const bookingCount = funnelStats.find(s => s.key === "booking_completed")?.count || 0;
+  const checkoutDropoff = funnelWithDropoff.find(s => s.key === "checkout_started")?.dropoff || 0;
 
   return (
     <AdminShell>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header - matches Overview style */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-primary" />
-              Analytics Dashboard
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Track conversion funnel and booking metrics
+              Conversion funnel and booking metrics
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Select value={dateRange} onValueChange={(v) => setDateRange(v as typeof dateRange)}>
+            <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
               <SelectTrigger className="w-[130px]">
-                <Calendar className="w-4 h-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="14d">Last 14 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-[160px]">
+                <MapPin className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations?.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
@@ -199,194 +216,196 @@ export default function AdminAnalytics() {
           </div>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Events</p>
-                  <p className="text-3xl font-bold">{filteredEvents.length}</p>
+        {/* Key Metrics - compact row like Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="border">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <BarChart3 className="w-5 h-5 text-primary" />
                 </div>
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-primary" />
+                <div>
+                  <p className="text-2xl font-bold">{filteredEvents.length}</p>
+                  <p className="text-xs text-muted-foreground">Total Events</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Conversion Rate</p>
-                  <p className="text-3xl font-bold text-green-600">{overallConversion.toFixed(1)}%</p>
+          <Card className="border">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-green-500" />
                 </div>
-                <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-green-500" />
+                <div>
+                  <p className="text-2xl font-bold text-green-600">{overallConversion.toFixed(1)}%</p>
+                  <p className="text-xs text-muted-foreground">Conversion</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Bookings</p>
-                  <p className="text-3xl font-bold">{funnelStats.find(s => s.key === "booking_completed")?.count || 0}</p>
+          <Card className="border">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-blue-500" />
                 </div>
-                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-blue-500" />
+                <div>
+                  <p className="text-2xl font-bold">{bookingCount}</p>
+                  <p className="text-xs text-muted-foreground">Bookings</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Errors</p>
-                  <p className={`text-3xl font-bold ${errorCount > 0 ? "text-destructive" : ""}`}>{errorCount}</p>
+          <Card className="border">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg ${errorCount > 0 ? "bg-destructive/10" : "bg-muted"} flex items-center justify-center`}>
+                  <AlertTriangle className={`w-5 h-5 ${errorCount > 0 ? "text-destructive" : "text-muted-foreground"}`} />
                 </div>
-                <div className={`w-12 h-12 rounded-full ${errorCount > 0 ? "bg-destructive/10" : "bg-muted"} flex items-center justify-center`}>
-                  <AlertTriangle className={`w-6 h-6 ${errorCount > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+                <div>
+                  <p className={`text-2xl font-bold ${errorCount > 0 ? "text-destructive" : ""}`}>{errorCount}</p>
+                  <p className="text-xs text-muted-foreground">Errors</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="funnel" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="funnel">Conversion Funnel</TabsTrigger>
+        <Tabs defaultValue="funnel" className="space-y-4">
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="funnel">Funnel</TabsTrigger>
             <TabsTrigger value="trends">Trends</TabsTrigger>
-            <TabsTrigger value="pages">Pages & Events</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="errors">Errors</TabsTrigger>
           </TabsList>
 
           {/* Conversion Funnel Tab */}
-          <TabsContent value="funnel" className="space-y-6">
-            {/* Visual Funnel */}
+          <TabsContent value="funnel" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Booking Funnel</CardTitle>
-                <CardDescription>Track user journey from search to booking completion</CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Booking Funnel</CardTitle>
+                <CardDescription>User journey from search to completion</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Funnel Visualization */}
-                <div className="space-y-3">
-                  {funnelWithDropoff.map((stage, idx) => {
-                    const maxCount = Math.max(...funnelStats.map((s) => s.count), 1);
-                    const widthPercent = (stage.count / maxCount) * 100;
-                    const Icon = stage.icon;
+              <CardContent className="space-y-4">
+                {filteredEvents.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No events recorded for this period</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Funnel Visualization */}
+                    <div className="space-y-2">
+                      {funnelWithDropoff.map((stage, idx) => {
+                        const maxCount = Math.max(...funnelStats.map((s) => s.count), 1);
+                        const widthPercent = (stage.count / maxCount) * 100;
+                        const Icon = stage.icon;
 
-                    return (
-                      <div key={stage.key} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Icon className="w-4 h-4" style={{ color: stage.color }} />
-                            <span className="font-medium">{stage.label}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold">{stage.count}</span>
-                            {idx > 0 && (
-                              <div className="flex items-center gap-1">
-                                {stage.conversion >= 50 ? (
-                                  <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                                    {stage.conversion.toFixed(0)}%
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/5">
+                        return (
+                          <div key={stage.key} className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <Icon className="w-4 h-4" style={{ color: stage.color }} />
+                                <span className="font-medium">{stage.label}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold tabular-nums">{stage.count}</span>
+                                {idx > 0 && stage.prevCount > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className={stage.conversion >= 50 
+                                      ? "text-green-600 border-green-200 bg-green-50 text-xs" 
+                                      : "text-destructive border-destructive/20 bg-destructive/5 text-xs"
+                                    }
+                                  >
                                     {stage.conversion.toFixed(0)}%
                                   </Badge>
                                 )}
                               </div>
+                            </div>
+                            <div className="relative h-6 bg-muted rounded overflow-hidden">
+                              <div
+                                className="absolute inset-y-0 left-0 rounded transition-all duration-500"
+                                style={{
+                                  width: `${widthPercent}%`,
+                                  backgroundColor: stage.color,
+                                  opacity: 0.85,
+                                }}
+                              />
+                            </div>
+                            {idx < funnelWithDropoff.length - 1 && stage.dropoff > 20 && (
+                              <div className="flex items-center justify-center text-xs text-muted-foreground py-0.5">
+                                <ArrowRight className="w-3 h-3 mr-1" />
+                                <span className="text-destructive">{stage.dropoff.toFixed(0)}% drop</span>
+                              </div>
                             )}
                           </div>
-                        </div>
-                        <div className="relative h-8 bg-muted rounded-lg overflow-hidden">
-                          <div
-                            className="absolute inset-y-0 left-0 rounded-lg transition-all duration-500"
-                            style={{
-                              width: `${widthPercent}%`,
-                              backgroundColor: stage.color,
-                              opacity: 0.8,
-                            }}
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-xs font-medium text-white mix-blend-difference">
-                              {widthPercent.toFixed(0)}% of max
-                            </span>
-                          </div>
-                        </div>
-                        {idx < funnelWithDropoff.length - 1 && stage.dropoff > 0 && (
-                          <div className="flex items-center justify-center text-xs text-muted-foreground py-1">
-                            <ArrowRight className="w-3 h-3 mr-1" />
-                            <span className="text-destructive">{stage.dropoff.toFixed(0)}% drop-off</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
 
-                {/* Funnel Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <p className="text-2xl font-bold text-green-600">{overallConversion.toFixed(1)}%</p>
-                    <p className="text-xs text-muted-foreground">Overall Conversion</p>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <p className="text-2xl font-bold text-destructive">
-                      {funnelWithDropoff.find(s => s.key === "checkout_started")?.dropoff.toFixed(0) || 0}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">Checkout Drop-off</p>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <p className="text-2xl font-bold text-blue-600">
-                      {funnelWithDropoff.find(s => s.key === "vehicle_selected")?.conversion.toFixed(0) || 0}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">View → Select Rate</p>
-                  </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <p className="text-2xl font-bold">
-                      {funnelWithDropoff.find(s => s.key === "booking_completed")?.conversion.toFixed(0) || 0}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">Payment → Complete</p>
-                  </div>
-                </div>
+                    {/* Summary */}
+                    <div className="grid grid-cols-3 gap-3 pt-3 border-t">
+                      <div className="text-center p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xl font-bold text-green-600">{overallConversion.toFixed(1)}%</p>
+                        <p className="text-xs text-muted-foreground">Overall</p>
+                      </div>
+                      <div className="text-center p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xl font-bold text-destructive">{checkoutDropoff.toFixed(0)}%</p>
+                        <p className="text-xs text-muted-foreground">Checkout Drop</p>
+                      </div>
+                      <div className="text-center p-3 bg-muted/30 rounded-lg">
+                        <p className="text-xl font-bold">{bookingCount}</p>
+                        <p className="text-xs text-muted-foreground">Completed</p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Trends Tab */}
-          <TabsContent value="trends" className="space-y-6">
+          <TabsContent value="trends" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Daily Activity</CardTitle>
-                <CardDescription>Vehicle views and bookings over time</CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Daily Activity</CardTitle>
+                <CardDescription>Views and bookings over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dailyTrend}>
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="views" fill="var(--color-views)" radius={4} />
-                      <Bar dataKey="conversions" fill="var(--color-conversions)" radius={4} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
+                {dailyTrend.every(d => d.views === 0 && d.conversions === 0) ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No activity data for this period</p>
+                  </div>
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dailyTrend}>
+                        <XAxis dataKey="date" fontSize={12} />
+                        <YAxis fontSize={12} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="views" fill="var(--color-views)" radius={4} />
+                        <Bar dataKey="conversions" fill="var(--color-conversions)" radius={4} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                )}
               </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Event Distribution</CardTitle>
-                  <CardDescription>Top event types</CardDescription>
-                </CardHeader>
-                <CardContent>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Event Distribution</CardTitle>
+                <CardDescription>Top event types</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {eventDistribution.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No events recorded</p>
+                  </div>
+                ) : (
                   <div className="h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -395,9 +414,9 @@ export default function AdminAnalytics() {
                           cx="50%"
                           cy="50%"
                           innerRadius={40}
-                          outerRadius={80}
+                          outerRadius={70}
                           dataKey="value"
-                          label={({ name, value }) => `${name}: ${value}`}
+                          label={({ name, value }) => `${value}`}
                         >
                           {eventDistribution.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -407,126 +426,96 @@ export default function AdminAnalytics() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Search Trends</CardTitle>
-                  <CardDescription>Searches performed over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[200px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={dailyTrend}>
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <ChartTooltip />
-                        <Line type="monotone" dataKey="searches" stroke="hsl(var(--primary))" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+                <div className="flex flex-wrap gap-2 mt-4 justify-center">
+                  {eventDistribution.slice(0, 4).map((item, idx) => (
+                    <Badge key={item.name} variant="outline" className="text-xs">
+                      <span className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      {item.name}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Pages & Events Tab */}
-          <TabsContent value="pages" className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
+          {/* Events Tab */}
+          <TabsContent value="events" className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Top Pages</CardTitle>
-                  <CardDescription>Most viewed pages</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Top Pages</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {data.topPages.slice(0, 10).map((page, idx) => (
-                      <div
-                        key={page.page}
-                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-muted-foreground text-sm w-6">{idx + 1}.</span>
-                          <span className="text-sm truncate max-w-[200px]">{page.page}</span>
+                  {data.topPages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No page views</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.topPages.slice(0, 8).map((page, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+                          <span className="truncate max-w-[200px] text-muted-foreground">{page.page}</span>
+                          <Badge variant="secondary" className="text-xs">{page.views}</Badge>
                         </div>
-                        <Badge variant="secondary">{page.views}</Badge>
-                      </div>
-                    ))}
-                    {data.topPages.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-8">No page views recorded yet</p>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Events by Type</CardTitle>
-                  <CardDescription>All tracked events</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Event Counts</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {data.eventsByType.slice(0, 10).map((event) => (
-                      <div
-                        key={event.event}
-                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50"
-                      >
-                        <span className="text-sm capitalize">{event.event.replace(/_/g, " ")}</span>
-                        <Badge variant="outline">{event.count}</Badge>
-                      </div>
-                    ))}
-                    {data.eventsByType.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-8">No events tracked yet</p>
-                    )}
-                  </div>
+                  {data.eventsByType.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No events</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.eventsByType.slice(0, 8).map((item) => (
+                        <div key={item.event} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+                          <span className="capitalize text-muted-foreground">{item.event.replace(/_/g, " ")}</span>
+                          <Badge variant="secondary" className="text-xs">{item.count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
           {/* Errors Tab */}
-          <TabsContent value="errors" className="space-y-6">
+          <TabsContent value="errors">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-destructive" />
-                  Recent Errors
-                </CardTitle>
-                <CardDescription>Captured JavaScript errors and exceptions</CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Recent Errors</CardTitle>
+                <CardDescription>JavaScript errors from user sessions</CardDescription>
               </CardHeader>
               <CardContent>
-                {data.recentErrors.length > 0 ? (
-                  <div className="space-y-3">
-                    {data.recentErrors.map((error, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-lg border border-destructive/20 bg-destructive/5"
-                      >
-                        <p className="font-medium text-destructive">
-                          {error.properties?.error_message as string || "Unknown error"}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {error.properties?.error_name as string}
-                        </p>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          <span>{format(new Date(error.timestamp), "MMM d, yyyy 'at' h:mm a")}</span>
-                          <span>•</span>
-                          <span>{error.page}</span>
-                        </div>
-                        {error.properties?.error_stack && (
-                          <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
-                            {(error.properties.error_stack as string).slice(0, 300)}...
-                          </pre>
-                        )}
-                      </div>
-                    ))}
+                {data.recentErrors.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                    <p className="text-muted-foreground">No errors recorded</p>
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                    <p className="text-lg font-medium">No errors recorded</p>
-                    <p className="text-sm text-muted-foreground">Great! Your app is running smoothly.</p>
+                  <div className="space-y-3">
+                    {data.recentErrors.slice(0, 10).map((error, idx) => (
+                      <div key={idx} className="p-3 bg-destructive/5 rounded-lg border border-destructive/10">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-destructive truncate">
+                              {error.properties?.error_message as string || "Unknown error"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {error.properties?.error_name as string || "Error"} • {format(new Date(error.timestamp), "MMM d, h:mm a")}
+                            </p>
+                            {error.page && (
+                              <p className="text-xs text-muted-foreground truncate">{error.page}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
