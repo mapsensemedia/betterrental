@@ -22,7 +22,16 @@ import NewCheckout from "./pages/NewCheckout";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import ForgotPassword from "./pages/ForgotPassword";
+import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+
+// Post-booking customer pages
+import BookingConfirmed from "./pages/booking/BookingConfirmed";
+import BookingLicense from "./pages/booking/BookingLicense";
+import BookingAgreement from "./pages/booking/BookingAgreement";
+import BookingPass from "./pages/booking/BookingPass";
+import BookingPickup from "./pages/booking/BookingPickup";
+import BookingReturn from "./pages/booking/BookingReturn";
 
 // Admin Pages
 import AdminOverview from "./pages/admin/Overview";
@@ -79,6 +88,12 @@ const App = () => (
               <Route path="/add-ons" element={<AddOns />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/booking/confirmed" element={<BookingConfirmed />} />
+              <Route path="/booking/:bookingId/license" element={<BookingLicense />} />
+              <Route path="/booking/:bookingId/agreement" element={<BookingAgreement />} />
+              <Route path="/booking/:bookingId/pass" element={<BookingPass />} />
+              <Route path="/booking/:bookingId/pickup" element={<BookingPickup />} />
+              <Route path="/booking/:bookingId/return" element={<BookingReturn />} />
               {/* Redirect my-booking to dashboard */}
               <Route path="/my-booking" element={<Navigate to="/dashboard" replace />} />
               <Route path="/my-booking/:bookingCode" element={<Navigate to="/dashboard" replace />} />
