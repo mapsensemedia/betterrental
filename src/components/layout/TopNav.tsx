@@ -47,14 +47,14 @@ export function TopNav() {
             <img src={c2cLogo} alt="C2C Rental" className="h-10 w-auto" />
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          {/* Desktop Navigation - Hidden on tablet, show on lg+ */}
+          <div className="hidden lg:flex items-center gap-4 xl:gap-6">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
                 className={cn(
-                  "text-sm font-medium transition-colors",
+                  "text-sm font-medium transition-colors whitespace-nowrap",
                   location.pathname === link.href
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -65,12 +65,12 @@ export function TopNav() {
             ))}
           </div>
 
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Desktop Actions - Hidden on tablet, show on lg+ */}
+          <div className="hidden lg:flex items-center gap-2">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/search">
                 <Search className="w-4 h-4" />
-                Search
+                <span className="hidden xl:inline">Search</span>
               </Link>
             </Button>
 
@@ -79,7 +79,7 @@ export function TopNav() {
                 <Button variant="default" size="sm" asChild>
                   <Link to="/dashboard">
                     <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
+                    <span className="hidden xl:inline">Dashboard</span>
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleSignOut}>
@@ -90,16 +90,16 @@ export function TopNav() {
               <Button variant="default" size="sm" asChild>
                 <Link to="/auth">
                   <User className="w-4 h-4" />
-                  Sign In
+                  <span className="hidden xl:inline">Sign In</span>
                 </Link>
               </Button>
             )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile/Tablet Menu Button - Show until lg breakpoint */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 rounded-lg transition-colors text-foreground hover:bg-secondary"
+            className="lg:hidden p-2 rounded-lg transition-colors text-foreground hover:bg-secondary"
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-expanded={isOpen}
           >
@@ -107,9 +107,9 @@ export function TopNav() {
           </button>
         </nav>
 
-        {/* Mobile Menu */}
+        {/* Mobile/Tablet Menu */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-border bg-card rounded-b-xl animate-fade-in">
+          <div className="lg:hidden py-4 border-t border-border bg-card rounded-b-xl animate-fade-in">
             <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link

@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useVehicles } from "@/hooks/use-vehicles";
 
 // Images
-import heroImage from "@/assets/hero-car.jpg";
+import heroImage from "@/assets/hero-c2c.jpg";
 
 const Index = () => {
   const { data: vehicles = [], isLoading } = useVehicles();
@@ -32,7 +32,7 @@ const Index = () => {
               <h1 className="heading-1 text-foreground mb-6">
                 C2C Rental
                 <br />
-                <span className="text-muted-foreground">Made Simple</span>
+                <span className="text-muted-foreground">Car Rental Made Simple</span>
               </h1>
               <p className="text-lg text-muted-foreground mb-8">
                 Skip the hassle. Rent quality vehicles with transparent pricing,
