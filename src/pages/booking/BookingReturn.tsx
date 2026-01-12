@@ -265,6 +265,7 @@ export default function BookingReturn() {
             open={showIssueDialog}
             onOpenChange={setShowIssueDialog}
             bookingId={bookingId!}
+            bookingCode={booking.booking_code}
           />
         </div>
       </PageContainer>

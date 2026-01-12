@@ -22,7 +22,6 @@ import NewCheckout from "./pages/NewCheckout";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import ForgotPassword from "./pages/ForgotPassword";
-import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
 // Post-booking customer pages
