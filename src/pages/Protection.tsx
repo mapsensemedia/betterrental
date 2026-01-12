@@ -12,6 +12,7 @@ import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { useVehicles } from "@/hooks/use-vehicles";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
+import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
 
@@ -195,164 +196,154 @@ export default function Protection() {
 
         {/* Content */}
         <div className="container mx-auto px-4 py-6 sm:py-8 pb-24 sm:pb-8">
-          {/* Protection Packages */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {protectionPackages.map((pkg) => (
-              <Card
-                key={pkg.id}
-                onClick={() => setSelectedPackage(pkg.id)}
-                className={cn(
-                  "relative p-5 cursor-pointer transition-all hover:shadow-lg",
-                  selectedPackage === pkg.id
-                    ? "ring-2 ring-primary border-primary"
-                    : "border-border hover:border-muted-foreground/30"
-                )}
-              >
-                {/* Selection indicator */}
-                <div className="absolute top-4 right-4">
-                  <div
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            {/* Protection Packages - Main Content */}
+            <div className="lg:col-span-2">
+              {/* Protection Packages */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                {protectionPackages.map((pkg) => (
+                  <Card
+                    key={pkg.id}
+                    onClick={() => setSelectedPackage(pkg.id)}
                     className={cn(
-                      "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                      "relative p-5 cursor-pointer transition-all hover:shadow-lg",
                       selectedPackage === pkg.id
-                        ? "border-primary bg-primary"
-                        : "border-muted-foreground/30"
+                        ? "ring-2 ring-primary border-primary"
+                        : "border-border hover:border-muted-foreground/30"
                     )}
                   >
-                    {selectedPackage === pkg.id && (
-                      <div className="w-2 h-2 rounded-full bg-primary-foreground" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Title */}
-                <h3 className="font-semibold text-lg mb-2 pr-8">{pkg.name}</h3>
-
-                {/* Rating stars */}
-                <div className="flex gap-0.5 mb-3">
-                  {[...Array(3)].map((_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "text-sm",
-                        i < pkg.rating ? "text-amber-500" : "text-muted-foreground/30"
-                      )}
-                    >
-                      ★
-                    </span>
-                  ))}
-                </div>
-
-                {/* Discount badge */}
-                {pkg.discount && (
-                  <Badge variant="destructive" className="mb-3 text-xs">
-                    {pkg.discount}
-                  </Badge>
-                )}
-
-                {/* Deductible */}
-                <p
-                  className={cn(
-                    "text-sm font-medium mb-4",
-                    pkg.deductible === "No deductible"
-                      ? "text-emerald-600"
-                      : "text-amber-600"
-                  )}
-                >
-                  Deductible: {pkg.deductible}
-                </p>
-
-                {/* Features */}
-                <div className="space-y-2 mb-4 border-t border-border pt-4">
-                  {pkg.features.map((feature) => (
-                    <div
-                      key={feature.name}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      {feature.included ? (
-                        <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                      ) : (
-                        <X className="w-4 h-4 text-muted-foreground shrink-0" />
-                      )}
-                      <span
+                    {/* Selection indicator */}
+                    <div className="absolute top-4 right-4">
+                      <div
                         className={cn(
-                          feature.included
-                            ? "text-foreground"
-                            : "text-muted-foreground"
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                          selectedPackage === pkg.id
+                            ? "border-primary bg-primary"
+                            : "border-muted-foreground/30"
                         )}
                       >
-                        {feature.name}
-                      </span>
-                      {feature.tooltip && (
-                        <Info className="w-3 h-3 text-muted-foreground" />
+                        {selectedPackage === pkg.id && (
+                          <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="font-semibold text-lg mb-2 pr-8">{pkg.name}</h3>
+
+                    {/* Rating stars */}
+                    <div className="flex gap-0.5 mb-3">
+                      {[...Array(3)].map((_, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            "text-sm",
+                            i < pkg.rating ? "text-amber-500" : "text-muted-foreground/30"
+                          )}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Discount badge */}
+                    {pkg.discount && (
+                      <Badge variant="destructive" className="mb-3 text-xs">
+                        {pkg.discount}
+                      </Badge>
+                    )}
+
+                    {/* Deductible */}
+                    <p
+                      className={cn(
+                        "text-sm font-medium mb-4",
+                        pkg.deductible === "No deductible"
+                          ? "text-emerald-600"
+                          : "text-amber-600"
                       )}
+                    >
+                      Deductible: {pkg.deductible}
+                    </p>
+
+                    {/* Features */}
+                    <div className="space-y-2 mb-4 border-t border-border pt-4">
+                      {pkg.features.map((feature) => (
+                        <div
+                          key={feature.name}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          {feature.included ? (
+                            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <X className="w-4 h-4 text-muted-foreground shrink-0" />
+                          )}
+                          <span
+                            className={cn(
+                              feature.included
+                                ? "text-foreground"
+                                : "text-muted-foreground"
+                            )}
+                          >
+                            {feature.name}
+                          </span>
+                          {feature.tooltip && (
+                            <Info className="w-3 h-3 text-muted-foreground" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Price */}
+                    <div className="mt-auto pt-2 border-t border-border">
+                      {pkg.dailyRate === 0 ? (
+                        <p className="text-lg font-semibold">Included</p>
+                      ) : (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-sm text-muted-foreground">CA$</span>
+                          <span className="text-2xl font-bold">
+                            {pkg.dailyRate.toFixed(2)}
+                          </span>
+                          <span className="text-sm text-muted-foreground">/ day</span>
+                          {pkg.originalRate && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              CA${pkg.originalRate.toFixed(2)}/day
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Included Features */}
+              <Card className="p-6">
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Your booking overview:
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {includedFeatures.map((feature) => (
+                    <div key={feature} className="flex items-center gap-2 text-sm">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{feature}</span>
+                      <Info className="w-3 h-3 text-muted-foreground ml-auto" />
                     </div>
                   ))}
                 </div>
-
-                {/* Price */}
-                <div className="mt-auto pt-2 border-t border-border">
-                  {pkg.dailyRate === 0 ? (
-                    <p className="text-lg font-semibold">Included</p>
-                  ) : (
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm text-muted-foreground">CA$</span>
-                      <span className="text-2xl font-bold">
-                        {pkg.dailyRate.toFixed(2)}
-                      </span>
-                      <span className="text-sm text-muted-foreground">/ day</span>
-                      {pkg.originalRate && (
-                        <span className="text-sm text-muted-foreground line-through">
-                          CA${pkg.originalRate.toFixed(2)}/day
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
               </Card>
-            ))}
-          </div>
-
-          {/* Included Features */}
-          <Card className="p-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Shield className="w-5 h-5" />
-              Your booking overview:
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {includedFeatures.map((feature) => (
-                <div key={feature} className="flex items-center gap-2 text-sm">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>{feature}</span>
-                  <Info className="w-3 h-3 text-muted-foreground ml-auto" />
-                </div>
-              ))}
             </div>
-          </Card>
 
-          {/* Vehicle summary (if available) */}
-          {vehicle && (
-            <Card className="p-6 mt-6">
-              <h3 className="font-semibold mb-4">Selected Vehicle</h3>
-              <div className="flex items-center gap-4">
-                {vehicle.imageUrl && (
-                  <img
-                    src={vehicle.imageUrl}
-                    alt={`${vehicle.make} ${vehicle.model}`}
-                    className="w-32 h-20 object-cover rounded-lg"
-                  />
-                )}
-                <div>
-                  <p className="font-medium">
-                    {vehicle.year} {vehicle.make} {vehicle.model}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    ${vehicle.dailyRate}/day × {rentalDays} days = $
-                    {pricing.vehicleTotal.toFixed(2)}
-                  </p>
-                </div>
+            {/* Sidebar - Booking Summary with Total */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-24 space-y-4">
+                <BookingSummaryPanel 
+                  showPricing={true} 
+                  protectionDailyRate={selectedProtection?.dailyRate || 0}
+                />
               </div>
-            </Card>
-          )}
+            </div>
+          </div>
         </div>
 
         {/* Mobile Fixed Bottom Bar */}

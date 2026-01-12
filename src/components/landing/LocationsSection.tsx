@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { MapPin, Phone, Clock, Navigation, ArrowRight } from "lucide-react";
+import { MapPin, Clock, Navigation, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocations, type Location } from "@/hooks/use-locations";
@@ -9,6 +9,13 @@ import { cn } from "@/lib/utils";
 interface LocationsSectionProps {
   className?: string;
 }
+
+// Specific Google Maps links for each location
+const LOCATION_MAPS_LINKS: Record<string, string> = {
+  "Abbotsford Centre": "https://maps.app.goo.gl/LC1Ua6q2XxcMw2TA9",
+  "Langley Centre": "https://maps.app.goo.gl/ToULonCLvQ8Me9Yi7",
+  "Surrey Centre": "https://maps.app.goo.gl/LhWcpkRffqz335hH8",
+};
 
 function formatHours(hoursJson: Record<string, string> | null): string {
   if (!hoursJson) return "Hours not available";
@@ -27,11 +34,14 @@ function LocationCard({ location }: { location: Location }) {
     e.preventDefault();
     e.stopPropagation();
     
-    const url = location.lat && location.lng
-      ? `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`;
+    // Use specific Google Maps link if available, otherwise fallback to generated URL
+    const specificLink = LOCATION_MAPS_LINKS[location.name];
+    const url = specificLink || (
+      location.lat && location.lng
+        ? `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`
+        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`
+    );
     
-    // Use location.href for better mobile compatibility
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -50,18 +60,6 @@ function LocationCard({ location }: { location: Location }) {
             
             <div className="space-y-2 text-sm">
               <p className="text-muted-foreground">{location.address}</p>
-              
-              {location.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <a 
-                    href={`tel:${location.phone}`} 
-                    className="text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {location.phone}
-                  </a>
-                </div>
-              )}
               
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
