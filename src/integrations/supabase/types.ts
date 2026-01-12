@@ -605,6 +605,54 @@ export type Database = {
           },
         ]
       }
+      deposit_ledger: {
+        Row: {
+          action: string
+          amount: number
+          booking_id: string
+          created_at: string
+          created_by: string
+          id: string
+          payment_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          amount: number
+          booking_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          payment_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          amount?: number
+          booking_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          payment_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_ledger_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_ledger_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_metrics: {
         Row: {
           booking_id: string
@@ -1009,6 +1057,47 @@ export type Database = {
           },
         ]
       }
+      ticket_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          is_internal: boolean
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          is_internal?: boolean
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          is_internal?: boolean
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_messages: {
         Row: {
           created_at: string
@@ -1044,6 +1133,47 @@ export type Database = {
           },
         ]
       }
+      ticket_timeline: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          new_status: string | null
+          note: string | null
+          old_status: string | null
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_timeline_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           assigned_to: string | null
@@ -1051,6 +1181,9 @@ export type Database = {
           created_at: string
           id: string
           priority: string | null
+          resolution_summary: string | null
+          resolved_at: string | null
+          resolved_by: string | null
           status: Database["public"]["Enums"]["ticket_status"]
           subject: string
           updated_at: string
@@ -1062,6 +1195,9 @@ export type Database = {
           created_at?: string
           id?: string
           priority?: string | null
+          resolution_summary?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
           subject: string
           updated_at?: string
@@ -1073,6 +1209,9 @@ export type Database = {
           created_at?: string
           id?: string
           priority?: string | null
+          resolution_summary?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
           subject?: string
           updated_at?: string
@@ -1123,10 +1262,13 @@ export type Database = {
           is_available: boolean | null
           is_featured: boolean | null
           location_id: string | null
+          maintenance_reason: string | null
+          maintenance_until: string | null
           make: string
           model: string
           seats: number | null
           specs_json: Json | null
+          status: string | null
           transmission: string | null
           updated_at: string
           year: number
@@ -1144,10 +1286,13 @@ export type Database = {
           is_available?: boolean | null
           is_featured?: boolean | null
           location_id?: string | null
+          maintenance_reason?: string | null
+          maintenance_until?: string | null
           make: string
           model: string
           seats?: number | null
           specs_json?: Json | null
+          status?: string | null
           transmission?: string | null
           updated_at?: string
           year: number
@@ -1165,10 +1310,13 @@ export type Database = {
           is_available?: boolean | null
           is_featured?: boolean | null
           location_id?: string | null
+          maintenance_reason?: string | null
+          maintenance_until?: string | null
           make?: string
           model?: string
           seats?: number | null
           specs_json?: Json | null
+          status?: string | null
           transmission?: string | null
           updated_at?: string
           year?: number
@@ -1334,10 +1482,28 @@ export type Database = {
         | "completed"
         | "cancelled"
       damage_severity: "minor" | "moderate" | "severe"
+      damage_status:
+        | "reported"
+        | "reviewing"
+        | "approved"
+        | "repaired"
+        | "closed"
       hold_status: "active" | "expired" | "converted"
       receipt_status: "draft" | "issued" | "voided"
       staff_role: "admin" | "staff" | "cleaner" | "finance"
-      ticket_status: "open" | "in_progress" | "resolved" | "closed"
+      ticket_status:
+        | "open"
+        | "in_progress"
+        | "resolved"
+        | "closed"
+        | "assigned"
+        | "waiting_customer"
+      vehicle_status:
+        | "available"
+        | "booked"
+        | "active_rental"
+        | "maintenance"
+        | "inactive"
       verification_status: "pending" | "verified" | "rejected"
     }
     CompositeTypes: {
@@ -1488,10 +1654,31 @@ export const Constants = {
         "cancelled",
       ],
       damage_severity: ["minor", "moderate", "severe"],
+      damage_status: [
+        "reported",
+        "reviewing",
+        "approved",
+        "repaired",
+        "closed",
+      ],
       hold_status: ["active", "expired", "converted"],
       receipt_status: ["draft", "issued", "voided"],
       staff_role: ["admin", "staff", "cleaner", "finance"],
-      ticket_status: ["open", "in_progress", "resolved", "closed"],
+      ticket_status: [
+        "open",
+        "in_progress",
+        "resolved",
+        "closed",
+        "assigned",
+        "waiting_customer",
+      ],
+      vehicle_status: [
+        "available",
+        "booked",
+        "active_rental",
+        "maintenance",
+        "inactive",
+      ],
       verification_status: ["pending", "verified", "rejected"],
     },
   },

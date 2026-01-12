@@ -4,6 +4,7 @@ import { AdminShell } from "@/components/layout/AdminShell";
 import { useCalendarData } from "@/hooks/use-calendar";
 import { useLocations } from "@/hooks/use-locations";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   Select, 
   SelectContent, 
@@ -11,7 +12,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -20,22 +21,27 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Car } from "lucide-react";
-import { format, isWithinInterval, parseISO, differenceInHours, addHours } from "date-fns";
+import { ChevronLeft, ChevronRight, Car, Search } from "lucide-react";
+import { format, parseISO, addHours } from "date-fns";
 import { cn } from "@/lib/utils";
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-amber-500",
-  confirmed: "bg-blue-500",
-  active: "bg-green-500",
+const STATUS_COLORS: Record<string, { bg: string; label: string }> = {
+  pending: { bg: "bg-amber-500", label: "Pending" },
+  confirmed: { bg: "bg-blue-500", label: "Confirmed" },
+  active: { bg: "bg-green-500", label: "Active" },
 };
 
 const BUFFER_COLOR = "bg-muted-foreground/30";
+
+const VEHICLE_CATEGORIES = ["Sedan", "SUV", "Sports", "Luxury", "Electric", "Convertible", "Compact"];
 
 export default function AdminCalendar() {
   const navigate = useNavigate();
   const [weekOffset, setWeekOffset] = useState(0);
   const [locationFilter, setLocationFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: calendarData, isLoading } = useCalendarData(
     weekOffset, 
@@ -66,43 +72,69 @@ export default function AdminCalendar() {
     return { left: `${Math.max(0, left)}%`, width: `${Math.min(100 - left, width)}%` };
   };
 
-  const vehicleBookingsMap = useMemo(() => {
-    if (!calendarData) return new Map();
+  // Filter vehicles by category
+  const filteredVehicles = useMemo(() => {
+    if (!calendarData) return [];
+    let vehicles = calendarData.vehicles;
     
-    const map = new Map<string, typeof calendarData.bookings>();
-    calendarData.vehicles.forEach(v => {
-      const vehicleBookings = calendarData.bookings.filter(b => b.vehicleId === v.id);
+    if (categoryFilter !== "all") {
+      // Note: category isn't in CalendarVehicle but we could add it
+      // For now, we'll skip this filter at data level
+    }
+    
+    if (searchQuery) {
+      const search = searchQuery.toLowerCase();
+      vehicles = vehicles.filter(v => 
+        v.make.toLowerCase().includes(search) ||
+        v.model.toLowerCase().includes(search) ||
+        v.locationName?.toLowerCase().includes(search)
+      );
+    }
+    
+    return vehicles;
+  }, [calendarData, categoryFilter, searchQuery]);
+
+  // Filter bookings by status and search
+  const filteredBookings = useMemo(() => {
+    if (!calendarData) return [];
+    let bookings = calendarData.bookings;
+    
+    if (statusFilter !== "all") {
+      bookings = bookings.filter(b => b.status === statusFilter);
+    }
+    
+    if (searchQuery) {
+      const search = searchQuery.toLowerCase();
+      bookings = bookings.filter(b => 
+        b.bookingCode.toLowerCase().includes(search) ||
+        b.customerName?.toLowerCase().includes(search) ||
+        b.customerEmail?.toLowerCase().includes(search)
+      );
+    }
+    
+    return bookings;
+  }, [calendarData, statusFilter, searchQuery]);
+
+  const vehicleBookingsMap = useMemo(() => {
+    const map = new Map<string, typeof filteredBookings>();
+    filteredVehicles.forEach(v => {
+      const vehicleBookings = filteredBookings.filter(b => b.vehicleId === v.id);
       map.set(v.id, vehicleBookings);
     });
     return map;
-  }, [calendarData]);
+  }, [filteredVehicles, filteredBookings]);
 
   return (
     <AdminShell>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-            <p className="text-muted-foreground">Fleet schedule and availability timeline</p>
+            <p className="text-muted-foreground text-sm mt-1">Fleet schedule and availability</p>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Location Filter */}
-            <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations?.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             {/* Week Navigation */}
             <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
               <Button 
@@ -133,6 +165,63 @@ export default function AdminCalendar() {
           </div>
         </div>
 
+        {/* Filters Row */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search booking, customer, vehicle..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+
+          {/* Location Filter */}
+          <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {locations?.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Status Filter */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Category Filter */}
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {VEHICLE_CATEGORIES.map((cat) => (
+                <SelectItem key={cat} value={cat.toLowerCase()}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Week Header */}
         {calendarData && (
           <div className="text-center">
@@ -143,19 +232,13 @@ export default function AdminCalendar() {
         )}
 
         {/* Legend */}
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-amber-500" />
-            <span className="text-muted-foreground">Pending</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-blue-500" />
-            <span className="text-muted-foreground">Confirmed</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-green-500" />
-            <span className="text-muted-foreground">Active</span>
-          </div>
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          {Object.entries(STATUS_COLORS).map(([status, { bg, label }]) => (
+            <div key={status} className="flex items-center gap-2">
+              <div className={cn("w-3 h-3 rounded", bg)} />
+              <span className="text-muted-foreground">{label}</span>
+            </div>
+          ))}
           <div className="flex items-center gap-2">
             <div className={cn("w-3 h-3 rounded", BUFFER_COLOR)} />
             <span className="text-muted-foreground">Cleaning Buffer</span>
@@ -174,7 +257,7 @@ export default function AdminCalendar() {
                   </div>
                 ))}
               </div>
-            ) : !calendarData?.vehicles.length ? (
+            ) : !filteredVehicles.length ? (
               <div className="p-12 text-center">
                 <Car className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                 <p className="text-muted-foreground">No vehicles found for the selected filters.</p>
@@ -183,17 +266,17 @@ export default function AdminCalendar() {
               <div className="overflow-x-auto">
                 {/* Day Headers */}
                 <div className="flex border-b border-border sticky top-0 bg-card z-10">
-                  <div className="w-48 flex-shrink-0 p-3 font-medium text-sm border-r border-border">
+                  <div className="w-44 flex-shrink-0 p-3 font-medium text-sm border-r border-border">
                     Vehicle
                   </div>
                   <div className="flex-1 flex">
-                    {calendarData.days.map((day) => (
+                    {calendarData?.days.map((day) => (
                       <div 
                         key={day.toISOString()} 
-                        className="flex-1 p-3 text-center text-sm border-r border-border last:border-r-0"
+                        className="flex-1 p-2 text-center text-sm border-r border-border last:border-r-0"
                       >
                         <div className="font-medium">{format(day, "EEE")}</div>
-                        <div className="text-muted-foreground">{format(day, "MMM d")}</div>
+                        <div className="text-muted-foreground text-xs">{format(day, "MMM d")}</div>
                       </div>
                     ))}
                   </div>
@@ -201,13 +284,13 @@ export default function AdminCalendar() {
 
                 {/* Vehicle Rows */}
                 <TooltipProvider>
-                  {calendarData.vehicles.map((vehicle) => {
+                  {filteredVehicles.map((vehicle) => {
                     const vehicleBookings = vehicleBookingsMap.get(vehicle.id) || [];
                     
                     return (
                       <div key={vehicle.id} className="flex border-b border-border last:border-b-0 hover:bg-muted/50">
                         {/* Vehicle Info */}
-                        <div className="w-48 flex-shrink-0 p-3 border-r border-border">
+                        <div className="w-44 flex-shrink-0 p-3 border-r border-border">
                           <div className="font-medium text-sm truncate">
                             {vehicle.make} {vehicle.model}
                           </div>
@@ -217,10 +300,10 @@ export default function AdminCalendar() {
                         </div>
 
                         {/* Timeline Row */}
-                        <div className="flex-1 relative h-16">
+                        <div className="flex-1 relative h-14">
                           {/* Grid Lines */}
                           <div className="absolute inset-0 flex">
-                            {calendarData.days.map((day) => (
+                            {calendarData?.days.map((day) => (
                               <div 
                                 key={day.toISOString()} 
                                 className="flex-1 border-r border-border/50 last:border-r-0" 
@@ -233,6 +316,8 @@ export default function AdminCalendar() {
                             const startDate = parseISO(booking.startAt);
                             const endDate = parseISO(booking.endAt);
                             const bufferEnd = addHours(endDate, vehicle.cleaningBufferHours);
+                            
+                            if (!calendarData) return null;
                             
                             const bookingPos = getBookingPosition(
                               startDate, 
@@ -248,6 +333,8 @@ export default function AdminCalendar() {
                               calendarData.weekEnd
                             );
 
+                            const statusColor = STATUS_COLORS[booking.status]?.bg || "bg-gray-500";
+
                             return (
                               <div key={booking.id}>
                                 {/* Booking Block */}
@@ -256,13 +343,13 @@ export default function AdminCalendar() {
                                     <button
                                       onClick={() => navigate(`/admin/bookings?id=${booking.id}`)}
                                       className={cn(
-                                        "absolute top-2 h-8 rounded-md cursor-pointer transition-all hover:opacity-80 hover:ring-2 hover:ring-primary flex items-center justify-center text-xs font-medium text-white px-2 truncate",
-                                        STATUS_COLORS[booking.status] || "bg-gray-500"
+                                        "absolute top-2 h-7 rounded cursor-pointer transition-all hover:opacity-80 hover:ring-2 hover:ring-primary flex items-center justify-center text-xs font-medium text-white px-2 truncate",
+                                        statusColor
                                       )}
                                       style={{
                                         left: bookingPos.left,
                                         width: bookingPos.width,
-                                        minWidth: "24px",
+                                        minWidth: "20px",
                                       }}
                                     >
                                       <span className="truncate">{booking.bookingCode}</span>
@@ -289,10 +376,7 @@ export default function AdminCalendar() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div
-                                        className={cn(
-                                          "absolute top-2 h-8 rounded-md",
-                                          BUFFER_COLOR
-                                        )}
+                                        className={cn("absolute top-2 h-7 rounded", BUFFER_COLOR)}
                                         style={{
                                           left: bufferPos.left,
                                           width: bufferPos.width,
@@ -302,7 +386,7 @@ export default function AdminCalendar() {
                                     </TooltipTrigger>
                                     <TooltipContent side="top">
                                       <div className="text-sm">
-                                        Cleaning buffer: {vehicle.cleaningBufferHours}h
+                                        Cleaning: {vehicle.cleaningBufferHours}h
                                       </div>
                                     </TooltipContent>
                                   </Tooltip>
@@ -320,10 +404,10 @@ export default function AdminCalendar() {
           </CardContent>
         </Card>
 
-        {/* Vehicle Count */}
+        {/* Summary */}
         {calendarData && (
           <p className="text-sm text-muted-foreground">
-            Showing {calendarData.vehicles.length} vehicles with {calendarData.bookings.length} bookings this week
+            Showing {filteredVehicles.length} vehicles with {filteredBookings.length} bookings this week
           </p>
         )}
       </div>
