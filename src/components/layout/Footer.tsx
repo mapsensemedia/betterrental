@@ -20,7 +20,7 @@ export function Footer() {
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center mb-5">
-              <img src={c2cLogo} alt="C2C Rental" className="h-12 w-auto brightness-0 invert" />
+              <img src={c2cLogo} alt="C2C Rental" className="h-12 w-auto" />
             </Link>
             <p className="text-background/60 mb-5 max-w-sm text-sm leading-relaxed">
               Premium car rental experience with a curated fleet of vehicles.

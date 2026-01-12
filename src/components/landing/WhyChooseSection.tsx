@@ -61,8 +61,8 @@ export function WhyChooseSection({ className }: WhyChooseSectionProps) {
                 <div className="flex items-end justify-between">
                   {/* Large outline icon */}
                   <feature.icon 
-                    className="w-16 h-16 text-background/30" 
-                    strokeWidth={1}
+                    className="w-16 h-16 text-background/50" 
+                    strokeWidth={1.5}
                   />
                   
                   {/* Arrow Button */}
