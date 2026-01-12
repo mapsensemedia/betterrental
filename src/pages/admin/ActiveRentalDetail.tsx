@@ -538,6 +538,12 @@ export default function ActiveRentalDetail() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
+              <Button size="sm" asChild>
+                <Link to={`/admin/returns/${rental.id}`}>
+                  <Car className="h-4 w-4 mr-2" />
+                  Process Return
+                </Link>
+              </Button>
               {rental.customer?.phone && (
                 <Button variant="outline" size="sm" asChild>
                   <a href={`sms:${rental.customer.phone}`}>
