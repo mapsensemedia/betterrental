@@ -93,6 +93,8 @@ interface BookingData {
   deposit_amount: number | null;
   total_amount: number;
   notes: string | null;
+  driver_age_band: string | null;
+  young_driver_fee: number | null;
   vehicles: {
     id: string;
     make: string;
@@ -246,6 +248,8 @@ export default function BookingDetail() {
             deposit_amount,
             total_amount,
             notes,
+            driver_age_band,
+            young_driver_fee,
             vehicles (id, make, model, year, image_url, category),
             locations (id, name, address, city)
           `)
@@ -547,8 +551,14 @@ export default function BookingDetail() {
                     <span className="text-muted-foreground">
                       ${Number(booking.daily_rate).toFixed(2)}* × {booking.total_days} days
                     </span>
-                    <span>${Number(booking.subtotal).toFixed(2)}</span>
+                    <span>${(Number(booking.daily_rate) * booking.total_days).toFixed(2)}</span>
                   </div>
+                  {booking.young_driver_fee && Number(booking.young_driver_fee) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Young driver fee</span>
+                      <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
+                    </div>
+                  )}
                   {booking.tax_amount && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Taxes & Fees</span>
