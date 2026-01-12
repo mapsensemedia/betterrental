@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { 
   Select, 
   SelectContent, 
@@ -48,6 +49,10 @@ import {
   History,
   Paperclip,
   AlertCircle,
+  Upload,
+  Loader2,
+  Trash2,
+  Eye,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -55,6 +60,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { useUploadTicketAttachment, useDeleteTicketAttachment } from "@/hooks/use-ticket-attachments";
 
 type TicketStatus = Database["public"]["Enums"]["ticket_status"] | "assigned" | "waiting_customer";
 
@@ -220,6 +226,8 @@ export default function AdminTickets() {
   const [replyMessage, setReplyMessage] = useState("");
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
   const [resolutionSummary, setResolutionSummary] = useState("");
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachmentInternal, setAttachmentInternal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: tickets, isLoading } = useTickets({
@@ -234,6 +242,30 @@ export default function AdminTickets() {
   const sendMessage = useSendTicketMessage();
   const resolveTicket = useResolveTicket();
   const addTimeline = useAddTimelineEntry();
+  const uploadAttachment = useUploadTicketAttachment();
+  const deleteAttachment = useDeleteTicketAttachment();
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedId) return;
+    
+    setUploadingAttachment(true);
+    try {
+      await uploadAttachment.mutateAsync({
+        ticketId: selectedId,
+        file,
+        isInternal: attachmentInternal,
+      });
+      addTimeline.mutate({
+        ticketId: selectedId,
+        action: "attachment_added",
+        note: `Added ${attachmentInternal ? "internal " : ""}attachment: ${file.name}`,
+      });
+    } finally {
+      setUploadingAttachment(false);
+      e.target.value = "";
+    }
+  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -634,10 +666,47 @@ export default function AdminTickets() {
                         </div>
                       )}
 
+                      {/* Upload attachment */}
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Add Attachment</p>
+                        <div className="flex gap-2">
+                          <label className="flex-1">
+                            <div className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/30 transition-colors">
+                              {uploadingAttachment ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Upload className="w-4 h-4 text-muted-foreground" />
+                              )}
+                              <span className="text-sm text-muted-foreground">
+                                {uploadingAttachment ? "Uploading..." : "Click to upload"}
+                              </span>
+                            </div>
+                            <input
+                              type="file"
+                              className="hidden"
+                              onChange={handleAttachmentUpload}
+                              disabled={uploadingAttachment}
+                            />
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="internal-only"
+                            checked={attachmentInternal}
+                            onChange={(e) => setAttachmentInternal(e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label htmlFor="internal-only" className="text-xs text-muted-foreground cursor-pointer">
+                            Internal only (not visible to customer)
+                          </Label>
+                        </div>
+                      </div>
+
                       {/* Attachments list */}
                       {attachments && attachments.length > 0 ? (
                         <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground">Attachments</p>
+                          <p className="text-xs font-medium text-muted-foreground">Attachments ({attachments.length})</p>
                           {attachments.map((att) => (
                             <div key={att.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
                               <FileText className="w-4 h-4 text-muted-foreground" />
@@ -645,11 +714,27 @@ export default function AdminTickets() {
                               {att.is_internal && (
                                 <Badge variant="outline" className="text-xs">Internal</Badge>
                               )}
+                              <a
+                                href={att.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </a>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                onClick={() => deleteAttachment.mutate(att.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">No attachments</p>
+                        <p className="text-sm text-muted-foreground text-center py-4">No attachments yet</p>
                       )}
                     </div>
                   </ScrollArea>
