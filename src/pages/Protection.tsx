@@ -199,24 +199,25 @@ export default function Protection() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Protection Packages - Main Content */}
             <div className="lg:col-span-2">
-              {/* Protection Packages */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+              {/* Protection Packages - Horizontal row on desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
                 {protectionPackages.map((pkg) => (
                   <Card
                     key={pkg.id}
                     onClick={() => setSelectedPackage(pkg.id)}
                     className={cn(
-                      "relative p-5 cursor-pointer transition-all hover:shadow-lg",
+                      "relative p-4 cursor-pointer transition-all hover:shadow-md flex flex-col",
                       selectedPackage === pkg.id
                         ? "ring-2 ring-primary border-primary"
                         : "border-border hover:border-muted-foreground/30"
                     )}
                   >
-                    {/* Selection indicator */}
-                    <div className="absolute top-4 right-4">
+                    {/* Header row: Title + Selection indicator */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="font-semibold text-base leading-tight">{pkg.name}</h3>
                       <div
                         className={cn(
-                          "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
                           selectedPackage === pkg.id
                             ? "border-primary bg-primary"
                             : "border-muted-foreground/30"
@@ -228,57 +229,58 @@ export default function Protection() {
                       </div>
                     </div>
 
-                    {/* Title */}
-                    <h3 className="font-semibold text-lg mb-2 pr-8">{pkg.name}</h3>
-
-                    {/* Rating stars */}
-                    <div className="flex gap-0.5 mb-3">
-                      {[...Array(3)].map((_, i) => (
-                        <span
-                          key={i}
-                          className={cn(
-                            "text-sm",
-                            i < pkg.rating ? "text-amber-500" : "text-muted-foreground/30"
-                          )}
+                    {/* Rating stars + discount badge inline */}
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <div className="flex gap-0.5">
+                        {[...Array(3)].map((_, i) => (
+                          <span
+                            key={i}
+                            className={cn(
+                              "text-xs",
+                              i < pkg.rating ? "text-amber-500" : "text-muted-foreground/30"
+                            )}
+                          >
+                            ★
+                          </span>
+                        ))}
+                      </div>
+                      {pkg.discount && (
+                        <Badge 
+                          variant="outline" 
+                          className="text-[10px] px-1.5 py-0 h-5 border-emerald-600 text-emerald-600 whitespace-nowrap"
                         >
-                          ★
-                        </span>
-                      ))}
+                          - {pkg.discount.replace(' online discount', '')}
+                        </Badge>
+                      )}
                     </div>
-
-                    {/* Discount badge */}
-                    {pkg.discount && (
-                      <Badge variant="destructive" className="mb-3 text-xs">
-                        {pkg.discount}
-                      </Badge>
-                    )}
 
                     {/* Deductible */}
                     <p
                       className={cn(
-                        "text-sm font-medium mb-4",
+                        "text-xs font-medium mb-3",
                         pkg.deductible === "No deductible"
                           ? "text-emerald-600"
                           : "text-amber-600"
                       )}
                     >
-                      Deductible: {pkg.deductible}
+                      {pkg.deductible === "No deductible" ? "No deductible" : `Deductible: ${pkg.deductible.replace('Up to ', '')}`}
                     </p>
 
-                    {/* Features */}
-                    <div className="space-y-2 mb-4 border-t border-border pt-4">
+                    {/* Features - compact list */}
+                    <div className="space-y-1.5 mb-3 flex-1">
                       {pkg.features.map((feature) => (
                         <div
                           key={feature.name}
-                          className="flex items-center gap-2 text-sm"
+                          className="flex items-center gap-1.5 text-xs"
                         >
                           {feature.included ? (
-                            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           ) : (
-                            <X className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <X className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
                           )}
                           <span
                             className={cn(
+                              "truncate",
                               feature.included
                                 ? "text-foreground"
                                 : "text-muted-foreground"
@@ -287,25 +289,25 @@ export default function Protection() {
                             {feature.name}
                           </span>
                           {feature.tooltip && (
-                            <Info className="w-3 h-3 text-muted-foreground" />
+                            <Info className="w-3 h-3 text-muted-foreground shrink-0" />
                           )}
                         </div>
                       ))}
                     </div>
 
-                    {/* Price */}
-                    <div className="mt-auto pt-2 border-t border-border">
+                    {/* Price - compact */}
+                    <div className="pt-2 border-t border-border mt-auto">
                       {pkg.dailyRate === 0 ? (
-                        <p className="text-lg font-semibold">Included</p>
+                        <p className="text-sm font-semibold">Included</p>
                       ) : (
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-sm text-muted-foreground">CA$</span>
-                          <span className="text-2xl font-bold">
+                        <div className="flex items-baseline gap-1 flex-wrap">
+                          <span className="text-xs text-muted-foreground">CA$</span>
+                          <span className="text-lg font-bold">
                             {pkg.dailyRate.toFixed(2)}
                           </span>
-                          <span className="text-sm text-muted-foreground">/ day</span>
+                          <span className="text-xs text-muted-foreground">/ day</span>
                           {pkg.originalRate && (
-                            <span className="text-sm text-muted-foreground line-through">
+                            <span className="text-xs text-muted-foreground line-through ml-1">
                               CA${pkg.originalRate.toFixed(2)}/day
                             </span>
                           )}
