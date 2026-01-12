@@ -72,22 +72,26 @@ export default function AdminCalendar() {
     return { left: `${Math.max(0, left)}%`, width: `${Math.min(100 - left, width)}%` };
   };
 
-  // Filter vehicles by category
+  // Filter vehicles by category and search
   const filteredVehicles = useMemo(() => {
     if (!calendarData) return [];
     let vehicles = calendarData.vehicles;
     
+    // Apply category filter
     if (categoryFilter !== "all") {
-      // Note: category isn't in CalendarVehicle but we could add it
-      // For now, we'll skip this filter at data level
+      vehicles = vehicles.filter(v => 
+        v.category.toLowerCase() === categoryFilter.toLowerCase()
+      );
     }
     
+    // Apply search filter
     if (searchQuery) {
       const search = searchQuery.toLowerCase();
       vehicles = vehicles.filter(v => 
         v.make.toLowerCase().includes(search) ||
         v.model.toLowerCase().includes(search) ||
-        v.locationName?.toLowerCase().includes(search)
+        v.locationName?.toLowerCase().includes(search) ||
+        v.category.toLowerCase().includes(search)
       );
     }
     

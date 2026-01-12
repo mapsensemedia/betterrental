@@ -14,87 +14,12 @@ import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
-import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
-
-interface ProtectionPackage {
-  id: string;
-  name: string;
-  dailyRate: number;
-  originalRate?: number;
-  deductible: string;
-  discount?: string;
-  rating: number;
-  features: {
-    name: string;
-    included: boolean;
-    tooltip?: string;
-  }[];
-  isRecommended?: boolean;
-}
-
-const protectionPackages: ProtectionPackage[] = [
-  {
-    id: "none",
-    name: "No extra protection",
-    dailyRate: 0,
-    deductible: "Up to full vehicle value",
-    rating: 0,
-    features: [
-      { name: "Loss Damage Waiver", included: false },
-      { name: "Tire and Glass Protection", included: false },
-      { name: "Extended Roadside Protection", included: false },
-    ],
-  },
-  {
-    id: "basic",
-    name: "Basic Protection",
-    dailyRate: 33.99,
-    deductible: "Up to $800.00",
-    rating: 1,
-    features: [
-      { name: "Loss Damage Waiver", included: true, tooltip: "Covers vehicle damage and theft with reduced deductible" },
-      { name: "Tire and Glass Protection", included: false },
-      { name: "Extended Roadside Protection", included: false },
-    ],
-  },
-  {
-    id: "smart",
-    name: "Smart Protection",
-    dailyRate: 39.25,
-    originalRate: 50.97,
-    discount: "23% online discount",
-    deductible: "No deductible",
-    rating: 2,
-    isRecommended: true,
-    features: [
-      { name: "Loss Damage Waiver", included: true, tooltip: "Full coverage with zero deductible" },
-      { name: "Tire and Glass Protection", included: true, tooltip: "Covers tire and windshield damage" },
-      { name: "Extended Roadside Protection", included: false },
-    ],
-  },
-  {
-    id: "premium",
-    name: "All Inclusive Protection",
-    dailyRate: 49.77,
-    originalRate: 59.96,
-    discount: "17% online discount",
-    deductible: "No deductible",
-    rating: 3,
-    features: [
-      { name: "Loss Damage Waiver", included: true, tooltip: "Complete peace of mind" },
-      { name: "Tire and Glass Protection", included: true, tooltip: "Full tire and glass coverage" },
-      { name: "Extended Roadside Protection", included: true, tooltip: "24/7 roadside assistance anywhere" },
-    ],
-  },
-];
-
-const includedFeatures = [
-  "Third party insurance",
-  "24/7 Roadside Assistance Hotline",
-  "Unlimited kilometers",
-  "Extended Roadside Protection",
-  "Booking option: Best price - Pay now, cancel and rebook for a fee",
-];
+import { 
+  calculateBookingPricing, 
+  ageRangeToAgeBand, 
+  PROTECTION_PACKAGES,
+  BOOKING_INCLUDED_FEATURES,
+} from "@/lib/pricing";
 
 export default function Protection() {
   const navigate = useNavigate();
@@ -117,7 +42,7 @@ export default function Protection() {
   
   // Calculate total price using central pricing utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
-  const selectedProtection = protectionPackages.find((p) => p.id === selectedPackage);
+  const selectedProtection = PROTECTION_PACKAGES.find((p) => p.id === selectedPackage);
   
   const pricing = calculateBookingPricing({
     vehicleDailyRate: vehicle?.dailyRate || 0,
@@ -201,7 +126,7 @@ export default function Protection() {
             <div className="lg:col-span-2">
               {/* Protection Packages - Horizontal row on desktop */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-                {protectionPackages.map((pkg) => (
+                {PROTECTION_PACKAGES.map((pkg) => (
                   <Card
                     key={pkg.id}
                     onClick={() => setSelectedPackage(pkg.id)}
@@ -325,7 +250,7 @@ export default function Protection() {
                   Your booking overview:
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {includedFeatures.map((feature) => (
+                  {BOOKING_INCLUDED_FEATURES.map((feature) => (
                     <div key={feature} className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                       <span>{feature}</span>

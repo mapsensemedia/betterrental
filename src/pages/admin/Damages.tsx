@@ -43,20 +43,9 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
+import { DAMAGE_SEVERITY_STYLES, DAMAGE_STATUS_STYLES } from "@/lib/pricing";
 
 type DamageSeverity = Database["public"]["Enums"]["damage_severity"];
-
-const SEVERITY_STYLES: Record<DamageSeverity, { label: string; className: string }> = {
-  minor: { label: "Minor", className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
-  moderate: { label: "Moderate", className: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
-  severe: { label: "Severe", className: "bg-red-500/10 text-red-600 border-red-500/20" },
-};
-
-const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  under_review: { label: "Under Review", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  confirmed: { label: "Confirmed", className: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  resolved: { label: "Resolved", className: "bg-green-500/10 text-green-600 border-green-500/20" },
-};
 
 export default function AdminDamages() {
   const navigate = useNavigate();
@@ -160,9 +149,11 @@ export default function AdminDamages() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="under_review">Under Review</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="resolved">Resolved</SelectItem>
+              <SelectItem value="reported">Reported</SelectItem>
+              <SelectItem value="reviewing">Reviewing</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="repaired">Repaired</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
             </SelectContent>
           </Select>
 
@@ -209,9 +200,9 @@ export default function AdminDamages() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredDamages.map((damage) => {
-                    const severityStyle = SEVERITY_STYLES[damage.severity];
-                    const statusStyle = STATUS_STYLES[damage.status] || STATUS_STYLES.under_review;
+                {filteredDamages.map((damage) => {
+                    const severityStyle = DAMAGE_SEVERITY_STYLES[damage.severity] || { label: damage.severity, className: "" };
+                    const statusStyle = DAMAGE_STATUS_STYLES[damage.status] || { label: damage.status, className: "" };
 
                     return (
                       <TableRow key={damage.id} className="cursor-pointer hover:bg-muted/50">
@@ -284,11 +275,11 @@ export default function AdminDamages() {
             <div className="mt-6 space-y-6">
               {/* Status & Severity */}
               <div className="flex items-center gap-3">
-                <Badge variant="outline" className={SEVERITY_STYLES[selectedDamage.severity as DamageSeverity]?.className}>
-                  {SEVERITY_STYLES[selectedDamage.severity as DamageSeverity]?.label || selectedDamage.severity}
+                <Badge variant="outline" className={DAMAGE_SEVERITY_STYLES[selectedDamage.severity as DamageSeverity]?.className}>
+                  {DAMAGE_SEVERITY_STYLES[selectedDamage.severity as DamageSeverity]?.label || selectedDamage.severity}
                 </Badge>
-                <Badge variant="outline" className={STATUS_STYLES[selectedDamage.status]?.className}>
-                  {STATUS_STYLES[selectedDamage.status]?.label || selectedDamage.status}
+                <Badge variant="outline" className={DAMAGE_STATUS_STYLES[selectedDamage.status]?.className}>
+                  {DAMAGE_STATUS_STYLES[selectedDamage.status]?.label || selectedDamage.status}
                 </Badge>
               </div>
 
