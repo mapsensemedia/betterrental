@@ -1,14 +1,17 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { DamageReportDialog } from "@/components/admin/DamageReportDialog";
 import { 
   DollarSign, 
   CheckCircle2,
-  AlertTriangle,
   ShieldAlert,
   Loader2,
+  Plus,
 } from "lucide-react";
 
 interface StepReturnFeesProps {
@@ -29,8 +32,41 @@ export function StepReturnFees({
   onMarkReviewed, 
   isMarking 
 }: StepReturnFeesProps) {
+  const [acknowledged, setAcknowledged] = useState(completion.reviewed);
+  const [damageDialogOpen, setDamageDialogOpen] = useState(false);
+
+  // Fetch vehicle info for damage dialog
+  const { data: vehicle } = useQuery({
+    queryKey: ["vehicle", vehicleId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vehicles")
+        .select("make, model, year")
+        .eq("id", vehicleId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!vehicleId,
+  });
+
+  // Fetch booking for code
+  const { data: booking } = useQuery({
+    queryKey: ["booking-code", bookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("booking_code")
+        .eq("id", bookingId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!bookingId,
+  });
+
   // Fetch damage reports for this booking
-  const { data: damages, isLoading: loadingDamages } = useQuery({
+  const { data: damages, isLoading: loadingDamages, refetch: refetchDamages } = useQuery({
     queryKey: ["booking-damages", bookingId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -45,6 +81,10 @@ export function StepReturnFees({
 
   const hasDamages = damages && damages.length > 0;
   const totalDamageCost = damages?.reduce((sum, d) => sum + (d.estimated_cost || 0), 0) || 0;
+
+  const vehicleName = vehicle 
+    ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` 
+    : "Vehicle";
 
   return (
     <div className="space-y-6">
@@ -76,6 +116,29 @@ export function StepReturnFees({
               </>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Report Damage Button */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4" />
+            Report Damage
+          </CardTitle>
+          <CardDescription>
+            Document any new damage found during the return inspection
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button 
+            variant="destructive" 
+            className="w-full"
+            onClick={() => setDamageDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Report New Damage
+          </Button>
         </CardContent>
       </Card>
 
@@ -168,21 +231,47 @@ export function StepReturnFees({
 
       {/* Confirm Button */}
       {!completion.reviewed && (
-        <Button
-          onClick={onMarkReviewed}
-          disabled={isMarking}
-          className="w-full"
-        >
-          {isMarking ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            "Confirm Fees Reviewed"
-          )}
-        </Button>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Checkbox 
+              id="acknowledge-fees" 
+              checked={acknowledged}
+              onCheckedChange={(checked) => setAcknowledged(checked === true)}
+            />
+            <label htmlFor="acknowledge-fees" className="text-sm cursor-pointer">
+              I have reviewed all damages and fees for this return
+            </label>
+          </div>
+          
+          <Button
+            onClick={onMarkReviewed}
+            disabled={!acknowledged || isMarking}
+            className="w-full"
+          >
+            {isMarking ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Confirm Fees Reviewed"
+            )}
+          </Button>
+        </div>
       )}
+
+      {/* Damage Report Dialog */}
+      <DamageReportDialog
+        open={damageDialogOpen}
+        onOpenChange={(open) => {
+          setDamageDialogOpen(open);
+          if (!open) refetchDamages();
+        }}
+        vehicleId={vehicleId}
+        vehicleName={vehicleName}
+        bookingId={bookingId}
+        bookingCode={booking?.booking_code}
+      />
     </div>
   );
 }
