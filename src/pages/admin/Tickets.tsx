@@ -303,13 +303,10 @@ export default function AdminTickets() {
   const handleStatusChange = async (status: TicketStatus) => {
     if (!selectedId || !selectedTicket) return;
     
-    // Check if trying to close without resolution
+    // Check if trying to close without resolution - require resolved status first
     if (status === "closed") {
-      const hasResolution = selectedTicket.resolution_summary;
-      const hasProof = (attachments?.length || 0) > 0 || (selectedTicket.messages?.length || 0) > 1;
-      
-      if (!hasResolution || !hasProof) {
-        toast.error("Cannot close ticket without resolution summary and proof (attachment or messages)");
+      if (selectedTicket.status !== "resolved") {
+        toast.error("Ticket must be resolved before closing. Click 'Resolve' first.");
         return;
       }
     }
