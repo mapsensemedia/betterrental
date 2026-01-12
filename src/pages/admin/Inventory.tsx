@@ -68,8 +68,11 @@ import {
   Plus,
   X,
   Trash2,
+  Wrench,
 } from "lucide-react";
 import { format } from "date-fns";
+import { MaintenanceDialog } from "@/components/admin/MaintenanceDialog";
+import { DamageReportDialog } from "@/components/admin/DamageReportDialog";
 
 const CATEGORIES = ["Sedan", "SUV", "Sports", "Luxury", "Electric", "Convertible", "Compact"];
 const FUEL_TYPES = ["Petrol", "Diesel", "Electric", "Hybrid"];
@@ -142,6 +145,23 @@ export default function AdminInventory() {
     vehicleId: string | null;
     vehicleName: string;
   }>({ open: false, vehicleId: null, vehicleName: "" });
+
+  // Maintenance dialog state
+  const [maintenanceDialog, setMaintenanceDialog] = useState<{
+    open: boolean;
+    vehicleId: string;
+    vehicleName: string;
+    status: string | null;
+    reason: string | null;
+    until: string | null;
+  }>({ open: false, vehicleId: "", vehicleName: "", status: null, reason: null, until: null });
+
+  // Damage report dialog state
+  const [damageDialog, setDamageDialog] = useState<{
+    open: boolean;
+    vehicleId: string;
+    vehicleName: string;
+  }>({ open: false, vehicleId: "", vehicleName: "" });
 
   const { data: vehicles, isLoading, refetch } = useAdminVehicles(filters);
   const { data: locations } = useLocations();
@@ -459,6 +479,32 @@ export default function AdminInventory() {
                             onClick={() => handleOpenEdit(vehicle)}
                           >
                             <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setMaintenanceDialog({
+                              open: true,
+                              vehicleId: vehicle.id,
+                              vehicleName: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+                              status: null,
+                              reason: null,
+                              until: null,
+                            })}
+                          >
+                            <Wrench className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDamageDialog({
+                              open: true,
+                              vehicleId: vehicle.id,
+                              vehicleName: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+                            })}
+                            className="text-red-500 hover:text-red-600"
+                          >
+                            <ShieldAlert className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -1124,6 +1170,25 @@ export default function AdminInventory() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Maintenance Dialog */}
+      <MaintenanceDialog
+        open={maintenanceDialog.open}
+        onOpenChange={(open) => !open && setMaintenanceDialog({ ...maintenanceDialog, open: false })}
+        vehicleId={maintenanceDialog.vehicleId}
+        vehicleName={maintenanceDialog.vehicleName}
+        currentStatus={maintenanceDialog.status}
+        currentReason={maintenanceDialog.reason}
+        currentUntil={maintenanceDialog.until}
+      />
+
+      {/* Damage Report Dialog */}
+      <DamageReportDialog
+        open={damageDialog.open}
+        onOpenChange={(open) => !open && setDamageDialog({ ...damageDialog, open: false })}
+        vehicleId={damageDialog.vehicleId}
+        vehicleName={damageDialog.vehicleName}
+      />
     </AdminShell>
   );
 }

@@ -12,7 +12,9 @@ import {
   User,
   FileText,
   Calendar,
-  Loader2
+  Loader2,
+  Send,
+  Bell,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -258,17 +260,32 @@ export default function AdminVerifications() {
                     </TableCell>
                     <TableCell>{getStatusBadge(request.status)}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setReviewNotes(request.reviewer_notes || "");
-                        }}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Review
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {request.status === "pending" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toast({ title: "Reminder Sent", description: "Verification reminder sent to customer" });
+                            }}
+                          >
+                            <Bell className="w-4 h-4 mr-1" />
+                            Remind
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setReviewNotes(request.reviewer_notes || "");
+                          }}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Review
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
