@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Mail, Lock, User, ArrowRight, Car } from "lucide-react";
+import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { PhoneInput } from "@/components/shared/PhoneInput";
 import { useAuth } from "@/hooks/use-auth";
 
 import heroImage from "@/assets/hero-car.jpg";
+import c2cLogo from "@/assets/c2c-logo.png";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -120,11 +121,8 @@ export default function Auth() {
       {/* Left Panel - Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 lg:px-16 xl:px-24 py-12">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 mb-12">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary">
-            <Car className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold tracking-tight">C2C Rental</span>
+        <Link to="/" className="flex items-center mb-12">
+          <img src={c2cLogo} alt="C2C Rental" className="h-12 w-auto" />
         </Link>
 
         <div className="max-w-md">
