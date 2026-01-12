@@ -13,11 +13,13 @@ import { calculateBookingPricing, ageRangeToAgeBand, TAX_RATE } from "@/lib/pric
 interface BookingSummaryPanelProps {
   className?: string;
   showPricing?: boolean;
+  protectionDailyRate?: number;
 }
 
 export function BookingSummaryPanel({
   className,
   showPricing = true,
+  protectionDailyRate = 0,
 }: BookingSummaryPanelProps) {
   const { searchData, rentalDays } = useRentalBooking();
   const { data: vehicle } = useVehicle(searchData.selectedVehicleId);
@@ -39,6 +41,7 @@ export function BookingSummaryPanel({
     const breakdown = calculateBookingPricing({
       vehicleDailyRate: vehicle.dailyRate,
       rentalDays,
+      protectionDailyRate,
       addOnsTotal,
       deliveryFee,
       driverAgeBand,

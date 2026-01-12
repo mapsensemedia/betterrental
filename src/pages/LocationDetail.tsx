@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { MapPin, Phone, Mail, Clock, ArrowLeft, Navigation, Car } from "lucide-react";
+import { MapPin, Clock, ArrowLeft, Navigation, Car } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { SectionHeader } from "@/components/landing/SectionHeader";
@@ -9,6 +9,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "@/hooks/use-locations";
 import { useVehiclesByLocation } from "@/hooks/use-availability";
 import { LocationsMap } from "@/components/shared/LocationsMap";
+
+// Specific Google Maps links for each location
+const LOCATION_MAPS_LINKS: Record<string, string> = {
+  "Abbotsford Centre": "https://maps.app.goo.gl/LC1Ua6q2XxcMw2TA9",
+  "Langley Centre": "https://maps.app.goo.gl/ToULonCLvQ8Me9Yi7",
+  "Surrey Centre": "https://maps.app.goo.gl/LhWcpkRffqz335hH8",
+};
+
 export default function LocationDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: location, isLoading: locationLoading } = useLocation(id || null);
@@ -50,6 +58,10 @@ export default function LocationDetail() {
   }
 
   const getDirectionsUrl = () => {
+    // Use specific Google Maps link if available
+    const specificLink = LOCATION_MAPS_LINKS[location.name];
+    if (specificLink) return specificLink;
+    
     if (location.lat && location.lng) {
       return `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
     }
@@ -107,36 +119,6 @@ export default function LocationDetail() {
                   <p className="text-sm text-muted-foreground">{location.address}</p>
                 </div>
               </div>
-
-              {location.phone && (
-                <div className="flex items-start gap-3">
-                  <Phone className="w-5 h-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="font-medium">Phone</p>
-                    <a 
-                      href={`tel:${location.phone}`}
-                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      {location.phone}
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {location.email && (
-                <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="font-medium">Email</p>
-                    <a 
-                      href={`mailto:${location.email}`}
-                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      {location.email}
-                    </a>
-                  </div>
-                </div>
-              )}
 
               {location.hoursJson && Object.keys(location.hoursJson).length > 0 && (
                 <div className="flex items-start gap-3">

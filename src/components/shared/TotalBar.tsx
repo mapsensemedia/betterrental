@@ -1,0 +1,63 @@
+/**
+ * TotalBar - Always-visible total price bar for customer booking pages
+ * Uses central pricing utility as source of truth
+ */
+import { useRentalBooking } from "@/contexts/RentalBookingContext";
+import { useVehicle } from "@/hooks/use-vehicles";
+import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
+import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
+import { cn } from "@/lib/utils";
+
+interface TotalBarProps {
+  className?: string;
+  protectionDailyRate?: number;
+}
+
+export function TotalBar({ className, protectionDailyRate = 0 }: TotalBarProps) {
+  const { searchData, rentalDays } = useRentalBooking();
+  const { data: vehicle } = useVehicle(searchData.selectedVehicleId);
+  const { data: addOns = [] } = useAddOns();
+
+  // Calculate pricing using central utility
+  const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
+  
+  const { total: addOnsTotal } = calculateAddOnsCost(
+    addOns,
+    searchData.selectedAddOnIds,
+    rentalDays
+  );
+  const deliveryFee = searchData.deliveryFee || 0;
+
+  const pricing = vehicle
+    ? calculateBookingPricing({
+        vehicleDailyRate: vehicle.dailyRate,
+        rentalDays,
+        protectionDailyRate,
+        addOnsTotal,
+        deliveryFee,
+        driverAgeBand,
+      })
+    : null;
+
+  if (!pricing) return null;
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-border bg-card p-4",
+        className
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-semibold text-lg">Total</span>
+        <span className="font-bold text-xl">
+          CA${pricing.total.toFixed(2)}
+          <span className="text-destructive">*</span>
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">
+        *Estimated total. Final price may vary.
+      </p>
+    </div>
+  );
+}

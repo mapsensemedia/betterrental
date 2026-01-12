@@ -3,7 +3,7 @@
  */
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Check, Info, Plus, Shield, Users, Car, Baby } from "lucide-react";
+import { ArrowLeft, Check, Plus, Users, Car, Baby } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -12,6 +12,7 @@ import { useVehicles } from "@/hooks/use-vehicles";
 import { useAddOns } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
+import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
 
@@ -34,13 +35,6 @@ function getAddonIcon(name: string) {
   }
   return Car;
 }
-
-const includedFeatures = [
-  "Third party insurance",
-  "24/7 Roadside Assistance Hotline",
-  "Unlimited kilometers",
-  "Booking option: Best price - Pay now, cancel and rebook for a fee",
-];
 
 export default function AddOns() {
   const navigate = useNavigate();
@@ -231,46 +225,14 @@ export default function AddOns() {
               )}
             </div>
 
-            {/* Booking Overview Sidebar */}
+            {/* Booking Summary Sidebar with Total */}
             <div className="lg:col-span-1">
-              <Card className="p-6 sticky top-24">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Your booking overview:
-                </h3>
-                <div className="space-y-3">
-                  {includedFeatures.map((feature) => (
-                    <div key={feature} className="flex items-start gap-2 text-sm">
-                      <Check className="w-4 h-4 text-foreground shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                      <Info className="w-3 h-3 text-muted-foreground ml-auto shrink-0" />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Vehicle info */}
-                {vehicle && (
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <div className="flex gap-3">
-                      {vehicle.imageUrl && (
-                        <img
-                          src={vehicle.imageUrl}
-                          alt={`${vehicle.make} ${vehicle.model}`}
-                          className="w-20 h-14 object-cover rounded-lg"
-                        />
-                      )}
-                      <div>
-                        <p className="font-medium text-sm">
-                          {vehicle.year} {vehicle.make} {vehicle.model}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {rentalDays} rental day{rentalDays > 1 ? "s" : ""}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </Card>
+              <div className="sticky top-24 space-y-4">
+                <BookingSummaryPanel 
+                  showPricing={true} 
+                  protectionDailyRate={protectionDailyRate}
+                />
+              </div>
             </div>
           </div>
         </div>

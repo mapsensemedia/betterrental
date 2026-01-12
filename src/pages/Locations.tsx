@@ -1,4 +1,4 @@
-import { MapPin, Phone, Mail, ChevronRight, Navigation } from "lucide-react";
+import { MapPin, ChevronRight, Navigation } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -8,14 +8,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { LocationsMap } from "@/components/shared/LocationsMap";
 
+// Specific Google Maps links for each location
+const LOCATION_MAPS_LINKS: Record<string, string> = {
+  "Abbotsford Centre": "https://maps.app.goo.gl/LC1Ua6q2XxcMw2TA9",
+  "Langley Centre": "https://maps.app.goo.gl/ToULonCLvQ8Me9Yi7",
+  "Surrey Centre": "https://maps.app.goo.gl/LhWcpkRffqz335hH8",
+};
+
 export default function Locations() {
   const { data: locations = [], isLoading, error } = useLocations();
   const navigate = useNavigate();
 
-  const handleGetDirections = (lat: number | null, lng: number | null, address: string, city: string) => {
-    const url = lat && lng
-      ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${address}, ${city}`)}`;
+  const handleGetDirections = (locationName: string, lat: number | null, lng: number | null, address: string, city: string) => {
+    // Use specific Google Maps link if available, otherwise fallback to generated URL
+    const specificLink = LOCATION_MAPS_LINKS[locationName];
+    const url = specificLink || (
+      lat && lng
+        ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${address}, ${city}`)}`
+    );
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -95,30 +106,11 @@ export default function Locations() {
                     {loc.address}, {loc.city}
                   </p>
 
-                  <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                    {loc.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        <a href={`tel:${loc.phone}`} className="hover:text-primary transition-colors">
-                          {loc.phone}
-                        </a>
-                      </div>
-                    )}
-                    {loc.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        <a href={`mailto:${loc.email}`} className="hover:text-primary transition-colors">
-                          {loc.email}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full"
-                    onClick={() => handleGetDirections(loc.lat, loc.lng, loc.address, loc.city)}
+                    onClick={() => handleGetDirections(loc.name, loc.lat, loc.lng, loc.address, loc.city)}
                   >
                     <Navigation className="w-4 h-4 mr-2" />
                     Get Directions
