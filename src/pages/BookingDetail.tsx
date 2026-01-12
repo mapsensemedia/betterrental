@@ -62,6 +62,7 @@ import { ReportIssueDialog } from "@/components/booking/ReportIssueDialog";
 import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 import { BookingProgressStepper } from "@/components/booking/BookingProgressStepper";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
+import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 
 // Notification type labels
 const NOTIFICATION_LABELS: Record<string, string> = {
@@ -668,6 +669,16 @@ export default function BookingDetail() {
                       <AlertCircle className="h-4 w-4 mr-2" />
                       Report an Issue
                     </Button>
+                  )}
+                  {/* Cancel Booking - For pending/confirmed bookings */}
+                  {(booking.status === "pending" || booking.status === "confirmed") && (
+                    <CancelBookingDialog
+                      bookingId={booking.id}
+                      bookingCode={booking.booking_code}
+                      startAt={booking.start_at}
+                      status={booking.status}
+                      onCancelled={() => navigate("/dashboard")}
+                    />
                   )}
                 </CardContent>
               </Card>
