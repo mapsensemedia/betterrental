@@ -7,6 +7,7 @@ export interface CalendarVehicle {
   make: string;
   model: string;
   year: number;
+  category: string;
   imageUrl: string | null;
   locationId: string | null;
   locationName: string | null;
@@ -49,7 +50,7 @@ export function useCalendarData(weekOffset: number = 0, locationId?: string) {
       let vehiclesQuery = supabase
         .from("vehicles")
         .select(`
-          id, make, model, year, image_url, location_id, cleaning_buffer_hours,
+          id, make, model, year, category, image_url, location_id, cleaning_buffer_hours,
           locations (name)
         `)
         .eq("is_available", true)
@@ -93,6 +94,7 @@ export function useCalendarData(weekOffset: number = 0, locationId?: string) {
         make: v.make,
         model: v.model,
         year: v.year,
+        category: v.category || "Other",
         imageUrl: v.image_url,
         locationId: v.location_id,
         locationName: v.locations?.name || null,

@@ -43,21 +43,15 @@ import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
 
-import { calculateBookingPricing, ageRangeToAgeBand, YOUNG_DRIVER_FEE, DriverAgeBand } from "@/lib/pricing";
-
-const includedFeatures = [
-  "Third party insurance",
-  "24/7 Roadside Assistance Hotline",
-  "Unlimited kilometers",
-  "Booking option: Best price - Pay now, cancel and rebook for a fee",
-];
-
-const protectionRates: Record<string, { name: string; rate: number }> = {
-  none: { name: "No Extra Protection", rate: 0 },
-  basic: { name: "Basic Protection", rate: 33.99 },
-  smart: { name: "Smart Protection", rate: 39.25 },
-  premium: { name: "All Inclusive Protection", rate: 49.77 },
-};
+import { 
+  calculateBookingPricing, 
+  ageRangeToAgeBand, 
+  YOUNG_DRIVER_FEE, 
+  PROTECTION_RATES,
+  BOOKING_INCLUDED_FEATURES,
+  DEFAULT_DEPOSIT_AMOUNT,
+  DriverAgeBand 
+} from "@/lib/pricing";
 
 export default function NewCheckout() {
   const navigate = useNavigate();
@@ -124,7 +118,7 @@ export default function NewCheckout() {
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
   
   const pricing = useMemo(() => {
-    const protectionInfo = protectionRates[protection] || protectionRates.none;
+    const protectionInfo = PROTECTION_RATES[protection] || PROTECTION_RATES.none;
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays);
     const deliveryFee = searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0;
     
@@ -281,7 +275,7 @@ export default function NewCheckout() {
           subtotal: pricing.subtotal,
           tax_amount: pricing.taxAmount,
           total_amount: pricing.total,
-          deposit_amount: 500,
+          deposit_amount: DEFAULT_DEPOSIT_AMOUNT,
           booking_code: `C2C${Date.now().toString(36).toUpperCase()}`,
           status: paymentMethod === "pay-now" ? "pending" : "pending",
           notes: paymentMethod === "pay-later" ? "Customer chose to pay at pickup" : null,
@@ -849,7 +843,7 @@ export default function NewCheckout() {
                 {/* Booking Overview */}
                 <h3 className="font-semibold mb-3">Your booking overview:</h3>
                 <div className="space-y-2">
-                  {includedFeatures.map((feature) => (
+                  {BOOKING_INCLUDED_FEATURES.slice(0, 4).map((feature) => (
                     <div key={feature} className="flex items-start gap-2 text-sm">
                       <Check className="w-4 h-4 shrink-0 mt-0.5" />
                       <span>{feature}</span>
