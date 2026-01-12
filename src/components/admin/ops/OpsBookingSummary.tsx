@@ -138,6 +138,12 @@ export function OpsBookingSummary({ booking }: OpsBookingSummaryProps) {
             <span className="text-muted-foreground">Daily Rate</span>
             <span>${Number(booking.daily_rate).toFixed(2)}</span>
           </div>
+          {Number(booking.young_driver_fee) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Young driver fee</span>
+              <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Subtotal</span>
             <span>${Number(booking.subtotal).toFixed(2)}</span>

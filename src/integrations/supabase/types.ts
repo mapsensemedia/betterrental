@@ -330,6 +330,7 @@ export type Database = {
           created_at: string
           daily_rate: number
           deposit_amount: number | null
+          driver_age_band: string | null
           end_at: string
           id: string
           location_id: string
@@ -347,6 +348,7 @@ export type Database = {
           updated_at: string
           user_id: string
           vehicle_id: string
+          young_driver_fee: number | null
         }
         Insert: {
           actual_return_at?: string | null
@@ -355,6 +357,7 @@ export type Database = {
           created_at?: string
           daily_rate: number
           deposit_amount?: number | null
+          driver_age_band?: string | null
           end_at: string
           id?: string
           location_id: string
@@ -372,6 +375,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           vehicle_id: string
+          young_driver_fee?: number | null
         }
         Update: {
           actual_return_at?: string | null
@@ -380,6 +384,7 @@ export type Database = {
           created_at?: string
           daily_rate?: number
           deposit_amount?: number | null
+          driver_age_band?: string | null
           end_at?: string
           id?: string
           location_id?: string
@@ -397,6 +402,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vehicle_id?: string
+          young_driver_fee?: number | null
         }
         Relationships: [
           {

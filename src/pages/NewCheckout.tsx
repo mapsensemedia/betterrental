@@ -276,6 +276,8 @@ export default function NewCheckout() {
           pickup_address: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : null,
           pickup_lat: searchData.deliveryLat,
           pickup_lng: searchData.deliveryLng,
+          driver_age_band: driverAgeBand,
+          young_driver_fee: pricing.youngDriverFee,
         })
         .select()
         .single();
