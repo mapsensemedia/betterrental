@@ -29,6 +29,7 @@ import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { displayFuelType, displayTransmission } from "@/lib/utils";
+import { trackPageView, funnelEvents } from "@/lib/analytics";
 
 const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Sedan"];
 const fuelTypes = ["All", "Gas", "Electric", "Hybrid", "Diesel"];
@@ -79,6 +80,16 @@ export default function Search() {
   const [minSeats, setMinSeats] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("recommended");
   // Compare feature removed
+
+  // Track page view on mount
+  useEffect(() => {
+    trackPageView("Search Vehicles");
+    funnelEvents.searchPerformed({
+      location_id: contextLocationId || undefined,
+      category: selectedCategory !== "All" ? selectedCategory : undefined,
+      has_dates: !!startDate && !!endDate,
+    });
+  }, []);
 
   // Sync URL params with context on mount
   useEffect(() => {

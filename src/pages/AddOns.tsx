@@ -12,6 +12,7 @@ import { useVehicles } from "@/hooks/use-vehicles";
 import { useAddOns } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
+import { trackPageView, funnelEvents } from "@/lib/analytics";
 
 const ADDON_ICONS: Record<string, typeof Users> = {
   "additional driver": Users,
@@ -53,6 +54,11 @@ export default function AddOns() {
 
   const vehicle = vehicles?.find((v) => v.id === vehicleId);
 
+  // Track page view on mount
+  useEffect(() => {
+    trackPageView("Add-ons Selection");
+  }, []);
+
   // Calculate totals
   const protectionRates: Record<string, number> = {
     none: 0,
@@ -79,6 +85,9 @@ export default function AddOns() {
   };
 
   const handleContinue = () => {
+    // Track add-ons selection
+    funnelEvents.addonsSelected(selectedAddOnIds, addOnsTotal);
+
     // Save to context
     setSelectedAddOns(selectedAddOnIds);
 
