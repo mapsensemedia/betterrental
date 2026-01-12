@@ -3,16 +3,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { usePaymentDepositStatus, useReleaseDeposit } from "@/hooks/use-payment-deposit";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { usePaymentDepositStatus, useReleaseDeposit, useRecordPaymentDeposit } from "@/hooks/use-payment-deposit";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
   Wallet, 
   CheckCircle2,
   DollarSign,
   ArrowDownCircle,
-  AlertTriangle,
   Loader2,
+  MinusCircle,
 } from "lucide-react";
 
 interface StepReturnDepositProps {
@@ -24,18 +27,22 @@ interface StepReturnDepositProps {
 }
 
 export function StepReturnDeposit({ bookingId, booking, completion }: StepReturnDepositProps) {
-  const { data: depositData, isLoading } = usePaymentDepositStatus(bookingId);
+  const queryClient = useQueryClient();
+  const { data: depositData, isLoading, refetch } = usePaymentDepositStatus(bookingId);
   const releaseDeposit = useReleaseDeposit();
   const [releaseReason, setReleaseReason] = useState("Vehicle returned in good condition - no damages");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [partialAmount, setPartialAmount] = useState("");
+  const [withholdReason, setWithholdReason] = useState("");
 
   const depositAmount = booking.deposit_amount || 0;
   const hasDeposit = depositAmount > 0;
+  const depositHeld = depositData?.depositHeld || 0;
   const depositStatus = depositData?.depositStatus || "none";
   const isReleased = depositStatus === "released";
   const isHeld = depositStatus === "held";
 
-  const handleReleaseDeposit = async () => {
+  const handleReleaseFullDeposit = async () => {
     if (!hasDeposit) return;
     
     setIsProcessing(true);
@@ -60,10 +67,85 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
         reason: releaseReason,
       });
       
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
       toast.success("Deposit released successfully");
     } catch (error) {
       console.error("Error releasing deposit:", error);
       toast.error("Failed to release deposit");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleWithholdPartial = async () => {
+    if (!hasDeposit || !partialAmount || !withholdReason.trim()) return;
+    
+    const amountToWithhold = parseFloat(partialAmount);
+    if (isNaN(amountToWithhold) || amountToWithhold <= 0 || amountToWithhold > depositHeld) {
+      toast.error("Invalid withhold amount");
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      // Find the deposit payment
+      const { data: payments } = await supabase
+        .from("payments")
+        .select("id, amount")
+        .eq("booking_id", bookingId)
+        .eq("payment_type", "deposit")
+        .eq("status", "completed")
+        .limit(1);
+      
+      if (!payments || payments.length === 0) {
+        toast.error("No deposit payment found");
+        return;
+      }
+
+      // Create a deposit ledger entry for the withholding
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      await supabase.from("deposit_ledger").insert({
+        booking_id: bookingId,
+        payment_id: payments[0].id,
+        action: "withhold",
+        amount: amountToWithhold,
+        reason: withholdReason,
+        created_by: user.id,
+      });
+
+      // Calculate remaining amount to release
+      const remainingToRelease = depositHeld - amountToWithhold;
+      
+      if (remainingToRelease > 0) {
+        // Add ledger entry for partial release
+        await supabase.from("deposit_ledger").insert({
+          booking_id: bookingId,
+          payment_id: payments[0].id,
+          action: "partial_release",
+          amount: remainingToRelease,
+          reason: `Partial release after withholding $${amountToWithhold.toFixed(2)} for: ${withholdReason}`,
+          created_by: user.id,
+        });
+      }
+
+      // Mark the deposit as refunded (processed)
+      await releaseDeposit.mutateAsync({
+        bookingId,
+        paymentId: payments[0].id,
+        reason: `Partial withhold: $${amountToWithhold.toFixed(2)} for ${withholdReason}. Released: $${remainingToRelease.toFixed(2)}`,
+      });
+
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      toast.success(`Withheld $${amountToWithhold.toFixed(2)}, released $${remainingToRelease.toFixed(2)}`);
+      setPartialAmount("");
+      setWithholdReason("");
+    } catch (error) {
+      console.error("Error processing deposit:", error);
+      toast.error("Failed to process deposit");
     } finally {
       setIsProcessing(false);
     }
@@ -86,7 +168,7 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
             {isReleased ? (
               <>
                 <CheckCircle2 className="h-5 w-5" />
-                <span className="font-medium">Deposit released</span>
+                <span className="font-medium">Deposit processed</span>
               </>
             ) : !hasDeposit ? (
               <>
@@ -127,39 +209,90 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
             </Badge>
           </div>
 
-          {hasDeposit && !isReleased && (
+          {/* Release Options - Only show if deposit is held and not released */}
+          {hasDeposit && isHeld && !isReleased && (
             <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Release Reason</label>
-                <Textarea
-                  value={releaseReason}
-                  onChange={(e) => setReleaseReason(e.target.value)}
-                  placeholder="Enter reason for deposit release..."
-                  rows={2}
-                />
+              {/* Full Release Option */}
+              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                <h4 className="font-medium flex items-center gap-2">
+                  <ArrowDownCircle className="h-4 w-4 text-emerald-500" />
+                  Release Full Deposit
+                </h4>
+                <div className="space-y-2">
+                  <Label>Release Reason</Label>
+                  <Textarea
+                    value={releaseReason}
+                    onChange={(e) => setReleaseReason(e.target.value)}
+                    placeholder="Enter reason for deposit release..."
+                    rows={2}
+                  />
+                </div>
+                <Button
+                  onClick={handleReleaseFullDeposit}
+                  disabled={isProcessing || !releaseReason.trim()}
+                  className="w-full"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownCircle className="h-4 w-4 mr-2" />
+                      Release Full Deposit (${depositHeld.toFixed(2)})
+                    </>
+                  )}
+                </Button>
               </div>
 
-              <Button
-                onClick={handleReleaseDeposit}
-                disabled={isProcessing || !releaseReason.trim()}
-                className="w-full"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <ArrowDownCircle className="h-4 w-4 mr-2" />
-                    Release Full Deposit
-                  </>
-                )}
-              </Button>
-
-              <p className="text-xs text-muted-foreground text-center">
-                If damages were found, handle partial deposit retention through Billing
-              </p>
+              {/* Partial Withhold Option */}
+              <div className="space-y-3 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+                <h4 className="font-medium flex items-center gap-2">
+                  <MinusCircle className="h-4 w-4 text-destructive" />
+                  Withhold Partial Deposit
+                </h4>
+                <div className="grid gap-3">
+                  <div className="space-y-2">
+                    <Label>Amount to Withhold ($)</Label>
+                    <Input
+                      type="number"
+                      value={partialAmount}
+                      onChange={(e) => setPartialAmount(e.target.value)}
+                      placeholder="0.00"
+                      max={depositHeld}
+                      min={0}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reason for Withholding</Label>
+                    <Textarea
+                      value={withholdReason}
+                      onChange={(e) => setWithholdReason(e.target.value)}
+                      placeholder="e.g., Damage repair costs, cleaning fee..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={handleWithholdPartial}
+                  disabled={isProcessing || !partialAmount || !withholdReason.trim()}
+                  className="w-full"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <MinusCircle className="h-4 w-4 mr-2" />
+                      Withhold & Release Remainder
+                    </>
+                  )}
+                </Button>
+              </div>
             </>
           )}
 
@@ -167,10 +300,10 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
             <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-center">
               <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-500 mb-2" />
               <p className="font-medium text-emerald-700 dark:text-emerald-300">
-                Deposit Successfully Released
+                Deposit Successfully Processed
               </p>
               <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
-                The customer's security deposit has been refunded
+                The customer's security deposit has been handled
               </p>
             </div>
           )}

@@ -3,14 +3,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Flag, 
   Clock,
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  MessageSquare,
+  Plus,
 } from "lucide-react";
 import { format, differenceInMinutes } from "date-fns";
+import { useCreateAlert } from "@/hooks/use-alerts";
+import { toast } from "sonner";
 
 interface StepReturnFlagsProps {
   booking: any;
@@ -23,6 +36,9 @@ interface StepReturnFlagsProps {
 
 export function StepReturnFlags({ booking, completion, onMarkReviewed, isMarking }: StepReturnFlagsProps) {
   const [acknowledged, setAcknowledged] = useState(completion.reviewed);
+  const [flagDialogOpen, setFlagDialogOpen] = useState(false);
+  const [flagMessage, setFlagMessage] = useState("");
+  const createAlert = useCreateAlert();
   
   const endDate = new Date(booking.end_at);
   const now = new Date();
@@ -40,6 +56,26 @@ export function StepReturnFlags({ booking, completion, onMarkReviewed, isMarking
       description: `Vehicle returned ${hoursLate > 0 ? `${hoursLate}h ` : ""}${minsLate}m late`,
     });
   }
+
+  const handleFlagIssue = async () => {
+    if (!flagMessage.trim()) return;
+    
+    try {
+      await createAlert.mutateAsync({
+        alertType: "customer_issue",
+        title: `Return issue flagged for ${booking.booking_code}`,
+        message: flagMessage,
+        bookingId: booking.id,
+        vehicleId: booking.vehicle_id,
+        userId: booking.user_id,
+      });
+      toast.success("Issue flagged successfully");
+      setFlagDialogOpen(false);
+      setFlagMessage("");
+    } catch (err) {
+      toast.error("Failed to flag issue");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -146,6 +182,59 @@ export function StepReturnFlags({ booking, completion, onMarkReviewed, isMarking
           </CardContent>
         </Card>
       )}
+
+      {/* Flag New Issue Button */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Report an Issue
+          </CardTitle>
+          <CardDescription>
+            Flag any problems found during the return inspection
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => setFlagDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Flag New Issue
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Flag Issue Dialog */}
+      <Dialog open={flagDialogOpen} onOpenChange={setFlagDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Flag an Issue</DialogTitle>
+            <DialogDescription>
+              Create an alert for this return. This will notify the team.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Describe the issue..."
+            value={flagMessage}
+            onChange={(e) => setFlagMessage(e.target.value)}
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFlagDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleFlagIssue}
+              disabled={createAlert.isPending || !flagMessage.trim()}
+            >
+              {createAlert.isPending ? "Flagging..." : "Flag Issue"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Acknowledge & Continue */}
       {!completion.reviewed && (

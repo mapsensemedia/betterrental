@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useBookingConditionPhotos, getPhotoCompletionStatus } from "@/hooks/use-condition-photos";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { RETURN_STEPS, type ReturnStepId, type ReturnCompletion, getCurrentReturnStepIndex, checkReturnStepComplete } from "@/lib/return-steps";
 import { ReturnStepSidebar } from "@/components/admin/return-ops/ReturnStepSidebar";
@@ -20,23 +20,45 @@ import { StepReturnFees } from "@/components/admin/return-ops/steps/StepReturnFe
 import { StepReturnCloseout } from "@/components/admin/return-ops/steps/StepReturnCloseout";
 import { StepReturnDeposit } from "@/components/admin/return-ops/steps/StepReturnDeposit";
 import { ArrowLeft, X, Loader2, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export default function ReturnOps() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  const { data: booking, isLoading } = useBookingById(bookingId || null);
+  const { data: booking, isLoading, refetch: refetchBooking } = useBookingById(bookingId || null);
   const updateStatus = useUpdateBookingStatus();
-  const { data: photos } = useBookingConditionPhotos(bookingId || "");
-  const { data: depositData } = usePaymentDepositStatus(bookingId || "");
+  const { data: photos, refetch: refetchPhotos } = useBookingConditionPhotos(bookingId || "");
+  const { data: depositData, refetch: refetchDeposit } = usePaymentDepositStatus(bookingId || "");
   
   const [activeStep, setActiveStep] = useState<ReturnStepId>("intake");
   const hasInitializedRef = useRef(false);
 
+  // Local state for flags/fees reviewed (persisted in session)
+  const [flagsReviewed, setFlagsReviewed] = useState(() => {
+    const stored = sessionStorage.getItem(`return-flags-${bookingId}`);
+    return stored === 'true';
+  });
+  const [feesReviewed, setFeesReviewed] = useState(() => {
+    const stored = sessionStorage.getItem(`return-fees-${bookingId}`);
+    return stored === 'true';
+  });
+
+  // Persist reviewed state to session storage
+  useEffect(() => {
+    if (bookingId) {
+      sessionStorage.setItem(`return-flags-${bookingId}`, String(flagsReviewed));
+    }
+  }, [flagsReviewed, bookingId]);
+
+  useEffect(() => {
+    if (bookingId) {
+      sessionStorage.setItem(`return-fees-${bookingId}`, String(feesReviewed));
+    }
+  }, [feesReviewed, bookingId]);
+
   // Fetch return metrics
-  const { data: returnMetrics } = useQuery({
+  const { data: returnMetrics, refetch: refetchMetrics } = useQuery({
     queryKey: ["return-inspection-metrics", bookingId],
     queryFn: async () => {
       const { data } = await supabase
@@ -63,15 +85,12 @@ export default function ReturnOps() {
     enabled: !!bookingId,
   });
 
-  // Local state for flags/fees reviewed
-  const [flagsReviewed, setFlagsReviewed] = useState(false);
-  const [feesReviewed, setFeesReviewed] = useState(false);
-
-  // Compute completion
+  // Compute completion - use minimum required photos (at least 4 of 6)
   const returnPhotos = photos?.return || [];
-  const photoStatus = getPhotoCompletionStatus(returnPhotos, 'return');
+  const hasMinimumPhotos = returnPhotos.length >= 4;
   const isCompleted = booking?.status === "completed";
   const depositReleased = depositData?.depositStatus === "released";
+  const noDepositRequired = !booking?.deposit_amount || booking?.deposit_amount === 0;
 
   const completion: ReturnCompletion = {
     intake: {
@@ -80,7 +99,7 @@ export default function ReturnOps() {
       fuelRecorded: !!returnMetrics?.fuel_level,
     },
     evidence: {
-      photosComplete: photoStatus.complete,
+      photosComplete: hasMinimumPhotos,
     },
     flags: {
       reviewed: flagsReviewed || isCompleted,
@@ -93,7 +112,7 @@ export default function ReturnOps() {
       completed: isCompleted,
     },
     deposit: {
-      processed: depositReleased || !booking?.deposit_amount,
+      processed: depositReleased || noDepositRequired || isCompleted,
     },
   };
 
@@ -112,6 +131,16 @@ export default function ReturnOps() {
     setActiveStep(stepId);
   };
 
+  const handleMarkFlagsReviewed = () => {
+    setFlagsReviewed(true);
+    toast.success("Flags marked as reviewed");
+  };
+
+  const handleMarkFeesReviewed = () => {
+    setFeesReviewed(true);
+    toast.success("Fees marked as reviewed");
+  };
+
   const handleCompleteReturn = () => {
     if (!bookingId) return;
     updateStatus.mutate(
@@ -119,7 +148,15 @@ export default function ReturnOps() {
       {
         onSuccess: () => {
           toast.success("Return completed successfully");
+          // Invalidate all related queries
           queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+          queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+          queryClient.invalidateQueries({ queryKey: ["active-rentals"] });
+          queryClient.invalidateQueries({ queryKey: ["returns"] });
+          refetchBooking();
+          // Clear session storage
+          sessionStorage.removeItem(`return-flags-${bookingId}`);
+          sessionStorage.removeItem(`return-fees-${bookingId}`);
         },
       }
     );
@@ -133,6 +170,17 @@ export default function ReturnOps() {
   };
 
   const handleBack = () => navigate("/admin/returns");
+
+  // Refetch data when switching steps
+  useEffect(() => {
+    if (activeStep === "evidence") {
+      refetchPhotos();
+    } else if (activeStep === "intake") {
+      refetchMetrics();
+    } else if (activeStep === "deposit") {
+      refetchDeposit();
+    }
+  }, [activeStep, refetchPhotos, refetchMetrics, refetchDeposit]);
 
   if (isLoading) {
     return (
@@ -159,7 +207,7 @@ export default function ReturnOps() {
     ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}`
     : "No vehicle";
 
-  const showNextButton = checkReturnStepComplete(activeStep, completion) && activeStep !== "deposit";
+  const showNextButton = checkReturnStepComplete(activeStep, completion) && activeStep !== "deposit" && !isCompleted;
 
   return (
     <AdminShell hideNav>
@@ -212,7 +260,7 @@ export default function ReturnOps() {
                   <StepReturnFlags 
                     booking={booking} 
                     completion={completion.flags}
-                    onMarkReviewed={() => setFlagsReviewed(true)}
+                    onMarkReviewed={handleMarkFlagsReviewed}
                     isMarking={false}
                   />
                 )}
@@ -221,7 +269,7 @@ export default function ReturnOps() {
                     bookingId={booking.id}
                     vehicleId={booking.vehicle_id}
                     completion={completion.fees}
-                    onMarkReviewed={() => setFeesReviewed(true)}
+                    onMarkReviewed={handleMarkFeesReviewed}
                     isMarking={false}
                   />
                 )}
@@ -241,7 +289,7 @@ export default function ReturnOps() {
                   />
                 )}
 
-                {showNextButton && !isCompleted && (
+                {showNextButton && (
                   <div className="pt-4 flex justify-end">
                     <Button onClick={handleNextStep}>
                       Continue to Next Step
