@@ -18,11 +18,10 @@ import {
   LogOut,
   User,
   ChevronDown,
-  Camera,
-  FileCheck,
   KeyRound,
   ShoppingCart,
 } from "lucide-react";
+import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,11 +111,8 @@ export function AdminShell({ children, dateFilter, onDateFilterChange, hideNav }
       {/* Desktop Sidebar */}
       <aside className="w-60 border-r border-border bg-card hidden lg:flex flex-col">
         <div className="p-5 border-b border-border">
-          <Link to="/" className="text-lg font-bold flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Car className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span>C2C Rental</span>
+          <Link to="/" className="flex items-center">
+            <img src={c2cLogo} alt="C2C Rental" className="h-9 w-auto" />
           </Link>
           <p className="text-xs text-muted-foreground mt-1">Admin Console</p>
         </div>

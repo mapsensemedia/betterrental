@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { Car, Mail, MapPin } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import c2cLogo from "@/assets/c2c-logo.png";
 
 const footerLinks = {
   explore: [
@@ -18,11 +19,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-8">
           {/* Brand Column */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-5">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-background">
-                <Car className="w-4 h-4 text-foreground" />
-              </div>
-              <span className="text-lg font-bold tracking-tight">C2C Rental</span>
+            <Link to="/" className="flex items-center mb-5">
+              <img src={c2cLogo} alt="C2C Rental" className="h-12 w-auto brightness-0 invert" />
             </Link>
             <p className="text-background/60 mb-5 max-w-sm text-sm leading-relaxed">
               Premium car rental experience with a curated fleet of vehicles.
