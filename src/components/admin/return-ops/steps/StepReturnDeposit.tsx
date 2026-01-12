@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { usePaymentDepositStatus, useReleaseDeposit, useRecordPaymentDeposit } from "@/hooks/use-payment-deposit";
+import { usePaymentDepositStatus, useReleaseDeposit } from "@/hooks/use-payment-deposit";
+import { useAddDepositLedgerEntry, useDepositLedger } from "@/hooks/use-deposit-ledger";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -16,6 +17,8 @@ import {
   ArrowDownCircle,
   Loader2,
   MinusCircle,
+  AlertTriangle,
+  Send,
 } from "lucide-react";
 
 interface StepReturnDepositProps {
@@ -24,30 +27,84 @@ interface StepReturnDepositProps {
   completion: {
     processed: boolean;
   };
+  totalDamageCost?: number;
 }
 
-export function StepReturnDeposit({ bookingId, booking, completion }: StepReturnDepositProps) {
+export function StepReturnDeposit({ 
+  bookingId, 
+  booking, 
+  completion,
+  totalDamageCost = 0 
+}: StepReturnDepositProps) {
   const queryClient = useQueryClient();
   const { data: depositData, isLoading, refetch } = usePaymentDepositStatus(bookingId);
+  const { data: ledgerData } = useDepositLedger(bookingId);
   const releaseDeposit = useReleaseDeposit();
+  const addLedgerEntry = useAddDepositLedgerEntry();
+  
   const [releaseReason, setReleaseReason] = useState("Vehicle returned in good condition - no damages");
   const [isProcessing, setIsProcessing] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
   const [withholdReason, setWithholdReason] = useState("");
+  const [sendingNotification, setSendingNotification] = useState(false);
 
   const depositAmount = booking.deposit_amount || 0;
   const hasDeposit = depositAmount > 0;
   const depositHeld = depositData?.depositHeld || 0;
   const depositStatus = depositData?.depositStatus || "none";
-  const isReleased = depositStatus === "released";
-  const isHeld = depositStatus === "held";
+  const isReleased = depositStatus === "released" || ledgerData?.status === "released";
+  const isHeld = depositStatus === "held" || ledgerData?.status === "held";
+  const remainingDeposit = ledgerData?.remaining ?? depositHeld;
+
+  // Auto-populate withhold amount from damage costs
+  useEffect(() => {
+    if (totalDamageCost > 0 && !partialAmount) {
+      const suggestedAmount = Math.min(totalDamageCost, remainingDeposit);
+      setPartialAmount(suggestedAmount.toFixed(2));
+      setWithholdReason(`Damage repair costs`);
+    }
+  }, [totalDamageCost, remainingDeposit, partialAmount]);
+
+  // Send notification to customer
+  const sendDepositNotification = async (action: "released" | "withheld", amount: number, reason?: string) => {
+    try {
+      setSendingNotification(true);
+      
+      // Create notification via edge function
+      await supabase.functions.invoke("send-deposit-notification", {
+        body: {
+          bookingId,
+          action,
+          amount,
+          reason,
+          withheldAmount: action === "withheld" ? amount : 0,
+          releasedAmount: action === "released" ? amount : (remainingDeposit - amount),
+        },
+      });
+      
+      toast.success("Customer notified about deposit");
+    } catch (error) {
+      console.warn("Failed to send deposit notification:", error);
+      // Don't fail the whole operation if notification fails
+    } finally {
+      setSendingNotification(false);
+    }
+  };
 
   const handleReleaseFullDeposit = async () => {
-    if (!hasDeposit) return;
+    if (!hasDeposit || remainingDeposit <= 0) return;
     
     setIsProcessing(true);
     try {
-      // Find the deposit payment
+      // Add release entry to ledger
+      await addLedgerEntry.mutateAsync({
+        bookingId,
+        action: "release",
+        amount: remainingDeposit,
+        reason: releaseReason,
+      });
+
+      // Find deposit payment and mark as refunded
       const { data: payments } = await supabase
         .from("payments")
         .select("id")
@@ -56,20 +113,20 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
         .eq("status", "completed")
         .limit(1);
       
-      if (!payments || payments.length === 0) {
-        toast.error("No deposit payment found");
-        return;
+      if (payments && payments.length > 0) {
+        await releaseDeposit.mutateAsync({
+          bookingId,
+          paymentId: payments[0].id,
+          reason: releaseReason,
+        });
       }
 
-      await releaseDeposit.mutateAsync({
-        bookingId,
-        paymentId: payments[0].id,
-        reason: releaseReason,
-      });
+      // Send notification to customer
+      await sendDepositNotification("released", remainingDeposit, releaseReason);
       
       await refetch();
-      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
-      toast.success("Deposit released successfully");
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
+      toast.success("Full deposit released successfully");
     } catch (error) {
       console.error("Error releasing deposit:", error);
       toast.error("Failed to release deposit");
@@ -82,64 +139,55 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
     if (!hasDeposit || !partialAmount || !withholdReason.trim()) return;
     
     const amountToWithhold = parseFloat(partialAmount);
-    if (isNaN(amountToWithhold) || amountToWithhold <= 0 || amountToWithhold > depositHeld) {
+    if (isNaN(amountToWithhold) || amountToWithhold <= 0 || amountToWithhold > remainingDeposit) {
       toast.error("Invalid withhold amount");
       return;
     }
     
     setIsProcessing(true);
     try {
-      // Find the deposit payment
+      // Add deduct entry to ledger
+      await addLedgerEntry.mutateAsync({
+        bookingId,
+        action: "deduct",
+        amount: amountToWithhold,
+        reason: withholdReason,
+      });
+
+      const remainingToRelease = remainingDeposit - amountToWithhold;
+      
+      // If there's remaining amount, release it
+      if (remainingToRelease > 0) {
+        await addLedgerEntry.mutateAsync({
+          bookingId,
+          action: "release",
+          amount: remainingToRelease,
+          reason: `Partial release after withholding $${amountToWithhold.toFixed(2)} for: ${withholdReason}`,
+        });
+      }
+
+      // Find deposit payment and mark as refunded
       const { data: payments } = await supabase
         .from("payments")
-        .select("id, amount")
+        .select("id")
         .eq("booking_id", bookingId)
         .eq("payment_type", "deposit")
         .eq("status", "completed")
         .limit(1);
       
-      if (!payments || payments.length === 0) {
-        toast.error("No deposit payment found");
-        return;
-      }
-
-      // Create a deposit ledger entry for the withholding
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      await supabase.from("deposit_ledger").insert({
-        booking_id: bookingId,
-        payment_id: payments[0].id,
-        action: "withhold",
-        amount: amountToWithhold,
-        reason: withholdReason,
-        created_by: user.id,
-      });
-
-      // Calculate remaining amount to release
-      const remainingToRelease = depositHeld - amountToWithhold;
-      
-      if (remainingToRelease > 0) {
-        // Add ledger entry for partial release
-        await supabase.from("deposit_ledger").insert({
-          booking_id: bookingId,
-          payment_id: payments[0].id,
-          action: "partial_release",
-          amount: remainingToRelease,
-          reason: `Partial release after withholding $${amountToWithhold.toFixed(2)} for: ${withholdReason}`,
-          created_by: user.id,
+      if (payments && payments.length > 0) {
+        await releaseDeposit.mutateAsync({
+          bookingId,
+          paymentId: payments[0].id,
+          reason: `Withheld: $${amountToWithhold.toFixed(2)} for ${withholdReason}. Released: $${remainingToRelease.toFixed(2)}`,
         });
       }
 
-      // Mark the deposit as refunded (processed)
-      await releaseDeposit.mutateAsync({
-        bookingId,
-        paymentId: payments[0].id,
-        reason: `Partial withhold: $${amountToWithhold.toFixed(2)} for ${withholdReason}. Released: $${remainingToRelease.toFixed(2)}`,
-      });
+      // Send notification to customer
+      await sendDepositNotification("withheld", amountToWithhold, withholdReason);
 
       await refetch();
-      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
       toast.success(`Withheld $${amountToWithhold.toFixed(2)}, released $${remainingToRelease.toFixed(2)}`);
       setPartialAmount("");
       setWithholdReason("");
@@ -209,8 +257,28 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
             </Badge>
           </div>
 
+          {/* Damage Cost Warning */}
+          {totalDamageCost > 0 && !isReleased && (
+            <div className="p-4 rounded-lg border border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-800 dark:text-amber-300">
+                    Damages Detected
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                    Total damage estimate: <strong>${totalDamageCost.toFixed(2)}</strong>
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                    Withhold amount has been auto-calculated based on damages
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Release Options - Only show if deposit is held and not released */}
-          {hasDeposit && isHeld && !isReleased && (
+          {hasDeposit && isHeld && !isReleased && remainingDeposit > 0 && (
             <>
               {/* Full Release Option */}
               <div className="space-y-3 p-4 rounded-lg border bg-card">
@@ -240,7 +308,7 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
                   ) : (
                     <>
                       <ArrowDownCircle className="h-4 w-4 mr-2" />
-                      Release Full Deposit (${depositHeld.toFixed(2)})
+                      Release Full Deposit (${remainingDeposit.toFixed(2)})
                     </>
                   )}
                 </Button>
@@ -260,9 +328,15 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
                       value={partialAmount}
                       onChange={(e) => setPartialAmount(e.target.value)}
                       placeholder="0.00"
-                      max={depositHeld}
+                      max={remainingDeposit}
                       min={0}
+                      step="0.01"
                     />
+                    {totalDamageCost > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Suggested: ${Math.min(totalDamageCost, remainingDeposit).toFixed(2)} (based on damage estimate)
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Reason for Withholding</Label>
@@ -292,6 +366,12 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
                     </>
                   )}
                 </Button>
+                
+                {partialAmount && parseFloat(partialAmount) > 0 && parseFloat(partialAmount) <= remainingDeposit && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    Customer will be refunded: ${(remainingDeposit - parseFloat(partialAmount)).toFixed(2)}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -303,8 +383,18 @@ export function StepReturnDeposit({ bookingId, booking, completion }: StepReturn
                 Deposit Successfully Processed
               </p>
               <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
-                The customer's security deposit has been handled
+                The customer has been notified
               </p>
+              {ledgerData && (
+                <div className="mt-3 text-xs text-emerald-600 space-y-1">
+                  {ledgerData.deducted > 0 && (
+                    <p>Withheld: ${ledgerData.deducted.toFixed(2)}</p>
+                  )}
+                  {ledgerData.released > 0 && (
+                    <p>Released: ${ledgerData.released.toFixed(2)}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

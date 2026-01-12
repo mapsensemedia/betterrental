@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { AdminShell } from "@/components/layout/AdminShell";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
-import { useBookingConditionPhotos, getPhotoCompletionStatus } from "@/hooks/use-condition-photos";
+import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,8 +15,7 @@ import { ReturnStepSidebar } from "@/components/admin/return-ops/ReturnStepSideb
 import { ReturnBookingSummary } from "@/components/admin/return-ops/ReturnBookingSummary";
 import { StepReturnIntake } from "@/components/admin/return-ops/steps/StepReturnIntake";
 import { StepReturnEvidence } from "@/components/admin/return-ops/steps/StepReturnEvidence";
-import { StepReturnFlags } from "@/components/admin/return-ops/steps/StepReturnFlags";
-import { StepReturnFees } from "@/components/admin/return-ops/steps/StepReturnFees";
+import { StepReturnIssues } from "@/components/admin/return-ops/steps/StepReturnIssues";
 import { StepReturnCloseout } from "@/components/admin/return-ops/steps/StepReturnCloseout";
 import { StepReturnDeposit } from "@/components/admin/return-ops/steps/StepReturnDeposit";
 import { ArrowLeft, X, Loader2, ArrowRight } from "lucide-react";
@@ -32,30 +31,21 @@ export default function ReturnOps() {
   const { data: depositData, refetch: refetchDeposit } = usePaymentDepositStatus(bookingId || "");
   
   const [activeStep, setActiveStep] = useState<ReturnStepId>("intake");
+  const [totalDamageCost, setTotalDamageCost] = useState(0);
   const hasInitializedRef = useRef(false);
 
-  // Local state for flags/fees reviewed (persisted in session)
-  const [flagsReviewed, setFlagsReviewed] = useState(() => {
-    const stored = sessionStorage.getItem(`return-flags-${bookingId}`);
-    return stored === 'true';
-  });
-  const [feesReviewed, setFeesReviewed] = useState(() => {
-    const stored = sessionStorage.getItem(`return-fees-${bookingId}`);
+  // Local state for issues reviewed (persisted in session)
+  const [issuesReviewed, setIssuesReviewed] = useState(() => {
+    const stored = sessionStorage.getItem(`return-issues-${bookingId}`);
     return stored === 'true';
   });
 
   // Persist reviewed state to session storage
   useEffect(() => {
     if (bookingId) {
-      sessionStorage.setItem(`return-flags-${bookingId}`, String(flagsReviewed));
+      sessionStorage.setItem(`return-issues-${bookingId}`, String(issuesReviewed));
     }
-  }, [flagsReviewed, bookingId]);
-
-  useEffect(() => {
-    if (bookingId) {
-      sessionStorage.setItem(`return-fees-${bookingId}`, String(feesReviewed));
-    }
-  }, [feesReviewed, bookingId]);
+  }, [issuesReviewed, bookingId]);
 
   // Fetch return metrics
   const { data: returnMetrics, refetch: refetchMetrics } = useQuery({
@@ -73,7 +63,7 @@ export default function ReturnOps() {
   });
 
   // Fetch damages
-  const { data: damages } = useQuery({
+  const { data: damages, refetch: refetchDamages } = useQuery({
     queryKey: ["booking-damages", bookingId],
     queryFn: async () => {
       const { data } = await supabase
@@ -101,11 +91,8 @@ export default function ReturnOps() {
     evidence: {
       photosComplete: hasMinimumPhotos,
     },
-    flags: {
-      reviewed: flagsReviewed || isCompleted,
-    },
-    fees: {
-      reviewed: feesReviewed || isCompleted,
+    issues: {
+      reviewed: issuesReviewed || isCompleted,
       damagesRecorded: (damages?.length || 0) > 0,
     },
     closeout: {
@@ -131,15 +118,14 @@ export default function ReturnOps() {
     setActiveStep(stepId);
   };
 
-  const handleMarkFlagsReviewed = () => {
-    setFlagsReviewed(true);
-    toast.success("Flags marked as reviewed");
+  const handleMarkIssuesReviewed = () => {
+    setIssuesReviewed(true);
+    toast.success("Issues marked as reviewed");
   };
 
-  const handleMarkFeesReviewed = () => {
-    setFeesReviewed(true);
-    toast.success("Fees marked as reviewed");
-  };
+  const handleDamagesUpdated = useCallback((cost: number) => {
+    setTotalDamageCost(cost);
+  }, []);
 
   const handleCompleteReturn = () => {
     if (!bookingId) return;
@@ -155,8 +141,7 @@ export default function ReturnOps() {
           queryClient.invalidateQueries({ queryKey: ["returns"] });
           refetchBooking();
           // Clear session storage
-          sessionStorage.removeItem(`return-flags-${bookingId}`);
-          sessionStorage.removeItem(`return-fees-${bookingId}`);
+          sessionStorage.removeItem(`return-issues-${bookingId}`);
         },
       }
     );
@@ -179,8 +164,10 @@ export default function ReturnOps() {
       refetchMetrics();
     } else if (activeStep === "deposit") {
       refetchDeposit();
+    } else if (activeStep === "issues") {
+      refetchDamages();
     }
-  }, [activeStep, refetchPhotos, refetchMetrics, refetchDeposit]);
+  }, [activeStep, refetchPhotos, refetchMetrics, refetchDeposit, refetchDamages]);
 
   if (isLoading) {
     return (
@@ -256,20 +243,13 @@ export default function ReturnOps() {
                 {activeStep === "evidence" && (
                   <StepReturnEvidence bookingId={booking.id} completion={completion.evidence} />
                 )}
-                {activeStep === "flags" && (
-                  <StepReturnFlags 
-                    booking={booking} 
-                    completion={completion.flags}
-                    onMarkReviewed={handleMarkFlagsReviewed}
-                    isMarking={false}
-                  />
-                )}
-                {activeStep === "fees" && (
-                  <StepReturnFees 
-                    bookingId={booking.id}
+                {activeStep === "issues" && (
+                  <StepReturnIssues 
+                    booking={booking}
                     vehicleId={booking.vehicle_id}
-                    completion={completion.fees}
-                    onMarkReviewed={handleMarkFeesReviewed}
+                    completion={completion.issues}
+                    onMarkReviewed={handleMarkIssuesReviewed}
+                    onDamagesUpdated={handleDamagesUpdated}
                     isMarking={false}
                   />
                 )}
@@ -286,6 +266,7 @@ export default function ReturnOps() {
                     bookingId={booking.id}
                     booking={booking}
                     completion={completion.deposit}
+                    totalDamageCost={totalDamageCost}
                   />
                 )}
 

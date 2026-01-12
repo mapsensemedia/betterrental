@@ -26,7 +26,7 @@ export function StepReturnCloseout({
 }: StepReturnCloseoutProps) {
   const isAlreadyCompleted = booking.status === "completed";
   
-  // Check prerequisites
+  // Check prerequisites - now using the merged "issues" step
   const prerequisites = [
     { 
       label: "Return intake recorded", 
@@ -39,13 +39,8 @@ export function StepReturnCloseout({
       required: false,
     },
     { 
-      label: "Flags reviewed", 
-      complete: completion.flags.reviewed,
-      required: true,
-    },
-    { 
-      label: "Fees/damages reviewed", 
-      complete: completion.fees.reviewed,
+      label: "Issues & damages reviewed", 
+      complete: completion.issues.reviewed,
       required: true,
     },
   ];
