@@ -76,7 +76,7 @@ export default function NewCheckout() {
   const protection = searchParams.get("protection") || "none";
   const addOnIds = searchParams.get("addOns")?.split(",").filter(Boolean) || searchData.selectedAddOnIds;
 
-  // Form state
+  // Form state - ageConfirmed is derived from context, not form input
   const [formData, setFormData] = useState({
     company: "",
     firstName: "",
@@ -84,7 +84,6 @@ export default function NewCheckout() {
     email: user?.email || "",
     countryCode: "+1",
     phone: "",
-    ageConfirmed: searchData.ageConfirmed,
     cardNumber: "",
     cardName: "",
     expiryDate: "",
@@ -95,6 +94,18 @@ export default function NewCheckout() {
     postalCode: "",
     termsAccepted: false,
   });
+
+  // Redirect to search if age not confirmed
+  useEffect(() => {
+    if (!searchData.ageConfirmed || !searchData.ageRange) {
+      toast({ 
+        title: "Age confirmation required", 
+        description: "Please confirm your age to proceed with booking",
+        variant: "destructive" 
+      });
+      navigate("/search");
+    }
+  }, [searchData.ageConfirmed, searchData.ageRange, navigate]);
 
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -213,8 +224,9 @@ export default function NewCheckout() {
       return;
     }
 
-    if (!formData.ageConfirmed) {
-      toast({ title: "Please confirm you are 25 years of age or older", variant: "destructive" });
+    if (!searchData.ageConfirmed || !searchData.ageRange) {
+      toast({ title: "Please confirm your age on the search page", variant: "destructive" });
+      navigate("/search");
       return;
     }
 
@@ -519,16 +531,17 @@ export default function NewCheckout() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <Checkbox
-                      id="ageConfirmed"
-                      checked={formData.ageConfirmed}
-                      onCheckedChange={(checked) => handleInputChange("ageConfirmed", checked as boolean)}
-                    />
-                    <Label htmlFor="ageConfirmed" className="text-sm cursor-pointer">
-                      I am 25 years of age or older
-                    </Label>
-                  </div>
+                  {/* Age confirmation indicator - read from context */}
+                  {searchData.ageRange && (
+                    <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span>
+                        {searchData.ageRange === "21-25" 
+                          ? "Driver age: 21-25 years (young driver fee applies)" 
+                          : "Driver age: 25+ years"}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </Card>
 

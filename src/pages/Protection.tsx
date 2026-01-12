@@ -200,7 +200,7 @@ export default function Protection() {
             {/* Protection Packages - Main Content */}
             <div className="lg:col-span-2">
               {/* Protection Packages */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
                 {protectionPackages.map((pkg) => (
                   <Card
                     key={pkg.id}
