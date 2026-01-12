@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
 
-const TAX_RATE = 0.13; // 13% tax
+import { calculateBookingPricing, ageRangeToAgeBand, YOUNG_DRIVER_FEE, DriverAgeBand } from "@/lib/pricing";
 
 const includedFeatures = [
   "Third party insurance",
@@ -109,32 +109,31 @@ export default function NewCheckout() {
     }
   }, [user?.email]);
 
-  // Calculate pricing
+  // Calculate pricing using central utility
+  const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
+  
   const pricing = useMemo(() => {
-    const vehicleTotal = (vehicle?.dailyRate || 0) * rentalDays;
     const protectionInfo = protectionRates[protection] || protectionRates.none;
-    const protectionTotal = protectionInfo.rate * rentalDays;
-
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays);
-    
     const deliveryFee = searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0;
     
-    const subtotal = vehicleTotal + protectionTotal + addOnsTotal + deliveryFee;
-    const taxAmount = subtotal * TAX_RATE;
-    const total = subtotal + taxAmount;
+    const breakdown = calculateBookingPricing({
+      vehicleDailyRate: vehicle?.dailyRate || 0,
+      rentalDays,
+      protectionDailyRate: protectionInfo.rate,
+      addOnsTotal,
+      deliveryFee,
+      driverAgeBand,
+    });
 
     return {
-      vehicleTotal,
-      protectionTotal,
+      ...breakdown,
+      vehicleTotal: breakdown.vehicleTotal,
+      protectionTotal: breakdown.protectionTotal,
       protectionName: protectionInfo.name,
-      addOnsTotal,
       itemized,
-      deliveryFee,
-      subtotal,
-      taxAmount,
-      total,
     };
-  }, [vehicle, rentalDays, protection, addOns, addOnIds, searchData]);
+  }, [vehicle, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand]);
 
   // Save abandoned cart when user leaves with info filled in
   const saveCartData = useCallback(() => {
@@ -702,6 +701,12 @@ export default function NewCheckout() {
                       <div className="flex justify-between">
                         <span>Delivery fee</span>
                         <span>CA${pricing.deliveryFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {pricing.youngDriverFee > 0 && (
+                      <div className="flex justify-between">
+                        <span>Young driver fee</span>
+                        <span>CA${pricing.youngDriverFee.toFixed(2)}</span>
                       </div>
                     )}
                     <Separator className="my-2" />

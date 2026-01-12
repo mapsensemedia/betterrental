@@ -13,6 +13,7 @@ import { useVehicles } from "@/hooks/use-vehicles";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
+import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
 
 interface ProtectionPackage {
   id: string;
@@ -113,11 +114,18 @@ export default function Protection() {
     }
   }, [vehicleId, vehicle]);
   
-  // Calculate total price
+  // Calculate total price using central pricing utility
+  const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
   const selectedProtection = protectionPackages.find((p) => p.id === selectedPackage);
-  const protectionTotal = (selectedProtection?.dailyRate || 0) * rentalDays;
-  const vehicleTotal = (vehicle?.dailyRate || 0) * rentalDays;
-  const totalPrice = vehicleTotal + protectionTotal;
+  
+  const pricing = calculateBookingPricing({
+    vehicleDailyRate: vehicle?.dailyRate || 0,
+    rentalDays,
+    protectionDailyRate: selectedProtection?.dailyRate || 0,
+    driverAgeBand,
+  });
+  
+  const totalPrice = pricing.total;
 
   const handleContinue = () => {
     // Track protection selection
@@ -339,7 +347,7 @@ export default function Protection() {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     ${vehicle.dailyRate}/day × {rentalDays} days = $
-                    {vehicleTotal.toFixed(2)}
+                    {pricing.vehicleTotal.toFixed(2)}
                   </p>
                 </div>
               </div>

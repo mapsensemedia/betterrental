@@ -1,20 +1,19 @@
 /**
  * BookingSummaryPanel - Persistent summary shown on select-car, extras, checkout pages
  */
-import { MapPin, Calendar, Clock, Car, Package, CreditCard } from "lucide-react";
+import { MapPin, Calendar, Clock, Car, Package, CreditCard, User } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { useVehicle } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { calculateBookingPricing, ageRangeToAgeBand, TAX_RATE } from "@/lib/pricing";
 
 interface BookingSummaryPanelProps {
   className?: string;
   showPricing?: boolean;
 }
-
-const TAX_RATE = 0.1;
 
 export function BookingSummaryPanel({
   className,
@@ -24,22 +23,37 @@ export function BookingSummaryPanel({
   const { data: vehicle } = useVehicle(searchData.selectedVehicleId);
   const { data: addOns = [] } = useAddOns();
 
-  // Calculate pricing
+  // Calculate pricing using central utility
+  const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
+  
   const pricing = (() => {
     if (!vehicle) return null;
 
-    const basePrice = vehicle.dailyRate * rentalDays;
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(
       addOns,
       searchData.selectedAddOnIds,
       rentalDays
     );
     const deliveryFee = searchData.deliveryFee || 0;
-    const subtotal = basePrice + addOnsTotal + deliveryFee;
-    const taxAmount = subtotal * TAX_RATE;
-    const total = subtotal + taxAmount;
+    
+    const breakdown = calculateBookingPricing({
+      vehicleDailyRate: vehicle.dailyRate,
+      rentalDays,
+      addOnsTotal,
+      deliveryFee,
+      driverAgeBand,
+    });
 
-    return { basePrice, addOnsTotal, deliveryFee, subtotal, taxAmount, total, itemized };
+    return { 
+      basePrice: breakdown.vehicleTotal, 
+      addOnsTotal, 
+      deliveryFee, 
+      youngDriverFee: breakdown.youngDriverFee,
+      subtotal: breakdown.subtotal, 
+      taxAmount: breakdown.taxAmount, 
+      total: breakdown.total, 
+      itemized 
+    };
   })();
 
   const selectedAddOnsData = addOns.filter((a) =>
@@ -193,6 +207,13 @@ export function BookingSummaryPanel({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery fee</span>
                   <span>${pricing.deliveryFee.toFixed(0)}</span>
+                </div>
+              )}
+              
+              {pricing.youngDriverFee > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Young driver fee</span>
+                  <span>${pricing.youngDriverFee.toFixed(0)}</span>
                 </div>
               )}
               

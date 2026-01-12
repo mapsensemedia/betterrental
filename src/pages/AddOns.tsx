@@ -13,6 +13,7 @@ import { useAddOns } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
+import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
 
 const ADDON_ICONS: Record<string, typeof Users> = {
   "additional driver": Users,
@@ -59,7 +60,8 @@ export default function AddOns() {
     trackPageView("Add-ons Selection");
   }, []);
 
-  // Calculate totals
+  // Calculate totals using central pricing utility
+  const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
   const protectionRates: Record<string, number> = {
     none: 0,
     basic: 33.99,
@@ -67,8 +69,6 @@ export default function AddOns() {
     premium: 49.77,
   };
   const protectionDailyRate = protectionRates[protection] || 0;
-  const protectionTotal = protectionDailyRate * rentalDays;
-  const vehicleTotal = (vehicle?.dailyRate || 0) * rentalDays;
   
   const addOnsTotal = selectedAddOnIds.reduce((sum, id) => {
     const addon = addOns.find((a) => a.id === id);
@@ -76,7 +76,15 @@ export default function AddOns() {
     return sum + addon.dailyRate * rentalDays + (addon.oneTimeFee || 0);
   }, 0);
 
-  const totalPrice = vehicleTotal + protectionTotal + addOnsTotal;
+  const pricing = calculateBookingPricing({
+    vehicleDailyRate: vehicle?.dailyRate || 0,
+    rentalDays,
+    protectionDailyRate,
+    addOnsTotal,
+    driverAgeBand,
+  });
+  
+  const totalPrice = pricing.total;
 
   const handleToggleAddOn = (id: string) => {
     setLocalSelectedAddOns((prev) =>
