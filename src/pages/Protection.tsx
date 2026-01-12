@@ -1,7 +1,7 @@
 /**
  * Protection - Select protection package before checkout
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check, X, Info, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { useVehicles } from "@/hooks/use-vehicles";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
+import { trackPageView, funnelEvents } from "@/lib/analytics";
 
 interface ProtectionPackage {
   id: string;
@@ -103,6 +104,14 @@ export default function Protection() {
   const [selectedPackage, setSelectedPackage] = useState<string>("none");
 
   const vehicle = vehicles?.find((v) => v.id === vehicleId);
+
+  // Track page view on mount
+  useEffect(() => {
+    trackPageView("Protection Selection");
+    if (vehicleId && vehicle) {
+      funnelEvents.vehicleSelected(vehicleId, vehicle.make, vehicle.model, vehicle.dailyRate);
+    }
+  }, [vehicleId, vehicle]);
   
   // Calculate total price
   const selectedProtection = protectionPackages.find((p) => p.id === selectedPackage);
@@ -111,6 +120,9 @@ export default function Protection() {
   const totalPrice = vehicleTotal + protectionTotal;
 
   const handleContinue = () => {
+    // Track protection selection
+    funnelEvents.protectionSelected(selectedPackage, selectedProtection?.dailyRate || 0);
+
     // Build URL params for add-ons step
     const params = new URLSearchParams();
     if (vehicleId) params.set("vehicleId", vehicleId);
