@@ -70,16 +70,6 @@ import {
 import { VehicleUnitDetail } from "@/components/admin/VehicleUnitDetail";
 import { FleetReportsPanel } from "@/components/admin/FleetReportsPanel";
 import { DepreciationCalculator } from "@/components/admin/DepreciationCalculator";
-import { format } from "date-fns";
-import { useVehicles } from "@/hooks/use-vehicles";
-import {
-  useVehicleUnits,
-  useCreateVehicleUnit,
-  useUpdateVehicleUnit,
-  useDeleteVehicleUnit,
-  VehicleUnit,
-} from "@/hooks/use-vehicle-units";
-import { VehicleUnitDetail } from "@/components/admin/VehicleUnitDetail";
 
 export default function FleetCosts() {
   const [search, setSearch] = useState("");
