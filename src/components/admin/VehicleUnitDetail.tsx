@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Sheet,
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -59,6 +60,11 @@ import {
   Trash2,
   Car,
   Gauge,
+  Upload,
+  FileImage,
+  X,
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { VehicleUnit } from "@/hooks/use-vehicle-units";
 import {
@@ -71,6 +77,7 @@ import {
   VehicleExpense,
 } from "@/hooks/use-vehicle-expenses";
 import { useAuth } from "@/hooks/use-auth";
+import { useReceiptUpload } from "@/hooks/use-receipt-upload";
 
 interface VehicleUnitDetailProps {
   unit: VehicleUnit;
@@ -94,6 +101,13 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
   const updateExpense = useUpdateVehicleExpense();
   const deleteExpense = useDeleteVehicleExpense();
 
+  // Receipt upload
+  const { uploadReceipt, getSignedUrl, deleteReceipt, isUploading, progress } = useReceiptUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+
   // Form state
   const [expenseForm, setExpenseForm] = useState({
     expense_type: "",
@@ -102,6 +116,7 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
     expense_date: format(new Date(), "yyyy-MM-dd"),
     vendor: "",
     mileage_at_expense: "",
+    receipt_url: "",
   });
 
   const resetExpenseForm = () => {
@@ -112,7 +127,36 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
       expense_date: format(new Date(), "yyyy-MM-dd"),
       vendor: "",
       mileage_at_expense: "",
+      receipt_url: "",
     });
+    setReceiptFile(null);
+    setReceiptPreview(null);
+  };
+
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setReceiptFile(file);
+      // Create preview for images
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setReceiptPreview(event.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setReceiptPreview(null);
+      }
+    }
+  };
+
+  // View receipt
+  const handleViewReceipt = async (receiptUrl: string) => {
+    const signedUrl = await getSignedUrl(receiptUrl);
+    if (signedUrl) {
+      setViewingReceipt(signedUrl);
+    }
   };
 
   const handleAddExpense = () => {
@@ -131,11 +175,24 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
       mileage_at_expense: expense.mileage_at_expense
         ? String(expense.mileage_at_expense)
         : "",
+      receipt_url: expense.receipt_url || "",
     });
+    setReceiptFile(null);
+    setReceiptPreview(null);
     setIsEditExpenseOpen(true);
   };
 
   const handleSubmitAddExpense = async () => {
+    let receiptUrl: string | null = null;
+
+    // Upload receipt if a file is selected
+    if (receiptFile) {
+      const uploadResult = await uploadReceipt(receiptFile, unit.id);
+      if (uploadResult) {
+        receiptUrl = uploadResult.path;
+      }
+    }
+
     await createExpense.mutateAsync({
       vehicle_unit_id: unit.id,
       expense_type: expenseForm.expense_type,
@@ -143,7 +200,7 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
       description: expenseForm.description || null,
       expense_date: expenseForm.expense_date,
       vendor: expenseForm.vendor || null,
-      receipt_url: null,
+      receipt_url: receiptUrl,
       mileage_at_expense: expenseForm.mileage_at_expense
         ? Number(expenseForm.mileage_at_expense)
         : null,
@@ -155,6 +212,21 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
 
   const handleSubmitEditExpense = async () => {
     if (!selectedExpense) return;
+
+    let receiptUrl: string | null = expenseForm.receipt_url || null;
+
+    // Upload new receipt if a file is selected
+    if (receiptFile) {
+      // Delete old receipt if exists
+      if (selectedExpense.receipt_url) {
+        await deleteReceipt(selectedExpense.receipt_url);
+      }
+      const uploadResult = await uploadReceipt(receiptFile, unit.id, selectedExpense.id);
+      if (uploadResult) {
+        receiptUrl = uploadResult.path;
+      }
+    }
+
     await updateExpense.mutateAsync({
       id: selectedExpense.id,
       expense_type: expenseForm.expense_type,
@@ -162,6 +234,7 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
       description: expenseForm.description || null,
       expense_date: expenseForm.expense_date,
       vendor: expenseForm.vendor || null,
+      receipt_url: receiptUrl,
       mileage_at_expense: expenseForm.mileage_at_expense
         ? Number(expenseForm.mileage_at_expense)
         : null,
@@ -370,6 +443,12 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
                                   {EXPENSE_TYPES.find((t) => t.value === expense.expense_type)?.label ||
                                     expense.expense_type}
                                 </span>
+                                {expense.receipt_url && (
+                                  <Badge variant="outline" className="ml-1 text-xs">
+                                    <FileImage className="w-3 h-3 mr-1" />
+                                    Receipt
+                                  </Badge>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -392,6 +471,17 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
+                                {expense.receipt_url && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleViewReceipt(expense.receipt_url!)}
+                                    title="View Receipt"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -545,6 +635,81 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
                 rows={3}
               />
             </div>
+
+            {/* Receipt Upload */}
+            <div className="space-y-2">
+              <Label>Receipt (Image or PDF)</Label>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+              />
+              
+              {/* Show existing receipt if editing */}
+              {isEditExpenseOpen && expenseForm.receipt_url && !receiptFile && (
+                <div className="flex items-center gap-2 p-2 bg-secondary rounded-md">
+                  <FileImage className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm flex-1">Existing receipt attached</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleViewReceipt(expenseForm.receipt_url)}
+                  >
+                    View
+                  </Button>
+                </div>
+              )}
+
+              {/* Show preview or upload button */}
+              {receiptFile ? (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileImage className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm flex-1 truncate">{receiptFile.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        setReceiptFile(null);
+                        setReceiptPreview(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = "";
+                        }
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {receiptPreview && (
+                    <img
+                      src={receiptPreview}
+                      alt="Receipt preview"
+                      className="max-h-32 rounded-md object-contain"
+                    />
+                  )}
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  {isEditExpenseOpen && expenseForm.receipt_url
+                    ? "Replace Receipt"
+                    : "Upload Receipt"}
+                </Button>
+              )}
+
+              {isUploading && (
+                <Progress value={progress} className="w-full" />
+              )}
+            </div>
           </div>
 
           <DialogFooter>
@@ -564,13 +729,51 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
               disabled={
                 !expenseForm.expense_type ||
                 !expenseForm.amount ||
+                isUploading ||
                 createExpense.isPending ||
                 updateExpense.isPending
               }
             >
-              {isAddExpenseOpen ? "Add Expense" : "Save Changes"}
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : isAddExpenseOpen ? (
+                "Add Expense"
+              ) : (
+                "Save Changes"
+              )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Viewer Dialog */}
+      <Dialog open={!!viewingReceipt} onOpenChange={() => setViewingReceipt(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Receipt</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center max-h-[70vh] overflow-auto">
+            {viewingReceipt && (
+              viewingReceipt.includes(".pdf") ? (
+                <div className="text-center">
+                  <p className="text-muted-foreground mb-4">PDF Receipt</p>
+                  <Button onClick={() => window.open(viewingReceipt, "_blank")}>
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open PDF
+                  </Button>
+                </div>
+              ) : (
+                <img
+                  src={viewingReceipt}
+                  alt="Receipt"
+                  className="max-w-full max-h-[65vh] object-contain rounded-lg"
+                />
+              )
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

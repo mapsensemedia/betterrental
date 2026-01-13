@@ -55,7 +55,21 @@ import {
   Receipt,
   Fuel,
   Wrench,
+  FileText,
+  Calculator,
 } from "lucide-react";
+import { format } from "date-fns";
+import { useVehicles } from "@/hooks/use-vehicles";
+import {
+  useVehicleUnits,
+  useCreateVehicleUnit,
+  useUpdateVehicleUnit,
+  useDeleteVehicleUnit,
+  VehicleUnit,
+} from "@/hooks/use-vehicle-units";
+import { VehicleUnitDetail } from "@/components/admin/VehicleUnitDetail";
+import { FleetReportsPanel } from "@/components/admin/FleetReportsPanel";
+import { DepreciationCalculator } from "@/components/admin/DepreciationCalculator";
 import { format } from "date-fns";
 import { useVehicles } from "@/hooks/use-vehicles";
 import {
@@ -76,6 +90,8 @@ export default function FleetCosts() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<VehicleUnit | null>(null);
   const [detailUnit, setDetailUnit] = useState<VehicleUnit | null>(null);
+  const [isReportsOpen, setIsReportsOpen] = useState(false);
+  const [isDepreciationOpen, setIsDepreciationOpen] = useState(false);
 
   const { data: vehicles, isLoading: vehiclesLoading } = useVehicles();
   const { data: units, isLoading: unitsLoading, refetch } = useVehicleUnits({
@@ -218,6 +234,14 @@ export default function FleetCosts() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsReportsOpen(true)}>
+              <FileText className="w-4 h-4 mr-2" />
+              Reports
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsDepreciationOpen(true)}>
+              <Calculator className="w-4 h-4 mr-2" />
+              Depreciation
+            </Button>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
