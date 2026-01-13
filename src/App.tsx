@@ -46,6 +46,7 @@ const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
 const AdminBilling = lazy(() => import("./pages/admin/Billing"));
 const AdminReturns = lazy(() => import("./pages/admin/Returns"));
 const AdminInventory = lazy(() => import("./pages/admin/Inventory"));
+const AdminFleetCosts = lazy(() => import("./pages/admin/FleetCosts"));
 const AdminCalendar = lazy(() => import("./pages/admin/Calendar"));
 const AdminDamages = lazy(() => import("./pages/admin/Damages"));
 const AdminTickets = lazy(() => import("./pages/admin/Tickets"));
@@ -130,6 +131,7 @@ const App = () => (
                 <Route path="/admin/returns" element={<AdminProtectedRoute><AdminReturns /></AdminProtectedRoute>} />
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/inventory" element={<AdminProtectedRoute><AdminInventory /></AdminProtectedRoute>} />
+                <Route path="/admin/fleet-costs" element={<AdminProtectedRoute><AdminFleetCosts /></AdminProtectedRoute>} />
                 <Route path="/admin/calendar" element={<AdminProtectedRoute><AdminCalendar /></AdminProtectedRoute>} />
                 <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
                 <Route path="/admin/tickets" element={<AdminProtectedRoute><AdminTickets /></AdminProtectedRoute>} />

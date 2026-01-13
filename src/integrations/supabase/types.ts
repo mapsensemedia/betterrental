@@ -1248,6 +1248,115 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          expense_type: string
+          id: string
+          mileage_at_expense: number | null
+          receipt_url: string | null
+          updated_at: string
+          vehicle_unit_id: string
+          vendor: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          expense_type: string
+          id?: string
+          mileage_at_expense?: number | null
+          receipt_url?: string | null
+          updated_at?: string
+          vehicle_unit_id: string
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          expense_type?: string
+          id?: string
+          mileage_at_expense?: number | null
+          receipt_url?: string | null
+          updated_at?: string
+          vehicle_unit_id?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_expenses_vehicle_unit_id_fkey"
+            columns: ["vehicle_unit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_units: {
+        Row: {
+          acquisition_cost: number
+          acquisition_date: string | null
+          color: string | null
+          created_at: string
+          current_mileage: number | null
+          id: string
+          license_plate: string | null
+          mileage_at_acquisition: number | null
+          notes: string | null
+          status: string
+          updated_at: string
+          vehicle_id: string
+          vin: string
+        }
+        Insert: {
+          acquisition_cost?: number
+          acquisition_date?: string | null
+          color?: string | null
+          created_at?: string
+          current_mileage?: number | null
+          id?: string
+          license_plate?: string | null
+          mileage_at_acquisition?: number | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_id: string
+          vin: string
+        }
+        Update: {
+          acquisition_cost?: number
+          acquisition_date?: string | null
+          color?: string | null
+          created_at?: string
+          current_mileage?: number | null
+          id?: string
+          license_plate?: string | null
+          mileage_at_acquisition?: number | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_id?: string
+          vin?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_units_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           category: string
