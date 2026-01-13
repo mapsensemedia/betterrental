@@ -84,7 +84,12 @@ export default function FleetCosts() {
   const [isDepreciationOpen, setIsDepreciationOpen] = useState(false);
 
   const { data: vehicles, isLoading: vehiclesLoading } = useVehicles();
-  const { data: units, isLoading: unitsLoading, refetch } = useVehicleUnits({
+  const {
+    data: units,
+    isLoading: unitsLoading,
+    isFetching: unitsFetching,
+    refetch,
+  } = useVehicleUnits({
     status: statusFilter,
     search,
     vehicleId: vehicleFilter !== "all" ? vehicleFilter : undefined,
@@ -232,8 +237,8 @@ export default function FleetCosts() {
               <Calculator className="w-4 h-4 mr-2" />
               Depreciation
             </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="w-4 h-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={unitsFetching}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${unitsFetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
             <Button size="sm" onClick={handleAddUnit}>
@@ -694,6 +699,13 @@ export default function FleetCosts() {
           onClose={() => setDetailUnit(null)}
         />
       )}
+
+      {/* Panels */}
+      <FleetReportsPanel open={isReportsOpen} onClose={() => setIsReportsOpen(false)} />
+      <DepreciationCalculator
+        open={isDepreciationOpen}
+        onClose={() => setIsDepreciationOpen(false)}
+      />
     </AdminShell>
   );
 }
