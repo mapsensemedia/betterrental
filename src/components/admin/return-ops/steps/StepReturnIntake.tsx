@@ -51,6 +51,21 @@ export function StepReturnIntake({ bookingId, completion }: StepReturnIntakeProp
     },
   });
 
+  // Fetch booking to get assigned unit ID
+  const { data: booking } = useQuery({
+    queryKey: ["booking-for-return", bookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("assigned_unit_id")
+        .eq("id", bookingId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Pre-fill form with existing data
   useEffect(() => {
     if (existingMetrics) {
@@ -86,10 +101,24 @@ export function StepReturnIntake({ bookingId, completion }: StepReturnIntakeProp
           .insert(metricsData);
         if (error) throw error;
       }
+
+      // Auto-update vehicle unit mileage if assigned
+      if (booking?.assigned_unit_id && odometer) {
+        const { error: unitError } = await supabase
+          .from("vehicle_units")
+          .update({ current_mileage: parseInt(odometer) })
+          .eq("id", booking.assigned_unit_id);
+        
+        if (unitError) {
+          console.error("Failed to update unit mileage:", unitError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["return-inspection-metrics", bookingId] });
-      toast.success("Return intake saved");
+      queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-unit"] });
+      toast.success("Return intake saved" + (booking?.assigned_unit_id && odometer ? " (mileage updated)" : ""));
     },
     onError: (error) => {
       toast.error("Failed to save intake");

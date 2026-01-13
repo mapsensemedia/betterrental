@@ -65,6 +65,7 @@ import {
   X,
   ExternalLink,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { VehicleUnit } from "@/hooks/use-vehicle-units";
 import {
@@ -78,6 +79,8 @@ import {
 } from "@/hooks/use-vehicle-expenses";
 import { useAuth } from "@/hooks/use-auth";
 import { useReceiptUpload } from "@/hooks/use-receipt-upload";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface VehicleUnitDetailProps {
   unit: VehicleUnit;
@@ -91,11 +94,32 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
   const [isEditExpenseOpen, setIsEditExpenseOpen] = useState(false);
   const [isDeleteExpenseOpen, setIsDeleteExpenseOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<VehicleExpense | null>(null);
+  const [activeTab, setActiveTab] = useState("expenses");
 
   const { data: expenses, isLoading: expensesLoading } = useVehicleExpenses({
     vehicleUnitId: unit.id,
   });
   const { data: summary } = useExpenseSummary(unit.id);
+
+  // Fetch damage reports linked to this unit
+  const { data: damageReports, isLoading: damagesLoading } = useQuery({
+    queryKey: ["unit-damages", unit.id, unit.vehicle_id],
+    queryFn: async () => {
+      // Get damages linked directly to this unit OR to the vehicle
+      const { data, error } = await supabase
+        .from("damage_reports")
+        .select(`
+          id, description, location_on_vehicle, severity, status,
+          estimated_cost, created_at, resolved_at, resolution_notes,
+          booking:bookings(booking_code)
+        `)
+        .or(`vehicle_unit_id.eq.${unit.id},vehicle_id.eq.${unit.vehicle_id}`)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const createExpense = useCreateVehicleExpense();
   const updateExpense = useUpdateVehicleExpense();
@@ -502,6 +526,101 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Damage History */}
+            <div>
+              <h3 className="font-medium mb-3 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                Damage History
+              </h3>
+
+              {damagesLoading ? (
+                <div className="space-y-2">
+                  {[1, 2].map((i) => (
+                    <Skeleton key={i} className="h-14 w-full" />
+                  ))}
+                </div>
+              ) : !damageReports?.length ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <AlertTriangle className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">No damage reports</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Severity</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Est. Cost</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {damageReports.map((damage) => (
+                          <TableRow key={damage.id}>
+                            <TableCell>
+                              <div>
+                                <p className="text-sm">
+                                  {format(new Date(damage.created_at), "MMM d, yyyy")}
+                                </p>
+                                {damage.booking && (
+                                  <p className="text-xs text-muted-foreground font-mono">
+                                    {damage.booking.booking_code}
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  damage.severity === "severe"
+                                    ? "destructive"
+                                    : damage.severity === "moderate"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {damage.severity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-sm truncate max-w-[120px]" title={damage.location_on_vehicle}>
+                                {damage.location_on_vehicle}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  damage.status === "resolved" || damage.status === "closed"
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                              >
+                                {damage.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {damage.estimated_cost ? (
+                                <span className="font-medium text-destructive">
+                                  ${Number(damage.estimated_cost).toLocaleString()}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}

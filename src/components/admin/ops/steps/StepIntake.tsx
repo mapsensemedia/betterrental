@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { VehicleAssignment } from "@/components/admin/VehicleAssignment";
+import { UnitAssignmentCard } from "@/components/admin/UnitAssignmentCard";
 import { LicenseReviewCard } from "../LicenseReviewCard";
 import { DeliveryDetailsCard } from "@/components/admin/DeliveryDetailsCard";
 import { 
@@ -12,6 +13,7 @@ import {
   Car,
   CreditCard as IdCard,
   AlertCircle,
+  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +33,9 @@ export function StepIntake({ booking, completion, verifications }: StepIntakePro
   );
   
   const isDeliveryBooking = !!booking.pickup_address;
+  const vehicleName = booking.vehicles 
+    ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}`
+    : "Unknown Vehicle";
   
   return (
     <div className="space-y-4">
@@ -98,6 +103,15 @@ export function StepIntake({ booking, completion, verifications }: StepIntakePro
           />
         </CardContent>
       </Card>
+      
+      {/* VIN Unit Assignment - Only show if vehicle is assigned */}
+      {booking.vehicle_id && (
+        <UnitAssignmentCard
+          bookingId={booking.id}
+          vehicleId={booking.vehicle_id}
+          vehicleName={vehicleName}
+        />
+      )}
       
       {/* Driver's License Review */}
       <Card>
