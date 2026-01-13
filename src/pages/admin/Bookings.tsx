@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
@@ -75,9 +75,19 @@ export default function AdminBookings() {
     }));
   };
 
+  // Lazy import the low inventory banner
+  const LowInventoryBanner = React.lazy(() => 
+    import("@/components/admin/LowInventoryBanner").then(m => ({ default: m.LowInventoryBanner }))
+  );
+
   return (
     <AdminShell>
       <div className="space-y-6">
+        {/* Low Inventory Banner */}
+        <React.Suspense fallback={null}>
+          <LowInventoryBanner threshold={1} />
+        </React.Suspense>
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

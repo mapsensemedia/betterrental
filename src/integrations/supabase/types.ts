@@ -326,6 +326,7 @@ export type Database = {
         Row: {
           actual_return_at: string | null
           assigned_driver_id: string | null
+          assigned_unit_id: string | null
           booking_code: string
           created_at: string
           daily_rate: number
@@ -353,6 +354,7 @@ export type Database = {
         Insert: {
           actual_return_at?: string | null
           assigned_driver_id?: string | null
+          assigned_unit_id?: string | null
           booking_code: string
           created_at?: string
           daily_rate: number
@@ -380,6 +382,7 @@ export type Database = {
         Update: {
           actual_return_at?: string | null
           assigned_driver_id?: string | null
+          assigned_unit_id?: string | null
           booking_code?: string
           created_at?: string
           daily_rate?: number
@@ -405,6 +408,13 @@ export type Database = {
           young_driver_fee?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_assigned_unit_id_fkey"
+            columns: ["assigned_unit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_location_id_fkey"
             columns: ["location_id"]
@@ -557,6 +567,7 @@ export type Database = {
           severity: Database["public"]["Enums"]["damage_severity"]
           status: string
           vehicle_id: string
+          vehicle_unit_id: string | null
         }
         Insert: {
           booking_id: string
@@ -572,6 +583,7 @@ export type Database = {
           severity: Database["public"]["Enums"]["damage_severity"]
           status?: string
           vehicle_id: string
+          vehicle_unit_id?: string | null
         }
         Update: {
           booking_id?: string
@@ -587,6 +599,7 @@ export type Database = {
           severity?: Database["public"]["Enums"]["damage_severity"]
           status?: string
           vehicle_id?: string
+          vehicle_unit_id?: string | null
         }
         Relationships: [
           {
@@ -601,6 +614,13 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "damage_reports_vehicle_unit_id_fkey"
+            columns: ["vehicle_unit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_units"
             referencedColumns: ["id"]
           },
         ]
