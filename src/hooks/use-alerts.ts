@@ -77,7 +77,7 @@ export function useAdminAlerts(filters?: AlertFilters) {
         resolvedBy: a.resolved_by,
       })) as AdminAlert[];
     },
-    staleTime: 30000,
+    staleTime: 60000, // 1 minute - realtime handles updates
   });
 }
 
