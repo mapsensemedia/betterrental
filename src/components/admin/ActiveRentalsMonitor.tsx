@@ -1,4 +1,5 @@
 import { useActiveRentalStats } from "@/hooks/use-active-rentals";
+import { useRealtimeBookings } from "@/hooks/use-realtime-subscriptions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import {
   Timer,
   User,
   MapPin,
+  Radio,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +22,9 @@ import { useNavigate } from "react-router-dom";
 export function ActiveRentalsMonitor() {
   const { stats, rentals, isLoading } = useActiveRentalStats();
   const navigate = useNavigate();
+  
+  // Enable real-time updates
+  useRealtimeBookings();
 
   if (isLoading) {
     return (
@@ -48,6 +53,10 @@ export function ActiveRentalsMonitor() {
           <CardTitle className="flex items-center gap-2 text-base">
             <Car className="h-5 w-5 text-primary" />
             Active Rentals Monitor
+            <Badge variant="secondary" className="gap-1 text-xs font-normal">
+              <Radio className="h-2.5 w-2.5 text-emerald-500 animate-pulse" />
+              Live
+            </Badge>
           </CardTitle>
           <Badge variant="outline">{stats.total} active</Badge>
         </div>

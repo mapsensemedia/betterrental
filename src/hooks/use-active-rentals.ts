@@ -133,8 +133,8 @@ export function useActiveRentals() {
         };
       });
     },
-    staleTime: 30000, // Refresh every 30 seconds
-    refetchInterval: 60000, // Auto-refresh every minute
+    staleTime: 60000, // 1 minute - realtime handles updates now
+    refetchInterval: false, // Disabled - using realtime instead
   });
 }
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useActiveRentals, ActiveRental } from "@/hooks/use-active-rentals";
+import { useRealtimeBookings } from "@/hooks/use-realtime-subscriptions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import {
   Search,
   Phone,
   Mail,
-  RefreshCw,
+  Radio,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -28,9 +29,12 @@ type FilterType = "all" | "overdue" | "approaching" | "warning" | "healthy";
 
 export default function AdminActiveRentals() {
   const navigate = useNavigate();
-  const { data: rentals = [], isLoading, refetch, isFetching } = useActiveRentals();
+  const { data: rentals = [], isLoading } = useActiveRentals();
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Enable real-time updates
+  useRealtimeBookings();
 
   // Apply filters
   const filteredRentals = rentals.filter((rental) => {
@@ -87,20 +91,15 @@ export default function AdminActiveRentals() {
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Car className="w-6 h-6 text-primary" />
               Active Rentals
+              <Badge variant="secondary" className="gap-1 text-xs font-normal ml-2">
+                <Radio className="h-2.5 w-2.5 text-emerald-500 animate-pulse" />
+                Live
+              </Badge>
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
               Monitor all vehicles currently out on rental
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
         </div>
 
         {/* Stats Row */}

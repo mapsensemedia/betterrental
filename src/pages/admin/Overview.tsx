@@ -6,7 +6,9 @@ import { useAdminAlerts } from "@/hooks/use-alerts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
+import { RealtimeAlertsPanel } from "@/components/admin/RealtimeAlertsPanel";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
+import { useAdminRealtimeSubscriptions } from "@/hooks/use-realtime-subscriptions";
 import {
   Car,
   Calendar,
@@ -165,6 +167,9 @@ export default function AdminOverview() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { data: bookings = [], isLoading: bookingsLoading } = useAdminBookings();
   const { data: alerts = [] } = useAdminAlerts();
+  
+  // Enable real-time updates for all admin data
+  useAdminRealtimeSubscriptions();
   
   // Fetch pending verifications
   const { data: verifications = [] } = useQuery({
@@ -327,8 +332,14 @@ export default function AdminOverview() {
               </Card>
             )}
 
-            {/* Active Rentals Monitor - Always visible */}
-            <ActiveRentalsMonitor />
+            {/* Real-time panels grid */}
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Active Rentals Monitor - Always visible */}
+              <ActiveRentalsMonitor />
+              
+              {/* Live Alerts Panel */}
+              <RealtimeAlertsPanel />
+            </div>
 
             {/* Analytics Panel */}
             <AnalyticsPanel />
