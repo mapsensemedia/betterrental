@@ -4,7 +4,9 @@ import {
   RETURN_STEPS, 
   type ReturnStepId, 
   type ReturnCompletion,
-  checkReturnStepComplete,
+  type ReturnState,
+  isStepComplete,
+  canAccessStep,
   getReturnMissingItems,
 } from "@/lib/return-steps";
 import { 
@@ -18,6 +20,8 @@ import {
   Circle,
   ChevronDown,
   ChevronUp,
+  Lock,
+  AlertTriangle,
 } from "lucide-react";
 
 interface ReturnStepSidebarProps {
@@ -27,12 +31,14 @@ interface ReturnStepSidebarProps {
   currentStepIndex: number;
   onStepClick: (stepId: ReturnStepId) => void;
   isCompleted: boolean;
+  returnState?: ReturnState;
 }
 
 const stepIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   "clipboard-check": ClipboardCheck,
   "camera": Camera,
   "flag": Flag,
+  "alert-triangle": AlertTriangle,
   "dollar-sign": DollarSign,
   "check-circle": CheckCircle,
   "wallet": Wallet,
@@ -45,12 +51,13 @@ export function ReturnStepSidebar({
   currentStepIndex,
   onStepClick,
   isCompleted,
+  returnState = "not_started",
 }: ReturnStepSidebarProps) {
   const [mobileExpanded, setMobileExpanded] = useState(false);
   
   const completedCount = isCompleted 
     ? steps.length 
-    : steps.filter(s => checkReturnStepComplete(s.id, completion)).length;
+    : steps.filter(s => isStepComplete(s.id, returnState)).length;
   
   const currentStep = steps.find(s => s.id === activeStep);
 
@@ -84,32 +91,45 @@ export function ReturnStepSidebar({
         {mobileExpanded && (
           <div className="px-4 pb-4 space-y-1 animate-fade-in">
             {steps.map((step) => {
-              const isComplete = isCompleted || checkReturnStepComplete(step.id, completion);
+              const stepComplete = isCompleted || isStepComplete(step.id, returnState);
+              const stepAccessible = canAccessStep(step.id, returnState);
               const isActive = activeStep === step.id;
               
               return (
                 <button
                   key={step.id}
                   onClick={() => {
-                    onStepClick(step.id);
-                    setMobileExpanded(false);
+                    if (stepAccessible) {
+                      onStepClick(step.id);
+                      setMobileExpanded(false);
+                    }
                   }}
+                  disabled={!stepAccessible}
                   className={cn(
                     "w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors",
-                    isActive && "bg-primary/10"
+                    isActive && "bg-primary/10",
+                    !stepAccessible && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   <div className={cn(
                     "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium",
-                    isComplete && "bg-emerald-500 text-white",
-                    !isComplete && isActive && "bg-primary text-primary-foreground",
-                    !isComplete && !isActive && "bg-muted text-muted-foreground"
+                    stepComplete && "bg-emerald-500 text-white",
+                    !stepComplete && isActive && "bg-primary text-primary-foreground",
+                    !stepComplete && !isActive && stepAccessible && "bg-muted text-muted-foreground",
+                    !stepComplete && !stepAccessible && "bg-muted/50 text-muted-foreground/50"
                   )}>
-                    {isComplete ? <Check className="w-3.5 h-3.5" /> : step.number}
+                    {stepComplete ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : !stepAccessible ? (
+                      <Lock className="w-3 h-3" />
+                    ) : (
+                      step.number
+                    )}
                   </div>
                   <span className={cn(
                     "text-sm",
-                    isActive && "font-medium text-primary"
+                    isActive && "font-medium text-primary",
+                    !stepAccessible && "text-muted-foreground"
                   )}>
                     {step.title}
                   </span>
@@ -130,19 +150,22 @@ export function ReturnStepSidebar({
             {steps.map((step) => {
               const Icon = stepIcons[step.icon] || Circle;
               const isActive = activeStep === step.id;
-              const isComplete = checkReturnStepComplete(step.id, completion);
+              const stepComplete = isStepComplete(step.id, returnState);
+              const stepAccessible = canAccessStep(step.id, returnState);
               const missing = getReturnMissingItems(step.id, completion);
               
-              const displayComplete = isCompleted || isComplete;
+              const displayComplete = isCompleted || stepComplete;
               
               return (
                 <button
                   key={step.id}
-                  onClick={() => onStepClick(step.id)}
+                  onClick={() => stepAccessible && onStepClick(step.id)}
+                  disabled={!stepAccessible}
                   className={cn(
                     "w-full text-left p-3 rounded-lg transition-all",
-                    "hover:bg-muted/50",
-                    isActive && "bg-primary/10 border border-primary/20"
+                    stepAccessible && "hover:bg-muted/50",
+                    isActive && "bg-primary/10 border border-primary/20",
+                    !stepAccessible && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -151,10 +174,13 @@ export function ReturnStepSidebar({
                       "w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold",
                       displayComplete && "bg-emerald-500 text-white",
                       !displayComplete && isActive && "bg-primary text-primary-foreground",
-                      !displayComplete && !isActive && "bg-muted text-muted-foreground"
+                      !displayComplete && !isActive && stepAccessible && "bg-muted text-muted-foreground",
+                      !displayComplete && !stepAccessible && "bg-muted/50 text-muted-foreground/50"
                     )}>
                       {displayComplete ? (
                         <Check className="w-4 h-4" />
+                      ) : !stepAccessible ? (
+                        <Lock className="w-3.5 h-3.5" />
                       ) : (
                         step.number
                       )}
@@ -165,11 +191,12 @@ export function ReturnStepSidebar({
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "text-sm font-medium truncate",
-                          isActive && "text-primary"
+                          isActive && "text-primary",
+                          !stepAccessible && "text-muted-foreground"
                         )}>
                           {step.title}
                         </span>
-                        {!displayComplete && missing.length > 0 && (
+                        {!displayComplete && missing.length > 0 && stepAccessible && (
                           <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded dark:bg-amber-950/30">
                             {missing.length}
                           </span>
@@ -179,7 +206,7 @@ export function ReturnStepSidebar({
                         "text-xs mt-0.5 truncate",
                         displayComplete ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
                       )}>
-                        {displayComplete ? "Complete" : step.description}
+                        {displayComplete ? "Complete" : !stepAccessible ? "Locked" : step.description}
                       </p>
                     </div>
                   </div>

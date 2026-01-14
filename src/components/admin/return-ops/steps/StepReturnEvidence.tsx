@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   useBookingConditionPhotos, 
   useUploadConditionPhoto,
@@ -12,12 +13,13 @@ import {
   Camera, 
   CheckCircle2,
   XCircle,
-  ImageIcon,
   Upload,
   Loader2,
   Car,
   Fuel,
   Gauge,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +28,10 @@ interface StepReturnEvidenceProps {
   completion: {
     photosComplete: boolean;
   };
+  onComplete?: () => void;
+  isLocked?: boolean;
+  isComplete?: boolean;
+  isException?: boolean;
 }
 
 const RETURN_PHOTO_TYPES: { type: PhotoType; label: string }[] = [
@@ -46,7 +52,14 @@ const PHOTO_ICONS: Record<PhotoType, React.ReactNode> = {
   fuel_gauge: <Fuel className="h-4 w-4" />,
 };
 
-export function StepReturnEvidence({ bookingId, completion }: StepReturnEvidenceProps) {
+export function StepReturnEvidence({ 
+  bookingId, 
+  completion, 
+  onComplete, 
+  isLocked, 
+  isComplete,
+  isException 
+}: StepReturnEvidenceProps) {
   const { data: photos, isLoading, refetch } = useBookingConditionPhotos(bookingId);
   const uploadMutation = useUploadConditionPhoto();
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
@@ -71,31 +84,54 @@ export function StepReturnEvidence({ bookingId, completion }: StepReturnEvidence
   };
 
   const handleUploadClick = (photoType: PhotoType) => {
+    if (isLocked) return;
     fileInputRefs.current[photoType]?.click();
   };
 
   const uploadedCount = returnPhotos.length;
   const totalRequired = RETURN_PHOTO_TYPES.length;
+  const hasMinimumPhotos = uploadedCount >= 4;
+  
+  // For exception returns, require photos. For normal, optional
+  const canProceed = !isException || hasMinimumPhotos;
+  const stepIsComplete = isComplete || completion.photosComplete;
 
   return (
     <div className="space-y-6">
+      {/* Locked Warning */}
+      {isLocked && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+          <Lock className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-600">
+            Complete previous steps to unlock this step.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Status Card */}
-      <Card className={completion.photosComplete 
+      <Card className={stepIsComplete 
         ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" 
-        : "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20"
+        : isException && !hasMinimumPhotos
+          ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20"
+          : "border-muted"
       }>
         <CardContent className="py-4">
-          <div className={`flex items-center gap-2 ${completion.photosComplete ? "text-emerald-600" : "text-amber-600"}`}>
-            {completion.photosComplete ? (
+          <div className={`flex items-center gap-2 ${
+            stepIsComplete ? "text-emerald-600" : 
+            isException && !hasMinimumPhotos ? "text-amber-600" : "text-muted-foreground"
+          }`}>
+            {stepIsComplete ? (
               <>
                 <CheckCircle2 className="h-5 w-5" />
-                <span className="font-medium">All return photos captured</span>
+                <span className="font-medium">Evidence capture complete</span>
               </>
             ) : (
               <>
                 <Camera className="h-5 w-5" />
                 <span className="font-medium">
                   {uploadedCount} of {totalRequired} photos captured
+                  {isException && !hasMinimumPhotos && " (minimum 4 required for exception returns)"}
+                  {!isException && " (optional for normal returns)"}
                 </span>
               </>
             )}
@@ -133,10 +169,11 @@ export function StepReturnEvidence({ bookingId, completion }: StepReturnEvidence
                     <div key={photoType.type} className="space-y-2">
                       <div 
                         className={cn(
-                          "aspect-square rounded-lg border-2 overflow-hidden cursor-pointer transition-all",
+                          "aspect-square rounded-lg border-2 overflow-hidden transition-all",
                           hasPhoto 
                             ? "border-emerald-500/50" 
-                            : "border-dashed border-muted-foreground/30 hover:border-primary"
+                            : "border-dashed border-muted-foreground/30 hover:border-primary",
+                          isLocked ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
                         )}
                         onClick={() => !isUploading && handleUploadClick(photoType.type)}
                       >
@@ -146,6 +183,7 @@ export function StepReturnEvidence({ bookingId, completion }: StepReturnEvidence
                           accept="image/*"
                           capture="environment"
                           className="hidden"
+                          disabled={isLocked}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handleFileSelect(photoType.type, file);
@@ -193,7 +231,7 @@ export function StepReturnEvidence({ bookingId, completion }: StepReturnEvidence
                 <span className="text-sm text-muted-foreground">
                   Click on any box to capture or replace photo
                 </span>
-                <Badge variant={completion.photosComplete ? "default" : "secondary"}>
+                <Badge variant={hasMinimumPhotos ? "default" : "secondary"}>
                   {uploadedCount}/{totalRequired}
                 </Badge>
               </div>
@@ -201,6 +239,22 @@ export function StepReturnEvidence({ bookingId, completion }: StepReturnEvidence
           )}
         </CardContent>
       </Card>
+
+      {/* Complete Step Button */}
+      {!stepIsComplete && !isLocked && (
+        <Button
+          onClick={onComplete}
+          disabled={!canProceed}
+          className="w-full"
+          size="lg"
+        >
+          <ArrowRight className="h-4 w-4 mr-2" />
+          {isException && !hasMinimumPhotos 
+            ? `Capture at least 4 photos to proceed`
+            : `Complete Evidence Step`
+          }
+        </Button>
+      )}
     </div>
   );
 }

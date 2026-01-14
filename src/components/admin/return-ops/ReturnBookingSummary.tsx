@@ -1,7 +1,6 @@
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { DeliveryDetailsCard } from "@/components/admin/DeliveryDetailsCard";
 import { 
   User, 
@@ -12,13 +11,15 @@ import {
   Phone,
   Mail,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 
 interface ReturnBookingSummaryProps {
   booking: any;
+  isException?: boolean;
 }
 
-export function ReturnBookingSummary({ booking }: ReturnBookingSummaryProps) {
+export function ReturnBookingSummary({ booking, isException }: ReturnBookingSummaryProps) {
   const vehicleName = booking.vehicles 
     ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}`
     : "No vehicle";
@@ -30,6 +31,18 @@ export function ReturnBookingSummary({ booking }: ReturnBookingSummaryProps) {
       <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
         Return Summary
       </h3>
+      
+      {/* Return Mode Badge */}
+      {isException && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="py-3">
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="text-sm font-medium">Exception Return</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       {/* Return Status */}
       {isOverdue && (

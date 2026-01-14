@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Dialog,
   DialogContent,
@@ -27,7 +28,7 @@ import {
   MessageSquare,
   Plus,
   ShieldAlert,
-  DollarSign,
+  Lock,
 } from "lucide-react";
 
 interface StepReturnIssuesProps {
@@ -40,6 +41,8 @@ interface StepReturnIssuesProps {
   onMarkReviewed: () => void;
   onDamagesUpdated: (totalCost: number) => void;
   isMarking: boolean;
+  isLocked?: boolean;
+  isComplete?: boolean;
 }
 
 export function StepReturnIssues({ 
@@ -48,9 +51,11 @@ export function StepReturnIssues({
   completion, 
   onMarkReviewed,
   onDamagesUpdated,
-  isMarking 
+  isMarking,
+  isLocked,
+  isComplete,
 }: StepReturnIssuesProps) {
-  const [acknowledged, setAcknowledged] = useState(completion.reviewed);
+  const [acknowledged, setAcknowledged] = useState(completion.reviewed || isComplete);
   const [flagDialogOpen, setFlagDialogOpen] = useState(false);
   const [flagMessage, setFlagMessage] = useState("");
   const [damageDialogOpen, setDamageDialogOpen] = useState(false);
@@ -141,6 +146,7 @@ export function StepReturnIssues({
   });
 
   const hasIssues = flags.length > 0 || hasDamages;
+  const stepIsComplete = isComplete || completion.reviewed;
 
   const handleFlagIssue = async () => {
     if (!flagMessage.trim()) return;
@@ -164,8 +170,18 @@ export function StepReturnIssues({
 
   return (
     <div className="space-y-6">
+      {/* Locked Warning */}
+      {isLocked && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+          <Lock className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-600">
+            Complete previous steps to unlock this step.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Status Card */}
-      <Card className={completion.reviewed 
+      <Card className={stepIsComplete 
         ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" 
         : hasIssues 
           ? "border-destructive/50 bg-destructive/5"
@@ -173,9 +189,9 @@ export function StepReturnIssues({
       }>
         <CardContent className="py-4">
           <div className={`flex items-center gap-2 ${
-            completion.reviewed ? "text-emerald-600" : hasIssues ? "text-destructive" : "text-emerald-600"
+            stepIsComplete ? "text-emerald-600" : hasIssues ? "text-destructive" : "text-emerald-600"
           }`}>
-            {completion.reviewed ? (
+            {stepIsComplete ? (
               <>
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="font-medium">Issues reviewed</span>
@@ -269,6 +285,7 @@ export function StepReturnIssues({
               variant="destructive" 
               size="sm"
               onClick={() => setDamageDialogOpen(true)}
+              disabled={isLocked}
             >
               <Plus className="h-4 w-4 mr-1" />
               Report Damage
@@ -348,6 +365,7 @@ export function StepReturnIssues({
             variant="outline" 
             className="w-full"
             onClick={() => setFlagDialogOpen(true)}
+            disabled={isLocked}
           >
             <Plus className="h-4 w-4 mr-2" />
             Flag Issue
@@ -399,7 +417,7 @@ export function StepReturnIssues({
       />
 
       {/* Acknowledge & Continue */}
-      {!completion.reviewed && (
+      {!stepIsComplete && !isLocked && (
         <div className="space-y-4 pt-2">
           <div className="flex items-center gap-3">
             <Checkbox 
@@ -416,6 +434,7 @@ export function StepReturnIssues({
             onClick={onMarkReviewed}
             disabled={!acknowledged || isMarking}
             className="w-full"
+            size="lg"
           >
             {isMarking ? (
               <>
@@ -423,7 +442,7 @@ export function StepReturnIssues({
                 Saving...
               </>
             ) : (
-              "Confirm Issues Reviewed"
+              "Confirm Issues Reviewed & Complete Step"
             )}
           </Button>
         </div>

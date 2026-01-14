@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import {
   Save,
   Loader2,
   CheckCircle2,
+  Lock,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -26,9 +27,12 @@ interface StepReturnIntakeProps {
     odometerRecorded: boolean;
     fuelRecorded: boolean;
   };
+  onComplete?: () => void;
+  isLocked?: boolean;
+  isComplete?: boolean;
 }
 
-export function StepReturnIntake({ bookingId, completion }: StepReturnIntakeProps) {
+export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, isComplete }: StepReturnIntakeProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [odometer, setOdometer] = useState("");
@@ -126,12 +130,29 @@ export function StepReturnIntake({ bookingId, completion }: StepReturnIntakeProp
     },
   });
 
-  const isComplete = completion.odometerRecorded && completion.fuelRecorded;
+  const handleSaveAndComplete = async () => {
+    await saveMutation.mutateAsync();
+    if (onComplete) {
+      onComplete();
+    }
+  };
+
+  const stepIsComplete = isComplete || (completion.odometerRecorded && completion.fuelRecorded);
 
   return (
     <div className="space-y-6">
+      {/* Locked Warning */}
+      {isLocked && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+          <Lock className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-600">
+            Complete previous steps to unlock this step.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Status Card */}
-      {isComplete && (
+      {stepIsComplete && (
         <Card className="border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20">
           <CardContent className="py-4">
             <div className="flex items-center gap-2 text-emerald-600">
@@ -182,6 +203,7 @@ export function StepReturnIntake({ bookingId, completion }: StepReturnIntakeProp
                 placeholder="Enter mileage"
                 value={odometer}
                 onChange={(e) => setOdometer(e.target.value)}
+                disabled={isLocked}
               />
             </div>
             <span className="text-muted-foreground">miles</span>
@@ -212,6 +234,7 @@ export function StepReturnIntake({ bookingId, completion }: StepReturnIntakeProp
             max={100}
             step={5}
             className="w-full"
+            disabled={isLocked}
           />
         </CardContent>
       </Card>
@@ -227,28 +250,32 @@ export function StepReturnIntake({ bookingId, completion }: StepReturnIntakeProp
             placeholder="Any notes about the return condition..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            disabled={isLocked}
           />
         </CardContent>
       </Card>
 
-      {/* Save Button */}
-      <Button
-        onClick={() => saveMutation.mutate()}
-        disabled={saveMutation.isPending || !odometer}
-        className="w-full"
-      >
-        {saveMutation.isPending ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Saving...
-          </>
-        ) : (
-          <>
-            <Save className="h-4 w-4 mr-2" />
-            Save Return Intake
-          </>
-        )}
-      </Button>
+      {/* Save & Complete Button */}
+      {!stepIsComplete && (
+        <Button
+          onClick={handleSaveAndComplete}
+          disabled={saveMutation.isPending || !odometer || isLocked}
+          className="w-full"
+          size="lg"
+        >
+          {saveMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save & Complete Step
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }
