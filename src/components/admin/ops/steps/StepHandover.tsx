@@ -11,6 +11,7 @@ import {
   AlertCircle,
   ArrowRight,
   Check,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,30 +26,32 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
   const isRentalActive = booking?.status === "active";
   const isCompleted = booking?.status === "completed" || isBookingCompleted;
   
-  // Customer acknowledgement IS required before activating rental
+  // UPDATED: Prerequisites for handover - no customer acknowledgement needed
   const allPrerequisitesMet = 
-    completion.intake.vehicleAssigned &&
-    completion.intake.licenseApproved &&
     completion.prep.checklistComplete &&
     completion.prep.photosComplete &&
-    completion.checkin.identityVerified &&
+    completion.checkin.govIdVerified &&
+    completion.checkin.licenseOnFile &&
+    completion.checkin.nameMatches &&
+    completion.checkin.licenseNotExpired &&
+    completion.checkin.ageVerified &&
     completion.payment.paymentComplete &&
     completion.payment.depositCollected &&
     completion.agreement.agreementSigned &&
-    completion.walkaround.inspectionComplete &&
-    completion.walkaround.customerAcknowledged; // REQUIRED
+    completion.walkaround.inspectionComplete; // Staff-only, no customer signature
     
   const prerequisites = [
-    { label: "Vehicle Assigned", complete: completion.intake.vehicleAssigned },
-    { label: "License Approved", complete: completion.intake.licenseApproved },
     { label: "Prep Checklist", complete: completion.prep.checklistComplete },
     { label: "Pre-Inspection Photos", complete: completion.prep.photosComplete },
-    { label: "Identity Verified", complete: completion.checkin.identityVerified },
+    { label: "Gov ID Verified", complete: completion.checkin.govIdVerified },
+    { label: "License On File", complete: completion.checkin.licenseOnFile },
+    { label: "Name Matches", complete: completion.checkin.nameMatches },
+    { label: "License Not Expired", complete: completion.checkin.licenseNotExpired },
+    { label: "Age Verified (21+)", complete: completion.checkin.ageVerified },
     { label: "Payment Collected", complete: completion.payment.paymentComplete },
-    { label: "Deposit Held", complete: completion.payment.depositCollected },
-    { label: "Agreement Signed", complete: completion.agreement.agreementSigned },
-    { label: "Walkaround Complete", complete: completion.walkaround.inspectionComplete },
-    { label: "Customer Acknowledged", complete: completion.walkaround.customerAcknowledged, required: true },
+    { label: "Deposit Held (manual)", complete: completion.payment.depositCollected },
+    { label: "Agreement Signed (manual)", complete: completion.agreement.agreementSigned },
+    { label: "Walkaround Complete (staff)", complete: completion.walkaround.inspectionComplete },
   ];
   
   const incompleteItems = prerequisites.filter(p => !p.complete);
@@ -116,10 +119,11 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
             <div className="p-4 bg-background rounded-lg border space-y-2">
               <h4 className="font-medium">Handover Summary</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>✓ Vehicle keys were handed to customer</li>
-                <li>✓ Customer reviewed vehicle condition</li>
+                <li>✓ Vehicle keys handed to customer</li>
+                <li>✓ Staff completed walkaround inspection</li>
                 <li>✓ Emergency contact information provided</li>
                 <li>✓ Fuel policy and return procedures explained</li>
+                <li>✓ SMS confirmation sent to customer</li>
                 <li>✓ Rental completed successfully</li>
               </ul>
             </div>
@@ -141,9 +145,13 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
               <h4 className="font-medium">Handover Completed</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>✓ Vehicle keys handed to customer</li>
-                <li>✓ Customer reviewed vehicle condition</li>
+                <li>✓ Staff completed walkaround inspection</li>
                 <li>✓ Emergency contact information provided</li>
                 <li>✓ Fuel policy and return procedures explained</li>
+                <li className="flex items-center gap-1">
+                  <MessageSquare className="w-3 h-3" />
+                  SMS confirmation sent
+                </li>
               </ul>
             </div>
           </CardContent>
@@ -156,7 +164,7 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
               Ready for Handover
             </CardTitle>
             <CardDescription className="text-emerald-600 dark:text-emerald-500">
-              All prerequisites met. You can now activate the rental.
+              All prerequisites met. Complete handover to activate the rental.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -165,11 +173,18 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
                 <h4 className="font-medium">Key Handover Checklist</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>✓ Hand over vehicle keys to customer</li>
-                  <li>✓ Confirm customer has reviewed vehicle condition</li>
                   <li>✓ Provide emergency contact information</li>
                   <li>✓ Explain fuel policy and return procedures</li>
                 </ul>
               </div>
+
+              <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30">
+                <MessageSquare className="h-4 w-4 text-blue-600" />
+                <AlertTitle className="text-blue-700">SMS Confirmation</AlertTitle>
+                <AlertDescription className="text-blue-600">
+                  An SMS will be sent to the customer confirming the handover.
+                </AlertDescription>
+              </Alert>
               
               <Button 
                 size="lg" 
@@ -177,7 +192,7 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
                 onClick={onActivate}
               >
                 <Key className="w-4 h-4 mr-2" />
-                Activate Rental
+                Activate Rental & Send SMS
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>

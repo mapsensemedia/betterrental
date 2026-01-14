@@ -1,11 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +19,7 @@ import {
   Loader2,
   ShieldCheck,
   ArrowRight,
+  Upload,
 } from "lucide-react";
 import {
   useCheckInRecord,
@@ -37,8 +37,10 @@ interface CheckInSectionProps {
   bookingId: string;
   bookingStartAt: string;
   customerName: string | null;
-  hasLicenseUploaded: boolean;
-  licenseVerified: boolean;
+  // NEW: Profile-level license status
+  licenseOnFile: boolean;
+  licenseExpiryFromProfile?: string | null;
+  onUploadLicense?: () => void;
 }
 
 const MIN_DRIVER_AGE = 21;
@@ -47,38 +49,37 @@ export function CheckInSection({
   bookingId,
   bookingStartAt,
   customerName,
-  hasLicenseUploaded,
-  licenseVerified,
+  licenseOnFile,
+  licenseExpiryFromProfile,
+  onUploadLicense,
 }: CheckInSectionProps) {
   const { data: checkInRecord, isLoading } = useCheckInRecord(bookingId);
   const updateCheckIn = useCreateOrUpdateCheckIn();
   const completeCheckIn = useCompleteCheckIn();
 
   // Local form state
-  const [identityVerified, setIdentityVerified] = useState(false);
+  const [govIdVerified, setGovIdVerified] = useState(false);
   const [identityNotes, setIdentityNotes] = useState("");
   const [licenseNameMatches, setLicenseNameMatches] = useState(false);
-  const [licenseValid, setLicenseValid] = useState(false);
-  const [licenseExpiryDate, setLicenseExpiryDate] = useState("");
+  const [licenseExpiryDate, setLicenseExpiryDate] = useState(licenseExpiryFromProfile || "");
   const [licenseNotes, setLicenseNotes] = useState("");
   const [ageVerified, setAgeVerified] = useState(false);
   const [customerDob, setCustomerDob] = useState("");
   const [ageNotes, setAgeNotes] = useState("");
 
   // Sync from record when loaded
-  useState(() => {
+  useEffect(() => {
     if (checkInRecord) {
-      setIdentityVerified(checkInRecord.identityVerified);
+      setGovIdVerified(checkInRecord.identityVerified);
       setIdentityNotes(checkInRecord.identityNotes || "");
       setLicenseNameMatches(checkInRecord.licenseNameMatches);
-      setLicenseValid(checkInRecord.licenseValid);
-      setLicenseExpiryDate(checkInRecord.licenseExpiryDate || "");
+      setLicenseExpiryDate(checkInRecord.licenseExpiryDate || licenseExpiryFromProfile || "");
       setLicenseNotes(checkInRecord.licenseNotes || "");
       setAgeVerified(checkInRecord.ageVerified);
       setCustomerDob(checkInRecord.customerDob || "");
       setAgeNotes(checkInRecord.ageNotes || "");
     }
-  });
+  }, [checkInRecord, licenseExpiryFromProfile]);
 
   // Calculate timing
   const timing = useMemo(() => calculateTimingStatus(bookingStartAt), [bookingStartAt]);
@@ -89,26 +90,21 @@ export function CheckInSection({
 
   // License expiry check
   const licenseIsExpired = licenseExpiryDate ? isLicenseExpired(licenseExpiryDate) : false;
+  const licenseNotExpired = licenseExpiryDate ? !licenseIsExpired : false;
 
-  // Build validations
+  // Build validations - UPDATED per requirements
   const validations: CheckInValidation[] = useMemo(() => [
     {
-      field: "identity",
-      label: "Government Photo ID",
-      passed: identityVerified,
+      field: "gov_id",
+      label: "Government Photo ID Verified (in person)",
+      passed: govIdVerified,
       required: true,
       notes: identityNotes || undefined,
     },
     {
-      field: "license_uploaded",
-      label: "Driver's License Uploaded",
-      passed: hasLicenseUploaded,
-      required: true,
-    },
-    {
-      field: "license_reviewed",
-      label: "License Reviewed by Staff",
-      passed: licenseVerified,
+      field: "license_on_file",
+      label: "Driver's License On File",
+      passed: licenseOnFile,
       required: true,
     },
     {
@@ -118,14 +114,14 @@ export function CheckInSection({
       required: true,
     },
     {
-      field: "license_valid",
-      label: "License Not Expired",
-      passed: licenseValid && !licenseIsExpired,
+      field: "license_expiry",
+      label: "License Expiry Date",
+      passed: licenseNotExpired,
       required: true,
     },
     {
       field: "age",
-      label: `Age Requirement (${MIN_DRIVER_AGE}+)`,
+      label: `Age Verification (${MIN_DRIVER_AGE}+)`,
       passed: ageVerified && ageIsValid,
       required: true,
       notes: age !== null ? `Customer age: ${age}` : undefined,
@@ -138,13 +134,11 @@ export function CheckInSection({
       notes: timing.status === "late" ? `${timing.minutesDiff} minutes late` : undefined,
     },
   ], [
-    identityVerified,
+    govIdVerified,
     identityNotes,
-    hasLicenseUploaded,
-    licenseVerified,
+    licenseOnFile,
     licenseNameMatches,
-    licenseValid,
-    licenseIsExpired,
+    licenseNotExpired,
     ageVerified,
     ageIsValid,
     age,
@@ -152,16 +146,15 @@ export function CheckInSection({
   ]);
 
   const requiredPassed = validations.filter(v => v.required).every(v => v.passed);
-  const anyRequiredFailed = validations.some(v => v.required && !v.passed);
 
   const handleSave = () => {
     updateCheckIn.mutate({
       bookingId,
       data: {
-        identityVerified,
+        identityVerified: govIdVerified,
         identityNotes,
         licenseNameMatches,
-        licenseValid,
+        licenseValid: licenseNotExpired,
         licenseExpiryDate: licenseExpiryDate || undefined,
         licenseNotes,
         ageVerified,
@@ -235,23 +228,22 @@ export function CheckInSection({
             </div>
           )}
 
-          {/* Next Steps Panel */}
           <Separator />
           <div>
             <p className="text-sm font-medium mb-3">Next Required Steps:</p>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">1</div>
-                <span>Payment / Deposit</span>
+                <span>Payment & Deposit</span>
                 <ArrowRight className="h-3 w-3 text-muted-foreground ml-auto" />
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">2</div>
-                <span className="text-muted-foreground">Rental Agreement</span>
+                <span className="text-muted-foreground">Rental Agreement (Manual)</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">3</div>
-                <span className="text-muted-foreground">Vehicle Walkaround</span>
+                <span className="text-muted-foreground">Vehicle Walkaround (Staff)</span>
               </div>
             </div>
           </div>
@@ -282,7 +274,6 @@ export function CheckInSection({
             </AlertDescription>
           </Alert>
           <Button variant="outline" onClick={() => {
-            // Reset to allow re-check
             updateCheckIn.mutate({
               bookingId,
               data: { checkInStatus: "pending", blockedReason: "" },
@@ -324,18 +315,18 @@ export function CheckInSection({
         <div className="space-y-4">
           <p className="text-sm font-medium">Verification Checklist</p>
 
-          {/* Identity Verification */}
+          {/* Government Photo ID */}
           <div className="space-y-2 p-3 rounded-lg border">
             <div className="flex items-center gap-3">
               <Checkbox
-                id="identity"
-                checked={identityVerified}
-                onCheckedChange={(c) => setIdentityVerified(c === true)}
+                id="govId"
+                checked={govIdVerified}
+                onCheckedChange={(c) => setGovIdVerified(c === true)}
               />
-              <Label htmlFor="identity" className="flex-1 cursor-pointer">
-                Government Photo ID Verified
+              <Label htmlFor="govId" className="flex-1 cursor-pointer">
+                Government Photo ID Verified (in person)
               </Label>
-              {identityVerified ? (
+              {govIdVerified ? (
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
               ) : (
                 <XCircle className="h-4 w-4 text-muted-foreground" />
@@ -349,7 +340,7 @@ export function CheckInSection({
             />
           </div>
 
-          {/* License Checks */}
+          {/* Driver's License On File */}
           <div className="space-y-3 p-3 rounded-lg border">
             <div className="flex items-center gap-2 mb-2">
               <CreditCard className="h-4 w-4" />
@@ -358,35 +349,32 @@ export function CheckInSection({
 
             <div className="flex items-center gap-3">
               <Checkbox
-                id="license_uploaded"
-                checked={hasLicenseUploaded}
+                id="license_on_file"
+                checked={licenseOnFile}
                 disabled
               />
-              <Label htmlFor="license_uploaded" className="flex-1 text-sm">
-                License uploaded by customer
+              <Label htmlFor="license_on_file" className="flex-1 text-sm">
+                Driver's License On File
               </Label>
-              {hasLicenseUploaded ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              {licenseOnFile ? (
+                <Badge className="bg-green-500/10 text-green-600">On File</Badge>
               ) : (
-                <XCircle className="h-4 w-4 text-destructive" />
+                <Badge variant="destructive">Missing</Badge>
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="license_reviewed"
-                checked={licenseVerified}
-                disabled
-              />
-              <Label htmlFor="license_reviewed" className="flex-1 text-sm">
-                Reviewed by staff
-              </Label>
-              {licenseVerified ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-              ) : (
-                <XCircle className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
+            {/* If license missing, show upload button */}
+            {!licenseOnFile && onUploadLicense && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onUploadLicense}
+                className="gap-2 w-full"
+              >
+                <Upload className="h-4 w-4" />
+                Capture License Now (saves to profile)
+              </Button>
+            )}
 
             <div className="flex items-center gap-3">
               <Checkbox
@@ -410,10 +398,7 @@ export function CheckInSection({
                 <Input
                   type="date"
                   value={licenseExpiryDate}
-                  onChange={(e) => {
-                    setLicenseExpiryDate(e.target.value);
-                    setLicenseValid(e.target.value ? !isLicenseExpired(e.target.value) : false);
-                  }}
+                  onChange={(e) => setLicenseExpiryDate(e.target.value)}
                   className="text-sm"
                 />
               </div>
@@ -497,26 +482,29 @@ export function CheckInSection({
             onClick={handleSave}
             disabled={updateCheckIn.isPending}
           >
-            {updateCheckIn.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Save Progress
+            {updateCheckIn.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Save Progress"
+            )}
           </Button>
           <Button
             onClick={handleComplete}
-            disabled={completeCheckIn.isPending || anyRequiredFailed}
-            className={requiredPassed ? "bg-green-600 hover:bg-green-700" : ""}
+            disabled={!requiredPassed || completeCheckIn.isPending}
           >
-            {completeCheckIn.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {requiredPassed ? "Complete Check-In" : "Review Required"}
+            {completeCheckIn.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+            )}
+            Complete Check-In
           </Button>
         </div>
 
-        {anyRequiredFailed && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Some required checks have not passed. Review and complete all required items before check-in.
-            </AlertDescription>
-          </Alert>
+        {!requiredPassed && (
+          <p className="text-sm text-amber-600">
+            Complete all required verifications before proceeding.
+          </p>
         )}
       </CardContent>
     </Card>
