@@ -183,7 +183,8 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion)
     case "intake":
       // Cannot be complete if there's a conflict
       if (completion.intake.hasConflict) return false;
-      return completion.intake.vehicleAssigned && completion.intake.licenseApproved;
+      // License is now OPTIONAL - only require vehicle assignment
+      return completion.intake.vehicleAssigned;
     case "prep":
       return completion.prep.checklistComplete && completion.prep.photosComplete;
     case "checkin":
@@ -208,8 +209,7 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion): 
   switch (stepId) {
     case "intake":
       if (!completion.intake.vehicleAssigned) missing.push("Vehicle assignment");
-      if (!completion.intake.licenseUploaded) missing.push("Driver's license upload");
-      if (completion.intake.licenseUploaded && !completion.intake.licenseApproved) missing.push("License approval");
+      // License is now OPTIONAL - don't list as missing
       if (completion.intake.hasConflict) missing.push("Resolve vehicle conflict");
       break;
     case "prep":

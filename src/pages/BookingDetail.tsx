@@ -278,18 +278,7 @@ export default function BookingDetail() {
     }
   }, [id, user]);
 
-  // Nudge customer to upload license (once per session) when booking is confirmed
-  useEffect(() => {
-    if (!id || !booking) return;
-    if (booking.status !== "confirmed") return;
-    if (verificationLoading) return;
-    if (isLicenseComplete) return;
-
-    const key = `license-required-modal:${id}`;
-    if (sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, "1");
-    setShowVerificationModal(true);
-  }, [id, booking, verificationLoading, isLicenseComplete]);
+  // License reminder removed - license is now optional
 
   const handleCopyCode = async () => {
     if (!booking?.booking_code) return;
@@ -423,29 +412,38 @@ export default function BookingDetail() {
             </CardContent>
           </Card>
 
-          {/* Driver's License Required Callout */}
-          {(booking.status === "pending" || booking.status === "confirmed") && !isLicenseComplete && (
-            <Card className="border-destructive/30 bg-destructive/5">
+          {/* Driver's License Upload - Optional */}
+          {(booking.status === "pending" || booking.status === "confirmed") && (
+            <Card className="border-muted bg-muted/5">
               <CardContent className="pt-6 flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex items-start gap-3 flex-1">
-                  <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                  <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-semibold">Driver’s license required</p>
+                    <p className="font-semibold">Upload Driver's License (Optional)</p>
                     <p className="text-sm text-muted-foreground">
-                      Upload your driver’s license (front & back). This is required before pickup.
+                      Save time at pickup by uploading your license ahead of time.
                     </p>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    document
-                      .querySelector("[data-license-section]")
-                      ?.scrollIntoView({ behavior: "smooth" })
-                  }
-                >
-                  Upload now
-                </Button>
+                {!isLicenseComplete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      document
+                        .querySelector("[data-license-section]")
+                        ?.scrollIntoView({ behavior: "smooth" })
+                    }
+                  >
+                    Upload now
+                  </Button>
+                )}
+                {isLicenseComplete && (
+                  <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
+                    <Check className="h-3 w-3 mr-1" />
+                    Uploaded
+                  </Badge>
+                )}
               </CardContent>
             </Card>
           )}
@@ -614,21 +612,15 @@ export default function BookingDetail() {
                     </div>
                   </div>
 
-                  {/* QR Code */}
-                  {isLicenseComplete ? (
-                    <div className="bg-card rounded-xl p-4 inline-block border border-border">
-                      <QRCodeSVG
-                        value={checkInUrl}
-                        size={180}
-                        level="M"
-                        includeMargin={false}
-                      />
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground">
-                      Upload your driver's license to unlock pickup check-in QR.
-                    </div>
-                  )}
+                  {/* QR Code - Always available */}
+                  <div className="bg-card rounded-xl p-4 inline-block border border-border">
+                    <QRCodeSVG
+                      value={checkInUrl}
+                      size={180}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
 
                   <p className="text-xs text-muted-foreground">
                     Show this at pickup. If scanning fails, staff can type the code.

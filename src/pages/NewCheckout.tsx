@@ -42,6 +42,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
+import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
 
 import { 
   calculateBookingPricing, 
@@ -104,6 +105,12 @@ export default function NewCheckout() {
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
+  
+  // Save Time at Counter state
+  const [saveTimeAtCounter, setSaveTimeAtCounter] = useState(false);
+  const [pickupContactName, setPickupContactName] = useState("");
+  const [pickupContactPhone, setPickupContactPhone] = useState("");
+  const [specialInstructions, setSpecialInstructions] = useState("");
 
   const vehicle = vehicles?.find((v) => v.id === vehicleId);
 
@@ -261,6 +268,14 @@ export default function NewCheckout() {
         return;
       }
 
+      // Build notes with save time info
+      let bookingNotes = paymentMethod === "pay-later" ? "Customer chose to pay at pickup" : null;
+      if (saveTimeAtCounter && specialInstructions) {
+        bookingNotes = bookingNotes 
+          ? `${bookingNotes}\n\nSpecial instructions: ${specialInstructions}` 
+          : `Special instructions: ${specialInstructions}`;
+      }
+
       // Create booking first
       const { data: booking, error } = await supabase
         .from("bookings")
@@ -278,12 +293,16 @@ export default function NewCheckout() {
           deposit_amount: DEFAULT_DEPOSIT_AMOUNT,
           booking_code: `C2C${Date.now().toString(36).toUpperCase()}`,
           status: paymentMethod === "pay-now" ? "pending" : "pending",
-          notes: paymentMethod === "pay-later" ? "Customer chose to pay at pickup" : null,
+          notes: bookingNotes,
           pickup_address: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : null,
           pickup_lat: searchData.deliveryLat,
           pickup_lng: searchData.deliveryLng,
           driver_age_band: driverAgeBand,
           young_driver_fee: pricing.youngDriverFee,
+          save_time_at_counter: saveTimeAtCounter,
+          pickup_contact_name: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : null,
+          pickup_contact_phone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : null,
+          special_instructions: saveTimeAtCounter && specialInstructions ? specialInstructions : null,
         })
         .select()
         .single();
@@ -624,6 +643,19 @@ export default function NewCheckout() {
                   </div>
                 )}
               </Card>
+
+              {/* Save Time at Counter */}
+              <SaveTimeAtCounter
+                saveTime={saveTimeAtCounter}
+                onSaveTimeChange={setSaveTimeAtCounter}
+                pickupContactName={pickupContactName}
+                onPickupContactNameChange={setPickupContactName}
+                pickupContactPhone={pickupContactPhone}
+                onPickupContactPhoneChange={setPickupContactPhone}
+                specialInstructions={specialInstructions}
+                onSpecialInstructionsChange={setSpecialInstructions}
+                defaultName={formData.firstName && formData.lastName ? `${formData.firstName} ${formData.lastName}` : undefined}
+              />
 
               {/* Invoice Address (for pay now) */}
               {paymentMethod === "pay-now" && (

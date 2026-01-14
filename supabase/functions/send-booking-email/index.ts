@@ -244,14 +244,6 @@ serve(async (req) => {
           "Your Booking is Confirmed!",
           `<p style="color: #52525b; line-height: 1.6;">Great news! Your reservation has been confirmed. We're excited to have you drive with us.</p>
            
-           <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
-             <h4 style="margin: 0 0 10px; color: #92400e; font-size: 14px;">⚠️ Action Required: Upload Your Driver's License</h4>
-             <p style="margin: 0; color: #78350f; font-size: 13px; line-height: 1.5;">
-               To expedite your pickup, please upload clear photos of the front and back of your driver's license. 
-               You can do this by logging into your account or replying to this email with the images attached.
-             </p>
-           </div>
-           
            <p style="color: #52525b; line-height: 1.6;">Please bring a valid driver's license and the credit card used for booking when you arrive for pickup.</p>`,
           qrCodeUrl
         );
