@@ -9,7 +9,8 @@ export type OpsStepId =
   | "walkaround" 
   | "handover";
 
-export type OpsStepStatus = "locked" | "ready" | "in_progress" | "complete" | "blocked";
+// Enhanced status types including blocked states
+export type OpsStepStatus = "locked" | "ready" | "in_progress" | "complete" | "blocked" | "needs_attention";
 
 export interface OpsStep {
   id: OpsStepId;
@@ -76,6 +77,7 @@ export interface StepCompletion {
     vehicleAssigned: boolean;
     licenseUploaded: boolean;
     licenseApproved: boolean;
+    hasConflict?: boolean; // NEW: track blocking conflicts
   };
   prep: {
     checklistComplete: boolean;
@@ -101,12 +103,29 @@ export interface StepCompletion {
   };
 }
 
+export interface BlockingIssue {
+  type: "conflict" | "missing" | "rejected" | "overdue";
+  message: string;
+  stepId: OpsStepId;
+  canOverride: boolean;
+}
+
 export function getStepStatus(
   stepId: OpsStepId,
   completion: StepCompletion,
   currentStepIndex: number
-): { status: OpsStepStatus; reason?: string; missingCount?: number } {
+): { status: OpsStepStatus; reason?: string; missingCount?: number; isBlocked?: boolean } {
   const stepIndex = OPS_STEPS.findIndex(s => s.id === stepId);
+  
+  // Check for blocking issues first
+  const blockingIssues = getBlockingIssues(stepId, completion);
+  if (blockingIssues.length > 0) {
+    return {
+      status: "blocked",
+      reason: blockingIssues[0].message,
+      isBlocked: true,
+    };
+  }
   
   // Check if step is complete
   const isComplete = checkStepComplete(stepId, completion);
@@ -125,11 +144,11 @@ export function getStepStatus(
     }
   }
   
-  // Step is ready or in progress
+  // Check for issues that need attention but don't block
   const missing = getMissingItems(stepId, completion);
   if (missing.length > 0) {
     return { 
-      status: stepIndex === currentStepIndex ? "in_progress" : "ready",
+      status: stepIndex === currentStepIndex ? "in_progress" : "needs_attention",
       missingCount: missing.length,
       reason: missing.join(", ")
     };
@@ -138,9 +157,32 @@ export function getStepStatus(
   return { status: "ready" };
 }
 
+export function getBlockingIssues(stepId: OpsStepId, completion: StepCompletion): BlockingIssue[] {
+  const issues: BlockingIssue[] = [];
+  
+  switch (stepId) {
+    case "intake":
+      // Vehicle conflict blocks intake completion
+      if (completion.intake.hasConflict) {
+        issues.push({
+          type: "conflict",
+          message: "Vehicle has overlapping bookings - resolve conflict or assign different vehicle",
+          stepId: "intake",
+          canOverride: false,
+        });
+      }
+      break;
+    // Add more blocking conditions as needed
+  }
+  
+  return issues;
+}
+
 export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion): boolean {
   switch (stepId) {
     case "intake":
+      // Cannot be complete if there's a conflict
+      if (completion.intake.hasConflict) return false;
       return completion.intake.vehicleAssigned && completion.intake.licenseApproved;
     case "prep":
       return completion.prep.checklistComplete && completion.prep.photosComplete;
@@ -151,8 +193,8 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion)
     case "agreement":
       return completion.agreement.agreementSigned;
     case "walkaround":
-      // Only inspection is required - customer acknowledgement is optional (admin can override)
-      return completion.walkaround.inspectionComplete;
+      // Require customer acknowledgement OR admin override for completion
+      return completion.walkaround.inspectionComplete && completion.walkaround.customerAcknowledged;
     case "handover":
       return completion.handover.activated;
     default:
@@ -168,6 +210,7 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion): 
       if (!completion.intake.vehicleAssigned) missing.push("Vehicle assignment");
       if (!completion.intake.licenseUploaded) missing.push("Driver's license upload");
       if (completion.intake.licenseUploaded && !completion.intake.licenseApproved) missing.push("License approval");
+      if (completion.intake.hasConflict) missing.push("Resolve vehicle conflict");
       break;
     case "prep":
       if (!completion.prep.checklistComplete) missing.push("Prep checklist");
@@ -185,7 +228,7 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion): 
       break;
     case "walkaround":
       if (!completion.walkaround.inspectionComplete) missing.push("Inspection");
-      // Customer acknowledgement is optional - admin can override
+      if (!completion.walkaround.customerAcknowledged) missing.push("Customer acknowledgement");
       break;
     case "handover":
       if (!completion.handover.activated) missing.push("Rental activation");
@@ -203,3 +246,27 @@ export function getCurrentStepIndex(completion: StepCompletion): number {
   }
   return OPS_STEPS.length - 1;
 }
+
+// Standard action labels for consistency
+export const ACTION_LABELS = {
+  save: "Save Progress",
+  upload: "Upload",
+  verify: "Verify",
+  send: "Send to Customer",
+  sign: "Get Signature",
+  collect: "Collect",
+  view: "View",
+  continue: "Continue to Next Step",
+  activate: "Activate Rental",
+} as const;
+
+// Status label standardization
+export const STATUS_LABELS = {
+  verified: "Verified",       // Identity/license checks passed
+  completed: "Completed",     // Admin task finished
+  signed: "Signed",           // Customer signature obtained
+  acknowledged: "Acknowledged", // Customer confirmed condition
+  passed: "Passed",           // Validation passed
+  pending: "Pending",         // Awaiting action
+  blocked: "Blocked",         // Cannot proceed
+} as const;

@@ -39,6 +39,7 @@ import { useCheckInRecord } from "@/hooks/use-checkin";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { useBookingVerification } from "@/hooks/use-verification";
+import { useCheckVehicleAvailability } from "@/hooks/use-vehicle-assignment";
 
 // Types
 import { OPS_STEPS, type OpsStepId, type StepCompletion, getCurrentStepIndex, checkStepComplete } from "@/lib/ops-steps";
@@ -62,6 +63,14 @@ export default function BookingOps() {
   const { data: depositData } = usePaymentDepositStatus(bookingId || "");
   const { data: agreement } = useRentalAgreement(bookingId || "");
   const { data: verifications } = useBookingVerification(bookingId || null);
+  
+  // Check for vehicle conflicts
+  const { data: vehicleAvailability } = useCheckVehicleAvailability(
+    booking?.vehicle_id || null,
+    booking?.start_at || null,
+    booking?.end_at || null,
+    bookingId // exclude current booking
+  );
   
   const [activeStep, setActiveStep] = useState<OpsStepId>("intake");
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; action: string | null }>({ 
@@ -93,11 +102,16 @@ export default function BookingOps() {
   const isLicenseApproved = licenseVerifications.length > 0 && 
     licenseVerifications.every(v => v.status === 'verified');
   
+  // Vehicle conflict detection
+  const hasVehicleConflict = vehicleAvailability?.isAvailable === false && 
+    (vehicleAvailability?.conflicts?.length || 0) > 0;
+  
   const completion: StepCompletion = {
     intake: {
       vehicleAssigned: !!booking?.vehicle_id,
       licenseUploaded: hasLicenseUploaded,
       licenseApproved: isLicenseApproved,
+      hasConflict: hasVehicleConflict, // NEW: track conflicts
     },
     prep: {
       checklistComplete: prepStatus?.allComplete || false,
@@ -146,6 +160,7 @@ export default function BookingOps() {
       toast.success(`Moving to ${OPS_STEPS[nextIndex].title}`);
     }
   };
+  
   const handleBack = () => {
     const returnTo = searchParams.get("returnTo") || "/admin/bookings";
     navigate(returnTo);
@@ -198,6 +213,15 @@ export default function BookingOps() {
     }
     
     setConfirmDialog({ open: false, action: null });
+  };
+
+  // Quick link handlers for summary panel
+  const handleOpenAgreement = () => {
+    setActiveStep("agreement");
+  };
+  
+  const handleOpenWalkaround = () => {
+    setActiveStep("walkaround");
   };
   
   if (isLoading) {
@@ -253,6 +277,11 @@ export default function BookingOps() {
                 >
                   {booking.status}
                 </Badge>
+                {hasVehicleConflict && (
+                  <Badge variant="destructive" className="shrink-0">
+                    Conflict
+                  </Badge>
+                )}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">
                 {booking.profiles?.full_name} • {vehicleName}
@@ -333,9 +362,14 @@ export default function BookingOps() {
             )}
           </div>
           
-          {/* Right Summary Panel (hidden on smaller screens) */}
-          <div className="hidden xl:block w-80 border-l bg-muted/30">
-            <OpsBookingSummary booking={booking} />
+          {/* Right Summary Panel - STICKY with its own scroll */}
+          <div className="hidden xl:flex w-80 border-l bg-muted/30 flex-col sticky top-0 h-[calc(100vh-4rem)]">
+            <OpsBookingSummary 
+              booking={booking} 
+              completion={completion}
+              onOpenAgreement={handleOpenAgreement}
+              onOpenWalkaround={handleOpenWalkaround}
+            />
           </div>
         </div>
       </div>

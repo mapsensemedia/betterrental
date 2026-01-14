@@ -10,6 +10,8 @@ import {
   getMissingItems,
   getStepStatus,
   getCurrentStepIndex,
+  getBlockingIssues,
+  ACTION_LABELS,
 } from "@/lib/ops-steps";
 import { 
   Check, 
@@ -19,6 +21,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  AlertTriangle,
+  Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +52,12 @@ function canAdvanceToNextStep(stepId: OpsStepId, completion: StepCompletion): bo
   const currentStepComplete = checkStepComplete(stepId, completion);
   const currentIndex = OPS_STEPS.findIndex(s => s.id === stepId);
   const hasNextStep = currentIndex < OPS_STEPS.length - 1;
-  return currentStepComplete && hasNextStep;
+  
+  // Also check that there are no blocking issues
+  const blockingIssues = getBlockingIssues(stepId, completion);
+  const isBlocked = blockingIssues.length > 0;
+  
+  return currentStepComplete && hasNextStep && !isBlocked;
 }
 
 export function OpsStepContent({ 
@@ -68,10 +77,11 @@ export function OpsStepContent({
   const isBookingCancelled = bookingStatus === "cancelled";
   
   const currentStepIndex = getCurrentStepIndex(completion);
-  const { status, reason } = getStepStatus(stepId, completion, currentStepIndex);
+  const { status, reason, isBlocked } = getStepStatus(stepId, completion, currentStepIndex);
   const isComplete = checkStepComplete(stepId, completion);
   const isLocked = status === "locked" && !isRentalActive;
   const missing = getMissingItems(stepId, completion);
+  const blockingIssues = getBlockingIssues(stepId, completion);
   const showNextStepButton = canAdvanceToNextStep(stepId, completion) && stepId !== "handover";
   
   // For locked steps (prior to completion), show locked state
@@ -104,20 +114,27 @@ export function OpsStepContent({
   // Render step content
   return (
     <div className="space-y-6">
-      {/* Step Header */}
+      {/* Step Header with Status */}
       <div>
         <div className="flex items-center gap-3 mb-2">
           <div className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold",
-            isComplete ? "bg-emerald-500" : "bg-primary"
+            isComplete ? "bg-emerald-500" : 
+            isBlocked ? "bg-destructive" : 
+            "bg-primary"
           )}>
-            {isComplete ? <Check className="w-5 h-5" /> : step.number}
+            {isComplete ? <Check className="w-5 h-5" /> : 
+             isBlocked ? <AlertTriangle className="w-5 h-5" /> :
+             step.number}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xl font-semibold">{step.title}</h2>
               {isComplete && (
                 <Badge className="bg-emerald-500">Complete</Badge>
+              )}
+              {isBlocked && (
+                <Badge variant="destructive">Blocked</Badge>
               )}
             </div>
             <p className="text-muted-foreground">{step.description}</p>
@@ -125,8 +142,24 @@ export function OpsStepContent({
         </div>
       </div>
       
-      {/* Missing Items Alert */}
-      {!isComplete && missing.length > 0 && (
+      {/* Blocking Issues Alert - Critical, must resolve before proceeding */}
+      {blockingIssues.length > 0 && (
+        <Alert variant="destructive">
+          <Ban className="h-4 w-4" />
+          <AlertTitle>Cannot Complete Step</AlertTitle>
+          <AlertDescription className="space-y-2">
+            {blockingIssues.map((issue, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{issue.message}</span>
+              </div>
+            ))}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Missing Items Alert - Informational, for non-blocking requirements */}
+      {!isComplete && !isBlocked && missing.length > 0 && (
         <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
           <AlertCircle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-700 dark:text-amber-400">Required Items</AlertTitle>
@@ -186,11 +219,11 @@ export function OpsStepContent({
         )}
       </div>
       
-      {/* Continue to Next Step Button - Only show if step is complete and there's a next step */}
+      {/* Primary Step Action - One button to rule them all */}
       {showNextStepButton && !isBookingCompleted && !isBookingCancelled && (
-        <div className="pt-4 flex justify-end">
-          <Button onClick={onCompleteStep}>
-            Continue to Next Step
+        <div className="pt-4 flex justify-end border-t">
+          <Button onClick={onCompleteStep} size="lg">
+            {ACTION_LABELS.continue}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
