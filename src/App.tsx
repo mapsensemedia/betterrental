@@ -58,8 +58,8 @@ const ActiveRentalDetail = lazy(() => import("./pages/admin/ActiveRentalDetail")
 const BookingOps = lazy(() => import("./pages/admin/BookingOps"));
 const ReturnOps = lazy(() => import("./pages/admin/ReturnOps"));
 const AbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
-const AdminAnalytics = lazy(() => import("./pages/admin/Analytics"));
-const AdminAuditLogs = lazy(() => import("./pages/admin/AuditLogs"));
+const AdminReports = lazy(() => import("./pages/admin/Reports"));
+const AdminHistory = lazy(() => import("./pages/admin/History"));
 
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
@@ -138,8 +138,10 @@ const App = () => (
                 <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
                 <Route path="/admin/tickets" element={<AdminProtectedRoute><AdminTickets /></AdminProtectedRoute>} />
                 <Route path="/admin/abandoned-carts" element={<AdminProtectedRoute><AbandonedCarts /></AdminProtectedRoute>} />
-                <Route path="/admin/analytics" element={<AdminProtectedRoute><AdminAnalytics /></AdminProtectedRoute>} />
-                <Route path="/admin/audit-logs" element={<AdminProtectedRoute><AdminAuditLogs /></AdminProtectedRoute>} />
+                <Route path="/admin/reports" element={<AdminProtectedRoute><AdminReports /></AdminProtectedRoute>} />
+                <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistory /></AdminProtectedRoute>} />
+                <Route path="/admin/analytics" element={<Navigate to="/admin/reports" replace />} />
+                <Route path="/admin/audit-logs" element={<Navigate to="/admin/reports" replace />} />
                 <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
 
                 {/* Redirects for removed nav items */}
