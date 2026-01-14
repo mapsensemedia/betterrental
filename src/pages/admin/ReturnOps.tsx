@@ -150,7 +150,12 @@ export default function ReturnOps() {
 
   // Complete step handlers with STATE MACHINE
   const handleCompleteIntake = async () => {
-    if (!bookingId || !returnMetrics?.odometer) {
+    if (!bookingId) return;
+    
+    // Refetch metrics to ensure we have the latest data
+    const { data: latestMetrics } = await refetchMetrics();
+    
+    if (!latestMetrics?.odometer) {
       toast.error("Record odometer reading first");
       return;
     }

@@ -82,11 +82,12 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Not authenticated");
+      if (!odometer) throw new Error("Odometer reading is required");
       
       const metricsData = {
         booking_id: bookingId,
         phase: "return",
-        odometer: odometer ? parseInt(odometer) : null,
+        odometer: parseInt(odometer),
         fuel_level: fuelLevel[0],
         exterior_notes: notes || null,
         recorded_by: user.id,
@@ -117,23 +118,41 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
           console.error("Failed to update unit mileage:", unitError);
         }
       }
+
+      return { odometerRecorded: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["return-inspection-metrics", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-unit"] });
-      toast.success("Return intake saved" + (booking?.assigned_unit_id && odometer ? " (mileage updated)" : ""));
     },
-    onError: (error) => {
-      toast.error("Failed to save intake");
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to save intake");
       console.error(error);
     },
   });
 
   const handleSaveAndComplete = async () => {
-    await saveMutation.mutateAsync();
-    if (onComplete) {
-      onComplete();
+    try {
+      // Save metrics first
+      await saveMutation.mutateAsync();
+      
+      // Now complete the step - metrics are guaranteed to be saved
+      if (onComplete) {
+        onComplete();
+      }
+    } catch (error) {
+      // Error already handled in mutation
+    }
+  };
+  
+  // Allow saving without completing step
+  const handleSaveOnly = async () => {
+    try {
+      await saveMutation.mutateAsync();
+      toast.success("Return intake saved" + (booking?.assigned_unit_id && odometer ? " (mileage updated)" : ""));
+    } catch (error) {
+      // Error already handled in mutation
     }
   };
 
@@ -255,25 +274,50 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
         </CardContent>
       </Card>
 
-      {/* Save & Complete Button */}
-      {!stepIsComplete && (
+      {/* Action Buttons */}
+      {!isComplete && !isLocked && (
+        <div className="space-y-2">
+          <Button
+            onClick={handleSaveAndComplete}
+            disabled={saveMutation.isPending || !odometer}
+            className="w-full"
+            size="lg"
+          >
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save & Continue to Next Step
+              </>
+            )}
+          </Button>
+          
+          {/* Save only button - for partial saves */}
+          <Button
+            variant="outline"
+            onClick={handleSaveOnly}
+            disabled={saveMutation.isPending || !odometer}
+            className="w-full"
+          >
+            Save Progress Only
+          </Button>
+        </div>
+      )}
+
+      {/* Show continue button if data exists but step not marked complete */}
+      {!isComplete && !isLocked && stepIsComplete && existingMetrics?.odometer && (
         <Button
-          onClick={handleSaveAndComplete}
-          disabled={saveMutation.isPending || !odometer || isLocked}
+          onClick={onComplete}
+          disabled={saveMutation.isPending}
           className="w-full"
           size="lg"
         >
-          {saveMutation.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save & Complete Step
-            </>
-          )}
+          <CheckCircle2 className="h-4 w-4 mr-2" />
+          Continue to Next Step
         </Button>
       )}
     </div>
