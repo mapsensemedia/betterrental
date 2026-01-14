@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuditLog } from "./use-admin";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { handleDepositOnStatusChange } from "@/lib/deposit-automation";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -242,6 +243,9 @@ export function useUpdateBookingStatus() {
         new_status: newStatus,
         notes 
       });
+
+      // Handle deposit based on status change
+      await handleDepositOnStatusChange(bookingId, newStatus);
 
       // Send notification based on new status
       let notificationStage: string | null = null;
