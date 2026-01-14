@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -9,7 +9,9 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle, Clock, FileText } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, FileText, Upload, Eye, Shield, FileCheck, X } from "lucide-react";
+import { useLicenseUpload } from "@/hooks/use-license-upload";
+import { useToast } from "@/hooks/use-toast";
 
 type BookingRow = {
   id: string;
@@ -31,12 +33,26 @@ type VerificationRow = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
+  const { toast } = useToast();
+  const { licenseStatus, uploading, uploadLicense } = useLicenseUpload(user?.id);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
       navigate(`/auth?returnUrl=${encodeURIComponent("/dashboard")}`, { replace: true });
     }
   }, [user, isLoading, navigate]);
+
+  // Handle file upload
+  const handleLicenseUpload = async () => {
+    if (!selectedFile) return;
+    await uploadLicense(selectedFile, "front");
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery<BookingRow[]>({
     queryKey: ["my-bookings", user?.id],
@@ -181,6 +197,95 @@ export default function Dashboard() {
             <p className={`text-2xl sm:text-3xl font-bold ${pendingAgreements > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
               {pendingAgreements}
             </p>
+          </div>
+        </section>
+
+        {/* Documents Section */}
+        <section className="mb-10 p-6 bg-card rounded-2xl border border-border">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="heading-3 flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              My Documents
+            </h2>
+          </div>
+          
+          <div className="space-y-4">
+            {/* Driver's License Status */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${licenseStatus?.status === "on_file" ? "bg-green-500/10" : "bg-amber-500/10"}`}>
+                  {licenseStatus?.status === "on_file" ? (
+                    <FileCheck className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-amber-600" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium">Driver's License</p>
+                  <p className="text-sm text-muted-foreground">
+                    {licenseStatus?.status === "on_file" 
+                      ? "On file — ready for pickup"
+                      : "Not uploaded — you can upload before your first pickup"}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {licenseStatus?.frontUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(licenseStatus.frontUrl!, "_blank")}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View
+                  </Button>
+                )}
+                
+                {selectedFile ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground truncate max-w-[120px]">
+                      {selectedFile.name}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={handleLicenseUpload}
+                      disabled={uploading}
+                    >
+                      {uploading ? "Uploading..." : "Save"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant={licenseStatus?.status === "on_file" ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {licenseStatus?.status === "on_file" ? "Replace" : "Upload"}
+                  </Button>
+                )}
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                />
+              </div>
+            </div>
           </div>
         </section>
 

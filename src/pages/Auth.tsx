@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Mail, Lock, User, ArrowRight } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, Upload, X, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneInput } from "@/components/shared/PhoneInput";
 import { useAuth } from "@/hooks/use-auth";
+import { uploadLicenseOnSignup } from "@/hooks/use-license-upload";
 
 import heroImage from "@/assets/hero-car.jpg";
 import c2cLogo from "@/assets/c2c-logo.png";
@@ -20,6 +21,8 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const licenseInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -78,6 +81,17 @@ export default function Auth() {
             full_name: name,
             phone,
           });
+
+          // Upload license if provided
+          if (licenseFile) {
+            const uploadSuccess = await uploadLicenseOnSignup(data.user.id, licenseFile);
+            if (uploadSuccess) {
+              toast({
+                title: "License Uploaded",
+                description: "Your driver's license has been saved to your profile.",
+              });
+            }
+          }
         }
 
         toast({
@@ -168,6 +182,54 @@ export default function Auth() {
                   required
                   label="Mobile Number"
                 />
+
+                {/* Optional Driver's License Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="license" className="flex items-center gap-2">
+                    Driver's License
+                    <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Upload now to speed up your first pickup
+                  </p>
+                  
+                  {licenseFile ? (
+                    <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <FileCheck className="h-5 w-5 text-primary" />
+                      <span className="text-sm flex-1 truncate">{licenseFile.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => {
+                          setLicenseFile(null);
+                          if (licenseInputRef.current) {
+                            licenseInputRef.current.value = "";
+                          }
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                      onClick={() => licenseInputRef.current?.click()}
+                    >
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Click to upload license photo</span>
+                    </div>
+                  )}
+                  <input
+                    ref={licenseInputRef}
+                    id="license"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setLicenseFile(e.target.files?.[0] || null)}
+                  />
+                </div>
               </>
             )}
 
