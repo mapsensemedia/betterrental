@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -29,28 +31,34 @@ import {
   Eye,
   Ban,
   PenLine,
+  UserCheck,
 } from "lucide-react";
 import {
   useRentalAgreement,
   useGenerateAgreement,
   useConfirmAgreement,
   useVoidAgreement,
+  useMarkSignedManually,
 } from "@/hooks/use-rental-agreement";
 import { format } from "date-fns";
 
 interface RentalAgreementPanelProps {
   bookingId: string;
+  customerName?: string;
 }
 
-export function RentalAgreementPanel({ bookingId }: RentalAgreementPanelProps) {
+export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreementPanelProps) {
   const { data: agreement, isLoading } = useRentalAgreement(bookingId);
   const generateAgreement = useGenerateAgreement();
   const confirmAgreement = useConfirmAgreement();
   const voidAgreement = useVoidAgreement();
+  const markSignedManually = useMarkSignedManually();
 
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [manualSignDialogOpen, setManualSignDialogOpen] = useState(false);
+  const [manualSignerName, setManualSignerName] = useState(customerName || "");
 
   const handleGenerate = () => {
     generateAgreement.mutate(bookingId);
@@ -70,10 +78,18 @@ export function RentalAgreementPanel({ bookingId }: RentalAgreementPanelProps) {
     });
   };
 
+  const handleManualSign = () => {
+    if (!agreement || !manualSignerName.trim()) return;
+    markSignedManually.mutate(
+      { agreementId: agreement.id, customerName: manualSignerName.trim() },
+      { onSuccess: () => setManualSignDialogOpen(false) }
+    );
+  };
+
   const handleDownload = () => {
     if (!agreement) return;
     const content = agreement.customer_signature
-      ? `${agreement.agreement_content}\n\n══════════════════════════════════════════════════════════════════\n\nSIGNED BY: ${agreement.customer_signature}\nDATE: ${format(new Date(agreement.customer_signed_at!), "PPpp")}\nSTATUS: ${agreement.status.toUpperCase()}`
+      ? `${agreement.agreement_content}\n\n══════════════════════════════════════════════════════════════════\n\nSIGNED BY: ${agreement.customer_signature}\nDATE: ${format(new Date(agreement.customer_signed_at!), "PPpp")}${agreement.signed_manually ? "\nMETHOD: Manual / In-Person" : "\nMETHOD: Digital"}\nSTATUS: ${agreement.status.toUpperCase()}`
       : agreement.agreement_content;
 
     const blob = new Blob([content], { type: "text/plain" });
@@ -93,7 +109,7 @@ export function RentalAgreementPanel({ bookingId }: RentalAgreementPanelProps) {
         return (
           <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
             <CheckCircle className="h-3 w-3 mr-1" />
-            Confirmed
+            {agreement.signed_manually ? "Signed In Person" : "Confirmed"}
           </Badge>
         );
       case "signed":
@@ -182,7 +198,16 @@ export function RentalAgreementPanel({ bookingId }: RentalAgreementPanelProps) {
                     <span className="text-muted-foreground">Signed at</span>
                     <span>{format(new Date(agreement.customer_signed_at!), "PPp")}</span>
                   </div>
-                  {agreement.staff_confirmed_at && (
+                  {agreement.signed_manually && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Method</span>
+                      <Badge variant="outline" className="text-xs">
+                        <UserCheck className="h-3 w-3 mr-1" />
+                        In Person
+                      </Badge>
+                    </div>
+                  )}
+                  {agreement.staff_confirmed_at && !agreement.signed_manually && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Confirmed at</span>
                       <span>{format(new Date(agreement.staff_confirmed_at), "PPp")}</span>
@@ -223,6 +248,22 @@ export function RentalAgreementPanel({ bookingId }: RentalAgreementPanelProps) {
                   </Button>
                 )}
 
+                {/* Manual Sign Button - only show if pending */}
+                {agreement.status === "pending" && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setManualSignerName(customerName || "");
+                      setManualSignDialogOpen(true);
+                    }}
+                    className="gap-1"
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Mark Signed In Person
+                  </Button>
+                )}
+
                 {agreement.status !== "voided" && agreement.status !== "confirmed" && (
                   <Button
                     variant="destructive"
@@ -254,6 +295,55 @@ export function RentalAgreementPanel({ bookingId }: RentalAgreementPanelProps) {
               {agreement?.agreement_content}
             </pre>
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Sign Dialog */}
+      <Dialog open={manualSignDialogOpen} onOpenChange={setManualSignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark Agreement as Signed In Person</DialogTitle>
+            <DialogDescription>
+              Confirm that the customer has signed the rental agreement in person. Enter their name as it appears on their ID.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="signerName">Customer Name (as signed)</Label>
+              <Input
+                id="signerName"
+                value={manualSignerName}
+                onChange={(e) => setManualSignerName(e.target.value)}
+                placeholder="Enter customer's full name"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setManualSignDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleManualSign}
+                disabled={!manualSignerName.trim() || markSignedManually.isPending}
+              >
+                {markSignedManually.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Confirm Signed
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -5,12 +5,13 @@ import { CheckCircle2, XCircle, FileText } from "lucide-react";
 
 interface StepAgreementProps {
   bookingId: string;
+  customerName?: string;
   completion: {
     agreementSigned: boolean;
   };
 }
 
-export function StepAgreement({ bookingId, completion }: StepAgreementProps) {
+export function StepAgreement({ bookingId, customerName, completion }: StepAgreementProps) {
   return (
     <div className="space-y-4">
       {/* Rental Agreement Panel */}
@@ -24,11 +25,11 @@ export function StepAgreement({ bookingId, completion }: StepAgreementProps) {
             <StatusIndicator complete={completion.agreementSigned} />
           </div>
           <CardDescription>
-            Generate agreement and obtain customer signature
+            Generate agreement and obtain customer signature (in person or digital)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <RentalAgreementPanel bookingId={bookingId} />
+          <RentalAgreementPanel bookingId={bookingId} customerName={customerName} />
         </CardContent>
       </Card>
     </div>

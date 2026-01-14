@@ -549,7 +549,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                           />
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-4">
-                          <RentalAgreementPanel bookingId={booking.id} />
+                          <RentalAgreementPanel bookingId={booking.id} customerName={booking.profiles?.full_name} />
                         </AccordionContent>
                       </div>
                     </AccordionItem>

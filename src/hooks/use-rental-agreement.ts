@@ -12,6 +12,9 @@ export interface RentalAgreement {
   customer_ip_address: string | null;
   staff_confirmed_by: string | null;
   staff_confirmed_at: string | null;
+  signed_manually: boolean | null;
+  signed_manually_at: string | null;
+  signed_manually_by: string | null;
   status: "pending" | "signed" | "confirmed" | "voided";
   created_at: string;
   updated_at: string;
@@ -193,6 +196,53 @@ export function useVoidAgreement() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to void agreement: ${error.message}`);
+    },
+  });
+}
+
+// Mark agreement as manually signed in person
+export function useMarkSignedManually() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ agreementId, customerName }: { agreementId: string; customerName: string }) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      const now = new Date().toISOString();
+
+      const { error } = await supabase
+        .from("rental_agreements")
+        .update({
+          signed_manually: true,
+          signed_manually_at: now,
+          signed_manually_by: user.user.id,
+          customer_signature: customerName,
+          customer_signed_at: now,
+          staff_confirmed_by: user.user.id,
+          staff_confirmed_at: now,
+          status: "confirmed",
+        })
+        .eq("id", agreementId);
+
+      if (error) throw error;
+
+      // Log to audit
+      await supabase.from("audit_logs").insert({
+        entity_type: "rental_agreement",
+        entity_id: agreementId,
+        action: "agreement_signed_manually",
+        user_id: user.user.id,
+        new_data: { customer_name: customerName, signed_at: now },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rental-agreement"] });
+      queryClient.invalidateQueries({ queryKey: ["booking"] });
+      toast.success("Agreement marked as signed manually");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to mark as signed: ${error.message}`);
     },
   });
 }
