@@ -80,6 +80,8 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
           locations (id, name, city, address)
         `)
         .in("status", ["pending", "confirmed"])
+        // CRITICAL: Exclude already-activated bookings (handover completed in BookingOps)
+        .is("handed_over_at", null)
         .gte("start_at", startDate.toISOString())
         .lte("start_at", endDate.toISOString())
         .order("start_at", { ascending: true });

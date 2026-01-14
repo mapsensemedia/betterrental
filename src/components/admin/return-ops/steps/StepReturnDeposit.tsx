@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePaymentDepositStatus, useReleaseDeposit } from "@/hooks/use-payment-deposit";
 import { useAddDepositLedgerEntry, useDepositLedger } from "@/hooks/use-deposit-ledger";
+import { useGenerateReturnReceipt } from "@/hooks/use-return-receipt";
+import { useCreateAuditLog } from "@/hooks/use-audit-logs";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -20,6 +22,7 @@ import {
   MinusCircle,
   AlertTriangle,
   Lock,
+  Receipt,
 } from "lucide-react";
 
 interface StepReturnDepositProps {
@@ -44,12 +47,15 @@ export function StepReturnDeposit({
   const { data: ledgerData } = useDepositLedger(bookingId);
   const releaseDeposit = useReleaseDeposit();
   const addLedgerEntry = useAddDepositLedgerEntry();
+  const generateReceipt = useGenerateReturnReceipt();
+  const createAuditLog = useCreateAuditLog();
   
   const [releaseReason, setReleaseReason] = useState("Vehicle returned in good condition - no damages");
   const [isProcessing, setIsProcessing] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
   const [withholdReason, setWithholdReason] = useState("");
   const [sendingNotification, setSendingNotification] = useState(false);
+  const [receiptGenerated, setReceiptGenerated] = useState(false);
 
   const depositAmount = booking.deposit_amount || 0;
   const hasDeposit = depositAmount > 0;
@@ -138,9 +144,25 @@ export function StepReturnDeposit({
 
       await sendDepositNotification("released", remainingDeposit, releaseReason);
       
+      // Log audit event
+      await createAuditLog.mutateAsync({
+        action: "return_deposit_processed",
+        entityType: "booking",
+        entityId: bookingId,
+        newData: { action: "release_full", amount: remainingDeposit, reason: releaseReason },
+      });
+
+      // Auto-generate receipt after deposit processing
+      await generateReceipt.mutateAsync({
+        bookingId,
+        depositReleased: remainingDeposit,
+        depositWithheld: 0,
+      });
+      setReceiptGenerated(true);
+      
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
-      toast.success("Full deposit released successfully");
+      toast.success("Full deposit released and receipt generated");
     } catch (error) {
       console.error("Error releasing deposit:", error);
       toast.error("Failed to release deposit");
@@ -196,9 +218,31 @@ export function StepReturnDeposit({
 
       await sendDepositNotification("withheld", amountToWithhold, withholdReason);
 
+      // Log audit event
+      await createAuditLog.mutateAsync({
+        action: "return_deposit_processed",
+        entityType: "booking",
+        entityId: bookingId,
+        newData: { 
+          action: "withhold_partial", 
+          withheld: amountToWithhold, 
+          released: remainingToRelease,
+          reason: withholdReason,
+        },
+      });
+
+      // Auto-generate receipt after deposit processing
+      await generateReceipt.mutateAsync({
+        bookingId,
+        depositReleased: remainingToRelease,
+        depositWithheld: amountToWithhold,
+        withholdReason,
+      });
+      setReceiptGenerated(true);
+
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
-      toast.success(`Withheld $${amountToWithhold.toFixed(2)}, released $${remainingToRelease.toFixed(2)}`);
+      toast.success(`Withheld $${amountToWithhold.toFixed(2)}, released $${remainingToRelease.toFixed(2)}, receipt generated`);
       setPartialAmount("");
       setWithholdReason("");
     } catch (error) {
