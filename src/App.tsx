@@ -38,6 +38,7 @@ const BookingAgreement = lazy(() => import("./pages/booking/BookingAgreement"));
 const BookingPass = lazy(() => import("./pages/booking/BookingPass"));
 const BookingPickup = lazy(() => import("./pages/booking/BookingPickup"));
 const BookingReturn = lazy(() => import("./pages/booking/BookingReturn"));
+const WalkaroundSign = lazy(() => import("./pages/booking/WalkaroundSign"));
 
 // Admin Pages - all lazy loaded
 const AdminOverview = lazy(() => import("./pages/admin/Overview"));
@@ -109,6 +110,7 @@ const App = () => (
                 <Route path="/booking/:bookingId/pass" element={<BookingPass />} />
                 <Route path="/booking/:bookingId/pickup" element={<BookingPickup />} />
                 <Route path="/booking/:bookingId/return" element={<BookingReturn />} />
+                <Route path="/walkaround/:bookingId" element={<WalkaroundSign />} />
                 {/* Redirect my-booking to dashboard */}
                 <Route path="/my-booking" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/my-booking/:bookingCode" element={<Navigate to="/dashboard" replace />} />

@@ -29,6 +29,8 @@ import {
 import { OpsStepSidebar } from "@/components/admin/ops/OpsStepSidebar";
 import { OpsStepContent } from "@/components/admin/ops/OpsStepContent";
 import { OpsBookingSummary } from "@/components/admin/ops/OpsBookingSummary";
+import { MobileBookingSummary } from "@/components/admin/ops/MobileBookingSummary";
+import { OpsActivityTimeline } from "@/components/admin/ops/OpsActivityTimeline";
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
@@ -290,6 +292,13 @@ export default function BookingOps() {
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Mobile Summary Button */}
+            <MobileBookingSummary
+              booking={booking}
+              completion={completion}
+              onOpenAgreement={handleOpenAgreement}
+              onOpenWalkaround={handleOpenWalkaround}
+            />
             {!isRentalActive && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -364,12 +373,18 @@ export default function BookingOps() {
           
           {/* Right Summary Panel - STICKY with its own scroll */}
           <div className="hidden xl:flex w-80 border-l bg-muted/30 flex-col sticky top-0 h-[calc(100vh-4rem)]">
-            <OpsBookingSummary 
-              booking={booking} 
-              completion={completion}
-              onOpenAgreement={handleOpenAgreement}
-              onOpenWalkaround={handleOpenWalkaround}
-            />
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <OpsBookingSummary 
+                booking={booking} 
+                completion={completion}
+                onOpenAgreement={handleOpenAgreement}
+                onOpenWalkaround={handleOpenWalkaround}
+              />
+            </div>
+            {/* Activity Timeline in right panel */}
+            <div className="border-t shrink-0">
+              <OpsActivityTimeline bookingId={booking.id} />
+            </div>
           </div>
         </div>
       </div>
