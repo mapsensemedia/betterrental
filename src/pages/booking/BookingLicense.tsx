@@ -96,9 +96,9 @@ export default function BookingLicense() {
           
           {/* Header */}
           <div>
-            <h1 className="text-2xl font-bold">Upload Driver's License</h1>
+            <h1 className="text-2xl font-bold">Upload Driver's License (Optional)</h1>
             <p className="text-muted-foreground mt-1">
-              Required before pickup. Your license will be verified by our team.
+              Save time at pickup by uploading your license ahead of time. This is optional.
             </p>
           </div>
           

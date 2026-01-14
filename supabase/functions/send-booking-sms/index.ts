@@ -131,7 +131,7 @@ serve(async (req) => {
 
     switch (templateType) {
       case "confirmation":
-        message = `C2C Rental: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nLocation: ${locationName}\n\nUPLOAD your driver's license here:\n${bookingLink}`;
+        message = `C2C Rental: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nLocation: ${locationName}\n\nView details:\n${bookingLink}`;
         break;
       case "update":
         message = `C2C Rental: Booking ${booking.booking_code} updated.\n\nPickup: ${startDate}\nLocation: ${locationName}\n\nView details:\n${bookingLink}`;

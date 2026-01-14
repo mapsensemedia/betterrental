@@ -337,9 +337,13 @@ export type Database = {
           location_id: string
           notes: string | null
           pickup_address: string | null
+          pickup_contact_name: string | null
+          pickup_contact_phone: string | null
           pickup_lat: number | null
           pickup_lng: number | null
           pickup_place_id: string | null
+          save_time_at_counter: boolean | null
+          special_instructions: string | null
           start_at: string
           status: Database["public"]["Enums"]["booking_status"]
           subtotal: number
@@ -365,9 +369,13 @@ export type Database = {
           location_id: string
           notes?: string | null
           pickup_address?: string | null
+          pickup_contact_name?: string | null
+          pickup_contact_phone?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_place_id?: string | null
+          save_time_at_counter?: boolean | null
+          special_instructions?: string | null
           start_at: string
           status?: Database["public"]["Enums"]["booking_status"]
           subtotal: number
@@ -393,9 +401,13 @@ export type Database = {
           location_id?: string
           notes?: string | null
           pickup_address?: string | null
+          pickup_contact_name?: string | null
+          pickup_contact_phone?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_place_id?: string | null
+          save_time_at_counter?: boolean | null
+          special_instructions?: string | null
           start_at?: string
           status?: Database["public"]["Enums"]["booking_status"]
           subtotal?: number
