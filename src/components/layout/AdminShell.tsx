@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Bell, BookOpen, Receipt, ArrowRightLeft, RotateCcw, Car, Calendar, AlertTriangle, MessageSquare, Settings, Search, Menu, X, LogOut, User, ChevronDown, KeyRound, ShoppingCart, BarChart3, History, Wallet } from "lucide-react";
+import { LayoutDashboard, Bell, BookOpen, Receipt, ArrowRightLeft, RotateCcw, Car, Calendar, AlertTriangle, MessageSquare, Settings, Search, Menu, X, LogOut, User, ChevronDown, KeyRound, ShoppingCart, BarChart3, History, Wallet, FileBarChart, ClipboardList } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -66,13 +66,13 @@ const navItems = [{
   label: "Abandoned Carts",
   icon: ShoppingCart
 }, {
-  href: "/admin/analytics",
-  label: "Analytics",
-  icon: BarChart3
+  href: "/admin/reports",
+  label: "Reports",
+  icon: FileBarChart
 }, {
-  href: "/admin/audit-logs",
-  label: "Audit Logs",
-  icon: History
+  href: "/admin/history",
+  label: "History",
+  icon: ClipboardList
 }, {
   href: "/admin/settings",
   label: "Settings",
