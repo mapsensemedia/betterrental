@@ -101,7 +101,7 @@ function PhotoGallery({ photos, title }: { photos: any[]; title: string }) {
           <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1.5 rounded-b-lg">
             <p className="truncate">{photo.photo_type?.replace(/_/g, " ")}</p>
             <p className="text-white/70 text-[10px]">
-              {format(new Date(photo.captured_at), "MMM d, h:mm a")}
+              {photo.captured_at ? format(new Date(photo.captured_at), "MMM d, h:mm a") : "N/A"}
             </p>
           </div>
         </div>
@@ -185,11 +185,11 @@ function BookingDetailDialog({ booking }: { booking: any }) {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Pickup</p>
-                    <p className="font-medium">{format(new Date(booking.start_at), "MMM d, yyyy h:mm a")}</p>
+                    <p className="font-medium">{booking.start_at ? format(new Date(booking.start_at), "MMM d, yyyy h:mm a") : "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Return</p>
-                    <p className="font-medium">{format(new Date(booking.end_at), "MMM d, yyyy h:mm a")}</p>
+                    <p className="font-medium">{booking.end_at ? format(new Date(booking.end_at), "MMM d, yyyy h:mm a") : "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Total</p>
@@ -301,8 +301,12 @@ export default function AdminHistory() {
       );
     }
 
-    // Sort by date descending
-    return data.sort((a, b) => new Date(b.endAt).getTime() - new Date(a.endAt).getTime());
+    // Sort by date descending - handle null dates safely
+    return data.sort((a, b) => {
+      const dateA = a.endAt ? new Date(a.endAt).getTime() : 0;
+      const dateB = b.endAt ? new Date(b.endAt).getTime() : 0;
+      return dateB - dateA;
+    });
   }, [allBookings, activeTab, searchQuery]);
 
   return (
@@ -407,9 +411,9 @@ export default function AdminHistory() {
                           </TableCell>
                           <TableCell>
                             <div className="text-xs">
-                              <p>{format(new Date(booking.startAt), "MMM d")}</p>
+                              <p>{booking.startAt ? format(new Date(booking.startAt), "MMM d") : "N/A"}</p>
                               <p className="text-muted-foreground">
-                                to {format(new Date(booking.endAt), "MMM d, yyyy")}
+                                to {booking.endAt ? format(new Date(booking.endAt), "MMM d, yyyy") : "N/A"}
                               </p>
                             </div>
                           </TableCell>
@@ -496,7 +500,9 @@ export default function AdminHistory() {
                             <p className="text-sm">
                               {booking.actualReturnAt
                                 ? format(new Date(booking.actualReturnAt), "MMM d, yyyy h:mm a")
-                                : format(new Date(booking.endAt), "MMM d, yyyy")}
+                                : booking.endAt
+                                  ? format(new Date(booking.endAt), "MMM d, yyyy")
+                                  : "N/A"}
                             </p>
                           </TableCell>
                           <TableCell>

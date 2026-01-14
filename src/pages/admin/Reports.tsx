@@ -4,6 +4,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
+import { ConversionFunnel } from "@/components/admin/ConversionFunnel";
 import {
   BarChart3,
   TrendingUp,
@@ -55,24 +56,24 @@ import { useLocations } from "@/hooks/use-locations";
 import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
 import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth } from "date-fns";
 
-// Funnel stages
-const FUNNEL_STAGES = [
-  { key: "search_performed", label: "Search", icon: Search, color: "hsl(var(--primary))" },
-  { key: "vehicle_viewed", label: "Viewed", icon: Eye, color: "#3b82f6" },
-  { key: "vehicle_selected", label: "Selected", icon: MousePointerClick, color: "#8b5cf6" },
-  { key: "protection_selected", label: "Protection", icon: Shield, color: "#6366f1" },
-  { key: "addons_selected", label: "Add-ons", icon: Gift, color: "#ec4899" },
-  { key: "checkout_started", label: "Checkout", icon: ShoppingCart, color: "#f97316" },
-  { key: "checkout_payment_method_selected", label: "Payment", icon: CreditCard, color: "#eab308" },
-  { key: "booking_completed", label: "Completed", icon: CheckCircle, color: "#22c55e" },
-] as const;
-
 const chartConfig = {
   views: { label: "Views", color: "hsl(var(--primary))" },
   conversions: { label: "Conversions", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig;
 
 const COLORS = ["hsl(var(--primary))", "#22c55e", "#f97316", "#8b5cf6", "#3b82f6", "#ec4899"];
+
+// Funnel stages for internal calculations
+const FUNNEL_STAGES = [
+  { key: "search_performed", label: "Search" },
+  { key: "vehicle_viewed", label: "Viewed" },
+  { key: "vehicle_selected", label: "Selected" },
+  { key: "protection_selected", label: "Protection" },
+  { key: "addons_selected", label: "Add-ons" },
+  { key: "checkout_started", label: "Checkout" },
+  { key: "checkout_payment_method_selected", label: "Payment" },
+  { key: "booking_completed", label: "Completed" },
+] as const;
 
 // Audit log action config
 const ACTION_CONFIG: Record<string, { icon: typeof History; color: string; bgColor: string }> = {
@@ -359,47 +360,10 @@ export default function AdminReports() {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* Funnel */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Conversion Funnel</CardTitle>
-                  <CardDescription>User journey stages</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {filteredEvents.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No events recorded</p>
-                    </div>
-                  ) : (
-                    funnelStats.map((stage, idx) => {
-                      const maxCount = Math.max(...funnelStats.map((s) => s.count), 1);
-                      const widthPercent = (stage.count / maxCount) * 100;
-                      const Icon = stage.icon;
-                      return (
-                        <div key={stage.key} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <Icon className="w-3.5 h-3.5" style={{ color: stage.color }} />
-                              <span>{stage.label}</span>
-                            </div>
-                            <span className="font-medium tabular-nums">{stage.count}</span>
-                          </div>
-                          <div className="relative h-4 bg-muted rounded overflow-hidden">
-                            <div
-                              className="absolute inset-y-0 left-0 rounded transition-all"
-                              style={{ width: `${widthPercent}%`, backgroundColor: stage.color, opacity: 0.8 }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </CardContent>
-              </Card>
+            {/* Conversion Funnel - Full Width */}
+            <ConversionFunnel events={filteredEvents} />
 
-              {/* Daily Trend */}
+            <div className="grid md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Daily Activity</CardTitle>
