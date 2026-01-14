@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
+import { PhotoLightbox } from "@/components/shared/PhotoLightbox";
 import {
   BookOpen,
   RotateCcw,
@@ -77,8 +78,16 @@ function useCustomerProfile(userId: string | null) {
   });
 }
 
-// Photo gallery component
-function PhotoGallery({ photos, title }: { photos: any[]; title: string }) {
+// Photo gallery component with lightbox support
+function PhotoGallery({ 
+  photos, 
+  title, 
+  onPhotoClick,
+}: { 
+  photos: any[]; 
+  title: string; 
+  onPhotoClick?: (index: number) => void;
+}) {
   if (photos.length === 0) {
     return (
       <div className="text-center py-6 text-muted-foreground">
@@ -90,34 +99,51 @@ function PhotoGallery({ photos, title }: { photos: any[]; title: string }) {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {photos.map((photo) => (
-        <div key={photo.id} className="relative group">
+      {photos.map((photo, index) => (
+        <button
+          key={photo.id}
+          onClick={() => onPhotoClick?.(index)}
+          className="relative group text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary rounded-lg"
+        >
           <SignedStorageImage
             bucket="condition-photos"
             path={photo.photo_url}
             alt={photo.photo_type}
-            className="w-full h-32 object-cover rounded-lg border"
+            className="w-full h-32 object-cover rounded-lg border group-hover:opacity-90 transition-opacity"
           />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
+            <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
           <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1.5 rounded-b-lg">
             <p className="truncate">{photo.photo_type?.replace(/_/g, " ")}</p>
             <p className="text-white/70 text-[10px]">
               {photo.captured_at ? format(new Date(photo.captured_at), "MMM d, h:mm a") : "N/A"}
             </p>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );
 }
 
-// Booking detail dialog
+// Booking detail dialog with lightbox
 function BookingDetailDialog({ booking }: { booking: any }) {
   const { data: photos, isLoading: photosLoading } = useBookingPhotos(booking.id);
   const { data: customer } = useCustomerProfile(booking.user_id);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxPhotos, setLightboxPhotos] = useState<any[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const openLightbox = (photoSet: any[], index: number) => {
+    setLightboxPhotos(photoSet);
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
+    <>
+      <Dialog>
+        <DialogTrigger asChild>
         <Button variant="ghost" size="sm">
           <Eye className="w-4 h-4" />
         </Button>
@@ -219,7 +245,11 @@ function BookingDetailDialog({ booking }: { booking: any }) {
                     {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-lg" />)}
                   </div>
                 ) : (
-                  <PhotoGallery photos={photos?.preArrival || []} title="Pre-arrival photos" />
+                  <PhotoGallery 
+                    photos={photos?.preArrival || []} 
+                    title="Pre-arrival photos"
+                    onPhotoClick={(idx) => openLightbox(photos?.preArrival || [], idx)}
+                  />
                 )}
               </CardContent>
             </Card>
@@ -238,7 +268,11 @@ function BookingDetailDialog({ booking }: { booking: any }) {
                     {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-lg" />)}
                   </div>
                 ) : (
-                  <PhotoGallery photos={photos?.returnPhotos || []} title="Return photos" />
+                  <PhotoGallery 
+                    photos={photos?.returnPhotos || []} 
+                    title="Return photos"
+                    onPhotoClick={(idx) => openLightbox(photos?.returnPhotos || [], idx)}
+                  />
                 )}
               </CardContent>
             </Card>
@@ -246,6 +280,15 @@ function BookingDetailDialog({ booking }: { booking: any }) {
         </ScrollArea>
       </DialogContent>
     </Dialog>
+    
+    <PhotoLightbox
+      photos={lightboxPhotos}
+      initialIndex={lightboxIndex}
+      isOpen={lightboxOpen}
+      onClose={() => setLightboxOpen(false)}
+      title={`Booking ${booking.booking_code} Photos`}
+    />
+    </>
   );
 }
 
