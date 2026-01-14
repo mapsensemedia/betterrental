@@ -74,7 +74,7 @@ export default function BookingOps() {
     bookingId // exclude current booking
   );
   
-  const [activeStep, setActiveStep] = useState<OpsStepId>("intake");
+  const [activeStep, setActiveStep] = useState<OpsStepId>("prep");
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; action: string | null }>({ 
     open: false, 
     action: null 
@@ -96,32 +96,24 @@ export default function BookingOps() {
   const isDepositCollected = depositData?.depositStatus === 'held' || depositData?.depositStatus === 'released';
   const isAgreementSigned = agreement?.status === 'signed' || agreement?.status === 'confirmed';
   
-  // License status
-  const licenseVerifications = verifications?.filter(v => 
-    v.document_type === 'drivers_license_front' || v.document_type === 'drivers_license_back'
-  ) || [];
-  const hasLicenseUploaded = licenseVerifications.length > 0;
-  const isLicenseApproved = licenseVerifications.length > 0 && 
-    licenseVerifications.every(v => v.status === 'verified');
+  // License status - now from profile
+  const licenseOnFile = booking?.profiles?.driver_license_status === 'on_file';
   
   // Vehicle conflict detection
   const hasVehicleConflict = vehicleAvailability?.isAvailable === false && 
     (vehicleAvailability?.conflicts?.length || 0) > 0;
   
   const completion: StepCompletion = {
-    intake: {
-      vehicleAssigned: !!booking?.vehicle_id,
-      licenseUploaded: hasLicenseUploaded,
-      licenseApproved: isLicenseApproved,
-      hasConflict: hasVehicleConflict, // NEW: track conflicts
-    },
     prep: {
       checklistComplete: prepStatus?.allComplete || false,
       photosComplete: photoStatus.complete,
     },
     checkin: {
-      identityVerified: isCheckedIn,
-      timingConfirmed: isCheckedIn,
+      govIdVerified: checkinRecord?.identityVerified || false,
+      licenseOnFile: licenseOnFile,
+      nameMatches: checkinRecord?.licenseNameMatches || false,
+      licenseNotExpired: checkinRecord?.licenseValid || false,
+      ageVerified: checkinRecord?.ageVerified || false,
     },
     payment: {
       paymentComplete: isPaymentComplete,
@@ -132,10 +124,10 @@ export default function BookingOps() {
     },
     walkaround: {
       inspectionComplete: walkaround?.inspection_complete || false,
-      customerAcknowledged: walkaround?.customer_acknowledged || false,
     },
     handover: {
       activated: booking?.status === 'active' || booking?.status === 'completed',
+      smsSent: !!booking?.handover_sms_sent_at,
     },
   };
   
@@ -342,7 +334,6 @@ export default function BookingOps() {
                   stepId={activeStep}
                   booking={booking}
                   completion={completion}
-                  verifications={verifications || []}
                   onCompleteStep={handleCompleteStep}
                   onActivate={handleActivateRental}
                   isRentalActive={isRentalActive}
