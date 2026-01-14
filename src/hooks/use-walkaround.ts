@@ -202,7 +202,7 @@ export function useCustomerAcknowledge() {
   });
 }
 
-// Complete the walkaround inspection
+// Complete the walkaround inspection (staff-only, no customer signature needed)
 export function useCompleteWalkaround() {
   const queryClient = useQueryClient();
 
@@ -210,24 +210,25 @@ export function useCompleteWalkaround() {
     mutationFn: async (inspectionId: string) => {
       const { data: user } = await supabase.auth.getUser();
 
-      // Get the inspection to verify customer acknowledged
+      // Get the inspection
       const { data: inspection, error: fetchError } = await supabase
         .from("walkaround_inspections")
-        .select("customer_acknowledged, booking_id")
+        .select("booking_id")
         .eq("id", inspectionId)
         .single();
 
       if (fetchError) throw fetchError;
 
-      if (!inspection?.customer_acknowledged) {
-        throw new Error("Customer must acknowledge vehicle condition before completing walkaround");
-      }
-
+      // Staff-only completion - mark as complete without requiring customer acknowledgement
       const { error } = await supabase
         .from("walkaround_inspections")
         .update({
           inspection_complete: true,
           completed_at: new Date().toISOString(),
+          // Mark as staff-verified (no customer signature needed)
+          customer_acknowledged: true,
+          customer_acknowledged_at: new Date().toISOString(),
+          customer_signature: "Staff Verified (In-Person)",
         })
         .eq("id", inspectionId);
 
@@ -239,7 +240,7 @@ export function useCompleteWalkaround() {
         entity_id: inspectionId,
         action: "walkaround_completed",
         user_id: user.user?.id,
-        new_data: { booking_id: inspection.booking_id },
+        new_data: { booking_id: inspection.booking_id, staff_verified: true },
       });
 
       // Send notification to customer
@@ -258,7 +259,7 @@ export function useCompleteWalkaround() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
       queryClient.invalidateQueries({ queryKey: ["booking"] });
-      toast.success("Walkaround completed - customer notified");
+      toast.success("Walkaround completed");
     },
     onError: (error: Error) => {
       toast.error(error.message);
