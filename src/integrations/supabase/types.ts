@@ -342,6 +342,16 @@ export type Database = {
           pickup_lat: number | null
           pickup_lng: number | null
           pickup_place_id: string | null
+          return_evidence_completed_at: string | null
+          return_evidence_completed_by: string | null
+          return_exception_reason: string | null
+          return_intake_completed_at: string | null
+          return_intake_completed_by: string | null
+          return_is_exception: boolean | null
+          return_issues_reviewed_at: string | null
+          return_issues_reviewed_by: string | null
+          return_started_at: string | null
+          return_state: string | null
           save_time_at_counter: boolean | null
           special_instructions: string | null
           start_at: string
@@ -374,6 +384,16 @@ export type Database = {
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_place_id?: string | null
+          return_evidence_completed_at?: string | null
+          return_evidence_completed_by?: string | null
+          return_exception_reason?: string | null
+          return_intake_completed_at?: string | null
+          return_intake_completed_by?: string | null
+          return_is_exception?: boolean | null
+          return_issues_reviewed_at?: string | null
+          return_issues_reviewed_by?: string | null
+          return_started_at?: string | null
+          return_state?: string | null
           save_time_at_counter?: boolean | null
           special_instructions?: string | null
           start_at: string
@@ -406,6 +426,16 @@ export type Database = {
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_place_id?: string | null
+          return_evidence_completed_at?: string | null
+          return_evidence_completed_by?: string | null
+          return_exception_reason?: string | null
+          return_intake_completed_at?: string | null
+          return_intake_completed_by?: string | null
+          return_is_exception?: boolean | null
+          return_issues_reviewed_at?: string | null
+          return_issues_reviewed_by?: string | null
+          return_started_at?: string | null
+          return_state?: string | null
           save_time_at_counter?: boolean | null
           special_instructions?: string | null
           start_at?: string

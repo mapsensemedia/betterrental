@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePaymentDepositStatus, useReleaseDeposit } from "@/hooks/use-payment-deposit";
 import { useAddDepositLedgerEntry, useDepositLedger } from "@/hooks/use-deposit-ledger";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +19,7 @@ import {
   Loader2,
   MinusCircle,
   AlertTriangle,
-  Send,
+  Lock,
 } from "lucide-react";
 
 interface StepReturnDepositProps {
@@ -28,13 +29,15 @@ interface StepReturnDepositProps {
     processed: boolean;
   };
   totalDamageCost?: number;
+  isLocked?: boolean;
 }
 
 export function StepReturnDeposit({ 
   bookingId, 
   booking, 
   completion,
-  totalDamageCost = 0 
+  totalDamageCost = 0,
+  isLocked,
 }: StepReturnDepositProps) {
   const queryClient = useQueryClient();
   const { data: depositData, isLoading, refetch } = usePaymentDepositStatus(bookingId);
@@ -70,7 +73,6 @@ export function StepReturnDeposit({
     try {
       setSendingNotification(true);
       
-      // Create notification via edge function
       await supabase.functions.invoke("send-deposit-notification", {
         body: {
           bookingId,
@@ -85,18 +87,16 @@ export function StepReturnDeposit({
       toast.success("Customer notified about deposit");
     } catch (error) {
       console.warn("Failed to send deposit notification:", error);
-      // Don't fail the whole operation if notification fails
     } finally {
       setSendingNotification(false);
     }
   };
 
   const handleReleaseFullDeposit = async () => {
-    if (!hasDeposit || remainingDeposit <= 0) return;
+    if (!hasDeposit || remainingDeposit <= 0 || isLocked) return;
     
     setIsProcessing(true);
     try {
-      // Add release entry to ledger
       await addLedgerEntry.mutateAsync({
         bookingId,
         action: "release",
@@ -104,7 +104,6 @@ export function StepReturnDeposit({
         reason: releaseReason,
       });
 
-      // Find deposit payment and mark as refunded
       const { data: payments } = await supabase
         .from("payments")
         .select("id")
@@ -121,7 +120,6 @@ export function StepReturnDeposit({
         });
       }
 
-      // Send notification to customer
       await sendDepositNotification("released", remainingDeposit, releaseReason);
       
       await refetch();
@@ -136,7 +134,7 @@ export function StepReturnDeposit({
   };
 
   const handleWithholdPartial = async () => {
-    if (!hasDeposit || !partialAmount || !withholdReason.trim()) return;
+    if (!hasDeposit || !partialAmount || !withholdReason.trim() || isLocked) return;
     
     const amountToWithhold = parseFloat(partialAmount);
     if (isNaN(amountToWithhold) || amountToWithhold <= 0 || amountToWithhold > remainingDeposit) {
@@ -146,7 +144,6 @@ export function StepReturnDeposit({
     
     setIsProcessing(true);
     try {
-      // Add deduct entry to ledger
       await addLedgerEntry.mutateAsync({
         bookingId,
         action: "deduct",
@@ -156,7 +153,6 @@ export function StepReturnDeposit({
 
       const remainingToRelease = remainingDeposit - amountToWithhold;
       
-      // If there's remaining amount, release it
       if (remainingToRelease > 0) {
         await addLedgerEntry.mutateAsync({
           bookingId,
@@ -166,7 +162,6 @@ export function StepReturnDeposit({
         });
       }
 
-      // Find deposit payment and mark as refunded
       const { data: payments } = await supabase
         .from("payments")
         .select("id")
@@ -183,7 +178,6 @@ export function StepReturnDeposit({
         });
       }
 
-      // Send notification to customer
       await sendDepositNotification("withheld", amountToWithhold, withholdReason);
 
       await refetch();
@@ -201,6 +195,16 @@ export function StepReturnDeposit({
 
   return (
     <div className="space-y-6">
+      {/* Locked Warning */}
+      {isLocked && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+          <Lock className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-600">
+            Complete the return closeout step to unlock deposit processing.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Status Card */}
       <Card className={
         isReleased 
@@ -278,7 +282,7 @@ export function StepReturnDeposit({
           )}
 
           {/* Release Options - Only show if deposit is held and not released */}
-          {hasDeposit && isHeld && !isReleased && remainingDeposit > 0 && (
+          {hasDeposit && isHeld && !isReleased && remainingDeposit > 0 && !isLocked && (
             <>
               {/* Full Release Option */}
               <div className="space-y-3 p-4 rounded-lg border bg-card">

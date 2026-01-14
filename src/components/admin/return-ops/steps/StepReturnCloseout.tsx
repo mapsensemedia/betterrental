@@ -8,14 +8,17 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  Lock,
 } from "lucide-react";
-import { type ReturnCompletion, checkReturnStepComplete } from "@/lib/return-steps";
+import { type ReturnCompletion, type ReturnState, isStateAtLeast } from "@/lib/return-steps";
 
 interface StepReturnCloseoutProps {
   booking: any;
   completion: ReturnCompletion;
   onCompleteReturn: () => void;
   isCompleting: boolean;
+  returnState?: ReturnState;
+  isLocked?: boolean;
 }
 
 export function StepReturnCloseout({ 
@@ -23,33 +26,62 @@ export function StepReturnCloseout({
   completion, 
   onCompleteReturn,
   isCompleting,
+  returnState,
+  isLocked,
 }: StepReturnCloseoutProps) {
   const isAlreadyCompleted = booking.status === "completed";
   
-  // Check prerequisites - now using the merged "issues" step
+  // Check prerequisites using state machine if available
+  const intakeComplete = returnState 
+    ? isStateAtLeast(returnState, "intake_done")
+    : completion.intake.odometerRecorded || completion.intake.fuelRecorded;
+  
+  const evidenceComplete = returnState
+    ? isStateAtLeast(returnState, "evidence_done")
+    : completion.evidence.photosComplete;
+  
+  const issuesComplete = returnState
+    ? isStateAtLeast(returnState, "issues_reviewed")
+    : completion.issues.reviewed;
+  
   const prerequisites = [
     { 
       label: "Return intake recorded", 
-      complete: completion.intake.odometerRecorded || completion.intake.fuelRecorded,
+      complete: intakeComplete,
       required: true,
     },
     { 
       label: "Evidence photos captured", 
-      complete: completion.evidence.photosComplete,
+      complete: evidenceComplete,
       required: false,
     },
     { 
       label: "Issues & damages reviewed", 
-      complete: completion.issues.reviewed,
+      complete: issuesComplete,
       required: true,
     },
   ];
 
   const requiredComplete = prerequisites.filter(p => p.required).every(p => p.complete);
   const allComplete = prerequisites.every(p => p.complete);
+  
+  // GATING: Can only close out if issues have been reviewed (state machine)
+  const canCloseOut = returnState 
+    ? isStateAtLeast(returnState, "issues_reviewed")
+    : requiredComplete;
 
   return (
     <div className="space-y-6">
+      {/* Locked Warning */}
+      {isLocked && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+          <Lock className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-600">
+            Complete previous steps to unlock this step.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Status Card */}
       {isAlreadyCompleted ? (
         <Card className="border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20">
@@ -60,7 +92,7 @@ export function StepReturnCloseout({
             </div>
           </CardContent>
         </Card>
-      ) : !requiredComplete ? (
+      ) : !canCloseOut ? (
         <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-600">
@@ -137,10 +169,10 @@ export function StepReturnCloseout({
       </Card>
 
       {/* Complete Return Button */}
-      {!isAlreadyCompleted && (
+      {!isAlreadyCompleted && !isLocked && (
         <Button
           onClick={onCompleteReturn}
-          disabled={!requiredComplete || isCompleting}
+          disabled={!canCloseOut || isCompleting}
           size="lg"
           className="w-full"
         >
@@ -158,7 +190,7 @@ export function StepReturnCloseout({
         </Button>
       )}
 
-      {!allComplete && !isAlreadyCompleted && (
+      {!allComplete && !isAlreadyCompleted && !isLocked && (
         <p className="text-xs text-center text-muted-foreground">
           Optional items can be completed later, but required items must be done first
         </p>

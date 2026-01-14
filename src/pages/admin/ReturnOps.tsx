@@ -5,12 +5,23 @@ import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { RETURN_STEPS, type ReturnStepId, type ReturnCompletion, getCurrentReturnStepIndex, checkReturnStepComplete } from "@/lib/return-steps";
+import { 
+  RETURN_STEPS, 
+  type ReturnStepId, 
+  type ReturnCompletion,
+  type ReturnState,
+  getCurrentStepFromState,
+  isStepComplete,
+  canAccessStep,
+  isStateAtLeast,
+} from "@/lib/return-steps";
+import { useCompleteReturnStep, useInitiateReturn } from "@/hooks/use-return-state";
 import { ReturnStepSidebar } from "@/components/admin/return-ops/ReturnStepSidebar";
 import { ReturnBookingSummary } from "@/components/admin/return-ops/ReturnBookingSummary";
 import { StepReturnIntake } from "@/components/admin/return-ops/steps/StepReturnIntake";
@@ -18,7 +29,7 @@ import { StepReturnEvidence } from "@/components/admin/return-ops/steps/StepRetu
 import { StepReturnIssues } from "@/components/admin/return-ops/steps/StepReturnIssues";
 import { StepReturnCloseout } from "@/components/admin/return-ops/steps/StepReturnCloseout";
 import { StepReturnDeposit } from "@/components/admin/return-ops/steps/StepReturnDeposit";
-import { ArrowLeft, X, Loader2, ArrowRight } from "lucide-react";
+import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle } from "lucide-react";
 
 export default function ReturnOps() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -30,22 +41,24 @@ export default function ReturnOps() {
   const { data: photos, refetch: refetchPhotos } = useBookingConditionPhotos(bookingId || "");
   const { data: depositData, refetch: refetchDeposit } = usePaymentDepositStatus(bookingId || "");
   
+  const completeStep = useCompleteReturnStep();
+  const initiateReturn = useInitiateReturn();
+  
   const [activeStep, setActiveStep] = useState<ReturnStepId>("intake");
   const [totalDamageCost, setTotalDamageCost] = useState(0);
+  const [isException, setIsException] = useState(false);
   const hasInitializedRef = useRef(false);
 
-  // Local state for issues reviewed (persisted in session)
-  const [issuesReviewed, setIssuesReviewed] = useState(() => {
-    const stored = sessionStorage.getItem(`return-issues-${bookingId}`);
-    return stored === 'true';
-  });
+  // Get return state from booking - cast through any since types may not be updated yet
+  const bookingData = booking as any;
+  const returnState: ReturnState = bookingData?.return_state || "not_started";
 
-  // Persist reviewed state to session storage
+  // Auto-initiate return if not started
   useEffect(() => {
-    if (bookingId) {
-      sessionStorage.setItem(`return-issues-${bookingId}`, String(issuesReviewed));
+    if (booking && returnState === "not_started" && !initiateReturn.isPending) {
+      initiateReturn.mutate(booking.id);
     }
-  }, [issuesReviewed, bookingId]);
+  }, [booking, returnState, initiateReturn]);
 
   // Fetch return metrics
   const { data: returnMetrics, refetch: refetchMetrics } = useQuery({
@@ -75,7 +88,7 @@ export default function ReturnOps() {
     enabled: !!bookingId,
   });
 
-  // Compute completion - use minimum required photos (at least 4 of 6)
+  // Compute completion status (for UI display, but state machine is authoritative)
   const returnPhotos = photos?.return || [];
   const hasMinimumPhotos = returnPhotos.length >= 4;
   const isCompleted = booking?.status === "completed";
@@ -92,7 +105,7 @@ export default function ReturnOps() {
       photosComplete: hasMinimumPhotos,
     },
     issues: {
-      reviewed: issuesReviewed || isCompleted,
+      reviewed: isStateAtLeast(returnState, "issues_reviewed"),
       damagesRecorded: (damages?.length || 0) > 0,
     },
     closeout: {
@@ -103,55 +116,105 @@ export default function ReturnOps() {
     },
   };
 
-  const currentStepIndex = getCurrentReturnStepIndex(completion);
+  // Determine if there are issues that make this an exception return
+  useEffect(() => {
+    if ((damages?.length || 0) > 0 || totalDamageCost > 0) {
+      setIsException(true);
+    }
+  }, [damages, totalDamageCost]);
 
-  // Initialize to first incomplete step
+  // Initialize to current step based on state
   useEffect(() => {
     if (!hasInitializedRef.current && booking) {
-      const step = RETURN_STEPS[currentStepIndex];
-      if (step) setActiveStep(step.id);
+      const currentStep = getCurrentStepFromState(returnState);
+      setActiveStep(currentStep);
       hasInitializedRef.current = true;
     }
-  }, [booking, currentStepIndex]);
+  }, [booking, returnState]);
 
   const handleStepClick = (stepId: ReturnStepId) => {
+    // GATING: Only allow clicking on accessible steps
+    if (!canAccessStep(stepId, returnState)) {
+      toast.error("Complete previous steps first");
+      return;
+    }
     setActiveStep(stepId);
-  };
-
-  const handleMarkIssuesReviewed = () => {
-    setIssuesReviewed(true);
-    toast.success("Issues marked as reviewed");
   };
 
   const handleDamagesUpdated = useCallback((cost: number) => {
     setTotalDamageCost(cost);
+    if (cost > 0) {
+      setIsException(true);
+    }
   }, []);
 
-  const handleCompleteReturn = () => {
-    if (!bookingId) return;
-    updateStatus.mutate(
-      { bookingId, newStatus: "completed" },
-      {
-        onSuccess: () => {
-          toast.success("Return completed successfully");
-          // Invalidate all related queries
-          queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
-          queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
-          queryClient.invalidateQueries({ queryKey: ["active-rentals"] });
-          queryClient.invalidateQueries({ queryKey: ["returns"] });
-          refetchBooking();
-          // Clear session storage
-          sessionStorage.removeItem(`return-issues-${bookingId}`);
-        },
-      }
-    );
+  // Complete step handlers with STATE MACHINE
+  const handleCompleteIntake = async () => {
+    if (!bookingId || !returnMetrics?.odometer) {
+      toast.error("Record odometer reading first");
+      return;
+    }
+    
+    await completeStep.mutateAsync({
+      bookingId,
+      stepId: "intake",
+      currentState: returnState,
+    });
+    
+    setActiveStep("evidence");
+    refetchBooking();
   };
 
-  const handleNextStep = () => {
-    const idx = RETURN_STEPS.findIndex(s => s.id === activeStep);
-    if (idx < RETURN_STEPS.length - 1) {
-      setActiveStep(RETURN_STEPS[idx + 1].id);
+  const handleCompleteEvidence = async () => {
+    if (!bookingId) return;
+    
+    // Evidence is optional for normal returns, required for exception
+    if (isException && !hasMinimumPhotos) {
+      toast.error("Capture at least 4 photos for exception returns");
+      return;
     }
+    
+    await completeStep.mutateAsync({
+      bookingId,
+      stepId: "evidence",
+      currentState: returnState,
+    });
+    
+    setActiveStep("issues");
+    refetchBooking();
+  };
+
+  const handleCompleteIssues = async () => {
+    if (!bookingId) return;
+    
+    await completeStep.mutateAsync({
+      bookingId,
+      stepId: "issues",
+      currentState: returnState,
+      isException,
+      exceptionReason: isException ? `Damage cost: $${totalDamageCost}` : undefined,
+    });
+    
+    setActiveStep("closeout");
+    refetchBooking();
+  };
+
+  const handleCompleteReturn = async () => {
+    if (!bookingId) return;
+    
+    await completeStep.mutateAsync({
+      bookingId,
+      stepId: "closeout",
+      currentState: returnState,
+    });
+    
+    queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+    queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+    queryClient.invalidateQueries({ queryKey: ["active-rentals"] });
+    queryClient.invalidateQueries({ queryKey: ["returns"] });
+    
+    setActiveStep("deposit");
+    refetchBooking();
   };
 
   const handleBack = () => navigate("/admin/returns");
@@ -194,7 +257,26 @@ export default function ReturnOps() {
     ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}`
     : "No vehicle";
 
-  const showNextButton = checkReturnStepComplete(activeStep, completion) && activeStep !== "deposit" && !isCompleted;
+  // Check if current step can proceed
+  const canProceedFromCurrentStep = () => {
+    switch (activeStep) {
+      case "intake":
+        return !!returnMetrics?.odometer;
+      case "evidence":
+        return !isException || hasMinimumPhotos;
+      case "issues":
+        return true; // Always can proceed after reviewing
+      case "closeout":
+        return isStateAtLeast(returnState, "issues_reviewed");
+      case "deposit":
+        return isCompleted;
+      default:
+        return false;
+    }
+  };
+
+  const stepIsLocked = !canAccessStep(activeStep, returnState);
+  const currentStepComplete = isStepComplete(activeStep, returnState);
 
   return (
     <AdminShell hideNav>
@@ -212,6 +294,12 @@ export default function ReturnOps() {
                 <Badge className={isCompleted ? "bg-emerald-500" : "bg-amber-500"}>
                   {booking.status}
                 </Badge>
+                {isException && (
+                  <Badge variant="destructive" className="gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Exception
+                  </Badge>
+                )}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground truncate">
                 {booking.profiles?.full_name} • {vehicleName}
@@ -229,28 +317,54 @@ export default function ReturnOps() {
             steps={RETURN_STEPS}
             activeStep={activeStep}
             completion={completion}
-            currentStepIndex={currentStepIndex}
+            currentStepIndex={RETURN_STEPS.findIndex(s => s.id === getCurrentStepFromState(returnState))}
             onStepClick={handleStepClick}
             isCompleted={isCompleted}
+            returnState={returnState}
           />
 
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             <ScrollArea className="flex-1">
               <div className="p-4 sm:p-6 max-w-3xl space-y-6">
+                {/* Locked Step Warning */}
+                {stepIsLocked && (
+                  <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+                    <Lock className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-600">
+                      This step is locked. Complete the previous steps first.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {activeStep === "intake" && (
-                  <StepReturnIntake bookingId={booking.id} completion={completion.intake} />
+                  <StepReturnIntake 
+                    bookingId={booking.id} 
+                    completion={completion.intake}
+                    onComplete={handleCompleteIntake}
+                    isLocked={stepIsLocked}
+                    isComplete={isStepComplete("intake", returnState)}
+                  />
                 )}
                 {activeStep === "evidence" && (
-                  <StepReturnEvidence bookingId={booking.id} completion={completion.evidence} />
+                  <StepReturnEvidence 
+                    bookingId={booking.id} 
+                    completion={completion.evidence}
+                    onComplete={handleCompleteEvidence}
+                    isLocked={stepIsLocked}
+                    isComplete={isStepComplete("evidence", returnState)}
+                    isException={isException}
+                  />
                 )}
                 {activeStep === "issues" && (
                   <StepReturnIssues 
                     booking={booking}
                     vehicleId={booking.vehicle_id}
                     completion={completion.issues}
-                    onMarkReviewed={handleMarkIssuesReviewed}
+                    onMarkReviewed={handleCompleteIssues}
                     onDamagesUpdated={handleDamagesUpdated}
-                    isMarking={false}
+                    isMarking={completeStep.isPending}
+                    isLocked={stepIsLocked}
+                    isComplete={isStepComplete("issues", returnState)}
                   />
                 )}
                 {activeStep === "closeout" && (
@@ -258,7 +372,9 @@ export default function ReturnOps() {
                     booking={booking}
                     completion={completion}
                     onCompleteReturn={handleCompleteReturn}
-                    isCompleting={updateStatus.isPending}
+                    isCompleting={completeStep.isPending}
+                    returnState={returnState}
+                    isLocked={stepIsLocked}
                   />
                 )}
                 {activeStep === "deposit" && (
@@ -267,23 +383,15 @@ export default function ReturnOps() {
                     booking={booking}
                     completion={completion.deposit}
                     totalDamageCost={totalDamageCost}
+                    isLocked={stepIsLocked}
                   />
-                )}
-
-                {showNextButton && (
-                  <div className="pt-4 flex justify-end">
-                    <Button onClick={handleNextStep}>
-                      Continue to Next Step
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
                 )}
               </div>
             </ScrollArea>
           </div>
 
           <div className="hidden xl:block w-80 border-l bg-muted/30">
-            <ReturnBookingSummary booking={booking} />
+            <ReturnBookingSummary booking={booking} isException={isException} />
           </div>
         </div>
       </div>
