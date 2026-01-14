@@ -55,16 +55,25 @@ export function StepReturnDeposit({
   const hasDeposit = depositAmount > 0;
   const depositHeld = depositData?.depositHeld || 0;
   const depositStatus = depositData?.depositStatus || "none";
-  
+
+  // NOTE: ledgerData is always a summary object (even when there are zero entries).
+  // If we blindly prefer ledgerData.remaining, we can end up with remainingDeposit=0
+  // even when a deposit payment exists (hiding the release UI). Only trust ledger
+  // amounts when there are actual ledger entries.
+  const ledgerHasEntries = (ledgerData?.entries?.length ?? 0) > 0;
+
   // Check if deposit has been released via ledger entries or payment status
-  const isReleased = depositStatus === "released" || ledgerData?.status === "released" || ledgerData?.status === "deducted";
-  
+  const isReleased =
+    depositStatus === "released" ||
+    ledgerData?.status === "released" ||
+    ledgerData?.status === "deducted";
+
   // Deposit is held if payment status says held OR we have ledger entries showing held status
   // Important: If depositHeld > 0 from payments, consider it "held" even without ledger entries
   const isHeld = depositStatus === "held" || (depositHeld > 0 && depositStatus !== "released");
-  
-  // Remaining deposit: use ledger if available, otherwise use full depositHeld from payments
-  const remainingDeposit = ledgerData?.remaining ?? depositHeld;
+
+  // Remaining deposit: prefer ledger remaining only when ledger has entries
+  const remainingDeposit = ledgerHasEntries ? (ledgerData?.remaining ?? 0) : depositHeld;
 
   // Auto-populate withhold amount from damage costs
   useEffect(() => {
