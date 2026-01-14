@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, endOfDay, addHours } from "date-fns";
+import { batchFetchProfiles, batchFetchPayments, batchFetchVerifications } from "@/lib/booking-helpers";
 
 export interface HandoverBooking {
   id: string;
@@ -96,30 +97,15 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
 
       if (!bookings || bookings.length === 0) return [];
 
-      // Fetch profiles, payments, and verifications
+      // Use batch utilities to prevent N+1 queries
       const userIds = [...new Set(bookings.map(b => b.user_id))];
       const bookingIds = bookings.map(b => b.id);
 
-      const [profilesRes, paymentsRes, verificationsRes] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, phone").in("id", userIds),
-        supabase.from("payments").select("booking_id, amount, status").in("booking_id", bookingIds),
-        supabase.from("verification_requests").select("booking_id, status").in("booking_id", bookingIds),
+      const [profilesMap, paymentsMap, verificationsMap] = await Promise.all([
+        batchFetchProfiles(userIds),
+        batchFetchPayments(bookingIds),
+        batchFetchVerifications(bookingIds),
       ]);
-
-      const profilesMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
-      const paymentsMap = new Map<string, { total: number; paid: number }>();
-      const verificationsMap = new Map<string, string>();
-
-      (paymentsRes.data || []).forEach(p => {
-        const existing = paymentsMap.get(p.booking_id) || { total: 0, paid: 0 };
-        existing.total += Number(p.amount);
-        if (p.status === "completed") existing.paid += Number(p.amount);
-        paymentsMap.set(p.booking_id, existing);
-      });
-
-      (verificationsRes.data || []).forEach(v => {
-        verificationsMap.set(v.booking_id, v.status);
-      });
 
       // Check for any active bookings that might affect buffer
       const vehicleIds = [...new Set(bookings.map(b => b.vehicle_id))];
@@ -142,17 +128,21 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
 
       return bookings.map((b: any) => {
         const profile = profilesMap.get(b.user_id);
-        const payment = paymentsMap.get(b.id);
+        const payments = paymentsMap.get(b.id) || [];
         const verification = verificationsMap.get(b.id);
         const vehicle = b.vehicles;
         const lastReturn = vehicleLastReturnMap.get(b.vehicle_id);
         const bufferHours = vehicle?.cleaning_buffer_hours || 2;
         
-        // Calculate readiness
+        // Calculate readiness from batch-fetched payments
         let paymentStatus: "paid" | "pending" | "partial" = "pending";
-        if (payment) {
-          if (payment.paid >= b.total_amount) paymentStatus = "paid";
-          else if (payment.paid > 0) paymentStatus = "partial";
+        const completedPayments = payments.filter(p => p.status === "completed" && p.payment_type === "rental");
+        const totalPaid = completedPayments.reduce((sum, p) => sum + p.amount, 0);
+        
+        if (totalPaid >= b.total_amount) {
+          paymentStatus = "paid";
+        } else if (totalPaid > 0) {
+          paymentStatus = "partial";
         }
 
         const verificationStatus = (verification as "verified" | "pending" | "rejected") || "pending";

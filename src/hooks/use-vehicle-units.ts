@@ -60,28 +60,28 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
 
       if (error) throw error;
 
-      // Fetch total expenses for each unit
-      const unitsWithExpenses = await Promise.all(
-        (data || []).map(async (unit) => {
-          const { data: expenseData } = await supabase
-            .from("vehicle_expenses")
-            .select("amount")
-            .eq("vehicle_unit_id", unit.id);
+      if (!data || data.length === 0) return [];
 
-          const totalExpenses = (expenseData || []).reduce(
-            (sum, exp) => sum + Number(exp.amount),
-            0
-          );
+      // Batch fetch all expenses in a single query - fixes N+1 issue
+      const unitIds = data.map(u => u.id);
+      const { data: allExpenses } = await supabase
+        .from("vehicle_expenses")
+        .select("vehicle_unit_id, amount")
+        .in("vehicle_unit_id", unitIds);
 
-          return {
-            ...unit,
-            total_expenses: totalExpenses,
-          } as VehicleUnit;
-        })
-      );
+      // Aggregate expenses by unit
+      const expenseMap = new Map<string, number>();
+      (allExpenses || []).forEach(e => {
+        const total = expenseMap.get(e.vehicle_unit_id) || 0;
+        expenseMap.set(e.vehicle_unit_id, total + Number(e.amount));
+      });
 
-      return unitsWithExpenses;
+      return data.map(unit => ({
+        ...unit,
+        total_expenses: expenseMap.get(unit.id) || 0,
+      } as VehicleUnit));
     },
+    staleTime: 30000,
   });
 }
 

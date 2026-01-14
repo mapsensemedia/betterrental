@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, endOfDay, addHours } from "date-fns";
+import { batchFetchProfiles, batchFetchConditionPhotos, batchFetchInspections, batchFetchDamages } from "@/lib/booking-helpers";
 
 export interface ReturnBooking {
   id: string;
@@ -95,55 +96,25 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
 
       if (!bookings || bookings.length === 0) return [];
 
-      // Fetch profiles, photos, inspections, and damage reports
+      // Use batch utilities to prevent N+1 queries
       const userIds = [...new Set(bookings.map(b => b.user_id))];
       const bookingIds = bookings.map(b => b.id);
 
-      const [profilesRes, photosRes, inspectionsRes, damagesRes] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email").in("id", userIds),
-        supabase.from("condition_photos").select("booking_id, phase, photo_type").in("booking_id", bookingIds),
-        supabase.from("inspection_metrics").select("booking_id, phase, fuel_level, odometer").in("booking_id", bookingIds),
-        supabase.from("damage_reports").select("booking_id, id, status").in("booking_id", bookingIds),
+      const [profilesMap, photosMap, inspectionsMap, damagesMap] = await Promise.all([
+        batchFetchProfiles(userIds),
+        batchFetchConditionPhotos(bookingIds),
+        batchFetchInspections(bookingIds),
+        batchFetchDamages(bookingIds),
       ]);
-
-      const profilesMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
-      
-      // Group photos by booking
-      const photosMap = new Map<string, { return: boolean; fuelOdometer: boolean }>();
-      (photosRes.data || []).forEach(p => {
-        const existing = photosMap.get(p.booking_id) || { return: false, fuelOdometer: false };
-        if (p.phase === "return") {
-          existing.return = true;
-          if (p.photo_type === "fuel" || p.photo_type === "odometer") {
-            existing.fuelOdometer = true;
-          }
-        }
-        photosMap.set(p.booking_id, existing);
-      });
-
-      // Check for return inspections
-      const inspectionsMap = new Map<string, boolean>();
-      (inspectionsRes.data || []).forEach(i => {
-        if (i.phase === "return" && i.fuel_level !== null && i.odometer !== null) {
-          inspectionsMap.set(i.booking_id, true);
-        }
-      });
-
-      // Group damages by booking
-      const damagesMap = new Map<string, number>();
-      (damagesRes.data || []).forEach(d => {
-        const count = damagesMap.get(d.booking_id) || 0;
-        damagesMap.set(d.booking_id, count + 1);
-      });
 
       return bookings.map((b: any) => {
         const profile = profilesMap.get(b.user_id);
-        const photos = photosMap.get(b.id) || { return: false, fuelOdometer: false };
-        const hasInspection = inspectionsMap.get(b.id) || false;
+        const photos = photosMap.get(b.id);
+        const inspection = inspectionsMap.get(b.id);
         const damageCount = damagesMap.get(b.id) || 0;
 
-        const hasReturnPhotos = photos.return;
-        const hasFuelOdometerPhotos = photos.fuelOdometer || hasInspection;
+        const hasReturnPhotos = photos?.hasReturn || false;
+        const hasFuelOdometerPhotos = photos?.hasFuelOdometer || inspection?.hasFuelOdometer || false;
         const hasDamageReport = damageCount > 0;
         
         // Can settle if all evidence exists and no damage
