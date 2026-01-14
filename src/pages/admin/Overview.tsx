@@ -43,123 +43,156 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 
-const quickGuide = [
+// ==========================================
+// HOW TO USE — COMPLETE OPERATIONAL GUIDE
+// ==========================================
+
+// SECTION 1: Customer Booking Guide
+const customerGuide = [
   {
-    id: "bookings",
-    title: "Managing Bookings",
+    id: "customer-booking",
+    title: "Section 1: How to Book (Customer Guide)",
+    icon: Users,
+    color: "text-blue-500",
+    steps: [
+      "**Step 1:** Visit our website and select your desired vehicle, dates, and pickup location.",
+      "**Step 2:** Review your booking summary and proceed to checkout.",
+      "**Step 3:** Complete your reservation — **driver's license upload is NOT required online**.",
+      "**Step 4:** Receive your booking confirmation via email.",
+      "**Step 5:** At pickup, bring your **valid driver's license** — it will be verified in person.",
+      "**Step 6:** Sign the **rental agreement in person** at the time of pickup.",
+    ],
+  },
+];
+
+// SECTION 2: Admin/Operations Full Step-by-Step Workflow
+const adminWorkflowGuide = [
+  {
+    id: "incoming-booking",
+    title: "2.1 Incoming Booking (Bookings Menu)",
     icon: BookOpen,
     color: "text-blue-500",
     steps: [
-      "Go to **Bookings** tab to see all reservations",
-      "Click on any booking row to open the **Booking Operations Drawer**",
-      "From the drawer you can: view customer details, manage verification, create receipts, and track payments",
-      "Use the search bar at the top to quickly find a booking by code",
+      "**Step 1:** Go to **Admin Panel → Bookings** to see all reservations.",
+      "**Step 2:** Find the booking by scrolling the list OR use the **search bar** to find by booking code.",
+      "**Step 3:** Click on the booking row to open and review booking details.",
+      "**Step 4:** Review: customer info, vehicle, dates, location, and total amount.",
+      "**Step 5:** Decide next action: keep as pending OR mark as confirmed.",
     ],
   },
   {
-    id: "pickups",
-    title: "Processing Pickups",
+    id: "confirmation",
+    title: "2.2 Confirmation + In-Person Requirements",
+    icon: CheckCircle2,
+    color: "text-green-500",
+    steps: [
+      "**Step 1:** Confirm the booking when ready to proceed.",
+      "**Step 2:** Note: Customer's **ID will be verified in person** at pickup.",
+      "**Step 3:** Note: **Rental agreement will be signed in person** at pickup.",
+      "Driver's license upload is **not required** during online checkout.",
+    ],
+  },
+  {
+    id: "operations",
+    title: "2.3 Move to Operations Panel (Preparation Stage)",
+    icon: Settings,
+    color: "text-purple-500",
+    steps: [
+      "**Step 1:** Once confirmed, the booking appears in the **Operations Panel**.",
+      "**Step 2:** Open the Operations entry for the confirmed booking.",
+      "**Step 3:** Complete vehicle preparation steps: **vehicle readiness, cleanliness, full condition readiness**.",
+      "**Step 4:** Ensure all prep steps are complete before proceeding.",
+      "**Step 5:** Mark operations as complete — the booking moves to **Pickups**.",
+    ],
+  },
+  {
+    id: "pickups-workflow",
+    title: "2.4 Pickups Workflow (Today / Tomorrow / This Week / Later)",
     icon: KeyRound,
     color: "text-green-500",
     steps: [
-      "Navigate to **Pickups** tab to see today's scheduled pickups",
-      "Ensure the customer has completed **verification** (ID upload) before handover",
-      "Check that **pickup photos** have been uploaded by the customer",
-      "Click the booking to open operations and mark the vehicle as handed over",
+      "**Step 1:** Go to **Pickups** in the sidebar.",
+      "**Step 2:** Choose the correct time bucket: **Today / Tomorrow / This Week / Later**.",
+      "**Step 3:** Open the booking card for the scheduled pickup.",
+      "**Step 4:** At pickup: **verify the customer's driver's license in person**.",
+      "**Step 5:** At pickup: have the customer **sign the rental agreement in person**.",
+      "**Step 6:** Complete the vehicle handover to the customer.",
+      "**Step 7:** Mark the pickup as completed — the booking moves to **Active Rentals**.",
     ],
   },
   {
-    id: "returns",
-    title: "Processing Returns",
-    icon: RotateCcw,
-    color: "text-orange-500",
-    steps: [
-      "Go to **Returns** tab to see vehicles due for return",
-      "Check that the customer has uploaded **return photos** (exterior, odometer, fuel)",
-      "Open the booking drawer to compare pickup vs return condition",
-      "If damages found, record them in the **Damages** section",
-      "Create the final **receipt** with any additional charges (fuel, late fees, damage)",
-    ],
-  },
-  {
-    id: "verifications",
-    title: "Reviewing Verifications",
-    icon: FileCheck,
-    color: "text-purple-500",
-    steps: [
-      "Go to **Verifications** tab to see pending document reviews",
-      "Click on a request to view the uploaded documents (Driver's License, etc.)",
-      "Review each document and click **Approve** or **Reject**",
-      "If rejecting, add notes explaining what's wrong so the customer can re-upload",
-    ],
-  },
-  {
-    id: "receipts",
-    title: "Creating Receipts",
-    icon: Receipt,
-    color: "text-emerald-500",
-    steps: [
-      "Open a booking from the **Bookings** tab",
-      "In the drawer, scroll to the **Financials** section",
-      "Click **Create Receipt** to open the billing editor",
-      "Line items are auto-populated from the booking (rental, add-ons, deposit)",
-      "Add any adjustments (discounts, damage charges, late fees)",
-      "Click **Issue Receipt** to finalize and make it visible to the customer",
-    ],
-  },
-  {
-    id: "photos",
-    title: "Reviewing Condition Photos",
-    icon: Camera,
-    color: "text-pink-500",
-    steps: [
-      "Go to **Photos** tab to see all uploaded vehicle condition photos",
-      "Filter by pickup or return phase",
-      "Photos are organized by booking - click to expand and view the full gallery",
-      "Compare pickup vs return photos to identify any new damages",
-    ],
-  },
-  {
-    id: "damages",
-    title: "Recording Damages",
-    icon: AlertTriangle,
-    color: "text-red-500",
-    steps: [
-      "Go to **Damages** tab or access from a booking's drawer",
-      "Click **Report Damage** to create a new record",
-      "Select severity (Minor, Moderate, Severe) and describe the damage",
-      "Upload photos and estimate repair cost",
-      "The damage charge can be added to the customer's final receipt",
-    ],
-  },
-  {
-    id: "alerts",
-    title: "Managing Alerts",
-    icon: Bell,
-    color: "text-yellow-500",
-    steps: [
-      "The **Alerts** tab shows system-generated notifications",
-      "Common alerts: pending verification, late returns, missing photos",
-      "Click an alert to acknowledge it and take action",
-      "Alerts auto-resolve when the underlying issue is fixed",
-    ],
-  },
-  {
-    id: "active-rentals",
-    title: "Monitoring Active Rentals",
+    id: "active-rentals-workflow",
+    title: "2.5 Active Rentals Workflow (During Rental)",
     icon: Car,
     color: "text-primary",
     steps: [
-      "Navigate to **Active Rentals** in the sidebar for a full view",
-      "The page shows all vehicles currently out on rental",
-      "Use the **filter cards** at the top to quickly filter by status: Overdue, Due Soon, Within 6h, or On Schedule",
-      "**Red/Overdue** items need immediate attention - customer has exceeded return time",
-      "**Amber/Due Soon** items are within 2 hours of their scheduled return",
-      "Use the **search bar** to find rentals by booking code, vehicle, customer, or location",
-      "Click any rental card to open its booking operations panel",
-      "The dashboard also shows a compact **Active Rentals Monitor** for quick overview",
+      "**Step 1:** Go to **Active Rentals** in the sidebar.",
+      "**Step 2:** Browse the list or use filters to find the rental.",
+      "**Step 3:** Each rental displays: **remaining time**, **consumed time**, and rental details.",
+      "**Step 4:** Click on any rental card to open the **detailed panel**.",
+      "**Inside the detail panel, staff can:**",
+      "• **Flag issues** — record any problems reported by the customer",
+      "• **Contact customer** — view customer contact details",
+      "• **SMS customer** — send a message to the customer",
+      "• **Track vehicle location** — (Coming soon)",
+      "• **Initiate return** — start the return process",
     ],
   },
+  {
+    id: "returns-workflow",
+    title: "2.6 Returns Workflow (Return Initiation → Returns Menu)",
+    icon: RotateCcw,
+    color: "text-orange-500",
+    steps: [
+      "**Step 1:** Initiate return from the **Active Rental detail panel**.",
+      "**Step 2:** The return also appears in the **Returns** menu.",
+      "**Step 3:** Go to **Returns** and open the return entry.",
+      "**Step 4:** Follow the return steps to complete the return and bring the car back to the facility.",
+      "**Step 5:** Mark the return as processed/completed.",
+    ],
+  },
+];
+
+// SECTION 3: Status Glossary
+const statusGlossary = [
+  {
+    id: "glossary",
+    title: "Section 3: Status Glossary",
+    icon: BookOpen,
+    color: "text-slate-500",
+    steps: [
+      "**Bookings:** Where new bookings arrive and can be searched/opened.",
+      "**Operations:** Preparation stage after confirmation — vehicle readiness and prep steps.",
+      "**Pickups:** Scheduled handovers grouped by time buckets (Today / Tomorrow / This Week / Later).",
+      "**Active Rentals:** Vehicles currently out with customers — shows time remaining and rental details.",
+      "**Returns:** Processing vehicles coming back to the facility.",
+    ],
+  },
+];
+
+// SECTION 4: Important Notes
+const importantNotes = [
+  {
+    id: "important-notes",
+    title: "Section 4: Important Notes",
+    icon: AlertTriangle,
+    color: "text-amber-500",
+    steps: [
+      "**Driver's license upload is NOT required during online booking.**",
+      "**ID is verified in person at pickup.**",
+      "**Rental agreement is signed in person at pickup.**",
+      "**Vehicle tracking:** Coming soon — will allow staff to track vehicle location.",
+      "Always ensure vehicle is in full-fledged, clean condition before handover.",
+    ],
+  },
+];
+
+// Combined guide for display
+const quickGuide = [
+  ...customerGuide,
+  ...adminWorkflowGuide,
+  ...statusGlossary,
+  ...importantNotes,
 ];
 
 export default function AdminOverview() {
