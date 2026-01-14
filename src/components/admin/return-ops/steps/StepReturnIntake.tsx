@@ -156,7 +156,9 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
     }
   };
 
-  const stepIsComplete = isComplete || (completion.odometerRecorded && completion.fuelRecorded);
+  // Use isComplete (from state machine) as primary, fall back to completion tracking
+  const stepIsComplete = isComplete;
+  const hasMetricsRecorded = completion.odometerRecorded && completion.fuelRecorded;
 
   return (
     <div className="space-y-6">
@@ -277,48 +279,50 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
       {/* Action Buttons */}
       {!isComplete && !isLocked && (
         <div className="space-y-2">
-          <Button
-            onClick={handleSaveAndComplete}
-            disabled={saveMutation.isPending || !odometer}
-            className="w-full"
-            size="lg"
-          >
-            {saveMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save & Continue to Next Step
-              </>
-            )}
-          </Button>
-          
-          {/* Save only button - for partial saves */}
-          <Button
-            variant="outline"
-            onClick={handleSaveOnly}
-            disabled={saveMutation.isPending || !odometer}
-            className="w-full"
-          >
-            Save Progress Only
-          </Button>
+          {/* If metrics already recorded, show just continue button */}
+          {hasMetricsRecorded && existingMetrics?.odometer ? (
+            <Button
+              onClick={onComplete}
+              disabled={saveMutation.isPending}
+              className="w-full"
+              size="lg"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Continue to Next Step
+            </Button>
+          ) : (
+            <>
+              <Button
+                onClick={handleSaveAndComplete}
+                disabled={saveMutation.isPending || !odometer}
+                className="w-full"
+                size="lg"
+              >
+                {saveMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save & Continue to Next Step
+                  </>
+                )}
+              </Button>
+              
+              {/* Save only button - for partial saves */}
+              <Button
+                variant="outline"
+                onClick={handleSaveOnly}
+                disabled={saveMutation.isPending || !odometer}
+                className="w-full"
+              >
+                Save Progress Only
+              </Button>
+            </>
+          )}
         </div>
-      )}
-
-      {/* Show continue button if data exists but step not marked complete */}
-      {!isComplete && !isLocked && stepIsComplete && existingMetrics?.odometer && (
-        <Button
-          onClick={onComplete}
-          disabled={saveMutation.isPending}
-          className="w-full"
-          size="lg"
-        >
-          <CheckCircle2 className="h-4 w-4 mr-2" />
-          Continue to Next Step
-        </Button>
       )}
     </div>
   );
