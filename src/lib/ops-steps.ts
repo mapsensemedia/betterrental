@@ -1,7 +1,7 @@
 // Operational steps definition for full-screen wizard
+// UPDATED: Simplified workflow per requirements
 
 export type OpsStepId = 
-  | "intake" 
   | "prep" 
   | "checkin" 
   | "payment" 
@@ -20,72 +20,63 @@ export interface OpsStep {
   icon: string;
 }
 
+// UPDATED: 6 steps (removed "intake" - license is now on profile)
 export const OPS_STEPS: OpsStep[] = [
   {
-    id: "intake",
-    number: 1,
-    title: "Booking Intake",
-    description: "Verify customer ID, license, and assign vehicle",
-    icon: "clipboard-check",
-  },
-  {
     id: "prep",
-    number: 2,
+    number: 1,
     title: "Pre-Arrival Preparation",
-    description: "Complete vehicle prep checklist and capture photos",
+    description: "Complete prep checklist and capture pre-inspection photos",
     icon: "wrench",
   },
   {
     id: "checkin",
-    number: 3,
+    number: 2,
     title: "Customer Check-In",
-    description: "Verify customer identity and confirm arrival",
+    description: "Verify Gov ID, driver's license on file, age, and expiry",
     icon: "user-check",
   },
   {
     id: "payment",
-    number: 4,
+    number: 3,
     title: "Payment & Deposit",
-    description: "Collect payment and security deposit",
+    description: "Payment auto-syncs if online; deposit is manual/offline",
     icon: "credit-card",
   },
   {
     id: "agreement",
-    number: 5,
+    number: 4,
     title: "Rental Agreement",
-    description: "Generate and obtain customer signature",
+    description: "Manual in-person agreement signing",
     icon: "file-text",
   },
   {
     id: "walkaround",
-    number: 6,
+    number: 5,
     title: "Vehicle Walkaround",
-    description: "Joint inspection with customer acknowledgement",
+    description: "Staff-only inspection checklist (no customer signature)",
     icon: "eye",
   },
   {
     id: "handover",
-    number: 7,
+    number: 6,
     title: "Handover & Activation",
-    description: "Complete key handoff and activate rental",
+    description: "Complete handover, send SMS, move to Active Rentals",
     icon: "key",
   },
 ];
 
 export interface StepCompletion {
-  intake: {
-    vehicleAssigned: boolean;
-    licenseUploaded: boolean;
-    licenseApproved: boolean;
-    hasConflict?: boolean; // NEW: track blocking conflicts
-  };
   prep: {
     checklistComplete: boolean;
     photosComplete: boolean;
   };
   checkin: {
-    identityVerified: boolean;
-    timingConfirmed: boolean;
+    govIdVerified: boolean;
+    licenseOnFile: boolean;
+    nameMatches: boolean;
+    licenseNotExpired: boolean;
+    ageVerified: boolean;
   };
   payment: {
     paymentComplete: boolean;
@@ -96,10 +87,10 @@ export interface StepCompletion {
   };
   walkaround: {
     inspectionComplete: boolean;
-    customerAcknowledged: boolean;
   };
   handover: {
     activated: boolean;
+    smsSent: boolean;
   };
 }
 
@@ -160,42 +151,32 @@ export function getStepStatus(
 export function getBlockingIssues(stepId: OpsStepId, completion: StepCompletion): BlockingIssue[] {
   const issues: BlockingIssue[] = [];
   
-  switch (stepId) {
-    case "intake":
-      // Vehicle conflict blocks intake completion
-      if (completion.intake.hasConflict) {
-        issues.push({
-          type: "conflict",
-          message: "Vehicle has overlapping bookings - resolve conflict or assign different vehicle",
-          stepId: "intake",
-          canOverride: false,
-        });
-      }
-      break;
-    // Add more blocking conditions as needed
-  }
+  // No blocking issues in new simplified flow
+  // All gating is done via step completion checks
   
   return issues;
 }
 
 export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion): boolean {
   switch (stepId) {
-    case "intake":
-      // Cannot be complete if there's a conflict
-      if (completion.intake.hasConflict) return false;
-      // License is now OPTIONAL - only require vehicle assignment
-      return completion.intake.vehicleAssigned;
     case "prep":
       return completion.prep.checklistComplete && completion.prep.photosComplete;
     case "checkin":
-      return completion.checkin.identityVerified;
+      // All check-in validations must pass
+      return (
+        completion.checkin.govIdVerified &&
+        completion.checkin.licenseOnFile &&
+        completion.checkin.nameMatches &&
+        completion.checkin.licenseNotExpired &&
+        completion.checkin.ageVerified
+      );
     case "payment":
       return completion.payment.paymentComplete && completion.payment.depositCollected;
     case "agreement":
       return completion.agreement.agreementSigned;
     case "walkaround":
-      // Require customer acknowledgement OR admin override for completion
-      return completion.walkaround.inspectionComplete && completion.walkaround.customerAcknowledged;
+      // Staff-only - just inspection complete, no customer signature
+      return completion.walkaround.inspectionComplete;
     case "handover":
       return completion.handover.activated;
     default:
@@ -207,28 +188,26 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion): 
   const missing: string[] = [];
   
   switch (stepId) {
-    case "intake":
-      if (!completion.intake.vehicleAssigned) missing.push("Vehicle assignment");
-      // License is now OPTIONAL - don't list as missing
-      if (completion.intake.hasConflict) missing.push("Resolve vehicle conflict");
-      break;
     case "prep":
       if (!completion.prep.checklistComplete) missing.push("Prep checklist");
       if (!completion.prep.photosComplete) missing.push("Pre-inspection photos");
       break;
     case "checkin":
-      if (!completion.checkin.identityVerified) missing.push("Identity verification");
+      if (!completion.checkin.govIdVerified) missing.push("Government Photo ID");
+      if (!completion.checkin.licenseOnFile) missing.push("Driver's License on file");
+      if (!completion.checkin.nameMatches) missing.push("Name matches booking");
+      if (!completion.checkin.licenseNotExpired) missing.push("License expiry date");
+      if (!completion.checkin.ageVerified) missing.push("Age verification (21+)");
       break;
     case "payment":
       if (!completion.payment.paymentComplete) missing.push("Payment");
-      if (!completion.payment.depositCollected) missing.push("Deposit");
+      if (!completion.payment.depositCollected) missing.push("Deposit (manual)");
       break;
     case "agreement":
-      if (!completion.agreement.agreementSigned) missing.push("Customer signature");
+      if (!completion.agreement.agreementSigned) missing.push("Agreement signed (manual)");
       break;
     case "walkaround":
-      if (!completion.walkaround.inspectionComplete) missing.push("Inspection");
-      if (!completion.walkaround.customerAcknowledged) missing.push("Customer acknowledgement");
+      if (!completion.walkaround.inspectionComplete) missing.push("Staff inspection");
       break;
     case "handover":
       if (!completion.handover.activated) missing.push("Rental activation");
@@ -252,21 +231,22 @@ export const ACTION_LABELS = {
   save: "Save Progress",
   upload: "Upload",
   verify: "Verify",
-  send: "Send to Customer",
-  sign: "Get Signature",
   collect: "Collect",
   view: "View",
   continue: "Continue to Next Step",
   activate: "Activate Rental",
+  markSigned: "Mark as Signed",
+  markComplete: "Mark Complete",
 } as const;
 
 // Status label standardization
 export const STATUS_LABELS = {
-  verified: "Verified",       // Identity/license checks passed
-  completed: "Completed",     // Admin task finished
-  signed: "Signed",           // Customer signature obtained
-  acknowledged: "Acknowledged", // Customer confirmed condition
-  passed: "Passed",           // Validation passed
-  pending: "Pending",         // Awaiting action
-  blocked: "Blocked",         // Cannot proceed
+  verified: "Verified",
+  completed: "Completed",
+  signed: "Signed",
+  passed: "Passed",
+  pending: "Pending",
+  blocked: "Blocked",
+  onFile: "On File",
+  missing: "Missing",
 } as const;

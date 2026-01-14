@@ -18,16 +18,12 @@ import {
   Lock, 
   AlertCircle,
   ArrowRight,
-  CheckCircle2,
-  XCircle,
-  Clock,
   AlertTriangle,
   Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Step-specific components
-import { StepIntake } from "./steps/StepIntake";
 import { StepPrep } from "./steps/StepPrep";
 import { StepCheckin } from "./steps/StepCheckin";
 import { StepPayment } from "./steps/StepPayment";
@@ -41,7 +37,6 @@ interface OpsStepContentProps {
   stepId: OpsStepId;
   booking: any;
   completion: StepCompletion;
-  verifications: any[];
   onCompleteStep: () => void;
   onActivate: () => void;
   isRentalActive: boolean;
@@ -64,7 +59,6 @@ export function OpsStepContent({
   stepId, 
   booking, 
   completion,
-  verifications,
   onCompleteStep,
   onActivate,
   isRentalActive,
@@ -142,7 +136,7 @@ export function OpsStepContent({
         </div>
       </div>
       
-      {/* Blocking Issues Alert - Critical, must resolve before proceeding */}
+      {/* Blocking Issues Alert */}
       {blockingIssues.length > 0 && (
         <Alert variant="destructive">
           <Ban className="h-4 w-4" />
@@ -158,7 +152,7 @@ export function OpsStepContent({
         </Alert>
       )}
       
-      {/* Missing Items Alert - Informational, for non-blocking requirements */}
+      {/* Missing Items Alert */}
       {!isComplete && !isBlocked && missing.length > 0 && (
         <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
           <AlertCircle className="h-4 w-4 text-amber-600" />
@@ -171,13 +165,6 @@ export function OpsStepContent({
       
       {/* Step-specific Content */}
       <div className="space-y-4">
-        {stepId === "intake" && (
-          <StepIntake 
-            booking={booking} 
-            completion={completion.intake}
-            verifications={verifications}
-          />
-        )}
         {stepId === "prep" && (
           <StepPrep 
             bookingId={booking.id} 
@@ -188,7 +175,6 @@ export function OpsStepContent({
           <StepCheckin 
             booking={booking}
             completion={completion.checkin}
-            verifications={verifications}
           />
         )}
         {stepId === "payment" && (
@@ -219,7 +205,7 @@ export function OpsStepContent({
         )}
       </div>
       
-      {/* Primary Step Action - One button to rule them all */}
+      {/* Primary Step Action */}
       {showNextStepButton && !isBookingCompleted && !isBookingCancelled && (
         <div className="pt-4 flex justify-end border-t">
           <Button onClick={onCompleteStep} size="lg">

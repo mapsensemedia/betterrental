@@ -2,31 +2,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { CheckInSection } from "@/components/admin/CheckInSection";
 import { CheckCircle2, XCircle, UserCheck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StepCheckinProps {
   booking: any;
   completion: {
-    identityVerified: boolean;
-    timingConfirmed: boolean;
+    govIdVerified: boolean;
+    licenseOnFile: boolean;
+    nameMatches: boolean;
+    licenseNotExpired: boolean;
+    ageVerified: boolean;
   };
-  verifications?: any[];
 }
 
-export function StepCheckin({ booking, completion, verifications = [] }: StepCheckinProps) {
-  const licenseVerifications = verifications.filter(
-    (v: any) =>
-      v.document_type === "drivers_license_front" ||
-      v.document_type === "drivers_license_back"
-  );
+export function StepCheckin({ booking, completion }: StepCheckinProps) {
+  // Fetch profile-level license status
+  const { data: profile } = useQuery({
+    queryKey: ["profile-license", booking.user_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("driver_license_status, driver_license_expiry")
+        .eq("id", booking.user_id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!booking.user_id,
+  });
   
-  const hasLicenseUploaded = licenseVerifications.length > 0;
+  const licenseOnFile = profile?.driver_license_status === "on_file";
+  const licenseExpiry = profile?.driver_license_expiry;
   
-  const licenseVerified = licenseVerifications.length >= 2 && 
-    licenseVerifications.every((v: any) => v.status === "verified");
+  const isComplete = 
+    completion.govIdVerified &&
+    completion.licenseOnFile &&
+    completion.nameMatches &&
+    completion.licenseNotExpired &&
+    completion.ageVerified;
   
   return (
     <div className="space-y-4">
-      {/* Check-In Section */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -34,10 +50,10 @@ export function StepCheckin({ booking, completion, verifications = [] }: StepChe
               <UserCheck className="w-4 h-4 text-muted-foreground" />
               <CardTitle className="text-base">Customer Check-In</CardTitle>
             </div>
-            <StatusIndicator complete={completion.identityVerified} />
+            <StatusIndicator complete={isComplete} />
           </div>
           <CardDescription>
-            Verify customer identity and confirm arrival time
+            Verify Government ID, driver's license on file, name, expiry, and age (21+)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -45,8 +61,8 @@ export function StepCheckin({ booking, completion, verifications = [] }: StepChe
             bookingId={booking.id}
             bookingStartAt={booking.start_at}
             customerName={booking.profiles?.full_name || null}
-            hasLicenseUploaded={hasLicenseUploaded}
-            licenseVerified={licenseVerified}
+            licenseOnFile={licenseOnFile}
+            licenseExpiryFromProfile={licenseExpiry}
           />
         </CardContent>
       </Card>

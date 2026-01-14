@@ -333,6 +333,9 @@ export type Database = {
           deposit_amount: number | null
           driver_age_band: string | null
           end_at: string
+          handed_over_at: string | null
+          handed_over_by: string | null
+          handover_sms_sent_at: string | null
           id: string
           location_id: string
           notes: string | null
@@ -375,6 +378,9 @@ export type Database = {
           deposit_amount?: number | null
           driver_age_band?: string | null
           end_at: string
+          handed_over_at?: string | null
+          handed_over_by?: string | null
+          handover_sms_sent_at?: string | null
           id?: string
           location_id: string
           notes?: string | null
@@ -417,6 +423,9 @@ export type Database = {
           deposit_amount?: number | null
           driver_age_band?: string | null
           end_at?: string
+          handed_over_at?: string | null
+          handed_over_by?: string | null
+          handover_sms_sent_at?: string | null
           id?: string
           location_id?: string
           notes?: string | null
@@ -905,6 +914,13 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          driver_license_back_url: string | null
+          driver_license_expiry: string | null
+          driver_license_front_url: string | null
+          driver_license_reviewed_at: string | null
+          driver_license_reviewed_by: string | null
+          driver_license_status: string | null
+          driver_license_uploaded_at: string | null
           email: string | null
           full_name: string | null
           id: string
@@ -916,6 +932,13 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          driver_license_back_url?: string | null
+          driver_license_expiry?: string | null
+          driver_license_front_url?: string | null
+          driver_license_reviewed_at?: string | null
+          driver_license_reviewed_by?: string | null
+          driver_license_status?: string | null
+          driver_license_uploaded_at?: string | null
           email?: string | null
           full_name?: string | null
           id: string
@@ -927,6 +950,13 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          driver_license_back_url?: string | null
+          driver_license_expiry?: string | null
+          driver_license_front_url?: string | null
+          driver_license_reviewed_at?: string | null
+          driver_license_reviewed_by?: string | null
+          driver_license_status?: string | null
+          driver_license_uploaded_at?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
@@ -1034,6 +1064,9 @@ export type Database = {
           customer_signature: string | null
           customer_signed_at: string | null
           id: string
+          signed_manually: boolean | null
+          signed_manually_at: string | null
+          signed_manually_by: string | null
           staff_confirmed_at: string | null
           staff_confirmed_by: string | null
           status: string
@@ -1048,6 +1081,9 @@ export type Database = {
           customer_signature?: string | null
           customer_signed_at?: string | null
           id?: string
+          signed_manually?: boolean | null
+          signed_manually_at?: string | null
+          signed_manually_by?: string | null
           staff_confirmed_at?: string | null
           staff_confirmed_by?: string | null
           status?: string
@@ -1062,6 +1098,9 @@ export type Database = {
           customer_signature?: string | null
           customer_signed_at?: string | null
           id?: string
+          signed_manually?: boolean | null
+          signed_manually_at?: string | null
+          signed_manually_by?: string | null
           staff_confirmed_at?: string | null
           staff_confirmed_by?: string | null
           status?: string
