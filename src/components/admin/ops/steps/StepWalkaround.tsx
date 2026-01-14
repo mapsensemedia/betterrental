@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { WalkaroundInspection } from "@/components/admin/WalkaroundInspection";
-import { CheckCircle2, XCircle, Eye } from "lucide-react";
+import { WalkaroundSendDialog } from "@/components/admin/ops/WalkaroundSendDialog";
+import { CheckCircle2, XCircle, Eye, Send } from "lucide-react";
+import { useBookingById } from "@/hooks/use-bookings";
 
 interface StepWalkaroundProps {
   bookingId: string;
@@ -12,8 +16,31 @@ interface StepWalkaroundProps {
 }
 
 export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const { data: booking } = useBookingById(bookingId);
+  
   return (
     <div className="space-y-4">
+      {/* Send to Customer Card */}
+      {!completion.customerAcknowledged && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium">Get Customer Signature</p>
+                <p className="text-sm text-muted-foreground">
+                  Send the walkaround link via SMS, email, or show QR code
+                </p>
+              </div>
+              <Button onClick={() => setShowSendDialog(true)} className="gap-2 shrink-0">
+                <Send className="h-4 w-4" />
+                Send to Customer
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       {/* Walkaround Inspection */}
       <Card>
         <CardHeader className="pb-3">
@@ -35,6 +62,16 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
           <WalkaroundInspection bookingId={bookingId} />
         </CardContent>
       </Card>
+      
+      {/* Send Dialog */}
+      <WalkaroundSendDialog
+        open={showSendDialog}
+        onOpenChange={setShowSendDialog}
+        bookingId={bookingId}
+        customerPhone={booking?.profiles?.phone}
+        customerEmail={booking?.profiles?.email}
+        customerName={booking?.profiles?.full_name}
+      />
     </div>
   );
 }
