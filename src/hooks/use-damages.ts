@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuditLog } from "./use-admin";
+import { notifyAdmin } from "./use-admin-notify";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -243,6 +244,30 @@ export function useCreateDamage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Fetch booking and vehicle info for notification
+      let bookingCode = "";
+      let vehicleName = "";
+      
+      const { data: booking } = await supabase
+        .from("bookings")
+        .select("booking_code")
+        .eq("id", damageData.bookingId)
+        .maybeSingle();
+      
+      if (booking?.booking_code) {
+        bookingCode = booking.booking_code;
+      }
+      
+      const { data: vehicle } = await supabase
+        .from("vehicles")
+        .select("make, model, year")
+        .eq("id", damageData.vehicleId)
+        .maybeSingle();
+      
+      if (vehicle) {
+        vehicleName = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+      }
+
       const { data, error } = await supabase
         .from("damage_reports")
         .insert([{
@@ -269,6 +294,15 @@ export function useCreateDamage() {
         booking_id: damageData.bookingId,
         vehicle_id: damageData.vehicleId,
       }]);
+
+      // Send admin notification
+      notifyAdmin({
+        eventType: "damage_reported",
+        bookingId: damageData.bookingId,
+        bookingCode,
+        vehicleName,
+        details: `${damageData.severity.toUpperCase()} - ${damageData.locationOnVehicle}: ${damageData.description}`,
+      }).catch(console.error);
 
       await logAction("damage_created", "damage_report", data.id, {
         severity: damageData.severity,
