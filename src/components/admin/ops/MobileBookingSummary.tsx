@@ -59,14 +59,14 @@ export function MobileBookingSummary({
   // Calculate alerts
   const alerts: { type: "error" | "warning"; message: string }[] = [];
   
-  if (completion?.intake.hasConflict) {
-    alerts.push({ type: "error", message: "Vehicle conflict" });
-  }
   if (!completion?.payment.paymentComplete) {
     alerts.push({ type: "warning", message: "Payment pending" });
   }
   if (!completion?.agreement.agreementSigned) {
     alerts.push({ type: "warning", message: "Unsigned agreement" });
+  }
+  if (!completion?.walkaround.inspectionComplete) {
+    alerts.push({ type: "warning", message: "Walkaround incomplete" });
   }
   
   const handleCopyBookingId = () => {
@@ -191,9 +191,6 @@ export function MobileBookingSummary({
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Car className="h-4 w-4 text-muted-foreground" />
                 Vehicle
-                {completion?.intake.hasConflict && (
-                  <Badge variant="destructive" className="text-xs">Conflict</Badge>
-                )}
               </div>
               <div className="pl-6 text-sm">
                 <p className="font-medium">{vehicleName}</p>
@@ -287,7 +284,7 @@ export function MobileBookingSummary({
                   <StatusIndicator label="Payment" done={completion?.payment.paymentComplete} />
                   <StatusIndicator label="Deposit" done={completion?.payment.depositCollected} />
                   <StatusIndicator label="Agreement" done={completion?.agreement.agreementSigned} />
-                  <StatusIndicator label="Walkaround" done={completion?.walkaround.customerAcknowledged} />
+                  <StatusIndicator label="Walkaround" done={completion?.walkaround.inspectionComplete} />
                 </div>
               </div>
             </div>

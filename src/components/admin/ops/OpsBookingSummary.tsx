@@ -95,9 +95,6 @@ export function OpsBookingSummary({
   // Calculate red flags/alerts
   const alerts: { type: "error" | "warning"; message: string }[] = [];
   
-  if (completion?.intake.hasConflict) {
-    alerts.push({ type: "error", message: "Vehicle conflict detected" });
-  }
   if (!completion?.payment.paymentComplete) {
     alerts.push({ type: "warning", message: "Payment pending" });
   }
@@ -107,8 +104,8 @@ export function OpsBookingSummary({
   if (!completion?.agreement.agreementSigned) {
     alerts.push({ type: "warning", message: "Agreement unsigned" });
   }
-  if (!completion?.walkaround.customerAcknowledged) {
-    alerts.push({ type: "warning", message: "Walkaround not acknowledged" });
+  if (!completion?.walkaround.inspectionComplete) {
+    alerts.push({ type: "warning", message: "Walkaround not complete" });
   }
   
   const handleCopyBookingId = () => {
@@ -244,13 +241,6 @@ export function OpsBookingSummary({
             title="Vehicle"
             icon={<Car className="h-4 w-4 text-muted-foreground" />}
             defaultOpen={allExpanded}
-            badge={
-              completion?.intake.hasConflict && (
-                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                  Conflict
-                </Badge>
-              )
-            }
           >
             <div className="space-y-2 text-sm">
               <p className="font-medium">{vehicleName}</p>
@@ -404,7 +394,7 @@ export function OpsBookingSummary({
                 />
                 <StatusIndicator 
                   label="Walkaround" 
-                  done={completion?.walkaround.customerAcknowledged} 
+                  done={completion?.walkaround.inspectionComplete} 
                 />
               </div>
             </div>

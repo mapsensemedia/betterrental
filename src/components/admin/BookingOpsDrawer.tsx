@@ -507,21 +507,8 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                             bookingId={booking.id}
                             bookingStartAt={booking.start_at}
                             customerName={booking.profiles?.full_name || null}
-                            hasLicenseUploaded={
-                              booking.verifications?.some(
-                                (v: any) =>
-                                  v.document_type === "drivers_license_front" ||
-                                  v.document_type === "drivers_license_back"
-                              ) || false
-                            }
-                            licenseVerified={
-                              booking.verifications?.every(
-                                (v: any) =>
-                                  (v.document_type === "drivers_license_front" ||
-                                    v.document_type === "drivers_license_back") &&
-                                  v.status === "verified"
-                              ) || false
-                            }
+                            licenseOnFile={booking.profiles?.driver_license_status === 'on_file'}
+                            licenseExpiryFromProfile={booking.profiles?.driver_license_expiry || null}
                           />
                         </AccordionContent>
                       </div>

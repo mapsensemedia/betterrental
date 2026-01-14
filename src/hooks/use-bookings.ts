@@ -185,7 +185,7 @@ export function useBookingById(id: string | null) {
       // Fetch profile separately
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("id, full_name, email, phone, is_verified")
+        .select("id, full_name, email, phone, is_verified, driver_license_status, driver_license_expiry, driver_license_front_url, driver_license_back_url")
         .eq("id", data.user_id)
         .maybeSingle();
 
