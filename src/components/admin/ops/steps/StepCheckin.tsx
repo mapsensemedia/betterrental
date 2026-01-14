@@ -98,9 +98,12 @@ export function StepCheckin({ booking, completion }: StepCheckinProps) {
         description: "Driver's license saved to customer profile",
       });
 
-      // Refresh data
-      refetchProfile();
+      // Refresh all profile-related queries
+      await refetchProfile();
       queryClient.invalidateQueries({ queryKey: ["profile-license", booking.user_id] });
+      queryClient.invalidateQueries({ queryKey: ["license-status", booking.user_id] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["booking", booking.id] });
       
       setUploadDialogOpen(false);
       setSelectedFile(null);
@@ -139,6 +142,8 @@ export function StepCheckin({ booking, completion }: StepCheckinProps) {
             licenseOnFile={licenseOnFile}
             licenseExpiryFromProfile={licenseExpiry}
             onUploadLicense={() => setUploadDialogOpen(true)}
+            driverAgeBand={booking.driver_age_band}
+            youngDriverFee={booking.young_driver_fee}
           />
         </CardContent>
       </Card>

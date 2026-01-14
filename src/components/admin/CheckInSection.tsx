@@ -41,9 +41,13 @@ interface CheckInSectionProps {
   licenseOnFile: boolean;
   licenseExpiryFromProfile?: string | null;
   onUploadLicense?: () => void;
+  // Age band and young driver fee from booking
+  driverAgeBand?: string | null;
+  youngDriverFee?: number | null;
 }
 
 const MIN_DRIVER_AGE = 21;
+const YOUNG_DRIVER_MAX_AGE = 26;
 
 export function CheckInSection({
   bookingId,
@@ -52,6 +56,8 @@ export function CheckInSection({
   licenseOnFile,
   licenseExpiryFromProfile,
   onUploadLicense,
+  driverAgeBand,
+  youngDriverFee,
 }: CheckInSectionProps) {
   const { data: checkInRecord, isLoading } = useCheckInRecord(bookingId);
   const updateCheckIn = useCreateOrUpdateCheckIn();
@@ -416,9 +422,16 @@ export function CheckInSection({
 
           {/* Age Verification */}
           <div className="space-y-3 p-3 rounded-lg border">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="h-4 w-4" />
-              <span className="text-sm font-medium">Age Verification (min {MIN_DRIVER_AGE})</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <span className="text-sm font-medium">Age Verification (min {MIN_DRIVER_AGE})</span>
+              </div>
+              {youngDriverFee && youngDriverFee > 0 && (
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                  Young Driver Fee: ${youngDriverFee}
+                </Badge>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -446,10 +459,22 @@ export function CheckInSection({
                     ) : (
                       <XCircle className="h-4 w-4 text-destructive" />
                     )}
+                    {age >= MIN_DRIVER_AGE && age <= YOUNG_DRIVER_MAX_AGE && (
+                      <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600">
+                        Young Driver ({MIN_DRIVER_AGE}-{YOUNG_DRIVER_MAX_AGE})
+                      </Badge>
+                    )}
                   </>
                 )}
               </div>
             </div>
+            
+            {/* Show age band info if set on booking */}
+            {driverAgeBand && (
+              <div className="text-xs text-muted-foreground">
+                Booked age band: <span className="font-medium">{driverAgeBand}</span>
+              </div>
+            )}
           </div>
         </div>
 
