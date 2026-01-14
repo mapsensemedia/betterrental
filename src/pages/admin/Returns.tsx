@@ -7,6 +7,7 @@ import { useLocations } from "@/hooks/use-locations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -25,10 +26,36 @@ import {
   DollarSign,
   AlertTriangle,
   ArrowRight,
+  CheckCircle2,
+  ClipboardCheck,
+  Wallet,
 } from "lucide-react";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 
 type DateFilter = "today" | "next24h" | "week";
+
+// Get return progress percentage and step label
+function getReturnProgress(returnState: string | null): { percent: number; step: string; color: string } {
+  switch (returnState) {
+    case "not_started":
+    case null:
+      return { percent: 0, step: "Not Started", color: "bg-muted-foreground" };
+    case "initiated":
+      return { percent: 10, step: "Initiated", color: "bg-blue-500" };
+    case "intake_done":
+      return { percent: 30, step: "Intake Done", color: "bg-blue-500" };
+    case "evidence_done":
+      return { percent: 50, step: "Evidence Done", color: "bg-amber-500" };
+    case "issues_reviewed":
+      return { percent: 70, step: "Issues Reviewed", color: "bg-amber-500" };
+    case "closeout_done":
+      return { percent: 90, step: "Closeout Done", color: "bg-emerald-500" };
+    case "deposit_processed":
+      return { percent: 100, step: "Complete", color: "bg-emerald-500" };
+    default:
+      return { percent: 0, step: "Unknown", color: "bg-muted-foreground" };
+  }
+}
 
 export default function AdminReturns() {
   const navigate = useNavigate();
@@ -53,6 +80,15 @@ export default function AdminReturns() {
       {label}
     </div>
   );
+
+  const ReturnProgressBadge = ({ returnState }: { returnState: string | null }) => {
+    const { step, color } = getReturnProgress(returnState);
+    return (
+      <Badge variant="outline" className={`${color} text-white border-0`}>
+        {step}
+      </Badge>
+    );
+  };
 
   return (
     <AdminShell>
@@ -150,9 +186,12 @@ export default function AdminReturns() {
                         </span>
                       </div>
                       <div>
-                        <Badge variant="outline" className="font-mono text-sm mb-1">
-                          {booking.bookingCode}
-                        </Badge>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="font-mono text-sm">
+                            {booking.bookingCode}
+                          </Badge>
+                          <ReturnProgressBadge returnState={booking.returnState} />
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           {booking.profile?.fullName || booking.profile?.email || "Unknown"}
                         </p>
@@ -204,20 +243,49 @@ export default function AdminReturns() {
 
                     {/* Process Return Button */}
                     <Button
-                      variant={booking.canSettle ? "default" : "outline"}
+                      variant={booking.returnState === "deposit_processed" ? "outline" : booking.canSettle ? "default" : "secondary"}
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenReturnConsole(booking.id);
                       }}
                     >
-                      Process Return
-                      <ArrowRight className="h-4 w-4 ml-2" />
+                      {booking.returnState === "deposit_processed" ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          Completed
+                        </>
+                      ) : booking.returnState && booking.returnState !== "not_started" ? (
+                        <>
+                          Continue Return
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </>
+                      ) : (
+                        <>
+                          Process Return
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </>
+                      )}
                     </Button>
                   </div>
 
-                  {/* Settlement Guidance */}
-                  {!booking.canSettle && (
+                  {/* Progress Bar */}
+                  {booking.returnState && booking.returnState !== "not_started" && booking.returnState !== "deposit_processed" && (
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center gap-3">
+                        <Progress 
+                          value={getReturnProgress(booking.returnState).percent} 
+                          className="flex-1 h-2"
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {getReturnProgress(booking.returnState).percent}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Settlement Guidance - Only show if not started or has issues */}
+                  {!booking.canSettle && (!booking.returnState || booking.returnState === "not_started") && (
                     <div className="mt-4 pt-4 border-t">
                       <div className="flex items-center gap-2 text-sm text-amber-600">
                         <AlertTriangle className="h-4 w-4" />

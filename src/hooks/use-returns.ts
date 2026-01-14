@@ -14,6 +14,12 @@ export interface ReturnBooking {
   userId: string;
   vehicleId: string;
   locationId: string;
+  // Return state tracking
+  returnState: string | null;
+  returnStartedAt: string | null;
+  returnIntakeCompletedAt: string | null;
+  returnEvidenceCompletedAt: string | null;
+  returnIssuesReviewedAt: string | null;
   // Delivery info
   pickupAddress: string | null;
   pickupLat: number | null;
@@ -131,6 +137,12 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
           userId: b.user_id,
           vehicleId: b.vehicle_id,
           locationId: b.location_id,
+          // Return state tracking
+          returnState: b.return_state,
+          returnStartedAt: b.return_started_at,
+          returnIntakeCompletedAt: b.return_intake_completed_at,
+          returnEvidenceCompletedAt: b.return_evidence_completed_at,
+          returnIssuesReviewedAt: b.return_issues_reviewed_at,
           pickupAddress: b.pickup_address,
           pickupLat: b.pickup_lat,
           pickupLng: b.pickup_lng,

@@ -94,7 +94,10 @@ export function StepReturnEvidence({
   
   // For exception returns, require photos. For normal, optional
   const canProceed = !isException || hasMinimumPhotos;
-  const stepIsComplete = isComplete || completion.photosComplete;
+  
+  // Use isComplete (from state machine) as the primary indicator
+  // stepIsComplete = true only when state machine says this step is done
+  const stepIsComplete = isComplete;
 
   return (
     <div className="space-y-6">
