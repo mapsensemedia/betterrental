@@ -252,6 +252,28 @@ Deno.serve(async (req) => {
 
     console.log("Booking complete:", booking.booking_code);
 
+    // Fetch additional details for notifications
+    let customerName = "";
+    let vehicleName = "";
+    
+    try {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+      customerName = profile?.full_name || user.email || "";
+      
+      const { data: vehicle } = await supabaseAdmin
+        .from("vehicles")
+        .select("make, model, year")
+        .eq("id", vehicleId)
+        .single();
+      vehicleName = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : "";
+    } catch (e) {
+      console.log("Failed to fetch names for notification:", e);
+    }
+
     // Step 7: Trigger notifications (fire and forget)
     const notificationPromises = [];
 
@@ -291,6 +313,28 @@ Deno.serve(async (req) => {
       );
     } catch (e) {
       console.error("Failed to trigger email:", e);
+    }
+
+    // Send admin notification for new booking
+    try {
+      notificationPromises.push(
+        fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            eventType: "new_booking",
+            bookingId: booking.id,
+            bookingCode: booking.booking_code,
+            customerName,
+            vehicleName,
+          }),
+        }).catch(err => console.error("Admin notification failed:", err))
+      );
+    } catch (e) {
+      console.error("Failed to trigger admin notification:", e);
     }
 
     // Don't await notifications - let them run in background

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { notifyAdmin } from "./use-admin-notify";
 
 interface LicenseStatus {
   frontUrl: string | null;
@@ -85,6 +86,20 @@ export function useLicenseUpload(userId?: string) {
         .eq("id", uid);
 
       if (updateError) throw updateError;
+
+      // Fetch customer name for notification
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", uid)
+        .maybeSingle();
+
+      // Send admin notification for license upload
+      notifyAdmin({
+        eventType: "license_uploaded",
+        customerName: profile?.full_name || uid,
+        details: `${side} of driver's license uploaded`,
+      }).catch(console.error);
 
       toast({ title: "Success", description: "Driver's license uploaded successfully" });
       

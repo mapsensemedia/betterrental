@@ -72,6 +72,7 @@ serve(async (req) => {
     // Build email content based on event type
     let subject = "";
     let bodyContent = "";
+    let priority = "normal"; // normal, high, urgent
     const timestamp = new Date().toLocaleString("en-US", { 
       timeZone: "America/Los_Angeles",
       dateStyle: "medium",
@@ -90,18 +91,20 @@ serve(async (req) => {
             ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
             ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
           </ul>
+          <p><a href="https://betterrental.lovable.app/admin/bookings" style="color: #2563eb;">View in Admin Panel →</a></p>
         `;
         break;
 
       case "license_uploaded":
-        subject = `📋 License Uploaded - ${bookingCode || "Booking"}`;
+        subject = `📋 License Uploaded - Verification Needed`;
         bodyContent = `
           <p>A customer has uploaded their driver's license and it needs verification.</p>
           <ul>
-            <li><strong>Booking:</strong> ${bookingRef}</li>
             ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
+            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
           </ul>
           <p>Please review and verify the license in the admin panel.</p>
+          <p><a href="https://betterrental.lovable.app/admin/verifications" style="color: #2563eb;">Review Verifications →</a></p>
         `;
         break;
 
@@ -115,6 +118,7 @@ serve(async (req) => {
             ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
           </ul>
           <p>The agreement is ready for staff confirmation.</p>
+          <p><a href="https://betterrental.lovable.app/admin/bookings" style="color: #2563eb;">View Booking →</a></p>
         `;
         break;
 
@@ -131,9 +135,10 @@ serve(async (req) => {
         break;
 
       case "issue_reported":
+        priority = "high";
         subject = `⚠️ Issue Reported - ${bookingCode || "Booking"}`;
         bodyContent = `
-          <p><strong>A customer has reported an issue during their rental.</strong></p>
+          <p><strong style="color: #dc2626;">A customer has reported an issue during their rental.</strong></p>
           <ul>
             <li><strong>Booking:</strong> ${bookingRef}</li>
             ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
@@ -141,33 +146,134 @@ serve(async (req) => {
             ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
           </ul>
           <p>Please review this issue promptly.</p>
+          <p><a href="https://betterrental.lovable.app/admin/alerts" style="color: #2563eb;">View Alerts →</a></p>
         `;
         break;
 
       case "ticket_created":
-        subject = `🎫 New Support Ticket - ${bookingCode || "Customer"}`;
+        subject = `🎫 New Support Ticket - ${bookingCode || customerName || "Customer"}`;
         bodyContent = `
           <p>A new support ticket has been submitted.</p>
           <ul>
-            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${bookingCode ? `<li><strong>Booking:</strong> ${bookingRef}</li>` : ""}
             ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
             ${details ? `<li><strong>Subject:</strong> ${details}</li>` : ""}
           </ul>
           <p>Please respond to this ticket in the admin panel.</p>
+          <p><a href="https://betterrental.lovable.app/admin/tickets" style="color: #2563eb;">View Tickets →</a></p>
         `;
         break;
 
       case "damage_reported":
-        subject = `🔴 Damage Reported - ${bookingCode || "Booking"}`;
+        priority = "urgent";
+        subject = `🔴 DAMAGE REPORTED - ${bookingCode || vehicleName || "Vehicle"}`;
         bodyContent = `
-          <p><strong>Vehicle damage has been reported.</strong></p>
+          <p><strong style="color: #dc2626;">Vehicle damage has been reported. Immediate attention required.</strong></p>
           <ul>
-            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${bookingCode ? `<li><strong>Booking:</strong> ${bookingRef}</li>` : ""}
             ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
             ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
             ${details ? `<li><strong>Description:</strong> ${details}</li>` : ""}
           </ul>
-          <p>Immediate attention required.</p>
+          <p><a href="https://betterrental.lovable.app/admin/damages" style="color: #2563eb;">View Damage Reports →</a></p>
+        `;
+        break;
+
+      case "late_return":
+        priority = "high";
+        subject = `⏰ Late Return Alert - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p><strong style="color: #f59e0b;">A vehicle return is late.</strong></p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
+            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
+            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
+          </ul>
+          <p>Please contact the customer or take appropriate action.</p>
+          <p><a href="https://betterrental.lovable.app/admin/active-rentals" style="color: #2563eb;">View Active Rentals →</a></p>
+        `;
+        break;
+
+      case "overdue":
+        priority = "urgent";
+        subject = `🚨 OVERDUE RENTAL - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p><strong style="color: #dc2626;">A rental is significantly overdue. Urgent action required.</strong></p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
+            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
+            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
+          </ul>
+          <p><a href="https://betterrental.lovable.app/admin/active-rentals" style="color: #2563eb;">View Active Rentals →</a></p>
+        `;
+        break;
+
+      case "rental_activated":
+        subject = `✅ Rental Activated - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p>A rental has been successfully activated and is now in progress.</p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
+            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
+          </ul>
+          <p><a href="https://betterrental.lovable.app/admin/active-rentals" style="color: #2563eb;">View Active Rentals →</a></p>
+        `;
+        break;
+
+      case "return_completed":
+        subject = `🏁 Rental Completed - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p>A rental has been completed and the vehicle returned.</p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
+            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
+            ${details ? `<li><strong>Notes:</strong> ${details}</li>` : ""}
+          </ul>
+          <p><a href="https://betterrental.lovable.app/admin/history" style="color: #2563eb;">View History →</a></p>
+        `;
+        break;
+
+      case "verification_pending":
+        subject = `📝 Verification Pending - ${customerName || "Customer"}`;
+        bodyContent = `
+          <p>A customer document is pending verification.</p>
+          <ul>
+            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
+            ${bookingCode ? `<li><strong>Booking:</strong> ${bookingRef}</li>` : ""}
+            ${details ? `<li><strong>Document:</strong> ${details}</li>` : ""}
+          </ul>
+          <p>Please review and verify in the admin panel.</p>
+          <p><a href="https://betterrental.lovable.app/admin/verifications" style="color: #2563eb;">View Verifications →</a></p>
+        `;
+        break;
+
+      case "hold_expiring":
+        subject = `⏳ Hold Expiring Soon - ${vehicleName || "Vehicle"}`;
+        bodyContent = `
+          <p>A reservation hold is about to expire.</p>
+          <ul>
+            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
+            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
+            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
+          </ul>
+        `;
+        break;
+
+      case "return_due_soon":
+        subject = `📅 Return Due Soon - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p>A rental is due for return soon.</p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
+            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
+            ${details ? `<li><strong>Return Time:</strong> ${details}</li>` : ""}
+          </ul>
+          <p><a href="https://betterrental.lovable.app/admin/returns" style="color: #2563eb;">View Returns →</a></p>
         `;
         break;
 
@@ -184,10 +290,24 @@ serve(async (req) => {
         `;
     }
 
+    // Build priority styling
+    let headerBg = "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)";
+    let priorityBadge = "";
+    
+    if (priority === "urgent") {
+      headerBg = "linear-gradient(135deg, #991b1b 0%, #dc2626 100%)";
+      priorityBadge = `<span style="background: #fef2f2; color: #dc2626; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; margin-left: 12px;">URGENT</span>`;
+    } else if (priority === "high") {
+      headerBg = "linear-gradient(135deg, #92400e 0%, #f59e0b 100%)";
+      priorityBadge = `<span style="background: #fffbeb; color: #92400e; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; margin-left: 12px;">HIGH PRIORITY</span>`;
+    }
+
     const html = `
       <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-        <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 20px 30px; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0; color: white; font-size: 20px;">C2C Rental - Admin Alert</h1>
+        <div style="background: ${headerBg}; padding: 20px 30px; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; color: white; font-size: 20px; display: flex; align-items: center;">
+            C2C Rental - Admin Alert ${priorityBadge}
+          </h1>
         </div>
         <div style="background: #f8fafc; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;">
           ${bodyContent}

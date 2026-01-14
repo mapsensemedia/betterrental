@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { createAuditLog } from "./use-admin";
+import { notifyAdmin, type AdminNotifyEventType } from "./use-admin-notify";
 import type { Database } from "@/integrations/supabase/types";
 
 type AlertType = Database["public"]["Enums"]["alert_type"];
@@ -178,6 +179,34 @@ export function useCreateAlert() {
       if (error) throw error;
 
       await createAuditLog("create_alert", "admin_alerts", data.id);
+
+      // Send admin notification for critical alerts
+      const notifiableTypes: AlertType[] = [
+        "emergency",
+        "damage_reported",
+        "late_return",
+        "overdue",
+        "customer_issue",
+      ];
+      
+      if (notifiableTypes.includes(alert.alertType)) {
+        // Map alert types to notification event types
+        const eventTypeMap: Record<string, AdminNotifyEventType> = {
+          emergency: "issue_reported",
+          damage_reported: "damage_reported",
+          late_return: "late_return",
+          overdue: "overdue",
+          customer_issue: "issue_reported",
+        };
+        
+        const eventType = eventTypeMap[alert.alertType] || "issue_reported";
+        
+        notifyAdmin({
+          eventType,
+          bookingId: alert.bookingId,
+          details: `${alert.title}${alert.message ? `: ${alert.message}` : ""}`,
+        }).catch(console.error);
+      }
 
       return data;
     },
