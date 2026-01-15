@@ -49,13 +49,12 @@ export function VehicleCard({
     // Check if search prerequisites are met (location + dates)
     if (!isSearchValid) {
       toast.error("Please select location and dates first", {
-        description: "You'll be redirected to the search page to set your trip details.",
+        description: "Use the search form above to set your trip details.",
         action: {
           label: "Go to Search",
           onClick: () => navigate("/search"),
         },
       });
-      navigate("/search");
       return;
     }
 
