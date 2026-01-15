@@ -308,3 +308,54 @@
 .animation-delay-300 { animation-delay: 300ms; }
 .animation-delay-400 { animation-delay: 400ms; }
 .animation-delay-500 { animation-delay: 500ms; }
+
+/* Apple-style Toast */
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.9);
+  }
+}
+
+.apple-toast {
+  animation: toast-slide-in 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+}
+
+.apple-toast[data-removed="true"] {
+  animation: toast-slide-out 0.25s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+}
+
+/* Override Sonner default styles for Apple look */
+[data-sonner-toaster] {
+  --normal-bg: hsl(var(--card) / 0.8);
+  --normal-border: hsl(var(--border) / 0.5);
+  --normal-text: hsl(var(--foreground));
+}
+
+[data-sonner-toast] {
+  --toast-svg-margin-start: 0;
+  --toast-svg-margin-end: 12px;
+}
+
+[data-sonner-toast] [data-content] {
+  gap: 2px;
+}
+
+[data-sonner-toast] [data-button] {
+  margin-left: 12px;
+}
