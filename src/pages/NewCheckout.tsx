@@ -254,19 +254,8 @@ export default function NewCheckout() {
         locationId = "a1b2c3d4-1111-4000-8000-000000000001"; // Downtown Hub
       }
 
-      // Get session
+      // Get session (optional - we support guest checkout)
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        // Save cart before redirecting to auth
-        saveCartData();
-        
-        // Construct return URL with all current state
-        const currentUrl = `${location.pathname}${location.search}`;
-        toast({ title: "Please sign in to complete booking", variant: "destructive" });
-        navigate(`/auth?returnUrl=${encodeURIComponent(currentUrl)}`);
-        return;
-      }
 
       // Build notes with save time info
       let bookingNotes = paymentMethod === "pay-later" ? "Customer chose to pay at pickup" : null;
@@ -276,57 +265,112 @@ export default function NewCheckout() {
           : `Special instructions: ${specialInstructions}`;
       }
 
-      // Create booking first
-      const { data: booking, error } = await supabase
-        .from("bookings")
-        .insert({
-          user_id: session.user.id,
-          vehicle_id: vehicleId,
-          location_id: locationId,
-          start_at: searchData.pickupDate.toISOString(),
-          end_at: searchData.returnDate.toISOString(),
-          daily_rate: vehicle.dailyRate,
-          total_days: rentalDays,
-          subtotal: pricing.subtotal,
-          tax_amount: pricing.taxAmount,
-          total_amount: pricing.total,
-          deposit_amount: DEFAULT_DEPOSIT_AMOUNT,
-          booking_code: `C2C${Date.now().toString(36).toUpperCase()}`,
-          status: paymentMethod === "pay-now" ? "pending" : "pending",
-          notes: bookingNotes,
-          pickup_address: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : null,
-          pickup_lat: searchData.deliveryLat,
-          pickup_lng: searchData.deliveryLng,
-          driver_age_band: driverAgeBand,
-          young_driver_fee: pricing.youngDriverFee,
-          save_time_at_counter: saveTimeAtCounter,
-          pickup_contact_name: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : null,
-          pickup_contact_phone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : null,
-          special_instructions: saveTimeAtCounter && specialInstructions ? specialInstructions : null,
-        })
-        .select()
-        .single();
+      let booking: { id: string; booking_code: string } | null = null;
 
-      if (error) throw error;
+      if (session) {
+        // Logged-in user flow - create booking directly
+        const { data: bookingData, error } = await supabase
+          .from("bookings")
+          .insert({
+            user_id: session.user.id,
+            vehicle_id: vehicleId,
+            location_id: locationId,
+            start_at: searchData.pickupDate.toISOString(),
+            end_at: searchData.returnDate.toISOString(),
+            daily_rate: vehicle.dailyRate,
+            total_days: rentalDays,
+            subtotal: pricing.subtotal,
+            tax_amount: pricing.taxAmount,
+            total_amount: pricing.total,
+            deposit_amount: DEFAULT_DEPOSIT_AMOUNT,
+            booking_code: `C2C${Date.now().toString(36).toUpperCase()}`,
+            status: "pending",
+            notes: bookingNotes,
+            pickup_address: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : null,
+            pickup_lat: searchData.deliveryLat,
+            pickup_lng: searchData.deliveryLng,
+            driver_age_band: driverAgeBand,
+            young_driver_fee: pricing.youngDriverFee,
+            save_time_at_counter: saveTimeAtCounter,
+            pickup_contact_name: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : null,
+            pickup_contact_phone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : null,
+            special_instructions: saveTimeAtCounter && specialInstructions ? specialInstructions : null,
+          })
+          .select()
+          .single();
 
-      // Mark abandoned cart as converted
-      hasCompletedBooking.current = true;
-      markCartConverted.mutate(booking.id);
+        if (error) throw error;
+        booking = bookingData;
 
-      // Add selected add-ons to booking
-      if (addOnIds.length > 0) {
-        const addOnInserts = addOnIds.map((id) => {
+        // Add selected add-ons to booking
+        if (addOnIds.length > 0) {
+          const addOnInserts = addOnIds.map((id) => {
+            const addon = addOns.find((a) => a.id === id);
+            return {
+              booking_id: booking!.id,
+              add_on_id: id,
+              price: addon ? addon.dailyRate * rentalDays + (addon.oneTimeFee || 0) : 0,
+              quantity: 1,
+            };
+          });
+
+          await supabase.from("booking_add_ons").insert(addOnInserts);
+        }
+      } else {
+        // Guest checkout flow - use edge function
+        const addOnData = addOnIds.map((id) => {
           const addon = addOns.find((a) => a.id === id);
           return {
-            booking_id: booking.id,
-            add_on_id: id,
+            addOnId: id,
             price: addon ? addon.dailyRate * rentalDays + (addon.oneTimeFee || 0) : 0,
             quantity: 1,
           };
         });
 
-        await supabase.from("booking_add_ons").insert(addOnInserts);
+        const response = await supabase.functions.invoke("create-guest-booking", {
+          body: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: `${formData.countryCode}${formData.phone}`,
+            vehicleId,
+            locationId,
+            startAt: searchData.pickupDate.toISOString(),
+            endAt: searchData.returnDate.toISOString(),
+            dailyRate: vehicle.dailyRate,
+            totalDays: rentalDays,
+            subtotal: pricing.subtotal,
+            taxAmount: pricing.taxAmount,
+            depositAmount: DEFAULT_DEPOSIT_AMOUNT,
+            totalAmount: pricing.total,
+            driverAgeBand,
+            youngDriverFee: pricing.youngDriverFee,
+            addOns: addOnData.length > 0 ? addOnData : undefined,
+            notes: bookingNotes,
+            pickupAddress: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : undefined,
+            pickupLat: searchData.deliveryLat,
+            pickupLng: searchData.deliveryLng,
+            saveTimeAtCounter,
+            pickupContactName: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : undefined,
+            pickupContactPhone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : undefined,
+            specialInstructions: saveTimeAtCounter && specialInstructions ? specialInstructions : undefined,
+          },
+        });
+
+        if (response.error) {
+          throw new Error(response.error.message || "Failed to create booking");
+        }
+
+        booking = response.data.booking;
       }
+
+      if (!booking) {
+        throw new Error("Failed to create booking");
+      }
+
+      // Mark abandoned cart as converted
+      hasCompletedBooking.current = true;
+      markCartConverted.mutate(booking.id);
 
       if (paymentMethod === "pay-now") {
         // Create Stripe Checkout Session and redirect
@@ -358,23 +402,10 @@ export default function NewCheckout() {
         } catch (paymentError: any) {
           console.error("Payment error:", paymentError);
           
-          // Update booking to indicate payment issue
-          await supabase
-            .from("bookings")
-            .update({ 
-              notes: "Online payment setup failed - customer needs to pay at pickup",
-            })
-            .eq("id", booking.id);
-
           toast({
             title: "Payment could not be processed",
             description: "Your booking is saved. Please pay at pickup location.",
             variant: "destructive",
-          });
-
-          // Still send confirmation but indicate payment needed
-          await supabase.functions.invoke("send-booking-email", {
-            body: { bookingId: booking.id, templateType: "confirmation", forceResend: true },
           });
 
           navigate(`/booking/${booking.id}`);
@@ -384,15 +415,6 @@ export default function NewCheckout() {
         toast({
           title: "Booking reserved!",
           description: `Your reservation code is ${booking.booking_code}. Please pay at pickup.`,
-        });
-
-        // Send confirmation email and SMS
-        await supabase.functions.invoke("send-booking-email", {
-          body: { bookingId: booking.id, templateType: "confirmation", forceResend: true },
-        });
-
-        await supabase.functions.invoke("send-booking-sms", {
-          body: { bookingId: booking.id, templateType: "confirmation" },
         });
 
         navigate(`/booking/${booking.id}`);
