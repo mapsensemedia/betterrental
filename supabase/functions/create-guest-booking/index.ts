@@ -1,19 +1,22 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { 
+  getCorsHeaders, 
+  handleCorsPreflightRequest,
+  getClientIp,
+  checkRateLimit,
+  rateLimitResponse,
+  sanitizeEmail,
+  sanitizePhone,
+  isValidEmail,
+  isValidPhone,
+} from "../_shared/cors.ts";
+import { getAdminClient } from "../_shared/auth.ts";
 
 interface GuestBookingRequest {
-  // Guest info
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
-  
-  // Booking details
   vehicleId: string;
   locationId: string;
   startAt: string;
@@ -26,8 +29,6 @@ interface GuestBookingRequest {
   totalAmount: number;
   driverAgeBand: string;
   youngDriverFee?: number;
-  
-  // Optional
   addOns?: Array<{
     addOnId: string;
     price: number;
@@ -44,26 +45,72 @@ interface GuestBookingRequest {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsPreflightRequest(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Strict rate limiting for guest bookings: 3 per IP per 5 minutes
+    const clientIp = getClientIp(req);
+    const ipRateLimit = checkRateLimit(clientIp, {
+      windowMs: 5 * 60 * 1000,
+      maxRequests: 3,
+      keyPrefix: "guest-booking-ip",
+    });
     
-    // Create admin client for bypassing RLS
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    if (!ipRateLimit.allowed) {
+      console.log(`[create-guest-booking] IP rate limit exceeded: ${clientIp}`);
+      return rateLimitResponse(ipRateLimit.resetAt, corsHeaders);
+    }
 
+    const supabaseAdmin = getAdminClient();
     const body: GuestBookingRequest = await req.json();
-    console.log("Creating guest booking:", body.email);
+
+    // Sanitize and validate inputs
+    const firstName = body.firstName?.trim().slice(0, 100);
+    const lastName = body.lastName?.trim().slice(0, 100);
+    const email = sanitizeEmail(body.email || "");
+    const phone = sanitizePhone(body.phone || "");
+
+    if (!firstName || !lastName) {
+      return new Response(
+        JSON.stringify({ error: "Name is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!isValidEmail(email)) {
+      return new Response(
+        JSON.stringify({ error: "Valid email is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!isValidPhone(phone)) {
+      return new Response(
+        JSON.stringify({ error: "Valid phone number is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Additional rate limiting by email: 5 bookings per email per day
+    const emailRateLimit = checkRateLimit(email, {
+      windowMs: 24 * 60 * 60 * 1000,
+      maxRequests: 5,
+      keyPrefix: "guest-booking-email",
+    });
+    
+    if (!emailRateLimit.allowed) {
+      console.log(`[create-guest-booking] Email rate limit exceeded: ${email}`);
+      return new Response(
+        JSON.stringify({ error: "Too many booking attempts. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const {
-      firstName,
-      lastName,
-      email,
-      phone,
       vehicleId,
       locationId,
       startAt,
@@ -87,14 +134,6 @@ Deno.serve(async (req) => {
       specialInstructions,
     } = body;
 
-    // Validate required fields
-    if (!firstName || !lastName || !email || !phone) {
-      return new Response(
-        JSON.stringify({ error: "Missing required guest information" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     if (!vehicleId || !locationId || !startAt || !endAt) {
       return new Response(
         JSON.stringify({ error: "Missing required booking information" }),
@@ -102,13 +141,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate driver age band
     if (!driverAgeBand || !["21_25", "25_70"].includes(driverAgeBand)) {
       return new Response(
-        JSON.stringify({ 
-          error: "age_validation_failed",
-          message: "Driver age confirmation is required." 
-        }),
+        JSON.stringify({ error: "age_validation_failed", message: "Driver age confirmation is required." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -124,18 +159,17 @@ Deno.serve(async (req) => {
 
     if (conflicts && conflicts.length > 0) {
       return new Response(
-        JSON.stringify({ 
-          error: "vehicle_unavailable",
-          message: "This vehicle is no longer available for the selected dates." 
-        }),
+        JSON.stringify({ error: "vehicle_unavailable", message: "This vehicle is no longer available." }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Step 1: Create or find a guest user
-    // Check if user already exists with this email
+    // Create or find guest user
+    // SECURITY: Guest accounts are created with email_confirm = false
+    // They must verify email before accessing account features
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
     let userId: string | null = null;
+    let isNewUser = false;
     
     const existingUser = existingUsers?.users?.find(u => u.email === email);
     
@@ -143,31 +177,34 @@ Deno.serve(async (req) => {
       userId = existingUser.id;
       console.log("Found existing user:", userId);
     } else {
-      // Create a new guest user with a random password (they can reset later)
-      const randomPassword = crypto.randomUUID() + "Aa1!";
+      // Create guest user - email NOT auto-confirmed for security
+      // User must verify email to access their account
+      const randomPassword = crypto.randomUUID() + crypto.randomUUID().slice(0, 8) + "Aa1!";
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: randomPassword,
-        email_confirm: true, // Auto-confirm email for guest checkout
+        email_confirm: false, // SECURITY: Require email verification
         user_metadata: {
           full_name: `${firstName} ${lastName}`,
           phone,
           is_guest: true,
+          created_via: "guest_checkout",
         },
       });
 
       if (createError) {
         console.error("Error creating guest user:", createError);
         return new Response(
-          JSON.stringify({ error: "Failed to create guest account", details: createError.message }),
+          JSON.stringify({ error: "Failed to process booking" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       userId = newUser.user.id;
+      isNewUser = true;
       console.log("Created new guest user:", userId);
 
-      // Create profile for the guest user
+      // Create profile
       await supabaseAdmin.from("profiles").upsert({
         id: userId,
         email,
@@ -178,9 +215,7 @@ Deno.serve(async (req) => {
       }, { onConflict: "id" });
     }
 
-    // Step 2: Create the booking
-    const bookingCode = `C2C${Date.now().toString(36).toUpperCase()}`;
-    
+    // Create the booking
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")
       .insert({
@@ -195,18 +230,18 @@ Deno.serve(async (req) => {
         tax_amount: taxAmount,
         deposit_amount: depositAmount,
         total_amount: totalAmount,
-        booking_code: bookingCode,
-        status: "pending",
-        notes: notes || null,
+        booking_code: "",
+        status: "pending", // Guest bookings start as pending
+        notes: notes?.slice(0, 1000) || null,
         driver_age_band: driverAgeBand,
         young_driver_fee: youngDriverFee || 0,
-        pickup_address: pickupAddress || null,
+        pickup_address: pickupAddress?.slice(0, 500) || null,
         pickup_lat: pickupLat || null,
         pickup_lng: pickupLng || null,
         save_time_at_counter: saveTimeAtCounter || false,
-        pickup_contact_name: pickupContactName || null,
-        pickup_contact_phone: pickupContactPhone || null,
-        special_instructions: specialInstructions || null,
+        pickup_contact_name: pickupContactName?.slice(0, 100) || null,
+        pickup_contact_phone: sanitizePhone(pickupContactPhone || "") || null,
+        special_instructions: specialInstructions?.slice(0, 500) || null,
       })
       .select()
       .single();
@@ -214,29 +249,31 @@ Deno.serve(async (req) => {
     if (bookingError) {
       console.error("Error creating booking:", bookingError);
       return new Response(
-        JSON.stringify({ error: "Failed to create booking", details: bookingError.message }),
+        JSON.stringify({ error: "Failed to create booking" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     console.log("Booking created:", booking.id, booking.booking_code);
 
-    // Step 3: Add add-ons if any
+    // Add add-ons
     if (addOns && addOns.length > 0) {
-      const addOnRecords = addOns.map((addon) => ({
+      const addOnRecords = addOns.slice(0, 10).map((addon) => ({
         booking_id: booking.id,
         add_on_id: addon.addOnId,
         price: addon.price,
-        quantity: addon.quantity,
+        quantity: Math.min(addon.quantity, 10),
       }));
 
       await supabaseAdmin.from("booking_add_ons").insert(addOnRecords);
     }
 
-    // Step 4: Send notifications (fire and forget)
+    // Fire-and-forget notifications
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
     const notificationPromises = [];
 
-    // Send confirmation email
     notificationPromises.push(
       fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
         method: "POST",
@@ -244,14 +281,10 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${supabaseServiceKey}`,
         },
-        body: JSON.stringify({
-          bookingId: booking.id,
-          templateType: "confirmation",
-        }),
+        body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
       }).catch(err => console.error("Email notification failed:", err))
     );
 
-    // Send SMS
     notificationPromises.push(
       fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
         method: "POST",
@@ -259,14 +292,10 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${supabaseServiceKey}`,
         },
-        body: JSON.stringify({
-          bookingId: booking.id,
-          templateType: "confirmation",
-        }),
+        body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
       }).catch(err => console.error("SMS notification failed:", err))
     );
 
-    // Notify admin
     notificationPromises.push(
       fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
         method: "POST",
@@ -294,7 +323,9 @@ Deno.serve(async (req) => {
           status: booking.status,
         },
         userId,
-        isNewUser: !existingUser,
+        isNewUser,
+        // Inform user they need to verify email to access account
+        requiresEmailVerification: isNewUser,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

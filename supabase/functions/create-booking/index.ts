@@ -1,10 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { 
+  getCorsHeaders, 
+  handleCorsPreflightRequest,
+  getClientIp,
+  checkRateLimit,
+  rateLimitResponse,
+  sanitizeEmail,
+  sanitizePhone,
+  isValidEmail,
+  isValidPhone,
+} from "../_shared/cors.ts";
+import { validateAuth, getAdminClient } from "../_shared/auth.ts";
 
 interface CreateBookingRequest {
   holdId: string;
@@ -19,7 +25,7 @@ interface CreateBookingRequest {
   depositAmount: number;
   totalAmount: number;
   userPhone: string;
-  driverAgeBand?: string; // "21_25" or "25_70"
+  driverAgeBand?: string;
   youngDriverFee?: number;
   addOns: Array<{
     addOnId: string;
@@ -29,93 +35,92 @@ interface CreateBookingRequest {
   notes?: string;
 }
 
-// Age validation constants (must match client-side)
-const MIN_DRIVER_AGE = 21;
-const MAX_DRIVER_AGE = 70;
-
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsPreflightRequest(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    // Create admin client for transaction safety
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get user from auth header
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verify user token
-    const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
+    // Rate limiting: 5 booking attempts per IP per minute
+    const clientIp = getClientIp(req);
+    const rateLimit = checkRateLimit(clientIp, {
+      windowMs: 60 * 1000,
+      maxRequests: 5,
+      keyPrefix: "create-booking",
     });
     
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
+    if (!rateLimit.allowed) {
+      console.log(`[create-booking] Rate limit exceeded for IP: ${clientIp}`);
+      return rateLimitResponse(rateLimit.resetAt, corsHeaders);
+    }
+
+    // Require authentication
+    const auth = await validateAuth(req);
+    if (!auth.authenticated || !auth.userId) {
       return new Response(
-        JSON.stringify({ error: "Invalid or expired session" }),
+        JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const supabaseAdmin = getAdminClient();
     const body: CreateBookingRequest = await req.json();
-    console.log("Creating booking for user:", user.id, "body:", body);
+    
+    console.log("Creating booking for user:", auth.userId);
 
-  const {
-    holdId,
-    vehicleId,
-    locationId,
-    startAt,
-    endAt,
-    dailyRate,
-    totalDays,
-    subtotal,
-    taxAmount,
-    depositAmount,
-    totalAmount,
-    userPhone,
-    driverAgeBand,
-    youngDriverFee,
-    addOns,
-    notes,
-  } = body;
+    const {
+      holdId,
+      vehicleId,
+      locationId,
+      startAt,
+      endAt,
+      dailyRate,
+      totalDays,
+      subtotal,
+      taxAmount,
+      depositAmount,
+      totalAmount,
+      userPhone,
+      driverAgeBand,
+      youngDriverFee,
+      addOns,
+      notes,
+    } = body;
 
-  // Validate driver age band is provided
-  if (!driverAgeBand || !["21_25", "25_70"].includes(driverAgeBand)) {
-    console.log("Invalid driver age band:", driverAgeBand);
-    return new Response(
-      JSON.stringify({ 
-        error: "age_validation_failed",
-        message: "Driver age confirmation is required. Please confirm your age on the booking page." 
-      }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+    // Input validation
+    if (!holdId || !vehicleId || !locationId || !startAt || !endAt) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-  console.log("Driver age band validated:", driverAgeBand);
+    // Validate driver age band
+    if (!driverAgeBand || !["21_25", "25_70"].includes(driverAgeBand)) {
+      return new Response(
+        JSON.stringify({ 
+          error: "age_validation_failed",
+          message: "Driver age confirmation is required." 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // Save phone number to user profile for OTP
+    // Validate and sanitize phone
     if (userPhone) {
-      console.log("Saving phone to profile:", userPhone);
-      await supabaseAdmin
-        .from("profiles")
-        .upsert({ 
-          id: user.id, 
-          phone: userPhone,
-          updated_at: new Date().toISOString()
-        }, { 
-          onConflict: "id" 
-        });
+      const sanitizedPhone = sanitizePhone(userPhone);
+      if (sanitizedPhone && isValidPhone(sanitizedPhone)) {
+        await supabaseAdmin
+          .from("profiles")
+          .upsert({ 
+            id: auth.userId, 
+            phone: sanitizedPhone,
+            updated_at: new Date().toISOString()
+          }, { onConflict: "id" });
+      }
     }
 
     // Step 1: Verify hold is still active and belongs to user
@@ -123,7 +128,7 @@ Deno.serve(async (req) => {
       .from("reservation_holds")
       .select("*")
       .eq("id", holdId)
-      .eq("user_id", user.id)
+      .eq("user_id", auth.userId)
       .eq("status", "active")
       .single();
 
@@ -140,7 +145,6 @@ Deno.serve(async (req) => {
 
     // Check if hold has expired
     if (new Date(hold.expires_at) < new Date()) {
-      // Mark hold as expired
       await supabaseAdmin
         .from("reservation_holds")
         .update({ status: "expired" })
@@ -155,19 +159,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 2: Double-check no conflicting bookings (race-safe)
+    // Step 2: Double-check no conflicting bookings
     const { data: conflicts } = await supabaseAdmin
       .from("bookings")
       .select("id")
       .eq("vehicle_id", vehicleId)
       .in("status", ["pending", "confirmed", "active"])
-      .or(
-        `and(start_at.lte.${endAt},end_at.gte.${startAt})`
-      )
+      .or(`and(start_at.lte.${endAt},end_at.gte.${startAt})`)
       .limit(1);
 
     if (conflicts && conflicts.length > 0) {
-      // Mark hold as expired since booking failed
       await supabaseAdmin
         .from("reservation_holds")
         .update({ status: "expired" })
@@ -176,17 +177,17 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "vehicle_unavailable",
-          message: "This vehicle was just booked by another customer. Please choose a different vehicle." 
+          message: "This vehicle was just booked by another customer." 
         }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Step 3: Create the booking with driver age band
+    // Step 3: Create the booking
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")
       .insert({
-        user_id: user.id,
+        user_id: auth.userId,
         vehicle_id: vehicleId,
         location_id: locationId,
         start_at: startAt,
@@ -197,9 +198,9 @@ Deno.serve(async (req) => {
         tax_amount: taxAmount,
         deposit_amount: depositAmount,
         total_amount: totalAmount,
-        booking_code: "", // Will be generated by trigger
+        booking_code: "",
         status: "confirmed",
-        notes: notes || null,
+        notes: notes?.slice(0, 1000) || null,
         driver_age_band: driverAgeBand,
         young_driver_fee: youngDriverFee || 0,
       })
@@ -209,10 +210,7 @@ Deno.serve(async (req) => {
     if (bookingError) {
       console.error("Error creating booking:", bookingError);
       return new Response(
-        JSON.stringify({ 
-          error: "booking_failed",
-          message: "Failed to create booking. Please try again." 
-        }),
+        JSON.stringify({ error: "booking_failed", message: "Failed to create booking." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -221,28 +219,15 @@ Deno.serve(async (req) => {
 
     // Step 4: Create booking add-ons
     if (addOns && addOns.length > 0) {
-      const addOnRecords = addOns.map((addon) => ({
+      const addOnRecords = addOns.slice(0, 10).map((addon) => ({
         booking_id: booking.id,
         add_on_id: addon.addOnId,
         price: addon.price,
-        quantity: addon.quantity,
+        quantity: Math.min(addon.quantity, 10),
       }));
 
-      const { error: addOnsError } = await supabaseAdmin
-        .from("booking_add_ons")
-        .insert(addOnRecords);
-
-      if (addOnsError) {
-        console.error("Error creating add-ons:", addOnsError);
-        // Don't fail the booking, but log the error
-      }
+      await supabaseAdmin.from("booking_add_ons").insert(addOnRecords);
     }
-
-    // NOTE: Payment record is NOT created automatically during booking.
-    // Payments should only be recorded when:
-    // 1. Admin manually records an in-person payment via "Record Payment" action
-    // 2. A payment gateway webhook confirms successful payment
-    // This prevents the "payment moves ahead automatically" bug.
 
     // Step 5: Mark hold as converted
     await supabaseAdmin
@@ -250,9 +235,10 @@ Deno.serve(async (req) => {
       .update({ status: "converted" })
       .eq("id", holdId);
 
-    console.log("Booking complete:", booking.booking_code);
+    // Fetch details for notifications
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Fetch additional details for notifications
     let customerName = "";
     let vehicleName = "";
     
@@ -260,9 +246,9 @@ Deno.serve(async (req) => {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
         .select("full_name")
-        .eq("id", user.id)
+        .eq("id", auth.userId)
         .single();
-      customerName = profile?.full_name || user.email || "";
+      customerName = profile?.full_name || auth.email || "";
       
       const { data: vehicle } = await supabaseAdmin
         .from("vehicles")
@@ -274,70 +260,48 @@ Deno.serve(async (req) => {
       console.log("Failed to fetch names for notification:", e);
     }
 
-    // Step 7: Trigger notifications (fire and forget)
+    // Fire-and-forget notifications
     const notificationPromises = [];
 
-    // Send SMS notification
-    try {
-      notificationPromises.push(
-        fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            bookingId: booking.id,
-            templateType: "confirmation",
-          }),
-        }).catch(err => console.error("SMS notification failed:", err))
-      );
-    } catch (e) {
-      console.error("Failed to trigger SMS:", e);
-    }
+    notificationPromises.push(
+      fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
+      }).catch(err => console.error("SMS notification failed:", err))
+    );
 
-    // Send email notification
-    try {
-      notificationPromises.push(
-        fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            bookingId: booking.id,
-            templateType: "confirmation",
-          }),
-        }).catch(err => console.error("Email notification failed:", err))
-      );
-    } catch (e) {
-      console.error("Failed to trigger email:", e);
-    }
+    notificationPromises.push(
+      fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
+      }).catch(err => console.error("Email notification failed:", err))
+    );
 
-    // Send admin notification for new booking
-    try {
-      notificationPromises.push(
-        fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            eventType: "new_booking",
-            bookingId: booking.id,
-            bookingCode: booking.booking_code,
-            customerName,
-            vehicleName,
-          }),
-        }).catch(err => console.error("Admin notification failed:", err))
-      );
-    } catch (e) {
-      console.error("Failed to trigger admin notification:", e);
-    }
+    notificationPromises.push(
+      fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          eventType: "new_booking",
+          bookingId: booking.id,
+          bookingCode: booking.booking_code,
+          customerName,
+          vehicleName,
+        }),
+      }).catch(err => console.error("Admin notification failed:", err))
+    );
 
-    // Don't await notifications - let them run in background
     Promise.all(notificationPromises).catch(console.error);
 
     return new Response(
@@ -355,10 +319,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ 
-        error: "server_error",
-        message: "An unexpected error occurred. Please try again." 
-      }),
+      JSON.stringify({ error: "server_error", message: "An unexpected error occurred." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

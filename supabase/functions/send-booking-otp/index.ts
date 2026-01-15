@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { 
+  getCorsHeaders, 
+  handleCorsPreflightRequest,
+  getClientIp,
+  checkRateLimit,
+  rateLimitResponse,
+} from "../_shared/cors.ts";
+import { getAdminClient } from "../_shared/auth.ts";
 
 interface SendOtpRequest {
   bookingId: string;
@@ -16,7 +19,7 @@ function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Simple hash function for OTP (using Web Crypto API)
+// Hash OTP with salt
 async function hashOtp(otp: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(otp + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
@@ -26,17 +29,28 @@ async function hashOtp(otp: string): Promise<string> {
 }
 
 serve(async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsPreflightRequest(req);
   }
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    const clientIp = getClientIp(req);
+    
+    // Rate limit by IP: 5 OTP requests per 10 minutes
+    const ipRateLimit = checkRateLimit(clientIp, {
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 5,
+      keyPrefix: "otp-ip",
+    });
+    
+    if (!ipRateLimit.allowed) {
+      console.log(`[send-booking-otp] IP rate limit exceeded: ${clientIp}`);
+      return rateLimitResponse(ipRateLimit.resetAt, corsHeaders);
+    }
 
+    const supabaseAdmin = getAdminClient();
     const { bookingId, channel }: SendOtpRequest = await req.json();
 
     if (!bookingId || !channel) {
@@ -46,9 +60,22 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`[send-booking-otp] Sending OTP for booking ${bookingId} via ${channel}`);
+    // Rate limit by booking: 3 OTP requests per booking per 5 minutes
+    const bookingRateLimit = checkRateLimit(bookingId, {
+      windowMs: 5 * 60 * 1000,
+      maxRequests: 3,
+      keyPrefix: "otp-booking",
+    });
+    
+    if (!bookingRateLimit.allowed) {
+      console.log(`[send-booking-otp] Booking rate limit exceeded: ${bookingId}`);
+      return new Response(
+        JSON.stringify({ error: "Too many code requests. Please wait a few minutes." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // Get booking details
+    // Get booking details (don't reveal if booking exists or not)
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")
       .select("id, user_id, booking_code")
@@ -56,10 +83,11 @@ serve(async (req: Request): Promise<Response> => {
       .single();
 
     if (bookingError || !booking) {
-      console.error("[send-booking-otp] Booking not found:", bookingError);
+      // Anti-enumeration: don't reveal if booking exists
+      console.error("[send-booking-otp] Booking not found:", bookingId);
       return new Response(
-        JSON.stringify({ error: "Booking not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Unable to send verification code" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -70,7 +98,6 @@ serve(async (req: Request): Promise<Response> => {
       .eq("id", booking.user_id)
       .single();
 
-    // Fallback to auth.users if profile doesn't have the info
     let userPhone = profile?.phone;
     let userEmail = profile?.email;
     let userName = profile?.full_name;
@@ -80,21 +107,32 @@ serve(async (req: Request): Promise<Response> => {
       if (authUser?.user) {
         userPhone = userPhone || authUser.user.phone || authUser.user.user_metadata?.phone;
         userEmail = userEmail || authUser.user.email;
-        userName = userName || authUser.user.user_metadata?.full_name || authUser.user.user_metadata?.name;
+        userName = userName || authUser.user.user_metadata?.full_name;
       }
     }
 
-    // Validate contact method exists
-    if (channel === "sms" && !userPhone) {
-      return new Response(
-        JSON.stringify({ error: "No phone number on file" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Rate limit by phone/email: 10 OTPs per day
+    const contactKey = channel === "sms" ? userPhone : userEmail;
+    if (contactKey) {
+      const contactRateLimit = checkRateLimit(contactKey, {
+        windowMs: 24 * 60 * 60 * 1000,
+        maxRequests: 10,
+        keyPrefix: `otp-${channel}`,
+      });
+      
+      if (!contactRateLimit.allowed) {
+        console.log(`[send-booking-otp] Contact rate limit exceeded: ${contactKey}`);
+        return new Response(
+          JSON.stringify({ error: "Daily verification limit reached" }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    if (channel === "email" && !userEmail) {
+    // Validate contact method exists (generic error)
+    if ((channel === "sms" && !userPhone) || (channel === "email" && !userEmail)) {
       return new Response(
-        JSON.stringify({ error: "No email address on file" }),
+        JSON.stringify({ error: "Unable to send verification code" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -120,12 +158,13 @@ serve(async (req: Request): Promise<Response> => {
         otp_hash: otpHash,
         channel,
         expires_at: expiresAt.toISOString(),
+        attempts: 0,
       });
 
     if (insertError) {
       console.error("[send-booking-otp] Failed to store OTP:", insertError);
       return new Response(
-        JSON.stringify({ error: "Failed to create OTP" }),
+        JSON.stringify({ error: "Failed to create verification code" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -134,50 +173,48 @@ serve(async (req: Request): Promise<Response> => {
     if (channel === "sms") {
       const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
       const twilioAuth = Deno.env.get("TWILIO_AUTH_TOKEN");
-      const twilioFrom = Deno.env.get("TWILIO_FROM_NUMBER");
+      const twilioFrom = Deno.env.get("TWILIO_PHONE_NUMBER");
 
       if (!twilioSid || !twilioAuth || !twilioFrom) {
         console.error("[send-booking-otp] Twilio not configured");
         return new Response(
-          JSON.stringify({ error: "SMS service not configured" }),
+          JSON.stringify({ error: "SMS service not available" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const message = `Your booking verification code is: ${otp}. This code expires in 10 minutes. Booking ref: ${booking.booking_code}`;
+      const message = `Your verification code is: ${otp}. Expires in 10 minutes.`;
 
-      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
-      const twilioResponse = await fetch(twilioUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${btoa(`${twilioSid}:${twilioAuth}`)}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          To: userPhone!,
-          From: twilioFrom,
-          Body: message,
-        }),
-      });
+      const twilioResponse = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${btoa(`${twilioSid}:${twilioAuth}`)}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            To: userPhone!,
+            From: twilioFrom,
+            Body: message,
+          }),
+        }
+      );
 
       if (!twilioResponse.ok) {
-        const twilioError = await twilioResponse.text();
-        console.error("[send-booking-otp] Twilio error:", twilioError);
+        console.error("[send-booking-otp] Twilio error");
         return new Response(
           JSON.stringify({ error: "Failed to send SMS" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-
-      console.log(`[send-booking-otp] SMS sent to ${userPhone?.slice(-4)}`);
     } else {
-      // Send via email using Resend
       const resendKey = Deno.env.get("RESEND_API_KEY");
       
       if (!resendKey) {
         console.error("[send-booking-otp] Resend not configured");
         return new Response(
-          JSON.stringify({ error: "Email service not configured" }),
+          JSON.stringify({ error: "Email service not available" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -186,43 +223,31 @@ serve(async (req: Request): Promise<Response> => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #1a1a1a;">Verify Your Booking</h1>
           <p>Hi ${userName || "there"},</p>
-          <p>Your verification code for booking <strong>${booking.booking_code}</strong> is:</p>
+          <p>Your verification code is:</p>
           <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${otp}</span>
           </div>
           <p>This code expires in <strong>10 minutes</strong>.</p>
           <p>If you didn't request this code, please ignore this email.</p>
-          <p style="color: #666; font-size: 12px; margin-top: 30px;">
-            DriveFleet Car Rentals
-          </p>
         </div>
       `;
 
-      const resendResponse = await fetch("https://api.resend.com/emails", {
+      await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${resendKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "DriveFleet <onboarding@resend.dev>",
+          from: "C2C Rental <onboarding@resend.dev>",
           to: [userEmail],
           subject: `Your verification code: ${otp}`,
           html: emailHtml,
         }),
       });
-
-      if (!resendResponse.ok) {
-        const resendError = await resendResponse.text();
-        console.error("[send-booking-otp] Resend error:", resendError);
-        // Don't fail - email may be limited to verified addresses in test mode
-        console.log("[send-booking-otp] Email may not have been delivered (test mode limitations)");
-      } else {
-        console.log(`[send-booking-otp] Email sent to ${userEmail}`);
-      }
     }
 
-    // Mask the contact for response
+    // Mask contact for response
     const maskedContact = channel === "sms" 
       ? `***${userPhone?.slice(-4)}`
       : userEmail?.replace(/(.{2})(.*)(@.*)/, "$1***$3");
@@ -232,7 +257,8 @@ serve(async (req: Request): Promise<Response> => {
         success: true, 
         channel,
         sentTo: maskedContact,
-        expiresAt: expiresAt.toISOString()
+        expiresAt: expiresAt.toISOString(),
+        remaining: bookingRateLimit.remaining,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
