@@ -1,24 +1,71 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, checkRateLimit, rateLimitResponse, getClientIp } from "../_shared/cors.ts";
+import { validateAuth } from "../_shared/auth.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+/**
+ * Agreement Generator
+ * 
+ * Security features:
+ * - Origin whitelist
+ * - Rate limiting
+ * - Authentication required
+ * - Input validation
+ */
 
 serve(async (req) => {
-  // Handle CORS preflight
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { bookingId } = await req.json();
+    const clientIp = getClientIp(req);
 
-    if (!bookingId) {
-      console.error("Missing bookingId");
+    // Rate limit - max 20 agreements per minute per IP
+    const rateLimit = checkRateLimit(`agreement:${clientIp}`, {
+      windowMs: 60000,
+      maxRequests: 20,
+      keyPrefix: "agreement",
+    });
+
+    if (!rateLimit.allowed) {
+      console.warn(`Rate limit exceeded for generate-agreement from IP: ${clientIp}`);
+      return rateLimitResponse(rateLimit.resetAt, corsHeaders);
+    }
+
+    // Validate authentication
+    const auth = await validateAuth(req);
+    if (!auth.authenticated) {
+      // Allow service role calls
+      const authHeader = req.headers.get("Authorization");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!authHeader?.includes(serviceKey || "no-match")) {
+        return new Response(
+          JSON.stringify({ error: "Authentication required" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const body = await req.json();
+    const { bookingId } = body;
+
+    // Input validation
+    if (!bookingId || typeof bookingId !== "string") {
+      console.error("Invalid or missing bookingId");
       return new Response(
         JSON.stringify({ error: "Missing bookingId" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // UUID format validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(bookingId)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid bookingId format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -28,6 +75,37 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify the requesting user owns this booking (if authenticated as user)
+    if (auth.authenticated && auth.userId) {
+      const { data: bookingCheck } = await supabase
+        .from("bookings")
+        .select("user_id")
+        .eq("id", bookingId)
+        .single();
+
+      if (!bookingCheck) {
+        return new Response(
+          JSON.stringify({ error: "Booking not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Check if user owns booking or is admin
+      const { data: userRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", auth.userId)
+        .in("role", ["admin", "staff"])
+        .maybeSingle();
+
+      if (bookingCheck.user_id !== auth.userId && !userRole) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // Fetch booking with all related data
     const { data: booking, error: bookingError } = await supabase
@@ -50,7 +128,7 @@ serve(async (req) => {
 
     console.log(`Found booking: ${booking.booking_code}`);
 
-    // Fetch profile separately since there's no FK relationship
+    // Fetch profile
     const { data: profile } = await supabase
       .from("profiles")
       .select("id, full_name, email, phone")
@@ -272,28 +350,18 @@ Date: ________________________________
       entity_type: "rental_agreement",
       entity_id: agreement.id,
       action: "agreement_generated",
+      user_id: auth.userId || null,
       new_data: { booking_id: bookingId, booking_code: booking.booking_code },
     });
 
-    // Send notification to customer that agreement is ready for signing
+    // Send notification to customer
     try {
       console.log(`Sending agreement_ready notification for booking: ${bookingId}`);
-      const notificationResponse = await fetch(`${supabaseUrl}/functions/v1/send-agreement-notification`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({
-          bookingId: bookingId,
-          notificationType: "agreement_ready",
-        }),
+      await supabase.functions.invoke("send-agreement-notification", {
+        body: { bookingId, notificationType: "agreement_ready" },
       });
-      const notificationResult = await notificationResponse.json();
-      console.log("Agreement notification result:", notificationResult);
     } catch (notifyError) {
       console.error("Failed to send agreement notification (non-blocking):", notifyError);
-      // Don't fail the agreement generation if notification fails
     }
 
     return new Response(

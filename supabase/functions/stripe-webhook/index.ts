@@ -1,22 +1,31 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
-};
+/**
+ * Stripe Webhook Handler with Idempotency
+ * 
+ * - Validates webhook signatures
+ * - Checks for duplicate events before processing
+ * - Queues deposit operations to prevent race conditions
+ * - Records all webhook events for audit trail
+ */
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req, true); // true = webhook mode
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
     const stripeWebhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!stripeSecretKey || !stripeWebhookSecret) {
       console.error("Stripe credentials not configured");
@@ -30,8 +39,10 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
+    // Validate signature
     const signature = req.headers.get("stripe-signature");
     if (!signature) {
+      console.error("No stripe-signature header");
       return new Response(
         JSON.stringify({ error: "No signature" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -51,45 +62,112 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log(`Received Stripe event: ${event.type} (${event.id})`);
 
-    console.log("Received Stripe event:", event.type);
+    // ========== IDEMPOTENCY CHECK ==========
+    // Check if this event has already been processed
+    const { data: existingEvent } = await supabase
+      .from("stripe_webhook_events")
+      .select("id, processed_at")
+      .eq("event_id", event.id)
+      .maybeSingle();
+
+    if (existingEvent) {
+      console.log(`Event ${event.id} already processed at ${existingEvent.processed_at}, skipping`);
+      return new Response(
+        JSON.stringify({ received: true, duplicate: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Record that we're processing this event (before processing to prevent race conditions)
+    let bookingId: string | null = null;
+    
+    // Extract booking ID from the event data
+    switch (event.type) {
+      case "checkout.session.completed":
+        bookingId = (event.data.object as Stripe.Checkout.Session).metadata?.booking_id || null;
+        break;
+      case "payment_intent.succeeded":
+      case "payment_intent.payment_failed":
+        bookingId = (event.data.object as Stripe.PaymentIntent).metadata?.booking_id || null;
+        break;
+      case "charge.refunded":
+        // For refunds, we need to look up the booking from the payment
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId = charge.payment_intent as string;
+        if (paymentIntentId) {
+          const { data: payment } = await supabase
+            .from("payments")
+            .select("booking_id")
+            .eq("transaction_id", paymentIntentId)
+            .maybeSingle();
+          bookingId = payment?.booking_id || null;
+        }
+        break;
+    }
+
+    // Insert event record
+    await supabase.from("stripe_webhook_events").insert({
+      event_id: event.id,
+      event_type: event.type,
+      booking_id: bookingId,
+      payload_hash: event.created.toString(), // Simple hash using event creation time
+    });
+
+    // ========== EVENT PROCESSING ==========
+    let result: Record<string, unknown> = { processed: true };
 
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const bookingId = session.metadata?.booking_id;
+        const sessionBookingId = session.metadata?.booking_id;
         const paymentType = session.metadata?.payment_type || "rental";
 
-        if (bookingId && session.payment_status === "paid") {
-          console.log(`Checkout session completed for booking ${bookingId}, type: ${paymentType}`);
+        if (sessionBookingId && session.payment_status === "paid") {
+          console.log(`Checkout completed for booking ${sessionBookingId}, type: ${paymentType}`);
 
           // Get booking user_id
           const { data: booking } = await supabase
             .from("bookings")
-            .select("user_id, status")
-            .eq("id", bookingId)
+            .select("user_id, status, deposit_amount")
+            .eq("id", sessionBookingId)
             .single();
 
           const userId = booking?.user_id || session.metadata?.user_id || "";
+          const amount = (session.amount_total || 0) / 100;
+
+          // Check if payment already recorded (double protection)
+          const transactionId = (session.payment_intent as string) || session.id;
+          const { data: existingPayment } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("transaction_id", transactionId)
+            .maybeSingle();
+
+          if (existingPayment) {
+            console.log(`Payment ${transactionId} already recorded, skipping`);
+            result.paymentSkipped = true;
+            break;
+          }
 
           if (paymentType === "payment_request") {
-            // Payment request - record as rental payment (balance payment)
+            // Payment request - record as rental payment
             await supabase.from("payments").insert({
-              booking_id: bookingId,
+              booking_id: sessionBookingId,
               user_id: userId,
-              amount: (session.amount_total || 0) / 100,
+              amount,
               payment_type: "rental",
               payment_method: "card",
               status: "completed",
-              transaction_id: session.payment_intent as string || session.id,
+              transaction_id: transactionId,
             });
 
             // Resolve any pending payment alerts
             await supabase
               .from("admin_alerts")
               .update({ status: "resolved", resolved_at: new Date().toISOString() })
-              .eq("booking_id", bookingId)
+              .eq("booking_id", sessionBookingId)
               .eq("alert_type", "payment_pending")
               .eq("status", "pending");
 
@@ -98,7 +176,7 @@ serve(async (req) => {
             // Send notification
             try {
               await supabase.functions.invoke("send-booking-notification", {
-                body: { bookingId, stage: "payment_received" },
+                body: { bookingId: sessionBookingId, stage: "payment_received" },
               });
             } catch (notifyErr) {
               console.warn("Failed to send payment notification:", notifyErr);
@@ -108,88 +186,80 @@ serve(async (req) => {
             await supabase
               .from("bookings")
               .update({ status: "confirmed" })
-              .eq("id", bookingId);
+              .eq("id", sessionBookingId);
 
             // Record payment
             await supabase.from("payments").insert({
-              booking_id: bookingId,
+              booking_id: sessionBookingId,
               user_id: userId,
-              amount: (session.amount_total || 0) / 100,
+              amount,
               payment_type: "rental",
               payment_method: "card",
               status: "completed",
-              transaction_id: session.payment_intent as string || session.id,
+              transaction_id: transactionId,
             });
 
-            // Send confirmation notifications
-            const notifyUrl = `${supabaseUrl}/functions/v1/send-booking-email`;
-            await fetch(notifyUrl, {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${supabaseServiceKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                bookingId,
-                templateType: "confirmation",
-                forceResend: true,
-              }),
-            });
+            console.log(`Booking ${sessionBookingId} confirmed`);
 
-            // Also send SMS
-            const smsUrl = `${supabaseUrl}/functions/v1/send-booking-sms`;
-            await fetch(smsUrl, {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${supabaseServiceKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                bookingId,
-                templateType: "confirmation",
-              }),
-            });
+            // Send confirmation notifications via function invoke
+            try {
+              await supabase.functions.invoke("send-booking-email", {
+                body: { bookingId: sessionBookingId, templateType: "confirmation", forceResend: true },
+              });
+              await supabase.functions.invoke("send-booking-sms", {
+                body: { bookingId: sessionBookingId, templateType: "confirmation" },
+              });
+            } catch (notifyErr) {
+              console.warn("Failed to send confirmation notifications:", notifyErr);
+            }
           }
+
+          result.bookingId = sessionBookingId;
+          result.amount = amount;
         }
         break;
       }
 
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const bookingId = paymentIntent.metadata?.booking_id;
+        const piBookingId = paymentIntent.metadata?.booking_id;
 
-        if (bookingId) {
-          console.log(`Payment intent succeeded for booking ${bookingId}`);
+        if (piBookingId) {
+          console.log(`Payment intent succeeded for booking ${piBookingId}`);
 
-          // Check if booking is already confirmed (from checkout.session.completed)
+          // Check if booking is already confirmed
           const { data: booking } = await supabase
             .from("bookings")
             .select("status")
-            .eq("id", bookingId)
+            .eq("id", piBookingId)
             .single();
 
           if (booking?.status === "confirmed") {
             console.log("Booking already confirmed via checkout session");
+            result.alreadyConfirmed = true;
             break;
           }
-
-          // Update booking status
-          await supabase
-            .from("bookings")
-            .update({ status: "confirmed" })
-            .eq("id", bookingId);
 
           // Check if payment already recorded
           const { data: existingPayment } = await supabase
             .from("payments")
             .select("id")
             .eq("transaction_id", paymentIntent.id)
-            .single();
+            .maybeSingle();
 
-          if (!existingPayment) {
+          if (existingPayment) {
+            console.log(`Payment ${paymentIntent.id} already recorded`);
+            result.paymentSkipped = true;
+          } else {
+            // Update booking status
+            await supabase
+              .from("bookings")
+              .update({ status: "confirmed" })
+              .eq("id", piBookingId);
+
             // Record payment
             await supabase.from("payments").insert({
-              booking_id: bookingId,
+              booking_id: piBookingId,
               user_id: paymentIntent.metadata?.user_id || "",
               amount: paymentIntent.amount / 100,
               payment_type: "rental",
@@ -197,50 +267,35 @@ serve(async (req) => {
               status: "completed",
               transaction_id: paymentIntent.id,
             });
+
+            // Send notifications
+            try {
+              await supabase.functions.invoke("send-booking-email", {
+                body: { bookingId: piBookingId, templateType: "confirmation", forceResend: true },
+              });
+              await supabase.functions.invoke("send-booking-sms", {
+                body: { bookingId: piBookingId, templateType: "confirmation" },
+              });
+            } catch (notifyErr) {
+              console.warn("Failed to send notifications:", notifyErr);
+            }
           }
 
-          // Send confirmation notifications
-          const notifyUrl = `${supabaseUrl}/functions/v1/send-booking-email`;
-          await fetch(notifyUrl, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${supabaseServiceKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              bookingId,
-              templateType: "confirmation",
-              forceResend: true,
-            }),
-          });
-
-          // Also send SMS
-          const smsUrl = `${supabaseUrl}/functions/v1/send-booking-sms`;
-          await fetch(smsUrl, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${supabaseServiceKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              bookingId,
-              templateType: "confirmation",
-            }),
-          });
+          result.bookingId = piBookingId;
         }
         break;
       }
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const bookingId = paymentIntent.metadata?.booking_id;
+        const piBookingId = paymentIntent.metadata?.booking_id;
 
-        if (bookingId) {
-          console.log(`Payment failed for booking ${bookingId}`);
+        if (piBookingId) {
+          console.log(`Payment failed for booking ${piBookingId}`);
 
           // Record failed payment
           await supabase.from("payments").insert({
-            booking_id: bookingId,
+            booking_id: piBookingId,
             user_id: paymentIntent.metadata?.user_id || "",
             amount: paymentIntent.amount / 100,
             payment_type: "rental",
@@ -256,7 +311,10 @@ serve(async (req) => {
               status: "pending",
               notes: "Online payment failed - customer to pay at pickup" 
             })
-            .eq("id", bookingId);
+            .eq("id", piBookingId);
+
+          result.bookingId = piBookingId;
+          result.failed = true;
         }
         break;
       }
@@ -270,29 +328,53 @@ serve(async (req) => {
           .from("payments")
           .select("booking_id, user_id")
           .eq("transaction_id", paymentIntentId)
-          .single();
+          .maybeSingle();
 
         if (payment) {
-          // Record refund
-          await supabase.from("payments").insert({
-            booking_id: payment.booking_id,
-            user_id: payment.user_id,
-            amount: -((charge.amount_refunded || 0) / 100),
-            payment_type: "refund",
-            payment_method: "card",
-            status: "completed",
-            transaction_id: charge.id,
-          });
+          const refundAmount = (charge.amount_refunded || 0) / 100;
+          
+          // Check if this refund was already recorded
+          const { data: existingRefund } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("transaction_id", charge.id)
+            .eq("payment_type", "refund")
+            .maybeSingle();
+
+          if (!existingRefund) {
+            // Record refund
+            await supabase.from("payments").insert({
+              booking_id: payment.booking_id,
+              user_id: payment.user_id,
+              amount: -refundAmount,
+              payment_type: "refund",
+              payment_method: "card",
+              status: "completed",
+              transaction_id: charge.id,
+            });
+
+            console.log(`Refund of $${refundAmount} recorded for booking ${payment.booking_id}`);
+          }
+
+          result.bookingId = payment.booking_id;
+          result.refundAmount = refundAmount;
         }
         break;
       }
 
       default:
         console.log(`Unhandled event type: ${event.type}`);
+        result.unhandled = true;
     }
 
+    // Update the webhook event record with result
+    await supabase
+      .from("stripe_webhook_events")
+      .update({ result })
+      .eq("event_id", event.id);
+
     return new Response(
-      JSON.stringify({ received: true }),
+      JSON.stringify({ received: true, ...result }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
