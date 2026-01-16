@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, checkRateLimit, rateLimitResponse, getClientIp } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+/**
+ * Deposit Notification Handler
+ * 
+ * Sends email notifications to customers about deposit status changes.
+ * Should only be called from internal services (not directly from frontend).
+ */
 
 interface DepositNotificationRequest {
   bookingId: string;
@@ -35,11 +38,27 @@ async function sendWithResend(apiKey: string, to: string, subject: string, html:
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const clientIp = getClientIp(req);
+
+    // Rate limit - max 20 deposit notifications per minute
+    const rateLimit = checkRateLimit(`deposit_notify:${clientIp}`, {
+      windowMs: 60000,
+      maxRequests: 20,
+      keyPrefix: "deposit_notify",
+    });
+
+    if (!rateLimit.allowed) {
+      console.warn(`Rate limit exceeded for deposit notification from IP: ${clientIp}`);
+      return rateLimitResponse(rateLimit.resetAt, corsHeaders);
+    }
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.log("Resend API key not configured, skipping notification");
@@ -52,6 +71,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    const body = await req.json();
     const { 
       bookingId, 
       action, 
@@ -59,11 +79,19 @@ serve(async (req) => {
       reason,
       withheldAmount = 0,
       releasedAmount = 0,
-    }: DepositNotificationRequest = await req.json();
+    }: DepositNotificationRequest = body;
 
-    if (!bookingId || !action) {
+    // Input validation
+    if (!bookingId || typeof bookingId !== "string") {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Missing bookingId" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!action || !["released", "withheld"].includes(action)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid action" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -117,6 +145,9 @@ serve(async (req) => {
     const customerName = userName || "Valued Customer";
     const depositAmount = Number(booking.deposit_amount) || 0;
 
+    // Sanitize reason
+    const safeReason = reason ? reason.slice(0, 500) : "";
+
     // Build email content
     const isFullRelease = action === "released" && withheldAmount === 0;
     const isPartialRelease = withheldAmount > 0 && releasedAmount > 0;
@@ -136,7 +167,7 @@ serve(async (req) => {
       detailsHtml = `
         <tr>
           <td style="padding: 12px 0; color: #71717a; font-size: 14px;">Deposit Released</td>
-          <td style="padding: 12px 0; color: #10b981; font-weight: 700; text-align: right; font-size: 18px;">$${releasedAmount.toFixed(2)}</td>
+          <td style="padding: 12px 0; color: #10b981; font-weight: 700; text-align: right; font-size: 18px;">$${Number(releasedAmount || amount).toFixed(2)}</td>
         </tr>
       `;
     } else if (isPartialRelease) {
@@ -147,16 +178,16 @@ serve(async (req) => {
       detailsHtml = `
         <tr>
           <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Amount Withheld</td>
-          <td style="padding: 8px 0; color: #ef4444; font-weight: 600; text-align: right;">-$${withheldAmount.toFixed(2)}</td>
+          <td style="padding: 8px 0; color: #ef4444; font-weight: 600; text-align: right;">-$${Number(withheldAmount).toFixed(2)}</td>
         </tr>
         <tr>
           <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Amount Released</td>
-          <td style="padding: 8px 0; color: #10b981; font-weight: 600; text-align: right;">$${releasedAmount.toFixed(2)}</td>
+          <td style="padding: 8px 0; color: #10b981; font-weight: 600; text-align: right;">$${Number(releasedAmount).toFixed(2)}</td>
         </tr>
-        ${reason ? `
+        ${safeReason ? `
         <tr>
           <td colspan="2" style="padding: 12px 0; font-size: 13px; color: #71717a; border-top: 1px solid #e4e4e7;">
-            <strong>Reason for deduction:</strong> ${reason}
+            <strong>Reason for deduction:</strong> ${safeReason}
           </td>
         </tr>
         ` : ""}
@@ -169,12 +200,12 @@ serve(async (req) => {
       detailsHtml = `
         <tr>
           <td style="padding: 12px 0; color: #71717a; font-size: 14px;">Amount Withheld</td>
-          <td style="padding: 12px 0; color: #ef4444; font-weight: 700; text-align: right; font-size: 18px;">$${withheldAmount.toFixed(2)}</td>
+          <td style="padding: 12px 0; color: #ef4444; font-weight: 700; text-align: right; font-size: 18px;">$${Number(withheldAmount || amount).toFixed(2)}</td>
         </tr>
-        ${reason ? `
+        ${safeReason ? `
         <tr>
           <td colspan="2" style="padding: 12px 0; font-size: 13px; color: #71717a; border-top: 1px solid #e4e4e7;">
-            <strong>Reason:</strong> ${reason}
+            <strong>Reason:</strong> ${safeReason}
           </td>
         </tr>
         ` : ""}
@@ -245,7 +276,7 @@ serve(async (req) => {
       </html>
     `;
 
-    // Create idempotency key
+    // Idempotency key
     const idempotencyKey = `deposit_${bookingId}_${action}_${Date.now()}`;
 
     // Send email

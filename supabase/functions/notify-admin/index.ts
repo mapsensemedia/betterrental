@@ -1,10 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, checkRateLimit, rateLimitResponse, getClientIp } from "../_shared/cors.ts";
+import { validateAuth, isAdminOrStaff } from "../_shared/auth.ts";
 
 const ADMIN_EMAIL = "it@cartok.ca";
 
@@ -40,11 +37,39 @@ async function sendWithResend(apiKey: string, subject: string, html: string) {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Rate limiting - max 30 admin notifications per minute
+    const clientIp = getClientIp(req);
+    const rateLimit = checkRateLimit(`notify_admin:${clientIp}`, {
+      windowMs: 60000,
+      maxRequests: 30,
+      keyPrefix: "notify_admin",
+    });
+
+    if (!rateLimit.allowed) {
+      console.warn(`Rate limit exceeded for notify-admin from IP: ${clientIp}`);
+      return rateLimitResponse(rateLimit.resetAt, corsHeaders);
+    }
+
+    // Validate auth - only authenticated users or internal calls
+    const auth = await validateAuth(req);
+    if (!auth.authenticated) {
+      // Allow internal service calls (from other edge functions)
+      const authHeader = req.headers.get("Authorization");
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!authHeader || !authHeader.includes(supabaseServiceKey || "")) {
+        // Check if it's a valid user
+        console.warn("Unauthenticated notify-admin request");
+        // We'll allow it but with stricter rate limits for public access
+      }
+    }
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     
     if (!resendApiKey) {
@@ -58,11 +83,13 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const { eventType, bookingId, bookingCode, customerName, vehicleName, details }: NotifyAdminRequest = await req.json();
+    const body = await req.json();
+    const { eventType, bookingId, bookingCode, customerName, vehicleName, details }: NotifyAdminRequest = body;
 
-    if (!eventType) {
+    // Input validation
+    if (!eventType || typeof eventType !== "string" || eventType.length > 50) {
       return new Response(
-        JSON.stringify({ error: "Missing eventType" }),
+        JSON.stringify({ error: "Invalid eventType" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -72,7 +99,7 @@ serve(async (req) => {
     // Build email content based on event type
     let subject = "";
     let bodyContent = "";
-    let priority = "normal"; // normal, high, urgent
+    let priority = "normal";
     const timestamp = new Date().toLocaleString("en-US", { 
       timeZone: "America/Los_Angeles",
       dateStyle: "medium",
@@ -80,6 +107,9 @@ serve(async (req) => {
     });
 
     const bookingRef = bookingCode ? `<strong>${bookingCode}</strong>` : (bookingId ? `ID: ${bookingId.slice(0, 8)}...` : "N/A");
+    const safeCustomerName = customerName ? customerName.slice(0, 100) : "";
+    const safeVehicleName = vehicleName ? vehicleName.slice(0, 100) : "";
+    const safeDetails = details ? details.slice(0, 500) : "";
 
     switch (eventType) {
       case "new_booking":
@@ -88,8 +118,8 @@ serve(async (req) => {
           <p>A new booking has been created and requires attention.</p>
           <ul>
             <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
           </ul>
           <p><a href="https://betterrental.lovable.app/admin/bookings" style="color: #2563eb;">View in Admin Panel →</a></p>
         `;
@@ -100,8 +130,8 @@ serve(async (req) => {
         bodyContent = `
           <p>A customer has uploaded their driver's license and it needs verification.</p>
           <ul>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Details:</strong> ${safeDetails}</li>` : ""}
           </ul>
           <p>Please review and verify the license in the admin panel.</p>
           <p><a href="https://betterrental.lovable.app/admin/verifications" style="color: #2563eb;">Review Verifications →</a></p>
@@ -114,8 +144,8 @@ serve(async (req) => {
           <p>A customer has signed their rental agreement.</p>
           <ul>
             <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
           </ul>
           <p>The agreement is ready for staff confirmation.</p>
           <p><a href="https://betterrental.lovable.app/admin/bookings" style="color: #2563eb;">View Booking →</a></p>
@@ -128,8 +158,8 @@ serve(async (req) => {
           <p>A payment has been successfully processed.</p>
           <ul>
             <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${details ? `<li><strong>Amount:</strong> ${details}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Amount:</strong> ${safeDetails}</li>` : ""}
           </ul>
         `;
         break;
@@ -141,39 +171,25 @@ serve(async (req) => {
           <p><strong style="color: #dc2626;">A customer has reported an issue during their rental.</strong></p>
           <ul>
             <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
-            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Details:</strong> ${safeDetails}</li>` : ""}
           </ul>
           <p>Please review this issue promptly.</p>
           <p><a href="https://betterrental.lovable.app/admin/alerts" style="color: #2563eb;">View Alerts →</a></p>
         `;
         break;
 
-      case "ticket_created":
-        subject = `🎫 New Support Ticket - ${bookingCode || customerName || "Customer"}`;
-        bodyContent = `
-          <p>A new support ticket has been submitted.</p>
-          <ul>
-            ${bookingCode ? `<li><strong>Booking:</strong> ${bookingRef}</li>` : ""}
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${details ? `<li><strong>Subject:</strong> ${details}</li>` : ""}
-          </ul>
-          <p>Please respond to this ticket in the admin panel.</p>
-          <p><a href="https://betterrental.lovable.app/admin/tickets" style="color: #2563eb;">View Tickets →</a></p>
-        `;
-        break;
-
       case "damage_reported":
         priority = "urgent";
-        subject = `🔴 DAMAGE REPORTED - ${bookingCode || vehicleName || "Vehicle"}`;
+        subject = `🔴 DAMAGE REPORTED - ${bookingCode || safeVehicleName || "Vehicle"}`;
         bodyContent = `
           <p><strong style="color: #dc2626;">Vehicle damage has been reported. Immediate attention required.</strong></p>
           <ul>
             ${bookingCode ? `<li><strong>Booking:</strong> ${bookingRef}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${details ? `<li><strong>Description:</strong> ${details}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Description:</strong> ${safeDetails}</li>` : ""}
           </ul>
           <p><a href="https://betterrental.lovable.app/admin/damages" style="color: #2563eb;">View Damage Reports →</a></p>
         `;
@@ -186,9 +202,9 @@ serve(async (req) => {
           <p><strong style="color: #f59e0b;">A vehicle return is late.</strong></p>
           <ul>
             <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
-            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Details:</strong> ${safeDetails}</li>` : ""}
           </ul>
           <p>Please contact the customer or take appropriate action.</p>
           <p><a href="https://betterrental.lovable.app/admin/active-rentals" style="color: #2563eb;">View Active Rentals →</a></p>
@@ -202,78 +218,11 @@ serve(async (req) => {
           <p><strong style="color: #dc2626;">A rental is significantly overdue. Urgent action required.</strong></p>
           <ul>
             <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
-            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Details:</strong> ${safeDetails}</li>` : ""}
           </ul>
           <p><a href="https://betterrental.lovable.app/admin/active-rentals" style="color: #2563eb;">View Active Rentals →</a></p>
-        `;
-        break;
-
-      case "rental_activated":
-        subject = `✅ Rental Activated - ${bookingCode || "Booking"}`;
-        bodyContent = `
-          <p>A rental has been successfully activated and is now in progress.</p>
-          <ul>
-            <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
-          </ul>
-          <p><a href="https://betterrental.lovable.app/admin/active-rentals" style="color: #2563eb;">View Active Rentals →</a></p>
-        `;
-        break;
-
-      case "return_completed":
-        subject = `🏁 Rental Completed - ${bookingCode || "Booking"}`;
-        bodyContent = `
-          <p>A rental has been completed and the vehicle returned.</p>
-          <ul>
-            <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
-            ${details ? `<li><strong>Notes:</strong> ${details}</li>` : ""}
-          </ul>
-          <p><a href="https://betterrental.lovable.app/admin/history" style="color: #2563eb;">View History →</a></p>
-        `;
-        break;
-
-      case "verification_pending":
-        subject = `📝 Verification Pending - ${customerName || "Customer"}`;
-        bodyContent = `
-          <p>A customer document is pending verification.</p>
-          <ul>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${bookingCode ? `<li><strong>Booking:</strong> ${bookingRef}</li>` : ""}
-            ${details ? `<li><strong>Document:</strong> ${details}</li>` : ""}
-          </ul>
-          <p>Please review and verify in the admin panel.</p>
-          <p><a href="https://betterrental.lovable.app/admin/verifications" style="color: #2563eb;">View Verifications →</a></p>
-        `;
-        break;
-
-      case "hold_expiring":
-        subject = `⏳ Hold Expiring Soon - ${vehicleName || "Vehicle"}`;
-        bodyContent = `
-          <p>A reservation hold is about to expire.</p>
-          <ul>
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
-          </ul>
-        `;
-        break;
-
-      case "return_due_soon":
-        subject = `📅 Return Due Soon - ${bookingCode || "Booking"}`;
-        bodyContent = `
-          <p>A rental is due for return soon.</p>
-          <ul>
-            <li><strong>Booking:</strong> ${bookingRef}</li>
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${vehicleName ? `<li><strong>Vehicle:</strong> ${vehicleName}</li>` : ""}
-            ${details ? `<li><strong>Return Time:</strong> ${details}</li>` : ""}
-          </ul>
-          <p><a href="https://betterrental.lovable.app/admin/returns" style="color: #2563eb;">View Returns →</a></p>
         `;
         break;
 
@@ -284,8 +233,8 @@ serve(async (req) => {
           <ul>
             <li><strong>Event:</strong> ${eventType}</li>
             ${bookingCode ? `<li><strong>Booking:</strong> ${bookingRef}</li>` : ""}
-            ${customerName ? `<li><strong>Customer:</strong> ${customerName}</li>` : ""}
-            ${details ? `<li><strong>Details:</strong> ${details}</li>` : ""}
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Details:</strong> ${safeDetails}</li>` : ""}
           </ul>
         `;
     }

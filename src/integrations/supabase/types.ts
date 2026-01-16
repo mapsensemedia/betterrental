@@ -676,6 +676,59 @@ export type Database = {
           },
         ]
       }
+      deposit_jobs: {
+        Row: {
+          amount: number
+          attempts: number
+          booking_id: string
+          created_at: string
+          id: string
+          job_type: string
+          last_error: string | null
+          max_attempts: number
+          processed_at: string | null
+          reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          attempts?: number
+          booking_id: string
+          created_at?: string
+          id?: string
+          job_type: string
+          last_error?: string | null
+          max_attempts?: number
+          processed_at?: string | null
+          reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          attempts?: number
+          booking_id?: string
+          created_at?: string
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          max_attempts?: number
+          processed_at?: string | null
+          reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_jobs_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposit_ledger: {
         Row: {
           action: string
@@ -1154,6 +1207,44 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_webhook_events: {
+        Row: {
+          booking_id: string | null
+          event_id: string
+          event_type: string
+          id: string
+          payload_hash: string | null
+          processed_at: string
+          result: Json | null
+        }
+        Insert: {
+          booking_id?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          payload_hash?: string | null
+          processed_at?: string
+          result?: Json | null
+        }
+        Update: {
+          booking_id?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload_hash?: string | null
+          processed_at?: string
+          result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_webhook_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
         ]
