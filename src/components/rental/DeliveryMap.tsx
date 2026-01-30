@@ -195,8 +195,8 @@ export function DeliveryMap({
       )}
       <div
         ref={mapContainer}
-        className="w-full"
-        style={{ height: "350px" }}
+        className="w-full h-full"
+        style={{ minHeight: className?.includes("h-[") ? undefined : "350px" }}
       />
     </div>
   );
