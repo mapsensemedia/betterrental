@@ -4,11 +4,14 @@ import {
   Camera, 
   CheckCircle2, 
   Loader2,
-  Car,
   Fuel,
   Gauge,
   Upload,
-  ChevronDown
+  ChevronDown,
+  CarFront,
+  CircleDot,
+  PanelLeft,
+  PanelRight,
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -25,11 +28,30 @@ interface PreInspectionPhotosProps {
   bookingId: string;
 }
 
+// Custom SVG icons for vehicle views
+const CarFrontIcon = () => (
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 11l2-6h10l2 6" />
+    <path d="M3 17h18v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4z" />
+    <circle cx="6.5" cy="17" r="1.5" />
+    <circle cx="17.5" cy="17" r="1.5" />
+  </svg>
+);
+
+const CarBackIcon = () => (
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 17h18v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4z" />
+    <rect x="6" y="11" width="12" height="2" rx="0.5" />
+    <circle cx="6.5" cy="17" r="1.5" />
+    <circle cx="17.5" cy="17" r="1.5" />
+  </svg>
+);
+
 const PHOTO_ICONS: Record<PhotoType, React.ReactNode> = {
-  front: <Car className="h-4 w-4" />,
-  back: <Car className="h-4 w-4 rotate-180" />,
-  left: <Car className="h-4 w-4 -rotate-90" />,
-  right: <Car className="h-4 w-4 rotate-90" />,
+  front: <CarFrontIcon />,
+  back: <CarBackIcon />,
+  left: <PanelLeft className="h-4 w-4" />,
+  right: <PanelRight className="h-4 w-4" />,
   odometer: <Gauge className="h-4 w-4" />,
   fuel_gauge: <Fuel className="h-4 w-4" />,
 };

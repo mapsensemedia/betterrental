@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,10 @@ interface StepCheckinProps {
     licenseNotExpired: boolean;
     ageVerified: boolean;
   };
+  onStepComplete?: () => void;
 }
 
-export function StepCheckin({ booking, completion }: StepCheckinProps) {
+export function StepCheckin({ booking, completion, onStepComplete }: StepCheckinProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -57,6 +58,19 @@ export function StepCheckin({ booking, completion }: StepCheckinProps) {
     completion.nameMatches &&
     completion.licenseNotExpired &&
     completion.ageVerified;
+
+  // Auto-advance when check-in becomes complete
+  const prevCompleteRef = useRef(false);
+  useEffect(() => {
+    if (isComplete && !prevCompleteRef.current && onStepComplete) {
+      // Delay slightly to allow UI to update
+      const timer = setTimeout(() => {
+        onStepComplete();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    prevCompleteRef.current = isComplete;
+  }, [isComplete, onStepComplete]);
 
   // Handle staff license upload for customer
   const handleUploadLicense = async () => {

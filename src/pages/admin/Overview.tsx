@@ -223,6 +223,16 @@ export default function AdminOverview() {
   const pendingBookings = bookings.filter(b => b.status === "pending").length;
   const confirmedBookings = bookings.filter(b => b.status === "confirmed").length;
   
+  // NEW bookings - created in last 24 hours
+  const recentBookings = bookings.filter(b => {
+    try {
+      const createdAt = parseISO(b.createdAt);
+      const hoursDiff = (new Date().getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+      return hoursDiff <= 24;
+    } catch { return false; }
+  });
+  const newBookingsCount = recentBookings.length;
+  
   const todayPickups = bookings.filter(b => {
     if (b.status !== "confirmed") return false;
     try {
@@ -247,10 +257,11 @@ export default function AdminOverview() {
   const pendingAlerts = alerts.filter(a => a.status === "pending").length;
   const pendingVerifications = verifications.filter(v => v.status === "pending").length;
 
-  // Simplified: 4 key stats only
+  // Simplified: 5 key stats including new bookings
   const stats = [
+    { label: "New (24h)", value: newBookingsCount, icon: BookOpen, color: newBookingsCount > 0 ? "text-blue-500" : "text-muted-foreground", bgColor: newBookingsCount > 0 ? "bg-blue-500/10" : "bg-muted" },
     { label: "Active", value: activeBookings, icon: Car, color: "text-primary", bgColor: "bg-primary/10" },
-    { label: "Pickups Today", value: todayPickups, icon: KeyRound, color: "text-green-500", bgColor: "bg-green-500/10" },
+    { label: "Pickups Today", value: todayPickups, icon: KeyRound, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
     { label: "Returns Today", value: todayReturns, icon: RotateCcw, color: "text-orange-500", bgColor: "bg-orange-500/10" },
     { label: "Alerts", value: pendingAlerts, icon: Bell, color: pendingAlerts > 0 ? "text-destructive" : "text-muted-foreground", bgColor: pendingAlerts > 0 ? "bg-destructive/10" : "bg-muted" },
   ];
@@ -296,7 +307,7 @@ export default function AdminOverview() {
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6 mt-6">
             {/* Compact Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-3">
               {stats.map((stat) => (
                 <div 
                   key={stat.label} 
@@ -312,6 +323,67 @@ export default function AdminOverview() {
                 </div>
               ))}
             </div>
+
+            {/* New Bookings Card - show recent bookings in last 24h */}
+            {recentBookings.length > 0 && (
+              <Card className="border-blue-500/30 bg-blue-500/5">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-blue-500" />
+                      New Bookings (Last 24h)
+                      <Badge className="bg-blue-500">{recentBookings.length}</Badge>
+                    </CardTitle>
+                    <Link to="/admin/bookings?tab=pending">
+                      <Button variant="ghost" size="sm" className="gap-1">
+                        View all <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                  <CardDescription>
+                    Recently created bookings requiring attention
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {recentBookings.slice(0, 5).map((booking) => (
+                    <div
+                      key={booking.id}
+                      className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium truncate">
+                              {booking.vehicle?.make} {booking.vehicle?.model}
+                            </p>
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {booking.bookingCode}
+                            </Badge>
+                            <Badge 
+                              variant={booking.status === "pending" ? "destructive" : "secondary"}
+                              className="text-xs"
+                            >
+                              {booking.status}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {booking.profile?.fullName || "Customer"} • {format(parseISO(booking.startAt), "MMM d, h:mm a")}
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="default" 
+                        className="shrink-0"
+                        onClick={() => navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin`)}
+                      >
+                        Open
+                      </Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Awaiting Pickup - Confirmed bookings with completeness */}
             {confirmedBookings > 0 && (
