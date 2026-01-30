@@ -91,7 +91,8 @@ export default function BookingOps() {
   // Compute completion status
   const pickupPhotos = photos?.pickup || [];
   const photoStatus = getPhotoCompletionStatus(pickupPhotos, 'pickup');
-  const isCheckedIn = checkinRecord?.checkInStatus === 'passed' || checkinRecord?.checkInStatus === 'needs_review';
+  const checkinPassed = checkinRecord?.checkInStatus === 'passed';
+  const isCheckedIn = checkinPassed || checkinRecord?.checkInStatus === 'needs_review';
   const isPaymentComplete = depositData?.paymentStatus === 'paid';
   const isDepositCollected = depositData?.depositStatus === 'held' || depositData?.depositStatus === 'released';
   const isAgreementSigned = agreement?.status === 'signed' || agreement?.status === 'confirmed';
@@ -109,11 +110,12 @@ export default function BookingOps() {
       photosComplete: photoStatus.complete,
     },
     checkin: {
-      govIdVerified: checkinRecord?.identityVerified || false,
-      licenseOnFile: licenseOnFile,
-      nameMatches: checkinRecord?.licenseNameMatches || false,
-      licenseNotExpired: checkinRecord?.licenseValid || false,
-      ageVerified: checkinRecord?.ageVerified || false,
+      // If check-in is passed, all fields are considered verified
+      govIdVerified: checkinPassed || checkinRecord?.identityVerified || false,
+      licenseOnFile: checkinPassed || licenseOnFile,
+      nameMatches: checkinPassed || checkinRecord?.licenseNameMatches || false,
+      licenseNotExpired: checkinPassed || checkinRecord?.licenseValid || false,
+      ageVerified: checkinPassed || checkinRecord?.ageVerified || false,
     },
     payment: {
       paymentComplete: isPaymentComplete,

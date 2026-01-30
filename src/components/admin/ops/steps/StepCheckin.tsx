@@ -112,12 +112,15 @@ export function StepCheckin({ booking, completion, onStepComplete }: StepCheckin
         description: "Driver's license saved to customer profile",
       });
 
-      // Refresh all profile-related queries
-      await refetchProfile();
-      queryClient.invalidateQueries({ queryKey: ["profile-license", booking.user_id] });
-      queryClient.invalidateQueries({ queryKey: ["license-status", booking.user_id] });
+      // Refresh all profile-related queries immediately
+      await Promise.all([
+        refetchProfile(),
+        queryClient.refetchQueries({ queryKey: ["profile-license", booking.user_id] }),
+        queryClient.refetchQueries({ queryKey: ["license-status", booking.user_id] }),
+        queryClient.refetchQueries({ queryKey: ["booking", booking.id] }),
+      ]);
+      // Also invalidate for background updates
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: ["booking", booking.id] });
       
       setUploadDialogOpen(false);
       setSelectedFile(null);
