@@ -175,6 +175,7 @@ export function OpsStepContent({
           <StepCheckin 
             booking={booking}
             completion={completion.checkin}
+            onStepComplete={onCompleteStep}
           />
         )}
         {stepId === "payment" && (
