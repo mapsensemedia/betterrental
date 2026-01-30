@@ -144,10 +144,18 @@ const App = () => (
                 <Route path="/admin/audit-logs" element={<Navigate to="/admin/reports" replace />} />
                 <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
 
-                {/* Redirects for removed nav items */}
-                <Route path="/admin/handovers" element={<Navigate to="/admin/pickups" replace />} />
-                <Route path="/admin/photos" element={<Navigate to="/admin/damages" replace />} />
+                {/* Redirects for consolidated nav items */}
+                <Route path="/admin/handovers" element={<Navigate to="/admin/bookings" replace />} />
+                <Route path="/admin/pickups" element={<Navigate to="/admin/bookings" replace />} />
+                <Route path="/admin/active-rentals" element={<Navigate to="/admin/bookings" replace />} />
+                <Route path="/admin/returns" element={<Navigate to="/admin/bookings" replace />} />
+                <Route path="/admin/fleet-costs" element={<Navigate to="/admin/inventory" replace />} />
+                <Route path="/admin/damages" element={<Navigate to="/admin/inventory" replace />} />
+                <Route path="/admin/history" element={<Navigate to="/admin/reports" replace />} />
+                <Route path="/admin/photos" element={<Navigate to="/admin/inventory" replace />} />
                 <Route path="/admin/verifications" element={<Navigate to="/admin/alerts?type=verification_pending" replace />} />
+                <Route path="/admin/analytics" element={<Navigate to="/admin/reports" replace />} />
+                <Route path="/admin/audit-logs" element={<Navigate to="/admin/reports" replace />} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />

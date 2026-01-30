@@ -298,6 +298,36 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </button>
       </div>
 
+      {/* Map Preview Banner - Show early when delivery selected and address entered */}
+      {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
+        <div className="mb-6 rounded-xl overflow-hidden border border-border bg-muted/30">
+          <div className="p-3 bg-success/10 border-b border-success/20 flex items-center gap-3">
+            <Check className="w-5 h-5 text-success shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                Delivery from {searchData.closestPickupCenterName}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {searchData.deliveryDistanceKm?.toFixed(1)}km •{" "}
+                {searchData.deliveryEta} •{" "}
+                {searchData.deliveryFee === 0
+                  ? "Free delivery"
+                  : `$${searchData.deliveryFee} delivery fee`}
+              </p>
+            </div>
+          </div>
+          <DeliveryMap
+            customerLat={deliveryCoords.lat}
+            customerLng={deliveryCoords.lng}
+            dealershipLat={closestDealership.lat}
+            dealershipLng={closestDealership.lng}
+            dealershipName={closestDealership.name}
+            onRouteCalculated={handleRouteCalculated}
+            className="h-[200px] sm:h-[250px]"
+          />
+        </div>
+      )}
+
       {/* Search Fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
         {/* Location Field */}
@@ -434,7 +464,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </div>
       </div>
 
-      {/* Delivery Pricing Display - Show above when address selected */}
+      {/* Delivery Pricing Display - Compact version below form */}
       {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
         <div className="mt-4">
           <DeliveryPricingDisplay
@@ -442,25 +472,6 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
             distanceKm={searchData.deliveryDistanceKm}
             eta={searchData.deliveryEta}
           />
-        </div>
-      )}
-
-      {/* Delivery Info Banner */}
-      {deliveryMode === "delivery" && searchData.closestPickupCenterName && !deliveryError && (
-        <div className="mt-4 p-3 rounded-xl bg-success/10 border border-success/20 flex items-center gap-3">
-          <Check className="w-5 h-5 text-success" />
-          <div className="flex-1">
-            <p className="text-sm font-medium">
-              Delivery from {searchData.closestPickupCenterName}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {searchData.deliveryDistanceKm?.toFixed(1)}km •{" "}
-              {searchData.deliveryEta} •{" "}
-              {searchData.deliveryFee === 0
-                ? "Free delivery"
-                : `$${searchData.deliveryFee} delivery fee`}
-            </p>
-          </div>
         </div>
       )}
 
@@ -519,19 +530,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </Button>
       </div>
 
-      {/* Delivery Map - Below the search button */}
-      {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
-        <div className="mt-6">
-          <DeliveryMap
-            customerLat={deliveryCoords.lat}
-            customerLng={deliveryCoords.lng}
-            dealershipLat={closestDealership.lat}
-            dealershipLng={closestDealership.lng}
-            dealershipName={closestDealership.name}
-            onRouteCalculated={handleRouteCalculated}
-          />
-        </div>
-      )}
+      {/* Map is now shown at the top when delivery is selected */}
     </div>
   );
 }

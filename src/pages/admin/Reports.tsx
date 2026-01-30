@@ -1,10 +1,13 @@
 /**
- * Combined Reports Page - Analytics + Audit Logs
+ * Comprehensive Analytics & Reports Page
+ * Covers: Conversion Funnel, Revenue, Fleet Utilization, Audit Logs
  */
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { ConversionFunnel } from "@/components/admin/ConversionFunnel";
+import { useAdminBookings } from "@/hooks/use-bookings";
+import { useAdminVehicles } from "@/hooks/use-inventory";
 import {
   BarChart3,
   TrendingUp,
@@ -31,6 +34,10 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  DollarSign,
+  Wallet,
+  Percent,
+  CalendarDays,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   ChartConfig,
   ChartContainer,
@@ -50,11 +58,11 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
 import { useLocations } from "@/hooks/use-locations";
 import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
-import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth } from "date-fns";
+import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth, parseISO, differenceInDays } from "date-fns";
 
 const chartConfig = {
   views: { label: "Views", color: "hsl(var(--primary))" },
@@ -163,8 +171,72 @@ export default function AdminReports() {
   const { data: locations } = useLocations();
   const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useAuditLogs({ limit: 100 });
   const { data: auditStats } = useAuditStats();
+  const { data: bookings = [] } = useAdminBookings({});
+  const { data: vehicles = [] } = useAdminVehicles();
 
   const data = useMemo(() => getAnalyticsData(), [refreshKey]);
+
+  // Revenue calculations
+  const revenueStats = useMemo(() => {
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const monthStart = startOfMonth(now);
+    
+    // Filter bookings by period
+    const completedBookings = bookings.filter(b => b.status === "completed" || b.status === "active");
+    const thisWeek = completedBookings.filter(b => isAfter(parseISO(b.createdAt), weekStart));
+    const thisMonth = completedBookings.filter(b => isAfter(parseISO(b.createdAt), monthStart));
+    
+    // Calculate totals
+    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
+    const weekRevenue = thisWeek.reduce((sum, b) => sum + b.totalAmount, 0);
+    const monthRevenue = thisMonth.reduce((sum, b) => sum + b.totalAmount, 0);
+    
+    // Average booking value
+    const avgBookingValue = completedBookings.length > 0 
+      ? totalRevenue / completedBookings.length 
+      : 0;
+    
+    // Average rental duration
+    const avgDuration = completedBookings.length > 0
+      ? completedBookings.reduce((sum, b) => sum + b.totalDays, 0) / completedBookings.length
+      : 0;
+    
+    return {
+      totalRevenue,
+      weekRevenue,
+      monthRevenue,
+      avgBookingValue,
+      avgDuration,
+      totalBookings: completedBookings.length,
+      weekBookings: thisWeek.length,
+      monthBookings: thisMonth.length,
+    };
+  }, [bookings]);
+
+  // Fleet utilization
+  const fleetStats = useMemo(() => {
+    const activeRentals = bookings.filter(b => b.status === "active").length;
+    const availableVehicles = vehicles.filter(v => v.isAvailable).length;
+    const totalVehicles = vehicles.length;
+    
+    const utilizationRate = totalVehicles > 0 
+      ? (activeRentals / totalVehicles) * 100 
+      : 0;
+    
+    // Revenue per vehicle
+    const revenuePerVehicle = totalVehicles > 0
+      ? revenueStats.totalRevenue / totalVehicles
+      : 0;
+    
+    return {
+      activeRentals,
+      availableVehicles,
+      totalVehicles,
+      utilizationRate,
+      revenuePerVehicle,
+    };
+  }, [bookings, vehicles, revenueStats]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -269,8 +341,10 @@ export default function AdminReports() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-            <p className="text-muted-foreground text-sm mt-1">Analytics and activity logs</p>
+            <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Revenue, conversions, fleet utilization & activity logs
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
@@ -290,17 +364,17 @@ export default function AdminReports() {
           </div>
         </div>
 
-        {/* Key Metrics */}
+        {/* Key Business Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="w-5 h-5 text-primary" />
+                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{filteredEvents.length}</p>
-                  <p className="text-xs text-muted-foreground">Events</p>
+                  <p className="text-2xl font-bold">${revenueStats.weekRevenue.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">This Week</p>
                 </div>
               </div>
             </CardContent>
@@ -308,11 +382,11 @@ export default function AdminReports() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-green-500" />
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-green-600">{overallConversion.toFixed(1)}%</p>
+                  <p className="text-2xl font-bold">{overallConversion.toFixed(1)}%</p>
                   <p className="text-xs text-muted-foreground">Conversion</p>
                 </div>
               </div>
@@ -321,12 +395,12 @@ export default function AdminReports() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-blue-500" />
+                <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                  <Car className="w-5 h-5 text-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{bookingCount}</p>
-                  <p className="text-xs text-muted-foreground">Bookings</p>
+                  <p className="text-2xl font-bold">{fleetStats.utilizationRate.toFixed(0)}%</p>
+                  <p className="text-xs text-muted-foreground">Utilization</p>
                 </div>
               </div>
             </CardContent>
@@ -334,82 +408,233 @@ export default function AdminReports() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <History className="w-5 h-5 text-amber-500" />
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <CalendarDays className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{auditStats?.total || 0}</p>
-                  <p className="text-xs text-muted-foreground">Changes (24h)</p>
+                  <p className="text-2xl font-bold">{revenueStats.avgDuration.toFixed(1)}</p>
+                  <p className="text-xs text-muted-foreground">Avg Days</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="analytics" className="space-y-4">
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="analytics" className="gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Analytics
+        <Tabs defaultValue="revenue" className="space-y-4">
+          <TabsList className="bg-muted/50 w-full justify-start overflow-x-auto flex-nowrap">
+            <TabsTrigger value="revenue" className="gap-2">
+              <DollarSign className="w-4 h-4" />
+              Revenue
+            </TabsTrigger>
+            <TabsTrigger value="funnel" className="gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Funnel
+            </TabsTrigger>
+            <TabsTrigger value="fleet" className="gap-2">
+              <Car className="w-4 h-4" />
+              Fleet
             </TabsTrigger>
             <TabsTrigger value="audit" className="gap-2">
               <History className="w-4 h-4" />
-              Audit Logs
+              Activity
             </TabsTrigger>
           </TabsList>
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-4">
-            {/* Conversion Funnel - Full Width */}
-            <ConversionFunnel events={filteredEvents} />
-
-            <div className="grid md:grid-cols-2 gap-4">
+          {/* Revenue Tab */}
+          <TabsContent value="revenue" className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Daily Activity</CardTitle>
-                  <CardDescription>Views and bookings</CardDescription>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-muted-foreground" />
+                    Revenue Summary
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {dailyTrend.every(d => d.views === 0 && d.conversions === 0) ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <TrendingUp className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No activity data</p>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">This Week</span>
+                      <span className="text-lg font-bold">${revenueStats.weekRevenue.toLocaleString()}</span>
                     </div>
-                  ) : (
-                    <ChartContainer config={chartConfig} className="h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={dailyTrend}>
-                          <XAxis dataKey="date" fontSize={10} />
-                          <YAxis fontSize={10} />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Bar dataKey="views" fill="var(--color-views)" radius={3} />
-                          <Bar dataKey="conversions" fill="var(--color-conversions)" radius={3} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                  )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">This Month</span>
+                      <span className="text-lg font-bold">${revenueStats.monthRevenue.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t pt-3">
+                      <span className="text-sm text-muted-foreground">All Time</span>
+                      <span className="text-xl font-bold text-primary">${revenueStats.totalRevenue.toLocaleString()}</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              {/* Event Distribution */}
-              <Card className="md:col-span-2">
+              <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Event Distribution</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                    Booking Metrics
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {eventDistribution.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">No data</div>
-                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {eventDistribution.map((item, idx) => (
-                        <div key={item.name} className="flex items-center gap-2 p-2 rounded bg-muted/30">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                          <span className="text-sm truncate flex-1">{item.name}</span>
-                          <span className="text-sm font-medium">{item.value}</span>
-                        </div>
-                      ))}
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Bookings</span>
+                      <span className="text-lg font-bold">{revenueStats.totalBookings}</span>
                     </div>
-                  )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Avg Booking Value</span>
+                      <span className="text-lg font-bold">${revenueStats.avgBookingValue.toFixed(0)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Avg Rental Duration</span>
+                      <span className="text-lg font-bold">{revenueStats.avgDuration.toFixed(1)} days</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Percent className="w-4 h-4 text-muted-foreground" />
+                    Conversion Metrics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Conversion Rate</span>
+                      <span className="text-lg font-bold text-success">{overallConversion.toFixed(1)}%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Page Views</span>
+                      <span className="text-lg font-bold">{filteredEvents.filter(e => e.event === "page_view").length}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Cart Abandonment</span>
+                      <span className="text-lg font-bold text-destructive">
+                        {funnelStats.find(s => s.key === "checkout_started")?.count || 0 > 0
+                          ? (((funnelStats.find(s => s.key === "checkout_started")?.count || 0) - 
+                             (funnelStats.find(s => s.key === "booking_completed")?.count || 0)) / 
+                             (funnelStats.find(s => s.key === "checkout_started")?.count || 1) * 100).toFixed(0)
+                          : 0}%
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Daily Chart */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Daily Activity</CardTitle>
+                <CardDescription>Views and bookings over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dailyTrend.every(d => d.views === 0 && d.conversions === 0) ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No activity data for this period</p>
+                  </div>
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dailyTrend}>
+                        <XAxis dataKey="date" fontSize={10} />
+                        <YAxis fontSize={10} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="views" fill="var(--color-views)" radius={3} />
+                        <Bar dataKey="conversions" fill="var(--color-conversions)" radius={3} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Funnel Tab */}
+          <TabsContent value="funnel" className="space-y-4">
+            <ConversionFunnel events={filteredEvents} />
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Event Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {eventDistribution.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">No data</div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {eventDistribution.map((item, idx) => (
+                      <div key={item.name} className="flex items-center gap-2 p-2 rounded bg-muted/30">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                        <span className="text-sm truncate flex-1">{item.name}</span>
+                        <span className="text-sm font-medium">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Fleet Tab */}
+          <TabsContent value="fleet" className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Car className="w-4 h-4 text-muted-foreground" />
+                    Fleet Utilization
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center py-4">
+                    <p className="text-4xl font-bold text-primary">{fleetStats.utilizationRate.toFixed(0)}%</p>
+                    <p className="text-sm text-muted-foreground mt-1">Current Utilization</p>
+                  </div>
+                  <Progress value={fleetStats.utilizationRate} className="h-3" />
+                  <div className="grid grid-cols-3 gap-3 pt-2 text-center">
+                    <div>
+                      <p className="text-xl font-bold">{fleetStats.activeRentals}</p>
+                      <p className="text-xs text-muted-foreground">Active</p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold">{fleetStats.availableVehicles}</p>
+                      <p className="text-xs text-muted-foreground">Available</p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold">{fleetStats.totalVehicles}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-muted-foreground" />
+                    Fleet Revenue
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Revenue per Vehicle</span>
+                      <span className="text-lg font-bold">${fleetStats.revenuePerVehicle.toFixed(0)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Revenue</span>
+                      <span className="text-lg font-bold">${revenueStats.totalRevenue.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Fleet Size</span>
+                      <span className="text-lg font-bold">{fleetStats.totalVehicles}</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>

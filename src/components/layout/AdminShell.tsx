@@ -1,6 +1,24 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Bell, BookOpen, Receipt, ArrowRightLeft, RotateCcw, Car, Calendar, AlertTriangle, MessageSquare, Settings, Search, Menu, X, LogOut, User, ChevronDown, KeyRound, ShoppingCart, BarChart3, History, Wallet, FileBarChart, ClipboardList } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  Bell, 
+  Receipt, 
+  Car, 
+  Calendar, 
+  MessageSquare, 
+  Settings, 
+  Search, 
+  Menu, 
+  X, 
+  LogOut, 
+  User, 
+  ChevronDown, 
+  ShoppingCart, 
+  BarChart3, 
+  Workflow,
+  Wrench,
+} from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,72 +30,83 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { usePendingAlertsCount } from "@/hooks/use-pending-alerts-count";
-const navItems = [{
-  href: "/admin",
-  label: "Overview",
-  icon: LayoutDashboard
-}, {
-  href: "/admin/alerts",
-  label: "Alerts",
-  icon: Bell,
-  badgeKey: "alerts" as const
-}, {
-  href: "/admin/bookings",
-  label: "Bookings",
-  icon: BookOpen
-}, {
-  href: "/admin/pickups",
-  label: "Pickups",
-  icon: KeyRound
-}, {
-  href: "/admin/active-rentals",
-  label: "Active Rentals",
-  icon: Car
-}, {
-  href: "/admin/returns",
-  label: "Returns",
-  icon: RotateCcw
-}, {
-  href: "/admin/inventory",
-  label: "Inventory",
-  icon: ArrowRightLeft
-}, {
-  href: "/admin/fleet-costs",
-  label: "Fleet Costs",
-  icon: Wallet
-}, {
-  href: "/admin/calendar",
-  label: "Calendar",
-  icon: Calendar
-}, {
-  href: "/admin/damages",
-  label: "Damages",
-  icon: AlertTriangle
-}, {
-  href: "/admin/billing",
-  label: "Billing",
-  icon: Receipt
-}, {
-  href: "/admin/tickets",
-  label: "Tickets",
-  icon: MessageSquare
-}, {
-  href: "/admin/abandoned-carts",
-  label: "Abandoned Carts",
-  icon: ShoppingCart
-}, {
-  href: "/admin/reports",
-  label: "Reports",
-  icon: FileBarChart
-}, {
-  href: "/admin/history",
-  label: "History",
-  icon: ClipboardList
-}, {
-  href: "/admin/settings",
-  label: "Settings",
-  icon: Settings
-}];
+
+/**
+ * Consolidated Admin Navigation
+ * Based on rental industry best practices:
+ * - Dashboard: Overview with key metrics
+ * - Operations: Unified workflow for bookings → pickups → active → returns
+ * - Fleet: Inventory + costs + damages
+ * - Analytics: Comprehensive business intelligence
+ * - Calendar: Visual scheduling
+ * - Billing: Payments & receipts
+ * - Support: Tickets + alerts combined
+ * - Recovery: Abandoned cart follow-up
+ * - Settings: Configuration
+ */
+const navItems = [
+  {
+    href: "/admin",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    description: "Overview & quick actions",
+  },
+  {
+    href: "/admin/bookings",
+    label: "Operations",
+    icon: Workflow,
+    description: "Bookings, pickups, rentals, returns",
+  },
+  {
+    href: "/admin/inventory",
+    label: "Fleet",
+    icon: Car,
+    description: "Vehicles, costs & damages",
+  },
+  {
+    href: "/admin/reports",
+    label: "Analytics",
+    icon: BarChart3,
+    description: "Metrics & reports",
+  },
+  {
+    href: "/admin/calendar",
+    label: "Calendar",
+    icon: Calendar,
+    description: "Schedule view",
+  },
+  {
+    href: "/admin/billing",
+    label: "Billing",
+    icon: Receipt,
+    description: "Payments & receipts",
+  },
+  {
+    href: "/admin/alerts",
+    label: "Alerts",
+    icon: Bell,
+    badgeKey: "alerts" as const,
+    description: "Action required",
+  },
+  {
+    href: "/admin/tickets",
+    label: "Support",
+    icon: MessageSquare,
+    description: "Customer tickets",
+  },
+  {
+    href: "/admin/abandoned-carts",
+    label: "Recovery",
+    icon: ShoppingCart,
+    description: "Abandoned bookings",
+  },
+  {
+    href: "/admin/settings",
+    label: "Settings",
+    icon: Settings,
+    description: "Configuration",
+  },
+];
 interface AdminShellProps {
   children: ReactNode;
   dateFilter?: string;
