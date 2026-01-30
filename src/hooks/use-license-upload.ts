@@ -103,9 +103,13 @@ export function useLicenseUpload(userId?: string) {
 
       toast({ title: "Success", description: "Driver's license uploaded successfully" });
       
-      // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ["license-status", uid] });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      // Force immediate refetch of all related queries
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["license-status", uid] }),
+        queryClient.refetchQueries({ queryKey: ["profile"] }),
+      ]);
+      // Also invalidate for any other components that might be listening
+      queryClient.invalidateQueries({ queryKey: ["booking"] });
       
       return signedUrl;
     } catch (error: any) {
