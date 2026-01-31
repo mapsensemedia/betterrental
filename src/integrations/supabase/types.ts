@@ -562,6 +562,56 @@ export type Database = {
           },
         ]
       }
+      competitor_pricing: {
+        Row: {
+          competitor_name: string
+          created_at: string
+          daily_rate: number | null
+          id: string
+          last_updated: string | null
+          monthly_rate: number | null
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+          weekly_rate: number | null
+        }
+        Insert: {
+          competitor_name: string
+          created_at?: string
+          daily_rate?: number | null
+          id?: string
+          last_updated?: string | null
+          monthly_rate?: number | null
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+          weekly_rate?: number | null
+        }
+        Update: {
+          competitor_name?: string
+          created_at?: string
+          daily_rate?: number | null
+          id?: string
+          last_updated?: string | null
+          monthly_rate?: number | null
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+          weekly_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_pricing_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       condition_photos: {
         Row: {
           booking_id: string
@@ -1497,9 +1547,14 @@ export type Database = {
         Row: {
           acquisition_cost: number
           acquisition_date: string | null
+          actual_disposal_date: string | null
+          annual_depreciation_amount: number | null
           color: string | null
           created_at: string
           current_mileage: number | null
+          depreciation_method: string | null
+          disposal_value: number | null
+          expected_disposal_date: string | null
           id: string
           license_plate: string | null
           mileage_at_acquisition: number | null
@@ -1507,14 +1562,22 @@ export type Database = {
           status: string
           updated_at: string
           vehicle_id: string
+          vendor_contact: string | null
+          vendor_name: string | null
+          vendor_notes: string | null
           vin: string
         }
         Insert: {
           acquisition_cost?: number
           acquisition_date?: string | null
+          actual_disposal_date?: string | null
+          annual_depreciation_amount?: number | null
           color?: string | null
           created_at?: string
           current_mileage?: number | null
+          depreciation_method?: string | null
+          disposal_value?: number | null
+          expected_disposal_date?: string | null
           id?: string
           license_plate?: string | null
           mileage_at_acquisition?: number | null
@@ -1522,14 +1585,22 @@ export type Database = {
           status?: string
           updated_at?: string
           vehicle_id: string
+          vendor_contact?: string | null
+          vendor_name?: string | null
+          vendor_notes?: string | null
           vin: string
         }
         Update: {
           acquisition_cost?: number
           acquisition_date?: string | null
+          actual_disposal_date?: string | null
+          annual_depreciation_amount?: number | null
           color?: string | null
           created_at?: string
           current_mileage?: number | null
+          depreciation_method?: string | null
+          disposal_value?: number | null
+          expected_disposal_date?: string | null
           id?: string
           license_plate?: string | null
           mileage_at_acquisition?: number | null
@@ -1537,6 +1608,9 @@ export type Database = {
           status?: string
           updated_at?: string
           vehicle_id?: string
+          vendor_contact?: string | null
+          vendor_name?: string | null
+          vendor_notes?: string | null
           vin?: string
         }
         Relationships: [
