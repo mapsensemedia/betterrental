@@ -8,7 +8,7 @@ import { useVehicle } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { calculateBookingPricing, ageRangeToAgeBand, TAX_RATE } from "@/lib/pricing";
+import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE } from "@/lib/pricing";
 
 interface BookingSummaryPanelProps {
   className?: string;
@@ -45,14 +45,21 @@ export function BookingSummaryPanel({
       addOnsTotal,
       deliveryFee,
       driverAgeBand,
+      pickupDate: searchData.pickupDate,
     });
 
     return { 
       basePrice: breakdown.vehicleTotal, 
+      weekendSurcharge: breakdown.weekendSurcharge,
+      durationDiscount: breakdown.durationDiscount,
+      discountType: breakdown.discountType,
       addOnsTotal, 
       deliveryFee, 
       youngDriverFee: breakdown.youngDriverFee,
+      dailyFeesTotal: breakdown.dailyFeesTotal,
       subtotal: breakdown.subtotal, 
+      pstAmount: breakdown.pstAmount,
+      gstAmount: breakdown.gstAmount,
       taxAmount: breakdown.taxAmount, 
       total: breakdown.total, 
       itemized 
@@ -199,6 +206,20 @@ export function BookingSummaryPanel({
                 <span>${pricing.basePrice.toFixed(0)}</span>
               </div>
               
+              {pricing.weekendSurcharge > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>Weekend surcharge</span>
+                  <span>+${pricing.weekendSurcharge.toFixed(0)}</span>
+                </div>
+              )}
+              
+              {pricing.durationDiscount > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>{pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount</span>
+                  <span>-${pricing.durationDiscount.toFixed(0)}</span>
+                </div>
+              )}
+              
               {pricing.addOnsTotal > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Add-ons</span>
@@ -220,11 +241,26 @@ export function BookingSummaryPanel({
                 </div>
               )}
               
+              {pricing.dailyFeesTotal > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Daily fees (PVRT + ACSRCH)</span>
+                  <span>${pricing.dailyFeesTotal.toFixed(2)}</span>
+                </div>
+              )}
+              
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
-                  Tax ({(TAX_RATE * 100).toFixed(0)}%)
+                  Tax ({(TOTAL_TAX_RATE * 100).toFixed(0)}%)
                 </span>
                 <span>${pricing.taxAmount.toFixed(0)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground pl-4">
+                <span>PST (7%)</span>
+                <span>${pricing.pstAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground pl-4">
+                <span>GST (5%)</span>
+                <span>${pricing.gstAmount.toFixed(2)}</span>
               </div>
               
               <Separator className="my-2" />

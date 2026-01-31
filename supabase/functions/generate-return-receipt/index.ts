@@ -93,6 +93,12 @@ serve(async (req) => {
       userName = authUser?.user?.user_metadata?.full_name || userName;
     }
 
+    // Tax rates (must match frontend)
+    const PST_RATE = 0.07;
+    const GST_RATE = 0.05;
+    const PVRT_DAILY_FEE = 1.50;
+    const ACSRCH_DAILY_FEE = 1.00;
+
     // Build line items
     const lineItems: { description: string; quantity: number; unitPrice: number; total: number }[] = [];
 
@@ -113,6 +119,24 @@ serve(async (req) => {
         total: Number(booking.young_driver_fee),
       });
     }
+
+    // Daily regulatory fees
+    const pvrtTotal = PVRT_DAILY_FEE * booking.total_days;
+    const acsrchTotal = ACSRCH_DAILY_FEE * booking.total_days;
+    
+    lineItems.push({
+      description: `PVRT (${booking.total_days} days @ $${PVRT_DAILY_FEE}/day)`,
+      quantity: booking.total_days,
+      unitPrice: PVRT_DAILY_FEE,
+      total: pvrtTotal,
+    });
+    
+    lineItems.push({
+      description: `ACSRCH (${booking.total_days} days @ $${ACSRCH_DAILY_FEE}/day)`,
+      quantity: booking.total_days,
+      unitPrice: ACSRCH_DAILY_FEE,
+      total: acsrchTotal,
+    });
 
     // Add-ons
     (addOns || []).forEach((addon: any) => {
@@ -153,15 +177,27 @@ serve(async (req) => {
       }
     }
 
+    // Calculate tax breakdown
+    const subtotal = Number(booking.subtotal) + pvrtTotal + acsrchTotal + Number(booking.young_driver_fee || 0);
+    const pstAmount = subtotal * PST_RATE;
+    const gstAmount = subtotal * GST_RATE;
+    const totalTax = pstAmount + gstAmount;
+
     // Calculate totals
     const totals = {
-      subtotal: Number(booking.subtotal),
-      tax: Number(booking.tax_amount) || 0,
+      subtotal: subtotal,
+      pst: pstAmount,
+      gst: gstAmount,
+      tax: totalTax,
       total: Number(booking.total_amount),
       depositCollected: depositAmount,
       depositReleased: depositReleased,
       depositWithheld: depositWithheld,
       balanceDue: 0,
+      dailyFees: {
+        pvrt: pvrtTotal,
+        acsrch: acsrchTotal,
+      },
     };
 
     // Generate receipt number
