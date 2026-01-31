@@ -41,6 +41,7 @@ import {
   ExternalLink,
   Send,
   Receipt,
+  RotateCcw,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -178,10 +179,18 @@ export default function ActiveRentalDetail() {
 
           {/* Quick Actions */}
           <div className="flex items-center gap-2">
+            {/* Primary Action - Return Vehicle */}
+            <Button size="sm" asChild className="gap-2">
+              <Link to={`/admin/returns/${rental.id}`}>
+                <RotateCcw className="h-4 w-4" />
+                Return Vehicle
+              </Link>
+            </Button>
+            
             <Dialog open={flagDialogOpen} onOpenChange={setFlagDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <Flag className="h-4 w-4 mr-2" />
+                <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
+                  <Flag className="h-4 w-4" />
                   Flag Issue
                 </Button>
               </DialogTrigger>
@@ -212,13 +221,6 @@ export default function ActiveRentalDetail() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
-            <Button variant="outline" size="sm" asChild>
-              <Link to={`/admin/bookings/${rental.id}/ops?returnTo=/admin/active-rentals/${rental.id}`}>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View Full Details
-              </Link>
-            </Button>
           </div>
         </div>
 

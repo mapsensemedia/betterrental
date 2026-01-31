@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { RealtimeAlertsPanel } from "@/components/admin/RealtimeAlertsPanel";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
+import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
 import { useAdminRealtimeSubscriptions } from "@/hooks/use-realtime-subscriptions";
 import {
   Car,
@@ -30,6 +31,7 @@ import {
   CheckCircle2,
   XCircle,
   Users,
+  UserPlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +44,7 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { getBookingRoute, getBookingActionLabel } from "@/lib/booking-routes";
 
 // ==========================================
 // HOW TO USE — COMPLETE OPERATIONAL GUIDE
@@ -198,6 +201,7 @@ const quickGuide = [
 export default function AdminOverview() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
   const { data: bookings = [], isLoading: bookingsLoading } = useAdminBookings();
   const { data: alerts = [] } = useAdminAlerts();
   
@@ -288,15 +292,30 @@ export default function AdminOverview() {
               {format(new Date(), "EEEE, MMMM d, yyyy")}
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => setActiveTab(activeTab === "guide" ? "dashboard" : "guide")}
-            className="gap-2"
-          >
-            <HelpCircle className="w-4 h-4" />
-            {activeTab === "guide" ? "Back to Dashboard" : "How to Use"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setWalkInDialogOpen(true)}
+              className="gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Walk-In Booking
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setActiveTab(activeTab === "guide" ? "dashboard" : "guide")}
+              className="gap-2"
+            >
+              <HelpCircle className="w-4 h-4" />
+              {activeTab === "guide" ? "Back to Dashboard" : "How to Use"}
+            </Button>
+          </div>
         </div>
+
+        {/* Walk-in Booking Dialog */}
+        <WalkInBookingDialog 
+          open={walkInDialogOpen} 
+          onOpenChange={setWalkInDialogOpen} 
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -375,9 +394,9 @@ export default function AdminOverview() {
                         size="sm" 
                         variant="default" 
                         className="shrink-0"
-                        onClick={() => navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin`)}
+                        onClick={() => navigate(getBookingRoute(booking.id, booking.status, { returnTo: "/admin" }))}
                       >
-                        Open
+                        {getBookingActionLabel(booking.status)}
                       </Button>
                     </div>
                   ))}

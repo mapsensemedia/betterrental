@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 import type { Database } from "@/integrations/supabase/types";
+import { getBookingRoute } from "@/lib/booking-routes";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -69,7 +70,7 @@ function BookingWorkflowCard({
   showAction = "view",
 }: { 
   booking: any; 
-  onOpen: (id: string) => void;
+  onOpen: (id: string, status?: BookingStatus) => void;
   showAction?: "view" | "pickup" | "return";
 }) {
   const isOverdue = booking.status === "active" && isBefore(parseISO(booking.endAt), new Date());
@@ -77,7 +78,7 @@ function BookingWorkflowCard({
   return (
     <div 
       className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-      onClick={() => onOpen(booking.id)}
+      onClick={() => onOpen(booking.id, booking.status)}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
@@ -166,8 +167,20 @@ export default function AdminBookings() {
     }
   }, [activeTab, setSearchParams]);
 
-  const handleOpenBooking = (bookingId: string) => {
-    navigate(`/admin/bookings/${bookingId}/ops?returnTo=/admin/bookings`);
+  const handleOpenBooking = (bookingId: string, status?: BookingStatus) => {
+    // Use smart routing based on status
+    if (status) {
+      navigate(getBookingRoute(bookingId, status, { returnTo: "/admin/bookings" }));
+    } else {
+      // Fallback - find the booking and get its status
+      const booking = bookings?.find(b => b.id === bookingId);
+      if (booking) {
+        navigate(getBookingRoute(bookingId, booking.status, { returnTo: "/admin/bookings" }));
+      } else {
+        // Default to ops route
+        navigate(`/admin/bookings/${bookingId}/ops?returnTo=/admin/bookings`);
+      }
+    }
   };
 
   const handleFilterChange = (key: keyof BookingFilters, value: string) => {
@@ -370,7 +383,7 @@ export default function AdminBookings() {
                         <TableRow 
                           key={booking.id} 
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleOpenBooking(booking.id)}
+                          onClick={() => handleOpenBooking(booking.id, booking.status)}
                         >
                           <TableCell>
                             <Badge variant="outline" className="font-mono text-xs">
