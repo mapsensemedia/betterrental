@@ -42,6 +42,15 @@ import {
   DollarSign,
   Clock,
 } from "lucide-react";
+import { 
+  PICKUP_TIME_WINDOWS, 
+  DEFAULT_PICKUP_TIME 
+} from "@/lib/rental-rules";
+import { 
+  calculateBookingPricing, 
+  DEFAULT_DEPOSIT_AMOUNT, 
+  TOTAL_TAX_RATE 
+} from "@/lib/pricing";
 
 interface WalkInBookingDialogProps {
   open: boolean;
@@ -68,8 +77,10 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     vehicleId: "",
     startDate: new Date(),
     endDate: addDays(new Date(), 1),
+    pickupTime: DEFAULT_PICKUP_TIME,
+    returnTime: DEFAULT_PICKUP_TIME,
     dailyRate: 0,
-    depositAmount: 250,
+    depositAmount: DEFAULT_DEPOSIT_AMOUNT,
     notes: "",
   });
 
@@ -79,14 +90,20 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     (!formData.locationId || v.locationId === formData.locationId || !v.locationId)
   );
 
-  // Calculate totals
+  // Calculate totals using central pricing utility
   const totalDays = Math.max(1, Math.ceil(
     (formData.endDate.getTime() - formData.startDate.getTime()) / (1000 * 60 * 60 * 24)
   ));
-  const subtotal = formData.dailyRate * totalDays;
-  const taxRate = 0.08; // 8% tax
-  const taxAmount = subtotal * taxRate;
-  const totalAmount = subtotal + taxAmount;
+  
+  const pricing = calculateBookingPricing({
+    vehicleDailyRate: formData.dailyRate,
+    rentalDays: totalDays,
+    pickupDate: formData.startDate,
+  });
+  
+  const subtotal = pricing.subtotal;
+  const taxAmount = pricing.taxAmount;
+  const totalAmount = pricing.total;
 
   // Auto-set daily rate when vehicle is selected
   useEffect(() => {
@@ -402,7 +419,53 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                       initialFocus
                     />
                   </PopoverContent>
-                </Popover>
+              </Popover>
+              </div>
+            </div>
+
+            {/* Time Windows */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Pickup Time Window</Label>
+                <Select
+                  value={formData.pickupTime}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, pickupTime: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PICKUP_TIME_WINDOWS.map((tw) => (
+                      <SelectItem key={tw.value} value={tw.value}>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3" />
+                          {tw.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Return Time Window</Label>
+                <Select
+                  value={formData.returnTime}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, returnTime: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PICKUP_TIME_WINDOWS.map((tw) => (
+                      <SelectItem key={tw.value} value={tw.value}>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3" />
+                          {tw.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -448,15 +511,39 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span className="text-muted-foreground">Vehicle (${formData.dailyRate}/day)</span>
+                <span>${pricing.vehicleBaseTotal.toFixed(2)}</span>
+              </div>
+              {pricing.weekendSurcharge > 0 && (
+                <div className="flex justify-between text-sm text-amber-600">
+                  <span>Weekend surcharge (15%)</span>
+                  <span>+${pricing.weekendSurcharge.toFixed(2)}</span>
+                </div>
+              )}
+              {pricing.durationDiscount > 0 && (
+                <div className="flex justify-between text-sm text-emerald-600">
+                  <span>{pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount</span>
+                  <span>-${pricing.durationDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Daily fees (PVRT + ACSRCH)</span>
+                <span>${pricing.dailyFeesTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax (8%)</span>
+                <span className="text-muted-foreground">Tax ({(TOTAL_TAX_RATE * 100).toFixed(0)}%)</span>
                 <span>${taxAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Deposit</span>
+              <div className="flex justify-between text-sm text-muted-foreground text-xs pl-4">
+                <span>PST (7%)</span>
+                <span>${pricing.pstAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground text-xs pl-4">
+                <span>GST (5%)</span>
+                <span>${pricing.gstAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm pt-1 border-t">
+                <span className="text-muted-foreground">Security Deposit</span>
                 <span>${formData.depositAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-semibold pt-2 border-t">

@@ -9,6 +9,7 @@ import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { RealtimeAlertsPanel } from "@/components/admin/RealtimeAlertsPanel";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
 import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
+import { FailedPaymentsWidget } from "@/components/admin/FailedPaymentsWidget";
 import { useAdminRealtimeSubscriptions } from "@/hooks/use-realtime-subscriptions";
 import {
   Car,
@@ -403,6 +404,9 @@ export default function AdminOverview() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Failed Payments Widget - Shows only if there are failed payments */}
+            <FailedPaymentsWidget />
 
             {/* Awaiting Pickup - Confirmed bookings with completeness */}
             {confirmedBookings > 0 && (

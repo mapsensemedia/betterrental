@@ -25,15 +25,50 @@ import { ChevronLeft, ChevronRight, Car, Search } from "lucide-react";
 import { format, parseISO, addHours } from "date-fns";
 import { cn } from "@/lib/utils";
 
+// Calendar event type for color coding
+type CalendarEventType = "pickup" | "active" | "return" | "overdue";
+
 const STATUS_COLORS: Record<string, { bg: string; label: string }> = {
   pending: { bg: "bg-amber-500", label: "Pending" },
   confirmed: { bg: "bg-blue-500", label: "Confirmed" },
   active: { bg: "bg-green-500", label: "Active" },
 };
 
+// Event type colors for visual distinction
+const EVENT_TYPE_COLORS: Record<CalendarEventType, { bg: string; label: string; border: string }> = {
+  pickup: { bg: "bg-blue-500", label: "Pickup", border: "border-blue-600" },
+  active: { bg: "bg-green-500", label: "Active", border: "border-green-600" },
+  return: { bg: "bg-amber-500", label: "Return Due", border: "border-amber-600" },
+  overdue: { bg: "bg-red-500", label: "Overdue", border: "border-red-600" },
+};
+
 const BUFFER_COLOR = "bg-muted-foreground/30";
 
 const VEHICLE_CATEGORIES = ["Sedan", "SUV", "Sports", "Luxury", "Electric", "Convertible", "Compact"];
+
+// Helper to determine event type for a booking
+function getEventType(booking: { status: string; startAt: string; endAt: string }): CalendarEventType {
+  const now = new Date();
+  const startDate = parseISO(booking.startAt);
+  const endDate = parseISO(booking.endAt);
+  
+  if (booking.status === "confirmed") {
+    return "pickup";
+  }
+  
+  if (booking.status === "active") {
+    if (now > endDate) {
+      return "overdue";
+    }
+    // Check if return is today
+    if (format(now, "yyyy-MM-dd") === format(endDate, "yyyy-MM-dd")) {
+      return "return";
+    }
+    return "active";
+  }
+  
+  return "pickup"; // Default
+}
 
 export default function AdminCalendar() {
   const navigate = useNavigate();
@@ -235,10 +270,10 @@ export default function AdminCalendar() {
           </div>
         )}
 
-        {/* Legend */}
+        {/* Legend - Event Types */}
         <div className="flex flex-wrap items-center gap-4 text-sm">
-          {Object.entries(STATUS_COLORS).map(([status, { bg, label }]) => (
-            <div key={status} className="flex items-center gap-2">
+          {Object.entries(EVENT_TYPE_COLORS).map(([type, { bg, label }]) => (
+            <div key={type} className="flex items-center gap-2">
               <div className={cn("w-3 h-3 rounded", bg)} />
               <span className="text-muted-foreground">{label}</span>
             </div>
@@ -337,7 +372,8 @@ export default function AdminCalendar() {
                               calendarData.weekEnd
                             );
 
-                            const statusColor = STATUS_COLORS[booking.status]?.bg || "bg-gray-500";
+                            const eventType = getEventType(booking);
+                            const eventColor = EVENT_TYPE_COLORS[eventType];
 
                             return (
                               <div key={booking.id}>
@@ -347,8 +383,8 @@ export default function AdminCalendar() {
                                     <button
                                       onClick={() => navigate(`/admin/bookings?id=${booking.id}`)}
                                       className={cn(
-                                        "absolute top-2 h-7 rounded cursor-pointer transition-all hover:opacity-80 hover:ring-2 hover:ring-primary flex items-center justify-center text-xs font-medium text-white px-2 truncate",
-                                        statusColor
+                                        "absolute top-2 h-7 rounded cursor-pointer transition-all hover:opacity-80 hover:ring-2 hover:ring-primary flex items-center justify-center text-xs font-medium text-white px-2 truncate border-l-4",
+                                        eventColor.bg, eventColor.border
                                       )}
                                       style={{
                                         left: bookingPos.left,

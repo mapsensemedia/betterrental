@@ -751,9 +751,21 @@ export default function NewCheckout() {
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-2 text-sm mb-4 p-4 bg-muted rounded-lg">
                     <div className="flex justify-between">
-                      <span>Vehicle ({rentalDays} days)</span>
-                      <span>CA${pricing.vehicleTotal.toFixed(2)}</span>
+                      <span>Vehicle ({rentalDays} days × CA${vehicle?.dailyRate}/day)</span>
+                      <span>CA${pricing.vehicleBaseTotal.toFixed(2)}</span>
                     </div>
+                    {pricing.weekendSurcharge > 0 && (
+                      <div className="flex justify-between text-amber-600">
+                        <span>Weekend surcharge (15%)</span>
+                        <span>+CA${pricing.weekendSurcharge.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {pricing.durationDiscount > 0 && (
+                      <div className="flex justify-between text-emerald-600">
+                        <span>{pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount</span>
+                        <span>-CA${pricing.durationDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
                     {pricing.protectionTotal > 0 && (
                       <div className="flex justify-between">
                         <span>{pricing.protectionName}</span>
@@ -778,14 +790,28 @@ export default function NewCheckout() {
                         <span>CA${pricing.youngDriverFee.toFixed(2)}</span>
                       </div>
                     )}
+                    {pricing.dailyFeesTotal > 0 && (
+                      <div className="flex justify-between">
+                        <span>Daily fees (PVRT + ACSRCH)</span>
+                        <span>CA${pricing.dailyFeesTotal.toFixed(2)}</span>
+                      </div>
+                    )}
                     <Separator className="my-2" />
                     <div className="flex justify-between">
                       <span>Subtotal</span>
                       <span>CA${pricing.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Taxes (13%)</span>
+                      <span>Taxes (12%)</span>
                       <span>CA${pricing.taxAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground pl-4">
+                      <span>PST (7%)</span>
+                      <span>CA${pricing.pstAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground pl-4">
+                      <span>GST (5%)</span>
+                      <span>CA${pricing.gstAmount.toFixed(2)}</span>
                     </div>
                     <Separator className="my-2" />
                     <div className="flex justify-between font-semibold">
