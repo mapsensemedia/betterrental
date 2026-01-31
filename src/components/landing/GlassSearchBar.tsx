@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Calendar, Clock, Search, ChevronDown } from "lucide-react";
+import { MapPin, Calendar, Clock, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocations } from "@/hooks/use-locations";
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PICKUP_TIME_WINDOWS, DEFAULT_PICKUP_TIME } from "@/lib/rental-rules";
 
 interface GlassSearchBarProps {
   className?: string;
@@ -25,9 +26,9 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
   const [sameDropoff, setSameDropoff] = useState(true);
   const [dropoffLocationId, setDropoffLocationId] = useState<string>("");
   const [pickupDate, setPickupDate] = useState<string>("");
-  const [pickupTime, setPickupTime] = useState<string>("10:00");
+  const [pickupTime, setPickupTime] = useState<string>(DEFAULT_PICKUP_TIME);
   const [returnDate, setReturnDate] = useState<string>("");
-  const [returnTime, setReturnTime] = useState<string>("10:00");
+  const [returnTime, setReturnTime] = useState<string>(DEFAULT_PICKUP_TIME);
 
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
@@ -112,15 +113,21 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Pickup Time
           </label>
-          <div className="relative">
-            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="time"
-              value={pickupTime}
-              onChange={(e) => setPickupTime(e.target.value)}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
+          <Select value={pickupTime} onValueChange={setPickupTime}>
+            <SelectTrigger className="h-12 rounded-xl border-border bg-background">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="Select time" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {PICKUP_TIME_WINDOWS.map((tw) => (
+                <SelectItem key={tw.value} value={tw.value}>
+                  {tw.displayLabel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Return Date & Time */}
@@ -144,17 +151,21 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Return Time
           </label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="time"
-                value={returnTime}
-                onChange={(e) => setReturnTime(e.target.value)}
-                className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-          </div>
+          <Select value={returnTime} onValueChange={setReturnTime}>
+            <SelectTrigger className="h-12 rounded-xl border-border bg-background">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="Select time" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {PICKUP_TIME_WINDOWS.map((tw) => (
+                <SelectItem key={tw.value} value={tw.value}>
+                  {tw.displayLabel}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
