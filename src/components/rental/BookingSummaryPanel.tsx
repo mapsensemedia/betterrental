@@ -1,5 +1,6 @@
 /**
  * BookingSummaryPanel - Persistent summary shown on select-car, extras, checkout pages
+ * Uses central pricing utility as single source of truth
  */
 import { MapPin, Calendar, Clock, Car, Package, CreditCard, User } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -14,16 +15,22 @@ interface BookingSummaryPanelProps {
   className?: string;
   showPricing?: boolean;
   protectionDailyRate?: number;
+  /** Override add-on IDs (for pages that manage selection locally) */
+  selectedAddOnIds?: string[];
 }
 
 export function BookingSummaryPanel({
   className,
   showPricing = true,
   protectionDailyRate = 0,
+  selectedAddOnIds: overrideAddOnIds,
 }: BookingSummaryPanelProps) {
   const { searchData, rentalDays } = useRentalBooking();
   const { data: vehicle } = useVehicle(searchData.selectedVehicleId);
   const { data: addOns = [] } = useAddOns();
+
+  // Use override add-on IDs if provided, otherwise fall back to context
+  const effectiveAddOnIds = overrideAddOnIds ?? searchData.selectedAddOnIds;
 
   // Calculate pricing using central utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
@@ -33,7 +40,7 @@ export function BookingSummaryPanel({
 
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(
       addOns,
-      searchData.selectedAddOnIds,
+      effectiveAddOnIds,
       rentalDays
     );
     const deliveryFee = searchData.deliveryFee || 0;
@@ -67,7 +74,7 @@ export function BookingSummaryPanel({
   })();
 
   const selectedAddOnsData = addOns.filter((a) =>
-    searchData.selectedAddOnIds.includes(a.id)
+    effectiveAddOnIds.includes(a.id)
   );
 
   // Location display

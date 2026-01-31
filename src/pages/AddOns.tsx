@@ -63,6 +63,7 @@ export default function AddOns() {
     premium: 49.77,
   };
   const protectionDailyRate = protectionRates[protection] || 0;
+  const deliveryFee = searchData.deliveryMode === "delivery" ? (searchData.deliveryFee || 0) : 0;
   
   const addOnsTotal = selectedAddOnIds.reduce((sum, id) => {
     const addon = addOns.find((a) => a.id === id);
@@ -75,7 +76,9 @@ export default function AddOns() {
     rentalDays,
     protectionDailyRate,
     addOnsTotal,
+    deliveryFee,
     driverAgeBand,
+    pickupDate: searchData.pickupDate,
   });
   
   const totalPrice = pricing.total;
@@ -231,6 +234,7 @@ export default function AddOns() {
                 <BookingSummaryPanel 
                   showPricing={true} 
                   protectionDailyRate={protectionDailyRate}
+                  selectedAddOnIds={selectedAddOnIds}
                 />
               </div>
             </div>

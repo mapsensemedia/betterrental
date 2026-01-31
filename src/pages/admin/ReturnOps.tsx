@@ -106,7 +106,11 @@ export default function ReturnOps() {
     },
     issues: {
       reviewed: isStateAtLeast(returnState, "issues_reviewed"),
-      damagesRecorded: (damages?.length || 0) > 0,
+      // damagesRecorded is true when:
+      // 1. Issues step has been reviewed (state machine says so), OR
+      // 2. There are actual damage reports
+      // This ensures "no damage" is a valid completion state
+      damagesRecorded: isStateAtLeast(returnState, "issues_reviewed") || (damages?.length || 0) > 0,
     },
     closeout: {
       completed: isCompleted,

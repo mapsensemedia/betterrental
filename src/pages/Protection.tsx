@@ -43,12 +43,15 @@ export default function Protection() {
   // Calculate total price using central pricing utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
   const selectedProtection = PROTECTION_PACKAGES.find((p) => p.id === selectedPackage);
+  const deliveryFee = searchData.deliveryMode === "delivery" ? (searchData.deliveryFee || 0) : 0;
   
   const pricing = calculateBookingPricing({
     vehicleDailyRate: vehicle?.dailyRate || 0,
     rentalDays,
     protectionDailyRate: selectedProtection?.dailyRate || 0,
+    deliveryFee,
     driverAgeBand,
+    pickupDate: searchData.pickupDate,
   });
   
   const totalPrice = pricing.total;
