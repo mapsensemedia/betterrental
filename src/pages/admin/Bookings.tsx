@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
 import { format, isToday, isTomorrow, parseISO, isThisWeek, isBefore, addDays } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -44,6 +45,8 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
+  Plus,
+  UserPlus,
 } from "lucide-react";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 import type { Database } from "@/integrations/supabase/types";
@@ -133,6 +136,7 @@ export default function AdminBookings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "all");
+  const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
   const [filters, setFilters] = useState<BookingFilters>({
     status: "all",
     search: searchParams.get("code") || "",
@@ -234,6 +238,10 @@ export default function AdminBookings() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button onClick={() => setWalkInDialogOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Walk-In Booking
+            </Button>
             <div className="relative flex-1 min-w-[200px] max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -248,6 +256,12 @@ export default function AdminBookings() {
             </Button>
           </div>
         </div>
+
+        {/* Walk-In Booking Dialog */}
+        <WalkInBookingDialog 
+          open={walkInDialogOpen} 
+          onOpenChange={setWalkInDialogOpen} 
+        />
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
