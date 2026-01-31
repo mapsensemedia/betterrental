@@ -45,21 +45,15 @@ const AdminOverview = lazy(() => import("./pages/admin/Overview"));
 const AdminAlerts = lazy(() => import("./pages/admin/Alerts"));
 const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
 const AdminBilling = lazy(() => import("./pages/admin/Billing"));
-const AdminReturns = lazy(() => import("./pages/admin/Returns"));
 const AdminInventory = lazy(() => import("./pages/admin/Inventory"));
-const AdminFleetCosts = lazy(() => import("./pages/admin/FleetCosts"));
 const AdminCalendar = lazy(() => import("./pages/admin/Calendar"));
-const AdminDamages = lazy(() => import("./pages/admin/Damages"));
 const AdminTickets = lazy(() => import("./pages/admin/Tickets"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
-const AdminPickups = lazy(() => import("./pages/admin/Pickups"));
-const AdminActiveRentals = lazy(() => import("./pages/admin/ActiveRentals"));
 const ActiveRentalDetail = lazy(() => import("./pages/admin/ActiveRentalDetail"));
 const BookingOps = lazy(() => import("./pages/admin/BookingOps"));
 const ReturnOps = lazy(() => import("./pages/admin/ReturnOps"));
 const AbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminReports = lazy(() => import("./pages/admin/Reports"));
-const AdminHistory = lazy(() => import("./pages/admin/History"));
 
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
@@ -126,32 +120,24 @@ const App = () => (
                 <Route path="/admin/alerts" element={<AdminProtectedRoute><AdminAlerts /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings" element={<AdminProtectedRoute><AdminBookings /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
-                <Route path="/admin/pickups" element={<AdminProtectedRoute><AdminPickups /></AdminProtectedRoute>} />
-                <Route path="/admin/active-rentals" element={<AdminProtectedRoute><AdminActiveRentals /></AdminProtectedRoute>} />
-                <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
-                <Route path="/admin/returns" element={<AdminProtectedRoute><AdminReturns /></AdminProtectedRoute>} />
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
+                <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/inventory" element={<AdminProtectedRoute><AdminInventory /></AdminProtectedRoute>} />
-                <Route path="/admin/fleet-costs" element={<AdminProtectedRoute><AdminFleetCosts /></AdminProtectedRoute>} />
                 <Route path="/admin/calendar" element={<AdminProtectedRoute><AdminCalendar /></AdminProtectedRoute>} />
-                <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
                 <Route path="/admin/tickets" element={<AdminProtectedRoute><AdminTickets /></AdminProtectedRoute>} />
                 <Route path="/admin/abandoned-carts" element={<AdminProtectedRoute><AbandonedCarts /></AdminProtectedRoute>} />
                 <Route path="/admin/reports" element={<AdminProtectedRoute><AdminReports /></AdminProtectedRoute>} />
-                <Route path="/admin/history" element={<AdminProtectedRoute><AdminHistory /></AdminProtectedRoute>} />
-                <Route path="/admin/analytics" element={<Navigate to="/admin/reports" replace />} />
-                <Route path="/admin/audit-logs" element={<Navigate to="/admin/reports" replace />} />
                 <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
 
-                {/* Redirects for consolidated nav items */}
+                {/* Redirects for consolidated nav items - all go to Operations hub */}
+                <Route path="/admin/pickups" element={<Navigate to="/admin/bookings?tab=pickups" replace />} />
+                <Route path="/admin/active-rentals" element={<Navigate to="/admin/bookings?tab=active" replace />} />
+                <Route path="/admin/returns" element={<Navigate to="/admin/bookings?tab=returns" replace />} />
+                <Route path="/admin/history" element={<Navigate to="/admin/bookings?tab=completed" replace />} />
                 <Route path="/admin/handovers" element={<Navigate to="/admin/bookings" replace />} />
-                <Route path="/admin/pickups" element={<Navigate to="/admin/bookings" replace />} />
-                <Route path="/admin/active-rentals" element={<Navigate to="/admin/bookings" replace />} />
-                <Route path="/admin/returns" element={<Navigate to="/admin/bookings" replace />} />
                 <Route path="/admin/fleet-costs" element={<Navigate to="/admin/inventory" replace />} />
                 <Route path="/admin/damages" element={<Navigate to="/admin/inventory" replace />} />
-                <Route path="/admin/history" element={<Navigate to="/admin/reports" replace />} />
                 <Route path="/admin/photos" element={<Navigate to="/admin/inventory" replace />} />
                 <Route path="/admin/verifications" element={<Navigate to="/admin/alerts?type=verification_pending" replace />} />
                 <Route path="/admin/analytics" element={<Navigate to="/admin/reports" replace />} />
