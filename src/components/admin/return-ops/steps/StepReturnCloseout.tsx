@@ -44,8 +44,11 @@ export function StepReturnCloseout({
     ? isStateAtLeast(returnState, "issues_reviewed")
     : completion.issues.reviewed;
   
-  // Damage check is now REQUIRED - cannot complete without explicit damage acknowledgment
-  const damageCheckComplete = completion.issues.damagesRecorded;
+  // Damage check is complete when:
+  // 1. Issues step is reviewed (which includes damage acknowledgment), OR
+  // 2. damagesRecorded flag is true (explicit damage reporting)
+  // The key insight: completing the issues step means damage was either reported or confirmed as "none"
+  const damageCheckComplete = issuesComplete || completion.issues.damagesRecorded;
   
   const prerequisites = [
     { 
@@ -56,7 +59,7 @@ export function StepReturnCloseout({
     { 
       label: "Evidence photos captured", 
       complete: evidenceComplete,
-      required: true, // Now required
+      required: true,
     },
     { 
       label: "Issues & damages reviewed", 
@@ -67,7 +70,10 @@ export function StepReturnCloseout({
       label: "Damage check completed", 
       complete: damageCheckComplete,
       required: true,
-      description: "Must confirm no damage OR report damage with photos",
+      // Show helpful description based on state
+      description: damageCheckComplete 
+        ? "Damage status confirmed" 
+        : "Review issues step to confirm damage status",
     },
   ];
 
@@ -76,7 +82,7 @@ export function StepReturnCloseout({
   
   // GATING: Can only close out if ALL required items are complete
   const canCloseOut = returnState 
-    ? isStateAtLeast(returnState, "issues_reviewed") && damageCheckComplete
+    ? isStateAtLeast(returnState, "issues_reviewed")
     : requiredComplete;
 
   return (

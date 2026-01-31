@@ -11,19 +11,28 @@ import { cn } from "@/lib/utils";
 interface TotalBarProps {
   className?: string;
   protectionDailyRate?: number;
+  /** Override add-on IDs (for pages that manage selection locally) */
+  selectedAddOnIds?: string[];
 }
 
-export function TotalBar({ className, protectionDailyRate = 0 }: TotalBarProps) {
+export function TotalBar({ 
+  className, 
+  protectionDailyRate = 0,
+  selectedAddOnIds: overrideAddOnIds,
+}: TotalBarProps) {
   const { searchData, rentalDays } = useRentalBooking();
   const { data: vehicle } = useVehicle(searchData.selectedVehicleId);
   const { data: addOns = [] } = useAddOns();
+
+  // Use override add-on IDs if provided, otherwise fall back to context
+  const effectiveAddOnIds = overrideAddOnIds ?? searchData.selectedAddOnIds;
 
   // Calculate pricing using central utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
   
   const { total: addOnsTotal } = calculateAddOnsCost(
     addOns,
-    searchData.selectedAddOnIds,
+    effectiveAddOnIds,
     rentalDays
   );
   const deliveryFee = searchData.deliveryFee || 0;
