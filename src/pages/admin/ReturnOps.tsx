@@ -226,6 +226,14 @@ export default function ReturnOps() {
     refetchBooking();
   };
 
+  const handleDepositComplete = () => {
+    toast.success("Return completed successfully! Redirecting...");
+    // Short delay to allow the user to see the success state
+    setTimeout(() => {
+      navigate("/admin/returns");
+    }, 1500);
+  };
+
   const handleBack = () => navigate("/admin/returns");
 
   // Refetch data when switching steps
@@ -393,6 +401,7 @@ export default function ReturnOps() {
                     completion={completion.deposit}
                     totalDamageCost={totalDamageCost}
                     isLocked={stepIsLocked}
+                    onComplete={handleDepositComplete}
                   />
                 )}
               </div>
