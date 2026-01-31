@@ -32,6 +32,7 @@ import { toast } from "@/hooks/use-toast";
 import { DeliveryAddressAutocomplete } from "./DeliveryAddressAutocomplete";
 import { DeliveryMap } from "./DeliveryMap";
 import { DeliveryPricingDisplay } from "./DeliveryPricingDisplay";
+import { PICKUP_TIME_WINDOWS, MAX_RENTAL_DAYS } from "@/lib/rental-rules";
 
 interface RentalSearchCardProps {
   className?: string;
@@ -395,26 +396,23 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         {/* Pickup Time */}
         <div className="space-y-2 min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {deliveryMode === "delivery" ? "Delivery Time" : "Pickup Time"}
+            {deliveryMode === "delivery" ? "Delivery Window" : "Pickup Window"}
           </label>
           <Select value={pickupTime} onValueChange={setPickupTime}>
             <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
               <div className="flex items-center gap-2 min-w-0">
                 <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                 <span className="truncate">
-                  <SelectValue placeholder="Time" />
+                  <SelectValue placeholder="Select time window" />
                 </span>
               </div>
             </SelectTrigger>
             <SelectContent>
-              {Array.from({ length: 24 }, (_, i) => {
-                const hour = i.toString().padStart(2, '0');
-                return (
-                  <SelectItem key={`${hour}:00`} value={`${hour}:00`}>
-                    {i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}
-                  </SelectItem>
-                );
-              })}
+              {PICKUP_TIME_WINDOWS.map((tw) => (
+                <SelectItem key={tw.value} value={tw.value}>
+                  {tw.displayLabel}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -429,36 +427,53 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
             <input
               type="date"
               min={pickupDate || today}
+              max={pickupDate ? (() => {
+                const maxDate = new Date(pickupDate);
+                maxDate.setDate(maxDate.getDate() + MAX_RENTAL_DAYS);
+                return maxDate.toISOString().split("T")[0];
+              })() : undefined}
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
               className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             />
           </div>
+          {pickupDate && returnDate && (
+            (() => {
+              const days = Math.ceil(
+                (new Date(returnDate).getTime() - new Date(pickupDate).getTime()) / (1000 * 60 * 60 * 24)
+              );
+              if (days > MAX_RENTAL_DAYS) {
+                return (
+                  <p className="text-xs text-destructive">
+                    Maximum rental is {MAX_RENTAL_DAYS} days
+                  </p>
+                );
+              }
+              return null;
+            })()
+          )}
         </div>
 
         {/* Return Time */}
         <div className="space-y-2 min-w-0">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Return Time
+            Return Window
           </label>
           <Select value={returnTime} onValueChange={setReturnTime}>
             <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
               <div className="flex items-center gap-2 min-w-0">
                 <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                 <span className="truncate">
-                  <SelectValue placeholder="Time" />
+                  <SelectValue placeholder="Select time window" />
                 </span>
               </div>
             </SelectTrigger>
             <SelectContent>
-              {Array.from({ length: 24 }, (_, i) => {
-                const hour = i.toString().padStart(2, '0');
-                return (
-                  <SelectItem key={`${hour}:00`} value={`${hour}:00`}>
-                    {i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}
-                  </SelectItem>
-                );
-              })}
+              {PICKUP_TIME_WINDOWS.map((tw) => (
+                <SelectItem key={tw.value} value={tw.value}>
+                  {tw.displayLabel}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

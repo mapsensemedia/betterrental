@@ -4,6 +4,7 @@
  */
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { RENTAL_LOCATIONS, getLocationById, RentalLocation } from "@/constants/rentalLocations";
+import { MAX_RENTAL_DAYS, MIN_RENTAL_DAYS, calculateDeliveryFee, MAX_DELIVERY_DISTANCE_KM } from "@/lib/rental-rules";
 
 // Delivery mode types
 export type DeliveryMode = "pickup" | "delivery";
@@ -285,12 +286,21 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  // Computed: rental days
+  // Computed: rental days (capped to max)
   const rentalDays = (() => {
     if (!searchData.pickupDate || !searchData.returnDate) return 1;
     const diffTime = Math.abs(searchData.returnDate.getTime() - searchData.pickupDate.getTime());
     const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return days || 1;
+    // Clamp between min and max rental days
+    return Math.max(MIN_RENTAL_DAYS, Math.min(days || 1, MAX_RENTAL_DAYS));
+  })();
+  
+  // Computed: is rental duration valid
+  const isRentalDurationValid = (() => {
+    if (!searchData.pickupDate || !searchData.returnDate) return true;
+    const diffTime = Math.abs(searchData.returnDate.getTime() - searchData.pickupDate.getTime());
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return days >= MIN_RENTAL_DAYS && days <= MAX_RENTAL_DAYS;
   })();
 
   // Computed: is search valid (has minimum required data)
@@ -309,10 +319,11 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
   const canProceedToSelectCar = (() => {
     if (!isSearchValid) return false;
     if (!searchData.ageConfirmed) return false;
+    if (!isRentalDurationValid) return false;
     
     // If delivery mode, check distance limit
     if (searchData.deliveryMode === "delivery") {
-      if (searchData.deliveryDistanceKm !== null && searchData.deliveryDistanceKm > 50) {
+      if (searchData.deliveryDistanceKm !== null && searchData.deliveryDistanceKm > MAX_DELIVERY_DISTANCE_KM) {
         return false;
       }
     }

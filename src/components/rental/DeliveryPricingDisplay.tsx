@@ -3,6 +3,7 @@
  */
 import { MapPin, Route, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getDeliveryPricingSummary } from "@/lib/rental-rules";
 
 interface DeliveryPricingDisplayProps {
   fee: number;
@@ -55,7 +56,7 @@ export function DeliveryPricingDisplay({
 
       {/* Fee Brackets */}
       <p className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground text-center">
-        Free (≤5km) • $29 (5-20km) • $49 (21-30km) • $99 (31-50km)
+        {getDeliveryPricingSummary()}
       </p>
     </div>
   );

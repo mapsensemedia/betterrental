@@ -90,6 +90,10 @@ export function findClosestLocation(
 
 /**
  * Delivery fee calculation based on distance
+ * Pricing tiers:
+ * - Free for ≤10km
+ * - $49 for 10-50km
+ * - Not available beyond 50km
  */
 export interface DeliveryFeeResult {
   fee: number;
@@ -99,17 +103,11 @@ export interface DeliveryFeeResult {
 }
 
 export function calculateDeliveryFee(distanceKm: number): DeliveryFeeResult {
-  if (distanceKm <= 5) {
-    return { fee: 0, eligible: true, exceeds50km: false, bracket: "0-5km (Free)" };
-  }
-  if (distanceKm <= 20) {
-    return { fee: 29, eligible: true, exceeds50km: false, bracket: "5-20km ($29)" };
-  }
-  if (distanceKm <= 30) {
-    return { fee: 49, eligible: true, exceeds50km: false, bracket: "20-30km ($49)" };
+  if (distanceKm <= 10) {
+    return { fee: 0, eligible: true, exceeds50km: false, bracket: "≤10km (Free)" };
   }
   if (distanceKm <= 50) {
-    return { fee: 99, eligible: true, exceeds50km: false, bracket: "30-50km ($99)" };
+    return { fee: 49, eligible: true, exceeds50km: false, bracket: "10-50km ($49)" };
   }
   return { fee: 0, eligible: false, exceeds50km: true, bracket: "50km+ (Not available)" };
 }
