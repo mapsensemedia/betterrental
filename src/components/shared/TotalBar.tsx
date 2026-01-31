@@ -36,6 +36,7 @@ export function TotalBar({ className, protectionDailyRate = 0 }: TotalBarProps) 
         addOnsTotal,
         deliveryFee,
         driverAgeBand,
+        pickupDate: searchData.pickupDate,
       })
     : null;
 
@@ -55,6 +56,11 @@ export function TotalBar({ className, protectionDailyRate = 0 }: TotalBarProps) 
           <span className="text-destructive">*</span>
         </span>
       </div>
+      {pricing.discountType !== "none" && (
+        <p className="text-xs text-emerald-600 mt-1">
+          {pricing.discountType === "monthly" ? "20% monthly" : "10% weekly"} discount applied
+        </p>
+      )}
       <p className="text-xs text-muted-foreground mt-1">
         *Estimated total. Final price may vary.
       </p>

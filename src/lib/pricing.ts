@@ -5,8 +5,30 @@
 
 // ========== FEE CONSTANTS ==========
 export const YOUNG_DRIVER_FEE = 20; // One-time fee for drivers aged 21-25
-export const TAX_RATE = 0.13; // 13% tax
-export const DEFAULT_DEPOSIT_AMOUNT = 500; // Standard security deposit
+export const DEFAULT_DEPOSIT_AMOUNT = 350; // Standard security deposit
+
+// ========== TAX RATES (BC Canada) ==========
+export const PST_RATE = 0.07; // 7% Provincial Sales Tax
+export const GST_RATE = 0.05; // 5% Goods and Services Tax
+export const TOTAL_TAX_RATE = PST_RATE + GST_RATE; // 12% combined
+
+// ========== DAILY REGULATORY FEES ==========
+export const PVRT_DAILY_FEE = 1.50; // Passenger Vehicle Rental Tax
+export const ACSRCH_DAILY_FEE = 1.00; // Airport Concession/Surcharge
+
+// ========== WEEKEND PRICING ==========
+export const WEEKEND_SURCHARGE_RATE = 0.15; // 15% weekend surcharge (Fri-Sun pickups)
+
+// ========== DURATION DISCOUNTS ==========
+export const WEEKLY_DISCOUNT_THRESHOLD = 7; // Days for weekly discount
+export const WEEKLY_DISCOUNT_RATE = 0.10; // 10% off for 7+ days
+export const MONTHLY_DISCOUNT_THRESHOLD = 21; // Days for monthly discount
+export const MONTHLY_DISCOUNT_RATE = 0.20; // 20% off for 21+ days
+
+// ========== LATE RETURN FEES ==========
+export const LATE_RETURN_HOURLY_RATE = 25; // Per hour late fee
+export const LATE_RETURN_GRACE_MINUTES = 30; // Grace period before fees apply
+export const LATE_RETURN_MAX_HOURS = 24; // Cap at 24 hours (then it's another day)
 
 // ========== AGE CONSTANTS ==========
 export const MIN_DRIVER_AGE = 21;
@@ -23,16 +45,28 @@ export interface PricingInput {
   addOnsTotal?: number;
   deliveryFee?: number;
   driverAgeBand?: DriverAgeBand | null;
+  pickupDate?: Date | null; // For weekend pricing detection
+  lateFeeAmount?: number; // For return calculations
 }
 
 export interface PricingBreakdown {
   vehicleTotal: number;
+  vehicleBaseTotal: number; // Before any adjustments
+  weekendSurcharge: number;
+  durationDiscount: number;
+  discountType: "none" | "weekly" | "monthly";
   protectionTotal: number;
   addOnsTotal: number;
   deliveryFee: number;
   youngDriverFee: number;
+  dailyFeesTotal: number; // PVRT + ACSRCH
+  pvrtTotal: number;
+  acsrchTotal: number;
+  lateFee: number;
   subtotal: number;
-  taxAmount: number;
+  pstAmount: number;
+  gstAmount: number;
+  taxAmount: number; // Combined for backward compatibility
   total: number;
 }
 
@@ -166,6 +200,43 @@ export const BOOKING_INCLUDED_FEATURES = [
   "Booking option: Best price - Pay now, cancel and rebook for a fee",
 ];
 
+// ========== HELPER FUNCTIONS ==========
+
+/**
+ * Check if a date falls on a weekend (Friday, Saturday, or Sunday)
+ */
+export function isWeekendPickup(date: Date | null | undefined): boolean {
+  if (!date) return false;
+  const day = date.getDay();
+  return day === 5 || day === 6 || day === 0; // Fri, Sat, Sun
+}
+
+/**
+ * Get applicable duration discount
+ */
+export function getDurationDiscount(rentalDays: number): { rate: number; type: "none" | "weekly" | "monthly" } {
+  if (rentalDays >= MONTHLY_DISCOUNT_THRESHOLD) {
+    return { rate: MONTHLY_DISCOUNT_RATE, type: "monthly" };
+  }
+  if (rentalDays >= WEEKLY_DISCOUNT_THRESHOLD) {
+    return { rate: WEEKLY_DISCOUNT_RATE, type: "weekly" };
+  }
+  return { rate: 0, type: "none" };
+}
+
+/**
+ * Calculate late return fee based on minutes late
+ */
+export function calculateLateFee(minutesLate: number): number {
+  if (minutesLate <= LATE_RETURN_GRACE_MINUTES) return 0;
+  
+  const billableMinutes = minutesLate - LATE_RETURN_GRACE_MINUTES;
+  const hoursLate = Math.ceil(billableMinutes / 60);
+  const cappedHours = Math.min(hoursLate, LATE_RETURN_MAX_HOURS);
+  
+  return cappedHours * LATE_RETURN_HOURLY_RATE;
+}
+
 // ========== CORE PRICING FUNCTION ==========
 /**
  * Calculate complete booking pricing breakdown
@@ -179,25 +250,68 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
     addOnsTotal = 0,
     deliveryFee = 0,
     driverAgeBand,
+    pickupDate,
+    lateFeeAmount = 0,
   } = input;
 
-  const vehicleTotal = vehicleDailyRate * rentalDays;
+  // Base vehicle cost
+  const vehicleBaseTotal = vehicleDailyRate * rentalDays;
+  
+  // Weekend surcharge (applied to vehicle rental only)
+  const weekendSurcharge = isWeekendPickup(pickupDate) 
+    ? vehicleBaseTotal * WEEKEND_SURCHARGE_RATE 
+    : 0;
+  
+  // Duration discount (applied after weekend surcharge)
+  const { rate: discountRate, type: discountType } = getDurationDiscount(rentalDays);
+  const vehicleAfterSurcharge = vehicleBaseTotal + weekendSurcharge;
+  const durationDiscount = vehicleAfterSurcharge * discountRate;
+  
+  // Final vehicle total
+  const vehicleTotal = vehicleAfterSurcharge - durationDiscount;
+  
+  // Protection total
   const protectionTotal = protectionDailyRate * rentalDays;
+  
+  // Daily regulatory fees
+  const pvrtTotal = PVRT_DAILY_FEE * rentalDays;
+  const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
+  const dailyFeesTotal = pvrtTotal + acsrchTotal;
   
   // Young driver fee: one-time $20 for 21-25 age band
   const youngDriverFee = driverAgeBand === "21_25" ? YOUNG_DRIVER_FEE : 0;
 
-  const subtotal = vehicleTotal + protectionTotal + addOnsTotal + deliveryFee + youngDriverFee;
-  const taxAmount = subtotal * TAX_RATE;
+  // Late fee (passed in from return calculations)
+  const lateFee = lateFeeAmount;
+
+  // Subtotal before tax
+  const subtotal = vehicleTotal + protectionTotal + addOnsTotal + deliveryFee + 
+                   youngDriverFee + dailyFeesTotal + lateFee;
+  
+  // Tax breakdown (PST + GST)
+  const pstAmount = subtotal * PST_RATE;
+  const gstAmount = subtotal * GST_RATE;
+  const taxAmount = pstAmount + gstAmount;
+  
   const total = subtotal + taxAmount;
 
   return {
     vehicleTotal,
+    vehicleBaseTotal,
+    weekendSurcharge,
+    durationDiscount,
+    discountType,
     protectionTotal,
     addOnsTotal,
     deliveryFee,
     youngDriverFee,
+    dailyFeesTotal,
+    pvrtTotal,
+    acsrchTotal,
+    lateFee,
     subtotal,
+    pstAmount,
+    gstAmount,
     taxAmount,
     total,
   };

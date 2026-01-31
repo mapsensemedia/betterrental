@@ -136,6 +136,7 @@ export default function NewCheckout() {
       addOnsTotal,
       deliveryFee,
       driverAgeBand,
+      pickupDate: searchData.pickupDate,
     });
 
     return {

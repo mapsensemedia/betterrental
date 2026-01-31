@@ -20,6 +20,11 @@ import { useCreateAlert } from "@/hooks/use-alerts";
 import { toast } from "sonner";
 import { format, differenceInMinutes } from "date-fns";
 import { 
+  calculateLateFee,
+  LATE_RETURN_GRACE_MINUTES,
+  LATE_RETURN_HOURLY_RATE,
+} from "@/lib/pricing";
+import { 
   Flag, 
   Clock,
   AlertTriangle,
@@ -29,6 +34,7 @@ import {
   Plus,
   ShieldAlert,
   Lock,
+  DollarSign,
 } from "lucide-react";
 
 interface StepReturnIssuesProps {
@@ -40,6 +46,7 @@ interface StepReturnIssuesProps {
   };
   onMarkReviewed: () => void;
   onDamagesUpdated: (totalCost: number) => void;
+  onLateFeeCalculated?: (lateFee: number) => void;
   isMarking: boolean;
   isLocked?: boolean;
   isComplete?: boolean;
@@ -51,6 +58,7 @@ export function StepReturnIssues({
   completion, 
   onMarkReviewed,
   onDamagesUpdated,
+  onLateFeeCalculated,
   isMarking,
   isLocked,
   isComplete,
@@ -67,6 +75,9 @@ export function StepReturnIssues({
   const minutesLate = isLateReturn ? differenceInMinutes(now, endDate) : 0;
   const hoursLate = Math.floor(minutesLate / 60);
   const minsLate = minutesLate % 60;
+  
+  // Calculate late fee using central pricing utility
+  const lateFee = calculateLateFee(minutesLate);
 
   // Fetch vehicle info for damage dialog
   const { data: vehicle } = useQuery({
@@ -120,6 +131,13 @@ export function StepReturnIssues({
     onDamagesUpdated(totalDamageCost);
   }, [totalDamageCost, onDamagesUpdated]);
 
+  // Update parent with late fee
+  useEffect(() => {
+    if (onLateFeeCalculated) {
+      onLateFeeCalculated(lateFee);
+    }
+  }, [lateFee, onLateFeeCalculated]);
+
   const vehicleName = vehicle 
     ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` 
     : "Vehicle";
@@ -132,6 +150,7 @@ export function StepReturnIssues({
       type: "warning",
       title: "Late Return",
       description: `Vehicle returned ${hoursLate > 0 ? `${hoursLate}h ` : ""}${minsLate}m late`,
+      fee: lateFee,
     });
   }
   
@@ -142,6 +161,7 @@ export function StepReturnIssues({
       type: "alert",
       title: alert.title,
       description: alert.message || "Issue reported",
+      fee: 0,
     });
   });
 
@@ -231,12 +251,28 @@ export function StepReturnIssues({
             <span>{format(now, "PPp")}</span>
           </div>
           {isLateReturn && (
-            <div className="flex justify-between text-sm text-destructive">
-              <span>Late By</span>
-              <span className="font-medium">
-                {hoursLate > 0 ? `${hoursLate}h ` : ""}{minsLate}m
-              </span>
-            </div>
+            <>
+              <div className="flex justify-between text-sm text-destructive">
+                <span>Late By</span>
+                <span className="font-medium">
+                  {hoursLate > 0 ? `${hoursLate}h ` : ""}{minsLate}m
+                </span>
+              </div>
+              {lateFee > 0 && (
+                <div className="flex justify-between text-sm pt-2 border-t mt-2">
+                  <span className="flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    Late Return Fee
+                  </span>
+                  <span className="font-semibold text-destructive">
+                    ${lateFee.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                ${LATE_RETURN_HOURLY_RATE}/hr after {LATE_RETURN_GRACE_MINUTES}min grace
+              </p>
+            </>
           )}
         </CardContent>
       </Card>
