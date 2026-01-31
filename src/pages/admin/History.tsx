@@ -315,21 +315,43 @@ function StatusBadge({ status }: { status: string }) {
 export default function AdminHistory() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"bookings" | "returns">("bookings");
+  const [activeTab, setActiveTab] = useState<"all" | "completed" | "cancelled" | "due">("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "week" | "month" | "quarter">("all");
 
-  // Fetch completed and cancelled bookings
+  // Fetch all bookings
   const { data: allBookings = [], isLoading } = useAdminBookings({ status: undefined });
 
   // Filter bookings based on tab
   const filteredData = useMemo(() => {
     let data = allBookings;
+    const now = new Date();
 
-    // For bookings tab: show completed/cancelled
-    // For returns tab: show only completed with actualReturnAt
-    if (activeTab === "bookings") {
-      data = data.filter((b) => b.status === "completed" || b.status === "cancelled");
+    // Tab-based filtering
+    if (activeTab === "completed") {
+      data = data.filter((b) => b.status === "completed");
+    } else if (activeTab === "cancelled") {
+      data = data.filter((b) => b.status === "cancelled");
+    } else if (activeTab === "due") {
+      // Due bookings: "confirmed" status with future or past end dates 
+      // This shows active rentals (any booking that hasn't been completed or cancelled)
+      data = data.filter((b) => {
+        const status = b.status as string; // Type assertion for comparison
+        if (status === "confirmed" || status === "active") return true;
+        return false;
+      });
     } else {
-      data = data.filter((b) => b.status === "completed" && b.actualReturnAt);
+      // "all" tab shows completed and cancelled (past bookings)
+      data = data.filter((b) => b.status === "completed" || b.status === "cancelled");
+    }
+
+    // Date filter
+    if (dateFilter !== "all" && data.length > 0) {
+      const cutoffDate = new Date();
+      if (dateFilter === "week") cutoffDate.setDate(cutoffDate.getDate() - 7);
+      else if (dateFilter === "month") cutoffDate.setMonth(cutoffDate.getMonth() - 1);
+      else if (dateFilter === "quarter") cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+      
+      data = data.filter((b) => b.endAt && new Date(b.endAt) >= cutoffDate);
     }
 
     // Search filter
@@ -350,7 +372,18 @@ export default function AdminHistory() {
       const dateB = b.endAt ? new Date(b.endAt).getTime() : 0;
       return dateB - dateA;
     });
-  }, [allBookings, activeTab, searchQuery]);
+  }, [allBookings, activeTab, searchQuery, dateFilter]);
+
+  // Stats
+  const stats = useMemo(() => ({
+    all: allBookings.filter((b) => b.status === "completed" || b.status === "cancelled").length,
+    completed: allBookings.filter((b) => b.status === "completed").length,
+    cancelled: allBookings.filter((b) => b.status === "cancelled").length,
+    due: allBookings.filter((b) => {
+      const status = b.status as string;
+      return status === "confirmed" || status === "active";
+    }).length,
+  }), [allBookings]);
 
   return (
     <AdminShell>
@@ -358,53 +391,101 @@ export default function AdminHistory() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">History</h1>
+            <h1 className="text-2xl font-bold tracking-tight">History & Records</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Previous bookings and returns with complete details
+              View all past, completed, cancelled, and active bookings
             </p>
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by code, customer, or vehicle..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card 
+            className={`cursor-pointer transition-all ${activeTab === "all" ? "ring-2 ring-primary" : ""}`}
+            onClick={() => setActiveTab("all")}
+          >
+            <CardContent className="p-4">
+              <p className="text-2xl font-bold">{stats.all}</p>
+              <p className="text-xs text-muted-foreground">Past Bookings</p>
+            </CardContent>
+          </Card>
+          <Card 
+            className={`cursor-pointer transition-all ${activeTab === "completed" ? "ring-2 ring-emerald-500" : ""}`}
+            onClick={() => setActiveTab("completed")}
+          >
+            <CardContent className="p-4">
+              <p className="text-2xl font-bold text-emerald-600">{stats.completed}</p>
+              <p className="text-xs text-muted-foreground">Completed</p>
+            </CardContent>
+          </Card>
+          <Card 
+            className={`cursor-pointer transition-all ${activeTab === "cancelled" ? "ring-2 ring-destructive" : ""}`}
+            onClick={() => setActiveTab("cancelled")}
+          >
+            <CardContent className="p-4">
+              <p className="text-2xl font-bold text-destructive">{stats.cancelled}</p>
+              <p className="text-xs text-muted-foreground">Cancelled</p>
+            </CardContent>
+          </Card>
+          <Card 
+            className={`cursor-pointer transition-all ${activeTab === "due" ? "ring-2 ring-amber-500" : ""}`}
+            onClick={() => setActiveTab("due")}
+          >
+            <CardContent className="p-4">
+              <p className="text-2xl font-bold text-amber-600">{stats.due}</p>
+              <p className="text-xs text-muted-foreground">Active / Due</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="bookings" className="gap-2">
-              <BookOpen className="w-4 h-4" />
-              Previous Bookings
-            </TabsTrigger>
-            <TabsTrigger value="returns" className="gap-2">
-              <RotateCcw className="w-4 h-4" />
-              Completed Returns
-            </TabsTrigger>
-          </TabsList>
+        {/* Search & Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by code, customer, or vehicle..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Tabs value={dateFilter} onValueChange={(v) => setDateFilter(v as any)}>
+            <TabsList>
+              <TabsTrigger value="all">All Time</TabsTrigger>
+              <TabsTrigger value="week">Past Week</TabsTrigger>
+              <TabsTrigger value="month">Past Month</TabsTrigger>
+              <TabsTrigger value="quarter">Past Quarter</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
-          <TabsContent value="bookings" className="mt-4">
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Vehicle</TableHead>
-                      <TableHead>Dates</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+        {/* Bookings Table */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              {activeTab === "all" ? "All Past Bookings" :
+               activeTab === "completed" ? "Completed Bookings" :
+               activeTab === "cancelled" ? "Cancelled Bookings" :
+               "Active / Due Bookings"}
+            </CardTitle>
+            <CardDescription>
+              {filteredData.length} booking{filteredData.length !== 1 ? "s" : ""} found
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Booking</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Dates</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                     {isLoading ? (
                       Array.from({ length: 5 }).map((_, idx) => (
                         <TableRow key={idx}>
@@ -472,105 +553,16 @@ export default function AdminHistory() {
                         </TableRow>
                       ))
                     )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-            {filteredData.length > 0 && (
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Showing {filteredData.length} bookings
-              </p>
-            )}
-          </TabsContent>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="returns" className="mt-4">
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Vehicle</TableHead>
-                      <TableHead>Returned</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      Array.from({ length: 5 }).map((_, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                          <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                          <TableCell><Skeleton className="h-8 w-8" /></TableCell>
-                        </TableRow>
-                      ))
-                    ) : filteredData.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-12">
-                          <RotateCcw className="w-10 h-10 mx-auto mb-2 text-muted-foreground opacity-50" />
-                          <p className="text-muted-foreground">No completed returns found</p>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredData.map((booking) => (
-                        <TableRow key={booking.id} className="cursor-pointer hover:bg-muted/50">
-                          <TableCell>
-                            <span className="font-mono font-medium">{booking.bookingCode}</span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="w-7 h-7">
-                                <AvatarFallback className="text-xs">
-                                  {booking.profile?.fullName?.[0] || "?"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{booking.profile?.fullName || "Unknown"}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm">
-                              {booking.vehicle?.year} {booking.vehicle?.make} {booking.vehicle?.model}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm">
-                              {booking.actualReturnAt
-                                ? format(new Date(booking.actualReturnAt), "MMM d, yyyy h:mm a")
-                                : booking.endAt
-                                  ? format(new Date(booking.endAt), "MMM d, yyyy")
-                                  : "N/A"}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm">{booking.location?.name || "N/A"}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium">${booking.totalAmount?.toFixed(2)}</span>
-                          </TableCell>
-                          <TableCell>
-                            <BookingDetailDialog booking={booking} />
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-            {filteredData.length > 0 && (
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Showing {filteredData.length} returns
-              </p>
-            )}
-          </TabsContent>
-        </Tabs>
+        {filteredData.length > 0 && (
+          <p className="text-xs text-muted-foreground text-center mt-3">
+            Showing {filteredData.length} booking{filteredData.length !== 1 ? "s" : ""}
+          </p>
+        )}
       </div>
     </AdminShell>
   );
