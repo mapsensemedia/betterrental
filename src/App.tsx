@@ -54,6 +54,7 @@ const BookingOps = lazy(() => import("./pages/admin/BookingOps"));
 const ReturnOps = lazy(() => import("./pages/admin/ReturnOps"));
 const AbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminReports = lazy(() => import("./pages/admin/Reports"));
+const FleetAnalytics = lazy(() => import("./pages/admin/FleetAnalytics"));
 
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
@@ -124,6 +125,7 @@ const App = () => (
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/inventory" element={<AdminProtectedRoute><AdminInventory /></AdminProtectedRoute>} />
+                <Route path="/admin/fleet-analytics" element={<AdminProtectedRoute><FleetAnalytics /></AdminProtectedRoute>} />
                 <Route path="/admin/calendar" element={<AdminProtectedRoute><AdminCalendar /></AdminProtectedRoute>} />
                 <Route path="/admin/tickets" element={<AdminProtectedRoute><AdminTickets /></AdminProtectedRoute>} />
                 <Route path="/admin/abandoned-carts" element={<AdminProtectedRoute><AbandonedCarts /></AdminProtectedRoute>} />
@@ -136,7 +138,7 @@ const App = () => (
                 <Route path="/admin/returns" element={<Navigate to="/admin/bookings?tab=returns" replace />} />
                 <Route path="/admin/history" element={<Navigate to="/admin/bookings?tab=completed" replace />} />
                 <Route path="/admin/handovers" element={<Navigate to="/admin/bookings" replace />} />
-                <Route path="/admin/fleet-costs" element={<Navigate to="/admin/inventory" replace />} />
+                <Route path="/admin/fleet-costs" element={<Navigate to="/admin/fleet-analytics?tab=costs" replace />} />
                 <Route path="/admin/damages" element={<Navigate to="/admin/inventory" replace />} />
                 <Route path="/admin/photos" element={<Navigate to="/admin/inventory" replace />} />
                 <Route path="/admin/verifications" element={<Navigate to="/admin/alerts?type=verification_pending" replace />} />
