@@ -33,6 +33,7 @@ interface StepReturnDepositProps {
   };
   totalDamageCost?: number;
   isLocked?: boolean;
+  onComplete?: () => void;
 }
 
 export function StepReturnDeposit({ 
@@ -41,6 +42,7 @@ export function StepReturnDeposit({
   completion,
   totalDamageCost = 0,
   isLocked,
+  onComplete,
 }: StepReturnDepositProps) {
   const queryClient = useQueryClient();
   const { data: depositData, isLoading, refetch } = usePaymentDepositStatus(bookingId);
@@ -163,6 +165,9 @@ export function StepReturnDeposit({
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
       toast.success("Full deposit released and receipt generated");
+      
+      // Call onComplete callback to trigger redirect
+      onComplete?.();
     } catch (error) {
       console.error("Error releasing deposit:", error);
       toast.error("Failed to release deposit");
@@ -245,6 +250,9 @@ export function StepReturnDeposit({
       toast.success(`Withheld $${amountToWithhold.toFixed(2)}, released $${remainingToRelease.toFixed(2)}, receipt generated`);
       setPartialAmount("");
       setWithholdReason("");
+      
+      // Call onComplete callback to trigger redirect
+      onComplete?.();
     } catch (error) {
       console.error("Error processing deposit:", error);
       toast.error("Failed to process deposit");
