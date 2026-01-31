@@ -361,7 +361,12 @@ export default function NewCheckout() {
           throw new Error(response.error.message || "Failed to create booking");
         }
 
-        booking = response.data.booking;
+        // Map camelCase response from Edge Function to snake_case expected by UI
+        const bookingResponse = response.data.booking;
+        booking = {
+          id: bookingResponse.id,
+          booking_code: bookingResponse.bookingCode || bookingResponse.booking_code || "",
+        };
       }
 
       if (!booking) {
