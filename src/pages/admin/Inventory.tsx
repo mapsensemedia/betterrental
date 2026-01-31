@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useAdminVehicles, useAdminVehicle, useUpdateVehicle, useCreateVehicle, useDeleteVehicle, type CreateVehicleData } from "@/hooks/use-inventory";
+import { cn } from "@/lib/utils";
 import { useLocations } from "@/hooks/use-locations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,8 +75,9 @@ import { format } from "date-fns";
 import { MaintenanceDialog } from "@/components/admin/MaintenanceDialog";
 import { DamageReportDialog } from "@/components/admin/DamageReportDialog";
 
+import { FUEL_TYPES, VEHICLE_STATUSES, canDeleteVehicle, getVehicleStatusInfo, VehicleStatus } from "@/lib/rental-rules";
+
 const CATEGORIES = ["Sedan", "SUV", "Sports", "Luxury", "Electric", "Convertible", "Compact"];
-const FUEL_TYPES = ["Petrol", "Diesel", "Electric", "Hybrid"];
 const TRANSMISSIONS = ["Automatic", "Manual"];
 
 export default function AdminInventory() {
@@ -112,7 +114,7 @@ export default function AdminInventory() {
     category: "Sedan",
     dailyRate: 100,
     seats: 5,
-    fuelType: "Petrol",
+    fuelType: "Gas",
     transmission: "Automatic",
     imageUrl: "",
     locationId: "",
@@ -130,7 +132,7 @@ export default function AdminInventory() {
     category: "Sedan",
     dailyRate: 100,
     seats: 5,
-    fuelType: "Petrol",
+    fuelType: "Gas",
     transmission: "Automatic",
     imageUrl: "",
     locationId: "",
@@ -502,7 +504,7 @@ export default function AdminInventory() {
                               vehicleId: vehicle.id,
                               vehicleName: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
                             })}
-                            className="text-red-500 hover:text-red-600"
+                            className="text-destructive hover:text-destructive/80"
                           >
                             <ShieldAlert className="h-4 w-4" />
                           </Button>
@@ -510,7 +512,12 @@ export default function AdminInventory() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleOpenDeleteConfirm(vehicle)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            disabled={vehicle.isAvailable === true}
+                            className={cn(
+                              "text-destructive hover:text-destructive hover:bg-destructive/10",
+                              vehicle.isAvailable === true && "opacity-50 cursor-not-allowed"
+                            )}
+                            title={vehicle.isAvailable ? "Cannot delete available vehicles" : "Delete vehicle"}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

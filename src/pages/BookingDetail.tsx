@@ -678,6 +678,7 @@ export default function BookingDetail() {
                       bookingId={booking.id}
                       bookingCode={booking.booking_code}
                       startAt={booking.start_at}
+                      dailyRate={Number(booking.daily_rate)}
                       status={booking.status}
                       onCancelled={() => navigate("/dashboard")}
                     />

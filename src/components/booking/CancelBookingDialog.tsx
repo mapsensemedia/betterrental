@@ -17,11 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { FREE_CANCELLATION_HOURS, calculateCancellationFee } from "@/lib/rental-rules";
 
 interface CancelBookingDialogProps {
   bookingId: string;
   bookingCode: string;
   startAt: string;
+  dailyRate: number;
   status: string;
   onCancelled?: () => void;
 }
@@ -30,6 +32,7 @@ export function CancelBookingDialog({
   bookingId,
   bookingCode,
   startAt,
+  dailyRate,
   status,
   onCancelled,
 }: CancelBookingDialogProps) {
@@ -38,10 +41,10 @@ export function CancelBookingDialog({
   const [isLoading, setIsLoading] = useState(false);
 
   const hoursUntilPickup = differenceInHours(new Date(startAt), new Date());
-  const canCancelFree = hoursUntilPickup >= 24;
+  const cancellationInfo = calculateCancellationFee(hoursUntilPickup, dailyRate);
+  const canCancelFree = cancellationInfo.isFree;
   const isWithin2Hours = hoursUntilPickup < 2;
   const canCancel = status === "pending" || status === "confirmed";
-  const cancellationFee = canCancelFree ? 0 : 65; // $65 fee within 24 hours
 
   // Don't show if booking cannot be cancelled (rental already started)
   if (!canCancel) {
@@ -96,20 +99,20 @@ export function CancelBookingDialog({
             {canCancelFree ? (
               <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-700 dark:text-green-400">
                 <p className="font-medium">✓ Free cancellation</p>
-                <p className="text-sm">You're cancelling more than 24 hours before pickup. No fees will be charged.</p>
+                <p className="text-sm">You're cancelling more than {FREE_CANCELLATION_HOURS} hours before pickup. No fees will be charged.</p>
               </div>
             ) : isWithin2Hours ? (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-700 dark:text-red-400">
                 <p className="font-medium">⚠ Last-minute cancellation</p>
                 <p className="text-sm">
-                  Cancelling within 2 hours of pickup. A <strong>${cancellationFee} cancellation fee</strong> will be charged.
+                  Cancelling within 2 hours of pickup. A <strong>1-day rental penalty (${cancellationInfo.fee.toFixed(2)})</strong> will be charged.
                 </p>
               </div>
             ) : (
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-700 dark:text-amber-400">
                 <p className="font-medium">⚠ Late cancellation</p>
                 <p className="text-sm">
-                  Cancelling within 24 hours of pickup. A <strong>${cancellationFee} cancellation fee</strong> will be charged.
+                  Cancelling within {FREE_CANCELLATION_HOURS} hours of pickup. A <strong>1-day rental penalty (${cancellationInfo.fee.toFixed(2)})</strong> will be charged.
                 </p>
               </div>
             )}

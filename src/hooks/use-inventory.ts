@@ -227,7 +227,7 @@ export function useCreateVehicle() {
           category: vehicleData.category,
           daily_rate: vehicleData.dailyRate,
           seats: vehicleData.seats || 5,
-          fuel_type: vehicleData.fuelType || "Petrol",
+          fuel_type: vehicleData.fuelType || "Gas",
           transmission: vehicleData.transmission || "Automatic",
           image_url: vehicleData.imageUrl || null,
           location_id: vehicleData.locationId || null,
