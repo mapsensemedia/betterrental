@@ -5,11 +5,12 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
-import { format, isToday, isTomorrow, parseISO, isThisWeek, isBefore, addDays } from "date-fns";
+import { format, isToday, isTomorrow, parseISO, isThisWeek, isBefore, addDays, isAfter, startOfDay, endOfDay } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useAdminBookings, type BookingFilters } from "@/hooks/use-bookings";
 import { useLocations } from "@/hooks/use-locations";
+import { useAdminVehicles } from "@/hooks/use-inventory";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -47,10 +48,15 @@ import {
   ArrowRight,
   Plus,
   UserPlus,
+  FileWarning,
+  IdCard,
 } from "lucide-react";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
+import { OperationsFilters, defaultFilters, getDateRangeFromPreset, type OperationsFiltersState } from "@/components/admin/OperationsFilters";
 import type { Database } from "@/integrations/supabase/types";
 import { getBookingRoute } from "@/lib/booking-routes";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -63,32 +69,74 @@ const statusOptions: { value: BookingStatus | "all"; label: string }[] = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
+// Hook to fetch license status for bookings
+function useLicenseStatus(userIds: string[]) {
+  return useQuery({
+    queryKey: ["license-status", userIds],
+    queryFn: async () => {
+      if (userIds.length === 0) return new Map<string, string>();
+      
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, driver_license_status")
+        .in("id", userIds);
+      
+      const statusMap = new Map<string, string>();
+      (data || []).forEach(p => {
+        statusMap.set(p.id, p.driver_license_status || "pending");
+      });
+      return statusMap;
+    },
+    enabled: userIds.length > 0,
+    staleTime: 30000,
+  });
+}
+
+// Needs Processing Badge
+function NeedsProcessingBadge({ licenseStatus }: { licenseStatus?: string }) {
+  if (licenseStatus === "approved") return null;
+  
+  return (
+    <Badge variant="secondary" className="bg-amber-500/10 text-amber-700 text-[10px]">
+      <IdCard className="h-3 w-3 mr-1" />
+      {licenseStatus === "pending" ? "License Pending" : 
+       licenseStatus === "submitted" ? "License Review" : 
+       licenseStatus === "rejected" ? "License Rejected" : "Needs Processing"}
+    </Badge>
+  );
+}
+
 // Compact booking card for workflow views
 function BookingWorkflowCard({ 
   booking, 
   onOpen,
   showAction = "view",
+  licenseStatus,
 }: { 
   booking: any; 
   onOpen: (id: string, status?: BookingStatus) => void;
   showAction?: "view" | "pickup" | "return";
+  licenseStatus?: string;
 }) {
   const isOverdue = booking.status === "active" && isBefore(parseISO(booking.endAt), new Date());
+  const needsProcessing = licenseStatus !== "approved";
   
   return (
     <div 
-      className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+      className={`flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer ${
+        needsProcessing && (booking.status === "pending" || booking.status === "confirmed") ? "border-amber-500/50" : ""
+      }`}
       onClick={() => onOpen(booking.id, booking.status)}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
           isOverdue ? "bg-destructive/10" : 
           booking.status === "active" ? "bg-primary/10" : 
-          booking.status === "confirmed" ? "bg-green-500/10" : "bg-muted"
+          booking.status === "confirmed" || booking.status === "pending" ? "bg-green-500/10" : "bg-muted"
         }`}>
           {booking.status === "active" ? (
             <Car className={`w-5 h-5 ${isOverdue ? "text-destructive" : "text-primary"}`} />
-          ) : booking.status === "confirmed" ? (
+          ) : booking.status === "confirmed" || booking.status === "pending" ? (
             <KeyRound className="w-5 h-5 text-green-500" />
           ) : (
             <Calendar className="w-5 h-5 text-muted-foreground" />
@@ -103,6 +151,9 @@ function BookingWorkflowCard({
               {booking.bookingCode}
             </Badge>
             {booking.pickupAddress && <DeliveryBadge hasDelivery={true} />}
+            {needsProcessing && (booking.status === "pending" || booking.status === "confirmed") && (
+              <NeedsProcessingBadge licenseStatus={licenseStatus} />
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
             <span>{booking.profile?.fullName || "Customer"}</span>
@@ -142,9 +193,17 @@ export default function AdminBookings() {
     status: "all",
     search: searchParams.get("code") || "",
   });
+  
+  // Operations filters for each tab
+  const [opsFilters, setOpsFilters] = useState<OperationsFiltersState>(defaultFilters);
 
   const { data: bookings = [], isLoading, refetch } = useAdminBookings(filters);
-  const { data: locations } = useLocations();
+  const { data: locations = [] } = useLocations();
+  const { data: vehicles = [] } = useAdminVehicles({ status: "all" });
+
+  // Get license status for all booking users
+  const userIds = useMemo(() => [...new Set(bookings.map(b => b.userId))], [bookings]);
+  const { data: licenseStatusMap = new Map() } = useLicenseStatus(userIds);
 
   // Handle booking code from URL (scan-to-open)
   useEffect(() => {
@@ -190,28 +249,73 @@ export default function AdminBookings() {
     }));
   };
 
-  // Categorize bookings
+  // Apply operations filters to a list of bookings
+  const applyOpsFilters = (bookingList: typeof bookings) => {
+    return bookingList.filter(booking => {
+      // Location filter
+      if (opsFilters.locationId !== "all" && booking.locationId !== opsFilters.locationId) {
+        return false;
+      }
+      
+      // Vehicle filter
+      if (opsFilters.vehicleId !== "all" && booking.vehicleId !== opsFilters.vehicleId) {
+        return false;
+      }
+      
+      // Date range filter
+      if (opsFilters.dateRange.start) {
+        const bookingDate = parseISO(booking.startAt);
+        if (isBefore(bookingDate, startOfDay(opsFilters.dateRange.start))) {
+          return false;
+        }
+      }
+      if (opsFilters.dateRange.end) {
+        const bookingDate = parseISO(booking.startAt);
+        if (isAfter(bookingDate, endOfDay(opsFilters.dateRange.end))) {
+          return false;
+        }
+      }
+      
+      // Needs processing filter
+      if (opsFilters.needsProcessing) {
+        const licenseStatus = licenseStatusMap.get(booking.userId);
+        if (licenseStatus === "approved") {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  };
+
+  // Categorize bookings (treating pending as confirmed since all new bookings are confirmed)
   const categorizedBookings = useMemo(() => {
     const now = new Date();
-    const todayStart = new Date(now.setHours(0, 0, 0, 0));
+    
+    // Pending and confirmed are treated the same for pickups
+    const preRental = bookings.filter(b => b.status === "pending" || b.status === "confirmed");
     
     return {
       pending: bookings.filter(b => b.status === "pending"),
       confirmed: bookings.filter(b => b.status === "confirmed"),
-      pickupsToday: bookings.filter(b => 
-        b.status === "confirmed" && isToday(parseISO(b.startAt))
-      ),
-      pickupsTomorrow: bookings.filter(b => 
-        b.status === "confirmed" && isTomorrow(parseISO(b.startAt))
-      ),
-      pickupsLater: bookings.filter(b => 
-        b.status === "confirmed" && 
+      // All pre-rental bookings (pending + confirmed)
+      allPickups: preRental,
+      pickupsToday: preRental.filter(b => isToday(parseISO(b.startAt))),
+      pickupsTomorrow: preRental.filter(b => isTomorrow(parseISO(b.startAt))),
+      pickupsUpcoming: preRental.filter(b => 
         !isToday(parseISO(b.startAt)) && 
-        !isTomorrow(parseISO(b.startAt))
+        !isTomorrow(parseISO(b.startAt)) &&
+        isAfter(parseISO(b.startAt), now)
+      ),
+      pickupsPast: preRental.filter(b => 
+        isBefore(parseISO(b.startAt), startOfDay(now))
       ),
       active: bookings.filter(b => b.status === "active"),
       returnsToday: bookings.filter(b => 
         b.status === "active" && isToday(parseISO(b.endAt))
+      ),
+      returnsTomorrow: bookings.filter(b => 
+        b.status === "active" && isTomorrow(parseISO(b.endAt))
       ),
       overdue: bookings.filter(b => 
         b.status === "active" && isBefore(parseISO(b.endAt), now)
@@ -221,10 +325,18 @@ export default function AdminBookings() {
     };
   }, [bookings]);
 
+  // Count bookings that need processing
+  const needsProcessingCount = useMemo(() => {
+    return categorizedBookings.allPickups.filter(b => {
+      const status = licenseStatusMap.get(b.userId);
+      return status !== "approved";
+    }).length;
+  }, [categorizedBookings.allPickups, licenseStatusMap]);
+
   // Quick stats
   const stats = [
-    { label: "Pending", value: categorizedBookings.pending.length, color: "text-amber-500" },
-    { label: "Today's Pickups", value: categorizedBookings.pickupsToday.length, color: "text-green-500" },
+    { label: "Pickups", value: categorizedBookings.allPickups.length, color: "text-green-500" },
+    { label: "Needs Processing", value: needsProcessingCount, color: "text-amber-500" },
     { label: "Active", value: categorizedBookings.active.length, color: "text-primary" },
     { label: "Today's Returns", value: categorizedBookings.returnsToday.length, color: "text-orange-500" },
   ];
@@ -293,17 +405,14 @@ export default function AdminBookings() {
               All
               <Badge variant="secondary" className="text-xs">{bookings.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="pending" className="gap-1.5">
-              Pending
-              {categorizedBookings.pending.length > 0 && (
-                <Badge variant="destructive" className="text-xs">{categorizedBookings.pending.length}</Badge>
-              )}
-            </TabsTrigger>
             <TabsTrigger value="pickups" className="gap-1.5">
               <KeyRound className="w-3.5 h-3.5" />
               Pickups
-              {categorizedBookings.confirmed.length > 0 && (
-                <Badge className="text-xs bg-green-500">{categorizedBookings.confirmed.length}</Badge>
+              {categorizedBookings.allPickups.length > 0 && (
+                <Badge className="text-xs bg-green-500">{categorizedBookings.allPickups.length}</Badge>
+              )}
+              {needsProcessingCount > 0 && (
+                <Badge variant="destructive" className="text-xs ml-1">{needsProcessingCount}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="active" className="gap-1.5">
@@ -329,9 +438,16 @@ export default function AdminBookings() {
           <TabsContent value="all" className="space-y-4">
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <CardTitle className="text-base">All Bookings</CardTitle>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <OperationsFilters
+                      filters={opsFilters}
+                      onFiltersChange={setOpsFilters}
+                      locations={locations}
+                      vehicles={vehicles}
+                      showNeedsProcessing={true}
+                    />
                     <Select
                       value={filters.status || "all"}
                       onValueChange={(value) => handleFilterChange("status", value)}
@@ -372,23 +488,29 @@ export default function AdminBookings() {
                           <span className="text-muted-foreground">Loading...</span>
                         </TableCell>
                       </TableRow>
-                    ) : bookings?.length === 0 ? (
+                    ) : applyOpsFilters(bookings)?.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           No bookings found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      bookings?.map((booking) => (
+                      applyOpsFilters(bookings)?.map((booking) => (
                         <TableRow 
                           key={booking.id} 
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => handleOpenBooking(booking.id, booking.status)}
                         >
                           <TableCell>
-                            <Badge variant="outline" className="font-mono text-xs">
-                              {booking.bookingCode}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="font-mono text-xs">
+                                {booking.bookingCode}
+                              </Badge>
+                              {licenseStatusMap.get(booking.userId) !== "approved" && 
+                               (booking.status === "pending" || booking.status === "confirmed") && (
+                                <AlertCircle className="h-4 w-4 text-amber-500" />
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <p className="font-medium text-sm">{booking.profile?.fullName || "Unknown"}</p>
@@ -434,58 +556,86 @@ export default function AdminBookings() {
             </Card>
           </TabsContent>
 
-          {/* Pending Tab */}
-          <TabsContent value="pending" className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-500" />
-                  Pending Confirmation
-                </CardTitle>
-                <CardDescription>Bookings awaiting review and confirmation</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {categorizedBookings.pending.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <CheckCircle2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p>No pending bookings</p>
+          {/* Pickups Tab - Combined Pending & Confirmed */}
+          <TabsContent value="pickups" className="space-y-4">
+            {/* Filters */}
+            <OperationsFilters
+              filters={opsFilters}
+              onFiltersChange={setOpsFilters}
+              locations={locations}
+              vehicles={vehicles}
+              showNeedsProcessing={true}
+            />
+
+            {/* Needs Processing Alert */}
+            {needsProcessingCount > 0 && !opsFilters.needsProcessing && (
+              <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500">
+                      <FileWarning className="h-5 w-5" />
+                      <span className="font-medium">{needsProcessingCount} booking{needsProcessingCount !== 1 ? "s" : ""} need processing</span>
+                      <span className="text-sm text-muted-foreground">(License verification pending)</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOpsFilters({ ...opsFilters, needsProcessing: true })}
+                    >
+                      View
+                    </Button>
                   </div>
-                ) : (
-                  categorizedBookings.pending.map((booking) => (
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Past Pickups (missed) */}
+            {applyOpsFilters(categorizedBookings.pickupsPast).length > 0 && (
+              <Card className="border-destructive/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                    <AlertCircle className="w-4 h-4" />
+                    Missed Pickups
+                    <Badge variant="destructive">{applyOpsFilters(categorizedBookings.pickupsPast).length}</Badge>
+                  </CardTitle>
+                  <CardDescription>Bookings with pickup dates that have passed</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {applyOpsFilters(categorizedBookings.pickupsPast).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
                       onOpen={handleOpenBooking}
+                      showAction="pickup"
+                      licenseStatus={licenseStatusMap.get(booking.userId)}
                     />
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Pickups Tab */}
-          <TabsContent value="pickups" className="space-y-4">
             {/* Today's Pickups */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <KeyRound className="w-4 h-4 text-green-500" />
                   Today's Pickups
-                  {categorizedBookings.pickupsToday.length > 0 && (
-                    <Badge className="bg-green-500">{categorizedBookings.pickupsToday.length}</Badge>
+                  {applyOpsFilters(categorizedBookings.pickupsToday).length > 0 && (
+                    <Badge className="bg-green-500">{applyOpsFilters(categorizedBookings.pickupsToday).length}</Badge>
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {categorizedBookings.pickupsToday.length === 0 ? (
+                {applyOpsFilters(categorizedBookings.pickupsToday).length === 0 ? (
                   <p className="text-center py-4 text-muted-foreground text-sm">No pickups today</p>
                 ) : (
-                  categorizedBookings.pickupsToday.map((booking) => (
+                  applyOpsFilters(categorizedBookings.pickupsToday).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
                       onOpen={handleOpenBooking}
                       showAction="pickup"
+                      licenseStatus={licenseStatusMap.get(booking.userId)}
                     />
                   ))
                 )}
@@ -493,43 +643,45 @@ export default function AdminBookings() {
             </Card>
 
             {/* Tomorrow */}
-            {categorizedBookings.pickupsTomorrow.length > 0 && (
+            {applyOpsFilters(categorizedBookings.pickupsTomorrow).length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     Tomorrow
-                    <Badge variant="secondary">{categorizedBookings.pickupsTomorrow.length}</Badge>
+                    <Badge variant="secondary">{applyOpsFilters(categorizedBookings.pickupsTomorrow).length}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {categorizedBookings.pickupsTomorrow.map((booking) => (
+                  {applyOpsFilters(categorizedBookings.pickupsTomorrow).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
                       onOpen={handleOpenBooking}
                       showAction="pickup"
+                      licenseStatus={licenseStatusMap.get(booking.userId)}
                     />
                   ))}
                 </CardContent>
               </Card>
             )}
 
-            {/* Later */}
-            {categorizedBookings.pickupsLater.length > 0 && (
+            {/* Upcoming */}
+            {applyOpsFilters(categorizedBookings.pickupsUpcoming).length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     Upcoming
-                    <Badge variant="secondary">{categorizedBookings.pickupsLater.length}</Badge>
+                    <Badge variant="secondary">{applyOpsFilters(categorizedBookings.pickupsUpcoming).length}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {categorizedBookings.pickupsLater.slice(0, 10).map((booking) => (
+                  {applyOpsFilters(categorizedBookings.pickupsUpcoming).slice(0, 20).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
                       onOpen={handleOpenBooking}
                       showAction="pickup"
+                      licenseStatus={licenseStatusMap.get(booking.userId)}
                     />
                   ))}
                 </CardContent>
@@ -539,18 +691,26 @@ export default function AdminBookings() {
 
           {/* Active Tab */}
           <TabsContent value="active" className="space-y-4">
+            {/* Filters */}
+            <OperationsFilters
+              filters={opsFilters}
+              onFiltersChange={setOpsFilters}
+              locations={locations}
+              vehicles={vehicles}
+            />
+
             {/* Overdue Warning */}
-            {categorizedBookings.overdue.length > 0 && (
+            {applyOpsFilters(categorizedBookings.overdue).length > 0 && (
               <Card className="border-destructive">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2 text-destructive">
                     <AlertCircle className="w-4 h-4" />
                     Overdue Returns
-                    <Badge variant="destructive">{categorizedBookings.overdue.length}</Badge>
+                    <Badge variant="destructive">{applyOpsFilters(categorizedBookings.overdue).length}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {categorizedBookings.overdue.map((booking) => (
+                  {applyOpsFilters(categorizedBookings.overdue).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
@@ -567,15 +727,15 @@ export default function AdminBookings() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <Car className="w-4 h-4 text-primary" />
                   Active Rentals
-                  <Badge variant="secondary">{categorizedBookings.active.length}</Badge>
+                  <Badge variant="secondary">{applyOpsFilters(categorizedBookings.active).length}</Badge>
                 </CardTitle>
                 <CardDescription>Vehicles currently out with customers</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
-                {categorizedBookings.active.length === 0 ? (
+                {applyOpsFilters(categorizedBookings.active).length === 0 ? (
                   <p className="text-center py-4 text-muted-foreground text-sm">No active rentals</p>
                 ) : (
-                  categorizedBookings.active.map((booking) => (
+                  applyOpsFilters(categorizedBookings.active).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
@@ -589,21 +749,52 @@ export default function AdminBookings() {
 
           {/* Returns Tab */}
           <TabsContent value="returns" className="space-y-4">
+            {/* Filters */}
+            <OperationsFilters
+              filters={opsFilters}
+              onFiltersChange={setOpsFilters}
+              locations={locations}
+              vehicles={vehicles}
+            />
+
+            {/* Overdue */}
+            {applyOpsFilters(categorizedBookings.overdue).length > 0 && (
+              <Card className="border-destructive">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                    <AlertCircle className="w-4 h-4" />
+                    Overdue
+                    <Badge variant="destructive">{applyOpsFilters(categorizedBookings.overdue).length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {applyOpsFilters(categorizedBookings.overdue).map((booking) => (
+                    <BookingWorkflowCard 
+                      key={booking.id} 
+                      booking={booking} 
+                      onOpen={handleOpenBooking}
+                      showAction="return"
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <RotateCcw className="w-4 h-4 text-orange-500" />
                   Due Today
-                  {categorizedBookings.returnsToday.length > 0 && (
-                    <Badge className="bg-orange-500">{categorizedBookings.returnsToday.length}</Badge>
+                  {applyOpsFilters(categorizedBookings.returnsToday).length > 0 && (
+                    <Badge className="bg-orange-500">{applyOpsFilters(categorizedBookings.returnsToday).length}</Badge>
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {categorizedBookings.returnsToday.length === 0 ? (
+                {applyOpsFilters(categorizedBookings.returnsToday).length === 0 ? (
                   <p className="text-center py-4 text-muted-foreground text-sm">No returns due today</p>
                 ) : (
-                  categorizedBookings.returnsToday.map((booking) => (
+                  applyOpsFilters(categorizedBookings.returnsToday).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
@@ -615,18 +806,17 @@ export default function AdminBookings() {
               </CardContent>
             </Card>
 
-            {/* Overdue */}
-            {categorizedBookings.overdue.length > 0 && (
-              <Card className="border-destructive">
+            {/* Tomorrow */}
+            {applyOpsFilters(categorizedBookings.returnsTomorrow).length > 0 && (
+              <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                    <AlertCircle className="w-4 h-4" />
-                    Overdue
-                    <Badge variant="destructive">{categorizedBookings.overdue.length}</Badge>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    Tomorrow
+                    <Badge variant="secondary">{applyOpsFilters(categorizedBookings.returnsTomorrow).length}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {categorizedBookings.overdue.map((booking) => (
+                  {applyOpsFilters(categorizedBookings.returnsTomorrow).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
@@ -641,6 +831,14 @@ export default function AdminBookings() {
 
           {/* Completed Tab */}
           <TabsContent value="completed" className="space-y-4">
+            {/* Filters */}
+            <OperationsFilters
+              filters={opsFilters}
+              onFiltersChange={setOpsFilters}
+              locations={locations}
+              vehicles={vehicles}
+            />
+
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -649,10 +847,10 @@ export default function AdminBookings() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {categorizedBookings.completed.length === 0 ? (
+                {applyOpsFilters(categorizedBookings.completed).length === 0 ? (
                   <p className="text-center py-4 text-muted-foreground text-sm">No completed rentals</p>
                 ) : (
-                  categorizedBookings.completed.slice(0, 20).map((booking) => (
+                  applyOpsFilters(categorizedBookings.completed).slice(0, 30).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
