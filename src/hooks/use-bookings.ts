@@ -174,7 +174,8 @@ export function useBookingById(id: string | null) {
         .select(`
           *,
           vehicles (id, make, model, year, image_url, category, fuel_type, transmission, seats),
-          locations (id, name, city, address, phone)
+          locations (id, name, city, address, phone),
+          vehicle_units (id, vin, license_plate, status)
         `)
         .eq("id", id)
         .maybeSingle();

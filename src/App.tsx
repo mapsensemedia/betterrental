@@ -56,7 +56,7 @@ const ReturnOps = lazy(() => import("./pages/admin/ReturnOps"));
 const AbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminReports = lazy(() => import("./pages/admin/Reports"));
 const FleetAnalytics = lazy(() => import("./pages/admin/FleetAnalytics"));
-const FleetCategories = lazy(() => import("./pages/admin/FleetCategories"));
+const FleetManagement = lazy(() => import("./pages/admin/FleetManagement"));
 const AdminIncidents = lazy(() => import("./pages/admin/Incidents"));
 const AdminDamages = lazy(() => import("./pages/admin/Damages"));
 const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
@@ -132,7 +132,7 @@ const App = () => (
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/inventory" element={<Navigate to="/admin/fleet" replace />} />
-                <Route path="/admin/fleet" element={<AdminProtectedRoute><FleetCategories /></AdminProtectedRoute>} />
+                <Route path="/admin/fleet" element={<AdminProtectedRoute><FleetManagement /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet-analytics" element={<AdminProtectedRoute><FleetAnalytics /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet-costs" element={<AdminProtectedRoute><FleetAnalytics /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet/vehicle/:unitId" element={<AdminProtectedRoute><VehicleUnitDetail /></AdminProtectedRoute>} />
