@@ -152,7 +152,7 @@ export function ByCategoryTab() {
       </div>
 
       {/* Category Cards */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {categoryMetrics.map((cat) => (
           <Card key={cat.categoryId} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
