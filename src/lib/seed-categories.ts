@@ -12,6 +12,10 @@ import midsizeSuvRav4 from "@/assets/categories/midsize-suv-rav4.jpg";
 import suvFordEdge from "@/assets/categories/suv-ford-edge.jpg";
 import minivanPacifica from "@/assets/categories/minivan-pacifica.jpg";
 import largeSuvDurango from "@/assets/categories/large-suv-durango.jpg";
+import bmwImage from "@/assets/categories/bmw.jpg";
+import audiImage from "@/assets/categories/audi.jpg";
+import mercedesImage from "@/assets/categories/mercedes.jpg";
+import porscheImage from "@/assets/categories/porsche.jpg";
 
 export interface CategorySeedData {
   name: string;
@@ -29,6 +33,7 @@ export interface CategorySeedData {
 }
 
 export const FLEET_CATEGORIES: CategorySeedData[] = [
+  // ===== NEW CATEGORIES REQUESTED =====
   {
     name: "Mystery Car",
     description: "Surprise vehicle - you won't know what you'll get until pickup!",
@@ -117,6 +122,104 @@ export const FLEET_CATEGORIES: CategorySeedData[] = [
       { make: "Chevrolet", model: "Tahoe", year: 2024, vin: "1GNSKBKD5RR778899", licensePlate: "LRG-703", acquisitionCost: 58000, currentMileage: 8200 },
       { make: "Ford", model: "Expedition", year: 2023, vin: "1FMJU1JT8REA11223", licensePlate: "LRG-704", acquisitionCost: 55000, currentMileage: 26500 },
       { make: "Toyota", model: "Sequoia", year: 2024, vin: "5TDBY5G18RS334455", licensePlate: "LRG-705", acquisitionCost: 62000, currentMileage: 5900 },
+    ],
+  },
+
+  // ===== EXISTING CATEGORIES =====
+  {
+    name: "Toyota Yaris or Similar",
+    description: "Compact and fuel-efficient city car, ideal for urban commuting.",
+    image: economyVersa,
+    vehicles: [
+      { make: "Toyota", model: "Yaris", year: 2024, vin: "VNKKL3D39RA112233", licensePlate: "YAR-001", acquisitionCost: 19500, currentMileage: 8400 },
+      { make: "Toyota", model: "Yaris", year: 2024, vin: "VNKKL3D39RA445566", licensePlate: "YAR-002", acquisitionCost: 19500, currentMileage: 12100 },
+      { make: "Toyota", model: "Yaris", year: 2023, vin: "VNKKL3D39RA778899", licensePlate: "YAR-003", acquisitionCost: 18200, currentMileage: 22300 },
+    ],
+  },
+  {
+    name: "Jeep Grand Cherokee or Similar",
+    description: "Premium SUV with off-road capability and luxurious interior.",
+    image: suvFordEdge,
+    vehicles: [
+      { make: "Jeep", model: "Grand Cherokee", year: 2024, vin: "1C4RJFAG5RC123456", licensePlate: "JGC-001", acquisitionCost: 52000, currentMileage: 15600 },
+      { make: "Jeep", model: "Grand Cherokee", year: 2024, vin: "1C4RJFAG5RC654321", licensePlate: "JGC-002", acquisitionCost: 52000, currentMileage: 9800 },
+      { make: "Jeep", model: "Grand Cherokee", year: 2023, vin: "1C4RJFAG5RC112233", licensePlate: "JGC-003", acquisitionCost: 48500, currentMileage: 28700 },
+      { make: "Ford", model: "Explorer", year: 2024, vin: "1FMSK8FH5RGA11223", licensePlate: "JGC-004", acquisitionCost: 49000, currentMileage: 11200 },
+    ],
+  },
+  {
+    name: "Toyota Camry or Similar",
+    description: "Best-selling mid-size sedan with reliability and comfort.",
+    image: fullsizeCamry,
+    vehicles: [
+      { make: "Toyota", model: "Camry", year: 2024, vin: "4T1K61AK5RU887766", licensePlate: "CAM-001", acquisitionCost: 31000, currentMileage: 14200 },
+      { make: "Toyota", model: "Camry", year: 2024, vin: "4T1K61AK5RU554433", licensePlate: "CAM-002", acquisitionCost: 31000, currentMileage: 8900 },
+      { make: "Toyota", model: "Camry", year: 2023, vin: "4T1K61AK5RU221100", licensePlate: "CAM-003", acquisitionCost: 29000, currentMileage: 32400 },
+      { make: "Honda", model: "Accord", year: 2024, vin: "1HGCV2F37RA998877", licensePlate: "CAM-004", acquisitionCost: 32500, currentMileage: 6100 },
+    ],
+  },
+  {
+    name: "Ford Escape or Similar",
+    description: "Versatile compact SUV with excellent fuel economy and cargo space.",
+    image: midsizeSuvRav4,
+    vehicles: [
+      { make: "Ford", model: "Escape", year: 2024, vin: "1FMCU0G68RUA12345", licensePlate: "ESC-001", acquisitionCost: 34000, currentMileage: 11800 },
+      { make: "Ford", model: "Escape", year: 2024, vin: "1FMCU0G68RUA67890", licensePlate: "ESC-002", acquisitionCost: 34000, currentMileage: 7200 },
+      { make: "Ford", model: "Escape", year: 2023, vin: "1FMCU0G68RUA54321", licensePlate: "ESC-003", acquisitionCost: 31500, currentMileage: 24100 },
+      { make: "Chevrolet", model: "Equinox", year: 2024, vin: "2GNAXUEV5R6112233", licensePlate: "ESC-004", acquisitionCost: 33000, currentMileage: 9500 },
+    ],
+  },
+  {
+    name: "Nissan Altima or Similar",
+    description: "Comfortable mid-size sedan with advanced safety features.",
+    image: fullsizeCamry,
+    vehicles: [
+      { make: "Nissan", model: "Altima", year: 2024, vin: "1N4BL4CV5RN123456", licensePlate: "ALT-001", acquisitionCost: 28500, currentMileage: 13400 },
+      { make: "Nissan", model: "Altima", year: 2024, vin: "1N4BL4CV5RN654321", licensePlate: "ALT-002", acquisitionCost: 28500, currentMileage: 8700 },
+      { make: "Nissan", model: "Altima", year: 2023, vin: "1N4BL4CV5RN112233", licensePlate: "ALT-003", acquisitionCost: 26800, currentMileage: 29600 },
+      { make: "Hyundai", model: "Sonata", year: 2024, vin: "5NPEH4J59RH445566", licensePlate: "ALT-004", acquisitionCost: 29000, currentMileage: 5800 },
+    ],
+  },
+
+  // ===== LUXURY/PREMIUM CATEGORIES =====
+  {
+    name: "BMW 3 Series or Similar",
+    description: "Sporty luxury sedan with dynamic handling and premium features.",
+    image: bmwImage,
+    vehicles: [
+      { make: "BMW", model: "330i", year: 2024, vin: "WBA5R1C59RAF12345", licensePlate: "BMW-001", acquisitionCost: 48000, currentMileage: 9200 },
+      { make: "BMW", model: "330i", year: 2024, vin: "WBA5R1C59RAF67890", licensePlate: "BMW-002", acquisitionCost: 48000, currentMileage: 6800 },
+      { make: "BMW", model: "330i", year: 2023, vin: "WBA5R1C59RAF11223", licensePlate: "BMW-003", acquisitionCost: 45000, currentMileage: 18400 },
+    ],
+  },
+  {
+    name: "Audi A4 or Similar",
+    description: "Refined luxury sedan with Quattro all-wheel drive.",
+    image: audiImage,
+    vehicles: [
+      { make: "Audi", model: "A4", year: 2024, vin: "WAUENAF40RA123456", licensePlate: "AUD-001", acquisitionCost: 46000, currentMileage: 8100 },
+      { make: "Audi", model: "A4", year: 2024, vin: "WAUENAF40RA654321", licensePlate: "AUD-002", acquisitionCost: 46000, currentMileage: 5400 },
+      { make: "Audi", model: "A4", year: 2023, vin: "WAUENAF40RA112233", licensePlate: "AUD-003", acquisitionCost: 43500, currentMileage: 21200 },
+    ],
+  },
+  {
+    name: "Mercedes C-Class or Similar",
+    description: "Elegant luxury sedan with world-class comfort and technology.",
+    image: mercedesImage,
+    vehicles: [
+      { make: "Mercedes-Benz", model: "C300", year: 2024, vin: "W1KWF8DB5RA123456", licensePlate: "MER-001", acquisitionCost: 52000, currentMileage: 7600 },
+      { make: "Mercedes-Benz", model: "C300", year: 2024, vin: "W1KWF8DB5RA654321", licensePlate: "MER-002", acquisitionCost: 52000, currentMileage: 4200 },
+      { make: "Mercedes-Benz", model: "C300", year: 2023, vin: "W1KWF8DB5RA112233", licensePlate: "MER-003", acquisitionCost: 49000, currentMileage: 16800 },
+    ],
+  },
+  {
+    name: "Porsche Cayenne or Similar",
+    description: "High-performance luxury SUV with sports car DNA.",
+    image: porscheImage,
+    vehicles: [
+      { make: "Porsche", model: "Cayenne", year: 2024, vin: "WP1AA2AY5RDA12345", licensePlate: "POR-001", acquisitionCost: 78000, currentMileage: 5200 },
+      { make: "Porsche", model: "Cayenne", year: 2024, vin: "WP1AA2AY5RDA67890", licensePlate: "POR-002", acquisitionCost: 78000, currentMileage: 3100 },
+      { make: "Porsche", model: "Cayenne", year: 2023, vin: "WP1AA2AY5RDA11223", licensePlate: "POR-003", acquisitionCost: 72000, currentMileage: 12400 },
     ],
   },
 ];
