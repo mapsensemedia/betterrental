@@ -63,7 +63,7 @@ serve(async (req) => {
       );
     }
 
-    // Verify booking belongs to user and get vehicle details
+    // Verify booking belongs to user and get category details
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
@@ -74,7 +74,7 @@ serve(async (req) => {
         total_days,
         start_at,
         end_at,
-        vehicles (make, model, year)
+        vehicle_id
       `)
       .eq("id", bookingId)
       .eq("user_id", user.id)
@@ -86,6 +86,19 @@ serve(async (req) => {
         JSON.stringify({ error: "Booking not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Fetch category info separately
+    let vehicleDescription = "Vehicle Rental";
+    if (booking.vehicle_id) {
+      const { data: category } = await supabase
+        .from("vehicle_categories")
+        .select("name")
+        .eq("id", booking.vehicle_id)
+        .single();
+      if (category) {
+        vehicleDescription = category.name;
+      }
     }
 
     const stripe = new Stripe(stripeSecretKey, {
@@ -118,14 +131,6 @@ serve(async (req) => {
         },
       });
       customerId = customer.id;
-    }
-
-    // Get vehicle info for line item description
-    const vehicleData = booking.vehicles as unknown;
-    let vehicleDescription = "Vehicle Rental";
-    if (vehicleData && typeof vehicleData === 'object' && 'make' in vehicleData) {
-      const v = vehicleData as { make: string; model: string; year: number };
-      vehicleDescription = `${v.year} ${v.make} ${v.model}`.trim();
     }
 
     // Create Stripe Checkout Session

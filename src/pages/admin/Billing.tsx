@@ -152,7 +152,7 @@ export default function AdminBilling() {
             booking_code,
             total_amount,
             user_id,
-            vehicle:vehicle_categories(name)
+            vehicle_id
           )
         `)
         .order("created_at", { ascending: false });
@@ -165,7 +165,7 @@ export default function AdminBilling() {
       if (error) throw error;
       
       // Fetch profiles separately
-      const userIds = [...new Set(data.map(r => r.booking?.user_id).filter(Boolean))];
+      const userIds = [...new Set(data.map(r => (r.booking as any)?.user_id).filter(Boolean))];
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, full_name, email")
@@ -173,13 +173,26 @@ export default function AdminBilling() {
       
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       
+      // Fetch categories separately
+      const categoryIds = [...new Set(data.map(r => (r.booking as any)?.vehicle_id).filter(Boolean))];
+      const { data: categories } = await supabase
+        .from("vehicle_categories")
+        .select("id, name")
+        .in("id", categoryIds);
+      
+      const categoryMap = new Map(categories?.map(c => [c.id, c]) || []);
+      
       return data.map(receipt => ({
         ...receipt,
         totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number },
         line_items_json: receipt.line_items_json as any[],
         booking: receipt.booking ? {
-          ...receipt.booking,
-          profile: profileMap.get(receipt.booking.user_id) || null,
+          booking_code: (receipt.booking as any).booking_code,
+          total_amount: (receipt.booking as any).total_amount,
+          profile: profileMap.get((receipt.booking as any).user_id) || null,
+          vehicle: categoryMap.get((receipt.booking as any).vehicle_id)
+            ? { make: categoryMap.get((receipt.booking as any).vehicle_id)!.name, model: "" }
+            : null,
         } : null,
       })) as ReceiptData[];
     },
@@ -892,7 +905,7 @@ export default function AdminBilling() {
                               )}
                             </div>
                             <p className="font-medium">
-                              {booking.vehicle?.year} {booking.vehicle?.make} {booking.vehicle?.model}
+                              {booking.vehicle?.name || "Vehicle"}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {booking.profile?.full_name || "Unknown"} • {booking.total_days} days

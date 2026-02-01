@@ -55,7 +55,7 @@ export default function AdminConditionPhotos() {
           *,
           booking:bookings(
             booking_code,
-            vehicle:vehicles(make, model, year)
+            vehicle_id
           )
         `)
         .order("captured_at", { ascending: false })
@@ -67,7 +67,25 @@ export default function AdminConditionPhotos() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as ConditionPhoto[];
+      
+      // Fetch category info separately
+      const categoryIds = [...new Set(data.map(p => (p.booking as any)?.vehicle_id).filter(Boolean))];
+      const { data: categories } = await supabase
+        .from("vehicle_categories")
+        .select("id, name")
+        .in("id", categoryIds);
+      
+      const categoryMap = new Map(categories?.map(c => [c.id, c]) || []);
+      
+      return data.map(photo => ({
+        ...photo,
+        booking: photo.booking ? {
+          booking_code: (photo.booking as any).booking_code,
+          vehicle: categoryMap.get((photo.booking as any).vehicle_id) 
+            ? { make: "", model: categoryMap.get((photo.booking as any).vehicle_id)!.name, year: 0 }
+            : undefined,
+        } : undefined,
+      })) as ConditionPhoto[];
     },
   });
 

@@ -64,7 +64,7 @@ serve(async (req) => {
     // Verify booking belongs to user
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
-      .select("id, user_id, booking_code, total_amount")
+      .select("id, user_id, booking_code, total_amount, vehicle_id")
       .eq("id", bookingId)
       .eq("user_id", user.id)
       .single();
