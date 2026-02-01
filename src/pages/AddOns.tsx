@@ -102,13 +102,11 @@ export default function AddOns() {
     // Save to context
     setSelectedAddOns(selectedAddOnIds);
 
-    // Build URL params for checkout - preserve categoryId or vehicleId
+    // Build URL params for checkout - always use categoryId for new flow
     const params = new URLSearchParams();
-    if (categoryId && !vehicleId) {
-      params.set("categoryId", categoryId);
-    } else if (vehicleId) {
-      params.set("vehicleId", vehicleId);
-    }
+    // Use categoryId for checkout (this is the new category-based flow)
+    const checkoutCategoryId = categoryId || vehicleId;
+    if (checkoutCategoryId) params.set("categoryId", checkoutCategoryId);
     if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
     if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);

@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/collapsible";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
-import { useVehicles } from "@/hooks/use-vehicles";
+import { useVehicles, useCategory } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,16 +60,20 @@ export default function NewCheckout() {
   const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
   const { searchData, rentalDays } = useRentalBooking();
-  const { data: vehicles } = useVehicles();
   const { data: addOns = [] } = useAddOns();
   const saveAbandonedCart = useSaveAbandonedCart();
   const markCartConverted = useMarkCartConverted();
   const hasCompletedBooking = useRef(false);
 
-  // URL params
-  const vehicleId = searchParams.get("vehicleId") || searchData.selectedVehicleId;
+  // URL params - support both categoryId (new flow) and vehicleId (legacy)
+  const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
+  const legacyVehicleId = searchParams.get("vehicleId");
+  const vehicleId = categoryId || legacyVehicleId; // Use categoryId as the primary ID
   const protection = searchParams.get("protection") || "none";
   const addOnIds = searchParams.get("addOns")?.split(",").filter(Boolean) || searchData.selectedAddOnIds;
+
+  // Fetch category data (which is what we're actually booking)
+  const { data: category, isLoading: categoryLoading } = useCategory(categoryId);
 
   // Form state - ageConfirmed is derived from context, not form input
   const [formData, setFormData] = useState({
@@ -111,8 +115,8 @@ export default function NewCheckout() {
   const [pickupContactName, setPickupContactName] = useState("");
   const [pickupContactPhone, setPickupContactPhone] = useState("");
   const [specialInstructions, setSpecialInstructions] = useState("");
-
-  const vehicle = vehicles?.find((v) => v.id === vehicleId);
+  // Use category as the vehicle data source
+  const vehicle = category;
 
   // Update email when user loads
   useEffect(() => {
@@ -237,8 +241,8 @@ export default function NewCheckout() {
       return;
     }
 
-    if (!vehicleId || !vehicle || !searchData.pickupDate || !searchData.returnDate) {
-      toast({ title: "Missing booking information", variant: "destructive" });
+    if (!categoryId || !vehicle || !searchData.pickupDate || !searchData.returnDate) {
+      toast({ title: "Missing booking information", description: "Please select a vehicle and dates", variant: "destructive" });
       return;
     }
 
@@ -270,11 +274,12 @@ export default function NewCheckout() {
 
       if (session) {
         // Logged-in user flow - create booking directly
+        // Note: vehicle_id stores the category ID for category-based bookings
         const { data: bookingData, error } = await supabase
           .from("bookings")
           .insert({
             user_id: session.user.id,
-            vehicle_id: vehicleId,
+            vehicle_id: categoryId, // This is the category ID
             location_id: locationId,
             start_at: searchData.pickupDate.toISOString(),
             end_at: searchData.returnDate.toISOString(),
@@ -334,7 +339,7 @@ export default function NewCheckout() {
             lastName: formData.lastName,
             email: formData.email,
             phone: `${formData.countryCode}${formData.phone}`,
-            vehicleId,
+            vehicleId: categoryId, // This is the category ID
             locationId,
             startAt: searchData.pickupDate.toISOString(),
             endAt: searchData.returnDate.toISOString(),
@@ -447,14 +452,28 @@ export default function NewCheckout() {
     }
   };
 
-  // Redirect if no vehicle selected
-  if (!vehicleId) {
+  // Redirect if no vehicle/category selected or still loading
+  if (!categoryId) {
     return (
       <CustomerLayout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <p className="text-muted-foreground mb-4">No vehicle selected</p>
             <Button onClick={() => navigate("/search")}>Browse Vehicles</Button>
+          </div>
+        </div>
+      </CustomerLayout>
+    );
+  }
+
+  // Show loading while category data is being fetched
+  if (categoryLoading) {
+    return (
+      <CustomerLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading vehicle details...</p>
           </div>
         </div>
       </CustomerLayout>
