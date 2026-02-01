@@ -40,6 +40,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDamageReports } from "@/hooks/use-damages";
 import { cn } from "@/lib/utils";
+import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
+import { IncidentDetailDialog } from "@/components/admin/IncidentDetailDialog";
 
 // Incident severity and status styles
 const INCIDENT_SEVERITY_STYLES: Record<string, { label: string; className: string }> = {
@@ -83,6 +85,10 @@ export default function AdminIncidents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
+  
+  // Dialog states
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
 
   const { data: incidents = [], isLoading: incidentsLoading, refetch: refetchIncidents } = useIncidentCases();
   const { data: damages = [], isLoading: damagesLoading } = useDamageReports({});
@@ -132,6 +138,10 @@ export default function AdminIncidents() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Incident Case
+            </Button>
             <Button onClick={() => refetchIncidents()} variant="outline" size="icon">
               <RefreshCw className={`h-4 w-4 ${incidentsLoading ? "animate-spin" : ""}`} />
             </Button>
@@ -283,7 +293,7 @@ export default function AdminIncidents() {
                         const statusStyle = INCIDENT_STATUS_STYLES[incident.status] || { label: incident.status, className: "" };
 
                         return (
-                          <TableRow key={incident.id} className="cursor-pointer hover:bg-muted/50">
+                          <TableRow key={incident.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedIncidentId(incident.id)}>
                             <TableCell>
                               <Badge variant="outline" className={severityStyle.className}>
                                 {severityStyle.label}
@@ -423,6 +433,19 @@ export default function AdminIncidents() {
             </Card>
           </TabsContent>
         </Tabs>
+        
+        {/* Create Incident Dialog */}
+        <CreateIncidentDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+        />
+        
+        {/* Incident Detail Dialog */}
+        <IncidentDetailDialog
+          open={!!selectedIncidentId}
+          onOpenChange={(open) => !open && setSelectedIncidentId(null)}
+          incidentId={selectedIncidentId}
+        />
       </div>
     </AdminShell>
   );

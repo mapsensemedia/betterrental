@@ -22,6 +22,7 @@ import {
   isStateAtLeast,
 } from "@/lib/return-steps";
 import { useCompleteReturnStep, useInitiateReturn } from "@/hooks/use-return-state";
+import { useBookingIncidents } from "@/hooks/use-incidents";
 import { ReturnStepSidebar } from "@/components/admin/return-ops/ReturnStepSidebar";
 import { ReturnBookingSummary } from "@/components/admin/return-ops/ReturnBookingSummary";
 import { StepReturnIntake } from "@/components/admin/return-ops/steps/StepReturnIntake";
@@ -29,7 +30,8 @@ import { StepReturnEvidence } from "@/components/admin/return-ops/steps/StepRetu
 import { StepReturnIssues } from "@/components/admin/return-ops/steps/StepReturnIssues";
 import { StepReturnCloseout } from "@/components/admin/return-ops/steps/StepReturnCloseout";
 import { StepReturnDeposit } from "@/components/admin/return-ops/steps/StepReturnDeposit";
-import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle } from "lucide-react";
+import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
+import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle, Wrench } from "lucide-react";
 
 export default function ReturnOps() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -47,7 +49,11 @@ export default function ReturnOps() {
   const [activeStep, setActiveStep] = useState<ReturnStepId>("intake");
   const [totalDamageCost, setTotalDamageCost] = useState(0);
   const [isException, setIsException] = useState(false);
+  const [showIncidentDialog, setShowIncidentDialog] = useState(false);
   const hasInitializedRef = useRef(false);
+  
+  // Fetch incidents for this booking
+  const { data: bookingIncidents = [] } = useBookingIncidents(bookingId || null);
 
   // Get return state from booking - cast through any since types may not be updated yet
   const bookingData = booking as any;
@@ -122,10 +128,10 @@ export default function ReturnOps() {
 
   // Determine if there are issues that make this an exception return
   useEffect(() => {
-    if ((damages?.length || 0) > 0 || totalDamageCost > 0) {
+    if ((damages?.length || 0) > 0 || totalDamageCost > 0 || bookingIncidents.length > 0) {
       setIsException(true);
     }
-  }, [damages, totalDamageCost]);
+  }, [damages, totalDamageCost, bookingIncidents]);
 
   // Initialize to current step based on state
   useEffect(() => {
@@ -323,10 +329,32 @@ export default function ReturnOps() {
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleBack}>
-            <X className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
+              onClick={() => setShowIncidentDialog(true)}
+            >
+              <Wrench className="h-4 w-4" />
+              <span className="hidden sm:inline">Report Incident</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleBack}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
+        
+        {/* Incident Dialog */}
+        <CreateIncidentDialog
+          open={showIncidentDialog}
+          onOpenChange={setShowIncidentDialog}
+          bookingId={booking.id}
+          vehicleId={booking.vehicle_id}
+          customerId={booking.user_id}
+          bookingCode={booking.booking_code}
+          vehicleName={vehicleName}
+        />
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">

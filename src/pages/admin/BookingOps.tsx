@@ -31,6 +31,7 @@ import { OpsStepContent } from "@/components/admin/ops/OpsStepContent";
 import { OpsBookingSummary } from "@/components/admin/ops/OpsBookingSummary";
 import { MobileBookingSummary } from "@/components/admin/ops/MobileBookingSummary";
 import { OpsActivityTimeline } from "@/components/admin/ops/OpsActivityTimeline";
+import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
@@ -45,7 +46,7 @@ import { useCheckVehicleAvailability } from "@/hooks/use-vehicle-assignment";
 
 // Types
 import { OPS_STEPS, type OpsStepId, type StepCompletion, getCurrentStepIndex, checkStepComplete } from "@/lib/ops-steps";
-import { ArrowLeft, MoreVertical, X, Loader2 } from "lucide-react";
+import { ArrowLeft, MoreVertical, X, Loader2, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -79,6 +80,7 @@ export default function BookingOps() {
     open: false, 
     action: null 
   });
+  const [showIncidentDialog, setShowIncidentDialog] = useState(false);
 
   // Prevent the auto-advance effect from overriding manual navigation
   const hasInitializedStepRef = useRef(false);
@@ -302,6 +304,12 @@ export default function BookingOps() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem 
+                    onClick={() => setShowIncidentDialog(true)}
+                  >
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Report Incident
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
                     className="text-destructive"
                     onClick={handleCancelBooking}
                   >
@@ -409,6 +417,19 @@ export default function BookingOps() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Report Incident Dialog */}
+      {booking && (
+        <CreateIncidentDialog
+          open={showIncidentDialog}
+          onOpenChange={setShowIncidentDialog}
+          bookingId={booking.id}
+          vehicleId={booking.vehicle_id}
+          customerId={booking.user_id}
+          bookingCode={booking.booking_code}
+          vehicleName={vehicleName}
+        />
+      )}
     </AdminShell>
   );
 }
