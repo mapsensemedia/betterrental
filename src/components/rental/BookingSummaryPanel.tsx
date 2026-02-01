@@ -1,15 +1,17 @@
 /**
  * BookingSummaryPanel - Persistent summary shown on select-car, extras, checkout pages
  * Uses central pricing utility as single source of truth
+ * Supports both legacy vehicles and new category system
  */
 import { MapPin, Calendar, Clock, Car, Package, CreditCard, User } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
-import { useVehicle } from "@/hooks/use-vehicles";
+import { useVehicle, useCategory } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE } from "@/lib/pricing";
+import { useSearchParams } from "react-router-dom";
 
 interface BookingSummaryPanelProps {
   className?: string;
@@ -25,8 +27,20 @@ export function BookingSummaryPanel({
   protectionDailyRate = 0,
   selectedAddOnIds: overrideAddOnIds,
 }: BookingSummaryPanelProps) {
+  const [searchParams] = useSearchParams();
   const { searchData, rentalDays } = useRentalBooking();
-  const { data: vehicle } = useVehicle(searchData.selectedVehicleId);
+  
+  // Support both legacy vehicleId and new categoryId
+  const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
+  const vehicleId = searchParams.get("vehicleId");
+  
+  // Try to fetch as category first (new system), then as vehicle (legacy)
+  const { data: category } = useCategory(categoryId);
+  const { data: legacyVehicle } = useVehicle(vehicleId);
+  
+  // Use category data if available, otherwise fall back to legacy vehicle
+  const vehicle = category || legacyVehicle;
+  
   const { data: addOns = [] } = useAddOns();
 
   // Use override add-on IDs if provided, otherwise fall back to context
@@ -155,7 +169,7 @@ export function BookingSummaryPanel({
         </div>
       )}
 
-      {/* Selected Vehicle */}
+      {/* Selected Vehicle/Category */}
       {vehicle && (
         <>
           <Separator />
@@ -163,13 +177,17 @@ export function BookingSummaryPanel({
             <Car className="w-4 h-4 text-muted-foreground mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium">
-                {vehicle.year} {vehicle.make} {vehicle.model}
+                {(vehicle as any).isCategory 
+                  ? (vehicle as any).categoryName 
+                  : `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
               </p>
-              <p className="text-sm text-muted-foreground">{vehicle.category}</p>
+              <p className="text-sm text-muted-foreground">
+                ${vehicle.dailyRate}/day
+              </p>
               {vehicle.imageUrl && (
                 <img
                   src={vehicle.imageUrl}
-                  alt={`${vehicle.make} ${vehicle.model}`}
+                  alt={(vehicle as any).isCategory ? (vehicle as any).categoryName : `${vehicle.make} ${vehicle.model}`}
                   className="w-full h-24 object-cover rounded-lg mt-2"
                 />
               )}

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
-import { useVehicles } from "@/hooks/use-vehicles";
+import { useVehicle, useCategory } from "@/hooks/use-vehicles";
 import { useAddOns } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
@@ -40,14 +40,20 @@ export default function AddOns() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays, setSelectedAddOns, toggleAddOn } = useRentalBooking();
-  const { data: vehicles } = useVehicles();
   const { data: addOns = [] } = useAddOns();
 
-  const vehicleId = searchParams.get("vehicleId") || searchData.selectedVehicleId;
+  // Support both legacy vehicleId and new categoryId
+  const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
+  const vehicleId = searchParams.get("vehicleId");
   const protection = searchParams.get("protection") || "none";
+  
+  const { data: category } = useCategory(categoryId);
+  const { data: legacyVehicle } = useVehicle(vehicleId);
+  
+  // Use category if available, otherwise legacy vehicle
+  const vehicle = category || legacyVehicle;
+  
   const [selectedAddOnIds, setLocalSelectedAddOns] = useState<string[]>(searchData.selectedAddOnIds || []);
-
-  const vehicle = vehicles?.find((v) => v.id === vehicleId);
 
   // Track page view on mount
   useEffect(() => {
@@ -96,9 +102,13 @@ export default function AddOns() {
     // Save to context
     setSelectedAddOns(selectedAddOnIds);
 
-    // Build URL params for checkout
+    // Build URL params for checkout - preserve categoryId or vehicleId
     const params = new URLSearchParams();
-    if (vehicleId) params.set("vehicleId", vehicleId);
+    if (categoryId && !vehicleId) {
+      params.set("categoryId", categoryId);
+    } else if (vehicleId) {
+      params.set("vehicleId", vehicleId);
+    }
     if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
     if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
@@ -110,12 +120,17 @@ export default function AddOns() {
 
   const handleBack = () => {
     const params = new URLSearchParams();
-    if (vehicleId) params.set("vehicleId", vehicleId);
+    if (categoryId && !vehicleId) {
+      params.set("categoryId", categoryId);
+    } else if (vehicleId) {
+      params.set("vehicleId", vehicleId);
+    }
     if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
     if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     navigate(`/protection?${params.toString()}`);
   };
+
 
   return (
     <CustomerLayout>

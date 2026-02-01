@@ -142,3 +142,53 @@ export function useVehicle(id: string | null) {
     staleTime: 60000,
   });
 }
+
+/**
+ * Fetch a single category by ID (for new category-based booking flow)
+ */
+export function useCategory(id: string | null) {
+  return useQuery({
+    queryKey: ["category", id],
+    queryFn: async () => {
+      if (!id) return null;
+
+      const { data, error } = await supabase
+        .from("vehicle_categories")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching category:", error);
+        return null;
+      }
+
+      // Return in Vehicle-compatible format for BookingSummaryPanel
+      return {
+        id: data.id,
+        make: "", // Categories don't have make
+        model: data.name, // Use category name as model
+        year: new Date().getFullYear(),
+        category: data.name,
+        dailyRate: Number(data.daily_rate),
+        imageUrl: data.image_url,
+        seats: data.seats,
+        fuelType: data.fuel_type,
+        transmission: data.transmission,
+        isFeatured: false,
+        isAvailable: true,
+        locationId: null,
+        featuresJson: null,
+        specsJson: null,
+        imagesJson: null,
+        cleaningBufferHours: null,
+        // Category-specific
+        isCategory: true,
+        categoryName: data.name,
+        categoryDescription: data.description,
+      };
+    },
+    enabled: !!id,
+    staleTime: 60000,
+  });
+}
