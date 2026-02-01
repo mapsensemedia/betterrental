@@ -55,6 +55,8 @@ const ReturnOps = lazy(() => import("./pages/admin/ReturnOps"));
 const AbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminReports = lazy(() => import("./pages/admin/Reports"));
 const FleetAnalytics = lazy(() => import("./pages/admin/FleetAnalytics"));
+const AdminIncidents = lazy(() => import("./pages/admin/Incidents"));
+const AdminDamages = lazy(() => import("./pages/admin/Damages"));
 
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
@@ -131,6 +133,8 @@ const App = () => (
                 <Route path="/admin/abandoned-carts" element={<AdminProtectedRoute><AbandonedCarts /></AdminProtectedRoute>} />
                 <Route path="/admin/reports" element={<AdminProtectedRoute><AdminReports /></AdminProtectedRoute>} />
                 <Route path="/admin/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
+                <Route path="/admin/incidents" element={<AdminProtectedRoute><AdminIncidents /></AdminProtectedRoute>} />
+                <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
 
                 {/* Redirects for consolidated nav items - all go to Operations hub */}
                 <Route path="/admin/pickups" element={<Navigate to="/admin/bookings?tab=pickups" replace />} />

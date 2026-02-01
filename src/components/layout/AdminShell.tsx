@@ -72,6 +72,12 @@ const navItems = [
     description: "Vehicles & inventory",
   },
   {
+    href: "/admin/incidents",
+    label: "Incidents",
+    icon: Wrench,
+    description: "Accidents & damages",
+  },
+  {
     href: "/admin/fleet-analytics",
     label: "Fleet Analytics",
     icon: BarChart3,
