@@ -827,6 +827,236 @@ export type Database = {
           },
         ]
       }
+      incident_cases: {
+        Row: {
+          airbags_deployed: boolean | null
+          approved_amount: number | null
+          assigned_staff_id: string | null
+          booking_id: string | null
+          claim_number: string | null
+          claim_required: boolean | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          deductible_amount: number | null
+          description: string
+          estimate_amount: number | null
+          evidence_complete: boolean | null
+          evidence_completed_at: string | null
+          evidence_completed_by: string | null
+          final_invoice_amount: number | null
+          id: string
+          incident_date: string
+          incident_type: string
+          internal_notes: string | null
+          is_drivable: boolean | null
+          location: string | null
+          repair_completed_at: string | null
+          repair_started_at: string | null
+          repair_vendor: string | null
+          repair_vendor_contact: string | null
+          severity: string
+          status: string
+          third_party_involved: boolean | null
+          towing_required: boolean | null
+          updated_at: string
+          vehicle_id: string
+          vehicle_unit_id: string | null
+        }
+        Insert: {
+          airbags_deployed?: boolean | null
+          approved_amount?: number | null
+          assigned_staff_id?: string | null
+          booking_id?: string | null
+          claim_number?: string | null
+          claim_required?: boolean | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by: string
+          customer_id?: string | null
+          deductible_amount?: number | null
+          description: string
+          estimate_amount?: number | null
+          evidence_complete?: boolean | null
+          evidence_completed_at?: string | null
+          evidence_completed_by?: string | null
+          final_invoice_amount?: number | null
+          id?: string
+          incident_date?: string
+          incident_type: string
+          internal_notes?: string | null
+          is_drivable?: boolean | null
+          location?: string | null
+          repair_completed_at?: string | null
+          repair_started_at?: string | null
+          repair_vendor?: string | null
+          repair_vendor_contact?: string | null
+          severity?: string
+          status?: string
+          third_party_involved?: boolean | null
+          towing_required?: boolean | null
+          updated_at?: string
+          vehicle_id: string
+          vehicle_unit_id?: string | null
+        }
+        Update: {
+          airbags_deployed?: boolean | null
+          approved_amount?: number | null
+          assigned_staff_id?: string | null
+          booking_id?: string | null
+          claim_number?: string | null
+          claim_required?: boolean | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          deductible_amount?: number | null
+          description?: string
+          estimate_amount?: number | null
+          evidence_complete?: boolean | null
+          evidence_completed_at?: string | null
+          evidence_completed_by?: string | null
+          final_invoice_amount?: number | null
+          id?: string
+          incident_date?: string
+          incident_type?: string
+          internal_notes?: string | null
+          is_drivable?: boolean | null
+          location?: string | null
+          repair_completed_at?: string | null
+          repair_started_at?: string | null
+          repair_vendor?: string | null
+          repair_vendor_contact?: string | null
+          severity?: string
+          status?: string
+          third_party_involved?: boolean | null
+          towing_required?: boolean | null
+          updated_at?: string
+          vehicle_id?: string
+          vehicle_unit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_cases_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_cases_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_cases_vehicle_unit_id_fkey"
+            columns: ["vehicle_unit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incident_photos: {
+        Row: {
+          captured_at: string
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          incident_id: string
+          photo_url: string
+          uploaded_by: string
+        }
+        Insert: {
+          captured_at?: string
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          incident_id: string
+          photo_url: string
+          uploaded_by: string
+        }
+        Update: {
+          captured_at?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          incident_id?: string
+          photo_url?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_photos_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incident_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incident_repairs: {
+        Row: {
+          actual_cost: number | null
+          created_at: string
+          created_by: string
+          description: string | null
+          estimated_cost: number | null
+          id: string
+          incident_id: string
+          receipt_url: string | null
+          repair_type: string
+          status: string | null
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          actual_cost?: number | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          estimated_cost?: number | null
+          id?: string
+          incident_id: string
+          receipt_url?: string | null
+          repair_type: string
+          status?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          actual_cost?: number | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          estimated_cost?: number | null
+          id?: string
+          incident_id?: string
+          receipt_url?: string | null
+          repair_type?: string
+          status?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_repairs_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incident_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_metrics: {
         Row: {
           booking_id: string

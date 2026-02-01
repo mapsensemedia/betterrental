@@ -46,6 +46,14 @@ import { usePendingAlertsCount } from "@/hooks/use-pending-alerts-count";
  */
 const navItems = [
   {
+    href: "/admin/alerts",
+    label: "Alerts",
+    icon: Bell,
+    badgeKey: "alerts" as const,
+    description: "Action required",
+    priority: true, // Always at top
+  },
+  {
     href: "/admin",
     label: "Dashboard",
     icon: LayoutDashboard,
@@ -88,29 +96,10 @@ const navItems = [
     description: "Payments & receipts",
   },
   {
-    href: "/admin/alerts",
-    label: "Alerts",
-    icon: Bell,
-    badgeKey: "alerts" as const,
-    description: "Action required",
-  },
-  {
     href: "/admin/tickets",
     label: "Support",
     icon: MessageSquare,
     description: "Customer tickets",
-  },
-  {
-    href: "/admin/abandoned-carts",
-    label: "Recovery",
-    icon: ShoppingCart,
-    description: "Abandoned bookings",
-  },
-  {
-    href: "/admin/settings",
-    label: "Settings",
-    icon: Settings,
-    description: "Configuration",
   },
 ];
 interface AdminShellProps {
