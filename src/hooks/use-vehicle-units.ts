@@ -12,6 +12,7 @@ export interface VehicleUnit {
   color: string | null;
   mileage_at_acquisition: number | null;
   current_mileage: number | null;
+  category_id: string | null;
   notes: string | null;
   status: string;
   created_at: string;
