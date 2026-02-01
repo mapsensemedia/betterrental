@@ -2,6 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AdminNotifyEventType = 
   | "new_booking"
+  | "booking_cancelled"
+  | "booking_updated"
   | "license_uploaded"
   | "agreement_signed"
   | "payment_received"

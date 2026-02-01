@@ -59,9 +59,15 @@ export default function ReturnOps() {
   const bookingData = booking as any;
   const returnState: ReturnState = bookingData?.return_state || "not_started";
 
-  // Auto-initiate return if not started
+  // Auto-initiate return if not started - only trigger once
   useEffect(() => {
-    if (booking && returnState === "not_started" && !initiateReturn.isPending) {
+    if (
+      booking && 
+      returnState === "not_started" && 
+      !initiateReturn.isPending && 
+      !hasInitializedRef.current
+    ) {
+      hasInitializedRef.current = true;
       initiateReturn.mutate(booking.id);
     }
   }, [booking, returnState, initiateReturn]);

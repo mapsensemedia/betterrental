@@ -33,8 +33,8 @@ export function getBookingRoute(bookingId: string, status: BookingStatus, option
     
     case "completed":
     case "cancelled":
-      // Post-rental: Read-only detail view (using ops for now)
-      return `/admin/bookings/${bookingId}/ops${returnParam}`;
+      // Post-rental: Read-only booking detail view
+      return `/admin/bookings/${bookingId}${returnParam}`;
     
     default:
       return `/admin/bookings/${bookingId}/ops${returnParam}`;
