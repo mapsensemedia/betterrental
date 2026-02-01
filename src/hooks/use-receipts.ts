@@ -7,6 +7,7 @@ interface BookingForReceipt {
   id: string;
   booking_code: string;
   user_id: string;
+  vehicle_id: string;
   daily_rate: number;
   total_days: number;
   subtotal: number;
@@ -19,9 +20,7 @@ interface BookingForReceipt {
     email: string | null;
   } | null;
   vehicle: {
-    make: string;
-    model: string;
-    year: number;
+    name: string;
   } | null;
   addOns: {
     name: string;
@@ -44,20 +43,30 @@ export function useBookingsForReceipt(search: string) {
           id,
           booking_code,
           user_id,
+          vehicle_id,
           daily_rate,
           total_days,
           subtotal,
           tax_amount,
           total_amount,
           start_at,
-          end_at,
-          vehicle:vehicles(make, model, year)
+          end_at
         `)
         .or(`booking_code.ilike.%${search}%`)
         .limit(10);
 
       const { data, error } = await query;
       if (error) throw error;
+
+      // Fetch categories separately
+      const categoryIds = [...new Set(data.map(b => b.vehicle_id).filter(Boolean))];
+      const { data: categories } = categoryIds.length > 0
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name")
+            .in("id", categoryIds)
+        : { data: [] };
+      const categoryMap = new Map((categories || []).map(c => [c.id, c]));
 
       // Fetch profiles
       const userIds = [...new Set(data.map(b => b.user_id))];
@@ -88,23 +97,27 @@ export function useBookingsForReceipt(search: string) {
         addOnsMap.set(ba.booking_id, list);
       });
 
-      return data.map(b => ({
-        id: b.id,
-        booking_code: b.booking_code,
-        user_id: b.user_id,
-        daily_rate: b.daily_rate,
-        total_days: b.total_days,
-        subtotal: b.subtotal,
-        tax_amount: b.tax_amount,
-        total_amount: b.total_amount,
-        start_at: b.start_at,
-        end_at: b.end_at,
-        profile: profileMap.get(b.user_id) || null,
-        vehicle: b.vehicle,
-        addOns: addOnsMap.get(b.id) || [],
-        hasReceipt: receiptMap.has(b.id),
-        receiptId: receiptMap.get(b.id) || null,
-      })) as BookingForReceipt[];
+      return data.map(b => {
+        const category = categoryMap.get(b.vehicle_id);
+        return {
+          id: b.id,
+          booking_code: b.booking_code,
+          user_id: b.user_id,
+          vehicle_id: b.vehicle_id,
+          daily_rate: b.daily_rate,
+          total_days: b.total_days,
+          subtotal: b.subtotal,
+          tax_amount: b.tax_amount,
+          total_amount: b.total_amount,
+          start_at: b.start_at,
+          end_at: b.end_at,
+          profile: profileMap.get(b.user_id) || null,
+          vehicle: category ? { name: category.name } : null,
+          addOns: addOnsMap.get(b.id) || [],
+          hasReceipt: receiptMap.has(b.id),
+          receiptId: receiptMap.get(b.id) || null,
+        };
+      }) as BookingForReceipt[];
     },
     enabled: search.length >= 2,
   });
