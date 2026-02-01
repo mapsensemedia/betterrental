@@ -350,14 +350,160 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
         </div>
       )}
 
-      {/* Search Fields */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
-        {/* Location Field */}
-        <div className="space-y-2 min-w-0 relative z-20">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {deliveryMode === "pickup" ? "Pickup Location" : "Delivery Address"}
-          </label>
-          {deliveryMode === "pickup" ? (
+      {/* Search Fields - Different layout for delivery mode */}
+      {deliveryMode === "delivery" ? (
+        <div className="space-y-4">
+          {/* Delivery Address - Full Width Card */}
+          <div className="space-y-2 relative z-20">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Delivery Address
+            </label>
+            <div className="p-4 rounded-xl border border-border bg-card">
+              <DeliveryAddressAutocomplete
+                value={deliveryAddress}
+                onChange={setLocalDeliveryAddress}
+                onSelect={handleAddressSelect}
+                onBlur={handleManualAddressBlur}
+                placeholder="Enter your full delivery address"
+              />
+              {/* Show selected address confirmation */}
+              {deliveryCoords && deliveryAddress && (
+                <div className="mt-3 pt-3 border-t border-border/50 flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground line-clamp-2">{deliveryAddress}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {searchData.deliveryDistanceKm?.toFixed(1)}km from {searchData.closestPickupCenterName}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Date/Time Fields Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Delivery Date */}
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Delivery Date
+              </label>
+              <div 
+                className="relative cursor-pointer"
+                onClick={(e) => {
+                  const input = e.currentTarget.querySelector('input');
+                  if (input) {
+                    input.showPicker?.();
+                    input.focus();
+                  }
+                }}
+              >
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+                <input
+                  type="date"
+                  min={today}
+                  value={pickupDate}
+                  onChange={(e) => {
+                    setPickupDate(e.target.value);
+                    if (!returnDate || e.target.value > returnDate) {
+                      const nextDay = new Date(e.target.value);
+                      nextDay.setDate(nextDay.getDate() + 1);
+                      setReturnDate(nextDay.toISOString().split("T")[0]);
+                    }
+                  }}
+                  className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Delivery Window */}
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Delivery Window
+              </label>
+              <Select value={pickupTime} onValueChange={setPickupTime}>
+                <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="truncate">
+                      <SelectValue placeholder="Select window" />
+                    </span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {PICKUP_TIME_WINDOWS.map((tw) => (
+                    <SelectItem key={tw.value} value={tw.value}>
+                      {tw.displayLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Return Date */}
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Return Date
+              </label>
+              <div 
+                className="relative cursor-pointer"
+                onClick={(e) => {
+                  const input = e.currentTarget.querySelector('input');
+                  if (input) {
+                    input.showPicker?.();
+                    input.focus();
+                  }
+                }}
+              >
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+                <input
+                  type="date"
+                  min={pickupDate || today}
+                  max={pickupDate ? (() => {
+                    const maxDate = new Date(pickupDate);
+                    maxDate.setDate(maxDate.getDate() + MAX_RENTAL_DAYS);
+                    return maxDate.toISOString().split("T")[0];
+                  })() : undefined}
+                  value={returnDate}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                  className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Return Window */}
+            <div className="space-y-2 min-w-0">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Return Window
+              </label>
+              <Select value={returnTime} onValueChange={setReturnTime}>
+                <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="truncate">
+                      <SelectValue placeholder="Select window" />
+                    </span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {PICKUP_TIME_WINDOWS.map((tw) => (
+                    <SelectItem key={tw.value} value={tw.value}>
+                      {tw.displayLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Pickup Mode - Original 5-column grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
+          {/* Location Field */}
+          <div className="space-y-2 min-w-0 relative z-20">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Pickup Location
+            </label>
             <Select value={locationId} onValueChange={handleLocationChange}>
               <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
@@ -380,144 +526,136 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
                 ))}
               </SelectContent>
             </Select>
-          ) : (
-            <DeliveryAddressAutocomplete
-              value={deliveryAddress}
-              onChange={setLocalDeliveryAddress}
-              onSelect={handleAddressSelect}
-              onBlur={handleManualAddressBlur}
-              placeholder="Enter your full delivery address"
-            />
-          )}
-        </div>
+          </div>
 
-        {/* Pickup Date */}
-        <div className="space-y-2 min-w-0">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {deliveryMode === "delivery" ? "Delivery Date" : "Pickup Date"}
-          </label>
-          <div 
-            className="relative cursor-pointer"
-            onClick={(e) => {
-              const input = e.currentTarget.querySelector('input');
-              if (input) {
-                input.showPicker?.();
-                input.focus();
-              }
-            }}
-          >
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
-            <input
-              type="date"
-              min={today}
-              value={pickupDate}
-              onChange={(e) => {
-                setPickupDate(e.target.value);
-                if (!returnDate || e.target.value > returnDate) {
-                  const nextDay = new Date(e.target.value);
-                  nextDay.setDate(nextDay.getDate() + 1);
-                  setReturnDate(nextDay.toISOString().split("T")[0]);
+          {/* Pickup Date */}
+          <div className="space-y-2 min-w-0">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Pickup Date
+            </label>
+            <div 
+              className="relative cursor-pointer"
+              onClick={(e) => {
+                const input = e.currentTarget.querySelector('input');
+                if (input) {
+                  input.showPicker?.();
+                  input.focus();
                 }
               }}
-              className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
-            />
+            >
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+              <input
+                type="date"
+                min={today}
+                value={pickupDate}
+                onChange={(e) => {
+                  setPickupDate(e.target.value);
+                  if (!returnDate || e.target.value > returnDate) {
+                    const nextDay = new Date(e.target.value);
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    setReturnDate(nextDay.toISOString().split("T")[0]);
+                  }
+                }}
+                className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Pickup Time */}
-        <div className="space-y-2 min-w-0">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {deliveryMode === "delivery" ? "Delivery Window" : "Pickup Window"}
-          </label>
-          <Select value={pickupTime} onValueChange={setPickupTime}>
-            <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
-              <div className="flex items-center gap-2 min-w-0">
-                <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span className="truncate">
-                  <SelectValue placeholder="Select time window" />
-                </span>
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              {PICKUP_TIME_WINDOWS.map((tw) => (
-                <SelectItem key={tw.value} value={tw.value}>
-                  {tw.displayLabel}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Return Date */}
-        <div className="space-y-2 min-w-0">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Return Date
-          </label>
-          <div 
-            className="relative cursor-pointer"
-            onClick={(e) => {
-              const input = e.currentTarget.querySelector('input');
-              if (input) {
-                input.showPicker?.();
-                input.focus();
-              }
-            }}
-          >
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
-            <input
-              type="date"
-              min={pickupDate || today}
-              max={pickupDate ? (() => {
-                const maxDate = new Date(pickupDate);
-                maxDate.setDate(maxDate.getDate() + MAX_RENTAL_DAYS);
-                return maxDate.toISOString().split("T")[0];
-              })() : undefined}
-              value={returnDate}
-              onChange={(e) => setReturnDate(e.target.value)}
-              className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
-            />
+          {/* Pickup Time */}
+          <div className="space-y-2 min-w-0">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Pickup Window
+            </label>
+            <Select value={pickupTime} onValueChange={setPickupTime}>
+              <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="truncate">
+                    <SelectValue placeholder="Select time window" />
+                  </span>
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {PICKUP_TIME_WINDOWS.map((tw) => (
+                  <SelectItem key={tw.value} value={tw.value}>
+                    {tw.displayLabel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          {pickupDate && returnDate && (
-            (() => {
-              const days = Math.ceil(
-                (new Date(returnDate).getTime() - new Date(pickupDate).getTime()) / (1000 * 60 * 60 * 24)
-              );
-              if (days > MAX_RENTAL_DAYS) {
-                return (
-                  <p className="text-xs text-destructive">
-                    Maximum rental is {MAX_RENTAL_DAYS} days
-                  </p>
+
+          {/* Return Date */}
+          <div className="space-y-2 min-w-0">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Return Date
+            </label>
+            <div 
+              className="relative cursor-pointer"
+              onClick={(e) => {
+                const input = e.currentTarget.querySelector('input');
+                if (input) {
+                  input.showPicker?.();
+                  input.focus();
+                }
+              }}
+            >
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+              <input
+                type="date"
+                min={pickupDate || today}
+                max={pickupDate ? (() => {
+                  const maxDate = new Date(pickupDate);
+                  maxDate.setDate(maxDate.getDate() + MAX_RENTAL_DAYS);
+                  return maxDate.toISOString().split("T")[0];
+                })() : undefined}
+                value={returnDate}
+                onChange={(e) => setReturnDate(e.target.value)}
+                className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
+              />
+            </div>
+            {pickupDate && returnDate && (
+              (() => {
+                const days = Math.ceil(
+                  (new Date(returnDate).getTime() - new Date(pickupDate).getTime()) / (1000 * 60 * 60 * 24)
                 );
-              }
-              return null;
-            })()
-          )}
-        </div>
+                if (days > MAX_RENTAL_DAYS) {
+                  return (
+                    <p className="text-xs text-destructive">
+                      Maximum rental is {MAX_RENTAL_DAYS} days
+                    </p>
+                  );
+                }
+                return null;
+              })()
+            )}
+          </div>
 
-        {/* Return Time */}
-        <div className="space-y-2 min-w-0">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Return Window
-          </label>
-          <Select value={returnTime} onValueChange={setReturnTime}>
-            <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
-              <div className="flex items-center gap-2 min-w-0">
-                <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span className="truncate">
-                  <SelectValue placeholder="Select time window" />
-                </span>
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              {PICKUP_TIME_WINDOWS.map((tw) => (
-                <SelectItem key={tw.value} value={tw.value}>
-                  {tw.displayLabel}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Return Time */}
+          <div className="space-y-2 min-w-0">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Return Window
+            </label>
+            <Select value={returnTime} onValueChange={setReturnTime}>
+              <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="truncate">
+                    <SelectValue placeholder="Select time window" />
+                  </span>
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {PICKUP_TIME_WINDOWS.map((tw) => (
+                  <SelectItem key={tw.value} value={tw.value}>
+                    {tw.displayLabel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Delivery Pricing Display - Compact version below form */}
       {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
@@ -563,7 +701,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="21-25" id="age-21-25" />
               <Label htmlFor="age-21-25" className="text-sm text-muted-foreground cursor-pointer">
-                21-25 years old <span className="text-xs text-amber-600">(Young driver fee applies)</span>
+                21-25 years old <span className="text-xs text-warning">(Young driver fee applies)</span>
               </Label>
             </div>
           </RadioGroup>

@@ -23,6 +23,8 @@ import {
   AlertTriangle,
   Lock,
   Receipt,
+  CreditCard,
+  RefreshCw,
 } from "lucide-react";
 
 interface StepReturnDepositProps {
@@ -54,10 +56,12 @@ export function StepReturnDeposit({
   
   const [releaseReason, setReleaseReason] = useState("Vehicle returned in good condition - no damages");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRefundingStripe, setIsRefundingStripe] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
   const [withholdReason, setWithholdReason] = useState("");
   const [sendingNotification, setSendingNotification] = useState(false);
   const [receiptGenerated, setReceiptGenerated] = useState(false);
+  const [stripeRefundComplete, setStripeRefundComplete] = useState(false);
 
   const depositAmount = booking.deposit_amount || 0;
   const hasDeposit = depositAmount > 0;
@@ -261,6 +265,56 @@ export function StepReturnDeposit({
     }
   };
 
+  // Handle Stripe refund for deposit
+  const handleStripeRefund = async () => {
+    if (!hasDeposit || isLocked) return;
+    
+    setIsRefundingStripe(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("process-deposit-refund", {
+        body: {
+          bookingId,
+          amount: remainingDeposit,
+          reason: releaseReason || "Deposit refund - rental completed",
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Failed to process Stripe refund");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      setStripeRefundComplete(true);
+      
+      // Send notification to customer
+      await sendDepositNotification("released", data.amount, `Refund processed via Stripe (${data.refundId})`);
+      
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      
+      toast.success(`Stripe refund of $${data.amount.toFixed(2)} processed successfully`);
+      
+      // Generate receipt
+      await generateReceipt.mutateAsync({
+        bookingId,
+        depositReleased: data.amount,
+        depositWithheld: 0,
+      });
+      setReceiptGenerated(true);
+      
+      onComplete?.();
+    } catch (error) {
+      console.error("Error processing Stripe refund:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to process Stripe refund");
+    } finally {
+      setIsRefundingStripe(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Locked Warning */}
@@ -444,6 +498,52 @@ export function StepReturnDeposit({
                     Customer will be refunded: ${(remainingDeposit - parseFloat(partialAmount)).toFixed(2)}
                   </p>
                 )}
+              </div>
+
+              {/* Stripe Refund Option */}
+              <div className="space-y-3 p-4 rounded-lg border border-primary/30 bg-primary/5">
+                <h4 className="font-medium flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  Refund via Payment Gateway
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Process deposit refund directly to customer's original payment method via Stripe.
+                </p>
+                <div className="space-y-2">
+                  <Label>Refund Reason</Label>
+                  <Textarea
+                    value={releaseReason}
+                    onChange={(e) => setReleaseReason(e.target.value)}
+                    placeholder="Enter reason for refund..."
+                    rows={2}
+                  />
+                </div>
+                <Button
+                  onClick={handleStripeRefund}
+                  disabled={isRefundingStripe || isProcessing || !releaseReason.trim() || stripeRefundComplete}
+                  className="w-full"
+                  variant="outline"
+                >
+                  {isRefundingStripe ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing Refund...
+                    </>
+                  ) : stripeRefundComplete ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Refund Completed
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refund ${remainingDeposit.toFixed(2)} via Stripe
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  Refund will be credited to customer's card within 5-10 business days
+                </p>
               </div>
             </>
           )}
