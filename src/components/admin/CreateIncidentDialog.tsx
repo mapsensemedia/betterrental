@@ -443,12 +443,12 @@ export function CreateIncidentDialog({
             {/* Assignment */}
             <div className="space-y-2">
               <Label>Assign to Staff (Optional)</Label>
-              <Select value={assignedStaffId} onValueChange={setAssignedStaffId}>
+              <Select value={assignedStaffId || "unassigned"} onValueChange={(v) => setAssignedStaffId(v === "unassigned" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select staff member" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {staff.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.full_name || s.email}
