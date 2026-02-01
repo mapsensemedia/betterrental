@@ -115,27 +115,35 @@ export function DeliveryAddressAutocomplete({
   }, []);
 
   const handleSelect = (suggestion: Suggestion) => {
+    // Immediately hide suggestions to prevent z-index issues
+    setShowSuggestions(false);
+    setSuggestions([]);
+    
+    // Update the address value
     onChange(suggestion.place_name);
+    
+    // Trigger the selection callback with coordinates
     onSelect(
       suggestion.place_name,
       suggestion.center[1], // lat
       suggestion.center[0], // lng
       suggestion.place_name
     );
-    setShowSuggestions(false);
-    setSuggestions([]);
   };
 
   // Handle blur - allow manual address entry
   const handleBlur = () => {
-    // If user typed something but didn't select from suggestions,
-    // still accept it as a valid address (they may type full address manually)
-    if (value && value.length >= 5 && !suggestions.length) {
-      // Call onBlur callback if provided
-      onBlur?.();
-    }
-    // Give time for click on suggestion to register
-    setTimeout(() => setShowSuggestions(false), 200);
+    // Give time for click on suggestion to register before hiding
+    setTimeout(() => {
+      setShowSuggestions(false);
+      
+      // If user typed something but didn't select from suggestions,
+      // still accept it as a valid address (they may type full address manually)
+      if (value && value.length >= 5) {
+        // Call onBlur callback if provided
+        onBlur?.();
+      }
+    }, 150);
   };
 
   return (
@@ -167,11 +175,15 @@ export function DeliveryAddressAutocomplete({
 
       {/* Suggestions dropdown */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-[100] w-full mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+        <div className="absolute left-0 right-0 z-[200] w-full mt-1 bg-background border border-border rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto">
           {suggestions.map((suggestion) => (
             <button
               key={suggestion.id}
               type="button"
+              onMouseDown={(e) => {
+                // Prevent blur from firing before click
+                e.preventDefault();
+              }}
               onClick={() => handleSelect(suggestion)}
               className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted transition-colors border-b border-border last:border-b-0"
             >
