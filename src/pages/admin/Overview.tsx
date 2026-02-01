@@ -301,31 +301,35 @@ export default function AdminOverview() {
 
   return (
     <AdminShell>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {format(new Date(), "EEEE, MMMM d, yyyy")}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setWalkInDialogOpen(true)}
-              className="gap-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              Walk-In Booking
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setActiveTab(activeTab === "guide" ? "dashboard" : "guide")}
-              className="gap-2"
-            >
-              <HelpCircle className="w-4 h-4" />
-              {activeTab === "guide" ? "Back to Dashboard" : "How to Use"}
-            </Button>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold">Dashboard Overview</h1>
+              <p className="text-muted-foreground text-xs md:text-sm mt-0.5">
+                {format(new Date(), "EEEE, MMMM d, yyyy")}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setWalkInDialogOpen(true)}
+                size="sm"
+                className="gap-1.5 h-8 md:h-9"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden xs:inline">Walk-In</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab(activeTab === "guide" ? "dashboard" : "guide")}
+                className="gap-1.5 h-8 md:h-9"
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">{activeTab === "guide" ? "Back" : "Guide"}</span>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -336,26 +340,26 @@ export default function AdminOverview() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="guide">How to Use</TabsTrigger>
+          <TabsList className="grid w-full max-w-[200px] md:max-w-md grid-cols-2 h-8 md:h-10">
+            <TabsTrigger value="dashboard" className="text-xs md:text-sm">Dashboard</TabsTrigger>
+            <TabsTrigger value="guide" className="text-xs md:text-sm">How to Use</TabsTrigger>
           </TabsList>
 
           {/* Dashboard Tab */}
-          <TabsContent value="dashboard" className="space-y-6 mt-6">
+          <TabsContent value="dashboard" className="space-y-4 md:space-y-6 mt-4 md:mt-6">
             {/* Compact Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
               {stats.map((stat) => (
                 <div 
                   key={stat.label} 
-                  className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border bg-card"
+                  className="flex items-center gap-2 p-2 md:p-3 rounded-lg border bg-card"
                 >
-                  <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg ${stat.bgColor} flex items-center justify-center shrink-0`}>
-                    <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                  <div className={`w-7 h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 rounded-lg ${stat.bgColor} flex items-center justify-center shrink-0`}>
+                    <stat.icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${stat.color}`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-lg sm:text-xl font-bold leading-none">{bookingsLoading ? "..." : stat.value}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{stat.label}</p>
+                    <p className="text-base md:text-lg lg:text-xl font-bold leading-none">{bookingsLoading ? "..." : stat.value}</p>
+                    <p className="text-[10px] md:text-xs text-muted-foreground truncate">{stat.label}</p>
                   </div>
                 </div>
               ))}
@@ -478,7 +482,7 @@ export default function AdminOverview() {
             )}
 
             {/* Real-time panels grid */}
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* Active Rentals Monitor - Always visible */}
               <ActiveRentalsMonitor />
               
@@ -490,7 +494,7 @@ export default function AdminOverview() {
             <AnalyticsPanel />
 
             {/* Upcoming Summary */}
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">

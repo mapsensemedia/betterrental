@@ -134,20 +134,20 @@ export function OpsStepSidebar({
       <div className="lg:hidden border-b bg-muted/20 shrink-0">
         <button
           onClick={() => setMobileExpanded(!mobileExpanded)}
-          className="w-full p-4 flex items-center justify-between"
+          className="w-full p-3 sm:p-4 flex items-center justify-between"
         >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs sm:text-sm font-semibold">
               {currentStep?.number || 1}
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium">{currentStep?.title || "Step"}</p>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-muted-foreground">
+              <p className="text-xs sm:text-sm font-medium">{currentStep?.title || "Step"}</p>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
                   {completedCount}/{steps.length} complete
                 </p>
                 {blockedCount > 0 && (
-                  <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                  <Badge variant="destructive" className="text-[9px] sm:text-[10px] px-1 py-0 h-4">
                     {blockedCount} blocked
                   </Badge>
                 )}
@@ -155,15 +155,15 @@ export function OpsStepSidebar({
             </div>
           </div>
           {mobileExpanded ? (
-            <ChevronUp className="w-5 h-5 text-muted-foreground" />
+            <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
           ) : (
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
           )}
         </button>
         
         {/* Mobile Expanded Steps */}
         {mobileExpanded && (
-          <div className="px-4 pb-4 space-y-1 animate-fade-in">
+          <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-1 animate-fade-in max-h-[50vh] overflow-y-auto">
             {steps.map((step) => {
               const { status, missingCount } = getStepStatus(step.id, completion, currentStepIndex);
               const displayStatus = isRentalActive ? "complete" : status;
@@ -179,27 +179,27 @@ export function OpsStepSidebar({
                     setMobileExpanded(false);
                   }}
                   className={cn(
-                    "w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors",
+                    "w-full text-left p-2.5 sm:p-3 rounded-lg flex items-center gap-2.5 sm:gap-3 transition-colors",
                     isActive && "bg-primary/10"
                   )}
                 >
                   <div className={cn(
-                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium",
+                    "w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium shrink-0",
                     styling.bgClass
                   )}>
-                    {isComplete ? <Check className="w-3.5 h-3.5" /> : 
-                     displayStatus === "blocked" ? <AlertTriangle className="w-3.5 h-3.5" /> :
+                    {isComplete ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : 
+                     displayStatus === "blocked" ? <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> :
                      step.number}
                   </div>
-                  <div className="flex-1 flex items-center justify-between">
+                  <div className="flex-1 flex items-center justify-between min-w-0">
                     <span className={cn(
-                      "text-sm",
+                      "text-xs sm:text-sm truncate",
                       isActive && "font-medium text-primary"
                     )}>
                       {step.title}
                     </span>
                     {!isComplete && missingCount && missingCount > 0 && (
-                      <span className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded shrink-0 ml-2">
                         {missingCount}
                       </span>
                     )}
@@ -212,7 +212,7 @@ export function OpsStepSidebar({
       </div>
       
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block w-72 border-r bg-muted/20 shrink-0 overflow-y-auto">
+      <div className="hidden lg:block w-64 xl:w-72 border-r bg-muted/20 shrink-0 overflow-y-auto">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">

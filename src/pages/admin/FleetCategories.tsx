@@ -296,49 +296,52 @@ export default function FleetCategories() {
 
   return (
     <AdminShell>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Fleet Categories</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Manage vehicle categories and assign VINs
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
-            </Tooltip>
-            <Button variant="outline" onClick={() => setSeedDialogOpen(true)}>
-              <Database className="w-4 h-4 mr-2" />
-              Seed Data
-            </Button>
-            <Button onClick={() => setCategoryDialog({ open: true, mode: "create", name: "", description: "", dailyRate: 100, imageUrl: "" })}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Category
-            </Button>
+        <div className="flex flex-col gap-3 md:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight">Fleet Categories</h1>
+              <p className="text-muted-foreground text-xs md:text-sm mt-0.5">
+                Manage vehicle categories and assign VINs
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-8 w-8 md:h-9 md:w-9">
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Refresh</TooltipContent>
+              </Tooltip>
+              <Button variant="outline" size="sm" onClick={() => setSeedDialogOpen(true)} className="h-8 md:h-9 text-xs md:text-sm">
+                <Database className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <span className="hidden xs:inline">Seed</span>
+              </Button>
+              <Button size="sm" onClick={() => setCategoryDialog({ open: true, mode: "create", name: "", description: "", dailyRate: 100, imageUrl: "" })} className="h-8 md:h-9 text-xs md:text-sm">
+                <Plus className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <span className="hidden xs:inline">Add Category</span>
+                <span className="xs:hidden">Add</span>
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content - Stack on mobile, side-by-side on desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Categories List */}
-          <div className="lg:col-span-1 space-y-4">
-            <h2 className="font-semibold text-lg flex items-center gap-2">
-              <FolderOpen className="w-5 h-5" />
+          <div className="lg:col-span-1 space-y-3 md:space-y-4">
+            <h2 className="font-semibold text-base md:text-lg flex items-center gap-2">
+              <FolderOpen className="w-4 h-4 md:w-5 md:h-5" />
               Categories ({categories?.length || 0})
             </h2>
             
             {!categories?.length ? (
               <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <FolderOpen className="w-10 h-10 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground text-center">
+                <CardContent className="flex flex-col items-center justify-center py-6 md:py-8">
+                  <FolderOpen className="w-8 h-8 md:w-10 md:h-10 text-muted-foreground mb-3" />
+                  <p className="text-xs md:text-sm text-muted-foreground text-center px-4">
                     No categories yet. Create one to start managing your fleet.
                   </p>
                 </CardContent>
@@ -479,15 +482,15 @@ export default function FleetCategories() {
                 </CardHeader>
                 <CardContent className="p-0">
                   {categoryUnits.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <Car className="w-10 h-10 text-muted-foreground mb-3" />
-                      <p className="text-sm text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center py-8 md:py-12 text-center px-4">
+                      <Car className="w-8 h-8 md:w-10 md:h-10 text-muted-foreground mb-3" />
+                      <p className="text-xs md:text-sm text-muted-foreground">
                         No vehicles in this category yet.
                       </p>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-4"
+                        className="mt-4 h-8 text-xs md:text-sm"
                         onClick={() =>
                           setVinDialog({
                             open: true,
@@ -505,82 +508,122 @@ export default function FleetCategories() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>VIN</TableHead>
-                            <TableHead>Plate</TableHead>
-                            <TableHead className="text-right">Acquisition Cost</TableHead>
-                            <TableHead className="text-right">Mileage</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="w-[80px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {categoryUnits.map((unit: VehicleUnit) => (
-                            <TableRow key={unit.id}>
-                              <TableCell>
-                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                                  {unit.vin}
-                                </code>
-                              </TableCell>
-                              <TableCell>{unit.license_plate || "—"}</TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(unit.acquisition_cost)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {unit.current_mileage?.toLocaleString() || "—"} mi
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={unit.status === "active" ? "default" : "secondary"}
-                                >
-                                  {unit.status || "active"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7"
-                                        onClick={() => navigate(`/admin/fleet/vehicle/${unit.id}`)}
-                                      >
-                                        <Eye className="w-3.5 h-3.5" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>View Details</TooltipContent>
-                                  </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-destructive"
-                                        onClick={() =>
-                                          setDeleteDialog({
-                                            open: true,
-                                            type: "vin",
-                                            id: unit.id,
-                                            name: unit.vin,
-                                          })
-                                        }
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Remove</TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </TableCell>
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="block md:hidden divide-y">
+                        {categoryUnits.map((unit: VehicleUnit) => (
+                          <div 
+                            key={unit.id} 
+                            className="p-3 hover:bg-muted/50 cursor-pointer"
+                            onClick={() => navigate(`/admin/fleet/vehicle/${unit.id}`)}
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <code className="text-xs bg-muted px-1.5 py-0.5 rounded break-all">
+                                {unit.vin}
+                              </code>
+                              <Badge
+                                variant={unit.status === "active" ? "default" : "secondary"}
+                                className="text-[10px] shrink-0"
+                              >
+                                {unit.status || "active"}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                              <div>
+                                <span className="block text-[10px] uppercase tracking-wide">Plate</span>
+                                <span className="font-medium text-foreground">{unit.license_plate || "—"}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] uppercase tracking-wide">Cost</span>
+                                <span className="font-medium text-foreground">{formatCurrency(unit.acquisition_cost)}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] uppercase tracking-wide">Mileage</span>
+                                <span className="font-medium text-foreground">{unit.current_mileage?.toLocaleString() || "—"}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>VIN</TableHead>
+                              <TableHead>Plate</TableHead>
+                              <TableHead className="text-right">Cost</TableHead>
+                              <TableHead className="text-right">Mileage</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="w-[80px]"></TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {categoryUnits.map((unit: VehicleUnit) => (
+                              <TableRow key={unit.id}>
+                                <TableCell>
+                                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                                    {unit.vin}
+                                  </code>
+                                </TableCell>
+                                <TableCell>{unit.license_plate || "—"}</TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(unit.acquisition_cost)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {unit.current_mileage?.toLocaleString() || "—"} mi
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={unit.status === "active" ? "default" : "secondary"}
+                                  >
+                                    {unit.status || "active"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7"
+                                          onClick={() => navigate(`/admin/fleet/vehicle/${unit.id}`)}
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>View Details</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-destructive"
+                                          onClick={() =>
+                                            setDeleteDialog({
+                                              open: true,
+                                              type: "vin",
+                                              id: unit.id,
+                                              name: unit.vin,
+                                            })
+                                          }
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Remove</TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
