@@ -358,8 +358,22 @@ export default function NewCheckout() {
           },
         });
 
+        // Handle edge function errors - could be in response.error or response.data
         if (response.error) {
-          throw new Error(response.error.message || "Failed to create booking");
+          const errorMessage = response.error.message || "Failed to create booking";
+          console.error("Guest booking error:", response.error);
+          throw new Error(errorMessage);
+        }
+
+        // Also check for error in data (when edge function returns 4xx with JSON body)
+        if (response.data?.error) {
+          const errorMessage = response.data.message || response.data.error || "Failed to create booking";
+          console.error("Guest booking validation error:", response.data);
+          throw new Error(errorMessage);
+        }
+
+        if (!response.data?.booking) {
+          throw new Error("No booking returned from server");
         }
 
         // Map camelCase response from Edge Function to snake_case expected by UI

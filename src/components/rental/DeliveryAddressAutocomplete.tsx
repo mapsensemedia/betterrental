@@ -126,8 +126,8 @@ export function DeliveryAddressAutocomplete({
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
-      <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+      <div className="relative group">
+        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
         <Input
           ref={inputRef}
           type="text"
@@ -137,9 +137,18 @@ export function DeliveryAddressAutocomplete({
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
           disabled={tokenLoading}
           className="h-12 pl-10 pr-10 rounded-xl"
+          title={value} // Show full address on hover
         />
         {isSearching && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+        )}
+        {/* Full address tooltip on hover when truncated */}
+        {value && value.length > 30 && (
+          <div className="absolute left-0 right-0 -bottom-1 translate-y-full opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+            <div className="bg-popover text-popover-foreground text-xs p-2 rounded-lg shadow-lg border border-border mt-1 whitespace-normal break-words">
+              {value}
+            </div>
+          </div>
         )}
       </div>
 
@@ -154,7 +163,7 @@ export function DeliveryAddressAutocomplete({
               className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted transition-colors border-b border-border last:border-b-0"
             >
               <MapPin className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-              <span className="text-sm text-foreground">
+              <span className="text-sm text-foreground break-words">
                 {suggestion.place_name}
               </span>
             </button>

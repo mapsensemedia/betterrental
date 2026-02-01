@@ -33,6 +33,7 @@ import { trackPageView, funnelEvents } from "@/lib/analytics";
 
 const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Sedan"];
 const fuelTypes = ["All", "Gas", "Electric", "Hybrid", "Diesel"];
+const transmissionTypes = ["All", "Automatic", "Manual"];
 const seatsOptions = [2, 4, 5, 7];
 
 type SortOption = "recommended" | "price-low" | "price-high" | "newest";
@@ -77,6 +78,7 @@ export default function Search() {
   );
   const [priceRange, setPriceRange] = useState([0, 2000]);
   const [selectedFuelType, setSelectedFuelType] = useState("All");
+  const [selectedTransmission, setSelectedTransmission] = useState("All");
   const [minSeats, setMinSeats] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("recommended");
   // Compare feature removed
@@ -134,8 +136,13 @@ export default function Search() {
       if (v.dailyRate < priceRange[0] || v.dailyRate > priceRange[1]) {
         return false;
       }
-      // Transmission filter - all vehicles show as Automatic now
-      // No filtering needed since we only show Automatic
+      // Transmission filter
+      if (selectedTransmission !== "All") {
+        const vehicleTrans = v.transmission?.toLowerCase() || "automatic";
+        if (vehicleTrans !== selectedTransmission.toLowerCase()) {
+          return false;
+        }
+      }
       // Fuel type filter (map "Gas" to "petrol" for comparison)
       if (selectedFuelType !== "All") {
         const vehicleFuel = v.fuelType?.toLowerCase();
@@ -191,6 +198,7 @@ export default function Search() {
     setSelectedCategory("All");
     setPriceRange([0, 2000]);
     setSelectedFuelType("All");
+    setSelectedTransmission("All");
     setMinSeats(null);
   };
 
@@ -198,6 +206,7 @@ export default function Search() {
     selectedCategory !== "All",
     priceRange[0] > 0 || priceRange[1] < 2000,
     selectedFuelType !== "All",
+    selectedTransmission !== "All",
     minSeats !== null,
   ].filter(Boolean).length;
 
@@ -306,6 +315,8 @@ export default function Search() {
                     setPriceRange={setPriceRange}
                     selectedFuelType={selectedFuelType}
                     setSelectedFuelType={setSelectedFuelType}
+                    selectedTransmission={selectedTransmission}
+                    setSelectedTransmission={setSelectedTransmission}
                     minSeats={minSeats}
                     setMinSeats={setMinSeats}
                     onReset={resetFilters}
@@ -327,6 +338,8 @@ export default function Search() {
                 setPriceRange={setPriceRange}
                 selectedFuelType={selectedFuelType}
                 setSelectedFuelType={setSelectedFuelType}
+                selectedTransmission={selectedTransmission}
+                setSelectedTransmission={setSelectedTransmission}
                 minSeats={minSeats}
                 setMinSeats={setMinSeats}
                 onReset={resetFilters}
@@ -405,6 +418,8 @@ interface FilterContentProps {
   setPriceRange: (value: number[]) => void;
   selectedFuelType: string;
   setSelectedFuelType: (value: string) => void;
+  selectedTransmission: string;
+  setSelectedTransmission: (value: string) => void;
   minSeats: number | null;
   setMinSeats: (value: number | null) => void;
   onReset: () => void;
@@ -417,6 +432,8 @@ function FilterContent({
   setPriceRange,
   selectedFuelType,
   setSelectedFuelType,
+  selectedTransmission,
+  setSelectedTransmission,
   minSeats,
   setMinSeats,
   onReset,
@@ -472,6 +489,26 @@ function FilterContent({
               />
               <span className="text-sm">{fuel}</span>
             </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Transmission */}
+      <div className="p-4 bg-card rounded-2xl border border-border">
+        <h3 className="font-semibold mb-4">Transmission</h3>
+        <div className="flex flex-wrap gap-2">
+          {transmissionTypes.map((trans) => (
+            <button
+              key={trans}
+              onClick={() => setSelectedTransmission(trans)}
+              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                selectedTransmission === trans
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {trans}
+            </button>
           ))}
         </div>
       </div>
