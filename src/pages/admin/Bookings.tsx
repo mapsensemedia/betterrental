@@ -546,6 +546,7 @@ export default function AdminBookings() {
                 </div>
               </CardHeader>
               <CardContent className="p-0 overflow-x-auto">
+                <TooltipProvider>
                 <Table className="min-w-[800px]">
                   <TableHeader>
                     <TableRow>
@@ -636,6 +637,7 @@ export default function AdminBookings() {
                     )}
                   </TableBody>
                 </Table>
+                </TooltipProvider>
               </CardContent>
             </Card>
           </TabsContent>
