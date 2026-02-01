@@ -56,6 +56,7 @@ const ReturnOps = lazy(() => import("./pages/admin/ReturnOps"));
 const AbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminReports = lazy(() => import("./pages/admin/Reports"));
 const FleetAnalytics = lazy(() => import("./pages/admin/FleetAnalytics"));
+const FleetCategories = lazy(() => import("./pages/admin/FleetCategories"));
 const AdminIncidents = lazy(() => import("./pages/admin/Incidents"));
 const AdminDamages = lazy(() => import("./pages/admin/Damages"));
 const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
@@ -130,8 +131,10 @@ const App = () => (
                 <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
-                <Route path="/admin/inventory" element={<AdminProtectedRoute><AdminInventory /></AdminProtectedRoute>} />
+                <Route path="/admin/inventory" element={<Navigate to="/admin/fleet" replace />} />
+                <Route path="/admin/fleet" element={<AdminProtectedRoute><FleetCategories /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet-analytics" element={<AdminProtectedRoute><FleetAnalytics /></AdminProtectedRoute>} />
+                <Route path="/admin/fleet-costs" element={<AdminProtectedRoute><FleetAnalytics /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet/vehicle/:unitId" element={<AdminProtectedRoute><VehicleUnitDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet/category/:categoryId" element={<AdminProtectedRoute><CategoryDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/calendar" element={<AdminProtectedRoute><AdminCalendar /></AdminProtectedRoute>} />
@@ -148,8 +151,8 @@ const App = () => (
                 <Route path="/admin/returns" element={<Navigate to="/admin/bookings?tab=returns" replace />} />
                 <Route path="/admin/history" element={<Navigate to="/admin/bookings?tab=completed" replace />} />
                 <Route path="/admin/handovers" element={<Navigate to="/admin/bookings" replace />} />
-                <Route path="/admin/fleet-costs" element={<Navigate to="/admin/fleet-analytics?tab=costs" replace />} />
-                <Route path="/admin/damages" element={<Navigate to="/admin/inventory" replace />} />
+                <Route path="/admin/damages" element={<Navigate to="/admin/fleet" replace />} />
+                <Route path="/admin/photos" element={<Navigate to="/admin/fleet" replace />} />
                 <Route path="/admin/photos" element={<Navigate to="/admin/inventory" replace />} />
                 <Route path="/admin/verifications" element={<Navigate to="/admin/alerts?type=verification_pending" replace />} />
                 <Route path="/admin/analytics" element={<Navigate to="/admin/reports" replace />} />
