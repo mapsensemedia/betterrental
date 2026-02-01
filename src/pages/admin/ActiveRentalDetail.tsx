@@ -42,8 +42,10 @@ import {
   Send,
   Receipt,
   RotateCcw,
+  Wrench,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 
 export default function ActiveRentalDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -58,6 +60,9 @@ export default function ActiveRentalDetail() {
   const [flagDialogOpen, setFlagDialogOpen] = useState(false);
   const [flagMessage, setFlagMessage] = useState("");
   const [flagging, setFlagging] = useState(false);
+  
+  // Incident dialog
+  const [showIncidentDialog, setShowIncidentDialog] = useState(false);
 
   // Update duration every second
   useEffect(() => {
@@ -187,6 +192,17 @@ export default function ActiveRentalDetail() {
               </Link>
             </Button>
             
+            {/* Report Incident */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setShowIncidentDialog(true)}
+            >
+              <Wrench className="h-4 w-4" />
+              Report Incident
+            </Button>
+            
             <Dialog open={flagDialogOpen} onOpenChange={setFlagDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
@@ -222,6 +238,17 @@ export default function ActiveRentalDetail() {
               </DialogContent>
             </Dialog>
           </div>
+          
+          {/* Incident Dialog */}
+          <CreateIncidentDialog
+            open={showIncidentDialog}
+            onOpenChange={setShowIncidentDialog}
+            bookingId={rental.id}
+            vehicleId={rental.vehicleId}
+            customerId={rental.userId}
+            bookingCode={rental.bookingCode}
+            vehicleName={`${rental.vehicle?.year} ${rental.vehicle?.make} ${rental.vehicle?.model}`}
+          />
         </div>
 
         {/* Main Grid */}
