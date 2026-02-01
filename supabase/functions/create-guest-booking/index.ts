@@ -34,6 +34,11 @@ interface GuestBookingRequest {
     price: number;
     quantity: number;
   }>;
+  additionalDrivers?: Array<{
+    driverName: string | null;
+    driverAgeBand: string;
+    youngDriverFee: number;
+  }>;
   notes?: string;
   pickupAddress?: string;
   pickupLat?: number;
@@ -266,6 +271,19 @@ Deno.serve(async (req) => {
       }));
 
       await supabaseAdmin.from("booking_add_ons").insert(addOnRecords);
+    }
+    
+    // Add additional drivers
+    const { additionalDrivers } = body;
+    if (additionalDrivers && additionalDrivers.length > 0) {
+      const driverRecords = additionalDrivers.slice(0, 5).map((driver) => ({
+        booking_id: booking.id,
+        driver_name: driver.driverName?.slice(0, 100) || null,
+        driver_age_band: driver.driverAgeBand,
+        young_driver_fee: driver.youngDriverFee || 0,
+      }));
+
+      await supabaseAdmin.from("booking_additional_drivers").insert(driverRecords);
     }
 
     // Fire-and-forget notifications

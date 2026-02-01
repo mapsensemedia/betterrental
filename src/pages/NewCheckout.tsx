@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
 import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
+import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
 
 import { 
   calculateBookingPricing, 
@@ -133,11 +134,14 @@ export default function NewCheckout() {
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays);
     const deliveryFee = searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0;
     
+    // Calculate additional drivers cost
+    const additionalDriversCost = calculateAdditionalDriversCost(searchData.additionalDrivers || [], rentalDays);
+    
     const breakdown = calculateBookingPricing({
       vehicleDailyRate: vehicle?.dailyRate || 0,
       rentalDays,
       protectionDailyRate: protectionInfo.rate,
-      addOnsTotal,
+      addOnsTotal: addOnsTotal + additionalDriversCost.total,
       deliveryFee,
       driverAgeBand,
       pickupDate: searchData.pickupDate,
@@ -149,6 +153,7 @@ export default function NewCheckout() {
       protectionTotal: breakdown.protectionTotal,
       protectionName: protectionInfo.name,
       itemized,
+      additionalDriversCost,
     };
   }, [vehicle, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand]);
 
@@ -322,6 +327,18 @@ export default function NewCheckout() {
 
           await supabase.from("booking_add_ons").insert(addOnInserts);
         }
+        
+        // Add additional drivers to booking
+        if (searchData.additionalDrivers && searchData.additionalDrivers.length > 0) {
+          const driverInserts = searchData.additionalDrivers.map((driver) => ({
+            booking_id: booking!.id,
+            driver_name: driver.name || null,
+            driver_age_band: driver.ageBand,
+            young_driver_fee: driver.ageBand === "21_25" ? YOUNG_DRIVER_FEE : 0,
+          }));
+
+          await supabase.from("booking_additional_drivers").insert(driverInserts);
+        }
       } else {
         // Guest checkout flow - use edge function
         const addOnData = addOnIds.map((id) => {
@@ -332,6 +349,13 @@ export default function NewCheckout() {
             quantity: 1,
           };
         });
+        
+        // Prepare additional drivers data for guest booking
+        const additionalDriversData = (searchData.additionalDrivers || []).map((driver) => ({
+          driverName: driver.name || null,
+          driverAgeBand: driver.ageBand,
+          youngDriverFee: driver.ageBand === "21_25" ? YOUNG_DRIVER_FEE : 0,
+        }));
 
         const response = await supabase.functions.invoke("create-guest-booking", {
           body: {
@@ -352,6 +376,7 @@ export default function NewCheckout() {
             driverAgeBand,
             youngDriverFee: pricing.youngDriverFee,
             addOns: addOnData.length > 0 ? addOnData : undefined,
+            additionalDrivers: additionalDriversData.length > 0 ? additionalDriversData : undefined,
             notes: bookingNotes,
             pickupAddress: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : undefined,
             pickupLat: searchData.deliveryLat,
