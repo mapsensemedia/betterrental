@@ -249,9 +249,29 @@ export function OpsBookingSummary({
                   {booking.vehicles.category}
                 </Badge>
               )}
-              {booking.assigned_unit_id && (
+              {/* Show assigned VIN and Plate for admin */}
+              {booking.vehicle_units && (
+                <div className="mt-2 p-2 bg-muted rounded-md space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">VIN:</span>
+                    <span className="font-mono font-medium">{booking.vehicle_units.vin}</span>
+                  </div>
+                  {booking.vehicle_units.license_plate && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Plate:</span>
+                      <span className="font-mono font-medium">{booking.vehicle_units.license_plate}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!booking.vehicle_units && booking.assigned_unit_id && (
                 <p className="text-xs text-muted-foreground">
-                  Unit assigned
+                  Unit ID: {booking.assigned_unit_id.slice(0, 8)}...
+                </p>
+              )}
+              {!booking.assigned_unit_id && (
+                <p className="text-xs text-amber-600">
+                  No unit assigned yet
                 </p>
               )}
             </div>

@@ -1855,25 +1855,46 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          daily_rate: number
           description: string | null
+          fuel_type: string | null
           id: string
+          image_url: string | null
+          is_active: boolean
           name: string
+          seats: number | null
+          sort_order: number | null
+          transmission: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
+          daily_rate?: number
           description?: string | null
+          fuel_type?: string | null
           id?: string
+          image_url?: string | null
+          is_active?: boolean
           name: string
+          seats?: number | null
+          sort_order?: number | null
+          transmission?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
+          daily_rate?: number
           description?: string | null
+          fuel_type?: string | null
           id?: string
+          image_url?: string | null
+          is_active?: boolean
           name?: string
+          seats?: number | null
+          sort_order?: number | null
+          transmission?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1946,6 +1967,7 @@ export type Database = {
           expected_disposal_date: string | null
           id: string
           license_plate: string | null
+          location_id: string | null
           mileage_at_acquisition: number | null
           notes: string | null
           status: string
@@ -1970,6 +1992,7 @@ export type Database = {
           expected_disposal_date?: string | null
           id?: string
           license_plate?: string | null
+          location_id?: string | null
           mileage_at_acquisition?: number | null
           notes?: string | null
           status?: string
@@ -1994,6 +2017,7 @@ export type Database = {
           expected_disposal_date?: string | null
           id?: string
           license_plate?: string | null
+          location_id?: string | null
           mileage_at_acquisition?: number | null
           notes?: string | null
           status?: string
@@ -2010,6 +2034,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_units_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {
@@ -2224,7 +2255,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_vin_to_booking: {
+        Args: {
+          p_booking_id: string
+          p_category_id: string
+          p_location_id: string
+        }
+        Returns: string
+      }
       generate_booking_code: { Args: never; Returns: string }
+      get_available_categories: {
+        Args: { p_location_id: string }
+        Returns: {
+          available_count: number
+          daily_rate: number
+          description: string
+          fuel_type: string
+          id: string
+          image_url: string
+          name: string
+          seats: number
+          transmission: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2233,6 +2286,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_staff: { Args: { _user_id: string }; Returns: boolean }
+      release_vin_from_booking: {
+        Args: { p_booking_id: string; p_new_status?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       alert_status: "pending" | "acknowledged" | "resolved"

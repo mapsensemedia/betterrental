@@ -1,13 +1,17 @@
+/**
+ * Browse Categories Page
+ * Shows available categories (only those with available VINs at selected location)
+ * Customer never sees VIN or plate numbers
+ */
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Filter, Grid, List, ArrowUpDown, Car } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Filter, Grid, List, ArrowUpDown, Car, MapPin } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { VehicleCard } from "@/components/landing/VehicleCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -15,230 +19,137 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { useAvailableCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
 import { useVehicles, type Vehicle } from "@/hooks/use-vehicles";
-import { useAvailableVehicles } from "@/hooks/use-availability";
+import { VehicleCard } from "@/components/landing/VehicleCard";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { displayFuelType, displayTransmission } from "@/lib/utils";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
+import { Users, Fuel, Settings2 } from "lucide-react";
 
-const categories = ["All", "Sports", "Luxury", "SUV", "Electric", "Sedan"];
-const fuelTypes = ["All", "Gas", "Electric", "Hybrid", "Diesel"];
-const transmissionTypes = ["All", "Automatic", "Manual"];
-const seatsOptions = [2, 4, 5, 7];
-
-type SortOption = "recommended" | "price-low" | "price-high" | "newest";
+type SortOption = "recommended" | "price-low" | "price-high";
 
 export default function Search() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { 
     searchData, 
     isSearchValid,
-    setPickupLocation,
-    setPickupDateTime,
-    setReturnDateTime,
+    setSelectedVehicle,
   } = useRentalBooking();
   
   const contextLocationId = searchData.pickupLocationId;
   const startDate = searchData.pickupDate;
   const endDate = searchData.returnDate;
 
-  // Use availability-aware hook when dates are set, otherwise fallback to all vehicles
-  const hasValidDateRange = !!(contextLocationId && startDate && endDate);
+  // Use category-based system when location is set
+  const { data: categories = [], isLoading: isLoadingCategories } = useAvailableCategories(contextLocationId);
   
-  const availabilityQuery = hasValidDateRange ? {
-    locationId: contextLocationId!,
-    startAt: startDate!,
-    endAt: endDate!,
-  } : null;
+  // Fallback to old vehicle system if no location selected (for backwards compatibility)
+  const { data: fallbackVehicles = [], isLoading: isLoadingVehicles } = useVehicles();
   
-  const { data: availableVehicles = [], isLoading: isLoadingAvailable } = useAvailableVehicles(availabilityQuery);
-  const { data: allVehiclesFallback = [], isLoading: isLoadingAll } = useVehicles();
-  
-  // Use available vehicles when dates are set, otherwise show all
-  const allVehicles = hasValidDateRange ? availableVehicles : allVehiclesFallback;
-  const isLoading = hasValidDateRange ? isLoadingAvailable : isLoadingAll;
+  const isLoading = contextLocationId ? isLoadingCategories : isLoadingVehicles;
+  const hasValidContext = !!contextLocationId;
 
-  // Show prompt if no trip context
   const [showContextPrompt, setShowContextPrompt] = useState(false);
-
-  // Filter state
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selectedCategory, setSelectedCategory] = useState(
-    searchParams.get("category") || "All"
-  );
-  const [priceRange, setPriceRange] = useState([0, 2000]);
-  const [selectedFuelType, setSelectedFuelType] = useState("All");
-  const [selectedTransmission, setSelectedTransmission] = useState("All");
-  const [minSeats, setMinSeats] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("recommended");
-  // Compare feature removed
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // Track page view on mount
+  // Track page view
   useEffect(() => {
-    trackPageView("Search Vehicles");
+    trackPageView("Browse Vehicles");
     funnelEvents.searchPerformed({
       location_id: contextLocationId || undefined,
-      category: selectedCategory !== "All" ? selectedCategory : undefined,
       has_dates: !!startDate && !!endDate,
     });
   }, []);
 
-  // Sync URL params with context on mount
-  useEffect(() => {
-    const startAtParam = searchParams.get("startAt");
-    const endAtParam = searchParams.get("endAt");
-    const locationIdParam = searchParams.get("locationId");
-
-    if (startAtParam && !startDate) {
-      setPickupDateTime(new Date(startAtParam), searchData.pickupTime);
-    }
-    if (endAtParam && !endDate) {
-      setReturnDateTime(new Date(endAtParam), searchData.returnTime);
-    }
-    if (locationIdParam && !contextLocationId) {
-      setPickupLocation(locationIdParam);
-    }
-  }, []);
-
-  // Use context values, fallback to URL params
-  const locationId = contextLocationId || searchParams.get("locationId");
-
-  // Calculate rental days from context
+  // Calculate rental days
   const rentalDays = useMemo(() => {
     if (startDate && endDate) {
       const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays || 1;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
     }
     return 1;
   }, [startDate, endDate]);
 
-  // Compare feature removed
-
-  // Filter and sort vehicles
-  const filteredVehicles = useMemo(() => {
-    let result = allVehicles.filter((v) => {
-      // Category filter (case-insensitive)
-      if (selectedCategory !== "All" && v.category?.toLowerCase() !== selectedCategory.toLowerCase()) {
-        return false;
-      }
-      // Price filter
-      if (v.dailyRate < priceRange[0] || v.dailyRate > priceRange[1]) {
-        return false;
-      }
-      // Transmission filter
-      if (selectedTransmission !== "All") {
-        const vehicleTrans = v.transmission?.toLowerCase() || "automatic";
-        if (vehicleTrans !== selectedTransmission.toLowerCase()) {
-          return false;
-        }
-      }
-      // Fuel type filter (map "Gas" to "petrol" for comparison)
-      if (selectedFuelType !== "All") {
-        const vehicleFuel = v.fuelType?.toLowerCase();
-        const filterFuel = selectedFuelType.toLowerCase() === "gas" ? "petrol" : selectedFuelType.toLowerCase();
-        if (vehicleFuel !== filterFuel) {
-          return false;
-        }
-      }
-      // Seats filter
-      if (minSeats && (v.seats || 5) < minSeats) {
-        return false;
-      }
-      // Location filter - only needed when NOT using availability hook (which already filters by location)
-      // Check if 'locationId' exists on the vehicle (it does for Vehicle type, not AvailableVehicle)
-      if (!hasValidDateRange && locationId && 'locationId' in v && (v as any).locationId && (v as any).locationId !== locationId) {
-        return false;
-      }
-      return true;
-    });
-
-    // Sort
+  // Sort categories
+  const sortedCategories = useMemo(() => {
+    let result = [...categories];
     switch (sortBy) {
       case "price-low":
-        result = [...result].sort((a, b) => a.dailyRate - b.dailyRate);
+        result.sort((a, b) => a.daily_rate - b.daily_rate);
         break;
       case "price-high":
-        result = [...result].sort((a, b) => b.dailyRate - a.dailyRate);
-        break;
-      case "newest":
-        result = [...result].sort((a, b) => b.year - a.year);
+        result.sort((a, b) => b.daily_rate - a.daily_rate);
         break;
       default:
-        // Recommended: featured first, then by price
-        result = [...result].sort((a, b) => {
+        // Recommended: by sort_order then price
+        result.sort((a, b) => {
+          if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+          return a.daily_rate - b.daily_rate;
+        });
+    }
+    return result;
+  }, [categories, sortBy]);
+
+  // Sort fallback vehicles
+  const sortedVehicles = useMemo(() => {
+    let result = [...fallbackVehicles];
+    switch (sortBy) {
+      case "price-low":
+        result.sort((a, b) => a.dailyRate - b.dailyRate);
+        break;
+      case "price-high":
+        result.sort((a, b) => b.dailyRate - a.dailyRate);
+        break;
+      default:
+        result.sort((a, b) => {
           if (a.isFeatured && !b.isFeatured) return -1;
           if (!a.isFeatured && b.isFeatured) return 1;
           return a.dailyRate - b.dailyRate;
         });
     }
-
     return result;
-  }, [
-    allVehicles,
-    selectedCategory,
-    priceRange,
-    selectedFuelType,
-    minSeats,
-    locationId,
-    sortBy,
-  ]);
+  }, [fallbackVehicles, sortBy]);
 
-  const resetFilters = () => {
-    setSelectedCategory("All");
-    setPriceRange([0, 2000]);
-    setSelectedFuelType("All");
-    setSelectedTransmission("All");
-    setMinSeats(null);
+  const handleCategorySelect = (category: FleetCategory) => {
+    // Store category ID and navigate to checkout
+    // The checkout will use the category to assign a VIN
+    setSelectedVehicle(category.id);
+    navigate(`/checkout?categoryId=${category.id}`);
   };
-
-  const activeFiltersCount = [
-    selectedCategory !== "All",
-    priceRange[0] > 0 || priceRange[1] < 2000,
-    selectedFuelType !== "All",
-    selectedTransmission !== "All",
-    minSeats !== null,
-  ].filter(Boolean).length;
-
-  const hasContext = contextLocationId || startDate || endDate;
 
   return (
     <CustomerLayout>
-      {/* Step Progress Indicator */}
+      {/* Step Progress */}
       <div className="bg-background border-b border-border py-4">
         <div className="container mx-auto px-4">
           <BookingStepper currentStep={2} />
         </div>
       </div>
 
-      {/* Search Modify Bar at top */}
+      {/* Search Modify Bar */}
       {isSearchValid && <SearchModifyBar />}
 
       <PageContainer className="pt-8 pb-16">
-        {/* Trip Context Prompt */}
-        <TripContextPrompt 
-          open={showContextPrompt} 
-          onOpenChange={setShowContextPrompt}
-        />
+        <TripContextPrompt open={showContextPrompt} onOpenChange={setShowContextPrompt} />
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="heading-2 mb-2">Browse Vehicles</h1>
+            <h1 className="heading-2 mb-2">
+              {hasValidContext ? "Available Categories" : "Browse Vehicles"}
+            </h1>
             <p className="text-muted-foreground">
               {isLoading
                 ? "Loading..."
-                : `${filteredVehicles.length} vehicles available`}
+                : hasValidContext
+                  ? `${sortedCategories.length} categories available`
+                  : `${sortedVehicles.length} vehicles`}
               {startDate && endDate && (
                 <span className="ml-2">
                   • {rentalDays} day{rentalDays > 1 ? "s" : ""} rental
@@ -248,12 +159,8 @@ export default function Search() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-
             {/* Sort */}
-            <Select
-              value={sortBy}
-              onValueChange={(v) => setSortBy(v as SortOption)}
-            >
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
               <SelectTrigger className="w-[140px] sm:w-[180px]">
                 <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
                 <SelectValue placeholder="Sort" />
@@ -262,7 +169,6 @@ export default function Search() {
                 <SelectItem value="recommended">Recommended</SelectItem>
                 <SelectItem value="price-low">Price: Low to High</SelectItem>
                 <SelectItem value="price-high">Price: High to Low</SelectItem>
-                <SelectItem value="newest">Newest</SelectItem>
               </SelectContent>
             </Select>
 
@@ -270,283 +176,144 @@ export default function Search() {
             <div className="hidden md:flex border border-border rounded-lg p-1">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`p-2 rounded ${
-                  viewMode === "grid"
-                    ? "bg-primary text-primary-foreground"
-                    : ""
-                }`}
+                className={`p-2 rounded ${viewMode === "grid" ? "bg-primary text-primary-foreground" : ""}`}
               >
                 <Grid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`p-2 rounded ${
-                  viewMode === "list"
-                    ? "bg-primary text-primary-foreground"
-                    : ""
-                }`}
+                className={`p-2 rounded ${viewMode === "list" ? "bg-primary text-primary-foreground" : ""}`}
               >
                 <List className="w-4 h-4" />
               </button>
             </div>
+          </div>
+        </div>
 
-            {/* Mobile Filter */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" className="md:hidden relative">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filters
-                  {activeFiltersCount > 0 && (
-                    <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                      {activeFiltersCount}
-                    </span>
-                  )}
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Filters</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6">
-                  <FilterContent
-                    selectedCategory={selectedCategory}
-                    setSelectedCategory={setSelectedCategory}
-                    priceRange={priceRange}
-                    setPriceRange={setPriceRange}
-                    selectedFuelType={selectedFuelType}
-                    setSelectedFuelType={setSelectedFuelType}
-                    selectedTransmission={selectedTransmission}
-                    setSelectedTransmission={setSelectedTransmission}
-                    minSeats={minSeats}
-                    setMinSeats={setMinSeats}
-                    onReset={resetFilters}
-                  />
+        {/* Loading */}
+        {isLoading ? (
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="rounded-2xl border border-border overflow-hidden">
+                <Skeleton className="h-48" />
+                <div className="p-5 space-y-3">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-8 w-1/3" />
                 </div>
-              </SheetContent>
-            </Sheet>
+              </div>
+            ))}
           </div>
-        </div>
-
-        <div className="flex gap-8">
-          {/* Desktop Sidebar Filters */}
-          <aside className="hidden md:block w-72 shrink-0">
-            <div className="sticky top-28 space-y-6">
-              <FilterContent
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                priceRange={priceRange}
-                setPriceRange={setPriceRange}
-                selectedFuelType={selectedFuelType}
-                setSelectedFuelType={setSelectedFuelType}
-                selectedTransmission={selectedTransmission}
-                setSelectedTransmission={setSelectedTransmission}
-                minSeats={minSeats}
-                setMinSeats={setMinSeats}
-                onReset={resetFilters}
-              />
-            </div>
-          </aside>
-
-          {/* Results */}
-          <div className="flex-1">
-
-            {/* Loading State */}
-            {isLoading ? (
-              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div
-                    key={i}
-                    className="rounded-2xl border border-border overflow-hidden"
-                  >
-                    <Skeleton className="h-48" />
-                    <div className="p-5 space-y-3">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                      <Skeleton className="h-8 w-1/3" />
-                    </div>
+        ) : hasValidContext ? (
+          // Category-based display (new system)
+          sortedCategories.length > 0 ? (
+            <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
+              {sortedCategories.map((category) => (
+                <Card 
+                  key={category.id} 
+                  className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                  onClick={() => handleCategorySelect(category)}
+                >
+                  {/* Image */}
+                  <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+                    {category.image_url ? (
+                      <img
+                        src={category.image_url}
+                        alt={category.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <Car className="w-12 h-12" />
+                      </div>
+                    )}
+                    {category.available_count && category.available_count > 0 && (
+                      <Badge className="absolute top-3 right-3 bg-green-500/90">
+                        {category.available_count} available
+                      </Badge>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : filteredVehicles.length > 0 ? (
-              <div
-                className={`grid gap-6 ${
-                  viewMode === "grid"
-                    ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
-                    : "grid-cols-1"
-                }`}
-              >
-                {filteredVehicles.map((vehicle) => (
-                  <VehicleCard
-                    key={vehicle.id}
-                    id={vehicle.id}
-                    make={vehicle.make}
-                    model={vehicle.model}
-                    year={vehicle.year}
-                    category={vehicle.category}
-                    dailyRate={vehicle.dailyRate}
-                    imageUrl={vehicle.imageUrl || ""}
-                    seats={vehicle.seats || 5}
-                    fuelType={displayFuelType(vehicle.fuelType)}
-                    transmission={displayTransmission(vehicle.transmission)}
-                    isFeatured={vehicle.isFeatured || false}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16 bg-card rounded-2xl border border-border">
-                <Car className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium mb-2">No vehicles found</p>
-                <p className="text-muted-foreground mb-6">
-                  Try adjusting your filters to see more results
-                </p>
-                <Button variant="outline" onClick={resetFilters}>
-                  Reset Filters
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
+
+                  <CardContent className="p-5">
+                    {/* Title */}
+                    <h3 className="font-semibold text-lg mb-2 line-clamp-1">{category.name}</h3>
+
+                    {/* Specs - Customer sees these, never VIN/plate */}
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-4 h-4" />
+                        <span>{category.seats || 5} Seats</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Fuel className="w-4 h-4" />
+                        <span>{category.fuel_type || 'Gas'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Settings2 className="w-4 h-4" />
+                        <span>{category.transmission === 'Automatic' ? 'Auto' : category.transmission}</span>
+                      </div>
+                    </div>
+
+                    {/* Price and CTA */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-2xl font-bold text-primary">${category.daily_rate}</span>
+                        <span className="text-sm text-muted-foreground">/day</span>
+                        <p className="text-xs text-muted-foreground">*Price does not include taxes and fees</p>
+                      </div>
+                      <Button size="sm">Rent Now</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 bg-card rounded-2xl border border-border">
+              <Car className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg font-medium mb-2">No vehicles available</p>
+              <p className="text-muted-foreground mb-6">
+                No vehicles are currently available at this location for the selected dates.
+              </p>
+              <Button variant="outline" onClick={() => setShowContextPrompt(true)}>
+                Try Different Dates
+              </Button>
+            </div>
+          )
+        ) : (
+          // Fallback to vehicle-based display (old system, when no location selected)
+          sortedVehicles.length > 0 ? (
+            <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
+              {sortedVehicles.map((vehicle) => (
+                <VehicleCard
+                  key={vehicle.id}
+                  id={vehicle.id}
+                  make={vehicle.make}
+                  model={vehicle.model}
+                  year={vehicle.year}
+                  category={vehicle.category}
+                  dailyRate={vehicle.dailyRate}
+                  imageUrl={vehicle.imageUrl || ""}
+                  seats={vehicle.seats || 5}
+                  fuelType={displayFuelType(vehicle.fuelType)}
+                  transmission={displayTransmission(vehicle.transmission)}
+                  isFeatured={vehicle.isFeatured || false}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 bg-card rounded-2xl border border-border">
+              <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg font-medium mb-2">Select a location to see available vehicles</p>
+              <p className="text-muted-foreground mb-6">
+                Choose your pickup location and dates to view available categories.
+              </p>
+              <Button onClick={() => setShowContextPrompt(true)}>
+                Select Location & Dates
+              </Button>
+            </div>
+          )
+        )}
       </PageContainer>
     </CustomerLayout>
-  );
-}
-
-interface FilterContentProps {
-  selectedCategory: string;
-  setSelectedCategory: (value: string) => void;
-  priceRange: number[];
-  setPriceRange: (value: number[]) => void;
-  selectedFuelType: string;
-  setSelectedFuelType: (value: string) => void;
-  selectedTransmission: string;
-  setSelectedTransmission: (value: string) => void;
-  minSeats: number | null;
-  setMinSeats: (value: number | null) => void;
-  onReset: () => void;
-}
-
-function FilterContent({
-  selectedCategory,
-  setSelectedCategory,
-  priceRange,
-  setPriceRange,
-  selectedFuelType,
-  setSelectedFuelType,
-  selectedTransmission,
-  setSelectedTransmission,
-  minSeats,
-  setMinSeats,
-  onReset,
-}: FilterContentProps) {
-  return (
-    <div className="space-y-6">
-      {/* Category */}
-      <div className="p-4 bg-card rounded-2xl border border-border">
-        <h3 className="font-semibold mb-4">Category</h3>
-        <div className="flex flex-wrap gap-2">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Price Range */}
-      <div className="p-4 bg-card rounded-2xl border border-border">
-        <h3 className="font-semibold mb-4">Price Range</h3>
-        <Slider
-          value={priceRange}
-          onValueChange={setPriceRange}
-          max={2000}
-          min={0}
-          step={50}
-          className="mb-4"
-        />
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>${priceRange[0]}/day</span>
-          <span>${priceRange[1]}/day</span>
-        </div>
-      </div>
-
-      {/* Fuel Type */}
-      <div className="p-4 bg-card rounded-2xl border border-border">
-        <h3 className="font-semibold mb-4">Fuel Type</h3>
-        <div className="space-y-2">
-          {fuelTypes.map((fuel) => (
-            <label key={fuel} className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                checked={selectedFuelType === fuel}
-                onCheckedChange={() => setSelectedFuelType(fuel)}
-              />
-              <span className="text-sm">{fuel}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Transmission */}
-      <div className="p-4 bg-card rounded-2xl border border-border">
-        <h3 className="font-semibold mb-4">Transmission</h3>
-        <div className="flex flex-wrap gap-2">
-          {transmissionTypes.map((trans) => (
-            <button
-              key={trans}
-              onClick={() => setSelectedTransmission(trans)}
-              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                selectedTransmission === trans
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {trans}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Seats */}
-      <div className="p-4 bg-card rounded-2xl border border-border">
-        <h3 className="font-semibold mb-4">Minimum Seats</h3>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setMinSeats(null)}
-            className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-              minSeats === null
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            Any
-          </button>
-          {seatsOptions.map((seats) => (
-            <button
-              key={seats}
-              onClick={() => setMinSeats(seats)}
-              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                minSeats === seats
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {seats}+
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Reset Button */}
-      <Button variant="outline" className="w-full" onClick={onReset}>
-        Reset Filters
-      </Button>
-    </div>
   );
 }
