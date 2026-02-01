@@ -33,12 +33,14 @@ export default function Search() {
   const { 
     searchData, 
     isSearchValid,
+    canProceedToSelectCar,
     setSelectedVehicle,
   } = useRentalBooking();
   
   const contextLocationId = searchData.pickupLocationId;
   const startDate = searchData.pickupDate;
   const endDate = searchData.returnDate;
+  const ageConfirmed = searchData.ageConfirmed;
 
   // Use category-based system - show all categories if no location, or available at location
   const { data: locationCategories = [], isLoading: loadingLocation } = useAvailableCategories(contextLocationId);
@@ -92,6 +94,12 @@ export default function Search() {
   }, [categories, sortBy]);
 
   const handleCategorySelect = (category: FleetCategory) => {
+    // If age not confirmed, prompt for it
+    if (!ageConfirmed) {
+      setShowContextPrompt(true);
+      return;
+    }
+
     // Store category ID and navigate to protection step
     setSelectedVehicle(category.id);
     
@@ -191,7 +199,7 @@ export default function Search() {
               <Card 
                 key={category.id} 
                 className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                onClick={() => hasValidContext ? handleCategorySelect(category) : setShowContextPrompt(true)}
+                onClick={() => (hasValidContext && ageConfirmed) ? handleCategorySelect(category) : setShowContextPrompt(true)}
               >
                 {/* Image */}
                 <div className="relative aspect-[16/10] overflow-hidden bg-muted">
@@ -206,7 +214,7 @@ export default function Search() {
                       <Car className="w-12 h-12" />
                     </div>
                   )}
-                  {hasValidContext && category.available_count && category.available_count > 0 && (
+                  {hasValidContext && ageConfirmed && category.available_count && category.available_count > 0 && (
                     <Badge variant="secondary" className="absolute top-3 right-3 bg-primary/90 text-primary-foreground">
                       {category.available_count} available
                     </Badge>
@@ -214,6 +222,11 @@ export default function Search() {
                   {!hasValidContext && (
                     <Badge variant="outline" className="absolute top-3 right-3 bg-card/90 backdrop-blur-sm">
                       Select Location
+                    </Badge>
+                  )}
+                  {hasValidContext && !ageConfirmed && (
+                    <Badge variant="outline" className="absolute top-3 right-3 bg-card/90 backdrop-blur-sm">
+                      Confirm Age
                     </Badge>
                   )}
                 </div>
@@ -246,7 +259,7 @@ export default function Search() {
                       <p className="text-[10px] sm:text-xs text-muted-foreground">*Excludes taxes & fees</p>
                     </div>
                     <Button size="sm" className="shrink-0">
-                      {hasValidContext ? 'Rent Now' : 'Select'}
+                      {(hasValidContext && ageConfirmed) ? 'Rent Now' : 'Select'}
                     </Button>
                   </div>
                 </CardContent>
