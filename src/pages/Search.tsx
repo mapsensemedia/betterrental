@@ -92,10 +92,17 @@ export default function Search() {
   }, [categories, sortBy]);
 
   const handleCategorySelect = (category: FleetCategory) => {
-    // Store category ID and navigate to checkout
-    // The checkout will use the category to assign a VIN
+    // Store category ID and navigate to protection step
     setSelectedVehicle(category.id);
-    navigate(`/checkout?categoryId=${category.id}`);
+    
+    // Build URL params for protection step
+    const params = new URLSearchParams();
+    params.set("categoryId", category.id);
+    if (startDate) params.set("startAt", startDate.toISOString());
+    if (endDate) params.set("endAt", endDate.toISOString());
+    if (contextLocationId) params.set("locationId", contextLocationId);
+    
+    navigate(`/protection?${params.toString()}`);
   };
 
   return (
