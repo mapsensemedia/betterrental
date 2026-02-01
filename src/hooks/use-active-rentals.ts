@@ -52,7 +52,6 @@ export function useActiveRentals() {
         .from("bookings")
         .select(`
           *,
-          vehicles (id, make, model, year, image_url),
           locations (id, name, city)
         `)
         .eq("status", "active")
@@ -62,6 +61,17 @@ export function useActiveRentals() {
         console.error("Error fetching active rentals:", error);
         throw error;
       }
+
+      // Fetch categories separately (vehicle_id now points to categories)
+      const categoryIds = [...new Set((data || []).map(b => b.vehicle_id).filter(Boolean))];
+      const { data: categoriesData } = categoryIds.length > 0
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name, image_url")
+            .in("id", categoryIds)
+        : { data: [] };
+
+      const categoriesMap = new Map((categoriesData || []).map(c => [c.id, c]));
 
       // Fetch customer profiles
       const userIds = [...new Set((data || []).map(b => b.user_id))];
@@ -77,6 +87,7 @@ export function useActiveRentals() {
         const startAt = new Date(b.start_at);
         const endAt = new Date(b.end_at);
         const profile = profilesMap.get(b.user_id);
+        const category = categoriesMap.get(b.vehicle_id);
 
         // Duration calculations
         const durationHours = differenceInHours(now, startAt);
@@ -112,12 +123,12 @@ export function useActiveRentals() {
           isApproachingReturn,
           isWarningZone,
           // Joined data
-          vehicle: b.vehicles ? {
-            id: b.vehicles.id,
-            make: b.vehicles.make,
-            model: b.vehicles.model,
-            year: b.vehicles.year,
-            imageUrl: b.vehicles.image_url,
+          vehicle: category ? {
+            id: category.id,
+            make: "",
+            model: category.name,
+            year: new Date().getFullYear(),
+            imageUrl: category.image_url,
           } : null,
           location: b.locations ? {
             id: b.locations.id,

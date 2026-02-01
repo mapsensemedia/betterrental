@@ -152,7 +152,7 @@ export default function AdminBilling() {
             booking_code,
             total_amount,
             user_id,
-            vehicle:vehicles(make, model)
+            vehicle:vehicle_categories(name)
           )
         `)
         .order("created_at", { ascending: false });

@@ -82,12 +82,11 @@ export function useActiveRentalDetail(bookingId: string | null) {
     queryFn: async () => {
       if (!bookingId) return null;
 
-      // Fetch booking with vehicle and location
+      // Fetch booking with location
       const { data: booking, error } = await supabase
         .from("bookings")
         .select(`
           *,
-          vehicles (id, make, model, year, image_url, category, fuel_type, transmission),
           locations (id, name, city, address, phone)
         `)
         .eq("id", bookingId)
@@ -100,6 +99,15 @@ export function useActiveRentalDetail(bookingId: string | null) {
       }
 
       if (!booking) return null;
+
+      // Fetch category separately (vehicle_id now points to categories)
+      const { data: categoryData } = booking.vehicle_id
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name, description, image_url, daily_rate, seats, fuel_type, transmission")
+            .eq("id", booking.vehicle_id)
+            .maybeSingle()
+        : { data: null };
 
       // Fetch customer profile
       const { data: profile } = await supabase
@@ -183,16 +191,16 @@ export function useActiveRentalDetail(bookingId: string | null) {
         activatedAt: booking.start_at, // For active rentals, start_at is activation time
         isOverdue,
         overdueHours,
-        vehicle: booking.vehicles
+        vehicle: categoryData
           ? {
-              id: booking.vehicles.id,
-              make: booking.vehicles.make,
-              model: booking.vehicles.model,
-              year: booking.vehicles.year,
-              imageUrl: booking.vehicles.image_url,
-              category: booking.vehicles.category,
-              fuelType: booking.vehicles.fuel_type,
-              transmission: booking.vehicles.transmission,
+              id: categoryData.id,
+              make: "",
+              model: categoryData.name,
+              year: new Date().getFullYear(),
+              imageUrl: categoryData.image_url,
+              category: categoryData.name,
+              fuelType: categoryData.fuel_type,
+              transmission: categoryData.transmission,
             }
           : null,
         location: booking.locations

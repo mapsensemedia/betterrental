@@ -66,7 +66,6 @@ export function useAdminBookings(filters: BookingFilters = {}) {
         .from("bookings")
         .select(`
           *,
-          vehicles (id, make, model, year, image_url, category),
           locations (id, name, city, address)
         `)
         .order("created_at", { ascending: false });
@@ -112,10 +111,20 @@ export function useAdminBookings(filters: BookingFilters = {}) {
 
       const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
 
-      const profile = profilesMap.get((bookingsData as any)[0]?.user_id);
+      // Fetch categories separately (vehicle_id now points to categories)
+      const categoryIds = [...new Set((bookingsData || []).map(b => b.vehicle_id).filter(Boolean))];
+      const { data: categoriesData } = categoryIds.length > 0 
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name, description, image_url, daily_rate, seats, fuel_type, transmission")
+            .in("id", categoryIds)
+        : { data: [] };
+
+      const categoriesMap = new Map((categoriesData || []).map(c => [c.id, c]));
 
       return (bookingsData || []).map((b: any) => {
         const userProfile = profilesMap.get(b.user_id);
+        const category = categoriesMap.get(b.vehicle_id);
         return {
           id: b.id,
           bookingCode: b.booking_code,
@@ -136,13 +145,13 @@ export function useAdminBookings(filters: BookingFilters = {}) {
           userId: b.user_id,
           vehicleId: b.vehicle_id,
           locationId: b.location_id,
-          vehicle: b.vehicles ? {
-            id: b.vehicles.id,
-            make: b.vehicles.make,
-            model: b.vehicles.model,
-            year: b.vehicles.year,
-            imageUrl: b.vehicles.image_url,
-            category: b.vehicles.category,
+          vehicle: category ? {
+            id: category.id,
+            make: "", // Categories don't have make
+            model: category.name,
+            year: new Date().getFullYear(),
+            imageUrl: category.image_url,
+            category: category.name,
           } : null,
           location: b.locations ? {
             id: b.locations.id,
@@ -173,7 +182,6 @@ export function useBookingById(id: string | null) {
         .from("bookings")
         .select(`
           *,
-          vehicles (id, make, model, year, image_url, category, fuel_type, transmission, seats),
           locations (id, name, city, address, phone),
           vehicle_units (id, vin, license_plate, status)
         `)
@@ -182,6 +190,15 @@ export function useBookingById(id: string | null) {
 
       if (error) throw error;
       if (!data) return null;
+
+      // Fetch category separately (vehicle_id now points to categories)
+      const { data: categoryData } = data.vehicle_id 
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name, description, image_url, daily_rate, seats, fuel_type, transmission")
+            .eq("id", data.vehicle_id)
+            .maybeSingle()
+        : { data: null };
 
       // Fetch profile separately
       const { data: profileData } = await supabase
@@ -200,8 +217,22 @@ export function useBookingById(id: string | null) {
         supabase.from("audit_logs").select("*").eq("entity_type", "booking").eq("entity_id", id).order("created_at", { ascending: false }),
       ]);
 
+      // Build vehicles field for backward compatibility with components
+      const vehiclesField = categoryData ? {
+        id: categoryData.id,
+        make: "",
+        model: categoryData.name,
+        year: new Date().getFullYear(),
+        image_url: categoryData.image_url,
+        category: categoryData.name,
+        fuel_type: categoryData.fuel_type,
+        transmission: categoryData.transmission,
+        seats: categoryData.seats,
+      } : null;
+
       return {
         ...data,
+        vehicles: vehiclesField, // Add backward-compatible vehicles field
         profiles: profileData,
         payments: paymentsRes.data || [],
         addOns: addOnsRes.data || [],
@@ -224,7 +255,7 @@ export function useUpdateBookingStatus() {
       // First get booking details for notification
       const { data: bookingDetails, error: fetchError } = await supabase
         .from("bookings")
-        .select("booking_code, user_id, vehicle_id, vehicles(make, model, year)")
+        .select("booking_code, user_id, vehicle_id, vehicle_categories(name)")
         .eq("id", bookingId)
         .single();
 
@@ -265,8 +296,8 @@ export function useUpdateBookingStatus() {
       await handleDepositOnStatusChange(bookingId, newStatus);
 
       // Create admin alert for status changes
-      const vehicle = bookingDetails.vehicles as any;
-      const vehicleName = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : "";
+      const category = bookingDetails.vehicle_categories as any;
+      const vehicleName = category?.name || "Vehicle";
       const customerName = profile?.full_name || "";
 
       // Create alert in database
