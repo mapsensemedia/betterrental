@@ -340,7 +340,7 @@ export default function FleetCosts() {
           </Select>
         </div>
 
-        {/* Vehicle Units Table */}
+        {/* Vehicle Units Table - Responsive */}
         <Card>
           <CardContent className="p-0">
             {isLoading ? (
@@ -362,71 +362,35 @@ export default function FleetCosts() {
                 </Button>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>VIN / Plate</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Acquisition</TableHead>
-                    <TableHead>Expenses</TableHead>
-                    <TableHead>Total Cost</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* Mobile Card View */}
+                <div className="block md:hidden divide-y">
                   {units.map((unit) => {
                     const totalUnitCost =
                       Number(unit.acquisition_cost) + (unit.total_expenses || 0);
                     return (
-                      <TableRow
+                      <div
                         key={unit.id}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className="p-4 space-y-3 cursor-pointer hover:bg-muted/50"
                         onClick={() => setDetailUnit(unit)}
                       >
-                        <TableCell>
-                          <div>
-                            <p className="font-mono font-medium text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-mono font-medium text-sm truncate">
                               {unit.vin}
                             </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Car className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                              <span className="text-sm text-muted-foreground truncate">
+                                {unit.vehicle?.make} {unit.vehicle?.model}
+                              </span>
+                            </div>
                             {unit.license_plate && (
-                              <p className="text-xs text-muted-foreground">
-                                {unit.license_plate}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Plate: {unit.license_plate}
                               </p>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Car className="w-4 h-4 text-muted-foreground" />
-                            <span>
-                              {unit.vehicle?.make} {unit.vehicle?.model}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">
-                              ${Number(unit.acquisition_cost).toLocaleString()}
-                            </p>
-                            {unit.acquisition_date && (
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(unit.acquisition_date), "MMM d, yyyy")}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium text-orange-600">
-                            ${(unit.total_expenses || 0).toLocaleString()}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-bold text-primary">
-                            ${totalUnitCost.toLocaleString()}
-                          </p>
-                        </TableCell>
-                        <TableCell>
                           <Badge
                             variant={
                               unit.status === "active"
@@ -438,48 +402,190 @@ export default function FleetCosts() {
                           >
                             {unit.status}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDetailUnit(unit);
-                              }}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditUnit(unit);
-                              }}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedUnit(unit);
-                                setIsDeleteOpen(true);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground text-xs">Acquisition</p>
+                            <p className="font-medium">
+                              ${Number(unit.acquisition_cost).toLocaleString()}
+                            </p>
                           </div>
-                        </TableCell>
-                      </TableRow>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Expenses</p>
+                            <p className="font-medium text-amber-600">
+                              ${(unit.total_expenses || 0).toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Total</p>
+                            <p className="font-bold text-primary">
+                              ${totalUnitCost.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-1 pt-2 border-t">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDetailUnit(unit);
+                            }}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditUnit(unit);
+                            }}
+                          >
+                            <Edit2 className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedUnit(unit);
+                              setIsDeleteOpen(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
                     );
                   })}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>VIN / Plate</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Acquisition</TableHead>
+                        <TableHead className="text-right">Expenses</TableHead>
+                        <TableHead className="text-right">Total Cost</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {units.map((unit) => {
+                        const totalUnitCost =
+                          Number(unit.acquisition_cost) + (unit.total_expenses || 0);
+                        return (
+                          <TableRow
+                            key={unit.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => setDetailUnit(unit)}
+                          >
+                            <TableCell>
+                              <div>
+                                <p className="font-mono font-medium text-sm">
+                                  {unit.vin}
+                                </p>
+                                {unit.license_plate && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {unit.license_plate}
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Car className="w-4 h-4 text-muted-foreground" />
+                                <span>
+                                  {unit.vehicle?.make} {unit.vehicle?.model}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div>
+                                <p className="font-medium">
+                                  ${Number(unit.acquisition_cost).toLocaleString()}
+                                </p>
+                                {unit.acquisition_date && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(unit.acquisition_date), "MMM d, yyyy")}
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <p className="font-medium text-amber-600">
+                                ${(unit.total_expenses || 0).toLocaleString()}
+                              </p>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <p className="font-bold text-primary">
+                                ${totalUnitCost.toLocaleString()}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  unit.status === "active"
+                                    ? "default"
+                                    : unit.status === "sold"
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                              >
+                                {unit.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDetailUnit(unit);
+                                  }}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditUnit(unit);
+                                  }}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedUnit(unit);
+                                    setIsDeleteOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
