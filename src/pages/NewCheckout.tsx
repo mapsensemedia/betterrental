@@ -407,7 +407,7 @@ export default function NewCheckout() {
               amount: pricing.total,
               currency: "cad",
               successUrl: `${baseUrl}/booking/${booking.id}?payment=success`,
-              cancelUrl: `${baseUrl}/checkout?vehicleId=${vehicleId}&protection=${protection}&payment=cancelled`,
+              cancelUrl: `${baseUrl}/booking/${booking.id}?payment=cancelled`,
             },
           });
 
@@ -427,13 +427,24 @@ export default function NewCheckout() {
         } catch (paymentError: any) {
           console.error("Payment error:", paymentError);
           
+          // Delete the booking since payment failed - don't allow unpaid bookings
+          try {
+            await supabase.from("booking_add_ons").delete().eq("booking_id", booking.id);
+            await supabase.from("bookings").delete().eq("id", booking.id);
+            console.log("Deleted unpaid booking:", booking.id);
+          } catch (deleteError) {
+            console.error("Failed to cleanup booking:", deleteError);
+          }
+          
           toast({
-            title: "Payment could not be processed",
-            description: "Your booking is saved. Please pay at pickup location.",
+            title: "Payment failed",
+            description: "Your booking was not created. Please try again.",
             variant: "destructive",
           });
 
-          navigate(`/booking/${booking.id}`);
+          // Stay on checkout page to retry
+          setIsSubmitting(false);
+          return;
         }
       } else {
         // Pay at pickup flow

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,12 +118,14 @@ interface BookingData {
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
   
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [cleaningUp, setCleaningUp] = useState(false);
   
   // Ticket creation state
   const [showTicketDialog, setShowTicketDialog] = useState(false);
@@ -230,6 +232,42 @@ export default function BookingDetail() {
       navigate("/auth", { state: { from: `/booking/${id}` } });
     }
   }, [user, authLoading, navigate, id]);
+
+  // Handle payment cancelled - delete booking and redirect to search
+  useEffect(() => {
+    const paymentStatus = searchParams.get("payment");
+    
+    if (paymentStatus === "cancelled" && id && user && !cleaningUp) {
+      setCleaningUp(true);
+      
+      // Delete the unpaid booking
+      const cleanupBooking = async () => {
+        try {
+          console.log("Payment cancelled, cleaning up booking:", id);
+          
+          // Delete child records first
+          await supabase.from("booking_add_ons").delete().eq("booking_id", id);
+          
+          // Delete the booking
+          const { error } = await supabase.from("bookings").delete().eq("id", id).eq("user_id", user.id);
+          
+          if (error) {
+            console.error("Failed to delete cancelled booking:", error);
+          } else {
+            console.log("Successfully deleted unpaid booking");
+          }
+          
+          toast.error("Payment was cancelled. Your booking has been removed.");
+          navigate("/search");
+        } catch (err) {
+          console.error("Error cleaning up cancelled booking:", err);
+          navigate("/search");
+        }
+      };
+      
+      cleanupBooking();
+    }
+  }, [searchParams, id, user, navigate, cleaningUp]);
 
   // Fetch booking
   useEffect(() => {
