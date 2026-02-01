@@ -4,8 +4,8 @@
  * Customer never sees VIN or plate numbers
  */
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { Filter, Grid, List, ArrowUpDown, Car, MapPin } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Grid, List, ArrowUpDown, Car, MapPin, Users, Fuel, Settings2 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -19,22 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAvailableCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
-import { useVehicles, type Vehicle } from "@/hooks/use-vehicles";
-import { VehicleCard } from "@/components/landing/VehicleCard";
+import { useAvailableCategories, useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
 import { BookingStepper } from "@/components/shared/BookingStepper";
-import { displayFuelType, displayTransmission } from "@/lib/utils";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
-import { Users, Fuel, Settings2 } from "lucide-react";
 
 type SortOption = "recommended" | "price-low" | "price-high";
 
 export default function Search() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { 
     searchData, 
     isSearchValid,
@@ -45,13 +40,13 @@ export default function Search() {
   const startDate = searchData.pickupDate;
   const endDate = searchData.returnDate;
 
-  // Use category-based system when location is set
-  const { data: categories = [], isLoading: isLoadingCategories } = useAvailableCategories(contextLocationId);
+  // Use category-based system - show all categories if no location, or available at location
+  const { data: locationCategories = [], isLoading: loadingLocation } = useAvailableCategories(contextLocationId);
+  const { data: allCategories = [], isLoading: loadingAll } = useFleetCategories();
   
-  // Fallback to old vehicle system if no location selected (for backwards compatibility)
-  const { data: fallbackVehicles = [], isLoading: isLoadingVehicles } = useVehicles();
-  
-  const isLoading = contextLocationId ? isLoadingCategories : isLoadingVehicles;
+  // Show location-specific categories if location selected, otherwise show all active categories
+  const categories = contextLocationId ? locationCategories : allCategories.filter(c => c.is_active);
+  const isLoading = contextLocationId ? loadingLocation : loadingAll;
   const hasValidContext = !!contextLocationId;
 
   const [showContextPrompt, setShowContextPrompt] = useState(false);
@@ -96,26 +91,6 @@ export default function Search() {
     return result;
   }, [categories, sortBy]);
 
-  // Sort fallback vehicles
-  const sortedVehicles = useMemo(() => {
-    let result = [...fallbackVehicles];
-    switch (sortBy) {
-      case "price-low":
-        result.sort((a, b) => a.dailyRate - b.dailyRate);
-        break;
-      case "price-high":
-        result.sort((a, b) => b.dailyRate - a.dailyRate);
-        break;
-      default:
-        result.sort((a, b) => {
-          if (a.isFeatured && !b.isFeatured) return -1;
-          if (!a.isFeatured && b.isFeatured) return 1;
-          return a.dailyRate - b.dailyRate;
-        });
-    }
-    return result;
-  }, [fallbackVehicles, sortBy]);
-
   const handleCategorySelect = (category: FleetCategory) => {
     // Store category ID and navigate to checkout
     // The checkout will use the category to assign a VIN
@@ -147,9 +122,7 @@ export default function Search() {
             <p className="text-muted-foreground">
               {isLoading
                 ? "Loading..."
-                : hasValidContext
-                  ? `${sortedCategories.length} categories available`
-                  : `${sortedVehicles.length} vehicles`}
+                : `${sortedCategories.length} categories available`}
               {startDate && endDate && (
                 <span className="ml-2">
                   • {rentalDays} day{rentalDays > 1 ? "s" : ""} rental
@@ -204,114 +177,88 @@ export default function Search() {
               </div>
             ))}
           </div>
-        ) : hasValidContext ? (
-          // Category-based display (new system)
-          sortedCategories.length > 0 ? (
-            <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
-              {sortedCategories.map((category) => (
-                <Card 
-                  key={category.id} 
-                  className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                  onClick={() => handleCategorySelect(category)}
-                >
-                  {/* Image */}
-                  <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-                    {category.image_url ? (
-                      <img
-                        src={category.image_url}
-                        alt={category.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <Car className="w-12 h-12" />
-                      </div>
-                    )}
-                    {category.available_count && category.available_count > 0 && (
-                      <Badge className="absolute top-3 right-3 bg-green-500/90">
-                        {category.available_count} available
-                      </Badge>
-                    )}
+        ) : sortedCategories.length > 0 ? (
+          // Category-based display - always show categories with images
+          <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
+            {sortedCategories.map((category) => (
+              <Card 
+                key={category.id} 
+                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                onClick={() => hasValidContext ? handleCategorySelect(category) : setShowContextPrompt(true)}
+              >
+                {/* Image */}
+                <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+                  {category.image_url ? (
+                    <img
+                      src={category.image_url}
+                      alt={category.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <Car className="w-12 h-12" />
+                    </div>
+                  )}
+                  {hasValidContext && category.available_count && category.available_count > 0 && (
+                    <Badge variant="secondary" className="absolute top-3 right-3 bg-primary/90 text-primary-foreground">
+                      {category.available_count} available
+                    </Badge>
+                  )}
+                  {!hasValidContext && (
+                    <Badge variant="outline" className="absolute top-3 right-3 bg-card/90 backdrop-blur-sm">
+                      Select Location
+                    </Badge>
+                  )}
+                </div>
+
+                <CardContent className="p-4 sm:p-5">
+                  {/* Title */}
+                  <h3 className="font-semibold text-base sm:text-lg mb-2 line-clamp-1">{category.name}</h3>
+
+                  {/* Specs - Customer sees these, never VIN/plate */}
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+                    <div className="flex items-center gap-1 sm:gap-1.5">
+                      <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>{category.seats || 5}</span>
+                    </div>
+                    <div className="flex items-center gap-1 sm:gap-1.5">
+                      <Fuel className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>{category.fuel_type || 'Gas'}</span>
+                    </div>
+                    <div className="flex items-center gap-1 sm:gap-1.5">
+                      <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>{category.transmission === 'Automatic' ? 'Auto' : category.transmission}</span>
+                    </div>
                   </div>
 
-                  <CardContent className="p-5">
-                    {/* Title */}
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-1">{category.name}</h3>
-
-                    {/* Specs - Customer sees these, never VIN/plate */}
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                      <div className="flex items-center gap-1.5">
-                        <Users className="w-4 h-4" />
-                        <span>{category.seats || 5} Seats</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Fuel className="w-4 h-4" />
-                        <span>{category.fuel_type || 'Gas'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Settings2 className="w-4 h-4" />
-                        <span>{category.transmission === 'Automatic' ? 'Auto' : category.transmission}</span>
-                      </div>
+                  {/* Price and CTA */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xl sm:text-2xl font-bold text-primary">${category.daily_rate}</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">/day</span>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">*Excludes taxes & fees</p>
                     </div>
-
-                    {/* Price and CTA */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-2xl font-bold text-primary">${category.daily_rate}</span>
-                        <span className="text-sm text-muted-foreground">/day</span>
-                        <p className="text-xs text-muted-foreground">*Price does not include taxes and fees</p>
-                      </div>
-                      <Button size="sm">Rent Now</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-card rounded-2xl border border-border">
-              <Car className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg font-medium mb-2">No vehicles available</p>
-              <p className="text-muted-foreground mb-6">
-                No vehicles are currently available at this location for the selected dates.
-              </p>
-              <Button variant="outline" onClick={() => setShowContextPrompt(true)}>
-                Try Different Dates
-              </Button>
-            </div>
-          )
+                    <Button size="sm" className="shrink-0">
+                      {hasValidContext ? 'Rent Now' : 'Select'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : (
-          // Fallback to vehicle-based display (old system, when no location selected)
-          sortedVehicles.length > 0 ? (
-            <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1"}`}>
-              {sortedVehicles.map((vehicle) => (
-                <VehicleCard
-                  key={vehicle.id}
-                  id={vehicle.id}
-                  make={vehicle.make}
-                  model={vehicle.model}
-                  year={vehicle.year}
-                  category={vehicle.category}
-                  dailyRate={vehicle.dailyRate}
-                  imageUrl={vehicle.imageUrl || ""}
-                  seats={vehicle.seats || 5}
-                  fuelType={displayFuelType(vehicle.fuelType)}
-                  transmission={displayTransmission(vehicle.transmission)}
-                  isFeatured={vehicle.isFeatured || false}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-card rounded-2xl border border-border">
-              <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg font-medium mb-2">Select a location to see available vehicles</p>
-              <p className="text-muted-foreground mb-6">
-                Choose your pickup location and dates to view available categories.
-              </p>
-              <Button onClick={() => setShowContextPrompt(true)}>
-                Select Location & Dates
-              </Button>
-            </div>
-          )
+          <div className="text-center py-16 bg-card rounded-2xl border border-border">
+            <Car className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">No vehicles available</p>
+            <p className="text-muted-foreground mb-6">
+              {hasValidContext 
+                ? "No vehicles are currently available at this location for the selected dates."
+                : "Select a pickup location and dates to view available vehicles."}
+            </p>
+            <Button variant="outline" onClick={() => setShowContextPrompt(true)}>
+              {hasValidContext ? 'Try Different Dates' : 'Select Location & Dates'}
+            </Button>
+          </div>
         )}
       </PageContainer>
     </CustomerLayout>
