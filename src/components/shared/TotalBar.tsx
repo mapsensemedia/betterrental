@@ -2,8 +2,9 @@
  * TotalBar - Always-visible total price bar for customer booking pages
  * Uses central pricing utility as source of truth
  */
+import { useSearchParams } from "react-router-dom";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
-import { useVehicle } from "@/hooks/use-vehicles";
+import { useCategory } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
@@ -20,8 +21,12 @@ export function TotalBar({
   protectionDailyRate = 0,
   selectedAddOnIds: overrideAddOnIds,
 }: TotalBarProps) {
+  const [searchParams] = useSearchParams();
   const { searchData, rentalDays } = useRentalBooking();
-  const { data: vehicle } = useVehicle(searchData.selectedVehicleId);
+  
+  // Get category ID from URL params or context
+  const categoryId = searchParams.get("categoryId") || searchParams.get("vehicleId") || searchData.selectedVehicleId;
+  const { data: vehicle } = useCategory(categoryId);
   const { data: addOns = [] } = useAddOns();
 
   // Use override add-on IDs if provided, otherwise fall back to context
