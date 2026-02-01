@@ -66,10 +66,10 @@ const navItems = [
     description: "Bookings, pickups, rentals, returns",
   },
   {
-    href: "/admin/inventory",
+    href: "/admin/fleet",
     label: "Fleet",
     icon: Car,
-    description: "Vehicles & inventory",
+    description: "Categories & vehicles",
   },
   {
     href: "/admin/incidents",
@@ -78,10 +78,10 @@ const navItems = [
     description: "Accidents & damages",
   },
   {
-    href: "/admin/fleet-analytics",
-    label: "Fleet Analytics",
+    href: "/admin/fleet-costs",
+    label: "Fleet Costs",
     icon: BarChart3,
-    description: "Utilization & costing",
+    description: "Vehicle costs & value",
   },
   {
     href: "/admin/reports",
