@@ -167,14 +167,14 @@ export function OperationsFilters({
   };
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <Filter className="h-4 w-4 text-muted-foreground" />
+    <div className={cn("flex flex-wrap items-center gap-1.5 md:gap-2", className)}>
+      <Filter className="h-4 w-4 text-muted-foreground hidden md:block" />
       
       {/* Location Filter */}
       <Select value={filters.locationId} onValueChange={(v) => onFiltersChange({ ...filters, locationId: v })}>
-        <SelectTrigger className="w-[160px] h-9">
-          <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-          <SelectValue placeholder="All Locations" />
+        <SelectTrigger className="w-[100px] md:w-[140px] lg:w-[160px] h-8 md:h-9 text-xs md:text-sm">
+          <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2 text-muted-foreground shrink-0" />
+          <SelectValue placeholder="Location" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Locations</SelectItem>
@@ -186,11 +186,11 @@ export function OperationsFilters({
         </SelectContent>
       </Select>
 
-      {/* Vehicle Filter */}
+      {/* Vehicle Filter - hidden on smallest screens */}
       <Select value={filters.vehicleId} onValueChange={(v) => onFiltersChange({ ...filters, vehicleId: v })}>
-        <SelectTrigger className="w-[160px] h-9">
-          <Car className="h-4 w-4 mr-2 text-muted-foreground" />
-          <SelectValue placeholder="All Vehicles" />
+        <SelectTrigger className="w-[100px] md:w-[140px] lg:w-[160px] h-8 md:h-9 text-xs md:text-sm hidden xs:flex">
+          <Car className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2 text-muted-foreground shrink-0" />
+          <SelectValue placeholder="Vehicle" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Vehicles</SelectItem>
@@ -203,12 +203,12 @@ export function OperationsFilters({
       </Select>
 
       {/* Date Range Filter */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 md:gap-2">
         <Select value={filters.datePreset} onValueChange={handlePresetChange}>
-          <SelectTrigger className="w-[150px] h-9">
-            <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+          <SelectTrigger className="w-[90px] md:w-[120px] lg:w-[150px] h-8 md:h-9 text-xs md:text-sm">
+            <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2 text-muted-foreground shrink-0" />
             <span className="truncate">
-              {DATE_PRESETS.find(p => p.value === filters.datePreset)?.label || "All Time"}
+              {DATE_PRESETS.find(p => p.value === filters.datePreset)?.label || "All"}
             </span>
           </SelectTrigger>
           <SelectContent>
@@ -224,18 +224,18 @@ export function OperationsFilters({
         {filters.datePreset === "custom" && (
           <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-2">
-                <Calendar className="h-4 w-4" />
+              <Button variant="outline" size="sm" className="h-8 md:h-9 gap-1.5 px-2 md:px-3">
+                <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 {filters.dateRange.start ? (
                   filters.dateRange.end ? (
-                    <span className="text-xs">
-                      {format(filters.dateRange.start, "MMM d")} - {format(filters.dateRange.end, "MMM d")}
+                    <span className="text-[10px] md:text-xs">
+                      {format(filters.dateRange.start, "M/d")} - {format(filters.dateRange.end, "M/d")}
                     </span>
                   ) : (
-                    <span className="text-xs">From {format(filters.dateRange.start, "MMM d")}</span>
+                    <span className="text-[10px] md:text-xs">From {format(filters.dateRange.start, "M/d")}</span>
                   )
                 ) : (
-                  <span className="text-xs">Select dates</span>
+                  <span className="text-[10px] md:text-xs">Select</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -263,19 +263,20 @@ export function OperationsFilters({
         <Button
           variant={filters.needsProcessing ? "default" : "outline"}
           size="sm"
-          className="h-9"
+          className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm"
           onClick={() => onFiltersChange({ ...filters, needsProcessing: !filters.needsProcessing })}
         >
-          <AlertCircle className="h-4 w-4 mr-2" />
-          Needs Processing
+          <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2" />
+          <span className="hidden sm:inline">Needs Processing</span>
+          <span className="sm:hidden">Review</span>
         </Button>
       )}
 
       {/* Clear Filters */}
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" className="h-9" onClick={clearFilters}>
-          <X className="h-4 w-4 mr-1" />
-          Clear
+        <Button variant="ghost" size="sm" className="h-8 md:h-9 px-2" onClick={clearFilters}>
+          <X className="h-4 w-4" />
+          <span className="hidden sm:inline ml-1">Clear</span>
         </Button>
       )}
     </div>

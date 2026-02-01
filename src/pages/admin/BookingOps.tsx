@@ -251,20 +251,20 @@ export default function BookingOps() {
     <AdminShell hideNav>
       <div className="h-[calc(100vh-2rem)] lg:h-[calc(100vh-2rem)] flex flex-col">
         {/* Top Header */}
-        <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b bg-background shrink-0">
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-            <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0">
-              <ArrowLeft className="h-5 w-5" />
+        <div className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border-b bg-background shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0">
+            <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9">
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <h1 className="text-base sm:text-lg font-semibold truncate">Operations</h1>
-                <Badge variant="outline" className="font-mono text-xs shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-wrap">
+                <h1 className="text-sm sm:text-base md:text-lg font-semibold truncate">Ops</h1>
+                <Badge variant="outline" className="font-mono text-[10px] sm:text-xs shrink-0">
                   {booking.booking_code}
                 </Badge>
                 <Badge 
                   className={cn(
-                    "shrink-0",
+                    "shrink-0 text-[10px] sm:text-xs",
                     booking.status === "active" ? "bg-emerald-500" :
                     booking.status === "confirmed" ? "bg-blue-500" :
                     booking.status === "cancelled" ? "bg-destructive" :
@@ -274,18 +274,18 @@ export default function BookingOps() {
                   {booking.status}
                 </Badge>
                 {hasVehicleConflict && (
-                  <Badge variant="destructive" className="shrink-0">
+                  <Badge variant="destructive" className="shrink-0 text-[10px]">
                     Conflict
                   </Badge>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">
-                {booking.profiles?.full_name} • {vehicleName}
+              <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground mt-0.5 truncate">
+                {booking.profiles?.full_name} • <span className="hidden xs:inline">{vehicleName}</span><span className="xs:hidden">{booking.vehicles?.make} {booking.vehicles?.model}</span>
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {/* Mobile Summary Button */}
             <MobileBookingSummary
               booking={booking}
@@ -296,8 +296,8 @@ export default function BookingOps() {
             {!isRentalActive && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9">
-                    <MoreVertical className="h-4 w-4" />
+                  <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9">
+                    <MoreVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -316,8 +316,8 @@ export default function BookingOps() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 sm:h-9 sm:w-9">
-              <X className="h-5 w-5" />
+            <Button variant="ghost" size="icon" onClick={handleBack} className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9">
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function BookingOps() {
           {/* Main Content Panel */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             <ScrollArea className="flex-1">
-              <div className="p-4 sm:p-6 max-w-3xl">
+              <div className="p-3 sm:p-4 md:p-6 max-w-3xl">
                 <OpsStepContent
                   stepId={activeStep}
                   booking={booking}
@@ -351,9 +351,10 @@ export default function BookingOps() {
             
             {/* Sticky Footer */}
             {!isRentalActive && activeStep === "handover" && checkStepComplete("walkaround", completion) && (
-              <div className="border-t bg-background p-4 flex justify-end gap-3">
+              <div className="border-t bg-background p-3 md:p-4 flex justify-end gap-2 md:gap-3">
                 <Button
-                  size="lg"
+                  size="default"
+                  className="h-9 md:h-10"
                   onClick={handleActivateRental}
                   disabled={updateStatus.isPending}
                 >
@@ -370,8 +371,8 @@ export default function BookingOps() {
             )}
           </div>
           
-          {/* Right Summary Panel - STICKY with its own scroll */}
-          <div className="hidden xl:flex w-80 border-l bg-muted/30 flex-col sticky top-0 h-[calc(100vh-4rem)]">
+          {/* Right Summary Panel - STICKY with its own scroll - hidden on mobile/tablet */}
+          <div className="hidden xl:flex w-72 2xl:w-80 border-l bg-muted/30 flex-col sticky top-0 h-[calc(100vh-4rem)]">
             <div className="flex-1 overflow-hidden flex flex-col">
               <OpsBookingSummary 
                 booking={booking} 
