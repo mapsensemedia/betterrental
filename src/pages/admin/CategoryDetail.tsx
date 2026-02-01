@@ -2,6 +2,7 @@
  * Category Detail Page
  * Shows all vehicles in a category with aggregated metrics
  */
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,6 +13,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { useVehicleCategoryWithUnits } from "@/hooks/use-vehicle-categories";
 import { useFleetCostAnalysisByVehicle } from "@/hooks/use-fleet-cost-analysis";
+import { useFleetCategories, FleetCategory } from "@/hooks/use-fleet-categories";
+import { CategoryEditDialog } from "@/components/admin/fleet/CategoryEditDialog";
 import { format } from "date-fns";
 import {
   ArrowLeft,
@@ -23,14 +26,20 @@ import {
   Download,
   FolderOpen,
   AlertTriangle,
+  Edit2,
 } from "lucide-react";
 
 export default function CategoryDetail() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const { data: category, isLoading } = useVehicleCategoryWithUnits(categoryId || null);
   const { data: allMetrics } = useFleetCostAnalysisByVehicle({ categoryId });
+  const { data: fleetCategories } = useFleetCategories();
+  
+  // Get full category data for edit dialog
+  const fullCategory = fleetCategories?.find(c => c.id === categoryId) || null;
 
   const categoryMetrics = allMetrics?.filter((v) => v.categoryId === categoryId) || [];
 
@@ -116,12 +125,16 @@ export default function CategoryDetail() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">
               <Car className="w-3 h-3 mr-1" />
               {categoryMetrics.length} vehicles
             </Badge>
-            <Button variant="outline" onClick={handleExportCSV}>
+            <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
+              <Edit2 className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
@@ -281,6 +294,12 @@ export default function CategoryDetail() {
           </CardContent>
         </Card>
       </div>
+
+      <CategoryEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        category={fullCategory}
+      />
     </AdminShell>
   );
 }

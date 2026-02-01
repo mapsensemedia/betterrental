@@ -16,6 +16,7 @@ import { useVehicleUnit } from "@/hooks/use-vehicle-units";
 import { useVehicleUnitCostTimeline, useFleetCostAnalysisByVehicle } from "@/hooks/use-fleet-cost-analysis";
 import { useMaintenanceLogsByUnit } from "@/hooks/use-maintenance-logs";
 import { MaintenanceLogDialog } from "@/components/admin/fleet/MaintenanceLogDialog";
+import { VehicleUnitEditDialog } from "@/components/admin/fleet/VehicleUnitEditDialog";
 import { format } from "date-fns";
 import {
   ArrowLeft,
@@ -32,12 +33,14 @@ import {
   Gauge,
   FileText,
   Lightbulb,
+  Edit2,
 } from "lucide-react";
 
 export default function VehicleUnitDetail() {
   const { unitId } = useParams<{ unitId: string }>();
   const navigate = useNavigate();
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const { data: unit, isLoading: unitLoading } = useVehicleUnit(unitId || null);
   const { data: vehicleMetrics } = useFleetCostAnalysisByVehicle();
@@ -117,11 +120,15 @@ export default function VehicleUnitDetail() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant={unit.status === "active" ? "default" : "secondary"}>
               {unit.status}
             </Badge>
-            <Button variant="outline" onClick={handleExportCSV}>
+            <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
+              <Edit2 className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
@@ -449,6 +456,12 @@ export default function VehicleUnitDetail() {
         open={maintenanceDialogOpen}
         onOpenChange={setMaintenanceDialogOpen}
         vehicleUnitId={unitId}
+      />
+
+      <VehicleUnitEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        unit={unit}
       />
     </AdminShell>
   );
