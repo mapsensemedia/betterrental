@@ -97,9 +97,15 @@ export function OperationsFilters({
 
   const handlePresetChange = (preset: string) => {
     if (preset === "custom") {
+      // Reset date range and open calendar
+      onFiltersChange({ 
+        ...filters, 
+        datePreset: preset, 
+        dateRange: { start: null, end: null } 
+      });
       setCalendarOpen(true);
-      onFiltersChange({ ...filters, datePreset: preset });
     } else {
+      setCalendarOpen(false);
       const range = getDateRangeFromPreset(preset);
       onFiltersChange({ ...filters, datePreset: preset, dateRange: range });
     }
@@ -197,40 +203,60 @@ export function OperationsFilters({
       </Select>
 
       {/* Date Range Filter */}
-      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-        <PopoverTrigger asChild>
-          <Select value={filters.datePreset} onValueChange={handlePresetChange}>
-            <SelectTrigger className="w-[180px] h-9">
-              <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-              <span className="truncate">{getDateLabel()}</span>
-            </SelectTrigger>
-            <SelectContent>
-              {DATE_PRESETS.map((preset) => (
-                <SelectItem key={preset.value} value={preset.value}>
-                  {preset.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </PopoverTrigger>
+      <div className="flex items-center gap-2">
+        <Select value={filters.datePreset} onValueChange={handlePresetChange}>
+          <SelectTrigger className="w-[150px] h-9">
+            <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+            <span className="truncate">
+              {DATE_PRESETS.find(p => p.value === filters.datePreset)?.label || "All Time"}
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            {DATE_PRESETS.map((preset) => (
+              <SelectItem key={preset.value} value={preset.value}>
+                {preset.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Custom Range Calendar Popover - separate from Select */}
         {filters.datePreset === "custom" && (
-          <PopoverContent className="w-auto p-0" align="start">
-            <CalendarComponent
-              mode="single"
-              selected={filters.dateRange.start || undefined}
-              onSelect={handleDateSelect}
-              disabled={{ before: new Date(2020, 0, 1) }}
-              initialFocus
-              className="pointer-events-auto"
-            />
-            {filters.dateRange.start && !filters.dateRange.end && (
-              <div className="p-2 text-xs text-muted-foreground text-center border-t">
-                Select end date
-              </div>
-            )}
-          </PopoverContent>
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-2">
+                <Calendar className="h-4 w-4" />
+                {filters.dateRange.start ? (
+                  filters.dateRange.end ? (
+                    <span className="text-xs">
+                      {format(filters.dateRange.start, "MMM d")} - {format(filters.dateRange.end, "MMM d")}
+                    </span>
+                  ) : (
+                    <span className="text-xs">From {format(filters.dateRange.start, "MMM d")}</span>
+                  )
+                ) : (
+                  <span className="text-xs">Select dates</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={filters.dateRange.start || undefined}
+                onSelect={handleDateSelect}
+                disabled={{ before: new Date(2020, 0, 1) }}
+                initialFocus
+                className="pointer-events-auto"
+              />
+              {filters.dateRange.start && !filters.dateRange.end && (
+                <div className="p-2 text-xs text-muted-foreground text-center border-t">
+                  Click another date to set end date
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         )}
-      </Popover>
+      </div>
 
       {/* Needs Processing Toggle */}
       {showNeedsProcessing && (

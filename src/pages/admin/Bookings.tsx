@@ -872,21 +872,34 @@ export default function AdminBookings() {
               </Card>
             )}
 
+            {/* Dynamic Returns Section based on filter */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <RotateCcw className="w-4 h-4 text-orange-500" />
-                  Due Today
-                  {applyOpsFilters(categorizedBookings.returnsToday).length > 0 && (
-                    <Badge className="bg-orange-500">{applyOpsFilters(categorizedBookings.returnsToday).length}</Badge>
+                  {opsFilters.datePreset === "today" ? "Due Today" : 
+                   opsFilters.datePreset === "tomorrow" ? "Due Tomorrow" :
+                   opsFilters.datePreset === "this-week" ? "Due This Week" :
+                   opsFilters.datePreset === "this-month" ? "Due This Month" :
+                   opsFilters.datePreset === "next-7-days" ? "Due Next 7 Days" :
+                   opsFilters.datePreset === "custom" ? "Returns in Range" :
+                   "All Returns"}
+                  {applyOpsFilters([...categorizedBookings.returnsToday, ...categorizedBookings.returnsTomorrow]).length > 0 && (
+                    <Badge className="bg-orange-500">
+                      {applyOpsFilters([...categorizedBookings.returnsToday, ...categorizedBookings.returnsTomorrow]).length}
+                    </Badge>
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {applyOpsFilters(categorizedBookings.returnsToday).length === 0 ? (
-                  <p className="text-center py-4 text-muted-foreground text-sm">No returns due today</p>
+                {applyOpsFilters([...categorizedBookings.returnsToday, ...categorizedBookings.returnsTomorrow]).length === 0 ? (
+                  <p className="text-center py-4 text-muted-foreground text-sm">
+                    No returns {opsFilters.datePreset === "today" ? "due today" : 
+                               opsFilters.datePreset === "this-month" ? "this month" : 
+                               "matching filter"}
+                  </p>
                 ) : (
-                  applyOpsFilters(categorizedBookings.returnsToday).map((booking) => (
+                  applyOpsFilters([...categorizedBookings.returnsToday, ...categorizedBookings.returnsTomorrow]).map((booking) => (
                     <BookingWorkflowCard 
                       key={booking.id} 
                       booking={booking} 
