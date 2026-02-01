@@ -63,7 +63,7 @@ export interface CreateIncidentParams {
   airbags_deployed?: boolean;
   third_party_involved?: boolean;
   claim_number?: string;
-  claim_required?: boolean;
+  // Note: claim_required is a generated column - don't include in params
   assigned_staff_id?: string;
   internal_notes?: string;
 }
@@ -177,10 +177,14 @@ export function useCreateIncident() {
     mutationFn: async (params: CreateIncidentParams) => {
       if (!user) throw new Error("Not authenticated");
 
+      // Remove claim_required from params - it's a generated column in the database
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { claim_required, ...insertParams } = params as CreateIncidentParams & { claim_required?: boolean };
+
       const { data, error } = await supabase
         .from("incident_cases")
         .insert({
-          ...params,
+          ...insertParams,
           created_by: user.id,
           status: "reported",
         })

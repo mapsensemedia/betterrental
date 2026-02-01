@@ -67,6 +67,8 @@ import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInt
 const chartConfig = {
   views: { label: "Views", color: "hsl(var(--primary))" },
   conversions: { label: "Conversions", color: "hsl(var(--chart-2))" },
+  revenue: { label: "Revenue", color: "hsl(var(--chart-1))" },
+  bookings: { label: "Bookings", color: "hsl(var(--primary))" },
 } satisfies ChartConfig;
 
 const COLORS = ["hsl(var(--primary))", "#22c55e", "#f97316", "#8b5cf6", "#3b82f6", "#ec4899"];
@@ -283,7 +285,59 @@ export default function AdminReports() {
     return first > 0 ? (last / first) * 100 : 0;
   }, [funnelStats]);
 
-  // Daily trend
+  // Daily booking trend - based on actual booking data
+  const dailyBookingTrend = useMemo(() => {
+    const days = dateFilter === "today" ? 1 : dateFilter === "week" ? 7 : dateFilter === "month" ? 30 : 14;
+    const interval = eachDayOfInterval({ start: subDays(new Date(), days - 1), end: new Date() });
+    
+    return interval.map((date) => {
+      const dayStart = startOfDay(date);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      
+      const dayBookings = bookings.filter((b) => {
+        const bookingDate = parseISO(b.createdAt);
+        return bookingDate >= dayStart && bookingDate < dayEnd;
+      });
+      
+      const completedBookings = dayBookings.filter(b => b.status === "completed" || b.status === "active");
+      const revenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
+      
+      return {
+        date: format(date, "MMM d"),
+        bookings: dayBookings.length,
+        revenue: revenue,
+      };
+    });
+  }, [bookings, dateFilter]);
+
+  // Weekly revenue trend
+  const weeklyRevenueTrend = useMemo(() => {
+    const weeks = 8; // Last 8 weeks
+    const result = [];
+    
+    for (let i = weeks - 1; i >= 0; i--) {
+      const weekStart = startOfWeek(subDays(new Date(), i * 7), { weekStartsOn: 1 });
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      
+      const weekBookings = bookings.filter(b => {
+        const bookingDate = parseISO(b.createdAt);
+        return bookingDate >= weekStart && bookingDate < weekEnd && 
+               (b.status === "completed" || b.status === "active");
+      });
+      
+      result.push({
+        week: format(weekStart, "MMM d"),
+        revenue: weekBookings.reduce((sum, b) => sum + b.totalAmount, 0),
+        bookings: weekBookings.length,
+      });
+    }
+    
+    return result;
+  }, [bookings]);
+
+  // Analytics daily trend (from localStorage)
   const dailyTrend = useMemo(() => {
     const days = dateFilter === "today" ? 1 : dateFilter === "week" ? 7 : dateFilter === "month" ? 30 : 7;
     const interval = eachDayOfInterval({ start: subDays(new Date(), days - 1), end: new Date() });
@@ -525,20 +579,92 @@ export default function AdminReports() {
               </Card>
             </div>
 
-            {/* Daily Chart */}
+            {/* Revenue Trend Chart - Using actual booking data */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Daily Activity</CardTitle>
-                <CardDescription>Views and bookings over time</CardDescription>
+                <CardTitle className="text-base">Weekly Revenue Trend</CardTitle>
+                <CardDescription>Revenue over the last 8 weeks</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {weeklyRevenueTrend.every(d => d.revenue === 0) ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <DollarSign className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No revenue data for this period</p>
+                  </div>
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={weeklyRevenueTrend}>
+                        <XAxis dataKey="week" fontSize={10} />
+                        <YAxis fontSize={10} tickFormatter={(v) => `$${v}`} />
+                        <ChartTooltip 
+                          content={<ChartTooltipContent formatter={(value) => `$${Number(value).toLocaleString()}`} />} 
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="revenue" 
+                          stroke="hsl(var(--chart-1))" 
+                          strokeWidth={2} 
+                          dot={{ fill: "hsl(var(--chart-1))", r: 4 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Daily Bookings Chart */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Daily Bookings</CardTitle>
+                <CardDescription>New bookings and revenue per day</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dailyBookingTrend.every(d => d.bookings === 0) ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No booking data for this period</p>
+                  </div>
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dailyBookingTrend}>
+                        <XAxis dataKey="date" fontSize={10} />
+                        <YAxis yAxisId="left" fontSize={10} orientation="left" />
+                        <YAxis yAxisId="right" fontSize={10} orientation="right" tickFormatter={(v) => `$${v}`} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar yAxisId="left" dataKey="bookings" fill="hsl(var(--primary))" radius={3} />
+                        <Line 
+                          yAxisId="right" 
+                          type="monotone" 
+                          dataKey="revenue" 
+                          stroke="hsl(var(--chart-2))" 
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Daily Activity (Analytics Events) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Website Activity</CardTitle>
+                <CardDescription>Page views and conversions tracked by analytics</CardDescription>
               </CardHeader>
               <CardContent>
                 {dailyTrend.every(d => d.views === 0 && d.conversions === 0) ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No activity data for this period</p>
+                    <Eye className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No website activity tracked yet</p>
+                    <p className="text-xs mt-1">Analytics events appear as users browse the site</p>
                   </div>
                 ) : (
-                  <ChartContainer config={chartConfig} className="h-[250px]">
+                  <ChartContainer config={chartConfig} className="h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={dailyTrend}>
                         <XAxis dataKey="date" fontSize={10} />

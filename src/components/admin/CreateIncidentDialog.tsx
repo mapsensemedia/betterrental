@@ -209,7 +209,7 @@ export function CreateIncidentDialog({
       airbags_deployed: airbagsDeployed,
       third_party_involved: thirdPartyInvolved,
       claim_number: claimNumber || undefined,
-      claim_required: claimRequired,
+      // Note: claim_required is a generated column in DB, don't send it
       assigned_staff_id: assignedStaffId || undefined,
       internal_notes: internalNotes || undefined,
     };
