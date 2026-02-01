@@ -1,25 +1,81 @@
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Users, Fuel, Settings2, Car } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
-import { VehicleCard } from "@/components/landing/VehicleCard";
+import { CategoryCard } from "@/components/landing/CategoryCard";
 
 import { SectionHeader } from "@/components/landing/SectionHeader";
 import { WhyChooseSection } from "@/components/landing/WhyChooseSection";
 import { CTABanner } from "@/components/landing/CTABanner";
 import { LocationsSection } from "@/components/landing/LocationsSection";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useVehicles } from "@/hooks/use-vehicles";
+import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
 
 // Images
 import heroImage from "@/assets/hero-c2c.jpg";
 
+// Category display card for homepage
+function CategoryDisplayCard({ category }: { category: FleetCategory }) {
+  return (
+    <Link to="/search" className="block">
+      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group h-full">
+        {/* Image */}
+        <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+          {category.image_url ? (
+            <img
+              src={category.image_url}
+              alt={category.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => e.currentTarget.src = '/placeholder.svg'}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              <Car className="w-12 h-12" />
+            </div>
+          )}
+        </div>
+
+        <CardContent className="p-4">
+          {/* Title */}
+          <h3 className="font-semibold text-base mb-2 line-clamp-1">{category.name}</h3>
+
+          {/* Specs */}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+            <div className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5" />
+              <span>{category.seats || 5}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Fuel className="w-3.5 h-3.5" />
+              <span>{category.fuel_type || 'Gas'}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Settings2 className="w-3.5 h-3.5" />
+              <span>{category.transmission === 'Automatic' ? 'Auto' : 'Manual'}</span>
+            </div>
+          </div>
+
+          {/* Price */}
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xl font-bold text-primary">${category.daily_rate}</span>
+              <span className="text-xs text-muted-foreground">/day</span>
+            </div>
+            <Button size="sm" variant="outline">View</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
 const Index = () => {
-  const { data: vehicles = [], isLoading } = useVehicles();
+  const { data: categories = [], isLoading } = useFleetCategories();
   
-  // Get trending vehicles (featured first, then by price)
-  const trendingVehicles = vehicles.slice(0, 4);
+  // Get top 4 categories to display
+  const displayCategories = categories.filter(c => c.is_active).slice(0, 4);
 
   return (
     <CustomerLayout>
@@ -61,11 +117,11 @@ const Index = () => {
       {/* Why Choose Section */}
       <WhyChooseSection />
 
-      {/* Trending Vehicles Section */}
+      {/* Browse Categories Section */}
       <section className="py-20 bg-muted">
         <div className="container-page">
           <SectionHeader
-            title="Trending Vehicles"
+            title="Browse Our Fleet"
             action={
               <Button variant="default" asChild>
                 <Link to="/search">
@@ -89,24 +145,10 @@ const Index = () => {
                 </div>
               ))}
             </div>
-          ) : trendingVehicles.length > 0 ? (
+          ) : displayCategories.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {trendingVehicles.map((vehicle) => (
-                <VehicleCard
-                  key={vehicle.id}
-                  id={vehicle.id}
-                  make={vehicle.make}
-                  model={vehicle.model}
-                  year={vehicle.year}
-                  category={vehicle.category}
-                  dailyRate={vehicle.dailyRate}
-                  imageUrl={vehicle.imageUrl || ""}
-                  seats={vehicle.seats || 5}
-                  fuelType={vehicle.fuelType}
-                  transmission={vehicle.transmission}
-                  isFeatured={vehicle.isFeatured || false}
-                  className="animate-fade-in"
-                />
+              {displayCategories.map((category) => (
+                <CategoryDisplayCard key={category.id} category={category} />
               ))}
             </div>
           ) : (

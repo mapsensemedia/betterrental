@@ -169,7 +169,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
                   max="2030"
                   value={formData.year}
                   onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                  placeholder="2024"
+                  placeholder={String(new Date().getFullYear())}
                 />
               </div>
 
@@ -179,7 +179,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
                   id="make"
                   value={formData.make}
                   onChange={(e) => setFormData({ ...formData, make: e.target.value })}
-                  placeholder="Toyota"
+                  placeholder="e.g., Toyota"
                 />
               </div>
 
@@ -189,7 +189,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
                   id="model"
                   value={formData.model}
                   onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  placeholder="Camry"
+                  placeholder="e.g., Camry"
                 />
               </div>
             </div>
