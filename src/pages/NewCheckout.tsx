@@ -461,9 +461,15 @@ export default function NewCheckout() {
     );
   }
 
-  const locationDisplay = searchData.deliveryMode === "delivery"
-    ? searchData.closestPickupCenterName
+  // Location display - for delivery, show the delivery address, not the dispatch hub
+  const isDeliveryMode = searchData.deliveryMode === "delivery";
+  const primaryLocationDisplay = isDeliveryMode
+    ? searchData.deliveryAddress || searchData.deliveryPlaceName || "Delivery address"
     : searchData.pickupLocationName;
+  
+  const dispatchHubDisplay = isDeliveryMode && searchData.closestPickupCenterName
+    ? `Dispatched from: ${searchData.closestPickupCenterName}`
+    : null;
 
   return (
     <CustomerLayout>
@@ -912,11 +918,23 @@ export default function NewCheckout() {
                 {/* Pickup / Return */}
                 <div className="space-y-3 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Pickup</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isDeliveryMode ? "Delivery To" : "Pickup"}
+                    </p>
                     <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="font-medium">{locationDisplay || "Location"}</p>
+                      <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p 
+                          className="font-medium break-words"
+                          title={primaryLocationDisplay || undefined}
+                        >
+                          {primaryLocationDisplay || "Location"}
+                        </p>
+                        {dispatchHubDisplay && (
+                          <p className="text-xs text-muted-foreground/70 italic">
+                            {dispatchHubDisplay}
+                          </p>
+                        )}
                         <p className="text-muted-foreground">
                           {searchData.pickupDate && format(searchData.pickupDate, "EEE, dd MMM, yyyy")} | {searchData.pickupTime}
                         </p>
@@ -925,11 +943,18 @@ export default function NewCheckout() {
                   </div>
 
                   <div>
-                    <p className="text-xs text-muted-foreground">Return</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isDeliveryMode ? "Return Pickup From" : "Return"}
+                    </p>
                     <div className="flex items-start gap-2">
                       <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="font-medium">{locationDisplay || "Location"}</p>
+                      <div className="min-w-0 flex-1">
+                        <p 
+                          className="font-medium break-words"
+                          title={primaryLocationDisplay || undefined}
+                        >
+                          {primaryLocationDisplay || "Location"}
+                        </p>
                         <p className="text-muted-foreground">
                           {searchData.returnDate && format(searchData.returnDate, "EEE, dd MMM, yyyy")} | {searchData.returnTime}
                         </p>

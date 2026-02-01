@@ -204,6 +204,27 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     [setDeliveryAddress, setDeliveryDetails, setClosestCenter]
   );
 
+  // Handle manual address entry (when user types without selecting from suggestions)
+  const handleManualAddressBlur = useCallback(() => {
+    // If user typed an address but didn't select from autocomplete,
+    // store the address text without coordinates
+    // The booking will still work, but delivery fee calculation may be approximate
+    if (deliveryAddress && deliveryAddress.length >= 10 && !deliveryCoords) {
+      setDeliveryAddress(deliveryAddress, null, null, deliveryAddress);
+      // Use a default fallback to Surrey Centre for fee calculation
+      const defaultCenter = pickupLocations[0];
+      if (defaultCenter) {
+        setClosestCenter(defaultCenter.id, defaultCenter.name, defaultCenter.address);
+        // Default to $49 fee when exact distance unknown
+        setDeliveryDetails(49, null, "TBD at pickup");
+      }
+      toast({
+        title: "Address saved",
+        description: "For accurate delivery pricing, please select from suggestions. Delivery fee will be confirmed at pickup.",
+      });
+    }
+  }, [deliveryAddress, deliveryCoords, pickupLocations, setDeliveryAddress, setClosestCenter, setDeliveryDetails]);
+
   // Handle route calculation from map
   const handleRouteCalculated = useCallback(
     (distanceKm: number, durationMins: number) => {
@@ -364,7 +385,8 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
               value={deliveryAddress}
               onChange={setLocalDeliveryAddress}
               onSelect={handleAddressSelect}
-              placeholder="Enter your address"
+              onBlur={handleManualAddressBlur}
+              placeholder="Enter your full delivery address"
             />
           )}
         </div>

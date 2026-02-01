@@ -285,22 +285,32 @@ export function OpsBookingSummary({
           
           {/* Location Section */}
           <CollapsibleSection
-            title={booking.pickup_address ? "Delivery Location" : "Pickup Location"}
+            title={booking.pickup_address ? "Delivery" : "Pickup Location"}
             icon={<MapPin className="h-4 w-4 text-muted-foreground" />}
             defaultOpen={allExpanded}
           >
             <div className="space-y-2 text-sm">
-              <p className="font-medium text-xs">{booking.locations?.name || "Unknown"}</p>
-              {booking.locations?.address && (
-                <p className="text-muted-foreground text-xs">
-                  {booking.locations.address}
-                </p>
-              )}
-              {booking.pickup_address && (
-                <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
-                  <p className="text-muted-foreground mb-1">Delivering to:</p>
-                  <p>{booking.pickup_address}</p>
-                </div>
+              {booking.pickup_address ? (
+                <>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Delivery Address</p>
+                    <p className="font-medium text-xs break-words">{booking.pickup_address}</p>
+                  </div>
+                  {booking.locations?.name && (
+                    <p className="text-muted-foreground text-xs italic">
+                      Dispatched from: {booking.locations.name}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-xs">{booking.locations?.name || "Unknown"}</p>
+                  {booking.locations?.address && (
+                    <p className="text-muted-foreground text-xs">
+                      {booking.locations.address}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </CollapsibleSection>
