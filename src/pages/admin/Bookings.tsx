@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
-import { format, isToday, isTomorrow, parseISO, isThisWeek, isBefore, addDays, isAfter, startOfDay, endOfDay } from "date-fns";
+import { format, isToday, isTomorrow, parseISO, isThisWeek, isBefore, addDays, isAfter, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useAdminBookings, type BookingFilters } from "@/hooks/use-bookings";
@@ -31,6 +31,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   Search, 
   Filter, 
@@ -50,6 +56,7 @@ import {
   UserPlus,
   FileWarning,
   IdCard,
+  CalendarDays,
 } from "lucide-react";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 import { OperationsFilters, defaultFilters, getDateRangeFromPreset, type OperationsFiltersState } from "@/components/admin/OperationsFilters";
@@ -106,81 +113,146 @@ function NeedsProcessingBadge({ licenseStatus }: { licenseStatus?: string }) {
   );
 }
 
+// Date highlight badge for pickup/return dates
+function DateHighlightBadge({ date, type }: { date: string; type: "pickup" | "return" }) {
+  const parsedDate = parseISO(date);
+  const isDateToday = isToday(parsedDate);
+  const isDateTomorrow = isTomorrow(parsedDate);
+  const isPast = isBefore(parsedDate, startOfDay(new Date()));
+  
+  if (isPast) {
+    return (
+      <Badge variant="destructive" className="text-[10px]">
+        <AlertCircle className="h-3 w-3 mr-1" />
+        {type === "pickup" ? "Pickup" : "Return"}: {format(parsedDate, "MMM d")}
+      </Badge>
+    );
+  }
+  
+  if (isDateToday) {
+    return (
+      <Badge className="bg-green-500 text-[10px]">
+        <CalendarDays className="h-3 w-3 mr-1" />
+        {type === "pickup" ? "Pickup" : "Return"} Today
+      </Badge>
+    );
+  }
+  
+  if (isDateTomorrow) {
+    return (
+      <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 text-[10px]">
+        <CalendarDays className="h-3 w-3 mr-1" />
+        {type === "pickup" ? "Pickup" : "Return"} Tomorrow
+      </Badge>
+    );
+  }
+  
+  return (
+    <Badge variant="outline" className="text-[10px]">
+      <CalendarDays className="h-3 w-3 mr-1" />
+      {format(parsedDate, "EEE, MMM d")}
+    </Badge>
+  );
+}
+
 // Compact booking card for workflow views
 function BookingWorkflowCard({ 
   booking, 
   onOpen,
   showAction = "view",
   licenseStatus,
+  highlightDate = false,
 }: { 
   booking: any; 
   onOpen: (id: string, status?: BookingStatus) => void;
   showAction?: "view" | "pickup" | "return";
   licenseStatus?: string;
+  highlightDate?: boolean;
 }) {
   const isOverdue = booking.status === "active" && isBefore(parseISO(booking.endAt), new Date());
   const needsProcessing = licenseStatus !== "approved";
+  const pickupDate = parseISO(booking.startAt);
+  const isPastPickup = isBefore(pickupDate, startOfDay(new Date())) && (booking.status === "pending" || booking.status === "confirmed");
   
   return (
-    <div 
-      className={`flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer ${
-        needsProcessing && (booking.status === "pending" || booking.status === "confirmed") ? "border-amber-500/50" : ""
-      }`}
-      onClick={() => onOpen(booking.id, booking.status)}
-    >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-          isOverdue ? "bg-destructive/10" : 
-          booking.status === "active" ? "bg-primary/10" : 
-          booking.status === "confirmed" || booking.status === "pending" ? "bg-green-500/10" : "bg-muted"
-        }`}>
-          {booking.status === "active" ? (
-            <Car className={`w-5 h-5 ${isOverdue ? "text-destructive" : "text-primary"}`} />
-          ) : booking.status === "confirmed" || booking.status === "pending" ? (
-            <KeyRound className="w-5 h-5 text-green-500" />
-          ) : (
-            <Calendar className="w-5 h-5 text-muted-foreground" />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm truncate">
-              {booking.vehicle?.make} {booking.vehicle?.model}
-            </span>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {booking.bookingCode}
-            </Badge>
-            {booking.pickupAddress && <DeliveryBadge hasDelivery={true} />}
-            {needsProcessing && (booking.status === "pending" || booking.status === "confirmed") && (
-              <NeedsProcessingBadge licenseStatus={licenseStatus} />
+    <TooltipProvider>
+      <div 
+        className={`flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer ${
+          needsProcessing && (booking.status === "pending" || booking.status === "confirmed") ? "border-amber-500/50" : ""
+        } ${isPastPickup ? "border-destructive/50" : ""}`}
+        onClick={() => onOpen(booking.id, booking.status)}
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+            isOverdue || isPastPickup ? "bg-destructive/10" : 
+            booking.status === "active" ? "bg-primary/10" : 
+            booking.status === "confirmed" || booking.status === "pending" ? "bg-green-500/10" : "bg-muted"
+          }`}>
+            {booking.status === "active" ? (
+              <Car className={`w-5 h-5 ${isOverdue ? "text-destructive" : "text-primary"}`} />
+            ) : booking.status === "confirmed" || booking.status === "pending" ? (
+              <KeyRound className={`w-5 h-5 ${isPastPickup ? "text-destructive" : "text-green-500"}`} />
+            ) : (
+              <Calendar className="w-5 h-5 text-muted-foreground" />
             )}
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-            <span>{booking.profile?.fullName || "Customer"}</span>
-            <span>•</span>
-            <span>{format(parseISO(booking.startAt), "MMM d, h:mm a")}</span>
-            {isOverdue && (
-              <>
-                <span>•</span>
-                <span className="text-destructive font-medium">Overdue</span>
-              </>
-            )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-sm truncate">
+                {booking.vehicle?.make} {booking.vehicle?.model}
+              </span>
+              <Badge variant="outline" className="font-mono text-[10px]">
+                {booking.bookingCode}
+              </Badge>
+              {booking.pickupAddress && <DeliveryBadge hasDelivery={true} />}
+              {needsProcessing && (booking.status === "pending" || booking.status === "confirmed") && (
+                <NeedsProcessingBadge licenseStatus={licenseStatus} />
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+              <span>{booking.profile?.fullName || "Customer"}</span>
+              {highlightDate && (
+                <DateHighlightBadge 
+                  date={showAction === "return" ? booking.endAt : booking.startAt} 
+                  type={showAction === "return" ? "return" : "pickup"} 
+                />
+              )}
+              {!highlightDate && (
+                <>
+                  <span>•</span>
+                  <span>{format(pickupDate, "MMM d, h:mm a")}</span>
+                </>
+              )}
+              {isOverdue && (
+                <>
+                  <span>•</span>
+                  <span className="text-destructive font-medium">Overdue</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <StatusBadge status={booking.status} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm">
+                {showAction === "pickup" ? (
+                  <KeyRound className="w-4 h-4" />
+                ) : showAction === "return" ? (
+                  <RotateCcw className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {showAction === "pickup" ? "Process Pickup" : showAction === "return" ? "Process Return" : "View Details"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <StatusBadge status={booking.status} />
-        <Button variant="ghost" size="sm">
-          {showAction === "pickup" ? (
-            <KeyRound className="w-4 h-4" />
-          ) : showAction === "return" ? (
-            <RotateCcw className="w-4 h-4" />
-          ) : (
-            <Eye className="w-4 h-4" />
-          )}
-        </Button>
-      </div>
-    </div>
+    </TooltipProvider>
   );
 }
 
@@ -376,9 +448,16 @@ export default function AdminBookings() {
                 className="pl-10"
               />
             </div>
-            <Button onClick={() => refetch()} variant="outline" size="icon">
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={() => refetch()} variant="outline" size="icon">
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Refresh bookings</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -543,9 +622,14 @@ export default function AdminBookings() {
                             <StatusBadge status={booking.status} />
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View booking details</TooltipContent>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
                       ))
@@ -589,16 +673,16 @@ export default function AdminBookings() {
               </Card>
             )}
 
-            {/* Past Pickups (missed) */}
+            {/* Need Processing (formerly Missed Pickups) */}
             {applyOpsFilters(categorizedBookings.pickupsPast).length > 0 && (
-              <Card className="border-destructive/50">
+              <Card className="border-amber-500/50">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                    <AlertCircle className="w-4 h-4" />
-                    Missed Pickups
-                    <Badge variant="destructive">{applyOpsFilters(categorizedBookings.pickupsPast).length}</Badge>
+                  <CardTitle className="text-base flex items-center gap-2 text-amber-600">
+                    <Clock className="w-4 h-4" />
+                    Need Processing
+                    <Badge className="bg-amber-500">{applyOpsFilters(categorizedBookings.pickupsPast).length}</Badge>
                   </CardTitle>
-                  <CardDescription>Bookings with pickup dates that have passed</CardDescription>
+                  <CardDescription>Bookings ready for pickup - pickup date has arrived or passed</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {applyOpsFilters(categorizedBookings.pickupsPast).map((booking) => (
@@ -608,6 +692,7 @@ export default function AdminBookings() {
                       onOpen={handleOpenBooking}
                       showAction="pickup"
                       licenseStatus={licenseStatusMap.get(booking.userId)}
+                      highlightDate={true}
                     />
                   ))}
                 </CardContent>
@@ -636,19 +721,21 @@ export default function AdminBookings() {
                       onOpen={handleOpenBooking}
                       showAction="pickup"
                       licenseStatus={licenseStatusMap.get(booking.userId)}
+                      highlightDate={true}
                     />
                   ))
                 )}
               </CardContent>
             </Card>
 
-            {/* Tomorrow */}
+            {/* Tomorrow - Coming Up */}
             {applyOpsFilters(categorizedBookings.pickupsTomorrow).length > 0 && (
-              <Card>
+              <Card className="border-blue-500/30">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    Tomorrow
-                    <Badge variant="secondary">{applyOpsFilters(categorizedBookings.pickupsTomorrow).length}</Badge>
+                  <CardTitle className="text-base flex items-center gap-2 text-blue-600">
+                    <CalendarDays className="w-4 h-4" />
+                    Coming Up - Tomorrow
+                    <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">{applyOpsFilters(categorizedBookings.pickupsTomorrow).length}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -659,18 +746,20 @@ export default function AdminBookings() {
                       onOpen={handleOpenBooking}
                       showAction="pickup"
                       licenseStatus={licenseStatusMap.get(booking.userId)}
+                      highlightDate={true}
                     />
                   ))}
                 </CardContent>
               </Card>
             )}
 
-            {/* Upcoming */}
+            {/* Future Upcoming */}
             {applyOpsFilters(categorizedBookings.pickupsUpcoming).length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    Upcoming
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    Future Pickups
                     <Badge variant="secondary">{applyOpsFilters(categorizedBookings.pickupsUpcoming).length}</Badge>
                   </CardTitle>
                 </CardHeader>
@@ -682,6 +771,7 @@ export default function AdminBookings() {
                       onOpen={handleOpenBooking}
                       showAction="pickup"
                       licenseStatus={licenseStatusMap.get(booking.userId)}
+                      highlightDate={true}
                     />
                   ))}
                 </CardContent>
@@ -800,19 +890,21 @@ export default function AdminBookings() {
                       booking={booking} 
                       onOpen={handleOpenBooking}
                       showAction="return"
+                      highlightDate={true}
                     />
                   ))
                 )}
               </CardContent>
             </Card>
 
-            {/* Tomorrow */}
+            {/* Coming Up Tomorrow */}
             {applyOpsFilters(categorizedBookings.returnsTomorrow).length > 0 && (
-              <Card>
+              <Card className="border-blue-500/30">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    Tomorrow
-                    <Badge variant="secondary">{applyOpsFilters(categorizedBookings.returnsTomorrow).length}</Badge>
+                  <CardTitle className="text-base flex items-center gap-2 text-blue-600">
+                    <CalendarDays className="w-4 h-4" />
+                    Coming Up - Tomorrow
+                    <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">{applyOpsFilters(categorizedBookings.returnsTomorrow).length}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -822,6 +914,7 @@ export default function AdminBookings() {
                       booking={booking} 
                       onOpen={handleOpenBooking}
                       showAction="return"
+                      highlightDate={true}
                     />
                   ))}
                 </CardContent>

@@ -40,38 +40,77 @@ export function useRentalAgreement(bookingId: string | null) {
   });
 }
 
-// Generate agreement via edge function
+// Generate agreement via edge function with retry logic
 export function useGenerateAgreement() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
-      const { data, error } = await supabase.functions.invoke("generate-agreement", {
-        body: { bookingId },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      // Send notification to customer about agreement ready for signing
-      if (!data.alreadyExists) {
+      // Retry logic for network failures
+      const maxRetries = 3;
+      let lastError: Error | null = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          await supabase.functions.invoke("send-booking-notification", {
-            body: { bookingId, stage: "agreement_generated" },
+          const { data, error } = await supabase.functions.invoke("generate-agreement", {
+            body: { bookingId },
           });
-        } catch (e) {
-          console.error("Failed to send agreement notification:", e);
+
+          if (error) {
+            // Check if it's a network error that should be retried
+            if (error.message?.includes("fetch") || error.message?.includes("network")) {
+              throw new Error(`Network error: ${error.message}`);
+            }
+            throw error;
+          }
+          if (data?.error) throw new Error(data.error);
+
+          // Send notification to customer about agreement ready for signing
+          if (!data.alreadyExists) {
+            try {
+              await supabase.functions.invoke("send-booking-notification", {
+                body: { bookingId, stage: "agreement_generated" },
+              });
+            } catch (e) {
+              console.error("Failed to send agreement notification:", e);
+            }
+          }
+
+          return data;
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          console.warn(`Agreement generation attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+          
+          // Only retry on network/timeout errors
+          if (attempt < maxRetries && (
+            lastError.message?.includes("fetch") || 
+            lastError.message?.includes("network") ||
+            lastError.message?.includes("timeout") ||
+            lastError.message?.includes("Failed")
+          )) {
+            // Exponential backoff: 1s, 2s, 4s
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+            continue;
+          }
+          throw lastError;
         }
       }
-
-      return data;
+      throw lastError || new Error("Failed to generate agreement after retries");
     },
     onSuccess: (data, bookingId) => {
-      queryClient.invalidateQueries({ queryKey: ["rental-agreement", bookingId] });
+      // Immediately invalidate and refetch
+      queryClient.invalidateQueries({ 
+        queryKey: ["rental-agreement", bookingId],
+        refetchType: "active"
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["booking", bookingId],
+        refetchType: "active"
+      });
       if (data.alreadyExists) {
         toast.info("Agreement already exists for this booking");
       } else {
-        toast.success("Rental agreement generated and customer notified");
+        toast.success("Rental agreement generated successfully!");
       }
     },
     onError: (error: Error) => {
