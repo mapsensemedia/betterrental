@@ -24,6 +24,8 @@ const ADDON_ICONS: Record<string, typeof Users> = {
   "toddler": Baby,
   "booster": Baby,
   "gps": Car,
+  "driver": Users,
+  "additional": Users,
 };
 
 function getAddonIcon(name: string) {
@@ -34,6 +36,11 @@ function getAddonIcon(name: string) {
     }
   }
   return Car;
+}
+
+function isAdditionalDriverAddon(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return lowerName.includes("additional") && lowerName.includes("driver");
 }
 
 export default function AddOns() {
@@ -186,23 +193,29 @@ export default function AddOns() {
         {/* Content */}
         <div className="container mx-auto px-4 py-6 sm:py-8 pb-24 sm:pb-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            {/* Additional Drivers Section */}
-            <div className="lg:col-span-2 space-y-4">
-              <h2 className="text-lg font-semibold mb-2">Additional Drivers</h2>
-              <AdditionalDriversCard
-                drivers={additionalDrivers}
-                onDriversChange={setLocalAdditionalDrivers}
-                rentalDays={rentalDays}
-              />
-            </div>
-
             {/* Add-ons List */}
             <div className="lg:col-span-2 space-y-4">
               <h2 className="text-lg font-semibold mb-2">Extras & Equipment</h2>
               {addOns.length > 0 ? (
                 addOns.map((addon) => {
                   const IconComponent = getAddonIcon(addon.name);
-                  const isSelected = selectedAddOnIds.includes(addon.id);
+                  const isAdditionalDriver = isAdditionalDriverAddon(addon.name);
+                  const isSelected = isAdditionalDriver 
+                    ? additionalDrivers.length > 0 
+                    : selectedAddOnIds.includes(addon.id);
+
+                  // For additional driver addon, show expanded card
+                  if (isAdditionalDriver) {
+                    return (
+                      <AdditionalDriversCard
+                        key={addon.id}
+                        drivers={additionalDrivers}
+                        onDriversChange={setLocalAdditionalDrivers}
+                        rentalDays={rentalDays}
+                      />
+                    );
+                  }
+
                   const addonCost = addon.dailyRate * rentalDays + (addon.oneTimeFee || 0);
 
                   return (
