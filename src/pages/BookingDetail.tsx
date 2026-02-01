@@ -95,6 +95,10 @@ interface BookingData {
   notes: string | null;
   driver_age_band: string | null;
   young_driver_fee: number | null;
+  // Delivery fields
+  pickup_address: string | null;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
   vehicles: {
     id: string;
     make: string;
@@ -250,6 +254,9 @@ export default function BookingDetail() {
             notes,
             driver_age_band,
             young_driver_fee,
+            pickup_address,
+            pickup_lat,
+            pickup_lng,
             vehicles (id, make, model, year, image_url, category),
             locations (id, name, address, city)
           `)
@@ -506,7 +513,25 @@ export default function BookingDetail() {
                   
                   <Separator />
                   
-                  {booking.locations && (
+                  {/* Location - show delivery address if present */}
+                  {booking.pickup_address ? (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <MapPin className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Delivery Address</p>
+                          <p className="font-medium break-words">{booking.pickup_address}</p>
+                        </div>
+                      </div>
+                      {booking.locations && (
+                        <div className="flex items-start gap-3 pl-8">
+                          <div className="text-sm text-muted-foreground">
+                            <p className="italic">Dispatched from: {booking.locations.name}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : booking.locations && (
                     <div className="flex items-start gap-3">
                       <MapPin className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                       <div>

@@ -86,9 +86,9 @@ export function OpsTopBar({
           {format(new Date(pickupDate), "MMM d, h:mm a")}
         </span>
         {locationName && (
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5" title={locationName}>
             <MapPin className="h-3.5 w-3.5" />
-            {locationName}
+            <span className="max-w-[200px] truncate">{locationName}</span>
           </span>
         )}
       </div>

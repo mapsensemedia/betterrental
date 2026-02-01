@@ -18,6 +18,7 @@ interface DeliveryAddressAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   onSelect: (address: string, lat: number, lng: number, placeName: string) => void;
+  onBlur?: () => void; // Called when user leaves field without selecting (for manual entry)
   placeholder?: string;
   className?: string;
 }
@@ -26,7 +27,8 @@ export function DeliveryAddressAutocomplete({
   value,
   onChange,
   onSelect,
-  placeholder = "Enter your address",
+  onBlur,
+  placeholder = "Enter your full address",
   className,
 }: DeliveryAddressAutocompleteProps) {
   const { data: mapboxToken, isLoading: tokenLoading } = useMapboxToken();
@@ -124,6 +126,18 @@ export function DeliveryAddressAutocomplete({
     setSuggestions([]);
   };
 
+  // Handle blur - allow manual address entry
+  const handleBlur = () => {
+    // If user typed something but didn't select from suggestions,
+    // still accept it as a valid address (they may type full address manually)
+    if (value && value.length >= 5 && !suggestions.length) {
+      // Call onBlur callback if provided
+      onBlur?.();
+    }
+    // Give time for click on suggestion to register
+    setTimeout(() => setShowSuggestions(false), 200);
+  };
+
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <div className="relative group">
@@ -135,6 +149,7 @@ export function DeliveryAddressAutocomplete({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+          onBlur={handleBlur}
           disabled={tokenLoading}
           className="h-12 pl-10 pr-10 rounded-xl"
           title={value} // Show full address on hover
@@ -142,12 +157,10 @@ export function DeliveryAddressAutocomplete({
         {isSearching && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
         )}
-        {/* Full address tooltip on hover when truncated */}
-        {value && value.length > 30 && (
-          <div className="absolute left-0 right-0 -bottom-1 translate-y-full opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
-            <div className="bg-popover text-popover-foreground text-xs p-2 rounded-lg shadow-lg border border-border mt-1 whitespace-normal break-words">
-              {value}
-            </div>
+        {/* Full address display below input for long addresses */}
+        {value && value.length > 40 && (
+          <div className="mt-1 text-xs text-muted-foreground px-1 break-words">
+            {value}
           </div>
         )}
       </div>
@@ -170,6 +183,11 @@ export function DeliveryAddressAutocomplete({
           ))}
         </div>
       )}
+
+      {/* Helper text */}
+      <p className="mt-1 text-xs text-muted-foreground">
+        Start typing and select from suggestions, or enter full address manually
+      </p>
     </div>
   );
 }

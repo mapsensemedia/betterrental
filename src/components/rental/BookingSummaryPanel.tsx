@@ -77,16 +77,18 @@ export function BookingSummaryPanel({
     effectiveAddOnIds.includes(a.id)
   );
 
-  // Location display
-  const locationDisplay =
-    searchData.deliveryMode === "delivery"
-      ? searchData.deliveryPlaceName || searchData.deliveryAddress
-      : searchData.pickupLocationName;
+  // Location display - For delivery mode, show the delivery address prominently
+  // and the dispatch hub as secondary info
+  const isDeliveryMode = searchData.deliveryMode === "delivery";
+  const primaryLocationDisplay = isDeliveryMode
+    ? searchData.deliveryAddress || searchData.deliveryPlaceName
+    : searchData.pickupLocationName;
 
-  const centerDisplay =
-    searchData.deliveryMode === "delivery"
-      ? searchData.closestPickupCenterName
-      : null;
+  const secondaryLocationDisplay = isDeliveryMode
+    ? searchData.closestPickupCenterName
+      ? `Dispatched from: ${searchData.closestPickupCenterName}`
+      : null
+    : null;
 
   return (
     <div
@@ -105,14 +107,18 @@ export function BookingSummaryPanel({
           <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">
-              {searchData.deliveryMode === "delivery" ? "Delivery To" : "Pickup Location"}
+              {isDeliveryMode ? "Delivery Address" : "Pickup Location"}
             </p>
-            <p className="text-sm text-muted-foreground truncate">
-              {locationDisplay || "Not selected"}
+            {/* Full address with tooltip for long addresses */}
+            <p 
+              className="text-sm text-muted-foreground break-words"
+              title={primaryLocationDisplay || undefined}
+            >
+              {primaryLocationDisplay || "Not selected"}
             </p>
-            {centerDisplay && (
-              <p className="text-xs text-muted-foreground mt-1">
-                From: {centerDisplay}
+            {secondaryLocationDisplay && (
+              <p className="text-xs text-muted-foreground/70 mt-1 italic">
+                {secondaryLocationDisplay}
               </p>
             )}
           </div>

@@ -134,23 +134,25 @@ export function ReturnBookingSummary({ booking, isException }: ReturnBookingSumm
         locationAddress={booking.locations?.address}
       />
       
-      {/* Location */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            Return Location
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">
-          <p className="font-medium">{booking.locations?.name || "Unknown"}</p>
-          {booking.locations?.address && (
-            <p className="text-muted-foreground text-xs mt-1">
-              {booking.locations.address}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Location - only show if not delivery */}
+      {!booking.pickup_address && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Return Location
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <p className="font-medium">{booking.locations?.name || "Unknown"}</p>
+            {booking.locations?.address && (
+              <p className="text-muted-foreground text-xs mt-1">
+                {booking.locations.address}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
       
       {/* Financials */}
       <Card>
