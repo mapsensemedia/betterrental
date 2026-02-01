@@ -182,18 +182,31 @@ export default function FleetManagement() {
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
-                          {category.image_url && (
+                          {category.image_url ? (
                             <img 
                               src={category.image_url} 
                               alt={category.name}
-                              className="w-12 h-12 rounded object-cover"
+                              className="w-14 h-14 rounded-lg object-cover border"
+                              onError={(e) => e.currentTarget.src = '/placeholder.svg'}
                             />
+                          ) : (
+                            <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center">
+                              <Car className="w-6 h-6 text-muted-foreground" />
+                            </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium text-sm truncate">{category.name}</h3>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               ${category.daily_rate}/day
                             </p>
+                            {/* Show specs */}
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                              <span>{category.seats || 5} seats</span>
+                              <span>•</span>
+                              <span>{category.fuel_type || 'Gas'}</span>
+                              <span>•</span>
+                              <span>{category.transmission === 'Automatic' ? 'Auto' : 'Manual'}</span>
+                            </div>
                           </div>
                           <div className="text-right shrink-0">
                             <Badge variant={category.available_count! > 0 ? "default" : "secondary"}>

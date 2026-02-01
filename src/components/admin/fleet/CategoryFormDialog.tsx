@@ -1,8 +1,8 @@
 /**
  * Category Form Dialog
- * Create/edit vehicle categories with all fields
+ * Create/edit vehicle categories with image upload and all fields
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,9 @@ import {
   useUpdateFleetCategory,
   type FleetCategory,
 } from "@/hooks/use-fleet-categories";
+import { supabase } from "@/integrations/supabase/client";
+import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface CategoryFormDialogProps {
   open: boolean;
@@ -36,6 +39,7 @@ interface CategoryFormDialogProps {
 
 export function CategoryFormDialog({ open, onOpenChange, category }: CategoryFormDialogProps) {
   const isEdit = !!category;
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -46,6 +50,7 @@ export function CategoryFormDialog({ open, onOpenChange, category }: CategoryFor
     fuel_type: "Gas",
     transmission: "Automatic",
   });
+  const [isUploading, setIsUploading] = useState(false);
 
   const createCategory = useCreateFleetCategory();
   const updateCategory = useUpdateFleetCategory();
@@ -73,6 +78,47 @@ export function CategoryFormDialog({ open, onOpenChange, category }: CategoryFor
       });
     }
   }, [category, open]);
+
+  const handleImageUpload = async (file: File) => {
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      const filePath = `categories/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('category-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('category-images')
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, image_url: publicUrl });
+      toast.success("Image uploaded successfully");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload image: " + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,23 +169,79 @@ export function CategoryFormDialog({ open, onOpenChange, category }: CategoryFor
               />
             </div>
 
+            {/* Image Upload */}
             <div className="grid gap-2">
-              <Label htmlFor="image_url">Category Image URL</Label>
-              <Input
-                id="image_url"
-                value={formData.image_url}
-                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                placeholder="https://example.com/image.jpg"
-                type="url"
+              <Label>Category Image</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleImageUpload(file);
+                }}
               />
-              {formData.image_url && (
-                <img 
-                  src={formData.image_url} 
-                  alt="Preview" 
-                  className="h-24 w-full object-cover rounded-md border"
-                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                />
+              
+              {formData.image_url ? (
+                <div className="relative group">
+                  <img 
+                    src={formData.image_url} 
+                    alt="Category preview" 
+                    className="w-full h-32 object-cover rounded-lg border"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      Replace
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setFormData({ ...formData, image_url: "" })}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="w-full h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+                  ) : (
+                    <>
+                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Click to upload image</span>
+                    </>
+                  )}
+                </button>
               )}
+              
+              {/* URL input fallback */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>or paste URL:</span>
+                <Input
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  placeholder="https://..."
+                  className="h-7 text-xs"
+                />
+              </div>
             </div>
 
             <div className="grid gap-2">
