@@ -112,6 +112,7 @@ export function UtilizationTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>Vehicle</TableHead>
+                <TableHead>VIN / Plate</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>
                   <Button
@@ -146,20 +147,30 @@ export function UtilizationTab() {
                     <ArrowUpDown className="h-3 w-3" />
                   </Button>
                 </TableHead>
-                <TableHead>Avg/Rental</TableHead>
+                <TableHead>Profit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData?.map((vehicle) => (
-                <TableRow key={vehicle.vehicleId}>
+                <TableRow key={vehicle.vehicleUnitId || vehicle.vehicleId}>
+                  <TableCell>
+                    <p className="font-medium">
+                      {vehicle.year} {vehicle.make} {vehicle.model}
+                    </p>
+                  </TableCell>
                   <TableCell>
                     <div>
-                      <p className="font-medium">
-                        {vehicle.year} {vehicle.make} {vehicle.model}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {vehicle.licensePlate || vehicle.vin?.slice(-6)}
-                      </p>
+                      {vehicle.vin && (
+                        <p className="font-mono text-xs">{vehicle.vin}</p>
+                      )}
+                      {vehicle.licensePlate && (
+                        <Badge variant="outline" className="font-mono text-xs mt-1">
+                          {vehicle.licensePlate}
+                        </Badge>
+                      )}
+                      {!vehicle.vin && !vehicle.licensePlate && (
+                        <span className="text-muted-foreground text-xs">No unit</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -175,16 +186,14 @@ export function UtilizationTab() {
                   </TableCell>
                   <TableCell>{vehicle.totalRentalDays} days</TableCell>
                   <TableCell className="font-medium">{formatCurrency(vehicle.totalRevenue)}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {vehicle.rentalCount > 0
-                      ? formatCurrency(vehicle.totalRevenue / vehicle.rentalCount)
-                      : "—"}
+                  <TableCell className={vehicle.profit >= 0 ? "text-emerald-600 font-medium" : "text-destructive font-medium"}>
+                    {formatCurrency(vehicle.profit)}
                   </TableCell>
                 </TableRow>
               ))}
               {!filteredData?.length && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No vehicles found
                   </TableCell>
                 </TableRow>
