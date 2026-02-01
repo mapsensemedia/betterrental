@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { 
@@ -15,7 +16,13 @@ import {
   User,
   Loader2,
   CheckCircle,
-  X
+  X,
+  RefreshCw,
+  ExternalLink,
+  CreditCard,
+  Banknote,
+  TrendingUp,
+  Clock,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -46,7 +53,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,11 +122,13 @@ interface LineItem {
 
 export default function AdminBilling() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
-  const [activeTab, setActiveTab] = useState<"receipts" | "payments">("receipts");
+  const [activeTab, setActiveTab] = useState<"receipts" | "payments" | "deposits">("receipts");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Create Receipt state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -347,6 +362,17 @@ export default function AdminBilling() {
     .filter(p => p.status === "pending")
     .reduce((sum, p) => sum + Number(p.amount), 0);
 
+  const depositPayments = payments.filter(p => p.payment_type === "deposit");
+  const totalDeposits = depositPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["admin-receipts"] });
+    await queryClient.invalidateQueries({ queryKey: ["admin-payments"] });
+    setIsRefreshing(false);
+    toast({ title: "Data refreshed" });
+  };
+
   return (
     <AdminShell>
       <div className="space-y-6">
@@ -361,14 +387,29 @@ export default function AdminBilling() {
               Manage receipts, invoices, and payment records
             </p>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Receipt
-          </Button>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh data</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Receipt
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Create a new receipt for a booking</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
@@ -398,6 +439,19 @@ export default function AdminBilling() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Banknote className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Deposits Held</p>
+                  <p className="text-2xl font-bold">${totalDeposits.toLocaleString()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <FileText className="w-6 h-6 text-primary" />
                 </div>
@@ -411,24 +465,21 @@ export default function AdminBilling() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-border">
-          <Button
-            variant={activeTab === "receipts" ? "default" : "ghost"}
-            onClick={() => setActiveTab("receipts")}
-            className="rounded-b-none"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Receipts
-          </Button>
-          <Button
-            variant={activeTab === "payments" ? "default" : "ghost"}
-            onClick={() => setActiveTab("payments")}
-            className="rounded-b-none"
-          >
-            <DollarSign className="w-4 h-4 mr-2" />
-            Payments
-          </Button>
-        </div>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
+          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+            <TabsTrigger value="receipts" className="gap-1.5">
+              <FileText className="w-3.5 h-3.5" />
+              Receipts
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              Payments
+            </TabsTrigger>
+            <TabsTrigger value="deposits" className="gap-1.5">
+              <Banknote className="w-3.5 h-3.5" />
+              Deposits
+            </TabsTrigger>
+          </TabsList>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
@@ -458,140 +509,245 @@ export default function AdminBilling() {
         </div>
 
         {/* Receipts Table */}
-        {activeTab === "receipts" && (
-          <>
-            {receiptsLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 rounded-xl" />
-                ))}
-              </div>
-            ) : filteredReceipts.length === 0 ? (
-              <div className="text-center py-16 bg-muted/30 rounded-2xl">
-                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No receipts found</p>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Receipt #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+        <TabsContent value="receipts">
+          {receiptsLoading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
+            </div>
+          ) : filteredReceipts.length === 0 ? (
+            <div className="text-center py-16 bg-muted/30 rounded-2xl">
+              <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No receipts found</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Receipt #</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredReceipts.map((receipt) => (
+                    <TableRow key={receipt.id} className="hover:bg-muted/30">
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono">
+                          {receipt.receipt_number}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          {receipt.booking?.profile?.full_name || "Unknown"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="link" 
+                              className="p-0 h-auto font-mono text-xs"
+                              onClick={() => navigate(`/admin/bookings/${receipt.booking_id}/ops`)}
+                            >
+                              {receipt.booking?.booking_code}
+                              <ExternalLink className="w-3 h-3 ml-1" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View booking details</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        ${receipt.totals_json?.total?.toFixed(2) || "0.00"}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(receipt.status)}</TableCell>
+                      <TableCell>
+                        {format(new Date(receipt.created_at), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedReceipt(receipt)}
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View receipt details</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredReceipts.map((receipt) => (
-                      <TableRow key={receipt.id} className="hover:bg-muted/30">
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono">
-                            {receipt.receipt_number}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-muted-foreground" />
-                            {receipt.booking?.profile?.full_name || "Unknown"}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {receipt.booking?.booking_code}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          ${receipt.totals_json?.total?.toFixed(2) || "0.00"}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(receipt.status)}</TableCell>
-                        <TableCell>
-                          {format(new Date(receipt.created_at), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedReceipt(receipt)}
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </>
-        )}
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
 
         {/* Payments Table */}
-        {activeTab === "payments" && (
-          <>
-            {paymentsLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 rounded-xl" />
-                ))}
-              </div>
-            ) : filteredPayments.length === 0 ? (
-              <div className="text-center py-16 bg-muted/30 rounded-2xl">
-                <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No payments found</p>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Transaction ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+        <TabsContent value="payments">
+          {paymentsLoading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
+            </div>
+          ) : filteredPayments.length === 0 ? (
+            <div className="text-center py-16 bg-muted/30 rounded-2xl">
+              <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No payments found</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Transaction ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPayments.map((payment) => (
+                    <TableRow key={payment.id} className="hover:bg-muted/30">
+                      <TableCell>
+                        <code className="text-xs bg-muted px-2 py-1 rounded">
+                          {payment.transaction_id?.slice(0, 12) || "—"}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        {payment.booking?.profile?.full_name || "Unknown"}
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="link" 
+                              className="p-0 h-auto font-mono text-xs"
+                              onClick={() => navigate(`/admin/bookings/${payment.booking_id}/ops`)}
+                            >
+                              {payment.booking?.booking_code}
+                              <ExternalLink className="w-3 h-3 ml-1" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View booking details</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        ${Number(payment.amount).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {payment.payment_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="capitalize">{payment.payment_method || "—"}</TableCell>
+                      <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                      <TableCell>
+                        {format(new Date(payment.created_at), "MMM d, yyyy")}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredPayments.map((payment) => (
-                      <TableRow key={payment.id} className="hover:bg-muted/30">
-                        <TableCell>
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {payment.transaction_id?.slice(0, 12) || "—"}
-                          </code>
-                        </TableCell>
-                        <TableCell>
-                          {payment.booking?.profile?.full_name || "Unknown"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {payment.booking?.booking_code}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          ${Number(payment.amount).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="capitalize">{payment.payment_type}</TableCell>
-                        <TableCell className="capitalize">{payment.payment_method || "—"}</TableCell>
-                        <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                        <TableCell>
-                          {format(new Date(payment.created_at), "MMM d, yyyy")}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </>
-        )}
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Deposits Tab */}
+        <TabsContent value="deposits">
+          {paymentsLoading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
+            </div>
+          ) : depositPayments.length === 0 ? (
+            <div className="text-center py-16 bg-muted/30 rounded-2xl">
+              <Banknote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No deposit records found</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {depositPayments.map((payment) => (
+                    <TableRow key={payment.id} className="hover:bg-muted/30">
+                      <TableCell>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="link" 
+                              className="p-0 h-auto font-mono text-xs"
+                              onClick={() => navigate(`/admin/bookings/${payment.booking_id}/ops`)}
+                            >
+                              {payment.booking?.booking_code}
+                              <ExternalLink className="w-3 h-3 ml-1" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View booking details</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>
+                        {payment.booking?.profile?.full_name || "Unknown"}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        ${Number(payment.amount).toFixed(2)}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                      <TableCell className="capitalize">{payment.payment_method || "—"}</TableCell>
+                      <TableCell>
+                        {format(new Date(payment.created_at), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/admin/returns/${payment.booking_id}`)}
+                            >
+                              <Clock className="w-4 h-4 mr-1" />
+                              Process Return
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Go to return processing</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+        </Tabs>
 
         {/* Receipt Detail Dialog */}
         <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>

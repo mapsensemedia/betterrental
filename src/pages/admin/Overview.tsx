@@ -155,6 +155,20 @@ const adminWorkflowGuide = [
       "**Step 5:** Mark the return as processed/completed.",
     ],
   },
+  {
+    id: "billing-workflow",
+    title: "2.7 Billing & Financial Workflow",
+    icon: Receipt,
+    color: "text-indigo-500",
+    steps: [
+      "**Step 1:** Go to **Billing** in the sidebar to access all financial records.",
+      "**Step 2:** The **Receipts** tab shows all generated receipts — click 'Create Receipt' to generate one for any booking.",
+      "**Step 3:** The **Payments** tab displays all payment transactions with status (completed, pending, failed).",
+      "**Step 4:** The **Deposits** tab shows all security deposit records — click 'Process Return' to handle deposit release.",
+      "**Step 5:** Click any booking code to navigate directly to its details page.",
+      "**Step 6:** Use the refresh button to update data in real-time.",
+    ],
+  },
 ];
 
 // SECTION 3: Status Glossary
@@ -170,6 +184,7 @@ const statusGlossary = [
       "**Pickups:** Scheduled handovers grouped by time buckets (Today / Tomorrow / This Week / Later).",
       "**Active Rentals:** Vehicles currently out with customers — shows time remaining and rental details.",
       "**Returns:** Processing vehicles coming back to the facility.",
+      "**Billing:** Financial records including receipts, payments, and security deposits.",
     ],
   },
 ];
@@ -185,6 +200,8 @@ const importantNotes = [
       "**Driver's license upload is NOT required during online booking.**",
       "**ID is verified in person at pickup.**",
       "**Rental agreement is signed in person at pickup.**",
+      "**Security deposit:** Fixed at $350 — handled in Billing → Deposits tab.",
+      "**Hover over buttons** to see tooltips explaining their functions.",
       "**Vehicle tracking:** Coming soon — will allow staff to track vehicle location.",
       "Always ensure vehicle is in full-fledged, clean condition before handover.",
     ],

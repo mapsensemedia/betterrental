@@ -33,6 +33,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   MessageSquare, 
   Search, 
@@ -53,6 +58,7 @@ import {
   Loader2,
   Trash2,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -228,9 +234,10 @@ export default function AdminTickets() {
   const [resolutionSummary, setResolutionSummary] = useState("");
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [attachmentInternal, setAttachmentInternal] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: tickets, isLoading } = useTickets({
+  const { data: tickets, isLoading, refetch } = useTickets({
     status: statusFilter as any,
     hasBooking: hasBookingFilter === "all" ? null : hasBookingFilter === "yes",
     search: searchQuery || undefined,
@@ -244,6 +251,13 @@ export default function AdminTickets() {
   const addTimeline = useAddTimelineEntry();
   const uploadAttachment = useUploadTicketAttachment();
   const deleteAttachment = useDeleteTicketAttachment();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+    toast.success("Tickets refreshed");
+  };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -379,6 +393,14 @@ export default function AdminTickets() {
             <h1 className="text-2xl font-bold tracking-tight">Support Tickets</h1>
             <p className="text-muted-foreground text-sm mt-1">Manage customer support requests</p>
           </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh tickets</TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Filters */}

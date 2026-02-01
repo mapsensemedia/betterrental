@@ -5,6 +5,12 @@
 import { useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { FleetOverviewTab } from "@/components/admin/fleet/FleetOverviewTab";
 import { UtilizationTab } from "@/components/admin/fleet/UtilizationTab";
 import { CostTrackingTab } from "@/components/admin/fleet/CostTrackingTab";
@@ -15,20 +21,54 @@ import {
   TrendingUp, 
   DollarSign, 
   GitCompare, 
-  Building2 
+  Building2,
+  RefreshCw,
+  Download,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export default function FleetAnalytics() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["fleet-analytics"] });
+    await queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
+    setIsRefreshing(false);
+    toast.success("Fleet data refreshed");
+  };
 
   return (
     <AdminShell>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Fleet Analytics</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Vehicle utilization, costs, and profitability tracking
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Fleet Analytics</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Vehicle utilization, costs, and profitability tracking
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh data</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Download className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export report</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
