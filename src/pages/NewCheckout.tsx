@@ -226,7 +226,7 @@ export default function NewCheckout() {
       return;
     }
 
-    if (!searchData.ageConfirmed || !searchData.ageRange) {
+    if (!searchData.ageConfirmed || !searchData.ageRange || !driverAgeBand) {
       toast({ title: "Please confirm your age on the search page", variant: "destructive" });
       navigate("/search");
       return;
