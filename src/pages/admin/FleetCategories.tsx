@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +52,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { VehicleUnit } from "@/hooks/use-vehicle-units";
+import { SeedFleetCategories } from "@/components/admin/fleet/SeedFleetCategories";
 import {
   Plus,
   Edit2,
@@ -63,6 +63,7 @@ import {
   DollarSign,
   Eye,
   ChevronRight,
+  Database,
 } from "lucide-react";
 
 export default function FleetCategories() {
@@ -70,6 +71,7 @@ export default function FleetCategories() {
   const queryClient = useQueryClient();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [seedDialogOpen, setSeedDialogOpen] = useState(false);
   
   // Category dialog state
   const [categoryDialog, setCategoryDialog] = useState<{
@@ -303,7 +305,7 @@ export default function FleetCategories() {
               Manage vehicle categories and assign VINs
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
@@ -312,6 +314,10 @@ export default function FleetCategories() {
               </TooltipTrigger>
               <TooltipContent>Refresh</TooltipContent>
             </Tooltip>
+            <Button variant="outline" onClick={() => setSeedDialogOpen(true)}>
+              <Database className="w-4 h-4 mr-2" />
+              Seed Data
+            </Button>
             <Button onClick={() => setCategoryDialog({ open: true, mode: "create", name: "", description: "", dailyRate: 100, imageUrl: "" })}>
               <Plus className="w-4 h-4 mr-2" />
               Add Category
@@ -715,6 +721,9 @@ export default function FleetCategories() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Seed Fleet Data Dialog */}
+      <SeedFleetCategories open={seedDialogOpen} onOpenChange={setSeedDialogOpen} />
     </AdminShell>
   );
 }
