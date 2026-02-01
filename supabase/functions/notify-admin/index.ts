@@ -14,6 +14,22 @@ interface NotifyAdminRequest {
   details?: string;
 }
 
+// Map event types to admin_alerts alert_type enum
+const EVENT_TO_ALERT_TYPE: Record<string, string> = {
+  new_booking: "verification_pending",
+  booking_cancelled: "customer_issue",
+  license_uploaded: "verification_pending",
+  agreement_signed: "verification_pending",
+  payment_received: "payment_pending",
+  issue_reported: "customer_issue",
+  damage_reported: "damage_reported",
+  late_return: "late_return",
+  overdue: "overdue",
+  return_due_soon: "return_due_soon",
+  rental_activated: "verification_pending",
+  return_completed: "verification_pending",
+};
+
 async function sendWithResend(apiKey: string, subject: string, html: string) {
   console.log(`Sending admin notification to ${ADMIN_EMAIL}: ${subject}`);
   
@@ -95,6 +111,35 @@ serve(async (req) => {
     }
 
     console.log(`Admin notification triggered: ${eventType}`, { bookingId, bookingCode, customerName });
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Create an admin_alert entry for realtime dashboard updates
+    const alertType = EVENT_TO_ALERT_TYPE[eventType] || "customer_issue";
+    const alertTitle = buildAlertTitle(eventType, bookingCode, customerName, vehicleName);
+    const alertMessage = details || buildAlertMessage(eventType, customerName, vehicleName);
+
+    try {
+      const { data: alertData, error: alertError } = await supabase
+        .from("admin_alerts")
+        .insert({
+          alert_type: alertType,
+          title: alertTitle,
+          message: alertMessage,
+          booking_id: bookingId || null,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (alertError) {
+        console.error("Error creating admin_alert:", alertError);
+      } else {
+        console.log("Admin alert created:", alertData?.id);
+      }
+    } catch (alertErr) {
+      console.error("Failed to create admin_alert:", alertErr);
+    }
 
     // Build email content based on event type
     let subject = "";
@@ -328,7 +373,6 @@ serve(async (req) => {
     const result = await sendWithResend(resendApiKey, subject, html);
 
     // Log to notification_logs
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     await supabase.from("notification_logs").insert({
       channel: "email",
       notification_type: `admin_${eventType}`,
@@ -352,3 +396,77 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper functions to build alert content
+function buildAlertTitle(
+  eventType: string,
+  bookingCode?: string,
+  customerName?: string,
+  vehicleName?: string
+): string {
+  const ref = bookingCode || "";
+  const customer = customerName?.slice(0, 30) || "";
+  
+  switch (eventType) {
+    case "new_booking":
+      return `New Booking${ref ? ` ${ref}` : ""}${customer ? ` - ${customer}` : ""}`;
+    case "booking_cancelled":
+      return `Booking Cancelled${ref ? ` ${ref}` : ""}`;
+    case "license_uploaded":
+      return `License Uploaded${customer ? ` - ${customer}` : ""}`;
+    case "agreement_signed":
+      return `Agreement Signed${ref ? ` ${ref}` : ""}`;
+    case "payment_received":
+      return `Payment Received${ref ? ` ${ref}` : ""}`;
+    case "issue_reported":
+      return `Issue Reported${ref ? ` ${ref}` : ""}`;
+    case "damage_reported":
+      return `Damage Reported${vehicleName ? ` - ${vehicleName}` : ""}`;
+    case "late_return":
+      return `Late Return${ref ? ` ${ref}` : ""}`;
+    case "overdue":
+      return `Overdue Rental${ref ? ` ${ref}` : ""}`;
+    case "rental_activated":
+      return `Rental Activated${ref ? ` ${ref}` : ""}`;
+    case "return_completed":
+      return `Return Completed${ref ? ` ${ref}` : ""}`;
+    default:
+      return `Alert: ${eventType}`;
+  }
+}
+
+function buildAlertMessage(
+  eventType: string,
+  customerName?: string,
+  vehicleName?: string
+): string {
+  const customer = customerName?.slice(0, 50) || "Customer";
+  const vehicle = vehicleName?.slice(0, 50) || "Vehicle";
+  
+  switch (eventType) {
+    case "new_booking":
+      return `${customer} has created a new booking. Review and prepare for pickup.`;
+    case "booking_cancelled":
+      return `A booking has been cancelled. Review cancellation details.`;
+    case "license_uploaded":
+      return `${customer} uploaded their driver's license. Verification required.`;
+    case "agreement_signed":
+      return `${customer} signed the rental agreement. Ready for handover.`;
+    case "payment_received":
+      return `Payment received from ${customer}.`;
+    case "issue_reported":
+      return `${customer} reported an issue. Review immediately.`;
+    case "damage_reported":
+      return `Damage reported on ${vehicle}. Assessment required.`;
+    case "late_return":
+      return `${vehicle} return is overdue. Contact customer.`;
+    case "overdue":
+      return `Rental is significantly overdue. Urgent action needed.`;
+    case "rental_activated":
+      return `${customer} has picked up ${vehicle}.`;
+    case "return_completed":
+      return `${customer} has returned ${vehicle}.`;
+    default:
+      return `Action required for this event.`;
+  }
+}
