@@ -42,7 +42,7 @@ export default function BookingPass() {
         .from("bookings")
         .select(`
           *,
-          vehicles (id, make, model, year, image_url, category),
+          vehicle_id,
           locations (id, name, address, city)
         `)
         .eq("id", bookingId)
@@ -50,7 +50,28 @@ export default function BookingPass() {
         .maybeSingle();
       
       if (error) throw error;
-      return data;
+      if (!data) return null;
+      
+      // Fetch category info separately
+      let vehicles = null;
+      if (data.vehicle_id) {
+        const { data: category } = await supabase
+          .from("vehicle_categories")
+          .select("id, name, image_url")
+          .eq("id", data.vehicle_id)
+          .maybeSingle();
+        if (category) {
+          vehicles = {
+            id: category.id,
+            make: "",
+            model: category.name,
+            year: 0,
+            image_url: category.image_url,
+            category: category.name,
+          };
+        }
+      }
+      return { ...data, vehicles };
     },
     enabled: !!bookingId && !!user,
   });

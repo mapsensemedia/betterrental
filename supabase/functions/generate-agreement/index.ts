@@ -107,12 +107,12 @@ serve(async (req) => {
       }
     }
 
-    // Fetch booking with all related data
+    // Fetch booking with location
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
         *,
-        vehicles (id, make, model, year, category, fuel_type, transmission, seats),
+        vehicle_id,
         locations (id, name, address, city, phone)
       `)
       .eq("id", bookingId)
@@ -125,6 +125,30 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch category info separately
+    let categoryInfo = { id: "", name: "Vehicle", fuel_type: "", transmission: "", seats: 0 };
+    if (booking.vehicle_id) {
+      const { data: category } = await supabase
+        .from("vehicle_categories")
+        .select("id, name, fuel_type, transmission, seats")
+        .eq("id", booking.vehicle_id)
+        .single();
+      if (category) {
+        categoryInfo = category;
+      }
+    }
+    // Attach as vehicles for template compatibility
+    (booking as any).vehicles = {
+      id: categoryInfo.id,
+      make: "",
+      model: categoryInfo.name,
+      year: 0,
+      category: categoryInfo.name,
+      fuel_type: categoryInfo.fuel_type,
+      transmission: categoryInfo.transmission,
+      seats: categoryInfo.seats,
+    };
 
     console.log(`Found booking: ${booking.booking_code}`);
 

@@ -159,12 +159,12 @@ serve(async (req) => {
       );
     }
 
-    // Fetch booking with vehicle and location
+    // Fetch booking with location
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
         *,
-        vehicles (make, model, year),
+        vehicle_id,
         locations (name, address, city)
       `)
       .eq("id", bookingId)
@@ -177,6 +177,21 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch category info separately
+    let categoryData = { make: "", model: "Vehicle", year: 0 };
+    if (booking.vehicle_id) {
+      const { data: category } = await supabase
+        .from("vehicle_categories")
+        .select("name")
+        .eq("id", booking.vehicle_id)
+        .single();
+      if (category) {
+        categoryData = { make: "", model: category.name, year: 0 };
+      }
+    }
+    // Attach vehicle info to booking for template compatibility
+    (booking as any).vehicles = categoryData;
 
     // Fetch user profile
     const { data: profile } = await supabase

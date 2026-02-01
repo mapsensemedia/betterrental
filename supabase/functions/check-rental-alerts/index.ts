@@ -29,8 +29,7 @@ Deno.serve(async (req) => {
         booking_code,
         user_id,
         vehicle_id,
-        end_at,
-        vehicles (make, model)
+        end_at
       `)
       .eq("status", "active");
 
@@ -40,6 +39,15 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[check-rental-alerts] Found ${activeBookings?.length || 0} active bookings`);
+
+    // Fetch categories separately
+    const categoryIds = [...new Set((activeBookings || []).map((b: any) => b.vehicle_id).filter(Boolean))];
+    const { data: categories } = await supabase
+      .from("vehicle_categories")
+      .select("id, name")
+      .in("id", categoryIds);
+    
+    const categoriesMap = new Map((categories || []).map((c: any) => [c.id, c]));
 
     // Fetch profiles separately
     const userIds = [...new Set((activeBookings || []).map((b: any) => b.user_id))];
@@ -55,8 +63,8 @@ Deno.serve(async (req) => {
 
     for (const booking of activeBookings || []) {
       const endAt = new Date(booking.end_at);
-      const vehicleData = booking.vehicles as unknown as { make: string; model: string } | null;
-      const vehicleName = vehicleData ? `${vehicleData.make} ${vehicleData.model}` : "Vehicle";
+      const category = categoriesMap.get(booking.vehicle_id);
+      const vehicleName = category ? category.name : "Vehicle";
       const profile = profilesMap.get(booking.user_id);
 
       // Check if overdue

@@ -257,7 +257,7 @@ export default function BookingDetail() {
             pickup_address,
             pickup_lat,
             pickup_lng,
-            vehicles (id, make, model, year, image_url, category),
+            vehicle_id,
             locations (id, name, address, city)
           `)
           .eq("id", id)
@@ -270,7 +270,29 @@ export default function BookingDetail() {
         } else if (!data) {
           setError("Booking not found");
         } else {
-          setBooking(data);
+          // Fetch category info separately
+          let vehicleData = null;
+          if (data.vehicle_id) {
+            const { data: category } = await supabase
+              .from("vehicle_categories")
+              .select("id, name, image_url")
+              .eq("id", data.vehicle_id)
+              .maybeSingle();
+            if (category) {
+              vehicleData = {
+                id: category.id,
+                make: "",
+                model: category.name,
+                year: 0,
+                image_url: category.image_url,
+                category: category.name,
+              };
+            }
+          }
+          setBooking({
+            ...data,
+            vehicles: vehicleData,
+          } as BookingData);
         }
       } catch (err) {
         console.error("Unexpected error:", err);
