@@ -87,38 +87,38 @@ export default function FleetAnalytics() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="overflow-x-auto">
-            <TabsList className="w-full justify-start flex-nowrap inline-flex">
-              <TabsTrigger value="overview" className="gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5" />
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="w-max min-w-full sm:w-full justify-start flex-nowrap inline-flex gap-1">
+              <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <BarChart3 className="w-3.5 h-3.5 hidden sm:inline" />
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="by-vehicle" className="gap-1.5">
-                <Car className="w-3.5 h-3.5" />
+              <TabsTrigger value="by-vehicle" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <Car className="w-3.5 h-3.5 hidden sm:inline" />
                 By Vehicle
               </TabsTrigger>
-              <TabsTrigger value="by-category" className="gap-1.5">
-                <PieChart className="w-3.5 h-3.5" />
+              <TabsTrigger value="by-category" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <PieChart className="w-3.5 h-3.5 hidden sm:inline" />
                 By Category
               </TabsTrigger>
-              <TabsTrigger value="categories" className="gap-1.5">
-                <FolderOpen className="w-3.5 h-3.5" />
+              <TabsTrigger value="categories" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <FolderOpen className="w-3.5 h-3.5 hidden sm:inline" />
                 Categories
               </TabsTrigger>
-              <TabsTrigger value="utilization" className="gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5" />
+              <TabsTrigger value="utilization" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <TrendingUp className="w-3.5 h-3.5 hidden sm:inline" />
                 Utilization
               </TabsTrigger>
-              <TabsTrigger value="costs" className="gap-1.5">
-                <DollarSign className="w-3.5 h-3.5" />
-                Cost Tracking
+              <TabsTrigger value="costs" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <DollarSign className="w-3.5 h-3.5 hidden sm:inline" />
+                Costs
               </TabsTrigger>
-              <TabsTrigger value="comparison" className="gap-1.5">
-                <GitCompare className="w-3.5 h-3.5" />
+              <TabsTrigger value="comparison" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <GitCompare className="w-3.5 h-3.5 hidden sm:inline" />
                 Comparison
               </TabsTrigger>
-              <TabsTrigger value="competitors" className="gap-1.5">
-                <Building2 className="w-3.5 h-3.5" />
+              <TabsTrigger value="competitors" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                <Building2 className="w-3.5 h-3.5 hidden sm:inline" />
                 Competitors
               </TabsTrigger>
             </TabsList>

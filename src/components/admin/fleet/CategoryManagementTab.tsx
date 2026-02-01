@@ -24,6 +24,7 @@ import {
 } from "@/hooks/use-vehicle-categories";
 import { CategoryDialog } from "./CategoryDialog";
 import { VinAssignmentDialog } from "./VinAssignmentDialog";
+import { SeedFleetCategories } from "./SeedFleetCategories";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Plus, 
@@ -32,6 +33,7 @@ import {
   Car, 
   FolderPlus,
   RefreshCw,
+  Database,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -40,6 +42,7 @@ export function CategoryManagementTab() {
   const [vinDialogOpen, setVinDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [seedDialogOpen, setSeedDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data: categories, isLoading } = useCategoriesWithCounts();
@@ -93,7 +96,7 @@ export function CategoryManagementTab() {
             Organize your fleet into categories for better analysis
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
@@ -102,9 +105,18 @@ export function CategoryManagementTab() {
             </TooltipTrigger>
             <TooltipContent>Refresh categories</TooltipContent>
           </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={() => setSeedDialogOpen(true)}>
+                <Database className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Seed Data</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Add sample fleet categories</TooltipContent>
+          </Tooltip>
           <Button onClick={() => { setSelectedCategory(null); setCategoryDialogOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
-            New Category
+            <span className="hidden sm:inline">New Category</span>
           </Button>
         </div>
       </div>
@@ -125,7 +137,7 @@ export function CategoryManagementTab() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {(categories as any[]).map((category) => (
             <Card key={category.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
@@ -215,6 +227,11 @@ export function CategoryManagementTab() {
         open={vinDialogOpen}
         onOpenChange={setVinDialogOpen}
         category={selectedCategory}
+      />
+
+      <SeedFleetCategories
+        open={seedDialogOpen}
+        onOpenChange={setSeedDialogOpen}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
