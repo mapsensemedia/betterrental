@@ -13,11 +13,11 @@ import { useAddOns } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
+import { AdditionalDriversCard, calculateAdditionalDriversCost, type AdditionalDriver } from "@/components/rental/AdditionalDriversCard";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
 
 const ADDON_ICONS: Record<string, typeof Users> = {
-  "additional driver": Users,
   "roadside": Car,
   "tire": Car,
   "infant": Baby,
@@ -39,7 +39,7 @@ function getAddonIcon(name: string) {
 export default function AddOns() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { searchData, rentalDays, setSelectedAddOns, toggleAddOn } = useRentalBooking();
+  const { searchData, rentalDays, setSelectedAddOns, setAdditionalDrivers } = useRentalBooking();
   const { data: addOns = [] } = useAddOns();
 
   // Support both legacy vehicleId and new categoryId
@@ -54,6 +54,7 @@ export default function AddOns() {
   const vehicle = category || legacyVehicle;
   
   const [selectedAddOnIds, setLocalSelectedAddOns] = useState<string[]>(searchData.selectedAddOnIds || []);
+  const [additionalDrivers, setLocalAdditionalDrivers] = useState<AdditionalDriver[]>(searchData.additionalDrivers || []);
 
   // Track page view on mount
   useEffect(() => {
@@ -71,17 +72,21 @@ export default function AddOns() {
   const protectionDailyRate = protectionRates[protection] || 0;
   const deliveryFee = searchData.deliveryMode === "delivery" ? (searchData.deliveryFee || 0) : 0;
   
+  // Calculate add-ons total
   const addOnsTotal = selectedAddOnIds.reduce((sum, id) => {
     const addon = addOns.find((a) => a.id === id);
     if (!addon) return sum;
     return sum + addon.dailyRate * rentalDays + (addon.oneTimeFee || 0);
   }, 0);
 
+  // Calculate additional drivers cost
+  const additionalDriversCost = calculateAdditionalDriversCost(additionalDrivers, rentalDays);
+
   const pricing = calculateBookingPricing({
     vehicleDailyRate: vehicle?.dailyRate || 0,
     rentalDays,
     protectionDailyRate,
-    addOnsTotal,
+    addOnsTotal: addOnsTotal + additionalDriversCost.total,
     deliveryFee,
     driverAgeBand,
     pickupDate: searchData.pickupDate,
@@ -97,10 +102,11 @@ export default function AddOns() {
 
   const handleContinue = () => {
     // Track add-ons selection
-    funnelEvents.addonsSelected(selectedAddOnIds, addOnsTotal);
+    funnelEvents.addonsSelected(selectedAddOnIds, addOnsTotal + additionalDriversCost.total);
 
     // Save to context
     setSelectedAddOns(selectedAddOnIds);
+    setAdditionalDrivers(additionalDrivers);
 
     // Build URL params for checkout - always use categoryId for new flow
     const params = new URLSearchParams();
@@ -180,8 +186,19 @@ export default function AddOns() {
         {/* Content */}
         <div className="container mx-auto px-4 py-6 sm:py-8 pb-24 sm:pb-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            {/* Additional Drivers Section */}
+            <div className="lg:col-span-2 space-y-4">
+              <h2 className="text-lg font-semibold mb-2">Additional Drivers</h2>
+              <AdditionalDriversCard
+                drivers={additionalDrivers}
+                onDriversChange={setLocalAdditionalDrivers}
+                rentalDays={rentalDays}
+              />
+            </div>
+
             {/* Add-ons List */}
             <div className="lg:col-span-2 space-y-4">
+              <h2 className="text-lg font-semibold mb-2">Extras & Equipment</h2>
               {addOns.length > 0 ? (
                 addOns.map((addon) => {
                   const IconComponent = getAddonIcon(addon.name);
@@ -242,12 +259,13 @@ export default function AddOns() {
             </div>
 
             {/* Booking Summary Sidebar with Total */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 lg:row-span-2">
               <div className="sticky top-24 space-y-4">
                 <BookingSummaryPanel 
                   showPricing={true} 
                   protectionDailyRate={protectionDailyRate}
                   selectedAddOnIds={selectedAddOnIds}
+                  additionalDrivers={additionalDrivers}
                 />
               </div>
             </div>

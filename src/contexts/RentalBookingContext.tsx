@@ -5,9 +5,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { RENTAL_LOCATIONS, getLocationById, RentalLocation } from "@/constants/rentalLocations";
 import { MAX_RENTAL_DAYS, MIN_RENTAL_DAYS, calculateDeliveryFee, MAX_DELIVERY_DISTANCE_KM } from "@/lib/rental-rules";
+import type { DriverAgeBand } from "@/lib/pricing";
 
 // Delivery mode types
 export type DeliveryMode = "pickup" | "delivery";
+
+// Additional driver type
+export interface AdditionalDriver {
+  id: string;
+  name: string;
+  ageBand: DriverAgeBand;
+}
 
 // Extended search data interface
 export interface RentalSearchData {
@@ -49,6 +57,9 @@ export interface RentalSearchData {
   
   // Selected extras
   selectedAddOnIds: string[];
+  
+  // Additional drivers
+  additionalDrivers: AdditionalDriver[];
 }
 
 interface RentalBookingContextType {
@@ -67,6 +78,7 @@ interface RentalBookingContextType {
   setSelectedVehicle: (vehicleId: string | null) => void;
   setSelectedAddOns: (addOnIds: string[]) => void;
   toggleAddOn: (addOnId: string) => void;
+  setAdditionalDrivers: (drivers: AdditionalDriver[]) => void;
   
   // Computed values
   rentalDays: number;
@@ -110,6 +122,7 @@ const defaultSearchData: RentalSearchData = {
   ageRange: null,
   selectedVehicleId: null,
   selectedAddOnIds: [],
+  additionalDrivers: [],
 };
 
 function loadFromStorage(): RentalSearchData {
@@ -272,6 +285,14 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  // Set additional drivers
+  const setAdditionalDrivers = useCallback((drivers: AdditionalDriver[]) => {
+    setSearchData((prev) => ({
+      ...prev,
+      additionalDrivers: drivers,
+    }));
+  }, []);
+
   // Clear search (but keep age confirmation)
   const clearSearch = useCallback(() => {
     setSearchData({
@@ -346,6 +367,7 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
         setSelectedVehicle,
         setSelectedAddOns,
         toggleAddOn,
+        setAdditionalDrivers,
         rentalDays,
         isSearchValid,
         canProceedToSelectCar,

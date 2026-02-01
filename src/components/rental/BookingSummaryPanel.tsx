@@ -3,15 +3,16 @@
  * Uses central pricing utility as single source of truth
  * Supports both legacy vehicles and new category system
  */
-import { MapPin, Calendar, Clock, Car, Package, CreditCard, User } from "lucide-react";
+import { MapPin, Calendar, Clock, Car, Package, CreditCard, User, Users } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { useRentalBooking } from "@/contexts/RentalBookingContext";
+import { useRentalBooking, type AdditionalDriver } from "@/contexts/RentalBookingContext";
 import { useVehicle, useCategory } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE } from "@/lib/pricing";
+import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE, YOUNG_DRIVER_FEE } from "@/lib/pricing";
 import { useSearchParams } from "react-router-dom";
+import { calculateAdditionalDriversCost } from "./AdditionalDriversCard";
 
 interface BookingSummaryPanelProps {
   className?: string;
@@ -19,6 +20,8 @@ interface BookingSummaryPanelProps {
   protectionDailyRate?: number;
   /** Override add-on IDs (for pages that manage selection locally) */
   selectedAddOnIds?: string[];
+  /** Override additional drivers (for pages that manage selection locally) */
+  additionalDrivers?: AdditionalDriver[];
 }
 
 export function BookingSummaryPanel({
@@ -26,6 +29,7 @@ export function BookingSummaryPanel({
   showPricing = true,
   protectionDailyRate = 0,
   selectedAddOnIds: overrideAddOnIds,
+  additionalDrivers: overrideAdditionalDrivers,
 }: BookingSummaryPanelProps) {
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays } = useRentalBooking();
@@ -49,6 +53,9 @@ export function BookingSummaryPanel({
 
   // Use override add-on IDs if provided, otherwise fall back to context
   const effectiveAddOnIds = overrideAddOnIds ?? searchData.selectedAddOnIds;
+  
+  // Use override additional drivers if provided, otherwise fall back to context
+  const effectiveAdditionalDrivers = overrideAdditionalDrivers ?? searchData.additionalDrivers;
 
   // Calculate pricing using central utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
@@ -63,11 +70,14 @@ export function BookingSummaryPanel({
     );
     const deliveryFee = searchData.deliveryFee || 0;
     
+    // Calculate additional drivers cost
+    const additionalDriversCost = calculateAdditionalDriversCost(effectiveAdditionalDrivers, rentalDays);
+    
     const breakdown = calculateBookingPricing({
       vehicleDailyRate: vehicle.dailyRate,
       rentalDays,
       protectionDailyRate,
-      addOnsTotal,
+      addOnsTotal: addOnsTotal + additionalDriversCost.total,
       deliveryFee,
       driverAgeBand,
       pickupDate: searchData.pickupDate,
@@ -79,6 +89,7 @@ export function BookingSummaryPanel({
       durationDiscount: breakdown.durationDiscount,
       discountType: breakdown.discountType,
       addOnsTotal, 
+      additionalDriversCost,
       deliveryFee, 
       youngDriverFee: breakdown.youngDriverFee,
       dailyFeesTotal: breakdown.dailyFeesTotal,
@@ -262,6 +273,15 @@ export function BookingSummaryPanel({
                 </div>
               )}
               
+              {pricing.additionalDriversCost.total > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Additional drivers ({effectiveAdditionalDrivers.length})
+                  </span>
+                  <span>${pricing.additionalDriversCost.total.toFixed(0)}</span>
+                </div>
+              )}
+              
               {pricing.deliveryFee > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery fee</span>
@@ -271,7 +291,7 @@ export function BookingSummaryPanel({
               
               {pricing.youngDriverFee > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Young driver fee</span>
+                  <span className="text-muted-foreground">Young driver fee (primary)</span>
                   <span>${pricing.youngDriverFee.toFixed(0)}</span>
                 </div>
               )}

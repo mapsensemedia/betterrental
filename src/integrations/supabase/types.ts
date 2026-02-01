@@ -278,6 +278,41 @@ export type Database = {
           },
         ]
       }
+      booking_additional_drivers: {
+        Row: {
+          booking_id: string
+          created_at: string
+          driver_age_band: string
+          driver_name: string | null
+          id: string
+          young_driver_fee: number
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          driver_age_band: string
+          driver_name?: string | null
+          id?: string
+          young_driver_fee?: number
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          driver_age_band?: string
+          driver_name?: string | null
+          id?: string
+          young_driver_fee?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_additional_drivers_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_otps: {
         Row: {
           attempts: number | null
