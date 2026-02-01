@@ -53,26 +53,56 @@ export function useRealtimeAlerts() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    console.log("[Realtime] Setting up alerts subscription...");
+    
     const channel = supabase
       .channel("realtime-alerts")
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "admin_alerts",
         },
         (payload) => {
-          console.log("[Realtime] Alert change:", payload.eventType);
-          
-          // Invalidate alert queries
+          console.log("[Realtime] New alert:", payload.new);
+          // Immediate refetch on new alerts
           queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
           queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
         }
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "admin_alerts",
+        },
+        (payload) => {
+          console.log("[Realtime] Alert updated:", payload.new);
+          queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
+          queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "admin_alerts",
+        },
+        (payload) => {
+          console.log("[Realtime] Alert deleted:", payload.old);
+          queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
+          queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] Alerts subscription status:", status);
+      });
 
     return () => {
+      console.log("[Realtime] Cleaning up alerts subscription");
       supabase.removeChannel(channel);
     };
   }, [queryClient]);
