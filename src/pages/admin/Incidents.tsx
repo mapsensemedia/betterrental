@@ -27,6 +27,11 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   AlertTriangle,
   Car,
   Search,
@@ -36,6 +41,7 @@ import {
   Plus,
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDamageReports } from "@/hooks/use-damages";
@@ -85,6 +91,7 @@ export default function AdminIncidents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Dialog states
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -92,6 +99,13 @@ export default function AdminIncidents() {
 
   const { data: incidents = [], isLoading: incidentsLoading, refetch: refetchIncidents } = useIncidentCases();
   const { data: damages = [], isLoading: damagesLoading } = useDamageReports({});
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetchIncidents();
+    setIsRefreshing(false);
+    toast.success("Incidents refreshed");
+  };
 
   // Filter incidents
   const filteredIncidents = incidents.filter((incident: any) => {
@@ -138,13 +152,23 @@ export default function AdminIncidents() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Incident Case
-            </Button>
-            <Button onClick={() => refetchIncidents()} variant="outline" size="icon">
-              <RefreshCw className={`h-4 w-4 ${incidentsLoading ? "animate-spin" : ""}`} />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  New Incident Case
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Create a new incident case</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={handleRefresh} variant="outline" size="icon" disabled={isRefreshing}>
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh incidents</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 

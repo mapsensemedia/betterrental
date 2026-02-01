@@ -14,6 +14,7 @@ import {
   X,
   ChevronRight,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -40,12 +41,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useAdminAlerts, useResolveAlert, useAcknowledgeAlert, type AdminAlert } from "@/hooks/use-alerts";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { PendingVerificationsCard } from "@/components/admin/alerts/PendingVerificationsCard";
+import { useQueryClient } from "@tanstack/react-query";
 
 const alertTypeLabels: Record<string, string> = {
   verification_pending: "Verification Pending",
@@ -80,18 +87,27 @@ const statusColors: Record<string, string> = {
 };
 
 export default function AdminAlerts() {
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedAlert, setSelectedAlert] = useState<AdminAlert | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") || "");
   const [typeFilter, setTypeFilter] = useState<string>(searchParams.get("type") || "");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: alerts = [], isLoading } = useAdminAlerts({
+  const { data: alerts = [], isLoading, refetch } = useAdminAlerts({
     status: statusFilter as any || undefined,
     alertType: typeFilter as any || undefined,
   });
 
   const resolveAlert = useResolveAlert();
   const acknowledgeAlert = useAcknowledgeAlert();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+    toast({ title: "Alerts refreshed" });
+  };
 
   const handleResolve = async (alertId: string) => {
     try {
@@ -123,7 +139,7 @@ export default function AdminAlerts() {
   const hasFilters = statusFilter || typeFilter;
   const pendingCount = alerts.filter(a => a.status === "pending").length;
 
-  return (
+return (
     <AdminShell>
       <div className="space-y-6">
         {/* Header */}
@@ -136,6 +152,14 @@ export default function AdminAlerts() {
                 : "No pending alerts"}
             </p>
           </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh alerts</TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Pending Verifications Card */}
@@ -240,32 +264,47 @@ export default function AdminAlerts() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => setSelectedAlert(alert)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setSelectedAlert(alert)}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View details</TooltipContent>
+                          </Tooltip>
                           {alert.status === "pending" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAcknowledge(alert.id)}
-                              disabled={acknowledgeAlert.isPending}
-                            >
-                              Ack
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleAcknowledge(alert.id)}
+                                  disabled={acknowledgeAlert.isPending}
+                                >
+                                  Ack
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Acknowledge alert</TooltipContent>
+                            </Tooltip>
                           )}
                           {alert.status !== "resolved" && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleResolve(alert.id)}
-                              disabled={resolveAlert.isPending}
-                            >
-                              <Check className="w-4 h-4" />
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => handleResolve(alert.id)}
+                                  disabled={resolveAlert.isPending}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Mark as resolved</TooltipContent>
+                            </Tooltip>
                           )}
                         </div>
                       </TableCell>
