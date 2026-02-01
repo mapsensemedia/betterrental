@@ -118,7 +118,7 @@ export function ActiveRentalsMonitor() {
                       ? "border-amber-500/50 bg-amber-500/5"
                       : "border-border"
                   }`}
-                  onClick={() => navigate(`/admin/bookings/${rental.id}`)}
+                  onClick={() => navigate(`/admin/active-rentals/${rental.id}`)}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">

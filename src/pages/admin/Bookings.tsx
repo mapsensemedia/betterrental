@@ -451,11 +451,19 @@ export default function AdminBookings() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button onClick={() => refetch()} variant="outline" size="icon">
+                  <Button 
+                    onClick={() => refetch()} 
+                    variant="outline" 
+                    size="icon"
+                    disabled={isLoading}
+                    className="transition-colors"
+                  >
                     <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Refresh bookings</TooltipContent>
+                <TooltipContent>
+                  {isLoading ? "Refreshing..." : "Refresh bookings"}
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -467,19 +475,19 @@ export default function AdminBookings() {
           onOpenChange={setWalkInDialogOpen} 
         />
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Quick Stats - responsive grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           {stats.map((stat) => (
-            <div key={stat.label} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-              <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
+            <div key={stat.label} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border bg-card">
+              <p className={`text-xl sm:text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{stat.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Workflow Tabs */}
+        {/* Workflow Tabs - scrollable on mobile */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto flex-wrap sm:flex-nowrap">
             <TabsTrigger value="all" className="gap-1.5">
               All
               <Badge variant="secondary" className="text-xs">{bookings.length}</Badge>
