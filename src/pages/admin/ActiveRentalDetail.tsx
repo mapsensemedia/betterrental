@@ -182,13 +182,14 @@ export default function ActiveRentalDetail() {
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2">
+          {/* Quick Actions - wrap on mobile */}
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Primary Action - Return Vehicle */}
             <Button size="sm" asChild className="gap-2">
               <Link to={`/admin/returns/${rental.id}`}>
                 <RotateCcw className="h-4 w-4" />
-                Return Vehicle
+                <span className="hidden sm:inline">Return Vehicle</span>
+                <span className="sm:hidden">Return</span>
               </Link>
             </Button>
             
@@ -251,10 +252,10 @@ export default function ActiveRentalDetail() {
           />
         </div>
 
-        {/* Main Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Main Grid - responsive for tablet */}
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {/* Rental Timeline Card */}
-          <Card className="lg:col-span-2">
+          <Card className="md:col-span-2 lg:col-span-2">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Timer className="h-5 w-5 text-primary" />
@@ -262,11 +263,11 @@ export default function ActiveRentalDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                 {/* Active Duration */}
                 <div className="text-center p-4 bg-muted/50 rounded-xl">
                   <p className="text-sm text-muted-foreground mb-2">Active For</p>
-                  <p className="text-3xl font-mono font-bold tracking-tight">
+                  <p className="text-2xl sm:text-3xl font-mono font-bold tracking-tight break-all">
                     {formatDuration()}
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -288,7 +289,7 @@ export default function ActiveRentalDetail() {
                     {duration?.isOverdue ? "Overdue" : "Time Remaining"}
                   </p>
                   <p
-                    className={`text-3xl font-mono font-bold tracking-tight ${
+                    className={`text-2xl sm:text-3xl font-mono font-bold tracking-tight break-all ${
                       duration?.isOverdue
                         ? "text-destructive"
                         : duration && duration.remainingHours < 2
@@ -306,10 +307,10 @@ export default function ActiveRentalDetail() {
                 {/* Scheduled Return */}
                 <div className="text-center p-4 bg-muted/50 rounded-xl">
                   <p className="text-sm text-muted-foreground mb-2">Scheduled Return</p>
-                  <p className="text-lg font-semibold">
+                  <p className="text-base sm:text-lg font-semibold">
                     {format(new Date(rental.endAt), "EEEE")}
                   </p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-xl sm:text-2xl font-bold">
                     {format(new Date(rental.endAt), "MMM d")}
                   </p>
                   <p className="text-sm text-muted-foreground">
@@ -471,7 +472,7 @@ export default function ActiveRentalDetail() {
           </Card>
 
           {/* Alerts & Tickets Card */}
-          <Card className="lg:col-span-2">
+          <Card className="md:col-span-2 lg:col-span-2">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <AlertTriangle className="h-5 w-5 text-primary" />

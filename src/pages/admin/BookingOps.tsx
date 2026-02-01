@@ -194,7 +194,14 @@ export default function BookingOps() {
         { bookingId, newStatus: "active" },
         {
           onSuccess: () => {
-            toast.success("Rental activated successfully!");
+            toast.success("Rental activated successfully!", {
+              description: "The customer now has the vehicle. Redirecting to active rental...",
+              duration: 3000,
+            });
+            // Redirect to active rental detail page after short delay
+            setTimeout(() => {
+              navigate(`/admin/active-rentals/${bookingId}`);
+            }, 1500);
           },
         }
       );
