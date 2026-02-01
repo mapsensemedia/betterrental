@@ -125,6 +125,62 @@ serve(async (req) => {
         `;
         break;
 
+      case "booking_cancelled":
+        priority = "high";
+        subject = `❌ Booking Cancelled - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p><strong style="color: #dc2626;">A booking has been cancelled.</strong></p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Reason:</strong> ${safeDetails}</li>` : ""}
+          </ul>
+          <p><a href="https://betterrental.lovable.app/admin/bookings" style="color: #2563eb;">View in Admin Panel →</a></p>
+        `;
+        break;
+
+      case "booking_updated":
+        subject = `📝 Booking Updated - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p>A booking has been updated.</p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Changes:</strong> ${safeDetails}</li>` : ""}
+          </ul>
+          <p><a href="https://betterrental.lovable.app/admin/bookings" style="color: #2563eb;">View in Admin Panel →</a></p>
+        `;
+        break;
+
+      case "rental_activated":
+        subject = `🟢 Rental Activated - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p>A rental has been activated. Vehicle is now out with customer.</p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
+          </ul>
+          <p><a href="https://betterrental.lovable.app/admin/active-rentals" style="color: #2563eb;">View Active Rentals →</a></p>
+        `;
+        break;
+
+      case "return_completed":
+        subject = `✅ Return Completed - ${bookingCode || "Booking"}`;
+        bodyContent = `
+          <p>A rental has been completed and the vehicle has been returned.</p>
+          <ul>
+            <li><strong>Booking:</strong> ${bookingRef}</li>
+            ${safeCustomerName ? `<li><strong>Customer:</strong> ${safeCustomerName}</li>` : ""}
+            ${safeVehicleName ? `<li><strong>Vehicle:</strong> ${safeVehicleName}</li>` : ""}
+            ${safeDetails ? `<li><strong>Notes:</strong> ${safeDetails}</li>` : ""}
+          </ul>
+          <p><a href="https://betterrental.lovable.app/admin/bookings" style="color: #2563eb;">View in Admin Panel →</a></p>
+        `;
+        break;
+
       case "license_uploaded":
         subject = `📋 License Uploaded - Verification Needed`;
         bodyContent = `

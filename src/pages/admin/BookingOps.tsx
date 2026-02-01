@@ -32,6 +32,7 @@ import { OpsBookingSummary } from "@/components/admin/ops/OpsBookingSummary";
 import { MobileBookingSummary } from "@/components/admin/ops/MobileBookingSummary";
 import { OpsActivityTimeline } from "@/components/admin/ops/OpsActivityTimeline";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
+import { CancelBookingDialog } from "@/components/admin/CancelBookingDialog";
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
@@ -81,7 +82,7 @@ export default function BookingOps() {
     action: null 
   });
   const [showIncidentDialog, setShowIncidentDialog] = useState(false);
-
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   // Prevent the auto-advance effect from overriding manual navigation
   const hasInitializedStepRef = useRef(false);
 
@@ -183,7 +184,7 @@ export default function BookingOps() {
   };
   
   const handleCancelBooking = () => {
-    setConfirmDialog({ open: true, action: "cancel" });
+    setShowCancelDialog(true);
   };
   
   const confirmAction = () => {
@@ -202,16 +203,6 @@ export default function BookingOps() {
             setTimeout(() => {
               navigate(`/admin/active-rentals/${bookingId}`);
             }, 1500);
-          },
-        }
-      );
-    } else if (confirmDialog.action === "cancel") {
-      updateStatus.mutate(
-        { bookingId, newStatus: "cancelled" },
-        {
-          onSuccess: () => {
-            toast.success("Booking cancelled");
-            navigate("/admin/bookings");
           },
         }
       );
@@ -397,29 +388,22 @@ export default function BookingOps() {
         </div>
       </div>
       
-      {/* Confirm Dialog */}
+      {/* Confirm Dialog for Activate */}
       <AlertDialog 
         open={confirmDialog.open} 
         onOpenChange={(open) => !open && setConfirmDialog({ open: false, action: null })}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmDialog.action === "activate" ? "Activate Rental" : "Cancel Booking"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Activate Rental</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDialog.action === "activate" 
-                ? "This will start the rental period. The customer will receive the keys and the rental timer begins. This action cannot be easily undone."
-                : "Are you sure you want to cancel this booking? This action cannot be undone."}
+              This will start the rental period. The customer will receive the keys and the rental timer begins. This action cannot be easily undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Go Back</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmAction}
-              className={confirmDialog.action === "cancel" ? "bg-destructive hover:bg-destructive/90" : ""}
-            >
-              {confirmDialog.action === "activate" ? "Activate Rental" : "Cancel Booking"}
+            <AlertDialogAction onClick={confirmAction}>
+              Activate Rental
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -427,15 +411,26 @@ export default function BookingOps() {
       
       {/* Report Incident Dialog */}
       {booking && (
-        <CreateIncidentDialog
-          open={showIncidentDialog}
-          onOpenChange={setShowIncidentDialog}
-          bookingId={booking.id}
-          vehicleId={booking.vehicle_id}
-          customerId={booking.user_id}
-          bookingCode={booking.booking_code}
-          vehicleName={vehicleName}
-        />
+        <>
+          <CreateIncidentDialog
+            open={showIncidentDialog}
+            onOpenChange={setShowIncidentDialog}
+            bookingId={booking.id}
+            vehicleId={booking.vehicle_id}
+            customerId={booking.user_id}
+            bookingCode={booking.booking_code}
+            vehicleName={vehicleName}
+          />
+          <CancelBookingDialog
+            open={showCancelDialog}
+            onOpenChange={setShowCancelDialog}
+            bookingId={booking.id}
+            bookingCode={booking.booking_code}
+            customerName={booking.profiles?.full_name || undefined}
+            vehicleName={vehicleName}
+            onSuccess={() => navigate("/admin/bookings")}
+          />
+        </>
       )}
     </AdminShell>
   );

@@ -220,6 +220,22 @@ export function useUpdateBookingStatus() {
 
   return useMutation({
     mutationFn: async ({ bookingId, newStatus, notes }: { bookingId: string; newStatus: BookingStatus; notes?: string }) => {
+      // First get booking details for notification
+      const { data: bookingDetails, error: fetchError } = await supabase
+        .from("bookings")
+        .select("booking_code, user_id, vehicle_id, vehicles(make, model, year)")
+        .eq("id", bookingId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Get profile for customer name
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", bookingDetails.user_id)
+        .maybeSingle();
+
       const updateData: Record<string, unknown> = { status: newStatus };
       
       if (newStatus === "completed" || newStatus === "cancelled") {
@@ -247,18 +263,49 @@ export function useUpdateBookingStatus() {
       // Handle deposit based on status change
       await handleDepositOnStatusChange(bookingId, newStatus);
 
+      // Create admin alert for status changes
+      const vehicle = bookingDetails.vehicles as any;
+      const vehicleName = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : "";
+      const customerName = profile?.full_name || "";
+
+      // Create alert in database
+      if (newStatus === "active" || newStatus === "completed" || newStatus === "cancelled") {
+        await supabase.from("admin_alerts").insert([
+          {
+            alert_type: newStatus === "active" ? "return_due_soon" : 
+                       newStatus === "cancelled" ? "customer_issue" : "verification_pending",
+            title: `Booking ${newStatus === "active" ? "Activated" : 
+                   newStatus === "cancelled" ? "Cancelled" : "Completed"} - ${bookingDetails.booking_code}`,
+            message: `Booking ${bookingDetails.booking_code} status changed to ${newStatus}`,
+            booking_id: bookingId,
+            status: "new",
+          } as any,
+        ]);
+      }
+
       // Send notification based on new status
       let notificationStage: string | null = null;
       if (newStatus === "active") {
         notificationStage = "rental_activated";
       } else if (newStatus === "completed") {
-        notificationStage = "rental_completed";
+        notificationStage = "return_completed";
       }
 
       if (notificationStage) {
         try {
           await supabase.functions.invoke("send-booking-notification", {
             body: { bookingId, stage: notificationStage },
+          });
+
+          // Also notify admin
+          await supabase.functions.invoke("notify-admin", {
+            body: {
+              eventType: notificationStage,
+              bookingId,
+              bookingCode: bookingDetails.booking_code,
+              customerName,
+              vehicleName,
+            },
           });
         } catch (e) {
           console.error("Failed to send status notification:", e);
@@ -270,6 +317,8 @@ export function useUpdateBookingStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["booking"] });
+      queryClient.invalidateQueries({ queryKey: ["alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
       toast.success("Booking status updated - customer notified");
     },
     onError: (error) => {

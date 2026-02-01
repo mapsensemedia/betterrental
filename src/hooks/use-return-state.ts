@@ -139,14 +139,50 @@ export function useCompleteReturnStep() {
 
 // Hook to initialize return (first transition)
 export function useInitiateReturn() {
-  const transition = useReturnStateTransition();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
-      return transition.mutateAsync({ bookingId, targetState: "initiated" });
+      if (!user) throw new Error("Not authenticated");
+
+      // First check current state - don't error if already initiated
+      const { data: booking, error: fetchError } = await supabase
+        .from("bookings")
+        .select("return_state")
+        .eq("id", bookingId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      
+      const currentState = (booking.return_state || "not_started") as ReturnState;
+      
+      // If already initiated or beyond, just return success
+      if (currentState !== "not_started") {
+        return { alreadyInitiated: true, currentState };
+      }
+
+      // Actually initiate
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          return_state: "initiated",
+          return_started_at: new Date().toISOString(),
+        })
+        .eq("id", bookingId);
+
+      if (error) throw error;
+
+      return { alreadyInitiated: false, currentState: "initiated" as ReturnState };
     },
-    onSuccess: () => {
-      toast.success("Return process initiated");
+    onSuccess: (result, bookingId) => {
+      if (!result.alreadyInitiated) {
+        toast.success("Return process initiated");
+      }
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to initiate return");
     },
   });
 }

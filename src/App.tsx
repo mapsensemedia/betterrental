@@ -44,6 +44,7 @@ const WalkaroundSign = lazy(() => import("./pages/booking/WalkaroundSign"));
 const AdminOverview = lazy(() => import("./pages/admin/Overview"));
 const AdminAlerts = lazy(() => import("./pages/admin/Alerts"));
 const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
+const AdminBookingDetail = lazy(() => import("./pages/admin/BookingDetail"));
 const AdminBilling = lazy(() => import("./pages/admin/Billing"));
 const AdminInventory = lazy(() => import("./pages/admin/Inventory"));
 const AdminCalendar = lazy(() => import("./pages/admin/Calendar"));
@@ -122,6 +123,7 @@ const App = () => (
                 <Route path="/admin" element={<AdminProtectedRoute><AdminOverview /></AdminProtectedRoute>} />
                 <Route path="/admin/alerts" element={<AdminProtectedRoute><AdminAlerts /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings" element={<AdminProtectedRoute><AdminBookings /></AdminProtectedRoute>} />
+                <Route path="/admin/bookings/:bookingId" element={<AdminProtectedRoute><AdminBookingDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
                 <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
