@@ -374,7 +374,16 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {deliveryMode === "delivery" ? "Delivery Date" : "Pickup Date"}
           </label>
-          <div className="relative">
+          <div 
+            className="relative cursor-pointer"
+            onClick={(e) => {
+              const input = e.currentTarget.querySelector('input');
+              if (input) {
+                input.showPicker?.();
+                input.focus();
+              }
+            }}
+          >
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
             <input
               type="date"
@@ -388,7 +397,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
                   setReturnDate(nextDay.toISOString().split("T")[0]);
                 }
               }}
-              className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
             />
           </div>
         </div>
@@ -422,7 +431,16 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Return Date
           </label>
-          <div className="relative">
+          <div 
+            className="relative cursor-pointer"
+            onClick={(e) => {
+              const input = e.currentTarget.querySelector('input');
+              if (input) {
+                input.showPicker?.();
+                input.focus();
+              }
+            }}
+          >
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
             <input
               type="date"
@@ -434,7 +452,7 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
               })() : undefined}
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
-              className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
             />
           </div>
           {pickupDate && returnDate && (
