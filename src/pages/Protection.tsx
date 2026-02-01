@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
-import { useVehicles } from "@/hooks/use-vehicles";
+import { useVehicle, useCategory } from "@/hooks/use-vehicles";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
@@ -25,20 +25,26 @@ export default function Protection() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays } = useRentalBooking();
-  const { data: vehicles } = useVehicles();
   
-  const vehicleId = searchParams.get("vehicleId") || searchData.selectedVehicleId;
+  // Support both legacy vehicleId and new categoryId
+  const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
+  const vehicleId = searchParams.get("vehicleId");
+  
+  const { data: category } = useCategory(categoryId);
+  const { data: legacyVehicle } = useVehicle(vehicleId);
+  
+  // Use category if available, otherwise legacy vehicle
+  const vehicle = category || legacyVehicle;
+  
   const [selectedPackage, setSelectedPackage] = useState<string>("none");
-
-  const vehicle = vehicles?.find((v) => v.id === vehicleId);
 
   // Track page view on mount
   useEffect(() => {
     trackPageView("Protection Selection");
-    if (vehicleId && vehicle) {
-      funnelEvents.vehicleSelected(vehicleId, vehicle.make, vehicle.model, vehicle.dailyRate);
+    if (vehicle) {
+      funnelEvents.vehicleSelected(vehicle.id, vehicle.make || "", vehicle.model, vehicle.dailyRate);
     }
-  }, [vehicleId, vehicle]);
+  }, [vehicle]);
   
   // Calculate total price using central pricing utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
@@ -60,9 +66,13 @@ export default function Protection() {
     // Track protection selection
     funnelEvents.protectionSelected(selectedPackage, selectedProtection?.dailyRate || 0);
 
-    // Build URL params for add-ons step
+    // Build URL params for add-ons step - preserve categoryId or vehicleId
     const params = new URLSearchParams();
-    if (vehicleId) params.set("vehicleId", vehicleId);
+    if (categoryId && !vehicleId) {
+      params.set("categoryId", categoryId);
+    } else if (vehicleId) {
+      params.set("vehicleId", vehicleId);
+    }
     if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
     if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
