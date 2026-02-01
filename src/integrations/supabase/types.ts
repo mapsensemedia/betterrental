@@ -827,6 +827,78 @@ export type Database = {
           },
         ]
       }
+      fleet_cost_cache: {
+        Row: {
+          cache_type: string
+          calculation_period_end: string | null
+          calculation_period_start: string | null
+          category_id: string | null
+          created_at: string
+          id: string
+          last_calculated_at: string
+          net_profit: number | null
+          rental_count: number | null
+          total_damage_cost: number | null
+          total_maintenance_cost: number | null
+          total_miles_driven: number | null
+          total_rental_days: number | null
+          total_rental_revenue: number | null
+          updated_at: string
+          vehicle_unit_id: string | null
+        }
+        Insert: {
+          cache_type: string
+          calculation_period_end?: string | null
+          calculation_period_start?: string | null
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          last_calculated_at?: string
+          net_profit?: number | null
+          rental_count?: number | null
+          total_damage_cost?: number | null
+          total_maintenance_cost?: number | null
+          total_miles_driven?: number | null
+          total_rental_days?: number | null
+          total_rental_revenue?: number | null
+          updated_at?: string
+          vehicle_unit_id?: string | null
+        }
+        Update: {
+          cache_type?: string
+          calculation_period_end?: string | null
+          calculation_period_start?: string | null
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          last_calculated_at?: string
+          net_profit?: number | null
+          rental_count?: number | null
+          total_damage_cost?: number | null
+          total_maintenance_cost?: number | null
+          total_miles_driven?: number | null
+          total_rental_days?: number | null
+          total_rental_revenue?: number | null
+          updated_at?: string
+          vehicle_unit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_cost_cache_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_cost_cache_vehicle_unit_id_fkey"
+            columns: ["vehicle_unit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incident_cases: {
         Row: {
           airbags_deployed: boolean | null
@@ -1148,6 +1220,65 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      maintenance_logs: {
+        Row: {
+          cost: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          invoice_number: string | null
+          maintenance_type: string
+          mileage_at_service: number | null
+          notes: string | null
+          receipt_url: string | null
+          service_date: string
+          updated_at: string
+          vehicle_unit_id: string
+          vendor_name: string | null
+        }
+        Insert: {
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          invoice_number?: string | null
+          maintenance_type: string
+          mileage_at_service?: number | null
+          notes?: string | null
+          receipt_url?: string | null
+          service_date?: string
+          updated_at?: string
+          vehicle_unit_id: string
+          vendor_name?: string | null
+        }
+        Update: {
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          invoice_number?: string | null
+          maintenance_type?: string
+          mileage_at_service?: number | null
+          notes?: string | null
+          receipt_url?: string | null
+          service_date?: string
+          updated_at?: string
+          vehicle_unit_id?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_logs_vehicle_unit_id_fkey"
+            columns: ["vehicle_unit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_logs: {
         Row: {
@@ -1720,6 +1851,33 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vehicle_expenses: {
         Row: {
           amount: number
@@ -1779,6 +1937,7 @@ export type Database = {
           acquisition_date: string | null
           actual_disposal_date: string | null
           annual_depreciation_amount: number | null
+          category_id: string | null
           color: string | null
           created_at: string
           current_mileage: number | null
@@ -1802,6 +1961,7 @@ export type Database = {
           acquisition_date?: string | null
           actual_disposal_date?: string | null
           annual_depreciation_amount?: number | null
+          category_id?: string | null
           color?: string | null
           created_at?: string
           current_mileage?: number | null
@@ -1825,6 +1985,7 @@ export type Database = {
           acquisition_date?: string | null
           actual_disposal_date?: string | null
           annual_depreciation_amount?: number | null
+          category_id?: string | null
           color?: string | null
           created_at?: string
           current_mileage?: number | null
@@ -1844,6 +2005,13 @@ export type Database = {
           vin?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vehicle_units_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vehicle_units_vehicle_id_fkey"
             columns: ["vehicle_id"]

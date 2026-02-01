@@ -168,6 +168,7 @@ export default function FleetCosts() {
         : null,
       notes: formData.notes || null,
       status: formData.status,
+      category_id: null,
     });
     setIsAddOpen(false);
     resetForm();
