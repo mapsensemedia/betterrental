@@ -30,13 +30,17 @@ export function BookingSummaryPanel({
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays } = useRentalBooking();
   
-  // Support both legacy vehicleId and new categoryId
-  const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
-  const vehicleId = searchParams.get("vehicleId");
+  // Support both legacy vehicleId and new categoryId - check URL first, then context
+  const urlCategoryId = searchParams.get("categoryId");
+  const urlVehicleId = searchParams.get("vehicleId");
+  const contextVehicleId = searchData.selectedVehicleId;
   
-  // Try to fetch as category first (new system), then as vehicle (legacy)
-  const { data: category } = useCategory(categoryId);
-  const { data: legacyVehicle } = useVehicle(vehicleId);
+  // Priority: URL categoryId > URL vehicleId > context selectedVehicleId
+  const effectiveId = urlCategoryId || urlVehicleId || contextVehicleId;
+  
+  // Fetch as category (new system)
+  const { data: category, isLoading: categoryLoading } = useCategory(effectiveId);
+  const { data: legacyVehicle, isLoading: vehicleLoading } = useVehicle(urlVehicleId);
   
   // Use category data if available, otherwise fall back to legacy vehicle
   const vehicle = category || legacyVehicle;
