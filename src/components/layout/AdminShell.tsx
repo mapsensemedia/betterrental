@@ -29,7 +29,9 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { usePendingAlertsCount } from "@/hooks/use-pending-alerts-count";
+import { useSidebarCounts, type SidebarCounts } from "@/hooks/use-sidebar-counts";
+
+type BadgeKey = keyof SidebarCounts;
 
 /**
  * Consolidated Admin Navigation
@@ -44,12 +46,19 @@ import { usePendingAlertsCount } from "@/hooks/use-pending-alerts-count";
  * - Recovery: Abandoned cart follow-up
  * - Settings: Configuration
  */
-const navItems = [
+const navItems: {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  badgeKey?: BadgeKey;
+  description: string;
+  priority?: boolean;
+}[] = [
   {
     href: "/admin/alerts",
     label: "Alerts",
     icon: Bell,
-    badgeKey: "alerts" as const,
+    badgeKey: "alerts",
     description: "Action required",
     priority: true, // Always at top
   },
@@ -63,6 +72,7 @@ const navItems = [
     href: "/admin/bookings",
     label: "Operations",
     icon: Workflow,
+    badgeKey: "operations",
     description: "Bookings, pickups, rentals, returns",
   },
   {
@@ -75,6 +85,7 @@ const navItems = [
     href: "/admin/incidents",
     label: "Incidents",
     icon: Wrench,
+    badgeKey: "incidents",
     description: "Accidents & damages",
   },
   {
@@ -99,12 +110,14 @@ const navItems = [
     href: "/admin/billing",
     label: "Billing",
     icon: Receipt,
+    badgeKey: "billing",
     description: "Payments & receipts",
   },
   {
     href: "/admin/tickets",
     label: "Support",
     icon: MessageSquare,
+    badgeKey: "support",
     description: "Customer tickets",
   },
 ];
@@ -127,9 +140,7 @@ export function AdminShell({
   } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [bookingCode, setBookingCode] = useState("");
-  const {
-    count: pendingAlertsCount
-  } = usePendingAlertsCount();
+  const { counts } = useSidebarCounts();
   const handleBookingSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (bookingCode.trim()) {
@@ -168,13 +179,32 @@ export function AdminShell({
         </div>
         
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto scrollbar-thin">
-          {navItems.map(item => <Link key={item.href} to={item.href} className={cn("flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors", isActive(item.href) ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}>
-              <item.icon className="w-4 h-4" />
-              {item.label}
-              {item.badgeKey === "alerts" && pendingAlertsCount > 0 && <Badge variant="destructive" className="ml-auto text-[10px] px-1.5 py-0 h-4">
-                  {pendingAlertsCount}
-                </Badge>}
-            </Link>)}
+          {navItems.map(item => {
+            const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0;
+            return (
+              <Link 
+                key={item.href} 
+                to={item.href} 
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors", 
+                  isActive(item.href) 
+                    ? "bg-primary text-primary-foreground" 
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+                {badgeCount > 0 && (
+                  <Badge 
+                    variant={item.priority ? "destructive" : "secondary"} 
+                    className="ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center"
+                  >
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </Badge>
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-border">
@@ -193,10 +223,33 @@ export function AdminShell({
               </Button>
             </div>
             <nav className="space-y-0.5">
-              {navItems.map(item => <Link key={item.href} to={item.href} onClick={() => setMobileMenuOpen(false)} className={cn("flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors", isActive(item.href) ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}>
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </Link>)}
+              {navItems.map(item => {
+                const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0;
+                return (
+                  <Link 
+                    key={item.href} 
+                    to={item.href} 
+                    onClick={() => setMobileMenuOpen(false)} 
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors", 
+                      isActive(item.href) 
+                        ? "bg-primary text-primary-foreground" 
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                    {badgeCount > 0 && (
+                      <Badge 
+                        variant={item.priority ? "destructive" : "secondary"} 
+                        className="ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center"
+                      >
+                        {badgeCount > 99 ? "99+" : badgeCount}
+                      </Badge>
+                    )}
+                  </Link>
+                );
+              })}
             </nav>
           </aside>
         </div>}
