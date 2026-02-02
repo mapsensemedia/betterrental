@@ -258,6 +258,12 @@ export default function VehicleUnitDetail() {
                     <span className="text-muted-foreground">Color</span>
                     <span className="font-medium">{unit.color || "—"}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tank Capacity</span>
+                    <span className="font-medium">
+                      {unit.tank_capacity_liters ? `${unit.tank_capacity_liters}L` : "—"}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
 
