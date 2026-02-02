@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,15 +31,15 @@ import {
   Eye,
   Ban,
   PenLine,
-  UserCheck,
 } from "lucide-react";
 import {
   useRentalAgreement,
   useGenerateAgreement,
   useConfirmAgreement,
   useVoidAgreement,
-  useMarkSignedManually,
 } from "@/hooks/use-rental-agreement";
+import { useSaveSignature } from "@/hooks/use-signature-capture";
+import { SignatureCapturePanel } from "./signature/SignatureCapturePanel";
 import { format } from "date-fns";
 
 interface RentalAgreementPanelProps {
@@ -52,13 +52,13 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
   const generateAgreement = useGenerateAgreement();
   const confirmAgreement = useConfirmAgreement();
   const voidAgreement = useVoidAgreement();
-  const markSignedManually = useMarkSignedManually();
+  const saveSignature = useSaveSignature();
 
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
-  const [manualSignDialogOpen, setManualSignDialogOpen] = useState(false);
-  const [manualSignerName, setManualSignerName] = useState(customerName || "");
+  const [signerName, setSignerName] = useState(customerName || "");
+  const [showSignatureCapture, setShowSignatureCapture] = useState(false);
 
   const handleGenerate = () => {
     generateAgreement.mutate(bookingId);
@@ -78,13 +78,21 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
     });
   };
 
-  const handleManualSign = () => {
-    if (!agreement || !manualSignerName.trim()) return;
-    markSignedManually.mutate(
-      { agreementId: agreement.id, customerName: manualSignerName.trim() },
-      { onSuccess: () => setManualSignDialogOpen(false) }
-    );
-  };
+  const handleSignatureCapture = useCallback(
+    async (signatureData: Parameters<typeof saveSignature.mutate>[0]["signatureData"]) => {
+      if (!agreement) return;
+      
+      await saveSignature.mutateAsync({
+        agreementId: agreement.id,
+        bookingId,
+        customerName: signerName || customerName || "Customer",
+        signatureData,
+      });
+      
+      setShowSignatureCapture(false);
+    },
+    [agreement, bookingId, signerName, customerName, saveSignature]
+  );
 
   const handleDownload = () => {
     if (!agreement) return;
@@ -107,7 +115,7 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
     switch (agreement.status) {
       case "confirmed":
         return (
-          <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+          <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
             <CheckCircle className="h-3 w-3 mr-1" />
             {agreement.signed_manually ? "Signed In Person" : "Confirmed"}
           </Badge>
@@ -135,6 +143,11 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
         );
     }
   };
+
+  // Check if we have captured signature PNG
+  const hasSignaturePng = !!(agreement as any)?.signature_png_url;
+  const signatureMethod = (agreement as any)?.signature_method;
+  const isAgreementSigned = agreement?.status === "signed" || agreement?.status === "confirmed";
 
   if (isLoading) {
     return (
@@ -189,7 +202,7 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
 
               {/* Signature Info */}
               {agreement.customer_signature && (
-                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Signed by</span>
                     <span className="font-medium">{agreement.customer_signature}</span>
@@ -198,19 +211,28 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
                     <span className="text-muted-foreground">Signed at</span>
                     <span>{format(new Date(agreement.customer_signed_at!), "PPp")}</span>
                   </div>
-                  {agreement.signed_manually && (
+                  {signatureMethod && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Method</span>
                       <Badge variant="outline" className="text-xs">
-                        <UserCheck className="h-3 w-3 mr-1" />
-                        In Person
+                        {signatureMethod === "webhid_pad"
+                          ? "Signature Pad"
+                          : signatureMethod === "onscreen_pen_touch"
+                          ? "Apple Pencil / Touch"
+                          : signatureMethod === "onscreen_mouse"
+                          ? "On-Screen"
+                          : "Digital"}
                       </Badge>
                     </div>
                   )}
-                  {agreement.staff_confirmed_at && !agreement.signed_manually && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Confirmed at</span>
-                      <span>{format(new Date(agreement.staff_confirmed_at), "PPp")}</span>
+                  {/* Show signature image if available */}
+                  {hasSignaturePng && (
+                    <div className="mt-2 pt-2 border-t">
+                      <img
+                        src={(agreement as any).signature_png_url}
+                        alt="Customer signature"
+                        className="max-h-16 w-auto bg-white rounded border p-1"
+                      />
                     </div>
                   )}
                 </div>
@@ -248,19 +270,18 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
                   </Button>
                 )}
 
-                {/* Manual Sign Button - only show if pending */}
+                {/* Capture Signature Button - only show if pending */}
                 {agreement.status === "pending" && (
                   <Button
                     size="sm"
-                    variant="secondary"
                     onClick={() => {
-                      setManualSignerName(customerName || "");
-                      setManualSignDialogOpen(true);
+                      setSignerName(customerName || "");
+                      setShowSignatureCapture(true);
                     }}
                     className="gap-1"
                   >
-                    <UserCheck className="h-3.5 w-3.5" />
-                    Mark Signed In Person
+                    <PenLine className="h-3.5 w-3.5" />
+                    Capture Signature
                   </Button>
                 )}
 
@@ -298,51 +319,47 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
         </DialogContent>
       </Dialog>
 
-      {/* Manual Sign Dialog */}
-      <Dialog open={manualSignDialogOpen} onOpenChange={setManualSignDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+      {/* Signature Capture Dialog */}
+      <Dialog open={showSignatureCapture} onOpenChange={setShowSignatureCapture}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Mark Agreement as Signed In Person</DialogTitle>
+            <DialogTitle>Capture Customer Signature</DialogTitle>
             <DialogDescription>
-              Confirm that the customer has signed the rental agreement in person. Enter their name as it appears on their ID.
+              Enter the customer's name and capture their signature using a pad or on-screen
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="signerName">Customer Name (as signed)</Label>
+              <Label htmlFor="signerName">Customer Name (as it appears on ID)</Label>
               <Input
                 id="signerName"
-                value={manualSignerName}
-                onChange={(e) => setManualSignerName(e.target.value)}
+                value={signerName}
+                onChange={(e) => setSignerName(e.target.value)}
                 placeholder="Enter customer's full name"
               />
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setManualSignDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleManualSign}
-                disabled={!manualSignerName.trim() || markSignedManually.isPending}
-              >
-                {markSignedManually.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Confirm Signed
-                  </>
-                )}
-              </Button>
-            </div>
+            
+            {signerName.trim() && (
+              <SignatureCapturePanel
+                onCapture={handleSignatureCapture}
+                existingSignature={
+                  hasSignaturePng
+                    ? {
+                        pngUrl: (agreement as any).signature_png_url,
+                        signedAt: agreement!.customer_signed_at!,
+                        method: signatureMethod || "unknown",
+                      }
+                    : null
+                }
+                disabled={saveSignature.isPending}
+              />
+            )}
+            
+            {!signerName.trim() && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Enter the customer's name above to begin signature capture
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
