@@ -363,6 +363,7 @@ export type Database = {
           assigned_driver_id: string | null
           assigned_unit_id: string | null
           booking_code: string
+          booking_source: string | null
           created_at: string
           daily_rate: number
           deposit_amount: number | null
@@ -412,6 +413,7 @@ export type Database = {
           assigned_driver_id?: string | null
           assigned_unit_id?: string | null
           booking_code: string
+          booking_source?: string | null
           created_at?: string
           daily_rate: number
           deposit_amount?: number | null
@@ -461,6 +463,7 @@ export type Database = {
           assigned_driver_id?: string | null
           assigned_unit_id?: string | null
           booking_code?: string
+          booking_source?: string | null
           created_at?: string
           daily_rate?: number
           deposit_amount?: number | null

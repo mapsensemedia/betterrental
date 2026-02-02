@@ -19,6 +19,7 @@ import {
   CreditCard,
   ArrowRight,
   MapPin,
+  DollarSign,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,17 +36,18 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieC
 import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
 import { useLocations } from "@/hooks/use-locations";
 import { format, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { RevenueAnalyticsTab } from "@/components/admin/analytics/RevenueAnalyticsTab";
 
 // Full funnel stages
 const FUNNEL_STAGES = [
   { key: "search_performed", label: "Search", icon: Search, color: "hsl(var(--primary))" },
-  { key: "vehicle_viewed", label: "Viewed", icon: Eye, color: "#3b82f6" },
-  { key: "vehicle_selected", label: "Selected", icon: MousePointerClick, color: "#8b5cf6" },
-  { key: "protection_selected", label: "Protection", icon: Shield, color: "#6366f1" },
-  { key: "addons_selected", label: "Add-ons", icon: Gift, color: "#ec4899" },
-  { key: "checkout_started", label: "Checkout", icon: ShoppingCart, color: "#f97316" },
-  { key: "checkout_payment_method_selected", label: "Payment", icon: CreditCard, color: "#eab308" },
-  { key: "booking_completed", label: "Completed", icon: CheckCircle, color: "#22c55e" },
+  { key: "vehicle_viewed", label: "Viewed", icon: Eye, color: "hsl(var(--chart-1))" },
+  { key: "vehicle_selected", label: "Selected", icon: MousePointerClick, color: "hsl(var(--chart-2))" },
+  { key: "protection_selected", label: "Protection", icon: Shield, color: "hsl(var(--chart-3))" },
+  { key: "addons_selected", label: "Add-ons", icon: Gift, color: "hsl(var(--chart-4))" },
+  { key: "checkout_started", label: "Checkout", icon: ShoppingCart, color: "hsl(var(--chart-5))" },
+  { key: "checkout_payment_method_selected", label: "Payment", icon: CreditCard, color: "hsl(var(--accent))" },
+  { key: "booking_completed", label: "Completed", icon: CheckCircle, color: "hsl(var(--primary))" },
 ] as const;
 
 const chartConfig = {
@@ -53,7 +55,7 @@ const chartConfig = {
   conversions: { label: "Conversions", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig;
 
-const COLORS = ["hsl(var(--primary))", "#22c55e", "#f97316", "#8b5cf6", "#3b82f6", "#ec4899"];
+const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
 type DateFilter = "today" | "week" | "month" | "all";
 
@@ -272,13 +274,22 @@ export default function AdminAnalytics() {
           </Card>
         </div>
 
-        <Tabs defaultValue="funnel" className="space-y-4">
+        <Tabs defaultValue="revenue" className="space-y-4">
           <TabsList className="bg-muted/50">
+            <TabsTrigger value="revenue" className="gap-1.5">
+              <DollarSign className="w-4 h-4" />
+              Revenue & Add-Ons
+            </TabsTrigger>
             <TabsTrigger value="funnel">Funnel</TabsTrigger>
             <TabsTrigger value="trends">Trends</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="errors">Errors</TabsTrigger>
           </TabsList>
+
+          {/* Revenue & Add-On Analytics Tab */}
+          <TabsContent value="revenue">
+            <RevenueAnalyticsTab />
+          </TabsContent>
 
           {/* Conversion Funnel Tab */}
           <TabsContent value="funnel" className="space-y-4">
