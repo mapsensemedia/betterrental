@@ -1,3 +1,8 @@
+/**
+ * Availability Hooks
+ * 
+ * PR7: Performance optimization - centralized stale times
+ */
 import { useQuery } from "@tanstack/react-query";
 import {
   getAvailableVehicles,
@@ -6,13 +11,14 @@ import {
   type AvailabilityQuery,
   type AvailableVehicle,
 } from "@/lib/availability";
+import { QUERY_STALE_TIMES } from "@/lib/query-client";
 
 export function useAvailableVehicles(query: AvailabilityQuery | null) {
   return useQuery<AvailableVehicle[]>({
     queryKey: ["available-vehicles", query],
     queryFn: () => (query ? getAvailableVehicles(query) : Promise.resolve([])),
     enabled: !!query,
-    staleTime: 30000, // 30 seconds
+    staleTime: QUERY_STALE_TIMES.availability,
   });
 }
 
@@ -22,7 +28,7 @@ export function useVehiclesByLocation(locationId: string | null) {
     queryFn: () =>
       locationId ? getVehiclesByLocation(locationId) : Promise.resolve([]),
     enabled: !!locationId,
-    staleTime: 60000, // 1 minute
+    staleTime: QUERY_STALE_TIMES.categories, // Locations don't change often
   });
 }
 
@@ -38,6 +44,6 @@ export function useVehicleAvailability(
         ? isVehicleAvailable(vehicleId, startAt, endAt)
         : Promise.resolve(false),
     enabled: !!(vehicleId && startAt && endAt),
-    staleTime: 15000, // 15 seconds
+    staleTime: QUERY_STALE_TIMES.availability,
   });
 }

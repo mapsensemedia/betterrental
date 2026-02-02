@@ -1,9 +1,12 @@
 /**
  * Browse Categories Hook
  * Fetches categories with available vehicle counts for customer-facing pages
+ * 
+ * PR7: Performance optimization - optimized stale time and query structure
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { QUERY_STALE_TIMES } from "@/lib/query-client";
 
 export interface BrowseCategory {
   id: string;
@@ -22,6 +25,80 @@ interface UseBrowseCategoriesParams {
   locationId?: string;
   startAt?: Date;
   endAt?: Date;
+}
+
+// Memoized category builder to avoid recreation on every render
+function buildCategoryData(
+  categories: any[],
+  units: any[],
+  bookedUnitIds: Set<string>
+): BrowseCategory[] {
+  // Build category data map
+  const categoryMap = new Map<string, {
+    totalCount: number;
+    availableCount: number;
+    lowestRate: number;
+    imageUrl: string | null;
+    seats: number;
+    fuelType: string;
+    transmission: string;
+  }>();
+
+  (units || []).forEach((unit: any) => {
+    if (!unit.category_id || !unit.vehicle) return;
+
+    const current = categoryMap.get(unit.category_id) || {
+      totalCount: 0,
+      availableCount: 0,
+      lowestRate: Infinity,
+      imageUrl: null,
+      seats: 5,
+      fuelType: "Petrol",
+      transmission: "Automatic",
+    };
+
+    current.totalCount++;
+
+    // Check if this unit is available
+    const isBooked = bookedUnitIds.has(unit.id);
+    const isVehicleAvailable = unit.vehicle.is_available !== false;
+    if (!isBooked && isVehicleAvailable) {
+      current.availableCount++;
+    }
+
+    // Track lowest rate
+    const rate = Number(unit.vehicle.daily_rate || 0);
+    if (rate > 0 && rate < current.lowestRate) {
+      current.lowestRate = rate;
+      current.imageUrl = unit.vehicle.image_url;
+      current.seats = unit.vehicle.seats || 5;
+      current.fuelType = unit.vehicle.fuel_type || "Petrol";
+      current.transmission = unit.vehicle.transmission || "Automatic";
+    }
+
+    categoryMap.set(unit.category_id, current);
+  });
+
+  // Build final list, only include categories with vehicles
+  return categories
+    .map((cat): BrowseCategory | null => {
+      const data = categoryMap.get(cat.id);
+      if (!data || data.totalCount === 0) return null;
+
+      return {
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        dailyRate: data.lowestRate === Infinity ? 0 : data.lowestRate,
+        imageUrl: data.imageUrl,
+        availableCount: data.availableCount,
+        totalCount: data.totalCount,
+        seats: data.seats,
+        fuelType: data.fuelType,
+        transmission: data.transmission,
+      };
+    })
+    .filter((c): c is BrowseCategory => c !== null && c.availableCount > 0);
 }
 
 export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
@@ -73,73 +150,9 @@ export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
         });
       }
 
-      // Build category data
-      const categoryMap = new Map<string, {
-        totalCount: number;
-        availableCount: number;
-        lowestRate: number;
-        imageUrl: string | null;
-        seats: number;
-        fuelType: string;
-        transmission: string;
-      }>();
-
-      (units || []).forEach((unit: any) => {
-        if (!unit.category_id || !unit.vehicle) return;
-
-        const current = categoryMap.get(unit.category_id) || {
-          totalCount: 0,
-          availableCount: 0,
-          lowestRate: Infinity,
-          imageUrl: null,
-          seats: 5,
-          fuelType: "Petrol",
-          transmission: "Automatic",
-        };
-
-        current.totalCount++;
-
-        // Check if this unit is available
-        const isBooked = bookedUnitIds.has(unit.id);
-        const isVehicleAvailable = unit.vehicle.is_available !== false;
-        if (!isBooked && isVehicleAvailable) {
-          current.availableCount++;
-        }
-
-        // Track lowest rate
-        const rate = Number(unit.vehicle.daily_rate || 0);
-        if (rate > 0 && rate < current.lowestRate) {
-          current.lowestRate = rate;
-          current.imageUrl = unit.vehicle.image_url;
-          current.seats = unit.vehicle.seats || 5;
-          current.fuelType = unit.vehicle.fuel_type || "Petrol";
-          current.transmission = unit.vehicle.transmission || "Automatic";
-        }
-
-        categoryMap.set(unit.category_id, current);
-      });
-
-      // Build final list, only include categories with vehicles
-      return categories
-        .map((cat): BrowseCategory | null => {
-          const data = categoryMap.get(cat.id);
-          if (!data || data.totalCount === 0) return null;
-
-          return {
-            id: cat.id,
-            name: cat.name,
-            description: cat.description,
-            dailyRate: data.lowestRate === Infinity ? 0 : data.lowestRate,
-            imageUrl: data.imageUrl,
-            availableCount: data.availableCount,
-            totalCount: data.totalCount,
-            seats: data.seats,
-            fuelType: data.fuelType,
-            transmission: data.transmission,
-          };
-        })
-        .filter((c): c is BrowseCategory => c !== null && c.availableCount > 0);
+      return buildCategoryData(categories, units || [], bookedUnitIds);
     },
-    staleTime: 30000,
+    staleTime: QUERY_STALE_TIMES.categories,
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 }
