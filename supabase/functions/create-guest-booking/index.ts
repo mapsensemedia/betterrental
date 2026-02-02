@@ -1,3 +1,8 @@
+/**
+ * create-guest-booking - Create booking for unauthenticated users
+ * 
+ * PR5: Now uses shared booking-core for reduced duplication
+ */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   getCorsHeaders, 
@@ -11,6 +16,16 @@ import {
   isValidPhone,
 } from "../_shared/cors.ts";
 import { getAdminClient } from "../_shared/auth.ts";
+import {
+  isValidAgeBand,
+  checkBookingConflicts,
+  createBookingRecord,
+  createBookingAddOns,
+  createAdditionalDrivers,
+  sendBookingNotifications,
+  type AddOnInput,
+  type AdditionalDriverInput,
+} from "../_shared/booking-core.ts";
 
 interface GuestBookingRequest {
   firstName: string;
@@ -29,16 +44,8 @@ interface GuestBookingRequest {
   totalAmount: number;
   driverAgeBand: string;
   youngDriverFee?: number;
-  addOns?: Array<{
-    addOnId: string;
-    price: number;
-    quantity: number;
-  }>;
-  additionalDrivers?: Array<{
-    driverName: string | null;
-    driverAgeBand: string;
-    youngDriverFee: number;
-  }>;
+  addOns?: AddOnInput[];
+  additionalDrivers?: AdditionalDriverInput[];
   notes?: string;
   pickupAddress?: string;
   pickupLat?: number;
@@ -139,30 +146,25 @@ Deno.serve(async (req) => {
       specialInstructions,
     } = body;
 
+    // Validate required fields
     if (!vehicleId || !locationId || !startAt || !endAt) {
       return new Response(
-        JSON.stringify({ error: "Missing required booking information" }),
+        JSON.stringify({ error: "validation_failed", message: "Missing required booking information" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!driverAgeBand || !["21_25", "25_70"].includes(driverAgeBand)) {
+    // Validate driver age band using shared function
+    if (!isValidAgeBand(driverAgeBand)) {
       return new Response(
         JSON.stringify({ error: "age_validation_failed", message: "Driver age confirmation is required." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check for conflicting bookings
-    const { data: conflicts } = await supabaseAdmin
-      .from("bookings")
-      .select("id")
-      .eq("vehicle_id", vehicleId)
-      .in("status", ["pending", "confirmed", "active"])
-      .or(`and(start_at.lte.${endAt},end_at.gte.${startAt})`)
-      .limit(1);
-
-    if (conflicts && conflicts.length > 0) {
+    // Check for conflicting bookings using shared function
+    const hasConflict = await checkBookingConflicts(vehicleId, startAt, endAt);
+    if (hasConflict) {
       return new Response(
         JSON.stringify({ error: "vehicle_unavailable", message: "This vehicle is no longer available." }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -220,124 +222,60 @@ Deno.serve(async (req) => {
       }, { onConflict: "id" });
     }
 
-    // Create the booking
-    const { data: booking, error: bookingError } = await supabaseAdmin
-      .from("bookings")
-      .insert({
-        user_id: userId,
-        vehicle_id: vehicleId,
-        location_id: locationId,
-        start_at: startAt,
-        end_at: endAt,
-        daily_rate: dailyRate,
-        total_days: totalDays,
-        subtotal,
-        tax_amount: taxAmount,
-        deposit_amount: depositAmount,
-        total_amount: totalAmount,
-        booking_code: "",
-        status: "pending", // Guest bookings start as pending
-        notes: notes?.slice(0, 1000) || null,
-        driver_age_band: driverAgeBand,
-        young_driver_fee: youngDriverFee || 0,
-        pickup_address: pickupAddress?.slice(0, 500) || null,
-        pickup_lat: pickupLat || null,
-        pickup_lng: pickupLng || null,
-        save_time_at_counter: saveTimeAtCounter || false,
-        pickup_contact_name: pickupContactName?.slice(0, 100) || null,
-        pickup_contact_phone: sanitizePhone(pickupContactPhone || "") || null,
-        special_instructions: specialInstructions?.slice(0, 500) || null,
-      })
-      .select()
-      .single();
+    // Create booking using shared function
+    const bookingResult = await createBookingRecord({
+      userId: userId!,
+      vehicleId,
+      locationId,
+      startAt,
+      endAt,
+      dailyRate,
+      totalDays,
+      subtotal,
+      taxAmount,
+      depositAmount,
+      totalAmount,
+      driverAgeBand,
+      youngDriverFee,
+      notes,
+      status: "pending", // Guest bookings start as pending
+      pickupAddress,
+      pickupLat,
+      pickupLng,
+      pickupContactName,
+      pickupContactPhone,
+      specialInstructions,
+      saveTimeAtCounter,
+    });
 
-    if (bookingError) {
-      console.error("Error creating booking:", bookingError);
+    if (!bookingResult.success || !bookingResult.booking) {
       return new Response(
-        JSON.stringify({ error: "Failed to create booking" }),
+        JSON.stringify({ error: bookingResult.errorCode, message: bookingResult.error }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Booking created:", booking.id, booking.booking_code);
+    const booking = bookingResult.booking;
+    console.log("Booking created:", booking.id, booking.bookingCode);
 
-    // Add add-ons
-    if (addOns && addOns.length > 0) {
-      const addOnRecords = addOns.slice(0, 10).map((addon) => ({
-        booking_id: booking.id,
-        add_on_id: addon.addOnId,
-        price: addon.price,
-        quantity: Math.min(addon.quantity, 10),
-      }));
+    // Add add-ons and additional drivers using shared functions
+    await createBookingAddOns(booking.id, addOns || []);
+    await createAdditionalDrivers(booking.id, body.additionalDrivers || []);
 
-      await supabaseAdmin.from("booking_add_ons").insert(addOnRecords);
-    }
-    
-    // Add additional drivers
-    const { additionalDrivers } = body;
-    if (additionalDrivers && additionalDrivers.length > 0) {
-      const driverRecords = additionalDrivers.slice(0, 5).map((driver) => ({
-        booking_id: booking.id,
-        driver_name: driver.driverName?.slice(0, 100) || null,
-        driver_age_band: driver.driverAgeBand,
-        young_driver_fee: driver.youngDriverFee || 0,
-      }));
-
-      await supabaseAdmin.from("booking_additional_drivers").insert(driverRecords);
-    }
-
-    // Fire-and-forget notifications
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const notificationPromises = [];
-
-    notificationPromises.push(
-      fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
-      }).catch(err => console.error("Email notification failed:", err))
-    );
-
-    notificationPromises.push(
-      fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
-      }).catch(err => console.error("SMS notification failed:", err))
-    );
-
-    notificationPromises.push(
-      fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({
-          eventType: "new_booking",
-          bookingId: booking.id,
-          bookingCode: booking.booking_code,
-          customerName: `${firstName} ${lastName}`,
-        }),
-      }).catch(err => console.error("Admin notification failed:", err))
-    );
-
-    Promise.all(notificationPromises).catch(console.error);
+    // Send notifications using shared function (fire-and-forget)
+    sendBookingNotifications({
+      bookingId: booking.id,
+      bookingCode: booking.bookingCode,
+      customerName: `${firstName} ${lastName}`,
+      isGuest: true,
+    });
 
     return new Response(
       JSON.stringify({ 
         success: true,
         booking: {
           id: booking.id,
-          bookingCode: booking.booking_code,
+          bookingCode: booking.bookingCode,
           status: booking.status,
         },
         userId,

@@ -1,3 +1,12 @@
+/**
+ * @deprecated This module uses the legacy vehicles table for availability checks.
+ * For new code, use the category-based availability system:
+ * - useBrowseCategories() which calls get_available_categories() RPC
+ * - useCategoryAvailability() for checking specific category availability
+ * 
+ * The vehicles-based availability is being phased out.
+ * See REFACTOR_PLAN.md PR2 for migration details.
+ */
 import { supabase } from "@/integrations/supabase/client";
 
 export interface AvailabilityFilters {

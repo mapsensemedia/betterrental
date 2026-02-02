@@ -1,18 +1,20 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders } from "../_shared/cors.ts";
-
 /**
  * Deposit Job Processor
  * 
  * Processes queued deposit operations to prevent race conditions.
  * Can be called via cron or manually from admin panel.
  * 
+ * PR5: Enhanced with idempotency checks to prevent duplicate processing.
+ * 
  * Job types:
  * - release: Full deposit release
  * - withhold: Full deposit withhold (for damages)
  * - partial_release: Partial release with deduction
  */
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { claimIdempotencyKey, generateIdempotencyKey } from "../_shared/idempotency.ts";
 
 interface DepositJob {
   id: string;
@@ -63,6 +65,16 @@ serve(async (req) => {
 
     for (const job of jobs as DepositJob[]) {
       try {
+        // Idempotency check - prevent duplicate processing
+        const idempotencyKey = generateIdempotencyKey("deposit_job", job.id, job.job_type);
+        const claimed = await claimIdempotencyKey(idempotencyKey, 60); // 60 min window
+        
+        if (!claimed) {
+          console.log(`[process-deposit-jobs] Job ${job.id} already being processed, skipping`);
+          results.push({ jobId: job.id, success: true, error: "Already processing (idempotency)" });
+          continue;
+        }
+
         // Mark as processing
         await supabase
           .from("deposit_jobs")
