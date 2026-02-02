@@ -41,6 +41,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
     year: "",
     make: "",
     model: "",
+    tank_capacity_liters: "",
     notes: "",
   });
 
@@ -57,6 +58,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
         year: String(new Date().getFullYear()),
         make: "",
         model: "",
+        tank_capacity_liters: "",
         notes: "",
       });
     }
@@ -74,6 +76,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
       year: formData.year ? parseInt(formData.year) : undefined,
       make: formData.make.trim() || undefined,
       model: formData.model.trim() || undefined,
+      tank_capacity_liters: formData.tank_capacity_liters ? parseFloat(formData.tank_capacity_liters) : undefined,
       notes: formData.notes.trim() || undefined,
     });
 
@@ -192,6 +195,23 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
                   placeholder="e.g., Camry"
                 />
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="tank_capacity">Fuel Tank Capacity (Liters)</Label>
+              <Input
+                id="tank_capacity"
+                type="number"
+                min="20"
+                max="200"
+                step="0.1"
+                value={formData.tank_capacity_liters}
+                onChange={(e) => setFormData({ ...formData, tank_capacity_liters: e.target.value })}
+                placeholder="60"
+              />
+              <p className="text-xs text-muted-foreground">
+                Used for fuel service add-on pricing calculation
+              </p>
             </div>
 
             <div className="grid gap-2">

@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
+import { AddOnsPricingPanel } from "@/components/admin/AddOnsPricingPanel";
 import { 
   Settings, 
   Bell, 
@@ -19,7 +20,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-export default function AdminSettings() { 
+export default function AdminSettings() {
   const [notifications, setNotifications] = useState({
     emailAlerts: true,
     smsAlerts: false,
@@ -137,6 +138,9 @@ export default function AdminSettings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Add-Ons & Pricing */}
+        <AddOnsPricingPanel />
 
         {/* Recovery Settings */}
         <Card>

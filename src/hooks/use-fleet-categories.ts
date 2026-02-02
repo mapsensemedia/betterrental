@@ -60,6 +60,7 @@ export interface CreateVinInput {
   make?: string;
   model?: string;
   status?: 'available' | 'on_rent' | 'maintenance' | 'damage';
+  tank_capacity_liters?: number;
   notes?: string;
 }
 
@@ -330,6 +331,7 @@ export function useAddVinToCategory() {
           license_plate: input.license_plate.toUpperCase(),
           location_id: input.location_id,
           status: input.status || 'available',
+          tank_capacity_liters: input.tank_capacity_liters || null,
           notes: input.notes || null,
         })
         .select()
