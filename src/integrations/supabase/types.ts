@@ -1571,6 +1571,11 @@ export type Database = {
           customer_signature: string | null
           customer_signed_at: string | null
           id: string
+          signature_device_info: Json | null
+          signature_method: string | null
+          signature_png_url: string | null
+          signature_vector_json: Json | null
+          signature_workstation_id: string | null
           signed_manually: boolean | null
           signed_manually_at: string | null
           signed_manually_by: string | null
@@ -1588,6 +1593,11 @@ export type Database = {
           customer_signature?: string | null
           customer_signed_at?: string | null
           id?: string
+          signature_device_info?: Json | null
+          signature_method?: string | null
+          signature_png_url?: string | null
+          signature_vector_json?: Json | null
+          signature_workstation_id?: string | null
           signed_manually?: boolean | null
           signed_manually_at?: string | null
           signed_manually_by?: string | null
@@ -1605,6 +1615,11 @@ export type Database = {
           customer_signature?: string | null
           customer_signed_at?: string | null
           id?: string
+          signature_device_info?: Json | null
+          signature_method?: string | null
+          signature_png_url?: string | null
+          signature_vector_json?: Json | null
+          signature_workstation_id?: string | null
           signed_manually?: boolean | null
           signed_manually_at?: string | null
           signed_manually_by?: string | null
