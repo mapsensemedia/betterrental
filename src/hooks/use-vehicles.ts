@@ -1,3 +1,13 @@
+/**
+ * @deprecated This hook uses the legacy vehicles table.
+ * For new code, use:
+ * - useBrowseCategories() from '@/hooks/use-browse-categories' for customer-facing category browsing
+ * - useFleetCategories() from '@/hooks/use-fleet-categories' for admin fleet management
+ * - useCategory() from this file for fetching a single category (category-based booking flow)
+ * 
+ * The vehicles table is being phased out in favor of vehicle_categories + vehicle_units.
+ * See REFACTOR_PLAN.md PR2 for migration details.
+ */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 

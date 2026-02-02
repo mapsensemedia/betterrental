@@ -1,9 +1,12 @@
 /**
  * process-deposit-refund - Process deposit refunds via Stripe
  * Handles full or partial refunds for security deposits
+ * 
+ * PR5: Enhanced with idempotency to prevent duplicate refunds
  */
 import Stripe from "https://esm.sh/stripe@14.18.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
+import { claimIdempotencyKey, generateIdempotencyKey } from "../_shared/idempotency.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +42,18 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "bookingId is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Idempotency check - prevent duplicate refunds
+    const idempotencyKey = generateIdempotencyKey("deposit_refund", bookingId, amount?.toString() || "full");
+    const claimed = await claimIdempotencyKey(idempotencyKey, 60); // 60 min window
+    
+    if (!claimed) {
+      console.log(`[process-deposit-refund] Duplicate refund request for booking ${bookingId}, skipping`);
+      return new Response(
+        JSON.stringify({ error: "Refund already in progress", skipped: true }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

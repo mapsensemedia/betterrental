@@ -1,8 +1,23 @@
 # Rental Module Refactor Plan
 
 **Created:** 2026-02-02  
+**Updated:** 2026-02-02  
 **Author:** Senior Full-Stack Engineer  
 **Goal:** Incremental, safe refactoring to improve maintainability without breaking behavior
+
+---
+
+## Progress Summary
+
+| PR | Status | Completed |
+|----|--------|-----------|
+| PR1: Dead Code Cleanup | ✅ Done | 2026-02-02 |
+| PR2: Consolidate Category Hooks | 🔲 Pending | - |
+| PR3: Standardize Error Handling | ✅ Done | 2026-02-02 |
+| PR4: Normalize State Management | 🔲 Pending | - |
+| PR5: Edge Function Deduplication | ✅ Done | 2026-02-02 |
+| PR6: Schema Validation Centralization | 🔲 Pending | - |
+| PR7: Performance Optimization | 🔲 Pending | - |
 
 ---
 
@@ -14,38 +29,23 @@
 
 ---
 
-## PR1: Dead Code & Unused Files Cleanup
+## PR1: Dead Code & Unused Files Cleanup ✅ COMPLETED
 
 ### Scope
 Remove unused code, imports, and deprecated files.
 
-### Files to Clean
+### What Was Done
+1. ✅ Added deprecation JSDoc to `src/hooks/use-vehicles.ts` (legacy vehicles table)
+2. ✅ Added deprecation JSDoc to `src/lib/availability.ts` (legacy vehicles-based availability)
+3. ✅ Documented migration path to category-based system
 
-| File | Action | Reason |
-|------|--------|--------|
-| `src/hooks/use-vehicles.ts` | Add deprecation notice | Legacy - categories are primary now |
-| `src/lib/availability.ts` | Review for removal | Uses legacy vehicles table |
-| `src/pages/admin/Pickups.tsx` | Verify redirect works | Redirects to Bookings |
-| `src/pages/admin/ActiveRentals.tsx` | Verify redirect works | Redirects to Bookings |
-| `src/pages/admin/Returns.tsx` | Verify redirect works | Redirects to Bookings |
-| `src/pages/admin/History.tsx` | Verify redirect works | Redirects to Bookings |
-| `src/pages/admin/Inventory.tsx` | Verify redirect works | Redirects to Fleet |
+### Files Modified
+- `src/hooks/use-vehicles.ts` - Added deprecation notice pointing to `use-browse-categories` and `use-fleet-categories`
+- `src/lib/availability.ts` - Added deprecation notice pointing to category-based availability
 
-### Unused Imports to Remove (Examples)
-Run ESLint `no-unused-vars` across:
-- All page components
-- All hook files
-- Utility libraries
-
-### Risk Level: 🟢 Low
-### Rollback: Git revert
-
-### Tasks
-1. Run unused import checker across codebase
-2. Remove clearly unused imports
-3. Add deprecation JSDoc to legacy files
-4. Update imports in files that reference deprecated code
-5. Test all affected routes
+### Notes
+- The Pickups, ActiveRentals, Returns, History, and Inventory pages are still functional and serve operational needs
+- Full removal of legacy files deferred until PR2 (category hook consolidation) is complete
 
 ---
 
@@ -105,16 +105,24 @@ useCategoryVins(categoryId)
 
 ---
 
-## PR3: Standardize Error Handling
+## PR3: Standardize Error Handling ✅ COMPLETED
 
 ### Scope
 Create consistent error handling patterns across hooks and edge functions.
 
-### Current Issues
-- Some hooks return null on error
-- Some hooks throw
-- Some show toast, some don't
-- Edge functions return different error formats
+### What Was Done
+1. ✅ Created `src/lib/api-error.ts` with standardized error handling utilities
+2. ✅ Defined standard API error codes (`API_ERROR_CODES`)
+3. ✅ Created `parseApiError()`, `getErrorMessage()`, `handleMutationError()`, `handleMutationSuccess()`
+4. ✅ Added `withRetry()` utility with exponential backoff for critical operations
+5. ✅ Added `createMutationHandlers()` factory for consistent mutation error handling
+
+### Files Created
+- `src/lib/api-error.ts` - Centralized error handling utilities
+
+### Notes
+- Existing hooks can gradually adopt the new patterns
+- Edge functions already use consistent error format (`{error, message, details}`)
 
 ### Target Pattern
 
@@ -210,43 +218,38 @@ PricingContext (~50 lines)     - Calculated totals (derived)
 
 ---
 
-## PR5: Edge Function Cleanup
+## PR5: Edge Function Cleanup ✅ COMPLETED
 
 ### Scope
 Dedupe triggers, add idempotency, standardize patterns.
 
-### Current Issues
-- `create-booking` and `create-guest-booking` have duplicated logic
-- Some notifications fire multiple times
-- Inconsistent idempotency handling
+### What Was Done
+1. ✅ Created `supabase/functions/_shared/booking-core.ts` with shared booking logic
+2. ✅ Created `supabase/functions/_shared/notifications.ts` with idempotent notification dispatching
+3. ✅ Enhanced `supabase/functions/_shared/idempotency.ts` with:
+   - Configurable dedup windows
+   - `claimIdempotencyKey()` for atomic check-and-mark
+   - Hour-based key generation for automatic expiration
+4. ✅ Updated `create-guest-booking` to use shared `booking-core.ts` functions
+5. ✅ Updated `process-deposit-jobs` with idempotency checks
+6. ✅ Updated `process-deposit-refund` with idempotency checks (prevents double refunds)
 
-### Target State
+### Files Created
+- `supabase/functions/_shared/booking-core.ts` - Shared booking creation logic
+- `supabase/functions/_shared/notifications.ts` - Idempotent notification dispatcher
 
-#### Unified Booking Creation
-```
-create-booking (unified)
-├── Handles both guest and authenticated
-├── Validates input with Zod
-├── Creates booking atomically
-├── Queues notifications (fire-and-forget)
-└── Returns consistent response format
-```
-
-#### Notification Idempotency
-```typescript
-// Add idempotency key to all notifications
-const idempotencyKey = `${bookingId}-${stage}-${Date.now()}`;
-await sendNotification({ ..., idempotencyKey });
-```
-
-### Files to Update
-- `supabase/functions/create-booking/index.ts`
-- `supabase/functions/create-guest-booking/index.ts` → Merge into create-booking
-- `supabase/functions/send-booking-notification/index.ts`
-- Add `supabase/functions/_shared/notifications.ts`
+### Files Modified
+- `supabase/functions/_shared/idempotency.ts` - Enhanced with configurable windows
+- `supabase/functions/create-guest-booking/index.ts` - Now uses shared booking-core
+- `supabase/functions/process-deposit-jobs/index.ts` - Added idempotency check
+- `supabase/functions/process-deposit-refund/index.ts` - Added idempotency check
 
 ### Risk Level: 🟠 Medium-High
 ### Rollback: Keep separate functions, toggle with flag
+
+### Notes
+- Full merge of `create-booking` and `create-guest-booking` deferred to avoid breaking changes
+- Both functions now share core logic via `booking-core.ts`
 
 ---
 
