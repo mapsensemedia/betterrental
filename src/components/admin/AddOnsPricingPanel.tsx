@@ -2,7 +2,7 @@
  * Add-Ons Pricing Panel
  * Admin component for managing add-on pricing instantly
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +35,11 @@ import {
   Fuel, 
   Loader2,
   Package,
-  CheckCircle,
+  Save,
 } from "lucide-react";
-import { MARKET_FUEL_PRICE_PER_LITER, FUEL_DISCOUNT_CENTS } from "@/lib/fuel-pricing";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface EditDialogState {
   open: boolean;
@@ -48,8 +50,65 @@ interface CreateDialogState {
   open: boolean;
 }
 
+// Hook to get/set fuel pricing from settings table
+function useFuelPricingSettings() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["fuel-pricing-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("system_settings")
+        .select("*")
+        .in("key", ["fuel_market_rate", "fuel_discount_cents"])
+        .order("key");
+
+      if (error) {
+        // Table might not exist yet - return defaults
+        console.warn("Fuel settings not found, using defaults");
+        return { marketRate: 1.85, discountCents: 5 };
+      }
+
+      const marketRate = data.find((s) => s.key === "fuel_market_rate");
+      const discountCents = data.find((s) => s.key === "fuel_discount_cents");
+
+      return {
+        marketRate: marketRate ? parseFloat(marketRate.value) : 1.85,
+        discountCents: discountCents ? parseInt(discountCents.value) : 5,
+      };
+    },
+    staleTime: 30000,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (values: { marketRate: number; discountCents: number }) => {
+      // Upsert both settings
+      const { error: err1 } = await supabase
+        .from("system_settings")
+        .upsert({ key: "fuel_market_rate", value: String(values.marketRate) }, { onConflict: "key" });
+
+      const { error: err2 } = await supabase
+        .from("system_settings")
+        .upsert({ key: "fuel_discount_cents", value: String(values.discountCents) }, { onConflict: "key" });
+
+      if (err1 || err2) throw new Error(err1?.message || err2?.message);
+      return values;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fuel-pricing-settings"] });
+      toast.success("Fuel pricing updated");
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to update: " + error.message);
+    },
+  });
+
+  return { ...query, updateFuelPricing: mutation };
+}
+
 export function AddOnsPricingPanel() {
   const { data: addOns, isLoading } = useManageAddOns();
+  const { data: fuelSettings, isLoading: fuelLoading, updateFuelPricing } = useFuelPricingSettings();
   const updateAddOn = useUpdateAddOn();
   const createAddOn = useCreateAddOn();
   const deleteAddOn = useDeleteAddOn();
@@ -57,6 +116,20 @@ export function AddOnsPricingPanel() {
   const [editDialog, setEditDialog] = useState<EditDialogState>({ open: false, addon: null });
   const [createDialog, setCreateDialog] = useState<CreateDialogState>({ open: false });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Fuel pricing form state
+  const [fuelForm, setFuelForm] = useState({ marketRate: "1.85", discountCents: "5" });
+  const [fuelFormDirty, setFuelFormDirty] = useState(false);
+
+  // Sync fuel form when settings load
+  useEffect(() => {
+    if (fuelSettings && !fuelFormDirty) {
+      setFuelForm({
+        marketRate: String(fuelSettings.marketRate),
+        discountCents: String(fuelSettings.discountCents),
+      });
+    }
+  }, [fuelSettings, fuelFormDirty]);
 
   // Form state for editing
   const [editForm, setEditForm] = useState({
@@ -179,22 +252,78 @@ export function AddOnsPricingPanel() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Fuel Pricing Info */}
+          {/* Fuel Pricing Section - Editable */}
           <div className="bg-accent/50 border border-border rounded-lg p-4">
             <div className="flex items-start gap-3">
               <Fuel className="w-5 h-5 text-primary mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium">
-                  Fuel Service Pricing
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Market rate: CA${MARKET_FUEL_PRICE_PER_LITER.toFixed(2)}/L • 
-                  Our discount: {FUEL_DISCOUNT_CENTS}¢/L below market •
-                  Price is calculated based on each vehicle's tank capacity
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  To update market rate, edit <code className="bg-muted px-1 rounded">src/lib/fuel-pricing.ts</code>
-                </p>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Fuel Service Pricing</p>
+                  <p className="text-xs text-muted-foreground">
+                    Price is calculated based on each vehicle's tank capacity
+                  </p>
+                </div>
+                
+                {fuelLoading ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="fuel-market" className="text-xs">Market Rate ($/L)</Label>
+                      <Input
+                        id="fuel-market"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={fuelForm.marketRate}
+                        onChange={(e) => {
+                          setFuelForm({ ...fuelForm, marketRate: e.target.value });
+                          setFuelFormDirty(true);
+                        }}
+                        className="w-24 h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="fuel-discount" className="text-xs">Our Discount (¢/L)</Label>
+                      <Input
+                        id="fuel-discount"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={fuelForm.discountCents}
+                        onChange={(e) => {
+                          setFuelForm({ ...fuelForm, discountCents: e.target.value });
+                          setFuelFormDirty(true);
+                        }}
+                        className="w-20 h-9"
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground pb-2">
+                      Customer pays: <span className="font-medium">${(parseFloat(fuelForm.marketRate || "0") - parseInt(fuelForm.discountCents || "0") / 100).toFixed(2)}/L</span>
+                    </div>
+                    {fuelFormDirty && (
+                      <Button
+                        size="sm"
+                        className="h-9 gap-1"
+                        onClick={async () => {
+                          await updateFuelPricing.mutateAsync({
+                            marketRate: parseFloat(fuelForm.marketRate) || 1.85,
+                            discountCents: parseInt(fuelForm.discountCents) || 5,
+                          });
+                          setFuelFormDirty(false);
+                        }}
+                        disabled={updateFuelPricing.isPending}
+                      >
+                        {updateFuelPricing.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        Save
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
