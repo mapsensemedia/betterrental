@@ -31,6 +31,9 @@ export function TotalBar({
 
   // Use override add-on IDs if provided, otherwise fall back to context
   const effectiveAddOnIds = overrideAddOnIds ?? searchData.selectedAddOnIds;
+  
+  // Get vehicle category for fuel add-on calculation  
+  const vehicleCategory = vehicle?.category || (vehicle as any)?.categoryName || "default";
 
   // Calculate pricing using central utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
@@ -38,7 +41,8 @@ export function TotalBar({
   const { total: addOnsTotal } = calculateAddOnsCost(
     addOns,
     effectiveAddOnIds,
-    rentalDays
+    rentalDays,
+    vehicleCategory
   );
   const deliveryFee = searchData.deliveryFee || 0;
 

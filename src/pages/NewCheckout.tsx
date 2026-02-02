@@ -129,9 +129,12 @@ export default function NewCheckout() {
   // Calculate pricing using central utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
   
+  // Get vehicle category for fuel add-on calculation
+  const vehicleCategory = vehicle?.category || (vehicle as any)?.categoryName || "default";
+  
   const pricing = useMemo(() => {
     const protectionInfo = PROTECTION_RATES[protection] || PROTECTION_RATES.none;
-    const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays);
+    const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays, vehicleCategory);
     const deliveryFee = searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0;
     
     // Calculate additional drivers cost
@@ -155,7 +158,7 @@ export default function NewCheckout() {
       itemized,
       additionalDriversCost,
     };
-  }, [vehicle, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand]);
+  }, [vehicle, vehicleCategory, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand]);
 
   // Save abandoned cart when user leaves with info filled in
   const saveCartData = useCallback(() => {
@@ -732,17 +735,46 @@ export default function NewCheckout() {
                   </div>
                 )}
 
-                {/* Pay Later Notice */}
+                {/* Pay Later - Credit Card Required Notice */}
                 {paymentMethod === "pay-later" && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="font-medium flex items-center gap-2">
-                      <Check className="w-4 h-4 text-primary" />
-                      No payment required now
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      You'll pay the full amount of CA${pricing.total.toFixed(2)} when you pick up the vehicle.
-                      Please bring a valid credit card in the driver's name.
-                    </p>
+                  <div className="mt-4 space-y-4">
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                      <p className="font-medium flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                        <CreditCard className="w-4 h-4" />
+                        Credit Card Required at Pickup
+                      </p>
+                      <div className="text-sm text-amber-700 dark:text-amber-300 mt-2 space-y-2">
+                        <p>
+                          At the time of rental, you <strong>MUST</strong> produce a valid credit card and driver's license in your name.
+                        </p>
+                        <p>
+                          <strong>Authorization hold:</strong> We may place an authorized amount of up to <strong>CAD $350</strong> plus estimated charges on your card. These funds will not be available for your use.
+                        </p>
+                        <p className="text-xs mt-2 pt-2 border-t border-amber-200 dark:border-amber-700">
+                          Debit cards are not a valid form of payment for prepaid rates. Reservations must be cancelled prior to pick-up time or will be subject to a <strong>$58.99 CAD No-Show Fee</strong>.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="font-medium flex items-center gap-2 mb-2">
+                        <Info className="w-4 h-4 text-muted-foreground" />
+                        Please note: At time of rental you will need to present:
+                      </p>
+                      <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
+                        <li>A current, valid driver's license in the renter's name</li>
+                        <li>A valid credit or charge card (not debit)</li>
+                      </ol>
+                    </div>
+
+                    <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                      <p className="text-sm font-medium">
+                        Pay at pickup: CA${pricing.total.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Full payment will be collected when you pick up the vehicle.
+                      </p>
+                    </div>
                   </div>
                 )}
               </Card>

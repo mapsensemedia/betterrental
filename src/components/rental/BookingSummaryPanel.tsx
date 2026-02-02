@@ -60,13 +60,17 @@ export function BookingSummaryPanel({
   // Calculate pricing using central utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
   
+  // Get vehicle category for fuel add-on calculation
+  const vehicleCategory = vehicle?.category || (vehicle as any)?.categoryName || "default";
+  
   const pricing = (() => {
     if (!vehicle) return null;
 
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(
       addOns,
       effectiveAddOnIds,
-      rentalDays
+      rentalDays,
+      vehicleCategory
     );
     const deliveryFee = searchData.deliveryFee || 0;
     

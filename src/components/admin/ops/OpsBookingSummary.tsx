@@ -28,10 +28,12 @@ import {
   MessageSquare,
   ExternalLink,
   ChevronsUpDown,
+  ArrowUpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StepCompletion } from "@/lib/ops-steps";
+import { CategoryUpgradeDialog } from "@/components/admin/CategoryUpgradeDialog";
 
 interface OpsBookingSummaryProps {
   booking: any;
@@ -87,8 +89,9 @@ export function OpsBookingSummary({
   onOpenWalkaround,
 }: OpsBookingSummaryProps) {
   const [allExpanded, setAllExpanded] = useState(true);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   
-  const vehicleName = booking.vehicles 
+  const vehicleName = booking.vehicles
     ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}`
     : "No vehicle assigned";
   
@@ -249,6 +252,27 @@ export function OpsBookingSummary({
                   {booking.vehicles.category}
                 </Badge>
               )}
+              
+              {/* Category Upgrade Button - only if not yet handed over */}
+              {booking.status !== "active" && booking.status !== "completed" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2 gap-2 text-xs"
+                  onClick={() => setShowUpgradeDialog(true)}
+                >
+                  <ArrowUpCircle className="h-3.5 w-3.5" />
+                  Change/Upgrade Category
+                </Button>
+              )}
+              
+              {/* Show upgrade indicator if upgraded */}
+              {booking.original_vehicle_id && booking.original_vehicle_id !== booking.vehicle_id && (
+                <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                  Upgraded
+                </Badge>
+              )}
+              
               {/* Show assigned VIN and Plate for admin */}
               {booking.vehicle_units && (
                 <div className="mt-2 p-2 bg-muted rounded-md space-y-1">
@@ -461,6 +485,13 @@ export function OpsBookingSummary({
           </div>
         </div>
       </ScrollArea>
+      
+      {/* Category Upgrade Dialog */}
+      <CategoryUpgradeDialog
+        open={showUpgradeDialog}
+        onOpenChange={setShowUpgradeDialog}
+        booking={booking}
+      />
     </div>
   );
 }

@@ -374,6 +374,7 @@ export type Database = {
           id: string
           location_id: string
           notes: string | null
+          original_vehicle_id: string | null
           pickup_address: string | null
           pickup_contact_name: string | null
           pickup_contact_phone: string | null
@@ -399,6 +400,9 @@ export type Database = {
           total_amount: number
           total_days: number
           updated_at: string
+          upgrade_reason: string | null
+          upgraded_at: string | null
+          upgraded_by: string | null
           user_id: string
           vehicle_id: string
           young_driver_fee: number | null
@@ -419,6 +423,7 @@ export type Database = {
           id?: string
           location_id: string
           notes?: string | null
+          original_vehicle_id?: string | null
           pickup_address?: string | null
           pickup_contact_name?: string | null
           pickup_contact_phone?: string | null
@@ -444,6 +449,9 @@ export type Database = {
           total_amount: number
           total_days: number
           updated_at?: string
+          upgrade_reason?: string | null
+          upgraded_at?: string | null
+          upgraded_by?: string | null
           user_id: string
           vehicle_id: string
           young_driver_fee?: number | null
@@ -464,6 +472,7 @@ export type Database = {
           id?: string
           location_id?: string
           notes?: string | null
+          original_vehicle_id?: string | null
           pickup_address?: string | null
           pickup_contact_name?: string | null
           pickup_contact_phone?: string | null
@@ -489,6 +498,9 @@ export type Database = {
           total_amount?: number
           total_days?: number
           updated_at?: string
+          upgrade_reason?: string | null
+          upgraded_at?: string | null
+          upgraded_by?: string | null
           user_id?: string
           vehicle_id?: string
           young_driver_fee?: number | null

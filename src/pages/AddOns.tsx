@@ -3,7 +3,7 @@
  */
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Check, Plus, Users, Car, Baby } from "lucide-react";
+import { ArrowLeft, Check, Plus, Users, Car, Baby, Fuel, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -16,16 +16,18 @@ import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
 import { AdditionalDriversCard, calculateAdditionalDriversCost, type AdditionalDriver } from "@/components/rental/AdditionalDriversCard";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
+import { calculateFuelCost, getTankSize, FUEL_DISCOUNT_CENTS } from "@/lib/fuel-pricing";
 
 const ADDON_ICONS: Record<string, typeof Users> = {
-  "roadside": Car,
+  "roadside": Shield,
   "tire": Car,
   "infant": Baby,
-  "toddler": Baby,
+  "child": Baby,
   "booster": Baby,
   "gps": Car,
   "driver": Users,
   "additional": Users,
+  "fuel": Fuel,
 };
 
 function getAddonIcon(name: string) {
@@ -41,6 +43,11 @@ function getAddonIcon(name: string) {
 function isAdditionalDriverAddon(name: string): boolean {
   const lowerName = name.toLowerCase();
   return lowerName.includes("additional") && lowerName.includes("driver");
+}
+
+function isFuelAddon(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return lowerName.includes("fuel") && lowerName.includes("tank");
 }
 
 export default function AddOns() {
@@ -200,6 +207,7 @@ export default function AddOns() {
                 addOns.map((addon) => {
                   const IconComponent = getAddonIcon(addon.name);
                   const isAdditionalDriver = isAdditionalDriverAddon(addon.name);
+                  const isFuel = isFuelAddon(addon.name);
                   const isSelected = isAdditionalDriver 
                     ? additionalDrivers.length > 0 
                     : selectedAddOnIds.includes(addon.id);
@@ -213,6 +221,62 @@ export default function AddOns() {
                         onDriversChange={setLocalAdditionalDrivers}
                         rentalDays={rentalDays}
                       />
+                    );
+                  }
+
+                  // For fuel addon, show special pricing with asterisk
+                  if (isFuel) {
+                    const categoryName = vehicle?.category || "default";
+                    const tankSize = getTankSize(categoryName);
+                    const fuelCost = calculateFuelCost(tankSize);
+                    
+                    return (
+                      <Card
+                        key={addon.id}
+                        className={cn(
+                          "p-4 transition-all cursor-pointer",
+                          isSelected && "ring-2 ring-primary border-primary"
+                        )}
+                        onClick={() => handleToggleAddOn(addon.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                              <Fuel className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-medium">{addon.name}</h3>
+                              <p className="text-sm font-semibold text-foreground">
+                                CA${fuelCost.ourPrice.toFixed(2)}
+                                <span className="text-destructive">*</span>
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Pre-purchase fuel with us and save time at the pump
+                              </p>
+                              <p className="text-xs text-emerald-600 font-medium mt-1">
+                                *{FUEL_DISCOUNT_CENTS}¢/L below market price – Save CA${fuelCost.savings.toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            <button
+                              className={cn(
+                                "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors",
+                                isSelected
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "border-muted-foreground/30 hover:border-primary"
+                              )}
+                            >
+                              {isSelected ? (
+                                <Check className="w-5 h-5" />
+                              ) : (
+                                <Plus className="w-5 h-5" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </Card>
                     );
                   }
 
@@ -238,6 +302,11 @@ export default function AddOns() {
                               CA${addon.dailyRate.toFixed(2)} / day
                               {addon.oneTimeFee ? ` + $${addon.oneTimeFee} one-time` : ""}
                             </p>
+                            {addon.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {addon.description}
+                              </p>
+                            )}
                           </div>
                         </div>
 
