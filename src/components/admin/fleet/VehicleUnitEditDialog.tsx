@@ -38,6 +38,8 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
   const { data: categories } = useFleetCategories();
   const { data: locations } = useLocations();
 
+  const NO_CATEGORY_VALUE = "none";
+
   const [formData, setFormData] = useState({
     vin: "",
     license_plate: "",
@@ -47,7 +49,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
     mileage_at_acquisition: "",
     current_mileage: "",
     tank_capacity_liters: "",
-    category_id: "",
+    category_id: NO_CATEGORY_VALUE,
     status: "active",
     notes: "",
   });
@@ -63,7 +65,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
         mileage_at_acquisition: unit.mileage_at_acquisition ? String(unit.mileage_at_acquisition) : "",
         current_mileage: unit.current_mileage ? String(unit.current_mileage) : "",
         tank_capacity_liters: unit.tank_capacity_liters ? String(unit.tank_capacity_liters) : "",
-        category_id: unit.category_id || "",
+        category_id: unit.category_id || NO_CATEGORY_VALUE,
         status: unit.status || "active",
         notes: unit.notes || "",
       });
@@ -84,7 +86,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
       mileage_at_acquisition: formData.mileage_at_acquisition ? Number(formData.mileage_at_acquisition) : null,
       current_mileage: formData.current_mileage ? Number(formData.current_mileage) : null,
       tank_capacity_liters: formData.tank_capacity_liters ? Number(formData.tank_capacity_liters) : null,
-      category_id: formData.category_id || null,
+      category_id: formData.category_id === NO_CATEGORY_VALUE ? null : formData.category_id,
       status: formData.status,
       notes: formData.notes || null,
     });
@@ -169,7 +171,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Category</SelectItem>
+                <SelectItem value={NO_CATEGORY_VALUE}>No Category</SelectItem>
                 {categories?.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
                     {cat.name}
