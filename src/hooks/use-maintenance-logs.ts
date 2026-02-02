@@ -124,8 +124,11 @@ export function useCreateMaintenanceLog() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["maintenance-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance-logs-unit", variables.vehicle_unit_id] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance-total", variables.vehicle_unit_id] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-cost-timeline", variables.vehicle_unit_id] });
       queryClient.invalidateQueries({ queryKey: ["fleet-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["fleet-cost-analysis"] });
       toast.success("Maintenance log added successfully");
@@ -152,8 +155,11 @@ export function useUpdateMaintenanceLog() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["maintenance-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance-logs-unit", data.vehicle_unit_id] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance-total", data.vehicle_unit_id] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-cost-timeline", data.vehicle_unit_id] });
       queryClient.invalidateQueries({ queryKey: ["fleet-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["fleet-cost-analysis"] });
       toast.success("Maintenance log updated");
@@ -168,16 +174,20 @@ export function useDeleteMaintenanceLog() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (params: { id: string; vehicle_unit_id: string }) => {
       const { error } = await supabase
         .from("maintenance_logs")
         .delete()
-        .eq("id", id);
+        .eq("id", params.id);
 
       if (error) throw error;
+      return params;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["maintenance-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance-logs-unit", data.vehicle_unit_id] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance-total", data.vehicle_unit_id] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-cost-timeline", data.vehicle_unit_id] });
       queryClient.invalidateQueries({ queryKey: ["fleet-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["fleet-cost-analysis"] });
       toast.success("Maintenance log deleted");
