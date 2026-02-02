@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateFuelCost, getTankSize, TANK_SIZES } from "@/lib/fuel-pricing";
 
 export interface AddOn {
   id: string;
@@ -8,6 +9,14 @@ export interface AddOn {
   dailyRate: number;
   oneTimeFee: number | null;
   isActive: boolean | null;
+}
+
+/**
+ * Check if an add-on is the fuel service add-on
+ */
+export function isFuelAddOn(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return lowerName.includes("fuel") && lowerName.includes("tank");
 }
 
 /**
@@ -43,16 +52,28 @@ export function useAddOns() {
 
 /**
  * Calculate total add-on cost for a rental period
+ * @param addOns List of available add-ons
+ * @param selectedIds IDs of selected add-ons
+ * @param rentalDays Number of rental days
+ * @param vehicleCategory Optional vehicle category for fuel tank size calculation
  */
 export function calculateAddOnsCost(
   addOns: AddOn[],
   selectedIds: string[],
-  rentalDays: number
+  rentalDays: number,
+  vehicleCategory?: string
 ): { itemized: Array<{ id: string; name: string; total: number }>; total: number } {
   const itemized = selectedIds
     .map((id) => {
       const addon = addOns.find((a) => a.id === id);
       if (!addon) return null;
+      
+      // Handle fuel add-on specially - use calculated fuel cost
+      if (isFuelAddOn(addon.name)) {
+        const tankSize = vehicleCategory ? getTankSize(vehicleCategory) : TANK_SIZES.default;
+        const fuelCost = calculateFuelCost(tankSize);
+        return { id: addon.id, name: addon.name, total: fuelCost.ourPrice };
+      }
       
       const total = addon.dailyRate * rentalDays + (addon.oneTimeFee || 0);
       return { id: addon.id, name: addon.name, total };
