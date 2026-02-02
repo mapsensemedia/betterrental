@@ -317,6 +317,10 @@ export default function NewCheckout() {
 
       let booking: { id: string; booking_code: string } | null = null;
 
+      // Extract card info for storage (last 4 digits only - never store full card)
+      const cardLast4 = formData.cardNumber.replace(/\s+/g, "").slice(-4);
+      const cardTypeValue = detectCardType(formData.cardNumber);
+
       if (session) {
         // Logged-in user flow - create booking directly
         // Note: vehicle_id stores the category ID for category-based bookings
@@ -346,6 +350,9 @@ export default function NewCheckout() {
             pickup_contact_name: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : null,
             pickup_contact_phone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : null,
             special_instructions: saveTimeAtCounter && specialInstructions ? specialInstructions : null,
+            card_last_four: cardLast4,
+            card_type: cardTypeValue,
+            card_holder_name: formData.cardName,
           })
           .select()
           .single();
@@ -425,6 +432,9 @@ export default function NewCheckout() {
             pickupContactName: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : undefined,
             pickupContactPhone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : undefined,
             specialInstructions: saveTimeAtCounter && specialInstructions ? specialInstructions : undefined,
+            cardLastFour: cardLast4,
+            cardType: cardTypeValue,
+            cardHolderName: formData.cardName,
           },
         });
 

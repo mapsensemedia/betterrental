@@ -54,6 +54,9 @@ interface GuestBookingRequest {
   pickupContactName?: string;
   pickupContactPhone?: string;
   specialInstructions?: string;
+  cardLastFour?: string;
+  cardType?: string;
+  cardHolderName?: string;
 }
 
 Deno.serve(async (req) => {
@@ -144,6 +147,9 @@ Deno.serve(async (req) => {
       pickupContactName,
       pickupContactPhone,
       specialInstructions,
+      cardLastFour,
+      cardType,
+      cardHolderName,
     } = body;
 
     // Validate required fields
@@ -246,6 +252,9 @@ Deno.serve(async (req) => {
       pickupContactPhone,
       specialInstructions,
       saveTimeAtCounter,
+      cardLastFour,
+      cardType,
+      cardHolderName,
     });
 
     if (!bookingResult.success || !bookingResult.booking) {

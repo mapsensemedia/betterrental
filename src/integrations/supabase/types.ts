@@ -364,6 +364,9 @@ export type Database = {
           assigned_unit_id: string | null
           booking_code: string
           booking_source: string | null
+          card_holder_name: string | null
+          card_last_four: string | null
+          card_type: string | null
           created_at: string
           daily_rate: number
           deposit_amount: number | null
@@ -414,6 +417,9 @@ export type Database = {
           assigned_unit_id?: string | null
           booking_code: string
           booking_source?: string | null
+          card_holder_name?: string | null
+          card_last_four?: string | null
+          card_type?: string | null
           created_at?: string
           daily_rate: number
           deposit_amount?: number | null
@@ -464,6 +470,9 @@ export type Database = {
           assigned_unit_id?: string | null
           booking_code?: string
           booking_source?: string | null
+          card_holder_name?: string | null
+          card_last_four?: string | null
+          card_type?: string | null
           created_at?: string
           daily_rate?: number
           deposit_amount?: number | null
