@@ -9,9 +9,11 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle, Clock, FileText, Upload, Eye, Shield, FileCheck, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, FileText, Upload, Eye, Shield, FileCheck, X, Star, Gift } from "lucide-react";
 import { useLicenseUpload } from "@/hooks/use-license-upload";
 import { useToast } from "@/hooks/use-toast";
+import { useMembershipInfo, usePointsLedger } from "@/hooks/use-points";
+import { useActiveOffers } from "@/hooks/use-offers";
 
 type BookingRow = {
   id: string;
@@ -35,6 +37,8 @@ export default function Dashboard() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const { licenseStatus, uploading, uploadLicense } = useLicenseUpload(user?.id);
+  const { data: membership } = useMembershipInfo();
+  const { data: offers = [] } = useActiveOffers();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -199,6 +203,52 @@ export default function Dashboard() {
             </p>
           </div>
         </section>
+
+        {/* Loyalty Points Section */}
+        {membership && (
+          <section className="mb-10 p-6 bg-gradient-to-br from-primary/10 to-transparent rounded-2xl border border-primary/20">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="heading-3 flex items-center gap-2">
+                <Star className="h-5 w-5 text-primary" />
+                Loyalty Points
+              </h2>
+              <Badge variant="outline" className="capitalize">{membership.tier}</Badge>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Your Balance</p>
+                <p className="text-3xl font-bold text-primary">{membership.pointsBalance.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">points</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Member Since</p>
+                <p className="font-medium">
+                  {membership.joinedAt 
+                    ? new Date(membership.joinedAt).toLocaleDateString() 
+                    : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">ID: {membership.memberId || "—"}</p>
+              </div>
+            </div>
+
+            {offers.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-primary/20">
+                <p className="text-sm font-medium flex items-center gap-2 mb-2">
+                  <Gift className="h-4 w-4" />
+                  Available Offers ({offers.length})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {offers.slice(0, 3).map(offer => (
+                    <Badge key={offer.id} variant="secondary" className="text-xs">
+                      {offer.name} • {offer.pointsRequired} pts
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Documents Section */}
         <section className="mb-10 p-6 bg-card rounded-2xl border border-border">

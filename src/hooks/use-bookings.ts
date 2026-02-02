@@ -4,6 +4,12 @@ import { useAuditLog } from "./use-admin";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { handleDepositOnStatusChange } from "@/lib/deposit-automation";
+import { 
+  useAwardPoints, 
+  useReversePoints,
+  calculatePointsToEarn,
+  PointsSettings,
+} from "./use-points";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -294,6 +300,117 @@ export function useUpdateBookingStatus() {
 
       // Handle deposit based on status change
       await handleDepositOnStatusChange(bookingId, newStatus);
+
+      // Handle points based on status change
+      if (newStatus === "completed") {
+        // Award points when booking is completed
+        try {
+          // Fetch full booking details for points calculation
+          const { data: fullBooking } = await supabase
+            .from("bookings")
+            .select("total_amount, tax_amount, user_id")
+            .eq("id", bookingId)
+            .single();
+
+          if (fullBooking) {
+            // Fetch add-ons total
+            const { data: addOnsData } = await supabase
+              .from("booking_add_ons")
+              .select("price")
+              .eq("booking_id", bookingId);
+
+            const addOnsTotal = (addOnsData || []).reduce((sum, a) => sum + (a.price || 0), 0);
+
+            // Fetch points settings
+            const { data: settingsData } = await supabase
+              .from("points_settings")
+              .select("setting_key, setting_value");
+
+            const settings: PointsSettings = {
+              earnRate: { points_per_dollar: 10 },
+              earnBase: { include_addons: true, exclude_taxes: true },
+              redeemRate: { points_per_dollar: 100 },
+              redeemRules: { min_points: 100, max_percent_of_total: 50 },
+              expiration: { enabled: false, months: 12 },
+            };
+
+            (settingsData || []).forEach((row) => {
+              const key = row.setting_key as keyof PointsSettings;
+              if (key in settings) {
+                settings[key] = row.setting_value as any;
+              }
+            });
+
+            const pointsToEarn = calculatePointsToEarn(
+              fullBooking.total_amount || 0,
+              fullBooking.tax_amount || 0,
+              addOnsTotal,
+              settings
+            );
+
+            if (pointsToEarn > 0) {
+              // Calculate expiration date if enabled
+              let expiresAt: string | null = null;
+              if (settings.expiration.enabled) {
+                const expDate = new Date();
+                expDate.setMonth(expDate.getMonth() + settings.expiration.months);
+                expiresAt = expDate.toISOString();
+              }
+
+              // Award points using the safe database function
+              await supabase.rpc("update_points_balance", {
+                p_user_id: fullBooking.user_id,
+                p_points: pointsToEarn,
+                p_booking_id: bookingId,
+                p_transaction_type: "earn",
+                p_money_value: fullBooking.total_amount,
+                p_notes: `Points earned from booking completion`,
+                p_expires_at: expiresAt,
+              });
+
+              console.log(`Awarded ${pointsToEarn} points for booking ${bookingId}`);
+            }
+          }
+        } catch (pointsError) {
+          console.error("Failed to award points:", pointsError);
+          // Don't fail the entire status update if points fail
+        }
+      } else if (newStatus === "cancelled") {
+        // Reverse points when booking is cancelled
+        try {
+          const { data: earnEntry } = await supabase
+            .from("points_ledger")
+            .select("points, user_id")
+            .eq("booking_id", bookingId)
+            .eq("transaction_type", "earn")
+            .maybeSingle();
+
+          if (earnEntry) {
+            // Check if already reversed
+            const { data: existingReverse } = await supabase
+              .from("points_ledger")
+              .select("id")
+              .eq("booking_id", bookingId)
+              .eq("transaction_type", "reverse")
+              .maybeSingle();
+
+            if (!existingReverse) {
+              await supabase.rpc("update_points_balance", {
+                p_user_id: earnEntry.user_id,
+                p_points: -earnEntry.points,
+                p_booking_id: bookingId,
+                p_transaction_type: "reverse",
+                p_notes: `Points reversed due to booking cancellation`,
+              });
+
+              console.log(`Reversed ${earnEntry.points} points for cancelled booking ${bookingId}`);
+            }
+          }
+        } catch (reverseError) {
+          console.error("Failed to reverse points:", reverseError);
+          // Don't fail the entire status update if reversal fails
+        }
+      }
 
       // Create admin alert for status changes
       const category = bookingDetails.vehicle_categories as any;

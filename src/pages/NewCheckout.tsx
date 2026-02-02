@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
 import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
+import { PointsRedemption } from "@/components/checkout/PointsRedemption";
 import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
 
 import { 
@@ -117,6 +118,11 @@ export default function NewCheckout() {
   const [pickupContactName, setPickupContactName] = useState("");
   const [pickupContactPhone, setPickupContactPhone] = useState("");
   const [specialInstructions, setSpecialInstructions] = useState("");
+  
+  // Points redemption state
+  const [pointsDiscount, setPointsDiscount] = useState(0);
+  const [pointsUsed, setPointsUsed] = useState(0);
+  
   // Use category as the vehicle data source
   const vehicle = category;
 
@@ -158,8 +164,18 @@ export default function NewCheckout() {
       protectionName: protectionInfo.name,
       itemized,
       additionalDriversCost,
+      addOnsRawTotal: addOnsTotal,
     };
   }, [vehicle, vehicleCategory, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand]);
+
+  // Final total after points discount
+  const finalTotal = Math.max(0, pricing.total - pointsDiscount);
+
+  // Handler for points redemption
+  const handleApplyPointsDiscount = (discount: number, points: number) => {
+    setPointsDiscount(discount);
+    setPointsUsed(points);
+  };
 
   // Save abandoned cart when user leaves with info filled in
   const saveCartData = useCallback(() => {
@@ -770,7 +786,10 @@ export default function NewCheckout() {
 
                     <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
                       <p className="text-sm font-medium">
-                        Pay at pickup: CA${pricing.total.toFixed(2)}
+                        Pay at pickup: CA${finalTotal.toFixed(2)}
+                        {pointsDiscount > 0 && (
+                          <span className="text-xs text-muted-foreground ml-2">(includes points discount)</span>
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Full payment will be collected when you pick up the vehicle.
@@ -846,11 +865,26 @@ export default function NewCheckout() {
                 </Card>
               )}
 
+              {/* Points Redemption */}
+              <PointsRedemption
+                bookingTotal={pricing.total}
+                onApplyDiscount={handleApplyPointsDiscount}
+                appliedDiscount={pointsDiscount}
+                appliedPoints={pointsUsed}
+              />
+
               {/* Total & Terms */}
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold">Total</h2>
-                  <p className="text-2xl font-bold">CA${pricing.total.toFixed(2)}</p>
+                  <div className="text-right">
+                    {pointsDiscount > 0 && (
+                      <p className="text-sm text-muted-foreground line-through">
+                        CA${pricing.total.toFixed(2)}
+                      </p>
+                    )}
+                    <p className="text-2xl font-bold">CA${finalTotal.toFixed(2)}</p>
+                  </div>
                 </div>
 
                 <Collapsible open={priceDetailsOpen} onOpenChange={setPriceDetailsOpen}>
@@ -922,9 +956,15 @@ export default function NewCheckout() {
                       <span>CA${pricing.gstAmount.toFixed(2)}</span>
                     </div>
                     <Separator className="my-2" />
+                    {pointsDiscount > 0 && (
+                      <div className="flex justify-between text-primary font-medium">
+                        <span>Points Discount ({pointsUsed.toLocaleString()} pts)</span>
+                        <span>-CA${pointsDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-semibold">
                       <span>Total</span>
-                      <span>CA${pricing.total.toFixed(2)}</span>
+                      <span>CA${finalTotal.toFixed(2)}</span>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>

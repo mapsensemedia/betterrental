@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { AddOnsPricingPanel } from "@/components/admin/AddOnsPricingPanel";
+import { PointsSettingsPanel } from "@/components/admin/PointsSettingsPanel";
 import { 
   Settings, 
   Bell, 
@@ -141,6 +142,9 @@ export default function AdminSettings() {
 
         {/* Add-Ons & Pricing */}
         <AddOnsPricingPanel />
+
+        {/* Loyalty Points */}
+        <PointsSettingsPanel />
 
         {/* Recovery Settings */}
         <Card>
