@@ -16,8 +16,8 @@
 | PR3: Standardize Error Handling | ✅ Done | 2026-02-02 |
 | PR4: Normalize State Management | 🔲 Pending | - |
 | PR5: Edge Function Deduplication | ✅ Done | 2026-02-02 |
-| PR6: Schema Validation Centralization | 🔲 Pending | - |
-| PR7: Performance Optimization | 🔲 Pending | - |
+| PR6: Schema Validation Centralization | ✅ Done | 2026-02-02 |
+| PR7: Performance Optimization | ✅ Done | 2026-02-02 |
 
 ---
 
@@ -253,100 +253,76 @@ Dedupe triggers, add idempotency, standardize patterns.
 
 ---
 
-## PR6: Schema Validation Centralization
+## PR6: Schema Validation Centralization ✅ COMPLETED
 
 ### Scope
 Centralize all validation schemas using Zod.
 
-### Current State
-- Validation scattered across components
-- Some validation in edge functions
-- Some validation in hooks
-- Inconsistent error messages
+### What Was Done
+1. ✅ Created `src/lib/schemas/` folder with centralized validation schemas
+2. ✅ Created `booking.ts` - Booking, add-on, and driver validation schemas
+3. ✅ Created `customer.ts` - Email, phone, and profile validation with sanitization helpers
+4. ✅ Created `vehicle.ts` - Category, vehicle unit, and VIN validation schemas
+5. ✅ Created `payment.ts` - Payment, deposit, and refund validation schemas
+6. ✅ Created `index.ts` - Re-exports for easy imports
 
-### Target State
-```
-src/lib/schemas/
-├── index.ts           - Re-exports
-├── booking.ts         - Booking validation
-├── customer.ts        - Customer info validation
-├── payment.ts         - Payment validation
-└── vehicle.ts         - Vehicle/category validation
-```
+### Files Created
+- `src/lib/schemas/index.ts` - Central re-exports
+- `src/lib/schemas/booking.ts` - Booking validation (GuestBookingInput, AuthenticatedBookingInput, etc.)
+- `src/lib/schemas/customer.ts` - Customer validation (emailSchema, phoneSchema, sanitizers)
+- `src/lib/schemas/vehicle.ts` - Vehicle validation (VIN, category, unit schemas)
+- `src/lib/schemas/payment.ts` - Payment validation (deposit, refund, checkout schemas)
 
-### Example Schema
-```typescript
-// src/lib/schemas/booking.ts
-import { z } from "zod";
-
-export const bookingInputSchema = z.object({
-  categoryId: z.string().uuid(),
-  locationId: z.string().uuid(),
-  startAt: z.string().datetime(),
-  endAt: z.string().datetime(),
-  driverAgeBand: z.enum(["21_25", "25_70"]),
-}).refine(
-  (data) => new Date(data.endAt) > new Date(data.startAt),
-  { message: "Return date must be after pickup date" }
-);
-
-export type BookingInput = z.infer<typeof bookingInputSchema>;
-```
-
-### Files to Create/Update
-- `src/lib/schemas/` → New folder
-- `src/pages/NewCheckout.tsx` → Use schemas
-- `supabase/functions/create-guest-booking/index.ts` → Use schemas
+### Key Features
+- Type-safe validation with `z.infer<>` for TypeScript integration
+- Reusable sanitization functions (sanitizeEmail, sanitizePhone, normalizeVin)
+- Validation helpers (isValidEmail, isValidPhone, isValidVin, isValidAgeBand)
+- Configurable max lengths and format validation
+- Refine rules for complex validation (e.g., end date must be after start date)
 
 ### Risk Level: 🟢 Low
 ### Rollback: Git revert (additive change)
 
 ---
 
-## PR7: Performance Optimization
+## PR7: Performance Optimization ✅ COMPLETED
 
 ### Scope
 Memoization, request deduplication, caching improvements.
 
-### Current Issues
-- Some components re-render unnecessarily
-- Some hooks refetch on every mount
-- No request deduplication for parallel calls
+### What Was Done
+1. ✅ Enhanced `src/lib/query-client.ts` with:
+   - Centralized `QUERY_STALE_TIMES` constants for different data types
+   - Helper functions: `prefetchBookingData`, `prefetchCategoryData`
+   - Cache invalidation helpers: `invalidateBookingQueries`, `invalidateFleetQueries`
+2. ✅ Memoized `VehicleCard` component with `React.memo()`
+   - Added `useCallback` for event handlers
+   - Added `loading="lazy"` for images
+3. ✅ Updated `use-browse-categories.ts` to use centralized stale times
+   - Extracted category builder into pure function for better performance
+4. ✅ Updated `use-availability.ts` to use centralized stale times
 
-### Optimizations
+### Files Modified
+- `src/lib/query-client.ts` - Added stale time constants and helper functions
+- `src/components/landing/VehicleCard.tsx` - Memoized with memo() and useCallback
+- `src/hooks/use-browse-categories.ts` - Optimized with centralized stale times
+- `src/hooks/use-availability.ts` - Optimized with centralized stale times
 
-#### 7a: Query Deduplication
-```typescript
-// Already have in query-client.ts
-staleTime: 30 * 1000,
-gcTime: 10 * 60 * 1000,
-```
-
-Add to more queries.
-
-#### 7b: Component Memoization
-```typescript
-// Wrap heavy components
-const VehicleCard = memo(function VehicleCard({ vehicle }) {
-  // ...
-});
-```
-
-#### 7c: Lazy Loading
-```typescript
-// Split large admin pages
-const FleetAnalytics = lazy(() => import('./FleetAnalytics'));
-```
-
-### Files to Update
-- High-traffic components (VehicleCard, BookingSummaryPanel)
-- Admin pages with many tabs
-- Query configurations in hooks
+### Query Stale Time Strategy
+| Data Type | Stale Time | Reason |
+|-----------|------------|--------|
+| realtime | 5s | Real-time data needs freshness |
+| availability | 15s | Booking conflicts need quick updates |
+| bookings | 30s | Balance between freshness and performance |
+| categories | 60s | Moderate change frequency |
+| locations | 5min | Rarely changes |
+| static | 30min | Reference data |
 
 ### Risk Level: 🟢 Low
 ### Rollback: Remove memoization
 
 ---
+
 
 ## Implementation Order
 

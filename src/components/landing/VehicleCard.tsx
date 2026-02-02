@@ -1,4 +1,9 @@
-import { useState } from "react";
+/**
+ * Memoized VehicleCard Component
+ * 
+ * PR7: Performance optimization - memoized to prevent unnecessary re-renders
+ */
+import { memo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Fuel, Users, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +29,7 @@ interface VehicleCardProps {
   variant?: "default" | "compact" | "dark";
 }
 
-export function VehicleCard({
+export const VehicleCard = memo(function VehicleCard({
   id,
   make,
   model,
@@ -44,7 +49,7 @@ export function VehicleCard({
   const { searchData, setSelectedVehicle, isSearchValid } = useRentalBooking();
   const [showModal, setShowModal] = useState(false);
 
-  const handleRentNow = (e: React.MouseEvent) => {
+  const handleRentNow = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -66,7 +71,11 @@ export function VehicleCard({
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
 
     navigate(`/protection?${params.toString()}`);
-  };
+  }, [id, isSearchValid, navigate, searchData, setSelectedVehicle]);
+
+  const handleModalChange = useCallback((open: boolean) => {
+    setShowModal(open);
+  }, []);
 
   const vehicleData = {
     id,
@@ -102,6 +111,7 @@ export function VehicleCard({
               src={imageUrl}
               alt={`${year} ${make} ${model}`}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -245,9 +255,9 @@ export function VehicleCard({
       {/* Vehicle Details Modal */}
       <VehicleDetailsModal
         open={showModal}
-        onOpenChange={setShowModal}
+        onOpenChange={handleModalChange}
         vehicle={vehicleData}
       />
     </>
   );
-}
+});

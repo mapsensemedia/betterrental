@@ -1,5 +1,7 @@
 /**
  * Hook for generating return receipts after deposit processing
+ * 
+ * PR7: Performance optimization - streamlined mutation handling
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
