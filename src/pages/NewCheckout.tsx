@@ -13,6 +13,7 @@ import {
   CreditCard,
   ChevronDown,
   Loader2,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,6 +45,9 @@ import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
 import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
 import { PointsRedemption } from "@/components/checkout/PointsRedemption";
+import { CreditCardInput, CreditCardDisplay } from "@/components/checkout/CreditCardInput";
+import { validateCard, detectCardType, maskCardNumber, CardType } from "@/lib/card-validation";
+import { CREDIT_CARD_AUTHORIZATION_POLICY, CANCELLATION_POLICY } from "@/lib/checkout-policies";
 import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
 
 import { 
@@ -110,6 +114,7 @@ export default function NewCheckout() {
   }, [searchData.ageConfirmed, searchData.ageRange, navigate]);
 
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
   
@@ -260,6 +265,21 @@ export default function NewCheckout() {
       navigate("/search");
       return;
     }
+
+    // Validate credit card
+    const cardValidation = validateCard({
+      number: formData.cardNumber,
+      expiry: formData.expiryDate,
+      cvv: formData.cvv,
+      name: formData.cardName,
+    });
+
+    if (!cardValidation.valid) {
+      setCardErrors(cardValidation.errors);
+      toast({ title: "Please check your card details", variant: "destructive" });
+      return;
+    }
+    setCardErrors({});
 
     if (!formData.termsAccepted) {
       toast({ title: "Please accept the terms and conditions", variant: "destructive" });
@@ -681,122 +701,95 @@ export default function NewCheckout() {
                 </div>
               </Card>
 
-              {/* Payment Method */}
+              {/* Payment - Credit Card Form */}
               <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-6">Payment Method</h2>
-
-                {/* Payment Method Radio Cards */}
-                <div className="space-y-3">
-                  {/* Pay Now Option */}
-                  <label
-                    className={cn(
-                      "flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all",
-                      paymentMethod === "pay-now"
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground/50"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === "pay-now"}
-                      onChange={() => setPaymentMethod("pay-now")}
-                      className="mt-1 w-4 h-4 text-primary"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-5 h-5" />
-                        <span className="font-medium">Pay Now</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Secure payment via Stripe. Instant confirmation.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Pay at Pickup Option */}
-                  <label
-                    className={cn(
-                      "flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all",
-                      paymentMethod === "pay-later"
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-muted-foreground/50"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === "pay-later"}
-                      onChange={() => setPaymentMethod("pay-later")}
-                      className="mt-1 w-4 h-4 text-primary"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-5 h-5" />
-                        <span className="font-medium">Pay at Pickup</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Pay when you pick up the vehicle.
-                      </p>
-                    </div>
-                  </label>
+                <div className="flex items-center gap-2 mb-6">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-semibold">Payment Details</h2>
+                  <Lock className="w-4 h-4 text-muted-foreground ml-auto" />
+                  <span className="text-xs text-muted-foreground">Secure</span>
                 </div>
 
-                {/* Pay Now Info */}
-                {paymentMethod === "pay-now" && (
-                  <div className="mt-4 p-4 bg-muted/50 rounded-lg border border-border">
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      Secure payment via Stripe. You'll be redirected to complete your payment.
-                    </p>
-                  </div>
-                )}
+                {/* Credit Card Input Form */}
+                <CreditCardInput
+                  cardNumber={formData.cardNumber}
+                  cardName={formData.cardName}
+                  expiryDate={formData.expiryDate}
+                  cvv={formData.cvv}
+                  onCardNumberChange={(v) => handleInputChange("cardNumber", v)}
+                  onCardNameChange={(v) => handleInputChange("cardName", v)}
+                  onExpiryDateChange={(v) => handleInputChange("expiryDate", v)}
+                  onCVVChange={(v) => handleInputChange("cvv", v)}
+                  errors={cardErrors}
+                  showValidation={true}
+                />
 
-                {/* Pay Later - Credit Card Required Notice */}
-                {paymentMethod === "pay-later" && (
-                  <div className="mt-4 space-y-4">
-                    <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-                      <p className="font-medium flex items-center gap-2 text-amber-800 dark:text-amber-200">
-                        <CreditCard className="w-4 h-4" />
-                        Credit Card Required at Pickup
-                      </p>
-                      <div className="text-sm text-amber-700 dark:text-amber-300 mt-2 space-y-2">
-                        <p>
-                          At the time of rental, you <strong>MUST</strong> produce a valid credit card and driver's license in your name.
-                        </p>
-                        <p>
-                          <strong>Authorization hold:</strong> We may place an authorized amount of up to <strong>CAD $350</strong> plus estimated charges on your card. These funds will not be available for your use.
-                        </p>
-                        <p className="text-xs mt-2 pt-2 border-t border-amber-200 dark:border-amber-700">
-                          Debit cards are not a valid form of payment for prepaid rates. Reservations must be cancelled prior to pick-up time or will be subject to a <strong>$58.99 CAD No-Show Fee</strong>.
-                        </p>
+                {/* Policy text under the form */}
+                <div className="mt-6 pt-4 border-t border-border space-y-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {CREDIT_CARD_AUTHORIZATION_POLICY.shortVersion}
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {CANCELLATION_POLICY.content}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Debit cards are not a valid form of payment for prepaid rates.
+                  </p>
+                </div>
+
+                {/* Payment Method Selection */}
+                <div className="mt-6 pt-4 border-t border-border">
+                  <p className="text-sm font-medium mb-3">When would you like to pay?</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("pay-now")}
+                      className={cn(
+                        "p-3 rounded-lg border-2 text-left transition-all",
+                        paymentMethod === "pay-now"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      <p className="font-medium text-sm">Pay Now</p>
+                      <p className="text-xs text-muted-foreground">Instant confirmation</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("pay-later")}
+                      className={cn(
+                        "p-3 rounded-lg border-2 text-left transition-all",
+                        paymentMethod === "pay-later"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      <p className="font-medium text-sm">Pay at Pickup</p>
+                      <p className="text-xs text-muted-foreground">Card required on file</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Payment Summary */}
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                  {paymentMethod === "pay-now" ? (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Amount to pay now</p>
+                        <p className="text-xs text-muted-foreground">Secure payment via Stripe</p>
                       </div>
+                      <p className="text-lg font-bold">CA${finalTotal.toFixed(2)}</p>
                     </div>
-
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="font-medium flex items-center gap-2 mb-2">
-                        <Info className="w-4 h-4 text-muted-foreground" />
-                        Please note: At time of rental you will need to present:
-                      </p>
-                      <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
-                        <li>A current, valid driver's license in the renter's name</li>
-                        <li>A valid credit or charge card (not debit)</li>
-                      </ol>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Pay at pickup</p>
+                        <p className="text-xs text-muted-foreground">Card verified for booking</p>
+                      </div>
+                      <p className="text-lg font-bold">CA${finalTotal.toFixed(2)}</p>
                     </div>
-
-                    <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                      <p className="text-sm font-medium">
-                        Pay at pickup: CA${finalTotal.toFixed(2)}
-                        {pointsDiscount > 0 && (
-                          <span className="text-xs text-muted-foreground ml-2">(includes points discount)</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Full payment will be collected when you pick up the vehicle.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </Card>
 
               {/* Save Time at Counter */}
