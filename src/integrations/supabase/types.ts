@@ -1373,6 +1373,51 @@ export type Database = {
           },
         ]
       }
+      offer_redemptions: {
+        Row: {
+          booking_id: string | null
+          discount_value: number
+          id: string
+          offer_id: string
+          points_spent: number
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          discount_value: number
+          id?: string
+          offer_id: string
+          points_spent: number
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          discount_value?: number
+          id?: string
+          offer_id?: string
+          points_spent?: number
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_redemptions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_redemptions_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "points_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -1417,6 +1462,146 @@ export type Database = {
           },
         ]
       }
+      points_ledger: {
+        Row: {
+          balance_after: number
+          booking_id: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          money_value: number | null
+          notes: string | null
+          points: number
+          transaction_type: Database["public"]["Enums"]["points_transaction_type"]
+          user_id: string
+        }
+        Insert: {
+          balance_after: number
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          money_value?: number | null
+          notes?: string | null
+          points: number
+          transaction_type: Database["public"]["Enums"]["points_transaction_type"]
+          user_id: string
+        }
+        Update: {
+          balance_after?: number
+          booking_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          money_value?: number | null
+          notes?: string | null
+          points?: number
+          transaction_type?: Database["public"]["Enums"]["points_transaction_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_ledger_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      points_offers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_uses: number | null
+          description: string | null
+          eligible_categories: string[] | null
+          eligible_locations: string[] | null
+          id: string
+          is_active: boolean
+          max_uses_per_user: number | null
+          max_uses_total: number | null
+          min_rental_days: number | null
+          name: string
+          offer_type: Database["public"]["Enums"]["offer_type"]
+          offer_value: number
+          points_required: number
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_uses?: number | null
+          description?: string | null
+          eligible_categories?: string[] | null
+          eligible_locations?: string[] | null
+          id?: string
+          is_active?: boolean
+          max_uses_per_user?: number | null
+          max_uses_total?: number | null
+          min_rental_days?: number | null
+          name: string
+          offer_type: Database["public"]["Enums"]["offer_type"]
+          offer_value: number
+          points_required: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_uses?: number | null
+          description?: string | null
+          eligible_categories?: string[] | null
+          eligible_locations?: string[] | null
+          id?: string
+          is_active?: boolean
+          max_uses_per_user?: number | null
+          max_uses_total?: number | null
+          min_rental_days?: number | null
+          name?: string
+          offer_type?: Database["public"]["Enums"]["offer_type"]
+          offer_value?: number
+          points_required?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      points_settings: {
+        Row: {
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1432,7 +1617,14 @@ export type Database = {
           full_name: string | null
           id: string
           is_verified: boolean | null
+          member_id: string | null
+          membership_joined_at: string | null
+          membership_status:
+            | Database["public"]["Enums"]["membership_status"]
+            | null
+          membership_tier: Database["public"]["Enums"]["membership_tier"] | null
           phone: string | null
+          points_balance: number
           role: Database["public"]["Enums"]["staff_role"] | null
           updated_at: string
         }
@@ -1450,7 +1642,16 @@ export type Database = {
           full_name?: string | null
           id: string
           is_verified?: boolean | null
+          member_id?: string | null
+          membership_joined_at?: string | null
+          membership_status?:
+            | Database["public"]["Enums"]["membership_status"]
+            | null
+          membership_tier?:
+            | Database["public"]["Enums"]["membership_tier"]
+            | null
           phone?: string | null
+          points_balance?: number
           role?: Database["public"]["Enums"]["staff_role"] | null
           updated_at?: string
         }
@@ -1468,7 +1669,16 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_verified?: boolean | null
+          member_id?: string | null
+          membership_joined_at?: string | null
+          membership_status?:
+            | Database["public"]["Enums"]["membership_status"]
+            | null
+          membership_tier?:
+            | Database["public"]["Enums"]["membership_tier"]
+            | null
           phone?: string | null
+          points_balance?: number
           role?: Database["public"]["Enums"]["staff_role"] | null
           updated_at?: string
         }
@@ -2375,6 +2585,22 @@ export type Database = {
         Args: { p_booking_id: string; p_new_status?: string }
         Returns: undefined
       }
+      update_points_balance: {
+        Args: {
+          p_booking_id?: string
+          p_created_by?: string
+          p_expires_at?: string
+          p_money_value?: number
+          p_notes?: string
+          p_points: number
+          p_transaction_type?: Database["public"]["Enums"]["points_transaction_type"]
+          p_user_id: string
+        }
+        Returns: {
+          ledger_id: string
+          new_balance: number
+        }[]
+      }
     }
     Enums: {
       alert_status: "pending" | "acknowledged" | "resolved"
@@ -2404,6 +2630,15 @@ export type Database = {
         | "repaired"
         | "closed"
       hold_status: "active" | "expired" | "converted"
+      membership_status: "active" | "suspended" | "inactive"
+      membership_tier: "bronze" | "silver" | "gold" | "platinum"
+      offer_type: "percent_off" | "dollar_off" | "free_addon" | "free_upgrade"
+      points_transaction_type:
+        | "earn"
+        | "redeem"
+        | "adjust"
+        | "expire"
+        | "reverse"
       receipt_status: "draft" | "issued" | "voided"
       staff_role: "admin" | "staff" | "cleaner" | "finance"
       ticket_status:
@@ -2577,6 +2812,16 @@ export const Constants = {
         "closed",
       ],
       hold_status: ["active", "expired", "converted"],
+      membership_status: ["active", "suspended", "inactive"],
+      membership_tier: ["bronze", "silver", "gold", "platinum"],
+      offer_type: ["percent_off", "dollar_off", "free_addon", "free_upgrade"],
+      points_transaction_type: [
+        "earn",
+        "redeem",
+        "adjust",
+        "expire",
+        "reverse",
+      ],
       receipt_status: ["draft", "issued", "voided"],
       staff_role: ["admin", "staff", "cleaner", "finance"],
       ticket_status: [

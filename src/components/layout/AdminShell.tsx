@@ -18,6 +18,7 @@ import {
   BarChart3, 
   Workflow,
   Wrench,
+  Gift,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -119,6 +120,12 @@ const navItems: {
     icon: MessageSquare,
     badgeKey: "support",
     description: "Customer tickets",
+  },
+  {
+    href: "/admin/offers",
+    label: "Offers",
+    icon: Gift,
+    description: "Points-based rewards",
   },
   {
     href: "/admin/settings",
