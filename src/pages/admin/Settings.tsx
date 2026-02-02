@@ -89,7 +89,7 @@ export default function AdminSettings() {
                   SMS Alerts
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Receive SMS for urgent alerts (requires Twilio)
+                  Receive SMS for urgent alerts
                 </p>
               </div>
               <div className="flex items-center gap-2">
