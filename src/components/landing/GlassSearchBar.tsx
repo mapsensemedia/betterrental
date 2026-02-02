@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PICKUP_TIME_WINDOWS, DEFAULT_PICKUP_TIME } from "@/lib/rental-rules";
+import { PICKUP_TIME_SLOTS, DEFAULT_PICKUP_TIME } from "@/lib/rental-rules";
 
 interface GlassSearchBarProps {
   className?: string;
@@ -120,10 +120,10 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
                 <SelectValue placeholder="Select time" />
               </div>
             </SelectTrigger>
-            <SelectContent>
-              {PICKUP_TIME_WINDOWS.map((tw) => (
-                <SelectItem key={tw.value} value={tw.value}>
-                  {tw.displayLabel}
+            <SelectContent className="max-h-60">
+              {PICKUP_TIME_SLOTS.map((slot) => (
+                <SelectItem key={slot.value} value={slot.value}>
+                  {slot.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -158,10 +158,10 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
                 <SelectValue placeholder="Select time" />
               </div>
             </SelectTrigger>
-            <SelectContent>
-              {PICKUP_TIME_WINDOWS.map((tw) => (
-                <SelectItem key={tw.value} value={tw.value}>
-                  {tw.displayLabel}
+            <SelectContent className="max-h-60">
+              {PICKUP_TIME_SLOTS.map((slot) => (
+                <SelectItem key={slot.value} value={slot.value}>
+                  {slot.label}
                 </SelectItem>
               ))}
             </SelectContent>

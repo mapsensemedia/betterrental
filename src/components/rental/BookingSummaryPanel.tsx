@@ -11,6 +11,7 @@ import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE, YOUNG_DRIVER_FEE } from "@/lib/pricing";
+import { formatTimeDisplay } from "@/lib/rental-rules";
 import { useSearchParams } from "react-router-dom";
 import { calculateAdditionalDriversCost } from "./AdditionalDriversCard";
 
@@ -175,14 +176,14 @@ export function BookingSummaryPanel({
                   <p className="font-medium">
                     {format(searchData.pickupDate, "MMM d, yyyy")}
                   </p>
-                  <p className="text-muted-foreground">{searchData.pickupTime}</p>
+                  <p className="text-muted-foreground">{formatTimeDisplay(searchData.pickupTime)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Return</p>
                   <p className="font-medium">
                     {format(searchData.returnDate, "MMM d, yyyy")}
                   </p>
-                  <p className="text-muted-foreground">{searchData.returnTime}</p>
+                  <p className="text-muted-foreground">{formatTimeDisplay(searchData.returnTime)}</p>
                 </div>
               </div>
               <p className="text-xs text-primary mt-1 font-medium">

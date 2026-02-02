@@ -54,6 +54,7 @@ import {
   DEFAULT_DEPOSIT_AMOUNT,
   DriverAgeBand 
 } from "@/lib/pricing";
+import { formatTimeDisplay } from "@/lib/rental-rules";
 
 export default function NewCheckout() {
   const navigate = useNavigate();
@@ -1023,7 +1024,7 @@ export default function NewCheckout() {
                           </p>
                         )}
                         <p className="text-muted-foreground">
-                          {searchData.pickupDate && format(searchData.pickupDate, "EEE, dd MMM, yyyy")} | {searchData.pickupTime}
+                          {searchData.pickupDate && format(searchData.pickupDate, "EEE, dd MMM, yyyy")} | {formatTimeDisplay(searchData.pickupTime)}
                         </p>
                       </div>
                     </div>
@@ -1043,7 +1044,7 @@ export default function NewCheckout() {
                           {primaryLocationDisplay || "Location"}
                         </p>
                         <p className="text-muted-foreground">
-                          {searchData.returnDate && format(searchData.returnDate, "EEE, dd MMM, yyyy")} | {searchData.returnTime}
+                          {searchData.returnDate && format(searchData.returnDate, "EEE, dd MMM, yyyy")} | {formatTimeDisplay(searchData.returnTime)}
                         </p>
                       </div>
                     </div>
