@@ -63,6 +63,7 @@ import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
 import { useLocations } from "@/hooks/use-locations";
 import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
 import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth, parseISO, differenceInDays } from "date-fns";
+import { RevenueAnalyticsTab } from "@/components/admin/analytics/RevenueAnalyticsTab";
 
 const chartConfig = {
   views: { label: "Views", color: "hsl(var(--primary))" },
@@ -474,11 +475,15 @@ export default function AdminReports() {
           </Card>
         </div>
 
-        <Tabs defaultValue="revenue" className="space-y-4">
+        <Tabs defaultValue="revenue-addons" className="space-y-4">
           <TabsList className="bg-muted/50 w-full justify-start overflow-x-auto flex-nowrap">
-            <TabsTrigger value="revenue" className="gap-2">
+            <TabsTrigger value="revenue-addons" className="gap-2">
               <DollarSign className="w-4 h-4" />
-              Revenue
+              Revenue & Add-Ons
+            </TabsTrigger>
+            <TabsTrigger value="revenue" className="gap-2">
+              <Wallet className="w-4 h-4" />
+              Overview
             </TabsTrigger>
             <TabsTrigger value="funnel" className="gap-2">
               <TrendingUp className="w-4 h-4" />
@@ -493,6 +498,11 @@ export default function AdminReports() {
               Activity
             </TabsTrigger>
           </TabsList>
+
+          {/* Revenue & Add-On Analytics Tab - Primary */}
+          <TabsContent value="revenue-addons">
+            <RevenueAnalyticsTab />
+          </TabsContent>
 
           {/* Revenue Tab */}
           <TabsContent value="revenue" className="space-y-4">
