@@ -99,6 +99,10 @@ interface BookingData {
   pickup_address: string | null;
   pickup_lat: number | null;
   pickup_lng: number | null;
+  // Card info
+  card_last_four: string | null;
+  card_type: string | null;
+  card_holder_name: string | null;
   vehicles: {
     id: string;
     make: string;
@@ -296,6 +300,9 @@ export default function BookingDetail() {
             pickup_lat,
             pickup_lng,
             vehicle_id,
+            card_last_four,
+            card_type,
+            card_holder_name,
             locations (id, name, address, city)
           `)
           .eq("id", id)
@@ -660,6 +667,30 @@ export default function BookingDetail() {
                     </div>
                   )}
                   <PriceDisclaimer variant="summary" className="pt-2" />
+                  
+                  {/* Card on File */}
+                  {booking.card_last_four && (
+                    <>
+                      <Separator className="my-3" />
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2 text-muted-foreground">
+                          <CreditCard className="h-4 w-4" />
+                          Card on File
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium uppercase px-1.5 py-0.5 bg-muted rounded">
+                            {booking.card_type || 'Card'}
+                          </span>
+                          <span className="font-mono">•••• {booking.card_last_four}</span>
+                        </div>
+                      </div>
+                      {booking.card_holder_name && (
+                        <p className="text-xs text-muted-foreground text-right mt-1">
+                          {booking.card_holder_name}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
