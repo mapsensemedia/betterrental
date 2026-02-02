@@ -109,6 +109,7 @@ export default function FleetCosts() {
     color: "",
     mileage_at_acquisition: "",
     current_mileage: "",
+    tank_capacity_liters: "",
     notes: "",
     status: "active",
   });
@@ -123,6 +124,7 @@ export default function FleetCosts() {
       color: "",
       mileage_at_acquisition: "",
       current_mileage: "",
+      tank_capacity_liters: "",
       notes: "",
       status: "active",
     });
@@ -146,6 +148,7 @@ export default function FleetCosts() {
         ? String(unit.mileage_at_acquisition)
         : "",
       current_mileage: unit.current_mileage ? String(unit.current_mileage) : "",
+      tank_capacity_liters: unit.tank_capacity_liters ? String(unit.tank_capacity_liters) : "",
       notes: unit.notes || "",
       status: unit.status,
     });
@@ -169,7 +172,7 @@ export default function FleetCosts() {
       notes: formData.notes || null,
       status: formData.status,
       category_id: null,
-      tank_capacity_liters: null,
+      tank_capacity_liters: formData.tank_capacity_liters ? Number(formData.tank_capacity_liters) : null,
       location_id: null,
     });
     setIsAddOpen(false);
@@ -192,6 +195,7 @@ export default function FleetCosts() {
       current_mileage: formData.current_mileage
         ? Number(formData.current_mileage)
         : null,
+      tank_capacity_liters: formData.tank_capacity_liters ? Number(formData.tank_capacity_liters) : null,
       notes: formData.notes || null,
       status: formData.status,
     });
@@ -738,6 +742,21 @@ export default function FleetCosts() {
                   min="0"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tank Capacity (Liters)</Label>
+              <Input
+                type="number"
+                value={formData.tank_capacity_liters}
+                onChange={(e) =>
+                  setFormData({ ...formData, tank_capacity_liters: e.target.value })
+                }
+                placeholder="e.g., 60"
+                min="20"
+                max="200"
+                step="0.1"
+              />
             </div>
 
             <div className="space-y-2">
