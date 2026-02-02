@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { calculateFuelCost, getTankSize, TANK_SIZES } from "@/lib/fuel-pricing";
+import { calculateFuelCostForUnit, TANK_SIZES } from "@/lib/fuel-pricing";
 
 export interface AddOn {
   id: string;
@@ -50,28 +50,43 @@ export function useAddOns() {
   });
 }
 
+export interface FuelPricingInfo {
+  ourPrice: number;
+  marketPrice: number;
+  savings: number;
+  tankLiters: number;
+}
+
 /**
  * Calculate total add-on cost for a rental period
  * @param addOns List of available add-ons
  * @param selectedIds IDs of selected add-ons
  * @param rentalDays Number of rental days
- * @param vehicleCategory Optional vehicle category for fuel tank size calculation
+ * @param vehicleCategory Optional vehicle category for fuel tank size calculation (fallback)
+ * @param unitTankCapacity Optional VIN-specific tank capacity in liters (takes priority)
  */
 export function calculateAddOnsCost(
   addOns: AddOn[],
   selectedIds: string[],
   rentalDays: number,
-  vehicleCategory?: string
-): { itemized: Array<{ id: string; name: string; total: number }>; total: number } {
+  vehicleCategory?: string,
+  unitTankCapacity?: number | null
+): { 
+  itemized: Array<{ id: string; name: string; total: number }>; 
+  total: number;
+  fuelPricing?: FuelPricingInfo;
+} {
+  let fuelPricing: FuelPricingInfo | undefined;
+  
   const itemized = selectedIds
     .map((id) => {
       const addon = addOns.find((a) => a.id === id);
       if (!addon) return null;
       
-      // Handle fuel add-on specially - use calculated fuel cost
+      // Handle fuel add-on specially - use VIN-specific or category-based tank size
       if (isFuelAddOn(addon.name)) {
-        const tankSize = vehicleCategory ? getTankSize(vehicleCategory) : TANK_SIZES.default;
-        const fuelCost = calculateFuelCost(tankSize);
+        const fuelCost = calculateFuelCostForUnit(unitTankCapacity, vehicleCategory || "default");
+        fuelPricing = fuelCost;
         return { id: addon.id, name: addon.name, total: fuelCost.ourPrice };
       }
       
@@ -82,5 +97,5 @@ export function calculateAddOnsCost(
 
   const total = itemized.reduce((acc, item) => acc + item.total, 0);
 
-  return { itemized, total };
+  return { itemized, total, fuelPricing };
 }

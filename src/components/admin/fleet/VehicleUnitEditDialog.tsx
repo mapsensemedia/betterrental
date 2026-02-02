@@ -46,6 +46,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
     acquisition_date: "",
     mileage_at_acquisition: "",
     current_mileage: "",
+    tank_capacity_liters: "",
     category_id: "",
     status: "active",
     notes: "",
@@ -61,6 +62,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
         acquisition_date: unit.acquisition_date || "",
         mileage_at_acquisition: unit.mileage_at_acquisition ? String(unit.mileage_at_acquisition) : "",
         current_mileage: unit.current_mileage ? String(unit.current_mileage) : "",
+        tank_capacity_liters: unit.tank_capacity_liters ? String(unit.tank_capacity_liters) : "",
         category_id: unit.category_id || "",
         status: unit.status || "active",
         notes: unit.notes || "",
@@ -81,6 +83,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
       acquisition_date: formData.acquisition_date || null,
       mileage_at_acquisition: formData.mileage_at_acquisition ? Number(formData.mileage_at_acquisition) : null,
       current_mileage: formData.current_mileage ? Number(formData.current_mileage) : null,
+      tank_capacity_liters: formData.tank_capacity_liters ? Number(formData.tank_capacity_liters) : null,
       category_id: formData.category_id || null,
       status: formData.status,
       notes: formData.notes || null,
@@ -225,6 +228,23 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
                 placeholder="25000"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tank_capacity_liters">Fuel Tank Capacity (Liters)</Label>
+            <Input
+              id="tank_capacity_liters"
+              type="number"
+              min="20"
+              max="200"
+              step="0.1"
+              value={formData.tank_capacity_liters}
+              onChange={(e) => setFormData({ ...formData, tank_capacity_liters: e.target.value })}
+              placeholder="60"
+            />
+            <p className="text-xs text-muted-foreground">
+              Used to calculate pre-purchase fuel pricing for this specific vehicle
+            </p>
           </div>
 
           <div className="space-y-2">

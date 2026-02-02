@@ -16,7 +16,7 @@ import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
 import { AdditionalDriversCard, calculateAdditionalDriversCost, type AdditionalDriver } from "@/components/rental/AdditionalDriversCard";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
-import { calculateFuelCost, getTankSize, FUEL_DISCOUNT_CENTS } from "@/lib/fuel-pricing";
+import { calculateFuelCostForUnit, FUEL_DISCOUNT_CENTS } from "@/lib/fuel-pricing";
 
 const ADDON_ICONS: Record<string, typeof Users> = {
   "roadside": Shield,
@@ -227,8 +227,8 @@ export default function AddOns() {
                   // For fuel addon, show special pricing with asterisk
                   if (isFuel) {
                     const categoryName = vehicle?.category || "default";
-                    const tankSize = getTankSize(categoryName);
-                    const fuelCost = calculateFuelCost(tankSize);
+                    // Use category-based fallback (VIN-specific would come from assigned unit)
+                    const fuelCost = calculateFuelCostForUnit(null, categoryName);
                     
                     return (
                       <Card
