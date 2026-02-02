@@ -168,9 +168,11 @@ export function useUpdateVehicleUnit() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
-      queryClient.invalidateQueries({ queryKey: ["vehicle-unit"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-unit", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["fleet-cost-analysis"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-cost-timeline", data.id] });
       toast({ title: "Vehicle unit updated successfully" });
     },
     onError: (error: Error) => {

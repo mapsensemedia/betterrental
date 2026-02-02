@@ -120,6 +120,12 @@ const navItems: {
     badgeKey: "support",
     description: "Customer tickets",
   },
+  {
+    href: "/admin/settings",
+    label: "Settings",
+    icon: Settings,
+    description: "Pricing & configuration",
+  },
 ];
 interface AdminShellProps {
   children: ReactNode;
