@@ -43,7 +43,7 @@ import {
   Clock,
 } from "lucide-react";
 import { 
-  PICKUP_TIME_WINDOWS, 
+  PICKUP_TIME_SLOTS, 
   DEFAULT_PICKUP_TIME 
 } from "@/lib/rental-rules";
 import { 
@@ -423,10 +423,10 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
               </div>
             </div>
 
-            {/* Time Windows */}
+            {/* Time Selection */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Pickup Time Window</Label>
+                <Label>Pickup Time</Label>
                 <Select
                   value={formData.pickupTime}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, pickupTime: value }))}
@@ -434,12 +434,12 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                   <SelectTrigger>
                     <SelectValue placeholder="Select time" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {PICKUP_TIME_WINDOWS.map((tw) => (
-                      <SelectItem key={tw.value} value={tw.value}>
+                  <SelectContent className="max-h-60">
+                    {PICKUP_TIME_SLOTS.map((slot) => (
+                      <SelectItem key={slot.value} value={slot.value}>
                         <div className="flex items-center gap-2">
                           <Clock className="h-3 w-3" />
-                          {tw.label}
+                          {slot.label}
                         </div>
                       </SelectItem>
                     ))}
@@ -447,7 +447,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Return Time Window</Label>
+                <Label>Return Time</Label>
                 <Select
                   value={formData.returnTime}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, returnTime: value }))}
@@ -455,12 +455,12 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                   <SelectTrigger>
                     <SelectValue placeholder="Select time" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {PICKUP_TIME_WINDOWS.map((tw) => (
-                      <SelectItem key={tw.value} value={tw.value}>
+                  <SelectContent className="max-h-60">
+                    {PICKUP_TIME_SLOTS.map((slot) => (
+                      <SelectItem key={slot.value} value={slot.value}>
                         <div className="flex items-center gap-2">
                           <Clock className="h-3 w-3" />
-                          {tw.label}
+                          {slot.label}
                         </div>
                       </SelectItem>
                     ))}

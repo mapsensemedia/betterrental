@@ -96,29 +96,68 @@ export function getDeliveryPricingSummary(): string {
   }).join(" • ");
 }
 
-// ========== PICKUP TIME WINDOWS ==========
-export interface TimeWindow {
-  value: string;
-  label: string;
-  displayLabel: string;
+// ========== PICKUP TIME SLOTS ==========
+export interface TimeSlot {
+  value: string;      // 24h format "HH:MM"
+  label: string;      // Display format "10:00 AM"
 }
 
-export const PICKUP_TIME_WINDOWS: TimeWindow[] = [
-  { value: "08:00", label: "8:00 AM - 10:00 AM", displayLabel: "Morning (8-10 AM)" },
-  { value: "10:00", label: "10:00 AM - 12:00 PM", displayLabel: "Late Morning (10 AM-12 PM)" },
-  { value: "12:00", label: "12:00 PM - 2:00 PM", displayLabel: "Afternoon (12-2 PM)" },
-  { value: "14:00", label: "2:00 PM - 4:00 PM", displayLabel: "Late Afternoon (2-4 PM)" },
-  { value: "16:00", label: "4:00 PM - 6:00 PM", displayLabel: "Evening (4-6 PM)" },
-];
+/**
+ * Generate time slots from start to end with given interval
+ * @param startHour Start hour (0-23)
+ * @param endHour End hour (0-23)
+ * @param intervalMinutes Interval in minutes (default 30)
+ */
+export function generateTimeSlots(
+  startHour: number = 8, 
+  endHour: number = 18, 
+  intervalMinutes: number = 30
+): TimeSlot[] {
+  const slots: TimeSlot[] = [];
+  
+  for (let hour = startHour; hour <= endHour; hour++) {
+    for (let min = 0; min < 60; min += intervalMinutes) {
+      // Skip if we've passed the end hour
+      if (hour === endHour && min > 0) break;
+      
+      const value = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+      const displayHour = hour % 12 || 12;
+      const period = hour < 12 ? 'AM' : 'PM';
+      const label = `${displayHour}:${String(min).padStart(2, '0')} ${period}`;
+      
+      slots.push({ value, label });
+    }
+  }
+  
+  return slots;
+}
+
+// Pre-generated time slots for common use (8 AM to 6 PM, 30-min intervals)
+export const PICKUP_TIME_SLOTS: TimeSlot[] = generateTimeSlots(8, 18, 30);
 
 export const DEFAULT_PICKUP_TIME = "10:00";
 
 /**
- * Get time window by value
+ * Format a 24h time string to display format
+ * @param time24 Time in "HH:MM" format
+ * @returns Formatted time like "10:00 AM"
  */
-export function getTimeWindow(value: string): TimeWindow | undefined {
-  return PICKUP_TIME_WINDOWS.find((tw) => tw.value === value);
+export function formatTimeDisplay(time24: string): string {
+  if (!time24) return "";
+  const [hourStr, minStr] = time24.split(':');
+  const hour = parseInt(hourStr, 10);
+  const displayHour = hour % 12 || 12;
+  const period = hour < 12 ? 'AM' : 'PM';
+  return `${displayHour}:${minStr} ${period}`;
 }
+
+// Legacy compatibility - keep for any code that might still reference this
+/** @deprecated Use PICKUP_TIME_SLOTS instead */
+export const PICKUP_TIME_WINDOWS = PICKUP_TIME_SLOTS.map(slot => ({
+  value: slot.value,
+  label: slot.label,
+  displayLabel: slot.label,
+}));
 
 // ========== FUEL TYPES ==========
 export const FUEL_TYPES = ["Gas", "Diesel", "Electric", "Hybrid"] as const;

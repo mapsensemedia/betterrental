@@ -32,7 +32,7 @@ import { toast } from "@/hooks/use-toast";
 import { DeliveryAddressAutocomplete } from "./DeliveryAddressAutocomplete";
 import { DeliveryMap } from "./DeliveryMap";
 import { DeliveryPricingDisplay } from "./DeliveryPricingDisplay";
-import { PICKUP_TIME_WINDOWS, MAX_RENTAL_DAYS } from "@/lib/rental-rules";
+import { PICKUP_TIME_SLOTS, MAX_RENTAL_DAYS } from "@/lib/rental-rules";
 
 interface RentalSearchCardProps {
   className?: string;
@@ -416,10 +416,10 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
               </div>
             </div>
 
-            {/* Delivery Window */}
+            {/* Delivery Time */}
             <div className="space-y-2 min-w-0">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Delivery Window
+                Delivery Time
               </label>
               <Select value={pickupTime} onValueChange={setPickupTime}>
                 <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
@@ -430,10 +430,10 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
                     </span>
                   </div>
                 </SelectTrigger>
-                <SelectContent>
-                  {PICKUP_TIME_WINDOWS.map((tw) => (
-                    <SelectItem key={tw.value} value={tw.value}>
-                      {tw.displayLabel}
+                <SelectContent className="max-h-60">
+                  {PICKUP_TIME_SLOTS.map((slot) => (
+                    <SelectItem key={slot.value} value={slot.value}>
+                      {slot.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -471,10 +471,10 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
               </div>
             </div>
 
-            {/* Return Window */}
+            {/* Return Time */}
             <div className="space-y-2 min-w-0">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Return Window
+                Return Time
               </label>
               <Select value={returnTime} onValueChange={setReturnTime}>
                 <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
@@ -485,10 +485,10 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
                     </span>
                   </div>
                 </SelectTrigger>
-                <SelectContent>
-                  {PICKUP_TIME_WINDOWS.map((tw) => (
-                    <SelectItem key={tw.value} value={tw.value}>
-                      {tw.displayLabel}
+                <SelectContent className="max-h-60">
+                  {PICKUP_TIME_SLOTS.map((slot) => (
+                    <SelectItem key={slot.value} value={slot.value}>
+                      {slot.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -564,21 +564,21 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           {/* Pickup Time */}
           <div className="space-y-2 min-w-0">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Pickup Window
+              Pickup Time
             </label>
             <Select value={pickupTime} onValueChange={setPickupTime}>
               <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="truncate">
-                    <SelectValue placeholder="Select time window" />
+                    <SelectValue placeholder="Select time" />
                   </span>
                 </div>
               </SelectTrigger>
-              <SelectContent>
-                {PICKUP_TIME_WINDOWS.map((tw) => (
-                  <SelectItem key={tw.value} value={tw.value}>
-                    {tw.displayLabel}
+              <SelectContent className="max-h-60">
+                {PICKUP_TIME_SLOTS.map((slot) => (
+                  <SelectItem key={slot.value} value={slot.value}>
+                    {slot.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -634,21 +634,21 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
           {/* Return Time */}
           <div className="space-y-2 min-w-0">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Return Window
+              Return Time
             </label>
             <Select value={returnTime} onValueChange={setReturnTime}>
               <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="truncate">
-                    <SelectValue placeholder="Select time window" />
+                    <SelectValue placeholder="Select time" />
                   </span>
                 </div>
               </SelectTrigger>
-              <SelectContent>
-                {PICKUP_TIME_WINDOWS.map((tw) => (
-                  <SelectItem key={tw.value} value={tw.value}>
-                    {tw.displayLabel}
+              <SelectContent className="max-h-60">
+                {PICKUP_TIME_SLOTS.map((slot) => (
+                  <SelectItem key={slot.value} value={slot.value}>
+                    {slot.label}
                   </SelectItem>
                 ))}
               </SelectContent>
