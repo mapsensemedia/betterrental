@@ -22,6 +22,8 @@ interface BookingSummaryPanelProps {
   selectedAddOnIds?: string[];
   /** Override additional drivers (for pages that manage selection locally) */
   additionalDrivers?: AdditionalDriver[];
+  /** VIN-specific tank capacity for fuel add-on calculation */
+  unitTankCapacity?: number | null;
 }
 
 export function BookingSummaryPanel({
@@ -30,6 +32,7 @@ export function BookingSummaryPanel({
   protectionDailyRate = 0,
   selectedAddOnIds: overrideAddOnIds,
   additionalDrivers: overrideAdditionalDrivers,
+  unitTankCapacity,
 }: BookingSummaryPanelProps) {
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays } = useRentalBooking();
@@ -66,11 +69,12 @@ export function BookingSummaryPanel({
   const pricing = (() => {
     if (!vehicle) return null;
 
-    const { total: addOnsTotal, itemized } = calculateAddOnsCost(
+    const { total: addOnsTotal, itemized, fuelPricing } = calculateAddOnsCost(
       addOns,
       effectiveAddOnIds,
       rentalDays,
-      vehicleCategory
+      vehicleCategory,
+      unitTankCapacity
     );
     const deliveryFee = searchData.deliveryFee || 0;
     
@@ -102,7 +106,8 @@ export function BookingSummaryPanel({
       gstAmount: breakdown.gstAmount,
       taxAmount: breakdown.taxAmount, 
       total: breakdown.total, 
-      itemized 
+      itemized,
+      fuelPricing,
     };
   })();
 
@@ -224,14 +229,31 @@ export function BookingSummaryPanel({
             <div className="flex-1">
               <p className="text-sm font-medium mb-1">Add-ons</p>
               <ul className="space-y-1">
-                {selectedAddOnsData.map((addon) => (
-                  <li
-                    key={addon.id}
-                    className="text-sm text-muted-foreground flex justify-between"
-                  >
-                    <span>{addon.name}</span>
-                  </li>
-                ))}
+                {selectedAddOnsData.map((addon) => {
+                  const isFuel = addon.name.toLowerCase().includes("fuel");
+                  const fuelInfo = isFuel && pricing?.fuelPricing;
+                  
+                  return (
+                    <li
+                      key={addon.id}
+                      className="text-sm text-muted-foreground"
+                    >
+                      <div className="flex justify-between">
+                        <span>{addon.name}</span>
+                        {fuelInfo && (
+                          <span className="font-medium text-foreground">
+                            CA${fuelInfo.ourPrice.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                      {fuelInfo && (
+                        <p className="text-xs text-emerald-600 mt-0.5">
+                          {fuelInfo.tankLiters}L tank • Save CA${fuelInfo.savings.toFixed(2)}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>

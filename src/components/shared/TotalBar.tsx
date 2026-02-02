@@ -14,12 +14,15 @@ interface TotalBarProps {
   protectionDailyRate?: number;
   /** Override add-on IDs (for pages that manage selection locally) */
   selectedAddOnIds?: string[];
+  /** VIN-specific tank capacity for fuel add-on calculation */
+  unitTankCapacity?: number | null;
 }
 
 export function TotalBar({ 
   className, 
   protectionDailyRate = 0,
   selectedAddOnIds: overrideAddOnIds,
+  unitTankCapacity,
 }: TotalBarProps) {
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays } = useRentalBooking();
@@ -42,7 +45,8 @@ export function TotalBar({
     addOns,
     effectiveAddOnIds,
     rentalDays,
-    vehicleCategory
+    vehicleCategory,
+    unitTankCapacity
   );
   const deliveryFee = searchData.deliveryFee || 0;
 

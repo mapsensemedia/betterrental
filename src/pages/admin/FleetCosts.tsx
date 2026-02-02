@@ -169,6 +169,8 @@ export default function FleetCosts() {
       notes: formData.notes || null,
       status: formData.status,
       category_id: null,
+      tank_capacity_liters: null,
+      location_id: null,
     });
     setIsAddOpen(false);
     resetForm();

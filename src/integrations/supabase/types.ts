@@ -2011,6 +2011,7 @@ export type Database = {
           mileage_at_acquisition: number | null
           notes: string | null
           status: string
+          tank_capacity_liters: number | null
           updated_at: string
           vehicle_id: string
           vendor_contact: string | null
@@ -2036,6 +2037,7 @@ export type Database = {
           mileage_at_acquisition?: number | null
           notes?: string | null
           status?: string
+          tank_capacity_liters?: number | null
           updated_at?: string
           vehicle_id: string
           vendor_contact?: string | null
@@ -2061,6 +2063,7 @@ export type Database = {
           mileage_at_acquisition?: number | null
           notes?: string | null
           status?: string
+          tank_capacity_liters?: number | null
           updated_at?: string
           vehicle_id?: string
           vendor_contact?: string | null

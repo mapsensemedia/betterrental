@@ -35,6 +35,7 @@ export function calculateFuelCost(tankLiters: number = TANK_SIZES.default): {
   ourPrice: number;
   marketPrice: number;
   savings: number;
+  tankLiters: number;
 } {
   const ourPrice = tankLiters * OUR_FUEL_PRICE_PER_LITER;
   const marketPrice = tankLiters * MARKET_FUEL_PRICE_PER_LITER;
@@ -44,11 +45,12 @@ export function calculateFuelCost(tankLiters: number = TANK_SIZES.default): {
     ourPrice: Math.round(ourPrice * 100) / 100,
     marketPrice: Math.round(marketPrice * 100) / 100,
     savings: Math.round(savings * 100) / 100,
+    tankLiters,
   };
 }
 
 /**
- * Get tank size for a category
+ * Get tank size for a category (fallback when no VIN-specific size is available)
  */
 export function getTankSize(category: string): number {
   const lowerCategory = category.toLowerCase();
@@ -60,4 +62,16 @@ export function getTankSize(category: string): number {
   }
   
   return TANK_SIZES.default;
+}
+
+/**
+ * Calculate fuel cost using VIN-specific tank capacity
+ * Falls back to category-based tank size if not specified
+ */
+export function calculateFuelCostForUnit(
+  unitTankCapacity: number | null | undefined,
+  categoryFallback: string = "default"
+): ReturnType<typeof calculateFuelCost> {
+  const tankLiters = unitTankCapacity ?? getTankSize(categoryFallback);
+  return calculateFuelCost(tankLiters);
 }
