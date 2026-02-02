@@ -57,20 +57,20 @@ function useFuelPricingSettings() {
   const query = useQuery({
     queryKey: ["fuel-pricing-settings"],
     queryFn: async () => {
+      // Use raw fetch since system_settings isn't in generated types yet
       const { data, error } = await supabase
-        .from("system_settings")
-        .select("*")
-        .in("key", ["fuel_market_rate", "fuel_discount_cents"])
-        .order("key");
+        .from("system_settings" as any)
+        .select("key, value")
+        .in("key", ["fuel_market_rate", "fuel_discount_cents"]);
 
       if (error) {
-        // Table might not exist yet - return defaults
-        console.warn("Fuel settings not found, using defaults");
+        console.warn("Fuel settings not found, using defaults:", error.message);
         return { marketRate: 1.85, discountCents: 5 };
       }
 
-      const marketRate = data.find((s) => s.key === "fuel_market_rate");
-      const discountCents = data.find((s) => s.key === "fuel_discount_cents");
+      const settings = (data ?? []) as unknown as { key: string; value: string }[];
+      const marketRate = settings.find((s) => s.key === "fuel_market_rate");
+      const discountCents = settings.find((s) => s.key === "fuel_discount_cents");
 
       return {
         marketRate: marketRate ? parseFloat(marketRate.value) : 1.85,
@@ -82,14 +82,14 @@ function useFuelPricingSettings() {
 
   const mutation = useMutation({
     mutationFn: async (values: { marketRate: number; discountCents: number }) => {
-      // Upsert both settings
+      // Upsert both settings using raw queries
       const { error: err1 } = await supabase
-        .from("system_settings")
-        .upsert({ key: "fuel_market_rate", value: String(values.marketRate) }, { onConflict: "key" });
+        .from("system_settings" as any)
+        .upsert({ key: "fuel_market_rate", value: String(values.marketRate) } as any, { onConflict: "key" });
 
       const { error: err2 } = await supabase
-        .from("system_settings")
-        .upsert({ key: "fuel_discount_cents", value: String(values.discountCents) }, { onConflict: "key" });
+        .from("system_settings" as any)
+        .upsert({ key: "fuel_discount_cents", value: String(values.discountCents) } as any, { onConflict: "key" });
 
       if (err1 || err2) throw new Error(err1?.message || err2?.message);
       return values;
