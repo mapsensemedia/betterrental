@@ -60,21 +60,21 @@ export function CardInfoSection({ cardLastFour, cardType, cardHolderName }: Card
   }
   
   return (
-    <div className="p-3 bg-gradient-to-br from-muted to-muted/70 rounded-lg border shadow-sm">
+    <div className="p-4 bg-gradient-to-br from-muted to-muted/70 rounded-lg border shadow-sm min-w-0">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Card on File</span>
         <CardTypeIcon type={(cardType as CardType) || "unknown"} />
       </div>
       
-      <div className="flex items-center gap-1 mb-2">
-        <span className="text-muted-foreground text-lg">••••</span>
-        <span className="text-muted-foreground text-lg">••••</span>
-        <span className="text-muted-foreground text-lg">••••</span>
-        <span className="text-foreground font-mono text-lg tracking-wider font-semibold">{cardLastFour}</span>
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <span className="text-muted-foreground text-base sm:text-lg">••••</span>
+        <span className="text-muted-foreground text-base sm:text-lg">••••</span>
+        <span className="text-muted-foreground text-base sm:text-lg">••••</span>
+        <span className="text-foreground font-mono text-base sm:text-lg tracking-wider font-semibold">{cardLastFour}</span>
       </div>
       
       {cardHolderName && (
-        <div className="text-xs text-muted-foreground uppercase tracking-wide truncate">
+        <div className="text-xs text-muted-foreground uppercase tracking-wide break-words">
           {cardHolderName}
         </div>
       )}
