@@ -68,6 +68,44 @@ export function useMembershipInfo() {
   });
 }
 
+// Map database snake_case keys to frontend camelCase keys
+const DB_KEY_TO_FRONTEND: Record<string, keyof PointsSettings> = {
+  earn_rate: 'earnRate',
+  earn_base: 'earnBase',
+  redeem_rate: 'redeemRate',
+  redeem_rules: 'redeemRules',
+  expiration: 'expiration',
+};
+
+const FRONTEND_KEY_TO_DB: Record<keyof PointsSettings, string> = {
+  earnRate: 'earn_rate',
+  earnBase: 'earn_base',
+  redeemRate: 'redeem_rate',
+  redeemRules: 'redeem_rules',
+  expiration: 'expiration',
+};
+
+// Helper to parse settings from database rows
+export function parsePointsSettings(rows: { setting_key: string; setting_value: unknown }[] | null): PointsSettings {
+  const settings: PointsSettings = {
+    earnRate: { points_per_dollar: 10 },
+    earnBase: { include_addons: true, exclude_taxes: true },
+    redeemRate: { points_per_dollar: 100 },
+    redeemRules: { min_points: 100, max_percent_of_total: 50 },
+    expiration: { enabled: false, months: 12 },
+  };
+
+  (rows || []).forEach((row) => {
+    // Map snake_case DB key to camelCase frontend key
+    const frontendKey = DB_KEY_TO_FRONTEND[row.setting_key];
+    if (frontendKey && frontendKey in settings) {
+      settings[frontendKey] = row.setting_value as any;
+    }
+  });
+
+  return settings;
+}
+
 // Fetch points settings
 export function usePointsSettings() {
   return useQuery<PointsSettings>({
@@ -79,22 +117,7 @@ export function usePointsSettings() {
 
       if (error) throw error;
 
-      const settings: PointsSettings = {
-        earnRate: { points_per_dollar: 10 },
-        earnBase: { include_addons: true, exclude_taxes: true },
-        redeemRate: { points_per_dollar: 100 },
-        redeemRules: { min_points: 100, max_percent_of_total: 50 },
-        expiration: { enabled: false, months: 12 },
-      };
-
-      (data || []).forEach((row) => {
-        const key = row.setting_key as keyof PointsSettings;
-        if (key in settings) {
-          settings[key] = row.setting_value as any;
-        }
-      });
-
-      return settings;
+      return parsePointsSettings(data);
     },
     staleTime: 60000,
   });
@@ -108,7 +131,11 @@ export function useUpdatePointsSettings() {
     mutationFn: async (updates: Partial<PointsSettings>) => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      for (const [key, value] of Object.entries(updates)) {
+      for (const [frontendKey, value] of Object.entries(updates)) {
+        // Map camelCase frontend key to snake_case DB key
+        const dbKey = FRONTEND_KEY_TO_DB[frontendKey as keyof PointsSettings];
+        if (!dbKey) continue;
+        
         const { error } = await supabase
           .from("points_settings")
           .update({ 
@@ -116,7 +143,7 @@ export function useUpdatePointsSettings() {
             updated_at: new Date().toISOString(),
             updated_by: user?.id || null,
           })
-          .eq("setting_key", key);
+          .eq("setting_key", dbKey);
 
         if (error) throw error;
       }
@@ -241,20 +268,7 @@ export function useAwardPoints() {
         .from("points_settings")
         .select("setting_key, setting_value");
 
-      const settings: PointsSettings = {
-        earnRate: { points_per_dollar: 10 },
-        earnBase: { include_addons: true, exclude_taxes: true },
-        redeemRate: { points_per_dollar: 100 },
-        redeemRules: { min_points: 100, max_percent_of_total: 50 },
-        expiration: { enabled: false, months: 12 },
-      };
-
-      (settingsData || []).forEach((row) => {
-        const key = row.setting_key as keyof PointsSettings;
-        if (key in settings) {
-          settings[key] = row.setting_value as any;
-        }
-      });
+      const settings = parsePointsSettings(settingsData);
 
       const pointsToEarn = calculatePointsToEarn(bookingTotal, taxAmount, addOnsTotal, settings);
 
