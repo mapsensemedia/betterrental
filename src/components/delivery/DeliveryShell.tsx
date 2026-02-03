@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useIsAdmin } from "@/hooks/use-admin";
@@ -24,11 +24,13 @@ import {
   MapPin,
   CheckCircle,
   Clock,
-  AlertCircle,
+  AlertTriangle,
   Plus,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { countByPortalStatus } from "@/lib/delivery-portal";
 
 interface DeliveryShellProps {
   children: ReactNode;
@@ -36,10 +38,10 @@ interface DeliveryShellProps {
 
 const navItems = [
   {
-    title: "New Deliveries",
+    title: "Dashboard",
     href: "/delivery",
     icon: Truck,
-    description: "View all pending deliveries",
+    description: "View deliveries",
   },
   {
     title: "Walk-In Booking",
@@ -54,7 +56,7 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: isAdmin } = useIsAdmin();
-  const { data: deliveries } = useMyDeliveries(undefined, true); // Fetch all deliveries
+  const { data: deliveries } = useMyDeliveries(undefined, (isAdmin ?? false) ? "all" : "assigned");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Enable real-time updates for sidebar counts
@@ -82,21 +84,17 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
       .slice(0, 2);
   };
 
-  // Count deliveries by status
-  const statusCounts = {
-    unassigned: deliveries?.filter(d => d.deliveryStatus === "unassigned").length || 0,
-    assigned: deliveries?.filter(d => d.deliveryStatus === "assigned").length || 0,
-    en_route: deliveries?.filter(d => d.deliveryStatus === "en_route" || d.deliveryStatus === "picked_up").length || 0,
-    delivered: deliveries?.filter(d => d.deliveryStatus === "delivered").length || 0,
-  };
+  // Count deliveries by portal status
+  const portalCounts = useMemo(() => countByPortalStatus(deliveries), [deliveries]);
+  const totalPending = portalCounts.pending + portalCounts.en_route;
 
-  const totalPending = statusCounts.unassigned + statusCounts.assigned + statusCounts.en_route;
-
+  // Portal status filters - aligned with dashboard tabs
   const statusFilters = [
-    ...(isAdmin ? [{ key: "unassigned", label: "Unassigned", count: statusCounts.unassigned, icon: AlertCircle, className: "text-orange-600" }] : []),
-    { key: "assigned", label: "Pending", count: statusCounts.assigned, icon: Clock, className: "text-amber-600" },
-    { key: "en_route", label: "En Route", count: statusCounts.en_route, icon: MapPin, className: "text-blue-600" },
-    { key: "delivered", label: "Completed", count: statusCounts.delivered, icon: CheckCircle, className: "text-green-600" },
+    { key: "pending", label: "Pending", count: portalCounts.pending, icon: Clock, className: "text-amber-600" },
+    { key: "en_route", label: "En Route", count: portalCounts.en_route, icon: MapPin, className: "text-blue-600" },
+    { key: "completed", label: "Completed", count: portalCounts.completed, icon: CheckCircle, className: "text-green-600" },
+    { key: "issue", label: "Issue", count: portalCounts.issue, icon: AlertTriangle, className: "text-destructive" },
+    ...(isAdmin ? [{ key: "all", label: "All Deliveries", count: deliveries?.length || 0, icon: List, className: "text-muted-foreground" }] : []),
   ];
 
   return (
