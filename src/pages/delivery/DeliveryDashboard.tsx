@@ -14,7 +14,7 @@ export default function DeliveryDashboard() {
   // Enable real-time updates for deliveries
   useRealtimeDeliveries();
   
-  const { data: deliveries, isLoading, error } = useMyDeliveries();
+  const { data: deliveries, isLoading, error } = useMyDeliveries(undefined, true); // Fetch all deliveries
 
   // Group deliveries by status
   const pending = deliveries?.filter(d => d.deliveryStatus === "assigned") || [];
@@ -39,9 +39,9 @@ export default function DeliveryDashboard() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold">My Deliveries</h1>
+          <h1 className="text-2xl font-bold">New Deliveries</h1>
           <p className="text-muted-foreground">
-            Manage your assigned vehicle deliveries
+            View all pending vehicle deliveries
           </p>
         </div>
 
