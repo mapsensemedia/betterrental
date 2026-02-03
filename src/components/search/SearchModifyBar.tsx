@@ -125,7 +125,7 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
           <DialogHeader>
             <DialogTitle>Modify Your Search</DialogTitle>
           </DialogHeader>
-          <RentalSearchCard />
+          <RentalSearchCard onSearchComplete={() => setShowModifyDialog(false)} />
         </DialogContent>
       </Dialog>
     </>

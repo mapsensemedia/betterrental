@@ -36,9 +36,10 @@ import { PICKUP_TIME_SLOTS, MAX_RENTAL_DAYS } from "@/lib/rental-rules";
 
 interface RentalSearchCardProps {
   className?: string;
+  onSearchComplete?: () => void;
 }
 
-export function RentalSearchCard({ className }: RentalSearchCardProps) {
+export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCardProps) {
   const navigate = useNavigate();
   const {
     searchData,
@@ -279,6 +280,9 @@ export function RentalSearchCard({ className }: RentalSearchCardProps) {
     // Update context with final values
     setPickupDateTime(new Date(`${pickupDate}T${pickupTime}`), pickupTime);
     setReturnDateTime(new Date(`${returnDate}T${returnTime}`), returnTime);
+
+    // Notify parent (e.g., close dialog) before navigation
+    onSearchComplete?.();
 
     // Navigate to browse cars
     navigate("/search");
