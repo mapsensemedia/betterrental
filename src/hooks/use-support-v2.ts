@@ -459,6 +459,20 @@ export function useSendMessageV2() {
     }) => {
       if (!user) throw new Error("Not authenticated");
 
+      // Check if this is the first customer-visible reply from staff
+      let isFirstStaffReply = false;
+      if (messageType === 'customer_visible') {
+        const { data: existingMessages } = await (supabase
+          .from("ticket_messages_v2") as any)
+          .select("id")
+          .eq("ticket_id", ticketId)
+          .eq("sender_type", "staff")
+          .eq("message_type", "customer_visible")
+          .limit(1);
+        
+        isFirstStaffReply = !existingMessages || existingMessages.length === 0;
+      }
+
       const { data, error } = await (supabase
         .from("ticket_messages_v2") as any)
         .insert({
@@ -491,6 +505,35 @@ export function useSendMessageV2() {
         performed_by: user.id,
         note: messageType === 'internal_note' ? 'Internal note added' : 'Customer-visible reply sent',
       });
+
+      // Send SMS notification if this is the first staff reply to customer
+      if (isFirstStaffReply) {
+        try {
+          // Fetch ticket details for SMS
+          const { data: ticket } = await (supabase
+            .from("support_tickets_v2") as any)
+            .select("id, ticket_id, customer_id, guest_phone, guest_name, subject")
+            .eq("id", ticketId)
+            .single();
+
+          if (ticket) {
+            await supabase.functions.invoke("send-support-sms", {
+              body: {
+                ticketId: ticket.id,
+                customerId: ticket.customer_id,
+                guestPhone: ticket.guest_phone,
+                guestName: ticket.guest_name,
+                ticketNumber: ticket.ticket_id,
+                subject: ticket.subject,
+              },
+            });
+            console.log("Support SMS notification sent for ticket:", ticket.ticket_id);
+          }
+        } catch (smsError) {
+          console.error("Failed to send support SMS notification:", smsError);
+          // Don't fail the message send if SMS fails
+        }
+      }
 
       // Update macro usage count if used
       if (macroId) {
