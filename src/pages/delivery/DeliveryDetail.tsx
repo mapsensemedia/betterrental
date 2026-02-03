@@ -2,7 +2,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DeliveryShell } from "@/components/delivery/DeliveryShell";
 import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 import { DeliveryHandoverCapture } from "@/components/delivery/DeliveryHandoverCapture";
+import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { useDeliveryById, type DeliveryStatus } from "@/hooks/use-my-deliveries";
+import { useRealtimeDeliveryStatuses } from "@/hooks/use-realtime-subscriptions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -19,12 +21,16 @@ import {
   Navigation,
   Building,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 
 export default function DeliveryDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
   const { data: delivery, isLoading, error, refetch } = useDeliveryById(bookingId);
+  
+  // Subscribe to real-time delivery status updates
+  useRealtimeDeliveryStatuses(bookingId);
 
   const handleNavigate = () => {
     if (delivery?.pickup_lat && delivery?.pickup_lng) {
@@ -230,6 +236,21 @@ export default function DeliveryDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Rental Agreement - For driver to obtain customer signature on delivery */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Rental Agreement
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="px-4 pb-4">
+              <RentalAgreementSign bookingId={delivery.id} />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Status Update */}
         <DeliveryHandoverCapture
