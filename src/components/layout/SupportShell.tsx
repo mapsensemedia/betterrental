@@ -18,8 +18,6 @@ import {
   MessageSquare,
   BarChart3,
   LogOut,
-  User,
-  Settings,
   Menu,
   X,
   AlertCircle,
@@ -27,9 +25,8 @@ import {
   HelpCircle,
   AlertTriangle,
   Flame,
-  CheckCircle,
-  ChevronRight,
   LayoutDashboard,
+  Car,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
