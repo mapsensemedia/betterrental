@@ -7,13 +7,13 @@ export type DeliveryPortalStatus = "pending" | "en_route" | "completed" | "issue
  */
 export function normalizeDeliveryPortalTab(
   tab: string | null
-): DeliveryPortalStatus | "all" | "my" | null {
+): DeliveryPortalStatus | "all" | "my" | "available" | null {
   if (!tab) return null;
 
   const v = tab.toLowerCase();
 
   // New canonical values
-  if (v === "my" || v === "all") return v;
+  if (v === "my" || v === "all" || v === "available") return v;
   if (v === "pending" || v === "en_route" || v === "completed" || v === "issue") return v;
 
   // Legacy values used by the older UI
