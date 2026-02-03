@@ -2,13 +2,17 @@ import { useSearchParams } from "react-router-dom";
 import { DeliveryShell } from "@/components/delivery/DeliveryShell";
 import { DeliveryCard } from "@/components/delivery/DeliveryCard";
 import { useMyDeliveries, type DeliveryStatus } from "@/hooks/use-my-deliveries";
-import { Loader2, Truck, Clock, MapPin, CheckCircle } from "lucide-react";
+import { useRealtimeDeliveries } from "@/hooks/use-realtime-subscriptions";
+import { Loader2, Truck, Clock, MapPin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
 export default function DeliveryDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const statusFilter = searchParams.get("status") as DeliveryStatus | null;
+  
+  // Enable real-time updates for deliveries
+  useRealtimeDeliveries();
   
   const { data: deliveries, isLoading, error } = useMyDeliveries();
 

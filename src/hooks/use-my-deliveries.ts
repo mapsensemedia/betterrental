@@ -23,18 +23,28 @@ export interface DeliveryBooking {
     email: string | null;
     phone: string | null;
   } | null;
-  vehicle: {
-    make: string;
-    model: string;
-    year: number;
-  } | null;
+  // Enhanced: Vehicle category info
   category: {
+    id: string;
     name: string;
+    imageUrl: string | null;
   } | null;
-  location: {
+  // Enhanced: Assigned unit details
+  assignedUnit: {
+    id: string;
+    vin: string;
+    licensePlate: string | null;
+    color: string | null;
+  } | null;
+  // Enhanced: Dispatch hub location
+  dispatchLocation: {
+    id: string;
     name: string;
     address: string;
+    phone: string | null;
   } | null;
+  // Enhanced: Urgency flag
+  isUrgent: boolean;
 }
 
 export function useMyDeliveries(statusFilter?: DeliveryStatus | "all") {
@@ -46,7 +56,7 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all") {
       if (!user) return [];
 
       // Get bookings assigned to this driver
-      let query = supabase
+      const query = supabase
         .from("bookings")
         .select(`
           id,
@@ -62,7 +72,8 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all") {
           special_instructions,
           user_id,
           vehicle_id,
-          location_id
+          location_id,
+          assigned_unit_id
         `)
         .eq("assigned_driver_id", user.id)
         .in("status", ["confirmed", "active"])
@@ -102,29 +113,51 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all") {
 
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
-      // Get vehicles
-      const vehicleIds = [...new Set(bookings.map(b => b.vehicle_id))];
-      const { data: vehicles } = await supabase
-        .from("vehicles")
-        .select("id, make, model, year")
-        .in("id", vehicleIds);
+      // Get vehicle categories (vehicle_id now points to vehicle_categories)
+      const categoryIds = [...new Set(bookings.map(b => b.vehicle_id))];
+      const { data: categories } = await supabase
+        .from("vehicle_categories")
+        .select("id, name, image_url")
+        .in("id", categoryIds);
 
-      const vehicleMap = new Map(vehicles?.map(v => [v.id, v]) || []);
+      const categoryMap = new Map(categories?.map(c => [c.id, c]) || []);
 
-      // Get locations
+      // Get assigned units if present
+      const unitIds = bookings
+        .map(b => b.assigned_unit_id)
+        .filter((id): id is string => id !== null);
+      
+      let unitMap = new Map<string, { id: string; vin: string; license_plate: string | null; color: string | null }>();
+      if (unitIds.length > 0) {
+        const { data: units } = await supabase
+          .from("vehicle_units")
+          .select("id, vin, license_plate, color")
+          .in("id", unitIds);
+        
+        unitMap = new Map(units?.map(u => [u.id, u]) || []);
+      }
+
+      // Get dispatch hub locations
       const locationIds = [...new Set(bookings.map(b => b.location_id))];
       const { data: locations } = await supabase
         .from("locations")
-        .select("id, name, address")
+        .select("id, name, address, phone")
         .in("id", locationIds);
 
       const locationMap = new Map(locations?.map(l => [l.id, l]) || []);
 
+      // Calculate urgency threshold (2 hours from now)
+      const urgencyThreshold = new Date();
+      urgencyThreshold.setHours(urgencyThreshold.getHours() + 2);
+
       let result = bookings.map(b => {
         const profile = profileMap.get(b.user_id);
-        const vehicle = vehicleMap.get(b.vehicle_id);
+        const category = categoryMap.get(b.vehicle_id);
+        const unit = b.assigned_unit_id ? unitMap.get(b.assigned_unit_id) : null;
         const location = locationMap.get(b.location_id);
         const deliveryStatus = statusMap.get(b.id) || "assigned";
+        const pickupTime = new Date(b.start_at);
+        const isUrgent = pickupTime <= urgencyThreshold && deliveryStatus === "assigned";
 
         return {
           id: b.id,
@@ -144,16 +177,24 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all") {
             email: profile.email,
             phone: profile.phone,
           } : null,
-          vehicle: vehicle ? {
-            make: vehicle.make,
-            model: vehicle.model,
-            year: vehicle.year,
+          category: category ? {
+            id: category.id,
+            name: category.name,
+            imageUrl: category.image_url,
           } : null,
-          category: null,
-          location: location ? {
+          assignedUnit: unit ? {
+            id: unit.id,
+            vin: unit.vin,
+            licensePlate: unit.license_plate,
+            color: unit.color,
+          } : null,
+          dispatchLocation: location ? {
+            id: location.id,
             name: location.name,
             address: location.address,
+            phone: location.phone,
           } : null,
+          isUrgent,
         };
       });
 
@@ -231,7 +272,6 @@ export function useDeliveryById(bookingId: string | undefined) {
         .from("bookings")
         .select(`
           *,
-          vehicles (id, make, model, year, image_url),
           locations (id, name, address, phone)
         `)
         .eq("id", bookingId)
@@ -246,6 +286,24 @@ export function useDeliveryById(bookingId: string | undefined) {
         .eq("id", booking.user_id)
         .single();
 
+      // Get vehicle category
+      const { data: category } = await supabase
+        .from("vehicle_categories")
+        .select("id, name, image_url")
+        .eq("id", booking.vehicle_id)
+        .single();
+
+      // Get assigned unit if present
+      let assignedUnit = null;
+      if (booking.assigned_unit_id) {
+        const { data: unit } = await supabase
+          .from("vehicle_units")
+          .select("id, vin, license_plate, color")
+          .eq("id", booking.assigned_unit_id)
+          .single();
+        assignedUnit = unit;
+      }
+
       // Get delivery status history
       const { data: statusHistory } = await supabase
         .from("delivery_statuses")
@@ -256,6 +314,8 @@ export function useDeliveryById(bookingId: string | undefined) {
       return {
         ...booking,
         customer: profile,
+        category,
+        assignedUnit,
         statusHistory: statusHistory || [],
         currentStatus: statusHistory?.[0]?.status || "assigned",
       };
