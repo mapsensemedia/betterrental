@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 // Types
 export type TicketStatusV2 = 'new' | 'in_progress' | 'waiting_customer' | 'escalated' | 'closed';
-export type TicketCategory = 'billing' | 'booking' | 'ops' | 'damage' | 'website_bug' | 'general';
+export type TicketCategory = 'billing' | 'booking' | 'ops' | 'damage' | 'website_bug' | 'general' | 'incident';
 export type TicketPriority = 'low' | 'medium' | 'high';
 export type MessageType = 'customer_visible' | 'internal_note';
 export type SenderType = 'customer' | 'staff' | 'system';

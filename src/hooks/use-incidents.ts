@@ -256,7 +256,9 @@ export function useCreateIncident() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["incident-cases"] });
       queryClient.invalidateQueries({ queryKey: ["booking-incidents", data.booking_id] });
-      toast.success("Incident case created");
+      queryClient.invalidateQueries({ queryKey: ["support-tickets-v2"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-queue-counts-v2"] });
+      toast.success("Incident case created — a support ticket has been generated");
     },
     onError: (error) => {
       console.error("Failed to create incident:", error);

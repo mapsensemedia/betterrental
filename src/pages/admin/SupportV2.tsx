@@ -106,6 +106,7 @@ const CATEGORY_LABELS: Record<TicketCategory, string> = {
   damage: "Damage",
   website_bug: "Website Bug",
   general: "General",
+  incident: "Incident",
 };
 
 const PRIORITY_CONFIG: Record<TicketPriority, { label: string; className: string }> = {
