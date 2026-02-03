@@ -1955,6 +1955,132 @@ export type Database = {
           },
         ]
       }
+      support_macros: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          usage_count: number | null
+          variables: Json | null
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          usage_count?: number | null
+          variables?: Json | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          usage_count?: number | null
+          variables?: Json | null
+        }
+        Relationships: []
+      }
+      support_tickets_v2: {
+        Row: {
+          assigned_to: string | null
+          booking_id: string | null
+          category: string
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string
+          created_by_type: string
+          customer_id: string | null
+          description: string
+          escalated_at: string | null
+          escalated_by: string | null
+          escalation_note: string | null
+          first_response_at: string | null
+          guest_email: string | null
+          guest_name: string | null
+          guest_phone: string | null
+          id: string
+          incident_id: string | null
+          is_urgent: boolean
+          priority: string
+          resolution_note: string | null
+          status: string
+          subject: string
+          ticket_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          booking_id?: string | null
+          category?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by: string
+          created_by_type?: string
+          customer_id?: string | null
+          description: string
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_note?: string | null
+          first_response_at?: string | null
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          id?: string
+          incident_id?: string | null
+          is_urgent?: boolean
+          priority?: string
+          resolution_note?: string | null
+          status?: string
+          subject: string
+          ticket_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          booking_id?: string | null
+          category?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_type?: string
+          customer_id?: string | null
+          description?: string
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_note?: string | null
+          first_response_at?: string | null
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          id?: string
+          incident_id?: string | null
+          is_urgent?: boolean
+          priority?: string
+          resolution_note?: string | null
+          status?: string
+          subject?: string
+          ticket_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           description: string | null
@@ -2020,6 +2146,47 @@ export type Database = {
           },
         ]
       }
+      ticket_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          new_value: Json | null
+          note: string | null
+          old_value: Json | null
+          performed_by: string
+          ticket_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          old_value?: Json | null
+          performed_by: string
+          ticket_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          old_value?: Json | null
+          performed_by?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_audit_log_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_messages: {
         Row: {
           created_at: string
@@ -2051,6 +2218,54 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_messages_v2: {
+        Row: {
+          created_at: string
+          id: string
+          macro_id: string | null
+          message: string
+          message_type: string
+          sender_id: string
+          sender_type: string
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          macro_id?: string | null
+          message: string
+          message_type?: string
+          sender_id: string
+          sender_type?: string
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          macro_id?: string | null
+          message?: string
+          message_type?: string
+          sender_id?: string
+          sender_type?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_messages_v2_macro_id_fkey"
+            columns: ["macro_id"]
+            isOneToOne: false
+            referencedRelation: "support_macros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_messages_v2_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets_v2"
             referencedColumns: ["id"]
           },
         ]
