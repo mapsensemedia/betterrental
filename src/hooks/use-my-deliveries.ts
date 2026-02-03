@@ -47,16 +47,16 @@ export interface DeliveryBooking {
   isUrgent: boolean;
 }
 
-export function useMyDeliveries(statusFilter?: DeliveryStatus | "all") {
+export function useMyDeliveries(statusFilter?: DeliveryStatus | "all", showAll: boolean = false) {
   const { user } = useAuth();
 
   return useQuery<DeliveryBooking[]>({
-    queryKey: ["my-deliveries", user?.id, statusFilter],
+    queryKey: ["my-deliveries", user?.id, statusFilter, showAll],
     queryFn: async () => {
       if (!user) return [];
 
-      // Get bookings assigned to this driver
-      const query = supabase
+      // Build query - fetch all delivery bookings or just assigned to this driver
+      let query = supabase
         .from("bookings")
         .select(`
           id,
@@ -73,11 +73,17 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all") {
           user_id,
           vehicle_id,
           location_id,
-          assigned_unit_id
+          assigned_unit_id,
+          assigned_driver_id
         `)
-        .eq("assigned_driver_id", user.id)
         .in("status", ["confirmed", "active"])
+        .not("pickup_address", "is", null) // Only delivery bookings (have pickup address)
         .order("start_at", { ascending: true });
+
+      // If not showing all, filter to only this driver's assigned deliveries
+      if (!showAll) {
+        query = query.eq("assigned_driver_id", user.id);
+      }
 
       const { data: bookings, error } = await query;
 

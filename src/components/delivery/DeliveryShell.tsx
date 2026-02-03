@@ -36,10 +36,10 @@ interface DeliveryShellProps {
 
 const navItems = [
   {
-    title: "My Deliveries",
+    title: "New Deliveries",
     href: "/delivery",
     icon: Truck,
-    description: "View assigned deliveries",
+    description: "View all pending deliveries",
   },
   {
     title: "Walk-In Booking",
@@ -54,7 +54,7 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: isAdmin } = useIsAdmin();
-  const { data: deliveries } = useMyDeliveries();
+  const { data: deliveries } = useMyDeliveries(undefined, true); // Fetch all deliveries
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Enable real-time updates for sidebar counts
