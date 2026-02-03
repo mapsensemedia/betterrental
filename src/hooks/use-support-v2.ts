@@ -844,3 +844,260 @@ export function useCreateTicketFromIncident() {
     },
   });
 }
+
+// =====================================
+// CUSTOMER-FACING HOOKS FOR DASHBOARD
+// =====================================
+
+// Customer: Fetch their tickets from support_tickets_v2
+export function useCustomerTicketsV2() {
+  const { user } = useAuth();
+  
+  return useQuery({
+    queryKey: ["customer-tickets-v2", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await (supabase
+        .from("support_tickets_v2") as any)
+        .select(`*`)
+        .eq("customer_id", user.id)
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch last message for each ticket
+      const ticketIds = (data || []).map((t: any) => t.id);
+      if (ticketIds.length === 0) return [];
+
+      const { data: messages } = await (supabase
+        .from("ticket_messages_v2") as any)
+        .select("ticket_id, message, created_at, sender_type, message_type")
+        .in("ticket_id", ticketIds)
+        .eq("message_type", "customer_visible") // Only show customer-visible messages
+        .order("created_at", { ascending: false });
+
+      const lastMessageMap = new Map<string, { message: string; createdAt: string; isStaff: boolean }>();
+      (messages || []).forEach((m: any) => {
+        if (!lastMessageMap.has(m.ticket_id)) {
+          lastMessageMap.set(m.ticket_id, {
+            message: m.message,
+            createdAt: m.created_at,
+            isStaff: m.sender_type === 'staff',
+          });
+        }
+      });
+
+      return (data || []).map((t: any) => ({
+        id: t.id,
+        ticketId: t.ticket_id,
+        subject: t.subject,
+        status: t.status,
+        category: t.category,
+        priority: t.priority,
+        bookingId: t.booking_id,
+        createdAt: t.created_at,
+        updatedAt: t.updated_at,
+        lastMessage: lastMessageMap.get(t.id) || null,
+      }));
+    },
+    enabled: !!user,
+  });
+}
+
+// Customer: Fetch a single ticket with messages (only customer-visible)
+export function useCustomerTicketByIdV2(ticketId: string | null) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["customer-ticket-v2", ticketId],
+    queryFn: async () => {
+      if (!ticketId || !user) return null;
+
+      const { data: ticket, error } = await (supabase
+        .from("support_tickets_v2") as any)
+        .select(`*`)
+        .eq("id", ticketId)
+        .eq("customer_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!ticket) return null;
+
+      // Fetch only customer-visible messages
+      const { data: messages } = await (supabase
+        .from("ticket_messages_v2") as any)
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .eq("message_type", "customer_visible")
+        .order("created_at", { ascending: true });
+
+      // Get sender names
+      const senderIds = [...new Set((messages || []).map((m: any) => m.sender_id))] as string[];
+      const { data: senders } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", senderIds.length > 0 ? senderIds : ['placeholder'] as string[]);
+      const senderMap = new Map(senders?.map(s => [s.id, s.full_name]) || []);
+
+      return {
+        ...ticket,
+        messages: (messages || []).map((m: any) => ({
+          id: m.id,
+          message: m.message,
+          isStaff: m.sender_type === 'staff',
+          createdAt: m.created_at,
+          senderName: senderMap.get(m.sender_id) || (m.sender_type === 'staff' ? "Support Team" : "You"),
+        })),
+      };
+    },
+    enabled: !!ticketId && !!user,
+  });
+}
+
+// Customer: Create a new ticket
+export function useCreateCustomerTicketV2() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      subject,
+      message,
+      bookingId,
+      category = 'general' as TicketCategory,
+    }: {
+      subject: string;
+      message: string;
+      bookingId?: string;
+      category?: TicketCategory;
+    }) => {
+      if (!user) throw new Error("Not authenticated");
+
+      // Generate ticket ID
+      const { data: existingTickets } = await (supabase
+        .from("support_tickets_v2") as any)
+        .select("id")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const lastNum = existingTickets?.[0] ? parseInt(existingTickets[0].ticket_id?.replace('TKT-', '') || '0') : 0;
+      const ticketNumber = `TKT-${String(lastNum + 1).padStart(6, '0')}`;
+
+      // Create ticket
+      const { data: ticket, error } = await (supabase
+        .from("support_tickets_v2") as any)
+        .insert({
+          ticket_id: ticketNumber,
+          subject,
+          description: message,
+          category,
+          priority: 'medium',
+          status: 'new',
+          customer_id: user.id,
+          booking_id: bookingId || null,
+          created_by: user.id,
+          created_by_type: 'customer',
+          is_urgent: false,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Create first message
+      await (supabase.from("ticket_messages_v2") as any).insert({
+        ticket_id: ticket.id,
+        message,
+        message_type: 'customer_visible',
+        sender_id: user.id,
+        sender_type: 'customer',
+      });
+
+      // Add audit log
+      await (supabase.from("ticket_audit_log") as any).insert({
+        ticket_id: ticket.id,
+        action: 'created',
+        performed_by: user.id,
+        new_value: { status: ticket.status, category: ticket.category },
+      });
+
+      return ticket;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-tickets-v2"] });
+      queryClient.invalidateQueries({ queryKey: ["support-tickets-v2"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-queue-counts-v2"] });
+      toast.success("Support ticket created");
+    },
+    onError: (error) => {
+      console.error("Failed to create ticket:", error);
+      toast.error("Failed to create ticket");
+    },
+  });
+}
+
+// Customer: Send a reply to their ticket
+export function useSendCustomerMessageV2() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      ticketId,
+      message,
+    }: {
+      ticketId: string;
+      message: string;
+    }) => {
+      if (!user) throw new Error("Not authenticated");
+
+      // Verify the ticket belongs to this customer
+      const { data: ticket, error: ticketError } = await (supabase
+        .from("support_tickets_v2") as any)
+        .select("id, customer_id, status")
+        .eq("id", ticketId)
+        .eq("customer_id", user.id)
+        .single();
+
+      if (ticketError || !ticket) throw new Error("Ticket not found");
+      if (ticket.status === 'closed') throw new Error("Cannot reply to closed ticket");
+
+      // Create message
+      const { data, error } = await (supabase
+        .from("ticket_messages_v2") as any)
+        .insert({
+          ticket_id: ticketId,
+          message,
+          message_type: 'customer_visible',
+          sender_id: user.id,
+          sender_type: 'customer',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update ticket to waiting_customer status so staff knows there's a new message
+      await (supabase
+        .from("support_tickets_v2") as any)
+        .update({
+          updated_at: new Date().toISOString(),
+          status: ticket.status === 'waiting_customer' ? 'in_progress' : ticket.status,
+        })
+        .eq("id", ticketId);
+
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["customer-tickets-v2"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-ticket-v2", variables.ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["support-tickets-v2"] });
+      toast.success("Message sent");
+    },
+    onError: (error) => {
+      console.error("Failed to send message:", error);
+      toast.error("Failed to send message");
+    },
+  });
+}
