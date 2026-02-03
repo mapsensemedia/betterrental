@@ -8,29 +8,32 @@ export const MIN_RENTAL_DAYS = 1;
 export const MAX_RENTAL_DAYS = 30; // Maximum rental duration
 
 // ========== CANCELLATION POLICY ==========
-export const FREE_CANCELLATION_HOURS = 48; // Hours before pickup for free cancellation
-export const CANCELLATION_PENALTY_DAYS = 1; // Days of rental charged as penalty within 48hrs
+export const FREE_CANCELLATION_HOURS = 48; // Hours before pickup for free cancellation (kept for reference)
+export const CANCELLATION_PENALTY_DAYS = 1; // Days of rental charged as penalty after pickup time
 
 /**
  * Calculate cancellation fee based on hours until pickup
+ * Free cancellation if before pickup time, penalty only after pickup time has passed
  */
 export function calculateCancellationFee(
   hoursUntilPickup: number,
   dailyRate: number
 ): { fee: number; isFree: boolean; reason: string } {
-  if (hoursUntilPickup >= FREE_CANCELLATION_HOURS) {
+  // Free cancellation if pickup time hasn't passed yet
+  if (hoursUntilPickup > 0) {
     return {
       fee: 0,
       isFree: true,
-      reason: `Free cancellation (more than ${FREE_CANCELLATION_HOURS} hours before pickup)`,
+      reason: "Free cancellation (before pickup time)",
     };
   }
 
+  // Penalty only applies after pickup time has passed (no-show scenario)
   const fee = dailyRate * CANCELLATION_PENALTY_DAYS;
   return {
     fee,
     isFree: false,
-    reason: `Cancellation within ${FREE_CANCELLATION_HOURS} hours incurs a ${CANCELLATION_PENALTY_DAYS}-day rental penalty ($${fee.toFixed(2)})`,
+    reason: `Cancellation after pickup time incurs a ${CANCELLATION_PENALTY_DAYS}-day rental penalty ($${fee.toFixed(2)})`,
   };
 }
 
