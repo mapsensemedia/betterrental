@@ -68,11 +68,19 @@ const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 const SupportTickets = lazy(() => import("./pages/support/SupportTickets"));
 const SupportAnalyticsPage = lazy(() => import("./pages/support/SupportAnalytics"));
 
+// Delivery Panel Pages - lazy loaded
+const DeliveryDashboard = lazy(() => import("./pages/delivery/DeliveryDashboard"));
+const DeliveryDetail = lazy(() => import("./pages/delivery/DeliveryDetail"));
+const DeliveryWalkIn = lazy(() => import("./pages/delivery/DeliveryWalkIn"));
+
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
 
 // Support Protection
 import { SupportProtectedRoute } from "./components/support/SupportProtectedRoute";
+
+// Delivery Protection
+import { DeliveryProtectedRoute } from "./components/delivery/DeliveryProtectedRoute";
 
 // Redirects for removed nav items
 import { Navigate } from "react-router-dom";
@@ -158,6 +166,11 @@ const App = () => (
                 {/* Support Panel Routes - Separate from Admin */}
                 <Route path="/support" element={<SupportProtectedRoute><SupportTickets /></SupportProtectedRoute>} />
                 <Route path="/support/analytics" element={<SupportProtectedRoute><SupportAnalyticsPage /></SupportProtectedRoute>} />
+
+                {/* Delivery Panel Routes - For Drivers */}
+                <Route path="/delivery" element={<DeliveryProtectedRoute><DeliveryDashboard /></DeliveryProtectedRoute>} />
+                <Route path="/delivery/walk-in" element={<DeliveryProtectedRoute><DeliveryWalkIn /></DeliveryProtectedRoute>} />
+                <Route path="/delivery/:bookingId" element={<DeliveryProtectedRoute><DeliveryDetail /></DeliveryProtectedRoute>} />
 
                 {/* Redirects for consolidated nav items - all go to Operations hub */}
                 <Route path="/admin/pickups" element={<Navigate to="/admin/bookings?tab=pickups" replace />} />

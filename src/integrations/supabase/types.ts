@@ -796,6 +796,53 @@ export type Database = {
           },
         ]
       }
+      delivery_statuses: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          location_lat: number | null
+          location_lng: number | null
+          notes: string | null
+          photo_urls: Json | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          photo_urls?: Json | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          photo_urls?: Json | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_statuses_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposit_jobs: {
         Row: {
           amount: number
@@ -2005,6 +2052,7 @@ export type Database = {
           created_by: string
           created_by_type: string
           customer_id: string | null
+          damage_id: string | null
           description: string
           escalated_at: string | null
           escalated_by: string | null
@@ -2033,6 +2081,7 @@ export type Database = {
           created_by: string
           created_by_type?: string
           customer_id?: string | null
+          damage_id?: string | null
           description: string
           escalated_at?: string | null
           escalated_by?: string | null
@@ -2061,6 +2110,7 @@ export type Database = {
           created_by?: string
           created_by_type?: string
           customer_id?: string | null
+          damage_id?: string | null
           description?: string
           escalated_at?: string | null
           escalated_by?: string | null
@@ -2079,7 +2129,15 @@ export type Database = {
           ticket_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_v2_damage_id_fkey"
+            columns: ["damage_id"]
+            isOneToOne: false
+            referencedRelation: "damage_reports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_settings: {
         Row: {
@@ -2858,7 +2916,7 @@ export type Database = {
         | "overdue"
         | "customer_issue"
         | "emergency"
-      app_role: "admin" | "staff" | "cleaner" | "finance" | "support"
+      app_role: "admin" | "staff" | "cleaner" | "finance" | "support" | "driver"
       booking_status:
         | "pending"
         | "confirmed"
@@ -3038,7 +3096,7 @@ export const Constants = {
         "customer_issue",
         "emergency",
       ],
-      app_role: ["admin", "staff", "cleaner", "finance", "support"],
+      app_role: ["admin", "staff", "cleaner", "finance", "support", "driver"],
       booking_status: [
         "pending",
         "confirmed",
