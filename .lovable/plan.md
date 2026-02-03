@@ -1,153 +1,110 @@
 
-# Comprehensive Multi-Panel Integration Plan
+# Unified Incidents & Support Integration Plan
 
-## Overview
-This plan addresses three major requirements:
-1. **Damage/Incident ↔ Support Ticket Integration** - Making damage reports visible in Support Panel
-2. **New Delivery Panel** - Creating a dedicated panel for delivery drivers
-3. **Cross-Panel Data Linking** - Ensuring all three panels share the same backend data
+## Problem Summary
+An incident was created for booking C2CML5U2O00 (visible in the database as a row in `incident_cases`) but it does not appear in either:
+1. The Admin Incidents panel (`/admin/incidents`)
+2. The Support Panel (`/support`)
 
----
+This happens because:
+- No trigger auto-creates a support ticket when an incident is filed
+- The Incidents panel's local query joins to `vehicles` table (which is empty) instead of `vehicle_categories`
+- Support Panel has no visibility into incidents
 
-## Part 1: Damage/Incident ↔ Support Ticket Integration
+## Solution Architecture
 
-### Problem
-When a damage incident is created in Active Rental, it does not appear in the Support Panel because:
-- No support ticket is auto-created when damage is reported
-- The `support_tickets_v2` table has `incident_id` but no `damage_id` column
-- Damage reports exist in isolation from the support workflow
+All incidents and damages will flow through the Support Panel as the primary case management hub. The Admin panel will show a summary view linking to Support.
 
-### Solution
-
-#### Database Changes
-1. Add `damage_id` column to `support_tickets_v2` table
-2. Create a database trigger that auto-creates a high-priority "Damage" category ticket when a `damage_reports` row is inserted
-
-#### Code Changes
-1. **Update `use-damages.ts`** - When creating damage, also create a linked support ticket
-2. **Update `use-support-v2.ts`** - Include damage-linked tickets and display damage details
-3. **Update Support Panel UI** - Show damage photos, severity, and vehicle info for damage-category tickets
-4. **Add cross-links** - Link from Admin Damages page to Support ticket and vice versa
-
----
-
-## Part 2: Delivery Panel Architecture
-
-### New Role: `driver`
-Add a `driver` role to the `app_role` enum for delivery personnel with limited access.
-
-### Delivery Panel Features
-
-| Feature | Description |
-|---------|-------------|
-| **My Deliveries** | List of bookings assigned to the logged-in driver |
-| **Delivery Details** | Address, customer contact, pickup time, navigation link |
-| **Create Walk-In Booking** | Simplified booking creation for field drivers |
-| **Update Status** | Mark delivery as "picked up from lot", "en route", "delivered" |
-| **Photo Capture** | Upload handover photos for proof of delivery |
-| **Report Issue** | Quick incident/damage reporting from the field |
-
-### Database Changes
-1. Add `driver` to `app_role` enum
-2. Create `delivery_status` table to track delivery workflow states
-3. Add `delivery_status` column to bookings or use the existing state machine
-
-### New Files to Create
-
+### Data Flow
 ```
-src/pages/delivery/
-├── DeliveryDashboard.tsx     # Main delivery driver home
-├── DeliveryDetail.tsx        # Single delivery details + actions
-└── DeliveryWalkIn.tsx        # Simplified walk-in booking form
-
-src/components/delivery/
-├── DeliveryProtectedRoute.tsx  # Role-based access guard
-├── DeliveryShell.tsx           # Layout shell similar to SupportShell
-├── DeliveryCard.tsx            # Delivery assignment card
-├── DeliveryStatusBadge.tsx     # Visual status indicator
-└── DeliveryHandoverCapture.tsx # Photo upload for proof
-
-src/hooks/
-├── use-delivery-access.ts      # Check if user has driver role
-└── use-my-deliveries.ts        # Fetch deliveries for current driver
+Incident Created → Auto-generate Support Ticket → Visible in /support
+                                               → Quick view in /admin/incidents with link
 ```
 
-### Routes
-```typescript
-/delivery              → DeliveryDashboard (list of my deliveries)
-/delivery/:bookingId   → DeliveryDetail (single delivery + actions)
-/delivery/walk-in      → DeliveryWalkIn (create booking)
-```
+## Implementation Steps
 
----
+### Part 1: Database Changes
 
-## Part 3: Cross-Panel Data Linking
+1. **Add "incident" category to support tickets**
+   - Expand the category constraint to include `incident`
 
-### Unified Backend
-All three panels use the same Supabase tables:
-- `bookings` - Core booking data
-- `damage_reports` - Damage records
-- `incident_cases` - Incident records  
-- `support_tickets_v2` - Support tickets
-- `user_roles` - Role-based access
+2. **Create auto-ticket trigger for incident_cases**
+   - Similar to `auto_create_damage_ticket` but for incidents
+   - Auto-generates a high-priority support ticket when incident is reported
+   - Links via `incident_id` column
 
-### Cross-Navigation Links
+3. **Backfill existing incidents**
+   - Create support tickets for any orphaned incident_cases
 
-| From | To | Link |
-|------|-----|------|
-| Admin Damage → | Support Ticket | "View Ticket" button |
-| Support Damage Ticket → | Admin Damage Detail | "View Damage Report" button |
-| Admin Incident → | Support Ticket | "View Ticket" (if linked) |
-| Delivery Issue → | Admin Incident | Auto-created incident appears in admin |
-| Delivery Issue → | Support Ticket | Auto-created ticket appears in support |
+### Part 2: Frontend - Support Panel Updates
+
+1. **Add "incident" category support**
+   - Update `TicketCategory` type to include "incident"
+   - Add styling for incident-category tickets
+   - Show incident details (severity, type, claim status) inline
+
+2. **Enhance ticket detail view for incidents**
+   - Display incident severity badge
+   - Show incident type (collision, theft, etc.)
+   - Display claim number and status
+   - Link to incident photos
+   - Action buttons: Update Status, File Claim, etc.
+
+### Part 3: Frontend - Admin Panel Simplification
+
+1. **Simplify Incidents page**
+   - Remove the duplicated incident management UI
+   - Show a summary table with quick stats
+   - Add prominent "Manage in Support Panel" link
+   - Keep "Create Incident" button (which will auto-create ticket)
+
+2. **Update CreateIncidentDialog**
+   - After creating incident, query client invalidates support tickets
+   - Toast includes link to the created support ticket
+
+### Part 4: Cross-Navigation
+
+1. **Admin → Support links**
+   - From incident row: "View Ticket" button
+   - From damage row: "View Ticket" button
+
+2. **Support → Admin links**
+   - From incident ticket: "View Full Details" to admin incident detail
+   - From damage ticket: "View Damage Report" link
 
 ---
 
 ## Technical Implementation Details
 
-### 1. Database Migration
+### Database Migration SQL
 
 ```sql
--- Add driver role
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'driver';
+-- 1. Add 'incident' to category options
+-- (category is a text column with CHECK constraint or enum)
+-- Will need to update the constraint/type
 
--- Add damage_id to support tickets
-ALTER TABLE public.support_tickets_v2 
-  ADD COLUMN IF NOT EXISTS damage_id UUID REFERENCES public.damage_reports(id) ON DELETE SET NULL;
-
--- Create delivery status tracking
-CREATE TABLE public.delivery_statuses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
-  status TEXT NOT NULL DEFAULT 'assigned',
-  notes TEXT,
-  photo_urls JSONB DEFAULT '[]',
-  updated_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  CONSTRAINT delivery_status_check CHECK (
-    status IN ('assigned', 'picked_up', 'en_route', 'delivered', 'issue')
-  )
-);
-
--- Enable RLS
-ALTER TABLE public.delivery_statuses ENABLE ROW LEVEL SECURITY;
-
--- RLS: Drivers can read/update their own assigned deliveries
-CREATE POLICY "Drivers can view their deliveries"
-  ON public.delivery_statuses FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.bookings b
-      WHERE b.id = delivery_statuses.booking_id
-      AND b.assigned_driver_id = auth.uid()
-    )
-    OR public.is_admin_or_staff(auth.uid())
-  );
-
--- Function to auto-create support ticket on damage report
-CREATE OR REPLACE FUNCTION public.auto_create_damage_ticket()
+-- 2. Create trigger function for incident cases
+CREATE OR REPLACE FUNCTION public.auto_create_incident_ticket()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_customer_id UUID;
+  v_vehicle_name TEXT;
 BEGIN
+  -- Get customer ID from booking (if exists)
+  IF NEW.booking_id IS NOT NULL THEN
+    SELECT user_id INTO v_customer_id 
+    FROM public.bookings 
+    WHERE id = NEW.booking_id;
+  ELSE
+    v_customer_id := NEW.customer_id;
+  END IF;
+
+  -- Get vehicle name from category
+  SELECT name INTO v_vehicle_name
+  FROM public.vehicle_categories
+  WHERE id = NEW.vehicle_id;
+
+  -- Create support ticket linked to incident
   INSERT INTO public.support_tickets_v2 (
     subject,
     description,
@@ -155,116 +112,103 @@ BEGIN
     priority,
     is_urgent,
     booking_id,
-    damage_id,
+    incident_id,
     customer_id,
     created_by,
-    created_by_type
+    created_by_type,
+    status
   ) VALUES (
-    'Damage Report: ' || NEW.severity || ' - ' || NEW.location_on_vehicle,
+    'Incident: ' || INITCAP(REPLACE(NEW.incident_type, '_', ' ')) || 
+    ' - ' || INITCAP(NEW.severity),
     NEW.description,
-    'damage',
-    CASE WHEN NEW.severity = 'major' THEN 'high' ELSE 'medium' END,
-    NEW.severity = 'major',
+    'incident',
+    CASE 
+      WHEN NEW.severity = 'major' THEN 'high'
+      WHEN NEW.severity = 'moderate' THEN 'medium'
+      ELSE 'low'
+    END,
+    NEW.severity = 'major' OR NOT NEW.is_drivable,
     NEW.booking_id,
     NEW.id,
-    (SELECT user_id FROM bookings WHERE id = NEW.booking_id),
-    NEW.reported_by,
-    'staff'
+    v_customer_id,
+    NEW.created_by,
+    'staff',
+    'new'
   );
+  
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE TRIGGER trigger_auto_create_damage_ticket
-  AFTER INSERT ON public.damage_reports
+-- 3. Create the trigger
+CREATE TRIGGER trigger_auto_create_incident_ticket
+  AFTER INSERT ON public.incident_cases
   FOR EACH ROW
-  EXECUTE FUNCTION public.auto_create_damage_ticket();
+  EXECUTE FUNCTION public.auto_create_incident_ticket();
+
+-- 4. Backfill: Create tickets for existing incidents without tickets
+INSERT INTO public.support_tickets_v2 (
+  subject, description, category, priority, is_urgent,
+  booking_id, incident_id, customer_id, created_by, created_by_type
+)
+SELECT 
+  'Incident: ' || INITCAP(REPLACE(ic.incident_type, '_', ' ')) || ' - ' || INITCAP(ic.severity),
+  ic.description,
+  'incident',
+  CASE WHEN ic.severity = 'major' THEN 'high' ELSE 'medium' END,
+  ic.severity = 'major',
+  ic.booking_id,
+  ic.id,
+  ic.customer_id,
+  ic.created_by,
+  'staff'
+FROM public.incident_cases ic
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.support_tickets_v2 st 
+  WHERE st.incident_id = ic.id
+);
 ```
 
-### 2. Update is_admin_or_staff Function
-Include `driver` role for basic access checks where needed.
+### File Changes
 
-### 3. New Hook: use-delivery-access.ts
-```typescript
-// Check if user has driver role (or higher)
-export function useIsDriverOrAbove() {
-  // Returns true for driver, staff, admin roles
-}
-```
+| File | Changes |
+|------|---------|
+| `src/hooks/use-support-v2.ts` | Add "incident" to `TicketCategory` type, update fetching logic to include incident details |
+| `src/pages/support/SupportTickets.tsx` | Add incident category label/styling, show incident details in ticket detail panel |
+| `src/pages/admin/Incidents.tsx` | Simplify to summary view with "Manage in Support" link |
+| `src/hooks/use-incidents.ts` | Invalidate support-tickets-v2 queries after create |
+| `src/components/admin/CreateIncidentDialog.tsx` | Invalidate support queries, show toast with link |
 
-### 4. New Hook: use-my-deliveries.ts
-```typescript
-// Fetch bookings where assigned_driver_id = current user
-// Include delivery status, customer info, pickup address
-```
+### Support Panel Ticket Detail for Incidents
 
-### 5. DeliveryShell Component
-Similar to SupportShell but with driver-specific navigation:
-- My Deliveries (pending, en route, completed)
-- Create Walk-In
-- Quick navigation back to assigned list
-
-### 6. Support Panel Updates
-- Show damage details inline for damage-category tickets
-- Display linked photos from condition_photos
-- Link to admin damage detail page
-- Show damage severity badge
+When a ticket has `incident_id`, display:
+- Incident severity badge (Minor/Moderate/Major)
+- Incident type (Collision, Theft, Weather, etc.)
+- Claim status (Required/Not Required, Claim Number)
+- Vehicle drivability status
+- Link to incident photos
+- Quick actions: Update Incident Status, Add Claim Number
 
 ---
 
-## User Flows
+## Expected Outcome
 
-### Flow 1: Damage Reported → Support Ticket Created
-1. Staff reports damage in Active Rental
-2. Damage saved to `damage_reports`
-3. Trigger creates `support_tickets_v2` with `damage_id` link
-4. Ticket appears in Support Panel under "Damage" category
-5. Support agent can view damage photos and resolution status
+After implementation:
+1. Creating an incident auto-generates a support ticket
+2. All incident/damage tickets appear in `/support` 
+3. Support agents manage all cases in one unified inbox
+4. Admin panel shows summary with links to Support
+5. Cross-navigation between panels works seamlessly
 
-### Flow 2: Driver Logs In
-1. Driver signs up (or admin assigns driver role)
-2. Driver accesses `/delivery`
-3. Sees list of bookings assigned to them
-4. Can view delivery details, get directions, update status
-5. Can create walk-in booking on the spot
-6. Can report issues (creates incident + ticket)
+## Files to be Modified
 
-### Flow 3: Cross-Panel Navigation
-1. Support agent sees damage ticket
-2. Clicks "View in Admin" → Opens admin damages page with that damage selected
-3. Admin views damage → Clicks "View Ticket" → Opens support panel with ticket selected
+### New/Updated Hooks
+- `src/hooks/use-support-v2.ts` - Add incident category and details
 
----
+### Updated Pages
+- `src/pages/support/SupportTickets.tsx` - Incident ticket rendering
+- `src/pages/admin/Incidents.tsx` - Simplified view with Support link
 
-## Security Considerations
-
-1. **Driver Role Restrictions**:
-   - Can only see bookings assigned to them
-   - Cannot access admin dashboard
-   - Cannot modify pricing or vehicle data
-   - Can create walk-in bookings (limited fields)
-   - Can report issues (creates tickets with their ID)
-
-2. **RLS Policies**:
-   - `delivery_statuses`: Drivers see only their bookings
-   - `bookings`: Drivers can read assigned bookings, not all
-   - `damage_reports`: Drivers can create, not delete
-
-3. **Panel Access**:
-   - Admin Panel: admin, staff, cleaner, finance
-   - Support Panel: admin, staff, support
-   - Delivery Panel: admin, staff, driver
-
----
-
-## Summary of Changes
-
-| Category | Items |
-|----------|-------|
-| **Database** | Add `driver` role, `damage_id` column, `delivery_statuses` table, trigger for auto-ticket creation |
-| **New Pages** | 3 delivery pages (Dashboard, Detail, WalkIn) |
-| **New Components** | 5 delivery components (Shell, Route Guard, Cards, Status) |
-| **New Hooks** | 2 delivery hooks + update to damage/support hooks |
-| **Updated Hooks** | `use-damages.ts`, `use-support-v2.ts`, `use-incidents.ts` |
-| **Updated UI** | Support Panel damage display, cross-navigation links |
-| **Routes** | Add `/delivery/*` routes with protection |
+### Updated Components
+- `src/components/admin/CreateIncidentDialog.tsx` - Query invalidation
+- `src/components/layout/SupportShell.tsx` - Add incident queue item (optional)
