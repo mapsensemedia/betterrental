@@ -8,6 +8,7 @@ interface CardInfoSectionProps {
   cardLastFour: string | null;
   cardType: string | null;
   cardHolderName: string | null;
+  cardExpiry?: string | null;
 }
 
 const CardTypeIcon = ({ type }: { type: CardType }) => {
@@ -47,7 +48,7 @@ const CardTypeIcon = ({ type }: { type: CardType }) => {
   return <CreditCard className="w-5 h-5 text-muted-foreground" />;
 };
 
-export function CardInfoSection({ cardLastFour, cardType, cardHolderName }: CardInfoSectionProps) {
+export function CardInfoSection({ cardLastFour, cardType, cardHolderName, cardExpiry }: CardInfoSectionProps) {
   if (!cardLastFour) {
     return (
       <div className="p-3 bg-muted/50 rounded-lg border border-dashed border-muted-foreground/30">
@@ -60,24 +61,38 @@ export function CardInfoSection({ cardLastFour, cardType, cardHolderName }: Card
   }
   
   return (
-    <div className="p-4 bg-gradient-to-br from-muted to-muted/70 rounded-lg border shadow-sm min-w-0">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Card on File</span>
+    <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-700 dark:to-slate-800 rounded-xl border shadow-lg text-white min-w-0">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[10px] uppercase tracking-wider text-slate-300">Card on File</span>
         <CardTypeIcon type={(cardType as CardType) || "unknown"} />
       </div>
       
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span className="text-muted-foreground text-base sm:text-lg">••••</span>
-        <span className="text-muted-foreground text-base sm:text-lg">••••</span>
-        <span className="text-muted-foreground text-base sm:text-lg">••••</span>
-        <span className="text-foreground font-mono text-base sm:text-lg tracking-wider font-semibold">{cardLastFour}</span>
+      {/* Full card number display (masked except last 4) */}
+      <div className="mb-3">
+        <div className="font-mono text-lg sm:text-xl tracking-[0.2em] flex items-center flex-wrap gap-x-3">
+          <span className="text-slate-400">••••</span>
+          <span className="text-slate-400">••••</span>
+          <span className="text-slate-400">••••</span>
+          <span className="text-white font-semibold">{cardLastFour}</span>
+        </div>
       </div>
       
-      {cardHolderName && (
-        <div className="text-xs text-muted-foreground uppercase tracking-wide break-words">
-          {cardHolderName}
+      {/* Expiry and Name Row */}
+      <div className="flex items-end justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          {cardHolderName && (
+            <div className="text-xs text-slate-300 uppercase tracking-wide break-words">
+              {cardHolderName}
+            </div>
+          )}
         </div>
-      )}
+        {cardExpiry && (
+          <div className="text-right flex-shrink-0">
+            <div className="text-[10px] uppercase text-slate-400 mb-0.5">Expires</div>
+            <div className="font-mono text-sm font-medium">{cardExpiry}</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
