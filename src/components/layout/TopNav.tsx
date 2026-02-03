@@ -26,7 +26,8 @@ export function TopNav() {
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
 
-    if (error) {
+    // Treat "session_not_found" as a successful logout - session already expired
+    if (error && !error.message?.toLowerCase().includes("session")) {
       toast({ title: "Sign out failed", description: error.message, variant: "destructive" });
       return;
     }

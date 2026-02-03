@@ -162,7 +162,11 @@ export function AdminShell({
     }
   };
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      // Ignore session-related errors - session already expired
+    }
     toast({
       title: "Signed out"
     });
