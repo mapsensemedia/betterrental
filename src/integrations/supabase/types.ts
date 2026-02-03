@@ -1397,6 +1397,48 @@ export type Database = {
           },
         ]
       }
+      membership_tiers: {
+        Row: {
+          benefits: Json | null
+          color: string | null
+          created_at: string | null
+          display_name: string
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          min_points: number
+          name: string
+          sort_order: number
+          updated_at: string | null
+        }
+        Insert: {
+          benefits?: Json | null
+          color?: string | null
+          created_at?: string | null
+          display_name: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_points?: number
+          name: string
+          sort_order: number
+          updated_at?: string | null
+        }
+        Update: {
+          benefits?: Json | null
+          color?: string | null
+          created_at?: string | null
+          display_name?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_points?: number
+          name?: string
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       notification_logs: {
         Row: {
           booking_id: string | null

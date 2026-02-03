@@ -8,6 +8,7 @@ import {
   useAwardPoints, 
   useReversePoints,
   calculatePointsToEarn,
+  parsePointsSettings,
   PointsSettings,
 } from "./use-points";
 
@@ -340,20 +341,7 @@ export function useUpdateBookingStatus() {
               .from("points_settings")
               .select("setting_key, setting_value");
 
-            const settings: PointsSettings = {
-              earnRate: { points_per_dollar: 10 },
-              earnBase: { include_addons: true, exclude_taxes: true },
-              redeemRate: { points_per_dollar: 100 },
-              redeemRules: { min_points: 100, max_percent_of_total: 50 },
-              expiration: { enabled: false, months: 12 },
-            };
-
-            (settingsData || []).forEach((row) => {
-              const key = row.setting_key as keyof PointsSettings;
-              if (key in settings) {
-                settings[key] = row.setting_value as any;
-              }
-            });
+            const settings = parsePointsSettings(settingsData);
 
             const pointsToEarn = calculatePointsToEarn(
               fullBooking.total_amount || 0,
