@@ -98,7 +98,6 @@ export function useIncidentCases(filters?: {
         .from("incident_cases")
         .select(`
           *,
-          vehicles (id, make, model, year),
           bookings (id, booking_code)
         `)
         .order("created_at", { ascending: false });
@@ -115,7 +114,30 @@ export function useIncidentCases(filters?: {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as IncidentCase[];
+      
+      // Fetch category info for each incident's vehicle_id
+      const vehicleIds = [...new Set((data || []).map(i => i.vehicle_id).filter(Boolean))];
+      const { data: categoriesData } = vehicleIds.length > 0
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name")
+            .in("id", vehicleIds)
+        : { data: [] };
+      
+      const categoriesMap = new Map((categoriesData || []).map(c => [c.id, c]));
+      
+      return (data || []).map(incident => {
+        const category = categoriesMap.get(incident.vehicle_id);
+        return {
+          ...incident,
+          vehicles: category ? {
+            id: category.id,
+            make: "",
+            model: category.name,
+            year: new Date().getFullYear(),
+          } : undefined,
+        };
+      }) as IncidentCase[];
     },
   });
 }
@@ -131,7 +153,6 @@ export function useIncidentById(incidentId: string | null) {
         .from("incident_cases")
         .select(`
           *,
-          vehicles (id, make, model, year),
           bookings (id, booking_code),
           incident_photos (*)
         `)
@@ -139,7 +160,25 @@ export function useIncidentById(incidentId: string | null) {
         .single();
 
       if (error) throw error;
-      return data as IncidentCase & { incident_photos: any[] };
+      
+      // Fetch category info
+      const { data: categoryData } = data.vehicle_id
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name")
+            .eq("id", data.vehicle_id)
+            .maybeSingle()
+        : { data: null };
+      
+      return {
+        ...data,
+        vehicles: categoryData ? {
+          id: categoryData.id,
+          make: "",
+          model: categoryData.name,
+          year: new Date().getFullYear(),
+        } : undefined,
+      } as IncidentCase & { incident_photos: any[] };
     },
     enabled: !!incidentId,
   });
@@ -154,15 +193,35 @@ export function useBookingIncidents(bookingId: string | null) {
       
       const { data, error } = await supabase
         .from("incident_cases")
-        .select(`
-          *,
-          vehicles (id, make, model, year)
-        `)
+        .select("*")
         .eq("booking_id", bookingId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return (data || []) as IncidentCase[];
+      
+      // Fetch category info for vehicles
+      const vehicleIds = [...new Set((data || []).map(i => i.vehicle_id).filter(Boolean))];
+      const { data: categoriesData } = vehicleIds.length > 0
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name")
+            .in("id", vehicleIds)
+        : { data: [] };
+      
+      const categoriesMap = new Map((categoriesData || []).map(c => [c.id, c]));
+      
+      return (data || []).map(incident => {
+        const category = categoriesMap.get(incident.vehicle_id);
+        return {
+          ...incident,
+          vehicles: category ? {
+            id: category.id,
+            make: "",
+            model: category.name,
+            year: new Date().getFullYear(),
+          } : undefined,
+        };
+      }) as IncidentCase[];
     },
     enabled: !!bookingId,
   });

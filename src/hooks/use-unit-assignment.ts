@@ -34,17 +34,21 @@ export function useAvailableUnits(vehicleId: string | null) {
     queryFn: async (): Promise<AvailableUnit[]> => {
       if (!vehicleId) return [];
 
-      // Get all active units for this vehicle
+      // Get all active units for this category
       const { data: units, error: unitsError } = await supabase
         .from("vehicle_units")
-        .select(`
-          id, vin, license_plate, color, current_mileage, vehicle_id,
-          vehicle:vehicles(make, model, year, category)
-        `)
-        .eq("vehicle_id", vehicleId)
-        .eq("status", "active");
+        .select("id, vin, license_plate, color, current_mileage, vehicle_id, category_id")
+        .eq("category_id", vehicleId) // vehicleId is actually categoryId in the new model
+        .eq("status", "available");
 
       if (unitsError) throw unitsError;
+
+      // Get category info for display
+      const { data: categoryData } = await supabase
+        .from("vehicle_categories")
+        .select("name")
+        .eq("id", vehicleId)
+        .maybeSingle();
 
       // Get units that are currently assigned to active/confirmed bookings
       const { data: assignedBookings, error: bookingsError } = await supabase
@@ -68,8 +72,13 @@ export function useAvailableUnits(vehicleId: string | null) {
           licensePlate: u.license_plate,
           color: u.color,
           currentMileage: u.current_mileage,
-          vehicleId: u.vehicle_id,
-          vehicle: u.vehicle as AvailableUnit["vehicle"],
+          vehicleId: u.category_id || u.vehicle_id,
+          vehicle: {
+            make: "",
+            model: categoryData?.name || "Vehicle",
+            year: new Date().getFullYear(),
+            category: categoryData?.name || "General",
+          },
         }));
     },
     enabled: !!vehicleId,
@@ -304,14 +313,20 @@ export function useBookingAssignedUnit(bookingId: string | null) {
 
       const { data: unit, error: unitError } = await supabase
         .from("vehicle_units")
-        .select(`
-          id, vin, license_plate, color, current_mileage, vehicle_id,
-          vehicle:vehicles(make, model, year, category)
-        `)
+        .select("id, vin, license_plate, color, current_mileage, vehicle_id, category_id")
         .eq("id", booking.assigned_unit_id)
         .single();
 
       if (unitError) throw unitError;
+
+      // Get category info
+      const { data: categoryData } = unit.category_id
+        ? await supabase
+            .from("vehicle_categories")
+            .select("name")
+            .eq("id", unit.category_id)
+            .maybeSingle()
+        : { data: null };
 
       return {
         id: unit.id,
@@ -319,8 +334,13 @@ export function useBookingAssignedUnit(bookingId: string | null) {
         licensePlate: unit.license_plate,
         color: unit.color,
         currentMileage: unit.current_mileage,
-        vehicleId: unit.vehicle_id,
-        vehicle: unit.vehicle as AvailableUnit["vehicle"],
+        vehicleId: unit.category_id || unit.vehicle_id,
+        vehicle: {
+          make: "",
+          model: categoryData?.name || "Vehicle",
+          year: new Date().getFullYear(),
+          category: categoryData?.name || "General",
+        },
       };
     },
     enabled: !!bookingId,

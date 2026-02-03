@@ -81,7 +81,6 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
         .from("bookings")
         .select(`
           *,
-          vehicles (id, make, model, year, image_url),
           locations (id, name, city, address)
         `)
         .eq("status", "active")
@@ -101,6 +100,17 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
       }
 
       if (!bookings || bookings.length === 0) return [];
+
+      // Fetch categories for vehicle info (vehicle_id points to vehicle_categories)
+      const categoryIds = [...new Set(bookings.map(b => b.vehicle_id).filter(Boolean))];
+      const { data: categoriesData } = categoryIds.length > 0
+        ? await supabase
+            .from("vehicle_categories")
+            .select("id, name, image_url")
+            .in("id", categoryIds)
+        : { data: [] };
+      
+      const categoriesMap = new Map((categoriesData || []).map(c => [c.id, c]));
 
       // Use batch utilities to prevent N+1 queries
       const userIds = [...new Set(bookings.map(b => b.user_id))];
@@ -146,13 +156,16 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
           pickupAddress: b.pickup_address,
           pickupLat: b.pickup_lat,
           pickupLng: b.pickup_lng,
-          vehicle: b.vehicles ? {
-            id: b.vehicles.id,
-            make: b.vehicles.make,
-            model: b.vehicles.model,
-            year: b.vehicles.year,
-            imageUrl: b.vehicles.image_url,
-          } : null,
+          vehicle: (() => {
+            const category = categoriesMap.get(b.vehicle_id);
+            return category ? {
+              id: category.id,
+              make: "",
+              model: category.name,
+              year: new Date().getFullYear(),
+              imageUrl: category.image_url,
+            } : null;
+          })(),
           location: b.locations ? {
             id: b.locations.id,
             name: b.locations.name,
