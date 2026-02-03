@@ -634,6 +634,27 @@ export default function BookingDetail() {
                       <span>Total:</span>
                       <span>${Number(booking.total_amount).toFixed(2)}</span>
                     </div>
+                    
+                    {/* Card on File */}
+                    {booking.card_last_four && (
+                      <>
+                        <Separator />
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Card on File:</span>
+                            <span className="font-mono">
+                              {booking.card_type?.toUpperCase() || "Card"} •••• {booking.card_last_four}
+                            </span>
+                          </div>
+                          {booking.card_holder_name && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Cardholder:</span>
+                              <span>{booking.card_holder_name}</span>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
 

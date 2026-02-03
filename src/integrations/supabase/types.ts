@@ -368,6 +368,7 @@ export type Database = {
           card_last_four: string | null
           card_type: string | null
           created_at: string
+          customer_marked_returned_at: string | null
           daily_rate: number
           deposit_amount: number | null
           driver_age_band: string | null
@@ -376,6 +377,11 @@ export type Database = {
           handed_over_by: string | null
           handover_sms_sent_at: string | null
           id: string
+          late_return_fee: number | null
+          late_return_fee_override: number | null
+          late_return_override_at: string | null
+          late_return_override_by: string | null
+          late_return_override_reason: string | null
           location_id: string
           notes: string | null
           original_vehicle_id: string | null
@@ -421,6 +427,7 @@ export type Database = {
           card_last_four?: string | null
           card_type?: string | null
           created_at?: string
+          customer_marked_returned_at?: string | null
           daily_rate: number
           deposit_amount?: number | null
           driver_age_band?: string | null
@@ -429,6 +436,11 @@ export type Database = {
           handed_over_by?: string | null
           handover_sms_sent_at?: string | null
           id?: string
+          late_return_fee?: number | null
+          late_return_fee_override?: number | null
+          late_return_override_at?: string | null
+          late_return_override_by?: string | null
+          late_return_override_reason?: string | null
           location_id: string
           notes?: string | null
           original_vehicle_id?: string | null
@@ -474,6 +486,7 @@ export type Database = {
           card_last_four?: string | null
           card_type?: string | null
           created_at?: string
+          customer_marked_returned_at?: string | null
           daily_rate?: number
           deposit_amount?: number | null
           driver_age_band?: string | null
@@ -482,6 +495,11 @@ export type Database = {
           handed_over_by?: string | null
           handover_sms_sent_at?: string | null
           id?: string
+          late_return_fee?: number | null
+          late_return_fee_override?: number | null
+          late_return_override_at?: string | null
+          late_return_override_by?: string | null
+          late_return_override_reason?: string | null
           location_id?: string
           notes?: string | null
           original_vehicle_id?: string | null
