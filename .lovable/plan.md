@@ -1,107 +1,101 @@
 
-# Delivery Booking Ops Flow Enhancement Plan
+# Points & Membership System Fix Plan
 
-## Overview
+## Problems Identified
 
-This plan addresses how to differentiate the BookingOps wizard for "Bring Car to Me" (delivery) bookings versus standard pickup bookings. The core insight is that delivery bookings have fundamentally different logistics: the vehicle travels TO the customer rather than the customer arriving at the location.
+### 1. Points Settings Key Mismatch
+The database stores setting keys in `snake_case` format (`earn_rate`, `earn_base`, etc.) but the frontend code expects `camelCase` keys (`earnRate`, `earnBase`, etc.). This causes the settings to never be properly loaded from the database.
 
----
+**Database keys:** `earn_rate`, `earn_base`, `redeem_rate`, `redeem_rules`, `expiration`
+**Code expects:** `earnRate`, `earnBase`, `redeemRate`, `redeemRules`, `expiration`
 
-## Current State Analysis
+### 2. Missing Membership Tiers Table
+The `MembershipManagementPanel` component tries to query a `membership_tiers` table that does not exist in the database. This table needs to be created to store tier configuration.
 
-### How Delivery Bookings Are Identified
-A booking is considered a delivery booking when:
-- `pickup_address IS NOT NULL` (primary indicator)
-- The booking was made with "Bring Car to Me" delivery mode selected
+### 3. Points Not Being Awarded
+Because the settings aren't loading correctly (Issue 1), when a booking is marked as "completed", the points calculation uses only default values and the settings lookup fails silently. The completed booking `ACTV0001` has no points ledger entry.
 
-### Current BookingOps Flow (6 Steps)
-1. **Pre-Arrival Prep** - Vehicle checklist + photos
-2. **Customer Check-In** - Gov ID, license verification
-3. **Payment & Deposit** - Payment collection
-4. **Rental Agreement** - Manual signing
-5. **Vehicle Walkaround** - Staff inspection
-6. **Handover & Activation** - Keys + SMS
-
-### Gap Analysis
-The current flow assumes **in-person pickup at a location**. For delivery bookings:
-
-| Step | Standard Pickup | Delivery Booking |
-|------|-----------------|------------------|
-| Prep | Done at location before customer arrives | Done at dispatch hub before driver leaves |
-| Check-In | Customer physically present | Driver verifies at delivery address |
-| Payment | Usually already paid online | Same, but deposit may be collected on delivery |
-| Agreement | Signed in-person at counter | Signed at delivery address (or pre-signed online) |
-| Walkaround | Joint inspection at location | Driver does walkaround at delivery point |
-| Handover | Hand keys at counter | Hand keys at customer's address |
+### 4. Customer Dashboard Display
+While the dashboard code is correct, it shows 0 points because no points have been awarded due to the above issues.
 
 ---
 
-## Proposed Solution
+## Solution
 
-### A. Add "Delivery Mode" Detection & Visual Indicator
+### Step 1: Create Membership Tiers Table
+Create the missing `membership_tiers` table with proper structure and seed data for Bronze, Silver, Gold, and Platinum tiers.
 
-Display a prominent delivery banner at the top of BookingOps when `pickup_address` exists, showing:
-- Delivery address
-- Assigned driver (or "Unassigned" warning)
-- Dispatch hub origin
-- Link to open in Delivery Portal
+```sql
+CREATE TABLE membership_tiers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT UNIQUE NOT NULL,
+  display_name TEXT NOT NULL,
+  min_points INTEGER NOT NULL DEFAULT 0,
+  benefits JSONB DEFAULT '[]',
+  color TEXT DEFAULT '#CD7F32',
+  icon TEXT DEFAULT 'medal',
+  sort_order INTEGER NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-### B. Modify Step Definitions for Delivery Flow
+-- Seed default tiers
+INSERT INTO membership_tiers (name, display_name, min_points, benefits, color, icon, sort_order)
+VALUES 
+  ('bronze', 'Bronze', 0, '["5% bonus points", "Birthday reward"]', '#CD7F32', 'medal', 1),
+  ('silver', 'Silver', 5000, '["10% bonus points", "Priority support", "Free GPS on rentals"]', '#C0C0C0', 'award', 2),
+  ('gold', 'Gold', 15000, '["15% bonus points", "Free upgrades", "Dedicated support line"]', '#FFD700', 'crown', 3),
+  ('platinum', 'Platinum', 30000, '["25% bonus points", "Exclusive offers", "VIP lounge access"]', '#E5E4E2', 'gem', 4);
 
-Create a parallel step configuration (`DELIVERY_OPS_STEPS`) that replaces or augments standard steps:
+-- RLS policies
+ALTER TABLE membership_tiers ENABLE ROW LEVEL SECURITY;
 
-```text
-DELIVERY OPS STEPS (6 Steps - Same Count, Different Context)
-
-1. Dispatch Prep (replaces "Pre-Arrival Prep")
-   - Vehicle checklist (same)
-   - Pre-inspection photos (same)
-   - NEW: Assign driver (required before dispatch)
-   - NEW: Driver acknowledgement checkbox
-
-2. En Route (NEW - replaces "Check-In" for delivery context)
-   - Driver marked "en route" in Delivery Portal
-   - Customer notified via SMS
-   - ETA displayed
-   - Driver can update status from mobile
-
-3. Payment & Deposit (same)
-   - Show "Collect on delivery" note if deposit not yet held
-
-4. On-Site Agreement (renamed from "Rental Agreement")
-   - Agreement signing at delivery location
-   - Or: Show if customer pre-signed online
-
-5. On-Site Walkaround (renamed from "Vehicle Walkaround")
-   - Performed at delivery address by driver
-   - Photo upload from driver's device
-
-6. Handover & Activation (same behavior)
-   - Driver hands keys
-   - SMS confirmation
-   - Rental activated
+CREATE POLICY "Anyone can view tiers" ON membership_tiers FOR SELECT USING (true);
+CREATE POLICY "Admins can modify tiers" ON membership_tiers FOR ALL USING (is_admin_or_staff(auth.uid()));
 ```
 
-### C. Conditional UI Rendering
+### Step 2: Fix Points Settings Key Mapping
+Update the frontend code to properly map between database snake_case keys and frontend camelCase keys.
 
-The step sidebar and content will dynamically switch based on `booking.pickup_address`:
+**Files to modify:**
+- `src/hooks/use-points.ts` - Add key mapping in `usePointsSettings()` and `useUpdatePointsSettings()`
+- `src/hooks/use-bookings.ts` - Fix the inline settings parsing
 
-```text
-const isDeliveryBooking = !!booking.pickup_address;
-const steps = isDeliveryBooking ? DELIVERY_OPS_STEPS : OPS_STEPS;
+**Key mapping approach:**
+```typescript
+const KEY_MAP: Record<string, keyof PointsSettings> = {
+  earn_rate: 'earnRate',
+  earn_base: 'earnBase',
+  redeem_rate: 'redeemRate',
+  redeem_rules: 'redeemRules',
+  expiration: 'expiration',
+};
+
+// When reading from DB:
+const mappedKey = KEY_MAP[row.setting_key];
+if (mappedKey) {
+  settings[mappedKey] = row.setting_value;
+}
+
+// When writing to DB:
+const REVERSE_KEY_MAP: Record<keyof PointsSettings, string> = {
+  earnRate: 'earn_rate',
+  earnBase: 'earn_base',
+  redeemRate: 'redeem_rate',
+  redeemRules: 'redeem_rules',
+  expiration: 'expiration',
+};
 ```
 
-### D. Add Driver Assignment Gate
+### Step 3: Retroactively Award Points for Completed Bookings
+Create an admin action or one-time script to award points for already-completed bookings that didn't get points.
 
-For delivery bookings, add a **blocking issue** if no driver is assigned:
-- Step 1 (Dispatch Prep) cannot be completed without `assigned_driver_id`
-- Show prominent "Assign Driver" action button
+**Option A:** Add a "Sync Missing Points" button in admin settings
+**Option B:** Run a database function to backfill
 
-### E. Integration with Delivery Portal
-
-Add bidirectional linking:
-- **In BookingOps**: "Open in Delivery Portal" button for delivery bookings
-- **In Delivery Portal**: Deep link to BookingOps for admin-level tasks
+### Step 4: Real-time Points Updates
+Ensure the customer dashboard refreshes points when they change by adding `points_ledger` and `profiles` to the realtime subscription.
 
 ---
 
@@ -109,91 +103,26 @@ Add bidirectional linking:
 
 | File | Changes |
 |------|---------|
-| `src/lib/ops-steps.ts` | Add `DELIVERY_OPS_STEPS` array, update types to support delivery-specific logic |
-| `src/pages/admin/BookingOps.tsx` | Detect delivery mode, pass `isDelivery` flag to components |
-| `src/components/admin/ops/OpsStepSidebar.tsx` | Conditionally render delivery or standard steps |
-| `src/components/admin/ops/OpsStepContent.tsx` | Render delivery-specific step components |
-| `src/components/admin/ops/OpsBookingSummary.tsx` | Add delivery status section |
-| `src/components/admin/ops/steps/StepPrep.tsx` | Add driver assignment requirement for delivery |
-| **NEW** `src/components/admin/ops/steps/StepEnRoute.tsx` | New step for tracking driver in transit |
-| **NEW** `src/components/admin/ops/DeliveryModeBanner.tsx` | Visual indicator for delivery bookings |
+| `src/hooks/use-points.ts` | Add KEY_MAP for snake_case to camelCase conversion in settings hooks |
+| `src/hooks/use-bookings.ts` | Fix inline settings parsing to use same key mapping |
+| `src/components/admin/PointsSettingsPanel.tsx` | Ensure save uses correct key format |
+| **Database Migration** | Create `membership_tiers` table with seed data and RLS |
 
 ---
 
-## UI Mockup (Text Description)
+## Testing Verification
 
-### Delivery Mode Banner (Top of BookingOps)
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ 🚚 DELIVERY BOOKING                                              │
-│ ─────────────────────────────────────────────────────────────── │
-│ Deliver To: 123 Main St, Vancouver, BC V6B 1A1                   │
-│ Dispatch From: Downtown Hub                                       │
-│ ─────────────────────────────────────────────────────────────── │
-│ Driver: John Smith ✓ Assigned    [Open in Delivery Portal →]    │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### Modified Step 1 for Delivery
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ Step 1: Dispatch Preparation                                     │
-│                                                                  │
-│ ⚠️ Driver Assignment Required                                   │
-│ ┌────────────────────────────────────────────────────────────┐  │
-│ │ Assign a driver before vehicle can be dispatched            │  │
-│ │ [Select Driver ▼] [Assign]                                  │  │
-│ └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│ ✅ Prep Checklist: Complete                                     │
-│ ✅ Pre-Inspection Photos: 6/6                                   │
-│                                                                  │
-│ [Continue to Step 2 →]                                           │
-└──────────────────────────────────────────────────────────────────┘
-```
+After implementation:
+1. Visit Admin Settings page - should show Membership Tiers panel without errors
+2. Check that points settings are loaded correctly (not using defaults)
+3. Mark a booking as "completed" - verify points are awarded
+4. Check customer dashboard - verify points balance updates
+5. Try editing membership tier benefits - verify changes persist
 
 ---
 
-## Business Rules
+## Technical Notes
 
-1. **Driver Assignment is Mandatory**: Delivery bookings cannot progress past Step 1 without an assigned driver
-2. **Step Labels Update Dynamically**: "Check-In" becomes "En Route" for delivery bookings
-3. **Delivery Status Syncs**: When driver updates status in Delivery Portal, it reflects in BookingOps
-4. **Same Completion Gates**: Payment, agreement, and walkaround requirements remain the same
-
----
-
-## Technical Implementation Notes
-
-### Step ID Mapping
-To maintain compatibility with existing `StepCompletion` tracking, delivery steps will use the same IDs but with different titles:
-
-| ID | Standard Title | Delivery Title |
-|----|----------------|----------------|
-| `prep` | Pre-Arrival Preparation | Dispatch Preparation |
-| `checkin` | Customer Check-In | En Route / Arrival |
-| `payment` | Payment & Deposit | Payment & Deposit |
-| `agreement` | Rental Agreement | On-Site Agreement |
-| `walkaround` | Vehicle Walkaround | On-Site Walkaround |
-| `handover` | Handover & Activation | Handover & Activation |
-
-### New Completion Field for Delivery
-Add to `StepCompletion.prep`:
-```text
-prep: {
-  checklistComplete: boolean;
-  photosComplete: boolean;
-  driverAssigned: boolean; // NEW - required for delivery
-}
-```
-
----
-
-## Migration Path
-
-1. **Phase 1**: Add delivery detection + visual banner (no workflow changes)
-2. **Phase 2**: Add driver assignment gate to Step 1 for delivery bookings
-3. **Phase 3**: Rename step labels contextually for delivery bookings
-4. **Phase 4**: Add "En Route" step with Delivery Portal sync
-
-This plan proposes implementing Phases 1-2 first for immediate value, with Phase 3-4 as follow-up enhancements.
+- The `update_points_balance` database function already exists and works correctly
+- RLS policies for `points_ledger` and `points_settings` are already in place
+- The `profiles` table already has the necessary membership columns
