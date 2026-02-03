@@ -46,7 +46,7 @@ import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/
 import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
 import { PointsRedemption } from "@/components/checkout/PointsRedemption";
 import { CreditCardInput, CreditCardDisplay } from "@/components/checkout/CreditCardInput";
-import { validateCard, detectCardType, maskCardNumber, CardType } from "@/lib/card-validation";
+import { validateCard, detectCardType, maskCardNumber, CardType, validateDriverCardholderMatch, isCardTypeAllowed } from "@/lib/card-validation";
 import { CREDIT_CARD_AUTHORIZATION_POLICY, CANCELLATION_POLICY } from "@/lib/checkout-policies";
 import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
 
@@ -277,6 +277,28 @@ export default function NewCheckout() {
       toast({ title: "Please check your card details", variant: "destructive" });
       return;
     }
+    
+    // Validate driver name matches cardholder name
+    const nameMatch = validateDriverCardholderMatch(
+      formData.firstName,
+      formData.lastName,
+      formData.cardName
+    );
+    
+    if (!nameMatch.matches) {
+      setCardErrors({ name: nameMatch.error || "Primary driver name must match the cardholder name." });
+      toast({ title: nameMatch.error || "Primary driver name must match the cardholder name.", variant: "destructive" });
+      return;
+    }
+    
+    // Check for debit/prepaid card (messaging-based validation)
+    const cardTypeCheck = isCardTypeAllowed(formData.cardNumber);
+    if (!cardTypeCheck.allowed) {
+      setCardErrors({ number: cardTypeCheck.reason || "This card type is not accepted." });
+      toast({ title: cardTypeCheck.reason || "This card type is not accepted.", variant: "destructive" });
+      return;
+    }
+    
     setCardErrors({});
 
     if (!formData.termsAccepted) {
@@ -379,7 +401,7 @@ export default function NewCheckout() {
             booking_id: booking!.id,
             driver_name: driver.name || null,
             driver_age_band: driver.ageBand,
-            young_driver_fee: driver.ageBand === "21_25" ? YOUNG_DRIVER_FEE : 0,
+            young_driver_fee: driver.ageBand === "20_24" ? YOUNG_DRIVER_FEE : 0,
           }));
 
           await supabase.from("booking_additional_drivers").insert(driverInserts);
@@ -399,7 +421,7 @@ export default function NewCheckout() {
         const additionalDriversData = (searchData.additionalDrivers || []).map((driver) => ({
           driverName: driver.name || null,
           driverAgeBand: driver.ageBand,
-          youngDriverFee: driver.ageBand === "21_25" ? YOUNG_DRIVER_FEE : 0,
+          youngDriverFee: driver.ageBand === "20_24" ? YOUNG_DRIVER_FEE : 0,
         }));
 
         const response = await supabase.functions.invoke("create-guest-booking", {
@@ -621,18 +643,9 @@ export default function NewCheckout() {
             <div className="lg:col-span-2 space-y-8">
               {/* Driver Information */}
               <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-6">Who will drive?</h2>
+                <h2 className="text-xl font-semibold mb-6">Primary Driver Information</h2>
                 
                 <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="company">Company (optional)</Label>
-                    <Input
-                      id="company"
-                      value={formData.company}
-                      onChange={(e) => handleInputChange("company", e.target.value)}
-                      placeholder="Company name"
-                    />
-                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -700,9 +713,9 @@ export default function NewCheckout() {
                     <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
                       <Check className="w-4 h-4 text-emerald-600" />
                       <span>
-                        {searchData.ageRange === "21-25" 
-                          ? "Driver age: 21-25 years (young driver fee applies)" 
-                          : "Driver age: 25+ years"}
+                        {searchData.ageRange === "20-24" 
+                          ? "Driver age: 20-24 years (young driver fee applies)" 
+                          : "Driver age: 25-70 years (Standard Driver)"}
                       </span>
                     </div>
                   )}
@@ -732,14 +745,16 @@ export default function NewCheckout() {
 
                 {/* Policy text under the form */}
                 <div className="mt-6 pt-4 border-t border-border space-y-3">
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                      ⚠️ Debit and prepaid cards are not accepted.
+                    </p>
+                  </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {CREDIT_CARD_AUTHORIZATION_POLICY.shortVersion}
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {CANCELLATION_POLICY.content}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Debit cards are not a valid form of payment for prepaid rates.
                   </p>
                 </div>
 
@@ -814,7 +829,7 @@ export default function NewCheckout() {
               {/* Invoice Address (for pay now) */}
               {paymentMethod === "pay-now" && (
                 <Card className="p-6">
-                  <h2 className="text-xl font-semibold mb-6">What's your invoice address?</h2>
+                  <h2 className="text-xl font-semibold mb-6">What's your billing address?</h2>
                   
                   <div className="space-y-4">
                     <div>

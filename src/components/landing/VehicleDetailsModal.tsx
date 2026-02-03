@@ -75,7 +75,7 @@ export function VehicleDetailsModal({
   const [pickupTime, setPickupTime] = useState(searchData.pickupTime || "10:00");
   const [returnDate, setReturnDate] = useState<Date | undefined>(searchData.returnDate || undefined);
   const [returnTime, setReturnTime] = useState(searchData.returnTime || "10:00");
-  const [ageRange, setAgeRange] = useState<"21-25" | "25-70" | null>(searchData.ageRange || null);
+  const [ageRange, setAgeRange] = useState<"20-24" | "25-70" | null>(searchData.ageRange || null);
   const [showErrors, setShowErrors] = useState(false);
 
   // Sync from context when modal opens
@@ -359,7 +359,7 @@ export function VehicleDetailsModal({
               </Label>
               <RadioGroup
                 value={ageRange || ""}
-                onValueChange={(value) => setAgeRange(value as "21-25" | "25-70")}
+                onValueChange={(value) => setAgeRange(value as "20-24" | "25-70")}
                 className="flex flex-wrap gap-4"
               >
                 <div className="flex items-center space-x-2">
@@ -369,9 +369,9 @@ export function VehicleDetailsModal({
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="21-25" id="modal-age-21-25" />
-                  <Label htmlFor="modal-age-21-25" className="text-sm text-muted-foreground cursor-pointer">
-                    21-25 years old <span className="text-xs text-amber-600">(Young driver fee applies)</span>
+                  <RadioGroupItem value="20-24" id="modal-age-20-24" />
+                  <Label htmlFor="modal-age-20-24" className="text-sm text-muted-foreground cursor-pointer">
+                    20-24 years old <span className="text-xs text-amber-600">(Young driver fee applies)</span>
                   </Label>
                 </div>
               </RadioGroup>

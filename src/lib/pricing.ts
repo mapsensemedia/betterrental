@@ -31,12 +31,40 @@ export const LATE_RETURN_GRACE_MINUTES = 30; // Grace period before fees apply
 export const LATE_RETURN_MAX_HOURS = 24; // Cap at 24 hours (then it's another day)
 
 // ========== AGE CONSTANTS ==========
-export const MIN_DRIVER_AGE = 21;
-export const YOUNG_DRIVER_MAX_AGE = 25;
+export const MIN_DRIVER_AGE = 20;
+export const YOUNG_DRIVER_MAX_AGE = 24;
 export const MAX_DRIVER_AGE = 70;
 
+// ========== CANCELLATION FEE ==========
+export const CANCELLATION_FEE = 19.99; // CAD
+
+// ========== MYSTERY CAR PRICING ==========
+export const MYSTERY_CAR_FEE = 30; // CAD base price for Mystery Car category
+
+// ========== BAGGAGE CAPACITY BY VEHICLE TYPE ==========
+export const BAGGAGE_CAPACITY: Record<string, number> = {
+  sedan: 3,
+  economy: 3,
+  midsize: 3,
+  fullsize: 3,
+  suv: 4,
+  midsizesuv: 4,
+  largesuv: 4,
+  minivan: 5,
+  default: 3,
+};
+
+export function getBaggageCapacity(category: string): number {
+  const normalized = category.toLowerCase().replace(/[\s-]/g, "");
+  if (normalized.includes("minivan")) return BAGGAGE_CAPACITY.minivan;
+  if (normalized.includes("largesuv")) return BAGGAGE_CAPACITY.largesuv;
+  if (normalized.includes("suv")) return BAGGAGE_CAPACITY.suv;
+  if (normalized.includes("sedan") || normalized.includes("economy") || normalized.includes("midsize") || normalized.includes("fullsize")) return BAGGAGE_CAPACITY.sedan;
+  return BAGGAGE_CAPACITY.default;
+}
+
 // ========== TYPES ==========
-export type DriverAgeBand = "21_25" | "25_70";
+export type DriverAgeBand = "20_24" | "25_70";
 
 export interface PricingInput {
   vehicleDailyRate: number;
@@ -278,8 +306,8 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
   const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
   const dailyFeesTotal = pvrtTotal + acsrchTotal;
   
-  // Young driver fee: one-time $20 for 21-25 age band
-  const youngDriverFee = driverAgeBand === "21_25" ? YOUNG_DRIVER_FEE : 0;
+  // Young driver fee: one-time $20 for 20-24 age band
+  const youngDriverFee = driverAgeBand === "20_24" ? YOUNG_DRIVER_FEE : 0;
 
   // Late fee (passed in from return calculations)
   const lateFee = lateFeeAmount;
@@ -318,19 +346,19 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
 }
 
 /**
- * Convert ageRange format ("21-25") to driverAgeBand format ("21_25")
+ * Convert ageRange format ("20-24") to driverAgeBand format ("20_24")
  */
-export function ageRangeToAgeBand(ageRange: "21-25" | "25-70" | null): DriverAgeBand | null {
+export function ageRangeToAgeBand(ageRange: "20-24" | "25-70" | null): DriverAgeBand | null {
   if (!ageRange) return null;
-  return ageRange === "21-25" ? "21_25" : "25_70";
+  return ageRange === "20-24" ? "20_24" : "25_70";
 }
 
 /**
- * Convert driverAgeBand format ("21_25") to ageRange format ("21-25")
+ * Convert driverAgeBand format ("20_24") to ageRange format ("20-24")
  */
-export function ageBandToAgeRange(ageBand: DriverAgeBand | null): "21-25" | "25-70" | null {
+export function ageBandToAgeRange(ageBand: DriverAgeBand | null): "20-24" | "25-70" | null {
   if (!ageBand) return null;
-  return ageBand === "21_25" ? "21-25" : "25-70";
+  return ageBand === "20_24" ? "20-24" : "25-70";
 }
 
 /**
@@ -344,7 +372,7 @@ export function validateDriverAge(age: number): { valid: boolean; ageBand: Drive
     return { valid: false, ageBand: null, error: `Driver must be ${MAX_DRIVER_AGE} years old or younger` };
   }
   
-  const ageBand: DriverAgeBand = age <= YOUNG_DRIVER_MAX_AGE ? "21_25" : "25_70";
+  const ageBand: DriverAgeBand = age <= YOUNG_DRIVER_MAX_AGE ? "20_24" : "25_70";
   return { valid: true, ageBand };
 }
 

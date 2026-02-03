@@ -60,7 +60,7 @@ export function AdditionalDriversCard({
   };
 
   // Calculate total additional driver fees
-  const youngDriverCount = drivers.filter((d) => d.ageBand === "21_25").length;
+  const youngDriverCount = drivers.filter((d) => d.ageBand === "20_24").length;
   const totalYoungDriverFees = youngDriverCount * YOUNG_DRIVER_FEE;
   const baseDriverFee = 15.99; // Per day per additional driver
   const totalBaseFees = drivers.length * baseDriverFee * rentalDays;
@@ -150,20 +150,20 @@ export function AdditionalDriversCard({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="25_70">25-70 years</SelectItem>
-                      <SelectItem value="21_25">
-                        21-25 years (+${YOUNG_DRIVER_FEE} fee)
+                      <SelectItem value="20_24">
+                        20-24 years (+${YOUNG_DRIVER_FEE} fee)
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {driver.ageBand === "21_25" && (
+              {driver.ageBand === "20_24" && (
                 <div className="flex items-start gap-2 p-2 bg-amber-500/10 rounded-md">
                   <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
                   <p className="text-xs text-amber-700">
-                    A ${YOUNG_DRIVER_FEE} young driver fee applies for drivers
-                    aged 21-25.
+                    A CAD ${YOUNG_DRIVER_FEE} young driver fee applies for drivers
+                    aged 20-24.
                   </p>
                 </div>
               )}
@@ -211,7 +211,7 @@ export function calculateAdditionalDriversCost(
   rentalDays: number
 ): { baseFees: number; youngDriverFees: number; total: number } {
   const baseDriverFee = 15.99;
-  const youngDriverCount = drivers.filter((d) => d.ageBand === "21_25").length;
+  const youngDriverCount = drivers.filter((d) => d.ageBand === "20_24").length;
   const baseFees = drivers.length * baseDriverFee * rentalDays;
   const youngDriverFees = youngDriverCount * YOUNG_DRIVER_FEE;
   return {

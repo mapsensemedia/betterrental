@@ -72,7 +72,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
   const [deliveryAddress, setLocalDeliveryAddress] = useState(
     searchData.deliveryAddress || ""
   );
-  const [ageRange, setLocalAgeRange] = useState<"21-25" | "25-70" | null>(searchData.ageRange);
+  const [ageRange, setLocalAgeRange] = useState<"20-24" | "25-70" | null>(searchData.ageRange);
 
   // Form validation state
   const [showAgeError, setShowAgeError] = useState(false);
@@ -154,7 +154,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
   };
 
   // Handle age range selection
-  const handleAgeRangeChange = (range: "21-25" | "25-70") => {
+  const handleAgeRangeChange = (range: "20-24" | "25-70") => {
     setLocalAgeRange(range);
     setAgeConfirmed(true, range);
     setShowAgeError(false);
@@ -693,7 +693,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
           </div>
           <RadioGroup
             value={ageRange || ""}
-            onValueChange={(value) => handleAgeRangeChange(value as "21-25" | "25-70")}
+            onValueChange={(value) => handleAgeRangeChange(value as "20-24" | "25-70")}
             className="flex flex-wrap gap-4"
           >
             <div className="flex items-center space-x-2">
@@ -703,9 +703,9 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
               </Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="21-25" id="age-21-25" />
-              <Label htmlFor="age-21-25" className="text-sm text-muted-foreground cursor-pointer">
-                21-25 years old <span className="text-xs text-warning">(Young driver fee applies)</span>
+              <RadioGroupItem value="20-24" id="age-20-24" />
+              <Label htmlFor="age-20-24" className="text-sm text-muted-foreground cursor-pointer">
+                20-24 years old <span className="text-xs text-warning">(Young driver fee applies)</span>
               </Label>
             </div>
           </RadioGroup>

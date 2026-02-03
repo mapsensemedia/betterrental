@@ -47,7 +47,7 @@ export function TripContextPrompt({
   const [step, setStep] = useState<"location" | "dates" | "age">(
     locationId ? (startDate && endDate ? "age" : "dates") : "location"
   );
-  const [localAgeRange, setLocalAgeRange] = useState<"21-25" | "25-70" | null>(ageRange);
+  const [localAgeRange, setLocalAgeRange] = useState<"20-24" | "25-70" | null>(ageRange);
 
   const handleLocationSelect = (id: string) => {
     setPickupLocation(id);
@@ -59,7 +59,7 @@ export function TripContextPrompt({
     setReturnDateTime(range?.to || null, searchData.returnTime);
   };
 
-  const handleAgeSelect = (range: "21-25" | "25-70") => {
+  const handleAgeSelect = (range: "20-24" | "25-70") => {
     setLocalAgeRange(range);
     setAgeConfirmed(true, range);
   };
@@ -198,14 +198,14 @@ export function TripContextPrompt({
               </p>
               <RadioGroup
                 value={localAgeRange || ""}
-                onValueChange={(value) => handleAgeSelect(value as "21-25" | "25-70")}
+                onValueChange={(value) => handleAgeSelect(value as "20-24" | "25-70")}
                 className="space-y-3"
               >
                 <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">
-                  <RadioGroupItem value="21-25" id="age-21-25" />
-                  <Label htmlFor="age-21-25" className="flex-1 cursor-pointer">
-                    <span className="font-medium">21-25 years old</span>
-                    <p className="text-sm text-muted-foreground">Young driver fee applies ($20)</p>
+                  <RadioGroupItem value="20-24" id="age-20-24" />
+                  <Label htmlFor="age-20-24" className="flex-1 cursor-pointer">
+                    <span className="font-medium">20-24 years old</span>
+                    <p className="text-sm text-muted-foreground">Young driver fee applies (CAD $20)</p>
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">

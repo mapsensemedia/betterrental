@@ -5,13 +5,14 @@
  */
 import { memo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Fuel, Users, Gauge } from "lucide-react";
+import { Fuel, Users, Gauge, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, displayFuelType, displayTransmission } from "@/lib/utils";
 import { PriceWithDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { VehicleDetailsModal } from "./VehicleDetailsModal";
+import { getBaggageCapacity } from "@/lib/pricing";
 
 interface VehicleCardProps {
   id: string;
@@ -163,7 +164,7 @@ export const VehicleCard = memo(function VehicleCard({
 
           {/* Specs - Responsive Grid */}
           <div className={cn(
-            "grid grid-cols-3 gap-1.5 md:gap-2 lg:gap-3 mb-3 md:mb-4 pb-3 md:pb-4 border-b",
+            "grid grid-cols-4 gap-1.5 md:gap-2 lg:gap-3 mb-3 md:mb-4 pb-3 md:pb-4 border-b",
             isDark ? "border-background/10" : "border-border"
           )}>
             <div className={cn(
@@ -185,6 +186,27 @@ export const VehicleCard = memo(function VehicleCard({
                 isDark ? "text-background/40" : "text-muted-foreground"
               )}>
                 Seats
+              </span>
+            </div>
+            <div className={cn(
+              "flex flex-col items-center text-center p-1.5 md:p-2 rounded-lg",
+              isDark ? "bg-background/5" : "bg-muted/50"
+            )}>
+              <Briefcase className={cn(
+                "w-3 h-3 md:w-4 md:h-4 mb-0.5 md:mb-1",
+                isDark ? "text-background/50" : "text-muted-foreground"
+              )} />
+              <span className={cn(
+                "text-[10px] md:text-xs lg:text-sm font-medium",
+                isDark ? "text-background/80" : "text-foreground"
+              )}>
+                {getBaggageCapacity(category)}
+              </span>
+              <span className={cn(
+                "text-[9px] md:text-[10px] lg:text-xs",
+                isDark ? "text-background/40" : "text-muted-foreground"
+              )}>
+                Bags
               </span>
             </div>
             <div className={cn(
