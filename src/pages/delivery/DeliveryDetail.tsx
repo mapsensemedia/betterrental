@@ -71,7 +71,8 @@ export default function DeliveryDetail() {
   }
 
   const currentStatus = (delivery.currentStatus || "assigned") as DeliveryStatus;
-  const vehicleData = Array.isArray(delivery.vehicles) ? delivery.vehicles[0] : delivery.vehicles;
+  const categoryData = delivery.category;
+  const unitData = delivery.assignedUnit;
   const locationData = Array.isArray(delivery.locations) ? delivery.locations[0] : delivery.locations;
 
   return (
@@ -195,17 +196,21 @@ export default function DeliveryDetail() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
-              {vehicleData?.image_url && (
+              {categoryData?.image_url && (
                 <img
-                  src={vehicleData.image_url}
+                  src={categoryData.image_url}
                   alt="Vehicle"
                   className="w-24 h-16 object-cover rounded-lg"
                 />
               )}
               <div>
-                <p className="font-medium">
-                  {vehicleData?.year} {vehicleData?.make} {vehicleData?.model}
-                </p>
+                <p className="font-medium">{categoryData?.name || "Unknown Vehicle"}</p>
+                {unitData?.licensePlate && (
+                  <p className="text-sm text-muted-foreground font-mono">{unitData.licensePlate}</p>
+                )}
+                {unitData?.color && (
+                  <p className="text-xs text-muted-foreground">Color: {unitData.color}</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -213,15 +218,15 @@ export default function DeliveryDetail() {
 
         {/* Special Instructions */}
         {delivery.special_instructions && (
-          <Card className="border-amber-200 bg-amber-50">
+          <Card className="border-warning/30 bg-warning/10">
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2 text-amber-800">
+              <CardTitle className="text-lg flex items-center gap-2 text-warning-foreground">
                 <MessageSquare className="h-5 w-5" />
                 Special Instructions
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-amber-900">{delivery.special_instructions}</p>
+              <p className="text-foreground">{delivery.special_instructions}</p>
             </CardContent>
           </Card>
         )}

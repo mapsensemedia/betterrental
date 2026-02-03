@@ -176,3 +176,54 @@ export function useAdminRealtimeSubscriptions() {
   useRealtimeDamages();
   useRealtimeVerifications();
 }
+
+/**
+ * Subscribe to real-time delivery updates for driver portal
+ * Listens to bookings and delivery_statuses tables
+ */
+export function useRealtimeDeliveries() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    console.log("[Realtime] Setting up deliveries subscription...");
+    
+    const channel = supabase
+      .channel("realtime-deliveries")
+      // Listen for booking changes (new assignments, status updates)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+        },
+        (payload) => {
+          console.log("[Realtime] Booking change for deliveries:", payload.eventType);
+          queryClient.invalidateQueries({ queryKey: ["my-deliveries"] });
+          queryClient.invalidateQueries({ queryKey: ["delivery-detail"] });
+        }
+      )
+      // Listen for delivery status updates
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "delivery_statuses",
+        },
+        (payload) => {
+          console.log("[Realtime] Delivery status change:", payload.eventType);
+          queryClient.invalidateQueries({ queryKey: ["my-deliveries"] });
+          queryClient.invalidateQueries({ queryKey: ["delivery-detail"] });
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] Deliveries subscription status:", status);
+      });
+
+    return () => {
+      console.log("[Realtime] Cleaning up deliveries subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+}
