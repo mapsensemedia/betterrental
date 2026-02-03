@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.calculate-fleet-costs]
 verify_jwt = true
+
+[functions.send-support-sms]
+verify_jwt = false

@@ -36,7 +36,7 @@ type BookingRow = {
   end_at: string;
   total_amount: number;
   customer_marked_returned_at: string | null;
-  vehicles: { make: string; model: string; year: number; image_url: string | null } | null;
+  vehicle_categories: { name: string; image_url: string | null } | null;
   locations: { name: string; city: string } | null;
 };
 
@@ -80,8 +80,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("bookings")
         .select(
-          `id, booking_code, status, start_at, end_at, total_amount, customer_marked_returned_at,
-           vehicles (make, model, year, image_url),
+          `id, booking_code, status, start_at, end_at, total_amount, customer_marked_returned_at, vehicle_id,
            locations (name, city)`
         )
         .eq("user_id", user!.id)
@@ -89,7 +88,24 @@ export default function Dashboard() {
         .limit(25);
 
       if (error) throw error;
-      return (data || []) as any;
+
+      // Fetch vehicle categories separately (vehicle_id now points to categories)
+      const vehicleIds = [...new Set((data || []).map(b => b.vehicle_id).filter(Boolean))];
+      let categoriesMap = new Map();
+      
+      if (vehicleIds.length > 0) {
+        const { data: categories } = await supabase
+          .from("vehicle_categories")
+          .select("id, name, image_url")
+          .in("id", vehicleIds);
+        
+        categoriesMap = new Map((categories || []).map(c => [c.id, c]));
+      }
+
+      return (data || []).map(b => ({
+        ...b,
+        vehicle_categories: categoriesMap.get(b.vehicle_id) || null,
+      })) as any;
     },
     staleTime: 10_000,
   });
@@ -404,7 +420,7 @@ export default function Dashboard() {
                           )}
                         </div>
                         <p className="font-semibold">
-                          {b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : "Vehicle"}
+                          {b.vehicle_categories?.name || "Vehicle"}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(b.start_at).toLocaleDateString()} → {new Date(b.end_at).toLocaleDateString()}
