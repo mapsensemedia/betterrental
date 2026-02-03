@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
 import { toast } from "sonner";
 
-export type DeliveryStatus = "assigned" | "picked_up" | "en_route" | "delivered" | "issue" | "cancelled";
+export type DeliveryStatus = "unassigned" | "assigned" | "picked_up" | "en_route" | "delivered" | "issue" | "cancelled";
 
 export interface DeliveryBooking {
   id: string;
@@ -18,6 +18,7 @@ export interface DeliveryBooking {
   pickupLng: number | null;
   specialInstructions: string | null;
   deliveryStatus: DeliveryStatus | null;
+  assignedDriverId: string | null;
   customer: {
     fullName: string | null;
     email: string | null;
@@ -161,9 +162,10 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all", showAll: 
         const category = categoryMap.get(b.vehicle_id);
         const unit = b.assigned_unit_id ? unitMap.get(b.assigned_unit_id) : null;
         const location = locationMap.get(b.location_id);
-        const deliveryStatus = statusMap.get(b.id) || "assigned";
+        // Default to 'unassigned' if no driver, or get from status map
+        const deliveryStatus = statusMap.get(b.id) || (b.assigned_driver_id ? "assigned" : "unassigned");
         const pickupTime = new Date(b.start_at);
-        const isUrgent = pickupTime <= urgencyThreshold && deliveryStatus === "assigned";
+        const isUrgent = pickupTime <= urgencyThreshold && (deliveryStatus === "assigned" || deliveryStatus === "unassigned");
 
         return {
           id: b.id,
@@ -178,6 +180,7 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all", showAll: 
           pickupLng: b.pickup_lng,
           specialInstructions: b.special_instructions,
           deliveryStatus,
+          assignedDriverId: b.assigned_driver_id,
           customer: profile ? {
             fullName: profile.full_name,
             email: profile.email,
@@ -238,9 +241,10 @@ export function useUpdateDeliveryStatus() {
     }) => {
       if (!user) throw new Error("Not authenticated");
 
+      // Use upsert since we now have a unique constraint on booking_id
       const { data, error } = await supabase
         .from("delivery_statuses")
-        .insert({
+        .upsert({
           booking_id: bookingId,
           status,
           notes,
@@ -248,6 +252,10 @@ export function useUpdateDeliveryStatus() {
           location_lat: locationLat,
           location_lng: locationLng,
           updated_by: user.id,
+          updated_at: new Date().toISOString(),
+        }, { 
+          onConflict: 'booking_id',
+          ignoreDuplicates: false 
         })
         .select()
         .single();
