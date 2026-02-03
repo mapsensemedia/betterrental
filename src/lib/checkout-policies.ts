@@ -17,8 +17,9 @@ These funds will not be available for your use. Debit cards are not a valid form
 
 export const CANCELLATION_POLICY = {
   title: "Cancellation Policy",
-  content: `Reservations must be cancelled prior to pick-up time or will be subject to a $58.99 CAD No-Show Fee. A valid credit card must be presented at the time of rental to complete the reservation.`,
+  content: `Reservations must be cancelled prior to pick-up time or will be subject to a CAD $58.99 No-Show Fee. A cancellation fee of CAD $19.99 applies. A valid credit card must be presented at the time of rental to complete the reservation.`,
   noShowFee: 58.99,
+  cancellationFee: 19.99,
 };
 
 export const PICKUP_REQUIREMENTS = {

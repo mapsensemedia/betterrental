@@ -3,7 +3,7 @@
  * Identifies card type and validates card numbers using Luhn algorithm
  */
 
-export type CardType = "visa" | "mastercard" | "amex" | "discover" | "unknown";
+export type CardType = "visa" | "mastercard" | "amex" | "discover" | "debit" | "prepaid" | "unknown";
 
 export interface CardInfo {
   type: CardType;
@@ -46,6 +46,22 @@ export const CARD_TYPES: Record<CardType, CardInfo> = {
     cvvLength: 3,
     icon: "💳",
     color: "text-amber-600",
+  },
+  debit: {
+    type: "debit",
+    name: "Debit Card",
+    lengths: [16],
+    cvvLength: 3,
+    icon: "💳",
+    color: "text-red-600",
+  },
+  prepaid: {
+    type: "prepaid",
+    name: "Prepaid Card",
+    lengths: [16],
+    cvvLength: 3,
+    icon: "💳",
+    color: "text-red-600",
   },
   unknown: {
     type: "unknown",
@@ -243,4 +259,53 @@ export function validateCard(card: {
     valid: Object.keys(errors).length === 0,
     errors,
   };
+}
+
+/**
+ * Check if card type is allowed (reject debit/prepaid)
+ */
+export function isCardTypeAllowed(cardNumber: string): { allowed: boolean; reason?: string } {
+  // Note: Full debit/prepaid detection requires BIN database lookup
+  // This is a fail-safe messaging function - the actual detection
+  // would typically be done server-side with Stripe or a BIN database
+  const cardType = detectCardType(cardNumber);
+  
+  if (cardType === "debit" || cardType === "prepaid") {
+    return {
+      allowed: false,
+      reason: "Debit and prepaid cards are not accepted. Please use a credit card.",
+    };
+  }
+  
+  return { allowed: true };
+}
+
+/**
+ * Validate that primary driver name matches cardholder name
+ */
+export function validateDriverCardholderMatch(
+  driverFirstName: string,
+  driverLastName: string,
+  cardholderName: string
+): { matches: boolean; error?: string } {
+  const driverFullName = `${driverFirstName} ${driverLastName}`.toUpperCase().trim();
+  const cardName = cardholderName.toUpperCase().trim();
+  
+  // Normalize and compare
+  const driverParts = driverFullName.split(/\s+/).filter(Boolean);
+  const cardParts = cardName.split(/\s+/).filter(Boolean);
+  
+  // Check if all driver name parts exist in cardholder name
+  const allDriverPartsInCard = driverParts.every(part => 
+    cardParts.some(cardPart => cardPart.includes(part) || part.includes(cardPart))
+  );
+  
+  if (!allDriverPartsInCard) {
+    return {
+      matches: false,
+      error: "Primary driver name must match the cardholder name.",
+    };
+  }
+  
+  return { matches: true };
 }
