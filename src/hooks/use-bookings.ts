@@ -261,11 +261,24 @@ export function useUpdateBookingStatus() {
       // First get booking details for notification
       const { data: bookingDetails, error: fetchError } = await supabase
         .from("bookings")
-        .select("booking_code, user_id, vehicle_id, vehicle_categories(name)")
+        .select("booking_code, user_id, vehicle_id")
         .eq("id", bookingId)
         .single();
 
       if (fetchError) throw fetchError;
+
+      // Fetch category name separately (no FK relationship)
+      let categoryName = "Vehicle";
+      if (bookingDetails.vehicle_id) {
+        const { data: categoryData } = await supabase
+          .from("vehicle_categories")
+          .select("name")
+          .eq("id", bookingDetails.vehicle_id)
+          .maybeSingle();
+        if (categoryData?.name) {
+          categoryName = categoryData.name;
+        }
+      }
 
       // Get profile for customer name
       const { data: profile } = await supabase
@@ -413,8 +426,7 @@ export function useUpdateBookingStatus() {
       }
 
       // Create admin alert for status changes
-      const category = bookingDetails.vehicle_categories as any;
-      const vehicleName = category?.name || "Vehicle";
+      const vehicleName = categoryName;
       const customerName = profile?.full_name || "";
 
       // Create alert in database
