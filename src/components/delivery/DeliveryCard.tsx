@@ -75,6 +75,13 @@ export function DeliveryCard({
           </div>
           <DeliveryStatusBadge status={delivery.deliveryStatus || "unassigned"} />
         </div>
+        {/* Assigned Driver Info */}
+        {delivery.assignedDriverName && delivery.deliveryStatus !== "unassigned" && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t mt-2">
+            <span className="font-medium">Driver:</span>
+            <span>{delivery.assignedDriverName}</span>
+          </div>
+        )}
       </CardHeader>
       
       <CardContent className="space-y-3">

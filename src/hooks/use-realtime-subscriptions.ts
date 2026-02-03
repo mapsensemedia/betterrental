@@ -275,3 +275,73 @@ export function useRealtimeDeliveries() {
     };
   }, [queryClient]);
 }
+
+/**
+ * Subscribe to real-time booking updates for customer dashboard
+ * Keeps customer's booking list fresh
+ */
+export function useCustomerRealtimeSubscriptions(userId?: string) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!userId) return;
+    
+    console.log("[Realtime] Setting up customer subscriptions for user:", userId);
+    
+    const channel = supabase
+      .channel(`customer-updates-${userId}`)
+      // Listen for booking status changes
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log("[Realtime] Customer booking change:", payload.eventType);
+          queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+          queryClient.invalidateQueries({ queryKey: ["booking"] });
+          queryClient.invalidateQueries({ queryKey: ["booking-pickup"] });
+        }
+      )
+      // Listen for rental agreement updates
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "rental_agreements",
+        },
+        (payload) => {
+          console.log("[Realtime] Agreement change:", payload.eventType);
+          queryClient.invalidateQueries({ queryKey: ["rental-agreement"] });
+          queryClient.invalidateQueries({ queryKey: ["my-agreements"] });
+        }
+      )
+      // Listen for verification updates
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "verification_requests",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log("[Realtime] Verification change:", payload.eventType);
+          queryClient.invalidateQueries({ queryKey: ["my-verifications"] });
+          queryClient.invalidateQueries({ queryKey: ["booking-verification"] });
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] Customer subscription status:", status);
+      });
+
+    return () => {
+      console.log("[Realtime] Cleaning up customer subscriptions");
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, userId]);
+}

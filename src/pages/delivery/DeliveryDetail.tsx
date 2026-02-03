@@ -237,13 +237,21 @@ export default function DeliveryDetail() {
           </Card>
         )}
 
-        {/* Rental Agreement - For driver to obtain customer signature on delivery */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Rental Agreement
+        {/* Rental Agreement - Customer must sign before delivery is complete */}
+        <Card className="border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Rental Agreement
+              </div>
+              <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
+                Customer signs here
+              </span>
             </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Customer must review and sign the rental agreement before you complete the delivery handover.
+            </p>
           </CardHeader>
           <CardContent className="p-0">
             <div className="px-4 pb-4">
@@ -252,7 +260,7 @@ export default function DeliveryDetail() {
           </CardContent>
         </Card>
 
-        {/* Status Update */}
+        {/* Status Update - Can only complete after agreement is signed */}
         <DeliveryHandoverCapture
           bookingId={delivery.id}
           currentStatus={currentStatus}
