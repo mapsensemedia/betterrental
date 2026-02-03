@@ -11,6 +11,7 @@ import {
   getStepStatus,
   getCurrentStepIndex,
   getBlockingIssues,
+  getStepForDisplay,
   ACTION_LABELS,
 } from "@/lib/ops-steps";
 import { 
@@ -30,6 +31,7 @@ import { StepPayment } from "./steps/StepPayment";
 import { StepAgreement } from "./steps/StepAgreement";
 import { StepWalkaround } from "./steps/StepWalkaround";
 import { StepHandover } from "./steps/StepHandover";
+import { StepEnRoute } from "./steps/StepEnRoute";
 
 type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
@@ -40,16 +42,18 @@ interface OpsStepContentProps {
   onCompleteStep: () => void;
   onActivate: () => void;
   isRentalActive: boolean;
+  isDelivery?: boolean;
+  driverInfo?: { fullName: string; phone?: string | null } | null;
 }
 
 // Helper to check if we can advance to the next step
-function canAdvanceToNextStep(stepId: OpsStepId, completion: StepCompletion): boolean {
-  const currentStepComplete = checkStepComplete(stepId, completion);
+function canAdvanceToNextStep(stepId: OpsStepId, completion: StepCompletion, isDelivery: boolean = false): boolean {
+  const currentStepComplete = checkStepComplete(stepId, completion, isDelivery);
   const currentIndex = OPS_STEPS.findIndex(s => s.id === stepId);
   const hasNextStep = currentIndex < OPS_STEPS.length - 1;
   
   // Also check that there are no blocking issues
-  const blockingIssues = getBlockingIssues(stepId, completion);
+  const blockingIssues = getBlockingIssues(stepId, completion, isDelivery);
   const isBlocked = blockingIssues.length > 0;
   
   return currentStepComplete && hasNextStep && !isBlocked;
@@ -62,21 +66,24 @@ export function OpsStepContent({
   onCompleteStep,
   onActivate,
   isRentalActive,
+  isDelivery = false,
+  driverInfo,
 }: OpsStepContentProps) {
   const step = OPS_STEPS.find(s => s.id === stepId);
   if (!step) return null;
   
+  const stepDisplay = getStepForDisplay(step, isDelivery);
   const bookingStatus = booking?.status as BookingStatus;
   const isBookingCompleted = bookingStatus === "completed";
   const isBookingCancelled = bookingStatus === "cancelled";
   
-  const currentStepIndex = getCurrentStepIndex(completion);
-  const { status, reason, isBlocked } = getStepStatus(stepId, completion, currentStepIndex);
-  const isComplete = checkStepComplete(stepId, completion);
+  const currentStepIndex = getCurrentStepIndex(completion, isDelivery);
+  const { status, reason, isBlocked } = getStepStatus(stepId, completion, currentStepIndex, isDelivery);
+  const isComplete = checkStepComplete(stepId, completion, isDelivery);
   const isLocked = status === "locked" && !isRentalActive;
-  const missing = getMissingItems(stepId, completion);
-  const blockingIssues = getBlockingIssues(stepId, completion);
-  const showNextStepButton = canAdvanceToNextStep(stepId, completion) && stepId !== "handover";
+  const missing = getMissingItems(stepId, completion, isDelivery);
+  const blockingIssues = getBlockingIssues(stepId, completion, isDelivery);
+  const showNextStepButton = canAdvanceToNextStep(stepId, completion, isDelivery) && stepId !== "handover";
   
   // For locked steps (prior to completion), show locked state
   if (isLocked) {
@@ -88,8 +95,8 @@ export function OpsStepContent({
               <Lock className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-muted-foreground">{step.title}</h2>
-              <p className="text-muted-foreground">{step.description}</p>
+              <h2 className="text-xl font-semibold text-muted-foreground">{stepDisplay.title}</h2>
+              <p className="text-muted-foreground">{stepDisplay.description}</p>
             </div>
           </div>
         </div>
@@ -121,22 +128,22 @@ export function OpsStepContent({
              isBlocked ? <AlertTriangle className="w-5 h-5" /> :
              step.number}
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-semibold">{step.title}</h2>
-              {isComplete && (
-                <Badge className="bg-emerald-500">Complete</Badge>
-              )}
-              {isBlocked && (
-                <Badge variant="destructive">Blocked</Badge>
-              )}
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl font-semibold">{stepDisplay.title}</h2>
+                {isComplete && (
+                  <Badge className="bg-emerald-500">Complete</Badge>
+                )}
+                {isBlocked && (
+                  <Badge variant="destructive">Blocked</Badge>
+                )}
+              </div>
+              <p className="text-muted-foreground">{stepDisplay.description}</p>
             </div>
-            <p className="text-muted-foreground">{step.description}</p>
           </div>
         </div>
-      </div>
-      
-      {/* Blocking Issues Alert */}
+        
+        {/* Blocking Issues Alert */}
       {blockingIssues.length > 0 && (
         <Alert variant="destructive">
           <Ban className="h-4 w-4" />
@@ -163,49 +170,60 @@ export function OpsStepContent({
         </Alert>
       )}
       
-      {/* Step-specific Content */}
-      <div className="space-y-4">
-        {stepId === "prep" && (
-          <StepPrep 
-            bookingId={booking.id} 
-            completion={completion.prep}
-          />
-        )}
-        {stepId === "checkin" && (
-          <StepCheckin 
-            booking={booking}
-            completion={completion.checkin}
-            onStepComplete={onCompleteStep}
-          />
-        )}
-        {stepId === "payment" && (
-          <StepPayment 
-            bookingId={booking.id}
-            completion={completion.payment}
-          />
-        )}
-        {stepId === "agreement" && (
-          <StepAgreement 
-            bookingId={booking.id}
-            customerName={booking.profiles?.full_name}
-            completion={completion.agreement}
-          />
-        )}
-        {stepId === "walkaround" && (
-          <StepWalkaround 
-            bookingId={booking.id}
-            completion={completion.walkaround}
-          />
-        )}
-        {stepId === "handover" && (
-          <StepHandover 
-            booking={booking}
-            completion={completion}
-            onActivate={onActivate}
-            isBookingCompleted={isBookingCompleted}
-          />
-        )}
-      </div>
+        {/* Step-specific Content */}
+        <div className="space-y-4">
+          {stepId === "prep" && (
+            <StepPrep 
+              bookingId={booking.id} 
+              completion={completion.prep}
+              isDelivery={isDelivery}
+              assignedDriverId={booking.assigned_driver_id}
+              onDriverAssigned={onCompleteStep}
+            />
+          )}
+          {stepId === "checkin" && (
+            isDelivery ? (
+              <StepEnRoute 
+                booking={booking}
+                driverInfo={driverInfo}
+                completion={completion.checkin}
+              />
+            ) : (
+              <StepCheckin 
+                booking={booking}
+                completion={completion.checkin}
+                onStepComplete={onCompleteStep}
+              />
+            )
+          )}
+          {stepId === "payment" && (
+            <StepPayment 
+              bookingId={booking.id}
+              completion={completion.payment}
+            />
+          )}
+          {stepId === "agreement" && (
+            <StepAgreement 
+              bookingId={booking.id}
+              customerName={booking.profiles?.full_name}
+              completion={completion.agreement}
+            />
+          )}
+          {stepId === "walkaround" && (
+            <StepWalkaround 
+              bookingId={booking.id}
+              completion={completion.walkaround}
+            />
+          )}
+          {stepId === "handover" && (
+            <StepHandover 
+              booking={booking}
+              completion={completion}
+              onActivate={onActivate}
+              isBookingCompleted={isBookingCompleted}
+            />
+          )}
+        </div>
       
       {/* Primary Step Action */}
       {showNextStepButton && !isBookingCompleted && !isBookingCancelled && (

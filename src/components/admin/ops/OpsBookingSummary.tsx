@@ -1,8 +1,10 @@
 /**
  * OpsBookingSummary - Refactored booking summary panel for ops workflow
  * Shows customer, vehicle, payment, and status information
+ * Updated: Now includes delivery status section for delivery bookings
  */
 import { useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,10 +26,13 @@ import {
   MessageSquare,
   ChevronsUpDown,
   ArrowUpCircle,
+  Truck,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StepCompletion } from "@/lib/ops-steps";
+import { DELIVERY_STATUS_MAP } from "@/lib/ops-steps";
 import { CategoryUpgradeDialog } from "@/components/admin/CategoryUpgradeDialog";
 import { CollapsibleSection } from "./sections/CollapsibleSection";
 import { CardInfoSection } from "./sections/CardInfoSection";
@@ -37,6 +42,8 @@ interface OpsBookingSummaryProps {
   completion?: StepCompletion;
   onOpenAgreement?: () => void;
   onOpenWalkaround?: () => void;
+  isDelivery?: boolean;
+  driverName?: string | null;
 }
 
 export function OpsBookingSummary({ 
@@ -44,6 +51,8 @@ export function OpsBookingSummary({
   completion,
   onOpenAgreement,
   onOpenWalkaround,
+  isDelivery = false,
+  driverName,
 }: OpsBookingSummaryProps) {
   const [allExpanded, setAllExpanded] = useState(true);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
@@ -56,6 +65,7 @@ export function OpsBookingSummary({
     location: true,
     payment: true,
     status: true,
+    delivery: true, // NEW: delivery section
   });
   
   const vehicleName = booking.vehicles
@@ -105,6 +115,7 @@ export function OpsBookingSummary({
       location: newState,
       payment: newState,
       status: newState,
+      delivery: newState,
     });
   }, [allExpanded]);
   
@@ -198,6 +209,56 @@ export function OpsBookingSummary({
       {/* Scrollable Content */}
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
+          {/* Delivery Section - Only for delivery bookings (shown first) */}
+          {isDelivery && (
+            <>
+              <CollapsibleSection
+                title="Delivery Status"
+                icon={<Truck className="h-4 w-4 text-blue-500" />}
+                isOpen={sectionStates.delivery}
+                onOpenChange={(open) => updateSectionState('delivery', open)}
+                badge={
+                  booking.delivery_statuses?.status && (
+                    <Badge className={cn(
+                      "text-[10px] px-1.5 py-0",
+                      DELIVERY_STATUS_MAP[booking.delivery_statuses.status]?.color || "bg-muted"
+                    )}>
+                      {DELIVERY_STATUS_MAP[booking.delivery_statuses.status]?.label || booking.delivery_statuses.status}
+                    </Badge>
+                  )
+                }
+              >
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Deliver To</p>
+                    <p className="font-medium text-xs break-words">{booking.pickup_address}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Driver</p>
+                      <p className="font-medium text-xs">
+                        {driverName || (booking.assigned_driver_id ? "Assigned" : "Unassigned")}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] gap-1"
+                      asChild
+                    >
+                      <Link to={`/delivery/${booking.id}`} target="_blank">
+                        <ExternalLink className="h-3 w-3" />
+                        Portal
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CollapsibleSection>
+              
+              <Separator />
+            </>
+          )}
+          
           {/* Customer Section */}
           <CollapsibleSection
             title="Customer"
