@@ -46,6 +46,7 @@ import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { useBookingVerification } from "@/hooks/use-verification";
 import { useCheckVehicleAvailability } from "@/hooks/use-vehicle-assignment";
 import { useAvailableDrivers } from "@/hooks/use-available-drivers";
+import { useRealtimeDeliveryStatuses } from "@/hooks/use-realtime-subscriptions";
 
 // Types
 import { OPS_STEPS, type OpsStepId, type StepCompletion, getCurrentStepIndex, checkStepComplete } from "@/lib/ops-steps";
@@ -69,6 +70,9 @@ export default function BookingOps() {
   const { data: depositData } = usePaymentDepositStatus(bookingId || "");
   const { data: agreement } = useRentalAgreement(bookingId || "");
   const { data: verifications } = useBookingVerification(bookingId || null);
+  
+  // Subscribe to real-time delivery status updates (driver marking en route, arrived, etc.)
+  useRealtimeDeliveryStatuses(bookingId);
   
   // Check for vehicle conflicts
   const { data: vehicleAvailability } = useCheckVehicleAvailability(

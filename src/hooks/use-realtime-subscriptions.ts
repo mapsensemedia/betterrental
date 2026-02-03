@@ -168,6 +168,53 @@ export function useRealtimeVerifications() {
 }
 
 /**
+ * Subscribe to real-time delivery status updates
+ * Invalidates BookingOps queries when driver updates status
+ */
+export function useRealtimeDeliveryStatuses(bookingId?: string) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    console.log("[Realtime] Setting up delivery statuses subscription...", bookingId ? `for booking ${bookingId}` : "global");
+    
+    const channel = supabase
+      .channel(`realtime-delivery-statuses${bookingId ? `-${bookingId}` : ""}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "delivery_statuses",
+          ...(bookingId ? { filter: `booking_id=eq.${bookingId}` } : {}),
+        },
+        (payload) => {
+          console.log("[Realtime] Delivery status change:", payload.eventType, payload.new);
+          
+          // Invalidate booking queries to refresh ops step content
+          queryClient.invalidateQueries({ queryKey: ["booking"] });
+          queryClient.invalidateQueries({ queryKey: ["my-deliveries"] });
+          queryClient.invalidateQueries({ queryKey: ["delivery-detail"] });
+          queryClient.invalidateQueries({ queryKey: ["active-rentals"] });
+          
+          // If specific booking, also invalidate that exact query
+          const newRecord = payload.new as Record<string, unknown> | null;
+          if (newRecord?.booking_id) {
+            queryClient.invalidateQueries({ queryKey: ["booking", newRecord.booking_id] });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("[Realtime] Delivery statuses subscription status:", status);
+      });
+
+    return () => {
+      console.log("[Realtime] Cleaning up delivery statuses subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, bookingId]);
+}
+
+/**
  * Combined hook for admin dashboard - subscribes to all relevant real-time updates
  */
 export function useAdminRealtimeSubscriptions() {
@@ -175,6 +222,7 @@ export function useAdminRealtimeSubscriptions() {
   useRealtimeAlerts();
   useRealtimeDamages();
   useRealtimeVerifications();
+  useRealtimeDeliveryStatuses(); // Add global delivery status updates
 }
 
 /**
