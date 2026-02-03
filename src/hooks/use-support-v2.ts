@@ -21,6 +21,7 @@ export interface SupportTicketV2 {
   customer_id: string | null;
   booking_id: string | null;
   incident_id: string | null;
+  damage_id: string | null;
   guest_email: string | null;
   guest_phone: string | null;
   guest_name: string | null;
@@ -42,6 +43,7 @@ export interface SupportTicketV2 {
   booking?: { id: string; booking_code: string };
   assignee?: { id: string; full_name: string | null; email: string | null };
   incident?: { id: string; incident_type: string; severity: string };
+  damage?: { id: string; severity: string; location_on_vehicle: string; description: string; photo_urls: string[] };
   last_message?: { message: string; created_at: string; sender_type: string };
   message_count?: number;
 }
@@ -232,7 +234,7 @@ export function useSupportTicketById(ticketId: string | null) {
       if (!data) return null;
 
       // Fetch related data
-      const [customerRes, assigneeRes, bookingRes, incidentRes, messagesRes, auditRes] = await Promise.all([
+      const [customerRes, assigneeRes, bookingRes, incidentRes, damageRes, messagesRes, auditRes] = await Promise.all([
         data.customer_id
           ? supabase.from("profiles").select("id, full_name, email, phone").eq("id", data.customer_id).maybeSingle()
           : { data: null },
@@ -244,6 +246,9 @@ export function useSupportTicketById(ticketId: string | null) {
           : { data: null },
         data.incident_id
           ? (supabase.from("incident_cases") as any).select("id, incident_type, severity, status").eq("id", data.incident_id).maybeSingle()
+          : { data: null },
+        data.damage_id
+          ? supabase.from("damage_reports").select("id, severity, location_on_vehicle, description, photo_urls").eq("id", data.damage_id).maybeSingle()
           : { data: null },
         (supabase
           .from("ticket_messages_v2") as any)
@@ -273,6 +278,13 @@ export function useSupportTicketById(ticketId: string | null) {
         assignee: assigneeRes.data,
         booking: bookingRes.data,
         incident: incidentRes.data,
+        damage: damageRes.data ? {
+          id: damageRes.data.id,
+          severity: damageRes.data.severity,
+          location_on_vehicle: damageRes.data.location_on_vehicle,
+          description: damageRes.data.description,
+          photo_urls: Array.isArray(damageRes.data.photo_urls) ? damageRes.data.photo_urls : [],
+        } : null,
         messages: (messagesRes.data || []).map((m: any) => ({
           ...m,
           sender: profileMap.get(m.sender_id),
