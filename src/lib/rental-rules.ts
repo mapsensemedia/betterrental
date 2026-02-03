@@ -109,8 +109,8 @@ export interface TimeSlot {
  * @param intervalMinutes Interval in minutes (default 30)
  */
 export function generateTimeSlots(
-  startHour: number = 8, 
-  endHour: number = 18, 
+  startHour: number = 0, 
+  endHour: number = 23, 
   intervalMinutes: number = 30
 ): TimeSlot[] {
   const slots: TimeSlot[] = [];
@@ -132,8 +132,8 @@ export function generateTimeSlots(
   return slots;
 }
 
-// Pre-generated time slots for common use (8 AM to 6 PM, 30-min intervals)
-export const PICKUP_TIME_SLOTS: TimeSlot[] = generateTimeSlots(8, 18, 30);
+// Pre-generated time slots for 24-hour availability (30-min intervals)
+export const PICKUP_TIME_SLOTS: TimeSlot[] = generateTimeSlots(0, 23, 30);
 
 export const DEFAULT_PICKUP_TIME = "10:00";
 

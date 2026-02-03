@@ -19,11 +19,9 @@ interface CreditCardInputProps {
   cardNumber: string;
   cardName: string;
   expiryDate: string;
-  cvv: string;
   onCardNumberChange: (value: string) => void;
   onCardNameChange: (value: string) => void;
   onExpiryDateChange: (value: string) => void;
-  onCVVChange: (value: string) => void;
   errors?: Record<string, string>;
   showValidation?: boolean;
   className?: string;
@@ -72,11 +70,9 @@ export function CreditCardInput({
   cardNumber,
   cardName,
   expiryDate,
-  cvv,
   onCardNumberChange,
   onCardNameChange,
   onExpiryDateChange,
-  onCVVChange,
   errors = {},
   showValidation = true,
   className,
@@ -84,7 +80,6 @@ export function CreditCardInput({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   
   const cardType = useMemo(() => detectCardType(cardNumber), [cardNumber]);
-  const cardInfo = CARD_TYPES[cardType];
   
   const handleCardNumberChange = (value: string) => {
     const formatted = formatCardNumber(value, cardType);
@@ -95,11 +90,6 @@ export function CreditCardInput({
   const handleExpiryChange = (value: string) => {
     const formatted = formatExpiryDate(value);
     onExpiryDateChange(formatted.slice(0, 5));
-  };
-  
-  const handleCVVChange = (value: string) => {
-    const cleaned = value.replace(/\D/g, "");
-    onCVVChange(cleaned.slice(0, cardInfo.cvvLength));
   };
   
   const showError = (field: string) => 
@@ -163,58 +153,29 @@ export function CreditCardInput({
         )}
       </div>
       
-      {/* Expiry and CVV Row */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="expiry">Expiry Date *</Label>
-          <Input
-            id="expiry"
-            type="text"
-            inputMode="numeric"
-            placeholder="MM/YY"
-            value={expiryDate}
-            onChange={(e) => handleExpiryChange(e.target.value)}
-            onBlur={() => setTouched({ ...touched, expiry: true })}
-            className={cn(
-              "font-mono",
-              showError("expiry") && "border-destructive focus-visible:ring-destructive"
-            )}
-            autoComplete="cc-exp"
-          />
-          {showError("expiry") && (
-            <p className="text-xs text-destructive flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {errors.expiry}
-            </p>
+      {/* Expiry Date */}
+      <div className="space-y-2">
+        <Label htmlFor="expiry">Expiry Date *</Label>
+        <Input
+          id="expiry"
+          type="text"
+          inputMode="numeric"
+          placeholder="MM/YY"
+          value={expiryDate}
+          onChange={(e) => handleExpiryChange(e.target.value)}
+          onBlur={() => setTouched({ ...touched, expiry: true })}
+          className={cn(
+            "font-mono max-w-32",
+            showError("expiry") && "border-destructive focus-visible:ring-destructive"
           )}
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="cvv" className="flex items-center gap-1">
-            CVV *
-            <Lock className="w-3 h-3 text-muted-foreground" />
-          </Label>
-          <Input
-            id="cvv"
-            type="password"
-            inputMode="numeric"
-            placeholder={cardType === "amex" ? "4 digits" : "3 digits"}
-            value={cvv}
-            onChange={(e) => handleCVVChange(e.target.value)}
-            onBlur={() => setTouched({ ...touched, cvv: true })}
-            className={cn(
-              "font-mono",
-              showError("cvv") && "border-destructive focus-visible:ring-destructive"
-            )}
-            autoComplete="cc-csc"
-          />
-          {showError("cvv") && (
-            <p className="text-xs text-destructive flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {errors.cvv}
-            </p>
-          )}
-        </div>
+          autoComplete="cc-exp"
+        />
+        {showError("expiry") && (
+          <p className="text-xs text-destructive flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" />
+            {errors.expiry}
+          </p>
+        )}
       </div>
     </div>
   );
