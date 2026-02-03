@@ -1,15 +1,13 @@
-import { useState } from "react";
+/**
+ * OpsBookingSummary - Refactored booking summary panel for ops workflow
+ * Shows customer, vehicle, payment, and status information
+ */
+import { useState, useCallback } from "react";
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { 
   User, 
   Car, 
@@ -18,71 +16,27 @@ import {
   DollarSign,
   Phone,
   Mail,
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
   Clock,
   FileText,
   Eye,
   Copy,
   MessageSquare,
-  ExternalLink,
   ChevronsUpDown,
   ArrowUpCircle,
-  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StepCompletion } from "@/lib/ops-steps";
 import { CategoryUpgradeDialog } from "@/components/admin/CategoryUpgradeDialog";
-import { CreditCardDisplay } from "@/components/checkout/CreditCardInput";
-import { CardType } from "@/lib/card-validation";
+import { CollapsibleSection } from "./sections/CollapsibleSection";
+import { CardInfoSection } from "./sections/CardInfoSection";
 
 interface OpsBookingSummaryProps {
   booking: any;
   completion?: StepCompletion;
   onOpenAgreement?: () => void;
   onOpenWalkaround?: () => void;
-}
-
-interface CollapsibleSectionProps {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-  badge?: React.ReactNode;
-}
-
-function CollapsibleSection({ 
-  title, 
-  icon, 
-  children, 
-  defaultOpen = false,
-  badge,
-}: CollapsibleSectionProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <button className="w-full flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors">
-          <div className="flex items-center gap-2">
-            {icon}
-            <span className="text-sm font-medium">{title}</span>
-            {badge}
-          </div>
-          {isOpen ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          )}
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="px-3 pb-3 pt-1">
-        {children}
-      </CollapsibleContent>
-    </Collapsible>
-  );
 }
 
 export function OpsBookingSummary({ 
@@ -93,6 +47,16 @@ export function OpsBookingSummary({
 }: OpsBookingSummaryProps) {
   const [allExpanded, setAllExpanded] = useState(true);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  
+  // Track section states for controlled expand/collapse
+  const [sectionStates, setSectionStates] = useState({
+    customer: true,
+    vehicle: true,
+    rental: true,
+    location: true,
+    payment: true,
+    status: true,
+  });
   
   const vehicleName = booking.vehicles
     ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}`
@@ -130,6 +94,23 @@ export function OpsBookingSummary({
       window.location.href = `mailto:${booking.profiles.email}`;
     }
   };
+  
+  const toggleAllSections = useCallback(() => {
+    const newState = !allExpanded;
+    setAllExpanded(newState);
+    setSectionStates({
+      customer: newState,
+      vehicle: newState,
+      rental: newState,
+      location: newState,
+      payment: newState,
+      status: newState,
+    });
+  }, [allExpanded]);
+  
+  const updateSectionState = (section: keyof typeof sectionStates, value: boolean) => {
+    setSectionStates(prev => ({ ...prev, [section]: value }));
+  };
     
   return (
     <div className="h-full flex flex-col">
@@ -142,7 +123,7 @@ export function OpsBookingSummary({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setAllExpanded(!allExpanded)}
+            onClick={toggleAllSections}
             className="h-7 text-xs"
           >
             <ChevronsUpDown className="h-3 w-3 mr-1" />
@@ -221,7 +202,8 @@ export function OpsBookingSummary({
           <CollapsibleSection
             title="Customer"
             icon={<User className="h-4 w-4 text-muted-foreground" />}
-            defaultOpen={allExpanded}
+            isOpen={sectionStates.customer}
+            onOpenChange={(open) => updateSectionState('customer', open)}
           >
             <div className="space-y-2 text-sm">
               <p className="font-medium">{booking.profiles?.full_name || "Unknown"}</p>
@@ -246,7 +228,8 @@ export function OpsBookingSummary({
           <CollapsibleSection
             title="Vehicle"
             icon={<Car className="h-4 w-4 text-muted-foreground" />}
-            defaultOpen={allExpanded}
+            isOpen={sectionStates.vehicle}
+            onOpenChange={(open) => updateSectionState('vehicle', open)}
           >
             <div className="space-y-2 text-sm">
               <p className="font-medium">{vehicleName}</p>
@@ -310,7 +293,8 @@ export function OpsBookingSummary({
           <CollapsibleSection
             title="Rental Period"
             icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-            defaultOpen={allExpanded}
+            isOpen={sectionStates.rental}
+            onOpenChange={(open) => updateSectionState('rental', open)}
           >
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-xs">
@@ -334,7 +318,8 @@ export function OpsBookingSummary({
           <CollapsibleSection
             title={booking.pickup_address ? "Delivery" : "Pickup Location"}
             icon={<MapPin className="h-4 w-4 text-muted-foreground" />}
-            defaultOpen={allExpanded}
+            isOpen={sectionStates.location}
+            onOpenChange={(open) => updateSectionState('location', open)}
           >
             <div className="space-y-2 text-sm">
               {booking.pickup_address ? (
@@ -368,7 +353,8 @@ export function OpsBookingSummary({
           <CollapsibleSection
             title="Payment"
             icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-            defaultOpen={allExpanded}
+            isOpen={sectionStates.payment}
+            onOpenChange={(open) => updateSectionState('payment', open)}
             badge={
               !completion?.payment.paymentComplete && (
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500 text-amber-600">
@@ -377,61 +363,48 @@ export function OpsBookingSummary({
               )
             }
           >
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Daily Rate</span>
-                <span>${Number(booking.daily_rate).toFixed(2)}</span>
-              </div>
-              {Number(booking.young_driver_fee) > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Young driver fee</span>
-                  <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>${Number(booking.subtotal).toFixed(2)}</span>
-              </div>
-              {booking.tax_amount > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tax</span>
-                  <span>${Number(booking.tax_amount).toFixed(2)}</span>
-                </div>
-              )}
-              <Separator className="my-1" />
-              <div className="flex justify-between font-semibold">
-                <span>Total</span>
-                <span>${Number(booking.total_amount).toFixed(2)}</span>
-              </div>
-              {booking.deposit_amount && (
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Deposit</span>
-                  <span>${Number(booking.deposit_amount).toFixed(2)}</span>
-                </div>
-              )}
+            <div className="space-y-3">
+              {/* Card on File - Prominent Display */}
+              <CardInfoSection 
+                cardLastFour={booking.card_last_four}
+                cardType={booking.card_type}
+                cardHolderName={booking.card_holder_name}
+              />
               
-              {/* Card on File */}
-              {booking.card_last_four && (
-                <>
-                  <Separator className="my-1" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <CreditCard className="h-3 w-3" />
-                      Card on file
-                    </span>
-                    <CreditCardDisplay 
-                      cardNumber={`****${booking.card_last_four}`}
-                      cardType={booking.card_type as CardType}
-                    />
+              {/* Financial Breakdown */}
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Daily Rate</span>
+                  <span>${Number(booking.daily_rate).toFixed(2)}</span>
+                </div>
+                {Number(booking.young_driver_fee) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Young driver fee</span>
+                    <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
                   </div>
-                  {booking.card_holder_name && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Cardholder</span>
-                      <span className="truncate max-w-[120px]">{booking.card_holder_name}</span>
-                    </div>
-                  )}
-                </>
-              )}
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>${Number(booking.subtotal).toFixed(2)}</span>
+                </div>
+                {booking.tax_amount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tax</span>
+                    <span>${Number(booking.tax_amount).toFixed(2)}</span>
+                  </div>
+                )}
+                <Separator className="my-1" />
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>${Number(booking.total_amount).toFixed(2)}</span>
+                </div>
+                {booking.deposit_amount && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Deposit</span>
+                    <span>${Number(booking.deposit_amount).toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </CollapsibleSection>
           
@@ -441,7 +414,8 @@ export function OpsBookingSummary({
           <CollapsibleSection
             title="Status"
             icon={<Clock className="h-4 w-4 text-muted-foreground" />}
-            defaultOpen={allExpanded}
+            isOpen={sectionStates.status}
+            onOpenChange={(open) => updateSectionState('status', open)}
           >
             <div className="space-y-2">
               <div className="flex items-center gap-2">

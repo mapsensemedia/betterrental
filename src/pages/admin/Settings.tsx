@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { AddOnsPricingPanel } from "@/components/admin/AddOnsPricingPanel";
 import { PointsSettingsPanel } from "@/components/admin/PointsSettingsPanel";
+import { MembershipManagementPanel } from "@/components/admin/MembershipManagementPanel";
 import { 
   Settings, 
   Bell, 
@@ -145,6 +146,9 @@ export default function AdminSettings() {
 
         {/* Loyalty Points */}
         <PointsSettingsPanel />
+
+        {/* Membership Tiers */}
+        <MembershipManagementPanel />
 
         {/* Recovery Settings */}
         <Card>
