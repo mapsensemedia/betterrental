@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
 import type { Json } from "@/integrations/supabase/types";
 
-export type AppRole = "admin" | "staff" | "cleaner" | "finance";
+export type AppRole = "admin" | "staff" | "cleaner" | "finance" | "support";
 
 interface UserRole {
   id: string;

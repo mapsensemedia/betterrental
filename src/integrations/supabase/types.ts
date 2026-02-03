@@ -2823,6 +2823,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_support_or_admin: { Args: { _user_id: string }; Returns: boolean }
       release_vin_from_booking: {
         Args: { p_booking_id: string; p_new_status?: string }
         Returns: undefined

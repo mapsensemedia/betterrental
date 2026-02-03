@@ -64,8 +64,15 @@ const AdminOffers = lazy(() => import("./pages/admin/Offers"));
 const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
 const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 
+// Support Panel Pages - lazy loaded with separate route protection
+const SupportTickets = lazy(() => import("./pages/support/SupportTickets"));
+const SupportAnalyticsPage = lazy(() => import("./pages/support/SupportAnalytics"));
+
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
+
+// Support Protection
+import { SupportProtectedRoute } from "./components/support/SupportProtectedRoute";
 
 // Redirects for removed nav items
 import { Navigate } from "react-router-dom";
@@ -148,6 +155,10 @@ const App = () => (
                 <Route path="/admin/incidents" element={<AdminProtectedRoute><AdminIncidents /></AdminProtectedRoute>} />
                 <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
 
+                {/* Support Panel Routes - Separate from Admin */}
+                <Route path="/support" element={<SupportProtectedRoute><SupportTickets /></SupportProtectedRoute>} />
+                <Route path="/support/analytics" element={<SupportProtectedRoute><SupportAnalyticsPage /></SupportProtectedRoute>} />
+
                 {/* Redirects for consolidated nav items - all go to Operations hub */}
                 <Route path="/admin/pickups" element={<Navigate to="/admin/bookings?tab=pickups" replace />} />
                 <Route path="/admin/active-rentals" element={<Navigate to="/admin/bookings?tab=active" replace />} />
@@ -160,6 +171,10 @@ const App = () => (
                 <Route path="/admin/verifications" element={<Navigate to="/admin/alerts?type=verification_pending" replace />} />
                 <Route path="/admin/analytics" element={<Navigate to="/admin/reports" replace />} />
                 <Route path="/admin/audit-logs" element={<Navigate to="/admin/reports" replace />} />
+                
+                {/* Redirect old support path */}
+                <Route path="/admin/support" element={<Navigate to="/support" replace />} />
+                <Route path="/admin/support-analytics" element={<Navigate to="/support/analytics" replace />} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
