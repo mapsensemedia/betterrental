@@ -1,19 +1,27 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { DeliveryShell } from "@/components/delivery/DeliveryShell";
-import { DeliveryCard } from "@/components/delivery/DeliveryCard";
 import { AssignDriverDialog } from "@/components/delivery/AssignDriverDialog";
+import { DeliveryGrid } from "@/components/delivery/DeliveryGrid";
 import { useMyDeliveries, type DeliveryStatus, type DeliveryBooking } from "@/hooks/use-my-deliveries";
+import { useClaimDelivery } from "@/hooks/use-claim-delivery";
 import { useRealtimeDeliveries } from "@/hooks/use-realtime-subscriptions";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Truck, Clock, MapPin, Users, List } from "lucide-react";
+import { Loader2, Truck, MapPin, List, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  countByPortalStatus,
+  getDeliveryPortalStatus,
+  normalizeDeliveryPortalTab,
+  type DeliveryPortalStatus,
+} from "@/lib/delivery-portal";
 
 export default function DeliveryDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const statusFilter = searchParams.get("status") as DeliveryStatus | null;
+  const rawTab = searchParams.get("status");
+  const normalizedTab = normalizeDeliveryPortalTab(rawTab);
   const { user } = useAuth();
   const { data: isAdmin } = useIsAdmin();
   
@@ -25,22 +33,55 @@ export default function DeliveryDashboard() {
   useRealtimeDeliveries();
   
   // Admin/staff see all deliveries, drivers see assigned ones
-  const { data: deliveries, isLoading, error } = useMyDeliveries(undefined, isAdmin ?? false);
+  const { data: deliveries, isLoading, error } = useMyDeliveries(undefined, (isAdmin ?? false) ? "all" : "assigned");
+  const { data: poolDeliveries } = useMyDeliveries(undefined, "pool");
+  const claimDelivery = useClaimDelivery();
+  const [claimingId, setClaimingId] = useState<string | null>(null);
 
-  // Group deliveries by status and assignment
-  const unassigned = deliveries?.filter(d => d.deliveryStatus === "unassigned") || [];
-  const myDeliveries = deliveries?.filter(d => 
-    d.assignedDriverId === user?.id && 
-    d.deliveryStatus !== "delivered" && 
-    d.deliveryStatus !== "cancelled"
-  ) || [];
-  const pending = deliveries?.filter(d => 
-    d.deliveryStatus === "assigned" && d.assignedDriverId
-  ) || [];
-  const inProgress = deliveries?.filter(d => 
-    d.deliveryStatus === "picked_up" || d.deliveryStatus === "en_route"
-  ) || [];
-  const completed = deliveries?.filter(d => d.deliveryStatus === "delivered") || [];
+  const portalCounts = useMemo(() => countByPortalStatus(deliveries), [deliveries]);
+
+  const unassigned = useMemo(
+    () => (deliveries || []).filter((d) => d.deliveryStatus === "unassigned"),
+    [deliveries]
+  );
+
+  const myDeliveries = useMemo(
+    () => (deliveries || []).filter((d) => d.assignedDriverId === user?.id),
+    [deliveries, user?.id]
+  );
+
+  const pending = useMemo(
+    () => (deliveries || []).filter((d) => getDeliveryPortalStatus({ bookingStatus: d.status, deliveryStatus: d.deliveryStatus }) === "pending"),
+    [deliveries]
+  );
+  const pendingUnassigned = useMemo(
+    () => pending.filter((d) => d.deliveryStatus === "unassigned"),
+    [pending]
+  );
+  const pendingAssigned = useMemo(
+    () => pending.filter((d) => d.deliveryStatus !== "unassigned"),
+    [pending]
+  );
+
+  const enRoute = useMemo(
+    () => (deliveries || []).filter((d) => getDeliveryPortalStatus({ bookingStatus: d.status, deliveryStatus: d.deliveryStatus }) === "en_route"),
+    [deliveries]
+  );
+  const completed = useMemo(
+    () => (deliveries || []).filter((d) => getDeliveryPortalStatus({ bookingStatus: d.status, deliveryStatus: d.deliveryStatus }) === "completed"),
+    [deliveries]
+  );
+  const issues = useMemo(
+    () => (deliveries || []).filter((d) => getDeliveryPortalStatus({ bookingStatus: d.status, deliveryStatus: d.deliveryStatus }) === "issue"),
+    [deliveries]
+  );
+
+  const availableToClaim = useMemo(() => {
+    if (isAdmin) return [];
+    return (poolDeliveries || []).filter(
+      (d) => getDeliveryPortalStatus({ bookingStatus: d.status, deliveryStatus: d.deliveryStatus }) === "pending"
+    );
+  }, [isAdmin, poolDeliveries]);
 
   const handleTabChange = (value: string) => {
     if (value === "all") {
@@ -56,7 +97,17 @@ export default function DeliveryDashboard() {
     setAssignDialogOpen(true);
   };
 
-  const currentTab = statusFilter || (isAdmin ? "all" : "my");
+  const handleClaim = async (delivery: DeliveryBooking) => {
+    setClaimingId(delivery.id);
+    try {
+      await claimDelivery.mutateAsync(delivery.id);
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  const defaultTab: DeliveryPortalStatus | "all" | "my" | "available" = isAdmin ? "pending" : "my";
+  const currentTab = (normalizedTab || defaultTab) as any;
 
   return (
     <DeliveryShell>
@@ -91,7 +142,7 @@ export default function DeliveryDashboard() {
         {/* Content */}
         {!isLoading && !error && (
           <Tabs value={currentTab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:grid-cols-none lg:inline-flex">
               {/* Drivers see "My Deliveries" first */}
               {!isAdmin && (
                 <TabsTrigger value="my" className="gap-2">
@@ -102,74 +153,128 @@ export default function DeliveryDashboard() {
                   </Badge>
                 </TabsTrigger>
               )}
-              
-              {/* Admin sees Unassigned queue */}
-              {isAdmin && (
-                <TabsTrigger value="unassigned" className="gap-2">
-                  <Users className="h-4 w-4" />
-                  Unassigned
-                  <Badge variant={unassigned.length > 0 ? "destructive" : "secondary"} className="ml-1">
-                    {unassigned.length}
+
+              {!isAdmin && (
+                <TabsTrigger value="available" className="gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Available
+                  <Badge variant={availableToClaim.length > 0 ? "destructive" : "secondary"} className="ml-1">
+                    {availableToClaim.length}
                   </Badge>
                 </TabsTrigger>
               )}
               
-              <TabsTrigger value="all" className="gap-2">
-                <List className="h-4 w-4" />
-                All
-                <Badge variant="secondary" className="ml-1">
-                  {deliveries?.length || 0}
+              <TabsTrigger value="pending" className="gap-2">
+                <Truck className="h-4 w-4" />
+                Pending
+                <Badge variant={portalCounts.pending > 0 ? "secondary" : "secondary"} className="ml-1">
+                  {portalCounts.pending}
                 </Badge>
               </TabsTrigger>
               
-              <TabsTrigger value="active" className="gap-2">
+              <TabsTrigger value="en_route" className="gap-2">
                 <MapPin className="h-4 w-4" />
-                Active
+                En Route
                 <Badge variant="secondary" className="ml-1">
-                  {inProgress.length}
+                  {portalCounts.en_route}
                 </Badge>
               </TabsTrigger>
+
+              <TabsTrigger value="completed" className="gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Completed
+                <Badge variant="secondary" className="ml-1">
+                  {portalCounts.completed}
+                </Badge>
+              </TabsTrigger>
+
+              <TabsTrigger value="issue" className="gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Issue
+                <Badge variant={portalCounts.issue > 0 ? "destructive" : "secondary"} className="ml-1">
+                  {portalCounts.issue}
+                </Badge>
+              </TabsTrigger>
+
+              {isAdmin && (
+                <TabsTrigger value="all" className="gap-2">
+                  <List className="h-4 w-4" />
+                  All
+                  <Badge variant="secondary" className="ml-1">
+                    {deliveries?.length || 0}
+                  </Badge>
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* My Deliveries Tab (Drivers) */}
             {!isAdmin && (
               <TabsContent value="my" className="mt-6">
-                <DeliveryGrid 
-                  deliveries={myDeliveries} 
-                  emptyMessage="No deliveries assigned to you"
-                  showAssignButton={false}
+                <DeliveryGrid deliveries={myDeliveries} emptyMessage="No deliveries assigned to you" />
+              </TabsContent>
+            )}
+
+            {!isAdmin && (
+              <TabsContent value="available" className="mt-6">
+                <DeliveryGrid
+                  deliveries={availableToClaim}
+                  emptyMessage="No unassigned deliveries available"
+                  showClaimButton
+                  onClaimDelivery={handleClaim}
+                  claimingId={claimingId}
                 />
               </TabsContent>
             )}
 
-            {/* Unassigned Queue (Admin/Staff only) */}
+            <TabsContent value="pending" className="mt-6 space-y-6">
+              {isAdmin && (
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold">Unassigned</h2>
+                    <Badge variant={unassigned.length > 0 ? "destructive" : "secondary"}>{unassigned.length}</Badge>
+                  </div>
+                  <DeliveryGrid
+                    deliveries={pendingUnassigned}
+                    emptyMessage="No unassigned pending deliveries"
+                    showAssignButton
+                    onAssignDriver={handleAssignDriver}
+                  />
+                </section>
+              )}
+
+              <section className="space-y-3">
+                {isAdmin && (
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold">Assigned</h2>
+                    <Badge variant="secondary">{pendingAssigned.length}</Badge>
+                  </div>
+                )}
+                <DeliveryGrid deliveries={isAdmin ? pendingAssigned : pending} emptyMessage="No pending deliveries" />
+              </section>
+            </TabsContent>
+
+            <TabsContent value="en_route" className="mt-6">
+              <DeliveryGrid deliveries={enRoute} emptyMessage="No en-route deliveries" />
+            </TabsContent>
+
+            <TabsContent value="completed" className="mt-6">
+              <DeliveryGrid deliveries={completed} emptyMessage="No completed deliveries" />
+            </TabsContent>
+
+            <TabsContent value="issue" className="mt-6">
+              <DeliveryGrid deliveries={issues} emptyMessage="No deliveries with issues" />
+            </TabsContent>
+
             {isAdmin && (
-              <TabsContent value="unassigned" className="mt-6">
-                <DeliveryGrid 
-                  deliveries={unassigned} 
-                  emptyMessage="No unassigned deliveries"
-                  showAssignButton={true}
+              <TabsContent value="all" className="mt-6">
+                <DeliveryGrid
+                  deliveries={deliveries || []}
+                  emptyMessage="No deliveries found"
+                  showAssignButton
                   onAssignDriver={handleAssignDriver}
                 />
               </TabsContent>
             )}
-
-            <TabsContent value="all" className="mt-6">
-              <DeliveryGrid 
-                deliveries={deliveries || []} 
-                showAssignButton={isAdmin ?? false}
-                onAssignDriver={handleAssignDriver}
-              />
-            </TabsContent>
-
-            <TabsContent value="active" className="mt-6">
-              <DeliveryGrid 
-                deliveries={inProgress} 
-                emptyMessage="No active deliveries"
-                showAssignButton={isAdmin ?? false}
-                onAssignDriver={handleAssignDriver}
-              />
-            </TabsContent>
           </Tabs>
         )}
       </div>
@@ -185,39 +290,5 @@ export default function DeliveryDashboard() {
         />
       )}
     </DeliveryShell>
-  );
-}
-
-function DeliveryGrid({ 
-  deliveries, 
-  emptyMessage = "No deliveries found",
-  showAssignButton = false,
-  onAssignDriver,
-}: { 
-  deliveries: DeliveryBooking[];
-  emptyMessage?: string;
-  showAssignButton?: boolean;
-  onAssignDriver?: (delivery: DeliveryBooking) => void;
-}) {
-  if (!deliveries || deliveries.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        <Truck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>{emptyMessage}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {deliveries.map((delivery) => (
-        <DeliveryCard 
-          key={delivery.id} 
-          delivery={delivery} 
-          showAssignButton={showAssignButton && delivery.deliveryStatus === "unassigned"}
-          onAssignDriver={onAssignDriver ? () => onAssignDriver(delivery) : undefined}
-        />
-      ))}
-    </div>
   );
 }

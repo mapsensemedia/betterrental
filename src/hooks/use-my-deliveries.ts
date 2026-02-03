@@ -48,11 +48,21 @@ export interface DeliveryBooking {
   isUrgent: boolean;
 }
 
-export function useMyDeliveries(statusFilter?: DeliveryStatus | "all", showAll: boolean = false) {
+type DeliveryScope = "assigned" | "pool" | "all";
+
+function normalizeScope(scope: boolean | DeliveryScope): DeliveryScope {
+  return typeof scope === "boolean" ? (scope ? "all" : "assigned") : scope;
+}
+
+export function useMyDeliveries(
+  statusFilter?: DeliveryStatus | "all",
+  scope: boolean | DeliveryScope = false
+) {
   const { user } = useAuth();
+  const deliveryScope = normalizeScope(scope);
 
   return useQuery<DeliveryBooking[]>({
-    queryKey: ["my-deliveries", user?.id, statusFilter, showAll],
+    queryKey: ["my-deliveries", user?.id, statusFilter, deliveryScope],
     queryFn: async () => {
       if (!user) return [];
 
@@ -77,13 +87,16 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all", showAll: 
           assigned_unit_id,
           assigned_driver_id
         `)
-        .in("status", ["confirmed", "active"])
+        // Include newly-created bookings (pending) so they appear immediately in the Delivery Portal
+        .in("status", ["pending", "confirmed", "active", "cancelled"])
         .not("pickup_address", "is", null) // Only delivery bookings (have pickup address)
         .order("start_at", { ascending: true });
 
-      // If not showing all, filter to only this driver's assigned deliveries
-      if (!showAll) {
+      // Scope
+      if (deliveryScope === "assigned") {
         query = query.eq("assigned_driver_id", user.id);
+      } else if (deliveryScope === "pool") {
+        query = query.is("assigned_driver_id", null);
       }
 
       const { data: bookings, error } = await query;
@@ -163,7 +176,11 @@ export function useMyDeliveries(statusFilter?: DeliveryStatus | "all", showAll: 
         const unit = b.assigned_unit_id ? unitMap.get(b.assigned_unit_id) : null;
         const location = locationMap.get(b.location_id);
         // Default to 'unassigned' if no driver, or get from status map
-        const deliveryStatus = statusMap.get(b.id) || (b.assigned_driver_id ? "assigned" : "unassigned");
+        // If the booking itself is cancelled, force a cancelled delivery state for portal mapping.
+        const deliveryStatus =
+          b.status === "cancelled"
+            ? "cancelled"
+            : statusMap.get(b.id) || (b.assigned_driver_id ? "assigned" : "unassigned");
         const pickupTime = new Date(b.start_at);
         const isUrgent = pickupTime <= urgencyThreshold && (deliveryStatus === "assigned" || deliveryStatus === "unassigned");
 

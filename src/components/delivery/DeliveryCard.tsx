@@ -14,7 +14,8 @@ import {
   Building2,
   Mail,
   AlertTriangle,
-  UserPlus 
+  UserPlus,
+  Hand 
 } from "lucide-react";
 import type { DeliveryBooking } from "@/hooks/use-my-deliveries";
 
@@ -22,9 +23,19 @@ interface DeliveryCardProps {
   delivery: DeliveryBooking;
   showAssignButton?: boolean;
   onAssignDriver?: () => void;
+  showClaimButton?: boolean;
+  onClaimDelivery?: () => void;
+  claimLoading?: boolean;
 }
 
-export function DeliveryCard({ delivery, showAssignButton, onAssignDriver }: DeliveryCardProps) {
+export function DeliveryCard({
+  delivery,
+  showAssignButton,
+  onAssignDriver,
+  showClaimButton,
+  onClaimDelivery,
+  claimLoading,
+}: DeliveryCardProps) {
   const pickupTime = new Date(delivery.startAt);
   const isToday = new Date().toDateString() === pickupTime.toDateString();
   
@@ -166,9 +177,23 @@ export function DeliveryCard({ delivery, showAssignButton, onAssignDriver }: Del
               Assign Driver
             </Button>
           )}
+
+          {/* Claim Delivery (Drivers) */}
+          {showClaimButton && onClaimDelivery && (
+            <Button
+              variant="default"
+              size="sm"
+              className="flex-1"
+              onClick={onClaimDelivery}
+              disabled={claimLoading}
+            >
+              <Hand className="h-4 w-4 mr-1" />
+              {claimLoading ? "Claiming…" : "Claim"}
+            </Button>
+          )}
           
           {/* Only show navigate for assigned deliveries */}
-          {!showAssignButton && (
+          {!showAssignButton && !showClaimButton && (
             <Button
               variant="outline"
               size="sm"
