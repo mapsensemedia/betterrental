@@ -209,11 +209,9 @@ export function maskCardNumber(cardNumber: string): string {
 export function validateCard(card: {
   number: string;
   expiry: string;
-  cvv: string;
   name: string;
 }): { valid: boolean; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
-  const cardType = detectCardType(card.number);
   
   // Validate card number
   if (!card.number.trim()) {
@@ -232,13 +230,6 @@ export function validateCard(card: {
     if (!expiryResult.valid) {
       errors.expiry = expiryResult.error || "Invalid expiry";
     }
-  }
-  
-  // Validate CVV
-  if (!card.cvv.trim()) {
-    errors.cvv = "CVV is required";
-  } else if (!validateCVV(card.cvv, cardType)) {
-    errors.cvv = `CVV must be ${CARD_TYPES[cardType].cvvLength} digits`;
   }
   
   // Validate name
