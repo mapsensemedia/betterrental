@@ -84,14 +84,16 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
 
   // Count deliveries by status
   const statusCounts = {
+    unassigned: deliveries?.filter(d => d.deliveryStatus === "unassigned").length || 0,
     assigned: deliveries?.filter(d => d.deliveryStatus === "assigned").length || 0,
     en_route: deliveries?.filter(d => d.deliveryStatus === "en_route" || d.deliveryStatus === "picked_up").length || 0,
     delivered: deliveries?.filter(d => d.deliveryStatus === "delivered").length || 0,
   };
 
-  const totalPending = statusCounts.assigned + statusCounts.en_route;
+  const totalPending = statusCounts.unassigned + statusCounts.assigned + statusCounts.en_route;
 
   const statusFilters = [
+    ...(isAdmin ? [{ key: "unassigned", label: "Unassigned", count: statusCounts.unassigned, icon: AlertCircle, className: "text-orange-600" }] : []),
     { key: "assigned", label: "Pending", count: statusCounts.assigned, icon: Clock, className: "text-amber-600" },
     { key: "en_route", label: "En Route", count: statusCounts.en_route, icon: MapPin, className: "text-blue-600" },
     { key: "delivered", label: "Completed", count: statusCounts.delivered, icon: CheckCircle, className: "text-green-600" },

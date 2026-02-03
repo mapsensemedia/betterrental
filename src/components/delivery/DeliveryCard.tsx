@@ -13,15 +13,18 @@ import {
   Navigation, 
   Building2,
   Mail,
-  AlertTriangle 
+  AlertTriangle,
+  UserPlus 
 } from "lucide-react";
 import type { DeliveryBooking } from "@/hooks/use-my-deliveries";
 
 interface DeliveryCardProps {
   delivery: DeliveryBooking;
+  showAssignButton?: boolean;
+  onAssignDriver?: () => void;
 }
 
-export function DeliveryCard({ delivery }: DeliveryCardProps) {
+export function DeliveryCard({ delivery, showAssignButton, onAssignDriver }: DeliveryCardProps) {
   const pickupTime = new Date(delivery.startAt);
   const isToday = new Date().toDateString() === pickupTime.toDateString();
   
@@ -40,7 +43,7 @@ export function DeliveryCard({ delivery }: DeliveryCardProps) {
   };
 
   return (
-    <Card className={`hover:shadow-md transition-shadow ${delivery.isUrgent ? 'border-amber-400 border-2' : ''}`}>
+    <Card className={`hover:shadow-md transition-shadow ${delivery.isUrgent ? 'border-amber-400 border-2' : ''} ${delivery.deliveryStatus === 'unassigned' ? 'border-orange-300 bg-orange-50/30' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -59,7 +62,7 @@ export function DeliveryCard({ delivery }: DeliveryCardProps) {
               {delivery.customer?.fullName || "Unknown Customer"}
             </p>
           </div>
-          <DeliveryStatusBadge status={delivery.deliveryStatus || "assigned"} />
+          <DeliveryStatusBadge status={delivery.deliveryStatus || "unassigned"} />
         </div>
       </CardHeader>
       
@@ -151,17 +154,34 @@ export function DeliveryCard({ delivery }: DeliveryCardProps) {
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={handleNavigate}
-            disabled={!delivery.pickupAddress && !delivery.pickupLat}
-          >
-            <Navigation className="h-4 w-4 mr-1" />
-            Navigate
-          </Button>
-          <Button variant="default" size="sm" className="flex-1" asChild>
+          {/* Assign Driver Button for unassigned deliveries */}
+          {showAssignButton && onAssignDriver && (
+            <Button
+              variant="default"
+              size="sm"
+              className="flex-1"
+              onClick={onAssignDriver}
+            >
+              <UserPlus className="h-4 w-4 mr-1" />
+              Assign Driver
+            </Button>
+          )}
+          
+          {/* Only show navigate for assigned deliveries */}
+          {!showAssignButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={handleNavigate}
+              disabled={!delivery.pickupAddress && !delivery.pickupLat}
+            >
+              <Navigation className="h-4 w-4 mr-1" />
+              Navigate
+            </Button>
+          )}
+          
+          <Button variant={showAssignButton ? "outline" : "default"} size="sm" className="flex-1" asChild>
             <Link to={`/delivery/${delivery.id}`}>
               Details
               <ChevronRight className="h-4 w-4 ml-1" />

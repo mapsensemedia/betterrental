@@ -8,6 +8,7 @@ interface DeliveryStatusBadgeProps {
 }
 
 const statusConfig: Record<DeliveryStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className: string }> = {
+  unassigned: { label: "Unassigned", variant: "outline", className: "border-orange-500 text-orange-600 bg-orange-50" },
   assigned: { label: "Assigned", variant: "outline", className: "border-amber-500 text-amber-600" },
   picked_up: { label: "Picked Up", variant: "secondary", className: "bg-blue-100 text-blue-700" },
   en_route: { label: "En Route", variant: "secondary", className: "bg-blue-100 text-blue-700" },

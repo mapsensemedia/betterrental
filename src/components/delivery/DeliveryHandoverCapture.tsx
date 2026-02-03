@@ -15,6 +15,7 @@ interface DeliveryHandoverCaptureProps {
 }
 
 const STATUS_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus | null> = {
+  unassigned: null, // Can't progress unassigned deliveries - need to assign first
   assigned: "picked_up",
   picked_up: "en_route",
   en_route: "delivered",
@@ -24,6 +25,7 @@ const STATUS_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus | null> = {
 };
 
 const STATUS_LABELS: Record<DeliveryStatus, string> = {
+  unassigned: "Awaiting Assignment",
   assigned: "Mark as Picked Up",
   picked_up: "Start Delivery",
   en_route: "Complete Delivery",
