@@ -132,86 +132,24 @@ export function PointsRedemption({
         </Badge>
       </div>
 
-      {isApplied ? (
-        // Applied state
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-accent border border-border rounded-lg">
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">
-                {appliedPoints.toLocaleString()} points applied
-              </span>
-            </div>
-            <span className="font-semibold text-primary">
-              -CA${appliedDiscount.toFixed(2)}
+      {/* Coming Soon State */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between p-3 bg-muted/50 border border-dashed border-border rounded-lg">
+          <div className="flex items-center gap-2">
+            <Star className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              Points redemption coming soon
             </span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRemove}
-            className="text-muted-foreground"
-          >
-            <X className="w-4 h-4 mr-1" />
-            Remove points discount
-          </Button>
+          <Badge variant="secondary" className="text-xs">
+            Coming Soon
+          </Badge>
         </div>
-      ) : (
-        // Selection state
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-sm">Points to redeem</Label>
-              <span className="text-sm font-medium">
-                {pointsToUse.toLocaleString()} pts = CA${discountInfo.discount.toFixed(2)} off
-              </span>
-            </div>
-            <Slider
-              value={[pointsToUse]}
-              onValueChange={([value]) => setPointsToUse(value)}
-              max={maxUsablePoints}
-              min={0}
-              step={settings?.redeemRules.min_points || 100}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>0</span>
-              <span>{maxUsablePoints.toLocaleString()} max</span>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Discount</span>
-            <span className={cn(
-              "font-semibold",
-              discountInfo.discount > 0 && "text-primary"
-            )}>
-              {discountInfo.discount > 0 
-                ? `-CA$${discountInfo.discount.toFixed(2)}`
-                : "Select points to redeem"
-              }
-            </span>
-          </div>
-
-          {settings && (
-            <p className="text-xs text-muted-foreground">
-              Max {settings.redeemRules.max_percent_of_total}% of total can be paid with points.
-              {settings.redeemRate.points_per_dollar} points = CA$1.00
-            </p>
-          )}
-
-          <Button
-            onClick={handleApply}
-            disabled={pointsToUse === 0 || discountInfo.discount === 0}
-            className="w-full"
-          >
-            <Gift className="w-4 h-4 mr-2" />
-            Apply {pointsToUse.toLocaleString()} Points
-          </Button>
-        </div>
-      )}
+        <p className="text-xs text-muted-foreground">
+          You'll soon be able to redeem your points for discounts at checkout. 
+          Keep earning points on every rental!
+        </p>
+      </div>
     </Card>
   );
 }
