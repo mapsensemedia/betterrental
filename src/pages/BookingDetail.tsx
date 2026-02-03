@@ -46,7 +46,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBookingReceipts } from "@/hooks/use-receipts";
-import { useCreateTicket, useCustomerTickets, useCustomerTicketById, useSendTicketMessage } from "@/hooks/use-tickets";
+import { 
+  useCustomerTicketsV2, 
+  useCustomerTicketByIdV2, 
+  useCreateCustomerTicketV2, 
+  useSendCustomerMessageV2 
+} from "@/hooks/use-support-v2";
 import {
   Tooltip,
   TooltipContent,
@@ -160,10 +165,10 @@ export default function BookingDetail() {
     licenseBack.status !== "rejected";
   
   const { data: receipts = [] } = useBookingReceipts(id || null);
-  const { data: tickets = [] } = useCustomerTickets();
-  const { data: ticketThread } = useCustomerTicketById(selectedTicketId);
-  const createTicket = useCreateTicket();
-  const sendMessage = useSendTicketMessage();
+  const { data: tickets = [] } = useCustomerTicketsV2();
+  const { data: ticketThread } = useCustomerTicketByIdV2(selectedTicketId);
+  const createTicket = useCreateCustomerTicketV2();
+  const sendMessage = useSendCustomerMessageV2();
   
   // Fetch rental agreement for stepper state
   const { data: agreement } = useRentalAgreement(id || null);
@@ -396,7 +401,6 @@ export default function BookingDetail() {
     sendMessage.mutate({
       ticketId: selectedTicketId,
       message: replyMessage,
-      isStaff: false,
     }, {
       onSuccess: () => {
         setReplyMessage("");
