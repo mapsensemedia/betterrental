@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 
 export type IncidentSeverity = "minor" | "moderate" | "major";
-export type IncidentStatus = "reported" | "investigating" | "claim_filed" | "in_repair" | "resolved" | "closed";
+export type IncidentStatus = "reported" | "investigating" | "evidence_complete" | "claim_filed" | "estimate" | "approved" | "in_repair" | "resolved" | "ready" | "closed";
 
 export interface IncidentCase {
   id: string;
@@ -374,9 +374,13 @@ export function useUploadIncidentPhoto() {
 // Valid status transitions
 const VALID_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
   reported: ["investigating", "closed"],
-  investigating: ["claim_filed", "in_repair", "resolved", "closed"],
-  claim_filed: ["in_repair", "resolved", "closed"],
-  in_repair: ["resolved", "closed"],
+  investigating: ["evidence_complete", "claim_filed", "in_repair", "resolved", "closed"],
+  evidence_complete: ["claim_filed", "estimate", "in_repair", "resolved", "closed"],
+  claim_filed: ["estimate", "approved", "in_repair", "resolved", "closed"],
+  estimate: ["approved", "in_repair", "resolved", "closed"],
+  approved: ["in_repair", "resolved", "closed"],
+  in_repair: ["ready", "resolved", "closed"],
+  ready: ["resolved", "closed"],
   resolved: ["closed"],
   closed: [],
 };
