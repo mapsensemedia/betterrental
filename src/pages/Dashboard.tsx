@@ -16,6 +16,7 @@ import { useMembershipInfo, usePointsLedger } from "@/hooks/use-points";
 import { useActiveOffers } from "@/hooks/use-offers";
 import { useCustomerMarkReturned } from "@/hooks/use-late-return";
 import { canCustomerMarkReturned } from "@/lib/late-return";
+import { useCustomerRealtimeSubscriptions } from "@/hooks/use-realtime-subscriptions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +57,9 @@ export default function Dashboard() {
   const markReturned = useCustomerMarkReturned();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Real-time updates for customer bookings
+  useCustomerRealtimeSubscriptions(user?.id);
 
   useEffect(() => {
     if (!isLoading && !user) {

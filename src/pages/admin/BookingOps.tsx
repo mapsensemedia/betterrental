@@ -50,8 +50,14 @@ import { useRealtimeDeliveryStatuses } from "@/hooks/use-realtime-subscriptions"
 
 // Types
 import { OPS_STEPS, type OpsStepId, type StepCompletion, getCurrentStepIndex, checkStepComplete } from "@/lib/ops-steps";
-import { ArrowLeft, MoreVertical, X, Loader2, Wrench, Truck } from "lucide-react";
+import { ArrowLeft, MoreVertical, X, Loader2, Wrench, Truck, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { Database } from "@/integrations/supabase/types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -124,6 +130,7 @@ export default function BookingOps() {
   // Vehicle conflict detection
   const hasVehicleConflict = vehicleAvailability?.isAvailable === false && 
     (vehicleAvailability?.conflicts?.length || 0) > 0;
+  const conflictDetails = vehicleAvailability?.conflicts || [];
   
   // Delivery status tracking
   const deliveryStatus = booking?.delivery_statuses?.status;
@@ -302,9 +309,25 @@ export default function BookingOps() {
                   {booking.status}
                 </Badge>
                 {hasVehicleConflict && (
-                  <Badge variant="destructive" className="shrink-0 text-[10px]">
-                    Conflict
-                  </Badge>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="destructive" className="shrink-0 text-[10px] gap-1 cursor-help">
+                          <AlertCircle className="w-3 h-3" />
+                          Conflict
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="font-semibold mb-1">Vehicle Scheduling Conflict</p>
+                        <p className="text-xs">
+                          {conflictDetails.length > 0 
+                            ? `This vehicle overlaps with ${conflictDetails.length} other booking(s): ${conflictDetails.slice(0, 2).map((c) => c.bookingCode || 'Unknown').join(', ')}${conflictDetails.length > 2 ? '...' : ''}`
+                            : "Vehicle is already booked during this period."
+                          }
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
                 {isDeliveryBooking && (
                   <Badge className="shrink-0 text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400">

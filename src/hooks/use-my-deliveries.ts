@@ -19,6 +19,7 @@ export interface DeliveryBooking {
   specialInstructions: string | null;
   deliveryStatus: DeliveryStatus | null;
   assignedDriverId: string | null;
+  assignedDriverName: string | null;
   customer: {
     fullName: string | null;
     email: string | null;
@@ -157,6 +158,21 @@ export function useMyDeliveries(
         unitMap = new Map(units?.map(u => [u.id, u]) || []);
       }
 
+      // Get assigned driver profiles
+      const driverIds = bookings
+        .map(b => b.assigned_driver_id)
+        .filter((id): id is string => id !== null);
+      
+      let driverMap = new Map<string, { id: string; full_name: string | null }>();
+      if (driverIds.length > 0) {
+        const { data: driverProfiles } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", driverIds);
+        
+        driverMap = new Map(driverProfiles?.map(d => [d.id, d]) || []);
+      }
+
       // Get dispatch hub locations
       const locationIds = [...new Set(bookings.map(b => b.location_id))];
       const { data: locations } = await supabase
@@ -175,6 +191,7 @@ export function useMyDeliveries(
         const category = categoryMap.get(b.vehicle_id);
         const unit = b.assigned_unit_id ? unitMap.get(b.assigned_unit_id) : null;
         const location = locationMap.get(b.location_id);
+        const driver = b.assigned_driver_id ? driverMap.get(b.assigned_driver_id) : null;
         // Default to 'unassigned' if no driver, or get from status map
         // If the booking itself is cancelled, force a cancelled delivery state for portal mapping.
         const deliveryStatus =
@@ -198,6 +215,7 @@ export function useMyDeliveries(
           specialInstructions: b.special_instructions,
           deliveryStatus,
           assignedDriverId: b.assigned_driver_id,
+          assignedDriverName: driver?.full_name || null,
           customer: profile ? {
             fullName: profile.full_name,
             email: profile.email,

@@ -68,6 +68,7 @@ import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 import { BookingProgressStepper } from "@/components/booking/BookingProgressStepper";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
+import { useCustomerRealtimeSubscriptions } from "@/hooks/use-realtime-subscriptions";
 
 // Notification type labels
 const NOTIFICATION_LABELS: Record<string, string> = {
@@ -129,6 +130,9 @@ export default function BookingDetail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
+  
+  // Real-time updates for customer bookings
+  useCustomerRealtimeSubscriptions(user?.id);
   
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
