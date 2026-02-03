@@ -282,7 +282,7 @@ export default function SupportAnalyticsPage() {
                       <TrendingUp className="h-5 w-5 text-rose-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Aging (>24h)</p>
+                      <p className="text-sm text-muted-foreground">{"Aging (>24h)"}</p>
                       <p className="text-2xl font-bold">{analytics.operational.aging24h}</p>
                     </div>
                   </div>
@@ -452,15 +452,15 @@ export default function SupportAnalyticsPage() {
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                    <p className="text-sm text-amber-600 font-medium">&gt; 24 hours</p>
+                    <p className="text-sm text-amber-600 font-medium">{"> 24 hours"}</p>
                     <p className="text-2xl font-bold mt-1">{analytics.operational.aging24h}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-orange-500/5 border border-orange-500/20">
-                    <p className="text-sm text-orange-600 font-medium">&gt; 48 hours</p>
+                    <p className="text-sm text-orange-600 font-medium">{"> 48 hours"}</p>
                     <p className="text-2xl font-bold mt-1">{analytics.operational.aging48h}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-destructive/5 border border-destructive/20">
-                    <p className="text-sm text-destructive font-medium">&gt; 7 days</p>
+                    <p className="text-sm text-destructive font-medium">{"> 7 days"}</p>
                     <p className="text-2xl font-bold mt-1">{analytics.operational.aging7d}</p>
                   </div>
                 </div>
