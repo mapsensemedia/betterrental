@@ -69,10 +69,25 @@ export function CardInfoSection({ cardLastFour, cardType, cardHolderName, cardEx
       
       {/* Full card number display (masked except last 4) */}
       <div className="mb-3">
-        <div className="font-mono text-lg sm:text-xl tracking-[0.2em] flex items-center flex-wrap gap-x-3">
-          <span className="text-slate-400">••••</span>
-          <span className="text-slate-400">••••</span>
-          <span className="text-slate-400">••••</span>
+        <div className="font-mono text-lg sm:text-xl tracking-[0.15em] flex items-center flex-wrap gap-x-3">
+          <span className="text-slate-300 flex gap-1">
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+          </span>
+          <span className="text-slate-300 flex gap-1">
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+          </span>
+          <span className="text-slate-300 flex gap-1">
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+          </span>
           <span className="text-white font-semibold">{cardLastFour}</span>
         </div>
       </div>
