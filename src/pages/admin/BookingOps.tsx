@@ -33,6 +33,7 @@ import { MobileBookingSummary } from "@/components/admin/ops/MobileBookingSummar
 import { OpsActivityTimeline } from "@/components/admin/ops/OpsActivityTimeline";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { CancelBookingDialog } from "@/components/admin/CancelBookingDialog";
+import { DeliveryModeBanner } from "@/components/admin/ops/DeliveryModeBanner";
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
@@ -44,10 +45,11 @@ import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { useBookingVerification } from "@/hooks/use-verification";
 import { useCheckVehicleAvailability } from "@/hooks/use-vehicle-assignment";
+import { useAvailableDrivers } from "@/hooks/use-available-drivers";
 
 // Types
 import { OPS_STEPS, type OpsStepId, type StepCompletion, getCurrentStepIndex, checkStepComplete } from "@/lib/ops-steps";
-import { ArrowLeft, MoreVertical, X, Loader2, Wrench } from "lucide-react";
+import { ArrowLeft, MoreVertical, X, Loader2, Wrench, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -76,6 +78,9 @@ export default function BookingOps() {
     bookingId // exclude current booking
   );
   
+  // Get available drivers for delivery bookings
+  const { data: drivers } = useAvailableDrivers();
+  
   const [activeStep, setActiveStep] = useState<OpsStepId>("prep");
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; action: string | null }>({ 
     open: false, 
@@ -85,6 +90,15 @@ export default function BookingOps() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   // Prevent the auto-advance effect from overriding manual navigation
   const hasInitializedStepRef = useRef(false);
+
+  // Determine if this is a delivery booking
+  const isDeliveryBooking = !!booking?.pickup_address;
+  
+  // Get driver info for delivery bookings
+  const assignedDriver = drivers?.find(d => d.id === booking?.assigned_driver_id);
+  const driverInfo = assignedDriver 
+    ? { fullName: assignedDriver.fullName, phone: assignedDriver.phone }
+    : null;
 
   const handleStepClick = (stepId: OpsStepId) => {
     hasInitializedStepRef.current = true;
@@ -107,10 +121,17 @@ export default function BookingOps() {
   const hasVehicleConflict = vehicleAvailability?.isAvailable === false && 
     (vehicleAvailability?.conflicts?.length || 0) > 0;
   
+  // Delivery status tracking
+  const deliveryStatus = booking?.delivery_statuses?.status;
+  const isDriverAssigned = !!booking?.assigned_driver_id;
+  const isDriverEnRoute = deliveryStatus === 'en_route' || deliveryStatus === 'picked_up';
+  const isDriverArrived = deliveryStatus === 'delivered';
+  
   const completion: StepCompletion = {
     prep: {
       checklistComplete: prepStatus?.allComplete || false,
       photosComplete: photoStatus.complete,
+      driverAssigned: isDeliveryBooking ? isDriverAssigned : undefined,
     },
     checkin: {
       // If check-in is passed, all fields are considered verified
@@ -119,6 +140,9 @@ export default function BookingOps() {
       nameMatches: checkinPassed || checkinRecord?.licenseNameMatches || false,
       licenseNotExpired: checkinPassed || checkinRecord?.licenseValid || false,
       ageVerified: checkinPassed || checkinRecord?.ageVerified || false,
+      // Delivery-specific
+      driverEnRoute: isDeliveryBooking ? isDriverEnRoute : undefined,
+      driverArrived: isDeliveryBooking ? isDriverArrived : undefined,
     },
     payment: {
       paymentComplete: isPaymentComplete,
@@ -136,7 +160,7 @@ export default function BookingOps() {
     },
   };
   
-  const currentStepIndex = getCurrentStepIndex(completion);
+  const currentStepIndex = getCurrentStepIndex(completion, isDeliveryBooking);
   
   // Set initial step only once when data loads - no auto-advance
   useEffect(() => {
@@ -167,7 +191,7 @@ export default function BookingOps() {
   
   const handleActivateRental = () => {
     // Validate all prerequisites
-    if (!checkStepComplete("walkaround", completion)) {
+    if (!checkStepComplete("walkaround", completion, isDeliveryBooking)) {
       toast.error("Complete walkaround inspection before activating");
       return;
     }
@@ -278,6 +302,12 @@ export default function BookingOps() {
                     Conflict
                   </Badge>
                 )}
+                {isDeliveryBooking && (
+                  <Badge className="shrink-0 text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <Truck className="w-3 h-3 mr-1" />
+                    Delivery
+                  </Badge>
+                )}
               </div>
               <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground mt-0.5 truncate">
                 {booking.profiles?.full_name} • <span className="hidden xs:inline">{vehicleName}</span><span className="xs:hidden">{booking.vehicles?.make} {booking.vehicles?.model}</span>
@@ -332,12 +362,22 @@ export default function BookingOps() {
             currentStepIndex={currentStepIndex}
             onStepClick={handleStepClick}
             isRentalActive={isRentalActive}
+            isDelivery={isDeliveryBooking}
           />
           
           {/* Main Content Panel */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             <ScrollArea className="flex-1">
               <div className="p-3 sm:p-4 md:p-6 max-w-3xl">
+                {/* Delivery Mode Banner */}
+                {isDeliveryBooking && (
+                  <DeliveryModeBanner 
+                    booking={booking}
+                    driverName={driverInfo?.fullName}
+                    className="mb-4"
+                  />
+                )}
+                
                 <OpsStepContent
                   stepId={activeStep}
                   booking={booking}
@@ -345,12 +385,14 @@ export default function BookingOps() {
                   onCompleteStep={handleCompleteStep}
                   onActivate={handleActivateRental}
                   isRentalActive={isRentalActive}
+                  isDelivery={isDeliveryBooking}
+                  driverInfo={driverInfo}
                 />
               </div>
             </ScrollArea>
             
             {/* Sticky Footer */}
-            {!isRentalActive && activeStep === "handover" && checkStepComplete("walkaround", completion) && (
+            {!isRentalActive && activeStep === "handover" && checkStepComplete("walkaround", completion, isDeliveryBooking) && (
               <div className="border-t bg-background p-3 md:p-4 flex justify-end gap-2 md:gap-3">
                 <Button
                   size="default"
@@ -379,6 +421,8 @@ export default function BookingOps() {
                 completion={completion}
                 onOpenAgreement={handleOpenAgreement}
                 onOpenWalkaround={handleOpenWalkaround}
+                isDelivery={isDeliveryBooking}
+                driverName={driverInfo?.fullName}
               />
             </div>
             {/* Activity Timeline in right panel */}

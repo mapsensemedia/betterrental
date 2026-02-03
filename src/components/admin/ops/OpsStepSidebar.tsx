@@ -7,6 +7,7 @@ import {
   getStepStatus,
   checkStepComplete,
   getBlockingIssues,
+  getStepForDisplay,
 } from "@/lib/ops-steps";
 import { 
   ClipboardCheck, 
@@ -23,6 +24,7 @@ import {
   ChevronUp,
   AlertTriangle,
   Clock,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +37,8 @@ interface OpsStepSidebarProps {
   currentStepIndex: number;
   onStepClick: (stepId: OpsStepId) => void;
   isRentalActive: boolean;
-  stepTimestamps?: Record<OpsStepId, Date | null>; // NEW: track when each step was last updated
+  isDelivery?: boolean; // NEW: delivery mode flag
+  stepTimestamps?: Record<OpsStepId, Date | null>;
 }
 
 const stepIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -113,20 +116,22 @@ export function OpsStepSidebar({
   currentStepIndex,
   onStepClick,
   isRentalActive,
+  isDelivery = false,
   stepTimestamps,
 }: OpsStepSidebarProps) {
   const [mobileExpanded, setMobileExpanded] = useState(false);
   
   const completedCount = isRentalActive 
     ? steps.length 
-    : steps.filter(s => checkStepComplete(s.id, completion)).length;
+    : steps.filter(s => checkStepComplete(s.id, completion, isDelivery)).length;
   
   const blockedCount = steps.filter(s => {
-    const issues = getBlockingIssues(s.id, completion);
+    const issues = getBlockingIssues(s.id, completion, isDelivery);
     return issues.length > 0;
   }).length;
   
   const currentStep = steps.find(s => s.id === activeStep);
+  const currentStepDisplay = currentStep ? getStepForDisplay(currentStep, isDelivery) : null;
 
   return (
     <>
@@ -141,7 +146,7 @@ export function OpsStepSidebar({
               {currentStep?.number || 1}
             </div>
             <div className="text-left">
-              <p className="text-xs sm:text-sm font-medium">{currentStep?.title || "Step"}</p>
+              <p className="text-xs sm:text-sm font-medium">{currentStepDisplay?.title || "Step"}</p>
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">
                   {completedCount}/{steps.length} complete
@@ -165,11 +170,12 @@ export function OpsStepSidebar({
         {mobileExpanded && (
           <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-1 animate-fade-in max-h-[50vh] overflow-y-auto">
             {steps.map((step) => {
-              const { status, missingCount } = getStepStatus(step.id, completion, currentStepIndex);
+              const { status, missingCount } = getStepStatus(step.id, completion, currentStepIndex, isDelivery);
               const displayStatus = isRentalActive ? "complete" : status;
-              const isComplete = isRentalActive || checkStepComplete(step.id, completion);
+              const isComplete = isRentalActive || checkStepComplete(step.id, completion, isDelivery);
               const isActive = activeStep === step.id;
               const styling = getStatusStyling(displayStatus, isActive);
+              const stepDisplay = getStepForDisplay(step, isDelivery);
               
               return (
                 <button
@@ -196,7 +202,7 @@ export function OpsStepSidebar({
                       "text-xs sm:text-sm truncate",
                       isActive && "font-medium text-primary"
                     )}>
-                      {step.title}
+                      {stepDisplay.title}
                     </span>
                     {!isComplete && missingCount && missingCount > 0 && (
                       <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded shrink-0 ml-2">
@@ -229,9 +235,10 @@ export function OpsStepSidebar({
           <div className="space-y-1">
             {steps.map((step, index) => {
               const Icon = stepIcons[step.icon] || Circle;
-              const { status, reason, missingCount } = getStepStatus(step.id, completion, currentStepIndex);
+              const { status, reason, missingCount } = getStepStatus(step.id, completion, currentStepIndex, isDelivery);
               const isActive = activeStep === step.id;
-              const isComplete = checkStepComplete(step.id, completion);
+              const isComplete = checkStepComplete(step.id, completion, isDelivery);
+              const stepDisplay = getStepForDisplay(step, isDelivery);
               
               // Override status if rental is active - all steps are complete
               const displayStatus = isRentalActive ? "complete" : status;
@@ -275,7 +282,7 @@ export function OpsStepSidebar({
                           isActive && "text-primary",
                           styling.textClass
                         )}>
-                          {step.title}
+                          {stepDisplay.title}
                         </span>
                       </div>
                       
