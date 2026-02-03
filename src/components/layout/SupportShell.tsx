@@ -59,7 +59,11 @@ export function SupportShell({ children }: SupportShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      // Ignore session-related errors - session already expired
+    }
     toast.success("Logged out successfully");
     navigate("/auth");
   };
