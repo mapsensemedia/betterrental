@@ -62,7 +62,6 @@ export function useAbandonedCarts(options?: { showConverted?: boolean }) {
         .from("abandoned_carts")
         .select(`
           *,
-          vehicle:vehicles(make, model, year, image_url, daily_rate),
           location:locations(name, city)
         `)
         .order("abandoned_at", { ascending: false });
