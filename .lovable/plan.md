@@ -1,163 +1,199 @@
 
-# Delivery Panel Enhancement Plan
+# Delivery Booking Ops Flow Enhancement Plan
 
-## Summary
-Enhance the Delivery Panel to provide real-time updates when new "Bring Car to Me" bookings are assigned, and display more complete delivery information for drivers.
+## Overview
 
----
-
-## Current Issues Identified
-
-1. **No real-time subscription** - The delivery panel doesn't refresh when new bookings are assigned to the driver
-2. **Vehicle data mismatch** - The hook fetches from the legacy `vehicles` table, but `vehicle_id` in bookings now points to `vehicle_categories`
-3. **Missing operational details**:
-   - Assigned vehicle unit info (VIN, license plate, color)
-   - Dispatch hub location (where to pick up the vehicle)
-   - Customer email for additional contact
+This plan addresses how to differentiate the BookingOps wizard for "Bring Car to Me" (delivery) bookings versus standard pickup bookings. The core insight is that delivery bookings have fundamentally different logistics: the vehicle travels TO the customer rather than the customer arriving at the location.
 
 ---
 
-## Implementation Steps
+## Current State Analysis
 
-### 1. Add Real-Time Subscription for Deliveries
+### How Delivery Bookings Are Identified
+A booking is considered a delivery booking when:
+- `pickup_address IS NOT NULL` (primary indicator)
+- The booking was made with "Bring Car to Me" delivery mode selected
 
-Create a new real-time hook that invalidates the `my-deliveries` query when bookings change:
+### Current BookingOps Flow (6 Steps)
+1. **Pre-Arrival Prep** - Vehicle checklist + photos
+2. **Customer Check-In** - Gov ID, license verification
+3. **Payment & Deposit** - Payment collection
+4. **Rental Agreement** - Manual signing
+5. **Vehicle Walkaround** - Staff inspection
+6. **Handover & Activation** - Keys + SMS
 
-**New hook: `useRealtimeDeliveries`**
-- Subscribe to `bookings` table changes
-- Also subscribe to `delivery_statuses` table for status updates
-- Invalidate `my-deliveries` query on changes
+### Gap Analysis
+The current flow assumes **in-person pickup at a location**. For delivery bookings:
 
-### 2. Fix Vehicle Category Data Fetching
+| Step | Standard Pickup | Delivery Booking |
+|------|-----------------|------------------|
+| Prep | Done at location before customer arrives | Done at dispatch hub before driver leaves |
+| Check-In | Customer physically present | Driver verifies at delivery address |
+| Payment | Usually already paid online | Same, but deposit may be collected on delivery |
+| Agreement | Signed in-person at counter | Signed at delivery address (or pre-signed online) |
+| Walkaround | Joint inspection at location | Driver does walkaround at delivery point |
+| Handover | Hand keys at counter | Hand keys at customer's address |
 
-Update `use-my-deliveries.ts` to fetch from `vehicle_categories` instead of the deprecated `vehicles` table:
+---
 
-**Changes to `useMyDeliveries`:**
-- Replace `vehicles` table query with `vehicle_categories` query
-- Add category name to the vehicle display
-- Include category image for visual identification
+## Proposed Solution
 
-### 3. Add Assigned Unit Details
+### A. Add "Delivery Mode" Detection & Visual Indicator
 
-Enhance the hook to fetch `vehicle_units` data when `assigned_unit_id` is present:
+Display a prominent delivery banner at the top of BookingOps when `pickup_address` exists, showing:
+- Delivery address
+- Assigned driver (or "Unassigned" warning)
+- Dispatch hub origin
+- Link to open in Delivery Portal
 
-**New data fields:**
-- VIN (Vehicle Identification Number)
-- License plate
-- Vehicle color
-- Current mileage
+### B. Modify Step Definitions for Delivery Flow
 
-### 4. Add Dispatch Hub Information
+Create a parallel step configuration (`DELIVERY_OPS_STEPS`) that replaces or augments standard steps:
 
-Include the dispatch location (where the driver picks up the vehicle from):
+```text
+DELIVERY OPS STEPS (6 Steps - Same Count, Different Context)
 
-**New data fields:**
-- `dispatchLocation.name` - Hub name
-- `dispatchLocation.address` - Full address
-- `dispatchLocation.phone` - Contact phone
+1. Dispatch Prep (replaces "Pre-Arrival Prep")
+   - Vehicle checklist (same)
+   - Pre-inspection photos (same)
+   - NEW: Assign driver (required before dispatch)
+   - NEW: Driver acknowledgement checkbox
 
-### 5. Update DeliveryCard Component
+2. En Route (NEW - replaces "Check-In" for delivery context)
+   - Driver marked "en route" in Delivery Portal
+   - Customer notified via SMS
+   - ETA displayed
+   - Driver can update status from mobile
 
-Enhance the card to display new information:
+3. Payment & Deposit (same)
+   - Show "Collect on delivery" note if deposit not yet held
 
-**New UI elements:**
-- Vehicle unit badge (license plate if available)
-- "Pick up from" dispatch location section
-- Customer email with tap-to-email action
-- Visual indicator for urgent deliveries (within 2 hours)
+4. On-Site Agreement (renamed from "Rental Agreement")
+   - Agreement signing at delivery location
+   - Or: Show if customer pre-signed online
 
-### 6. Update DeliveryDashboard with Real-Time
+5. On-Site Walkaround (renamed from "Vehicle Walkaround")
+   - Performed at delivery address by driver
+   - Photo upload from driver's device
 
-Integrate the real-time subscription hook into the dashboard.
+6. Handover & Activation (same behavior)
+   - Driver hands keys
+   - SMS confirmation
+   - Rental activated
+```
+
+### C. Conditional UI Rendering
+
+The step sidebar and content will dynamically switch based on `booking.pickup_address`:
+
+```text
+const isDeliveryBooking = !!booking.pickup_address;
+const steps = isDeliveryBooking ? DELIVERY_OPS_STEPS : OPS_STEPS;
+```
+
+### D. Add Driver Assignment Gate
+
+For delivery bookings, add a **blocking issue** if no driver is assigned:
+- Step 1 (Dispatch Prep) cannot be completed without `assigned_driver_id`
+- Show prominent "Assign Driver" action button
+
+### E. Integration with Delivery Portal
+
+Add bidirectional linking:
+- **In BookingOps**: "Open in Delivery Portal" button for delivery bookings
+- **In Delivery Portal**: Deep link to BookingOps for admin-level tasks
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/hooks/use-realtime-subscriptions.ts` | Add `useRealtimeDeliveries` hook |
-| `src/hooks/use-my-deliveries.ts` | Fix vehicle category fetch, add unit details, add dispatch location |
-| `src/components/delivery/DeliveryCard.tsx` | Display new fields, add urgency indicator |
-| `src/pages/delivery/DeliveryDashboard.tsx` | Integrate real-time subscription |
-| `src/components/delivery/DeliveryShell.tsx` | Add real-time subscription for sidebar counts |
+| File | Changes |
+|------|---------|
+| `src/lib/ops-steps.ts` | Add `DELIVERY_OPS_STEPS` array, update types to support delivery-specific logic |
+| `src/pages/admin/BookingOps.tsx` | Detect delivery mode, pass `isDelivery` flag to components |
+| `src/components/admin/ops/OpsStepSidebar.tsx` | Conditionally render delivery or standard steps |
+| `src/components/admin/ops/OpsStepContent.tsx` | Render delivery-specific step components |
+| `src/components/admin/ops/OpsBookingSummary.tsx` | Add delivery status section |
+| `src/components/admin/ops/steps/StepPrep.tsx` | Add driver assignment requirement for delivery |
+| **NEW** `src/components/admin/ops/steps/StepEnRoute.tsx` | New step for tracking driver in transit |
+| **NEW** `src/components/admin/ops/DeliveryModeBanner.tsx` | Visual indicator for delivery bookings |
 
 ---
 
-## Technical Details
+## UI Mockup (Text Description)
 
-### Updated DeliveryBooking Interface
-
+### Delivery Mode Banner (Top of BookingOps)
 ```text
-interface DeliveryBooking {
-  // ... existing fields ...
-  
-  // Enhanced vehicle info (from vehicle_categories)
-  category: {
-    id: string;
-    name: string;
-    imageUrl: string | null;
-  } | null;
-  
-  // Assigned unit details (from vehicle_units)
-  assignedUnit: {
-    id: string;
-    vin: string;
-    licensePlate: string | null;
-    color: string | null;
-  } | null;
-  
-  // Dispatch hub (where driver picks up vehicle)
-  dispatchLocation: {
-    id: string;
-    name: string;
-    address: string;
-    phone: string | null;
-  } | null;
-  
-  // Customer email added
-  customer: {
-    fullName: string | null;
-    email: string | null;
-    phone: string | null;
-  } | null;
-  
-  // Urgency flag
-  isUrgent: boolean; // true if pickup within 2 hours
+┌──────────────────────────────────────────────────────────────────┐
+│ 🚚 DELIVERY BOOKING                                              │
+│ ─────────────────────────────────────────────────────────────── │
+│ Deliver To: 123 Main St, Vancouver, BC V6B 1A1                   │
+│ Dispatch From: Downtown Hub                                       │
+│ ─────────────────────────────────────────────────────────────── │
+│ Driver: John Smith ✓ Assigned    [Open in Delivery Portal →]    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Modified Step 1 for Delivery
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│ Step 1: Dispatch Preparation                                     │
+│                                                                  │
+│ ⚠️ Driver Assignment Required                                   │
+│ ┌────────────────────────────────────────────────────────────┐  │
+│ │ Assign a driver before vehicle can be dispatched            │  │
+│ │ [Select Driver ▼] [Assign]                                  │  │
+│ └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│ ✅ Prep Checklist: Complete                                     │
+│ ✅ Pre-Inspection Photos: 6/6                                   │
+│                                                                  │
+│ [Continue to Step 2 →]                                           │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Business Rules
+
+1. **Driver Assignment is Mandatory**: Delivery bookings cannot progress past Step 1 without an assigned driver
+2. **Step Labels Update Dynamically**: "Check-In" becomes "En Route" for delivery bookings
+3. **Delivery Status Syncs**: When driver updates status in Delivery Portal, it reflects in BookingOps
+4. **Same Completion Gates**: Payment, agreement, and walkaround requirements remain the same
+
+---
+
+## Technical Implementation Notes
+
+### Step ID Mapping
+To maintain compatibility with existing `StepCompletion` tracking, delivery steps will use the same IDs but with different titles:
+
+| ID | Standard Title | Delivery Title |
+|----|----------------|----------------|
+| `prep` | Pre-Arrival Preparation | Dispatch Preparation |
+| `checkin` | Customer Check-In | En Route / Arrival |
+| `payment` | Payment & Deposit | Payment & Deposit |
+| `agreement` | Rental Agreement | On-Site Agreement |
+| `walkaround` | Vehicle Walkaround | On-Site Walkaround |
+| `handover` | Handover & Activation | Handover & Activation |
+
+### New Completion Field for Delivery
+Add to `StepCompletion.prep`:
+```text
+prep: {
+  checklistComplete: boolean;
+  photosComplete: boolean;
+  driverAssigned: boolean; // NEW - required for delivery
 }
 ```
 
-### Real-Time Subscription Flow
-
-```text
-Booking assigned to driver
-        │
-        ▼
-Supabase Realtime broadcasts change
-        │
-        ▼
-useRealtimeDeliveries receives event
-        │
-        ▼
-Invalidates "my-deliveries" query
-        │
-        ▼
-React Query refetches data
-        │
-        ▼
-Delivery Panel UI updates instantly
-```
-
 ---
 
-## Expected Outcome
+## Migration Path
 
-After implementation:
-- Drivers will see new assigned deliveries appear instantly without refreshing
-- Each delivery card will show:
-  - Vehicle category with image
-  - Assigned unit license plate (if assigned)
-  - Dispatch hub location ("Pick up vehicle from...")
-  - Customer contact with phone AND email
-  - Urgency indicator for time-sensitive deliveries
-- Status updates from other drivers will reflect in real-time
+1. **Phase 1**: Add delivery detection + visual banner (no workflow changes)
+2. **Phase 2**: Add driver assignment gate to Step 1 for delivery bookings
+3. **Phase 3**: Rename step labels contextually for delivery bookings
+4. **Phase 4**: Add "En Route" step with Delivery Portal sync
+
+This plan proposes implementing Phases 1-2 first for immediate value, with Phase 3-4 as follow-up enhancements.
