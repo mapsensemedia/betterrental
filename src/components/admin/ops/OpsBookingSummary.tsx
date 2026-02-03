@@ -29,11 +29,14 @@ import {
   ExternalLink,
   ChevronsUpDown,
   ArrowUpCircle,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StepCompletion } from "@/lib/ops-steps";
 import { CategoryUpgradeDialog } from "@/components/admin/CategoryUpgradeDialog";
+import { CreditCardDisplay } from "@/components/checkout/CreditCardInput";
+import { CardType } from "@/lib/card-validation";
 
 interface OpsBookingSummaryProps {
   booking: any;
@@ -405,6 +408,29 @@ export function OpsBookingSummary({
                   <span>Deposit</span>
                   <span>${Number(booking.deposit_amount).toFixed(2)}</span>
                 </div>
+              )}
+              
+              {/* Card on File */}
+              {booking.card_last_four && (
+                <>
+                  <Separator className="my-1" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <CreditCard className="h-3 w-3" />
+                      Card on file
+                    </span>
+                    <CreditCardDisplay 
+                      cardNumber={`****${booking.card_last_four}`}
+                      cardType={booking.card_type as CardType}
+                    />
+                  </div>
+                  {booking.card_holder_name && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Cardholder</span>
+                      <span className="truncate max-w-[120px]">{booking.card_holder_name}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </CollapsibleSection>

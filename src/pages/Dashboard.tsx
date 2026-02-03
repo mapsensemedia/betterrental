@@ -9,11 +9,24 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle, Clock, FileText, Upload, Eye, Shield, FileCheck, X, Star, Gift } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, FileText, Upload, Eye, Shield, FileCheck, X, Star, Gift, KeyRound } from "lucide-react";
 import { useLicenseUpload } from "@/hooks/use-license-upload";
 import { useToast } from "@/hooks/use-toast";
 import { useMembershipInfo, usePointsLedger } from "@/hooks/use-points";
 import { useActiveOffers } from "@/hooks/use-offers";
+import { useCustomerMarkReturned } from "@/hooks/use-late-return";
+import { canCustomerMarkReturned } from "@/lib/late-return";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type BookingRow = {
   id: string;
@@ -22,6 +35,7 @@ type BookingRow = {
   start_at: string;
   end_at: string;
   total_amount: number;
+  customer_marked_returned_at: string | null;
   vehicles: { make: string; model: string; year: number; image_url: string | null } | null;
   locations: { name: string; city: string } | null;
 };
@@ -39,6 +53,7 @@ export default function Dashboard() {
   const { licenseStatus, uploading, uploadLicense } = useLicenseUpload(user?.id);
   const { data: membership } = useMembershipInfo();
   const { data: offers = [] } = useActiveOffers();
+  const markReturned = useCustomerMarkReturned();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,7 +80,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("bookings")
         .select(
-          `id, booking_code, status, start_at, end_at, total_amount,
+          `id, booking_code, status, start_at, end_at, total_amount, customer_marked_returned_at,
            vehicles (make, model, year, image_url),
            locations (name, city)`
         )
@@ -363,6 +378,9 @@ export default function Dashboard() {
             <div className="grid gap-4">
               {bookings.map((b) => {
                 const issues = getBookingStatusInfo(b);
+                const showMarkReturned = canCustomerMarkReturned(b.status, b.end_at, b.customer_marked_returned_at);
+                const isMarkedReturned = !!b.customer_marked_returned_at;
+                
                 return (
                   <article key={b.id} className="bg-card rounded-2xl border border-border p-5">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -372,6 +390,12 @@ export default function Dashboard() {
                             {b.booking_code}
                           </span>
                           <StatusBadge status={b.status as any} />
+                          {isMarkedReturned && (
+                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 gap-1">
+                              <KeyRound className="h-3 w-3" />
+                              Keys dropped
+                            </Badge>
+                          )}
                           {issues.length > 0 && (
                             <Badge variant="outline" className="text-amber-600 border-amber-500/50 gap-1">
                               <AlertCircle className="h-3 w-3" />
@@ -389,6 +413,35 @@ export default function Dashboard() {
                       </div>
 
                       <div className="flex items-center gap-3">
+                        {showMarkReturned && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="gap-1">
+                                <KeyRound className="h-4 w-4" />
+                                Mark Returned
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirm Key Drop Return</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  By marking this vehicle as returned, you confirm that you have dropped off the keys at the designated location. This will stop any late return fee calculation.
+                                  <br /><br />
+                                  <strong>Note:</strong> The office will verify the vehicle condition when they open. Any issues found may result in additional charges.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => markReturned.mutate({ bookingId: b.id })}
+                                  disabled={markReturned.isPending}
+                                >
+                                  {markReturned.isPending ? "Marking..." : "Confirm Return"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                         <div className="text-right">
                           <p className="text-sm text-muted-foreground">Total</p>
                           <p className="font-semibold">${Number(b.total_amount).toFixed(0)}</p>
