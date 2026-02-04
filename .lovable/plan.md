@@ -1,169 +1,213 @@
 
-# Admin/Ops Panel Separation Plan
+# Ops Panel Full Implementation Plan
 
-## Current State Analysis
+## Problem Summary
+The Ops panel exists but is not fully functional:
+1. **No bookings showing** - The pickups page queries for `pending/confirmed` but data may not match filters
+2. **Wrong shell used** - BookingOps, ReturnOps, ActiveRentalDetail use `<AdminShell>` even when accessed from `/ops/*` routes
+3. **Admin still has operational tasks** - The separation isn't complete
+4. **Missing All Bookings view** - Ops staff can't see/search all bookings
 
-The codebase currently has both Admin and Ops panels, but there's significant overlap:
-
-- **Admin Panel** (`/admin/*`): Contains Dashboard, Operations hub (bookings, pickups, active, returns), Fleet, Billing, Incidents, Settings, etc.
-- **Ops Panel** (`/ops/*`): Has Workboard, Pickups, Active, Returns, Fleet - but uses thin wrappers that sometimes navigate to admin routes
-
-## Proposed Separation
-
-### Admin Panel Purpose (Strategic/Configuration)
-Focus on business management, configuration, and oversight:
-- Dashboard (overview metrics)
-- Alerts (action required items)
-- **Bookings** (reservation management, not day-to-day ops)
-- Fleet Management (categories, vehicles, CRUD)
-- Fleet Costs (depreciation, cost tracking)
-- Incidents (accidents, damages)
-- Calendar (schedule view)
-- Billing (payments, receipts, deposits)
-- Analytics/Reports
-- Offers (points, rewards)
-- Settings (pricing, configuration)
-
-### Ops Panel Purpose (Day-to-Day Operations)
-Focus on frontline staff workflow:
-- **Workboard** (today's tasks at a glance)
-- **Pickups** (handover processing)
-- **Active Rentals** (in-progress tracking, issue flagging)
-- **Returns** (return processing)
-- **Fleet Status** (vehicle availability, quick status updates)
+## Root Cause
+The shared pages (BookingOps, ReturnOps, ActiveRentalDetail) are hardcoded with `<AdminShell>` instead of detecting which panel context they're in.
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Update Admin Navigation
+### Phase 1: Create Panel-Aware Shell Wrapper
 
-**File:** `src/components/layout/AdminShell.tsx`
+Create a new component that automatically selects the correct shell based on the current route:
 
-Remove "Operations" from admin sidebar since day-to-day ops move to Ops Panel. Replace with:
-- Keep "Bookings" but rename to focus on reservation management (view/search all bookings)
-- Add link to "Ops Panel" for users with ops access
+**New File: `src/components/shared/PanelShell.tsx`**
 
-Updated navigation items:
-```text
-1. Alerts (priority)
-2. Dashboard
-3. Bookings (view/search all - not workflow)
-4. Fleet
-5. Incidents
-6. Fleet Costs
-7. Analytics
-8. Calendar
-9. Billing
-10. Support/Tickets
-11. Offers
-12. Settings
-13. [Divider] → Switch to Ops Panel (for eligible users)
+```typescript
+// Detects /ops/* vs /admin/* route and renders appropriate shell
+// Props: children, hideNav (optional)
+// Uses useLocation() to determine context
 ```
 
-### Phase 2: Update Ops Panel Navigation  
+This ensures BookingOps, ReturnOps, and ActiveRentalDetail work correctly in both panels.
 
-**File:** `src/components/ops/OpsShell.tsx`
+### Phase 2: Update Shared Operational Pages
 
-Ensure Ops navigation is focused and complete:
+Update these pages to use PanelShell instead of hardcoded AdminShell:
+
+| File | Change |
+|------|--------|
+| `src/pages/admin/BookingOps.tsx` | Replace `<AdminShell>` with `<PanelShell>` |
+| `src/pages/admin/ReturnOps.tsx` | Replace `<AdminShell>` with `<PanelShell>` |
+| `src/pages/admin/ActiveRentalDetail.tsx` | Replace `<AdminShell>` with `<PanelShell>` |
+| `src/pages/admin/BookingDetail.tsx` | Replace `<AdminShell>` with `<PanelShell>` |
+
+Also update the "back" navigation to return to the correct panel:
+- From `/ops/*` routes → go back to `/ops/*`
+- From `/admin/*` routes → go back to `/admin/*`
+
+### Phase 3: Create Complete Ops Workboard Dashboard
+
+Enhance `src/pages/ops/OpsWorkboard.tsx` to be a full operations dashboard:
+
+**New Features:**
+- **Today's Pickups section** with direct booking cards
+- **Expected Returns section** with list
+- **Active Rentals counter** with overdue highlighting  
+- **Alerts section** for urgent items
+- **Universal search bar** (booking code, phone, customer name)
+- Real-time data refresh using existing queries
+
+### Phase 4: Create Ops All Bookings Page
+
+**New File: `src/pages/ops/OpsBookings.tsx`**
+
+A simplified version of admin Bookings page for ops staff:
+- Uses same `listBookings()` from domain layer (no duplication)
+- Tabs: All | Pending | Confirmed | Active | Completed
+- Search/filter functionality
+- Click opens booking in ops context
+- No admin-only actions (rates, void, etc.)
+
+Update OpsShell navigation to include "All Bookings" item.
+
+### Phase 5: Fix Data Visibility in Existing Ops Pages
+
+**OpsPickups.tsx:**
+- Currently fetches `pending` + `confirmed` - this is correct
+- Add debug logging to verify data is returned
+- Remove day filter for "All" tab to show all pending pickups
+
+**OpsActiveRentals.tsx:**
+- Already correctly queries `status: "active"`
+
+**OpsReturns.tsx:**  
+- Already correctly queries `status: "active"` with date filtering
+
+**OpsFleet.tsx:**
+- Fix navigation: change `/admin/fleet/category/...` to stay in ops context or use shared route
+
+### Phase 6: Update Navigation and Routing
+
+**OpsShell.tsx Navigation Updates:**
 ```text
-1. Workboard (today's overview)
-2. Pickups (pending handovers)
-3. Active Rentals (currently on road)
-4. Returns (incoming returns)
-5. Fleet Status (quick availability view)
+1. Workboard (dashboard overview)
+2. All Bookings (NEW - full booking list)
+3. Pickups (pending handovers)
+4. Active Rentals (on road)
+5. Returns (incoming)
+6. Fleet Status (view only)
 ```
 
-Add better quick actions and ensure routes work independently of admin panel.
+**App.tsx Route Updates:**
+- Ensure all ops routes use OpsProtectedRoute
+- Add `/ops/bookings` route for all bookings view
 
-### Phase 3: Enhance Ops Pages to Be Self-Sufficient
+### Phase 7: Remove Operational Links from Admin
 
-Currently, some Ops pages navigate to `/admin/*` routes. Update them to use `/ops/*` routes consistently:
+**AdminShell.tsx:**
+- Remove any remaining operational workflow links
+- Keep only: Dashboard, Bookings (view-only), Fleet, Incidents, Billing, Analytics, Settings
 
-**Files to update:**
-- `src/pages/ops/OpsWorkboard.tsx` - Change `/admin/calendar` link to work within ops context
-- `src/pages/ops/OpsPickups.tsx` - Already navigates to `/ops/booking/` ✓
-- `src/pages/ops/OpsActiveRentals.tsx` - Ensure uses `/ops/rental/`
-- `src/pages/ops/OpsReturns.tsx` - Ensure uses `/ops/return/`
-
-### Phase 4: Update Admin Bookings Page
-
-**File:** `src/pages/admin/Bookings.tsx`
-
-Simplify to be a **reservation viewer** rather than full ops workflow:
-- Keep the "All" tab with full booking list
-- Keep search/filter functionality
-- Remove or simplify the "Pickups", "Active", "Returns" workflow tabs (those live in Ops now)
-- Add prominent link: "Process in Ops Panel →" for staff who need to do workflow tasks
-
-### Phase 5: Add Cross-Panel Navigation
-
-**Both shells:** Add clear navigation to switch between panels when user has access to both:
-
-- In AdminShell: Show "Switch to Ops Panel" link in footer or dropdown
-- In OpsShell: Show "Switch to Admin Panel" link (already exists, verify it works)
+**Admin Bookings.tsx:**
+- Already updated to be view-only
+- Verify it shows "Process in Ops Panel" button
 
 ---
 
 ## Technical Details
 
+### PanelShell Component Logic
+
+```typescript
+function PanelShell({ children, hideNav = false }) {
+  const location = useLocation();
+  const isOpsContext = location.pathname.startsWith("/ops");
+  
+  if (isOpsContext) {
+    return <OpsShell hideNav={hideNav}>{children}</OpsShell>;
+  }
+  return <AdminShell hideNav={hideNav}>{children}</AdminShell>;
+}
+```
+
+### Back Navigation Logic
+
+```typescript
+function useBackRoute(defaultPath: string) {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  
+  // Use explicit returnTo if provided
+  const returnTo = searchParams.get("returnTo");
+  if (returnTo) return returnTo;
+  
+  // Infer from context
+  if (location.pathname.startsWith("/ops")) {
+    return defaultPath.replace("/admin", "/ops");
+  }
+  return defaultPath;
+}
+```
+
+### Files to Create
+1. `src/components/shared/PanelShell.tsx` - Panel-aware shell wrapper
+2. `src/pages/ops/OpsBookings.tsx` - All bookings list for ops
+3. `src/hooks/use-panel-context.ts` - Hook to determine current panel
+
 ### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/layout/AdminShell.tsx` | Remove Operations workflow link, add Ops Panel switch |
-| `src/components/ops/OpsShell.tsx` | Already good, minor refinements |
-| `src/pages/admin/Bookings.tsx` | Simplify to viewer mode, remove workflow tabs |
-| `src/pages/ops/OpsWorkboard.tsx` | Fix calendar link |
-| `src/pages/ops/OpsActiveRentals.tsx` | Verify self-contained |
-| `src/pages/ops/OpsReturns.tsx` | Verify self-contained |
-| `src/App.tsx` | No changes needed - routes are already set up |
-
-### Capabilities Check
-
-The existing capabilities system already supports this:
-- `canAccessAdminPanel` - Controls admin access
-- `canAccessOpsPanel` - Controls ops access
-- Users can have access to both panels
-
-### Sidebar Counts
-
-Update `use-sidebar-counts.ts` to include ops-specific counts:
-- `pickups` - Confirmed bookings ready for handover
-- `active` - Active rentals count
-- `returns` - Returns expected today/tomorrow
+1. `src/pages/admin/BookingOps.tsx` - Use PanelShell, fix back navigation
+2. `src/pages/admin/ReturnOps.tsx` - Use PanelShell, fix back navigation  
+3. `src/pages/admin/ActiveRentalDetail.tsx` - Use PanelShell, fix back navigation
+4. `src/pages/admin/BookingDetail.tsx` - Use PanelShell
+5. `src/pages/ops/OpsWorkboard.tsx` - Enhance with full dashboard
+6. `src/pages/ops/OpsPickups.tsx` - Verify data loading
+7. `src/pages/ops/OpsFleet.tsx` - Fix navigation links
+8. `src/components/ops/OpsShell.tsx` - Add All Bookings nav item
+9. `src/App.tsx` - Add ops/bookings route
 
 ---
 
 ## Expected Outcome
 
-### Admin Users Will See:
-- Strategic dashboard with KPIs
-- Full booking history and search
-- Fleet CRUD operations
-- Billing and financial management
+### Ops Panel Will Have:
+- Full dashboard with today's tasks at a glance
+- All Bookings view with search/filter
+- Pickups queue showing all pending/confirmed bookings
+- Active rentals with overdue highlighting
+- Returns processing
+- Fleet status (view only)
+- All operational workflows (handover, return, etc.)
+
+### Admin Panel Will Have:
+- Dashboard with KPIs and analytics
+- Bookings list (view-only, links to Ops for processing)
+- Fleet management (full CRUD)
+- Incidents management
+- Billing and payments
 - Settings and configuration
-- Quick link to Ops Panel when needed
+- No day-to-day operational workflows
 
-### Ops Staff Will See:
-- Task-focused workboard
-- Pickup queue by time (Today/Tomorrow/All)
-- Active rental monitoring with issue flagging
-- Return processing workflow
-- Quick fleet availability view
-- Link to Admin Panel (if they have access)
-
-### Shared Components:
-- BookingOps workflow page (used by both `/admin/bookings/:id/ops` and `/ops/booking/:id/handover`)
-- ReturnOps workflow page (used by both panels)
-- ActiveRentalDetail page (used by both panels)
-- All existing shared components remain unchanged
+### Shared Components (No Duplication):
+- BookingOps workflow → used by both panels via PanelShell
+- ReturnOps workflow → used by both panels via PanelShell
+- ActiveRentalDetail → used by both panels via PanelShell
+- All domain layer queries → reused everywhere
+- Capability-based action visibility → already in place
 
 ---
 
-## No Code Duplication
+## Permissions Verification
 
-This plan maintains the architecture principle of **no duplicate pages**:
-- Same BookingOps, ReturnOps, ActiveRentalDetail pages used in both panels
-- Different shells (AdminShell vs OpsShell) provide panel-specific navigation
-- Capability-based rendering shows/hides actions based on role + panel
+Current capability system already supports this separation:
+- `canAccessOpsPanel`: admin, staff, cleaner, finance
+- `canAccessAdminPanel`: admin only
+
+Operations staff will:
+- See all bookings and operational controls
+- Process pickups, returns, and handovers
+- View fleet status
+- NOT see admin settings, rates, or management features
+
+Admin users will:
+- Access both panels
+- See management controls in admin panel
+- Can switch to ops panel for hands-on work
