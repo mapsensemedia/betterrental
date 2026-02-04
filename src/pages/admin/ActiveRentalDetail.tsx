@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { AdminShell } from "@/components/layout/AdminShell";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
+import { PanelShell } from "@/components/shared/PanelShell";
 import { useActiveRentalDetail, calculateDuration } from "@/hooks/use-active-rental-detail";
 import { useCreateAlert } from "@/hooks/use-alerts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -50,6 +50,7 @@ import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 export default function ActiveRentalDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: rental, isLoading, error } = useActiveRentalDetail(bookingId || null);
   const createAlert = useCreateAlert();
 
@@ -101,9 +102,14 @@ export default function ActiveRentalDetail() {
     }
   };
 
+  // Context-aware navigation
+  const isOpsContext = location.pathname.startsWith("/ops");
+  const backRoute = isOpsContext ? "/ops/active" : "/admin/active-rentals";
+  const returnRoute = isOpsContext ? `/ops/return/${rental?.id}` : `/admin/returns/${rental?.id}`;
+
   if (isLoading) {
     return (
-      <AdminShell>
+      <PanelShell>
         <div className="space-y-6">
           <Skeleton className="h-12 w-64" />
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -112,25 +118,25 @@ export default function ActiveRentalDetail() {
             <Skeleton className="h-48" />
           </div>
         </div>
-      </AdminShell>
+      </PanelShell>
     );
   }
 
   if (error || !rental) {
     return (
-      <AdminShell>
+      <PanelShell>
         <div className="text-center py-16">
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Rental Not Found</h2>
           <p className="text-muted-foreground mb-6">
             This rental may have ended or the booking ID is invalid.
           </p>
-          <Button onClick={() => navigate("/admin/active-rentals")}>
+          <Button onClick={() => navigate(backRoute)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Active Rentals
           </Button>
         </div>
-      </AdminShell>
+      </PanelShell>
     );
   }
 
@@ -152,7 +158,7 @@ export default function ActiveRentalDetail() {
   };
 
   return (
-    <AdminShell>
+    <PanelShell>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -160,7 +166,7 @@ export default function ActiveRentalDetail() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate("/admin/active-rentals")}
+              onClick={() => navigate(backRoute)}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -186,7 +192,7 @@ export default function ActiveRentalDetail() {
           <div className="flex items-center gap-2 flex-wrap">
             {/* Primary Action - Return Vehicle */}
             <Button size="sm" asChild className="gap-2">
-              <Link to={`/admin/returns/${rental.id}`}>
+              <Link to={returnRoute}>
                 <RotateCcw className="h-4 w-4" />
                 <span className="hidden sm:inline">Return Vehicle</span>
                 <span className="sm:hidden">Return</span>
@@ -606,7 +612,7 @@ export default function ActiveRentalDetail() {
           </CardContent>
         </Card>
       </div>
-    </AdminShell>
+    </PanelShell>
   );
 }
 

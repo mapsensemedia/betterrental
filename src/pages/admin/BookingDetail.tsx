@@ -2,9 +2,9 @@
  * Comprehensive Booking Detail Page
  * Shows complete booking information including all associated data
  */
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format, parseISO, differenceInHours } from "date-fns";
-import { AdminShell } from "@/components/layout/AdminShell";
+import { PanelShell } from "@/components/shared/PanelShell";
 import { useBookingById } from "@/hooks/use-bookings";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
 import { useQuery } from "@tanstack/react-query";
@@ -48,8 +48,10 @@ import {
 export default function BookingDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get("returnTo") || "/admin/bookings";
+  const isOpsContext = location.pathname.startsWith("/ops");
+  const returnTo = searchParams.get("returnTo") || (isOpsContext ? "/ops/bookings" : "/admin/bookings");
 
   const { data: booking, isLoading, refetch } = useBookingById(bookingId || null);
   const { data: photos, isLoading: photosLoading } = useBookingConditionPhotos(bookingId || "");
@@ -131,22 +133,22 @@ export default function BookingDetail() {
 
   if (isLoading) {
     return (
-      <AdminShell>
+      <PanelShell>
         <div className="flex items-center justify-center h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </AdminShell>
+      </PanelShell>
     );
   }
 
   if (!booking) {
     return (
-      <AdminShell>
+      <PanelShell>
         <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
           <p className="text-muted-foreground">Booking not found</p>
           <Button onClick={() => navigate(returnTo)}>Go Back</Button>
         </div>
-      </AdminShell>
+      </PanelShell>
     );
   }
 
@@ -165,7 +167,7 @@ export default function BookingDetail() {
     : null;
 
   return (
-    <AdminShell>
+    <PanelShell>
       <TooltipProvider>
         <div className="space-y-6">
           {/* Header */}
@@ -797,6 +799,6 @@ export default function BookingDetail() {
           </Tabs>
         </div>
       </TooltipProvider>
-    </AdminShell>
+    </PanelShell>
   );
 }
