@@ -238,17 +238,6 @@ export default function OpsWorkboard() {
               </span>
               <ChevronRight className="w-4 h-4" />
             </Button>
-            <Button
-              variant="outline"
-              className="justify-between"
-              onClick={() => navigate("/admin/calendar")}
-            >
-              <span className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                View Calendar
-              </span>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
           </CardContent>
         </Card>
       </div>

@@ -14,11 +14,11 @@ import {
   LogOut, 
   User, 
   ChevronDown, 
-  ShoppingCart, 
-  BarChart3, 
-  Workflow,
+  BarChart3,
   Wrench,
   Gift,
+  ClipboardList,
+  ArrowRightLeft,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -31,21 +31,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts, type SidebarCounts } from "@/hooks/use-sidebar-counts";
+import { useCapabilities } from "@/auth/capabilities";
 
 type BadgeKey = keyof SidebarCounts;
 
 /**
- * Consolidated Admin Navigation
- * Based on rental industry best practices:
- * - Dashboard: Overview with key metrics
- * - Operations: Unified workflow for bookings → pickups → active → returns
- * - Fleet: Inventory + costs + damages
- * - Analytics: Comprehensive business intelligence
- * - Calendar: Visual scheduling
- * - Billing: Payments & receipts
- * - Support: Tickets + alerts combined
- * - Recovery: Abandoned cart follow-up
- * - Settings: Configuration
+ * Admin Navigation - Strategic/Configuration Focus
+ * Day-to-day operations moved to Ops Panel (/ops/*)
  */
 const navItems: {
   href: string;
@@ -61,7 +53,7 @@ const navItems: {
     icon: Bell,
     badgeKey: "alerts",
     description: "Action required",
-    priority: true, // Always at top
+    priority: true,
   },
   {
     href: "/admin",
@@ -71,10 +63,9 @@ const navItems: {
   },
   {
     href: "/admin/bookings",
-    label: "Operations",
-    icon: Workflow,
-    badgeKey: "operations",
-    description: "Bookings, pickups, rentals, returns",
+    label: "Bookings",
+    icon: ClipboardList,
+    description: "Reservations & history",
   },
   {
     href: "/admin/fleet",
@@ -148,12 +139,11 @@ export function AdminShell({
 }: AdminShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [bookingCode, setBookingCode] = useState("");
   const { counts } = useSidebarCounts();
+  const { data: caps } = useCapabilities("admin");
   const handleBookingSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (bookingCode.trim()) {
@@ -222,6 +212,19 @@ export function AdminShell({
               </Link>
             );
           })}
+          
+          {/* Ops Panel Switch */}
+          {caps?.canAccessOpsPanel && (
+            <div className="pt-4 mt-4 border-t border-border">
+              <Link
+                to="/ops"
+                className="flex items-center gap-2 lg:gap-2.5 px-2 lg:px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              >
+                <ArrowRightLeft className="w-4 h-4 shrink-0" />
+                <span className="truncate">Ops Panel</span>
+              </Link>
+            </div>
+          )}
         </nav>
 
         <div className="p-3 lg:p-4 border-t border-border">
@@ -267,6 +270,20 @@ export function AdminShell({
                   </Link>
                 );
               })}
+              
+              {/* Ops Panel Switch - Mobile */}
+              {caps?.canAccessOpsPanel && (
+                <div className="pt-4 mt-4 border-t border-border">
+                  <Link
+                    to="/ops"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
+                    <ArrowRightLeft className="w-4 h-4" />
+                    Ops Panel
+                  </Link>
+                </div>
+              )}
             </nav>
           </aside>
         </div>}

@@ -8,10 +8,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface SidebarCounts {
   alerts: number;
-  operations: number; // Pickups pending + active rentals with issues
+  operations: number; // Legacy - kept for compatibility
   incidents: number; // Open incidents
   support: number; // Open tickets
   billing: number; // Pending payments
+  // Ops panel specific counts
+  pickups: number; // Confirmed bookings ready for handover
+  active: number; // Active rentals count
+  returns: number; // Returns expected today/tomorrow
 }
 
 /**
@@ -23,6 +27,10 @@ export function useSidebarCounts() {
   const query = useQuery({
     queryKey: ["sidebar-counts"],
     queryFn: async (): Promise<SidebarCounts> => {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const tomorrowEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2).toISOString();
+
       // Run all count queries in parallel
       const [
         alertsResult,
@@ -31,6 +39,8 @@ export function useSidebarCounts() {
         incidentsResult,
         ticketsResult,
         pendingPaymentsResult,
+        activeRentalsResult,
+        returnsResult,
       ] = await Promise.all([
         // Pending alerts
         supabase
@@ -38,19 +48,20 @@ export function useSidebarCounts() {
           .select("*", { count: "exact", head: true })
           .eq("status", "pending"),
         
-        // Pickups due today or earlier (confirmed bookings awaiting handover)
+        // Pickups: confirmed bookings starting today or later
         supabase
           .from("bookings")
           .select("*", { count: "exact", head: true })
           .eq("status", "confirmed")
-          .lte("start_at", new Date().toISOString()),
+          .gte("start_at", todayStart)
+          .lt("start_at", tomorrowEnd),
         
         // Overdue rentals (active bookings past end date)
         supabase
           .from("bookings")
           .select("*", { count: "exact", head: true })
           .eq("status", "active")
-          .lt("end_at", new Date().toISOString()),
+          .lt("end_at", now.toISOString()),
         
         // Open incidents (not resolved or closed)
         supabase
@@ -69,6 +80,20 @@ export function useSidebarCounts() {
           .from("payments")
           .select("*", { count: "exact", head: true })
           .eq("status", "pending"),
+        
+        // Active rentals (all)
+        supabase
+          .from("bookings")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "active"),
+        
+        // Returns expected today/tomorrow
+        supabase
+          .from("bookings")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "active")
+          .gte("end_at", todayStart)
+          .lt("end_at", tomorrowEnd),
       ]);
 
       const alerts = alertsResult.count ?? 0;
@@ -77,6 +102,8 @@ export function useSidebarCounts() {
       const incidents = incidentsResult.count ?? 0;
       const tickets = ticketsResult.count ?? 0;
       const pendingPayments = pendingPaymentsResult.count ?? 0;
+      const activeRentals = activeRentalsResult.count ?? 0;
+      const returns = (returnsResult.count ?? 0) + overdueRentals;
 
       return {
         alerts,
@@ -84,6 +111,9 @@ export function useSidebarCounts() {
         incidents,
         support: tickets,
         billing: pendingPayments,
+        pickups,
+        active: activeRentals,
+        returns,
       };
     },
     staleTime: 15000, // 15 seconds - realtime handles updates
@@ -138,6 +168,9 @@ export function useSidebarCounts() {
       incidents: 0,
       support: 0,
       billing: 0,
+      pickups: 0,
+      active: 0,
+      returns: 0,
     },
     isLoading: query.isLoading,
   };

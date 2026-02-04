@@ -57,6 +57,7 @@ import {
   FileWarning,
   IdCard,
   CalendarDays,
+  Workflow,
 } from "lucide-react";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 import { OperationsFilters, defaultFilters, getDateRangeFromPreset, type OperationsFiltersState } from "@/components/admin/OperationsFilters";
@@ -430,12 +431,22 @@ export default function AdminBookings() {
         <div className="flex flex-col gap-3 md:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight">Operations</h1>
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight">Bookings</h1>
               <p className="text-muted-foreground text-xs md:text-sm mt-0.5 md:mt-1">
-                Manage bookings, pickups, active rentals, and returns
+                View and search all reservations
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <Button 
+                onClick={() => navigate("/ops")} 
+                variant="outline" 
+                size="sm" 
+                className="h-8 md:h-9"
+              >
+                <Workflow className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden xs:inline">Process in Ops Panel</span>
+                <span className="xs:hidden">Ops</span>
+              </Button>
               <Button onClick={() => setWalkInDialogOpen(true)} size="sm" className="h-8 md:h-9">
                 <UserPlus className="h-4 w-4 mr-1 md:mr-2" />
                 <span className="hidden xs:inline">Walk-In</span>
