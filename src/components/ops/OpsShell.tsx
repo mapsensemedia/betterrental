@@ -24,7 +24,6 @@ import {
   User,
   ChevronDown,
   Search,
-  AlertCircle,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -34,7 +33,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +40,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts } from "@/hooks/use-sidebar-counts";
-import { useCapabilities } from "@/auth/capabilities";
 
 /**
  * Ops Navigation - Simplified for operational tasks
@@ -94,7 +91,6 @@ export function OpsShell({ children }: OpsShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [bookingCode, setBookingCode] = useState("");
   const { counts } = useSidebarCounts();
-  const { data: caps } = useCapabilities("ops");
 
   const handleBookingSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,18 +156,6 @@ export function OpsShell({ children }: OpsShellProps) {
             );
           })}
 
-          {/* Admin panel link (if user has access) */}
-          {caps?.canAccessAdminPanel && (
-            <div className="pt-4 mt-4 border-t border-border">
-              <Link
-                to="/admin"
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <AlertCircle className="w-4 h-4" />
-                <span>Admin Panel</span>
-              </Link>
-            </div>
-          )}
         </nav>
 
         <div className="p-3 border-t border-border">
@@ -275,14 +259,6 @@ export function OpsShell({ children }: OpsShellProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              {caps?.canAccessAdminPanel && (
-                <>
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin">Switch to Admin</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
               <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign Out

@@ -299,20 +299,9 @@ export default function AdminBookings() {
     }
   }, [activeTab, setSearchParams]);
 
-  const handleOpenBooking = (bookingId: string, status?: BookingStatus) => {
-    // Use smart routing based on status
-    if (status) {
-      navigate(getBookingRoute(bookingId, status, { returnTo: "/admin/bookings" }));
-    } else {
-      // Fallback - find the booking and get its status
-      const booking = bookings?.find(b => b.id === bookingId);
-      if (booking) {
-        navigate(getBookingRoute(bookingId, booking.status, { returnTo: "/admin/bookings" }));
-      } else {
-        // Default to ops route
-        navigate(`/admin/bookings/${bookingId}/ops?returnTo=/admin/bookings`);
-      }
-    }
+  const handleOpenBooking = (bookingId: string, _status?: BookingStatus) => {
+    // Admin panel always goes to view-only BookingDetail page
+    navigate(`/admin/bookings/${bookingId}?returnTo=/admin/bookings`);
   };
 
   const handleFilterChange = (key: keyof BookingFilters, value: string) => {
