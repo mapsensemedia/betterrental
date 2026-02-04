@@ -31,6 +31,7 @@ import {
   Eye,
   Ban,
   PenLine,
+  FileDown,
 } from "lucide-react";
 import {
   useRentalAgreement,
@@ -41,6 +42,8 @@ import {
 import { useSaveSignature } from "@/hooks/use-signature-capture";
 import { SignatureCapturePanel } from "./signature/SignatureCapturePanel";
 import { format } from "date-fns";
+import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 interface RentalAgreementPanelProps {
   bookingId: string;
@@ -94,7 +97,171 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
     [agreement, bookingId, signerName, customerName, saveSignature]
   );
 
-  const handleDownload = () => {
+  // Generate PDF from agreement content
+  const handleDownloadPdf = () => {
+    if (!agreement) return;
+    
+    try {
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "letter",
+      });
+
+      // Set up fonts
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let yPos = margin;
+
+      // Helper to add new page if needed
+      const checkPageBreak = (lineHeight: number = 10) => {
+        if (yPos + lineHeight > pageHeight - margin) {
+          pdf.addPage();
+          yPos = margin;
+        }
+      };
+
+      // Title - C2C Car Rental
+      pdf.setFontSize(24);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("C2C CAR RENTAL", pageWidth / 2, yPos, { align: "center" });
+      yPos += 12;
+
+      // Subtitle
+      pdf.setFontSize(14);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("VEHICLE LEGAL AGREEMENT", pageWidth / 2, yPos, { align: "center" });
+      yPos += 10;
+
+      // Divider line
+      pdf.setLineWidth(0.5);
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 8;
+
+      // Parse and render the text content
+      const lines = agreement.agreement_content.split('\n');
+      
+      for (const line of lines) {
+        checkPageBreak(6);
+        
+        // Skip ASCII art decoration
+        if (line.includes('▓') || line.includes('═══') || line.includes('───')) {
+          yPos += 2;
+          continue;
+        }
+
+        // Section headers (boxed sections)
+        if (line.includes('┌') || line.includes('└') || line.includes('│')) {
+          if (line.includes('│') && line.trim().length > 2) {
+            const headerText = line.replace(/[┌┐└┘│─]/g, '').trim();
+            if (headerText) {
+              pdf.setFontSize(11);
+              pdf.setFont("helvetica", "bold");
+              pdf.text(headerText, pageWidth / 2, yPos, { align: "center" });
+              yPos += 8;
+            }
+          }
+          continue;
+        }
+
+        // Regular text
+        const trimmedLine = line.trim();
+        if (!trimmedLine) {
+          yPos += 3;
+          continue;
+        }
+
+        // Check for labels (key: value pattern)
+        if (trimmedLine.includes(':')) {
+          const [label, ...valueParts] = trimmedLine.split(':');
+          const value = valueParts.join(':').trim();
+          
+          if (label && value) {
+            pdf.setFontSize(9);
+            pdf.setFont("helvetica", "bold");
+            pdf.text(label + ":", margin, yPos);
+            pdf.setFont("helvetica", "normal");
+            
+            // Wrap value text if too long
+            const labelWidth = pdf.getTextWidth(label + ": ");
+            const valueLines = pdf.splitTextToSize(value, contentWidth - labelWidth - 5);
+            pdf.text(valueLines, margin + labelWidth, yPos);
+            yPos += Math.max(5, valueLines.length * 4);
+            continue;
+          }
+        }
+
+        // Checkbox items
+        if (trimmedLine.startsWith('☐')) {
+          pdf.setFontSize(9);
+          pdf.setFont("helvetica", "normal");
+          pdf.rect(margin, yPos - 3, 3, 3);
+          const checkboxText = trimmedLine.replace('☐', '').trim();
+          const wrappedText = pdf.splitTextToSize(checkboxText, contentWidth - 8);
+          pdf.text(wrappedText, margin + 5, yPos);
+          yPos += Math.max(6, wrappedText.length * 4);
+          continue;
+        }
+
+        // Numbered items or bullets
+        if (/^[1-9]\./.test(trimmedLine) || trimmedLine.startsWith('•')) {
+          pdf.setFontSize(9);
+          pdf.setFont("helvetica", "bold");
+          const wrappedText = pdf.splitTextToSize(trimmedLine, contentWidth);
+          pdf.text(wrappedText, margin, yPos);
+          yPos += Math.max(5, wrappedText.length * 4);
+          continue;
+        }
+
+        // Indented text
+        if (line.startsWith('   ')) {
+          pdf.setFontSize(9);
+          pdf.setFont("helvetica", "normal");
+          const wrappedText = pdf.splitTextToSize(trimmedLine, contentWidth - 10);
+          pdf.text(wrappedText, margin + 8, yPos);
+          yPos += Math.max(5, wrappedText.length * 4);
+          continue;
+        }
+
+        // Default text
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        const wrappedText = pdf.splitTextToSize(trimmedLine, contentWidth);
+        pdf.text(wrappedText, margin, yPos);
+        yPos += Math.max(5, wrappedText.length * 4);
+      }
+
+      // Add signature info if signed
+      if (agreement.customer_signature) {
+        checkPageBreak(20);
+        yPos += 5;
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 8;
+        
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("SIGNED BY: " + agreement.customer_signature, margin, yPos);
+        yPos += 6;
+        pdf.setFont("helvetica", "normal");
+        pdf.text("Date: " + format(new Date(agreement.customer_signed_at!), "PPpp"), margin, yPos);
+        yPos += 5;
+        pdf.text("Status: " + agreement.status.toUpperCase(), margin, yPos);
+      }
+
+      // Save PDF
+      pdf.save(`C2C-Rental-Agreement-${bookingId.slice(0, 8)}.pdf`);
+      toast.success("PDF downloaded successfully");
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
+  // Fallback text download
+  const handleDownloadTxt = () => {
     if (!agreement) return;
     const content = agreement.customer_signature
       ? `${agreement.agreement_content}\n\n══════════════════════════════════════════════════════════════════\n\nSIGNED BY: ${agreement.customer_signature}\nDATE: ${format(new Date(agreement.customer_signed_at!), "PPpp")}${agreement.signed_manually ? "\nMETHOD: Manual / In-Person" : "\nMETHOD: Digital"}\nSTATUS: ${agreement.status.toUpperCase()}`
@@ -252,11 +419,20 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleDownload}
+                  onClick={handleDownloadPdf}
+                  className="gap-1"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  PDF
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownloadTxt}
                   className="gap-1"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Download
+                  TXT
                 </Button>
 
                 {agreement.status === "signed" && (
