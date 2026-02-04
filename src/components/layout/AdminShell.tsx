@@ -19,6 +19,7 @@ import {
   Gift,
   ClipboardList,
   ArrowRightLeft,
+  Activity,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -85,6 +86,12 @@ const navItems: {
     label: "Fleet Costs",
     icon: BarChart3,
     description: "Vehicle costs & value",
+  },
+  {
+    href: "/admin/fleet-analytics",
+    label: "Fleet Analytics",
+    icon: Activity,
+    description: "Utilization & profitability",
   },
   {
     href: "/admin/reports",
