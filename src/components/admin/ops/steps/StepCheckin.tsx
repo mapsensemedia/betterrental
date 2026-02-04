@@ -22,6 +22,7 @@ import {
   Eye,
   Edit2,
   Save,
+  Car,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
+import { UnitAssignmentCard } from "@/components/admin/UnitAssignmentCard";
 import { cn } from "@/lib/utils";
 
 interface StepCheckinProps {
@@ -46,9 +48,10 @@ interface StepCheckinProps {
     ageVerified: boolean;
   };
   onStepComplete?: () => void;
+  vehicleName?: string;
 }
 
-export function StepCheckin({ booking, completion, onStepComplete }: StepCheckinProps) {
+export function StepCheckin({ booking, completion, onStepComplete, vehicleName }: StepCheckinProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [viewLicenseOpen, setViewLicenseOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -437,7 +440,28 @@ export function StepCheckin({ booking, completion, onStepComplete }: StepCheckin
         </CardContent>
       </Card>
 
-      {/* View License Dialog */}
+      {/* VIN Unit Assignment Card */}
+      {booking.vehicle_id && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Car className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-base">Vehicle Unit Assignment</CardTitle>
+            </div>
+            <CardDescription>
+              Assign a specific VIN unit for this rental
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <UnitAssignmentCard
+              bookingId={booking.id}
+              vehicleId={booking.vehicle_id}
+              vehicleName={vehicleName || "Vehicle"}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={viewLicenseOpen} onOpenChange={setViewLicenseOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

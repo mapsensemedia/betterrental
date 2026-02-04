@@ -48,6 +48,7 @@ export function useAvailableDrivers() {
         phone: p.phone,
       }));
     },
-    staleTime: 60000, // 1 minute
+    staleTime: 30000, // 30 seconds - reference data tier
+    gcTime: 120000,   // Keep cached for 2 minutes
   });
 }

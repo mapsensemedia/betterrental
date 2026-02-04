@@ -77,6 +77,8 @@ export function useVehiclePrepStatus(bookingId: string | null) {
       } as VehiclePrepStatus;
     },
     enabled: !!bookingId,
+    staleTime: 15000, // 15 seconds - operational data tier
+    gcTime: 60000,    // Keep cached for 1 minute
   });
 }
 
