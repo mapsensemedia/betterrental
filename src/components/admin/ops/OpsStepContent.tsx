@@ -177,10 +177,13 @@ export function OpsStepContent({
           {stepId === "prep" && (
             <StepPrep 
               bookingId={booking.id}
+              vehicleId={booking.vehicle_id}
+              vehicleName={booking.vehicle_categories?.name || "Vehicle"}
               completion={{
                 checklistComplete: completion.prep?.vehiclePrepared || false,
                 photosComplete: completion.photos.photosComplete,
                 driverAssigned: completion.dispatch?.driverAssigned,
+                unitAssigned: !!booking.assigned_unit_id,
               }}
               isDelivery={isDelivery}
               assignedDriverId={booking.assigned_driver_id}

@@ -206,7 +206,7 @@ export default function DeliveryDetail() {
               Vehicle
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
               {categoryData?.image_url && (
                 <img
@@ -217,14 +217,39 @@ export default function DeliveryDetail() {
               )}
               <div>
                 <p className="font-medium">{categoryData?.name || "Unknown Vehicle"}</p>
-                {unitData?.licensePlate && (
-                  <p className="text-sm text-muted-foreground font-mono">{unitData.licensePlate}</p>
-                )}
-                {unitData?.color && (
-                  <p className="text-xs text-muted-foreground">Color: {unitData.color}</p>
-                )}
               </div>
             </div>
+
+            {/* Assigned Unit Details */}
+            {unitData && (
+              <div className="border-t pt-4 space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Assigned Unit</p>
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">VIN</span>
+                    <span className="font-mono text-sm font-medium">{unitData.vin}</span>
+                  </div>
+                  {unitData.licensePlate && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">License Plate</span>
+                      <span className="font-medium">{unitData.licensePlate}</span>
+                    </div>
+                  )}
+                  {unitData.color && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Color</span>
+                      <span>{unitData.color}</span>
+                    </div>
+                  )}
+                  {unitData.currentMileage && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Current Mileage</span>
+                      <span>{unitData.currentMileage.toLocaleString()} mi</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
