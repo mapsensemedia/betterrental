@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { VehiclePrepChecklist } from "@/components/admin/VehiclePrepChecklist";
 import { PreInspectionPhotos } from "@/components/admin/PreInspectionPhotos";
+import { UnitAssignmentCard } from "@/components/admin/UnitAssignmentCard";
 import { 
   CheckCircle2, 
   XCircle, 
@@ -29,10 +30,13 @@ import { useAvailableDrivers } from "@/hooks/use-available-drivers";
 
 interface StepPrepProps {
   bookingId: string;
+  vehicleId?: string;
+  vehicleName?: string;
   completion: {
     checklistComplete: boolean;
     photosComplete: boolean;
     driverAssigned?: boolean;
+    unitAssigned?: boolean;
   };
   isDelivery?: boolean;
   assignedDriverId?: string | null;
@@ -41,6 +45,8 @@ interface StepPrepProps {
 
 export function StepPrep({ 
   bookingId, 
+  vehicleId,
+  vehicleName,
   completion, 
   isDelivery = false,
   assignedDriverId,
@@ -80,6 +86,15 @@ export function StepPrep({
   
   return (
     <div className="space-y-4">
+      {/* VIN Unit Assignment - For all bookings */}
+      {vehicleId && (
+        <UnitAssignmentCard
+          bookingId={bookingId}
+          vehicleId={vehicleId}
+          vehicleName={vehicleName || "Vehicle"}
+        />
+      )}
+
       {/* Driver Assignment Card - Only for delivery bookings */}
       {isDelivery && (
         <Card className={completion.driverAssigned ? "border-emerald-200 dark:border-emerald-900" : "border-amber-200 dark:border-amber-900"}>
