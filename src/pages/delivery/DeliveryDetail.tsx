@@ -3,10 +3,12 @@ import { DeliveryShell } from "@/components/delivery/DeliveryShell";
 import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 import { DeliveryHandoverCapture } from "@/components/delivery/DeliveryHandoverCapture";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
+import { StepWalkaround } from "@/components/admin/ops/steps/StepWalkaround";
 import { useDeliveryById, type DeliveryStatus } from "@/hooks/use-my-deliveries";
 import { useRealtimeDeliveryStatuses } from "@/hooks/use-realtime-subscriptions";
+import { useWalkaroundInspection } from "@/hooks/use-walkaround";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import {
@@ -22,12 +24,16 @@ import {
   Building,
   MessageSquare,
   FileText,
+  Eye,
 } from "lucide-react";
 
 export default function DeliveryDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
   const { data: delivery, isLoading, error, refetch } = useDeliveryById(bookingId);
+  
+  // Get walkaround status for the inspection step
+  const { data: walkaroundInspection } = useWalkaroundInspection(bookingId || "");
   
   // Subscribe to real-time delivery status updates
   useRealtimeDeliveryStatuses(bookingId);
@@ -257,6 +263,30 @@ export default function DeliveryDetail() {
             <div className="px-4 pb-4">
               <RentalAgreementSign bookingId={delivery.id} />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Vehicle Walkaround - Joint inspection with customer */}
+        <Card className="border-amber-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Vehicle Walkaround
+              </div>
+              <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
+                Inspect with customer
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Complete the vehicle inspection together with the customer before handing over the keys.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4">
+            <StepWalkaround 
+              bookingId={delivery.id} 
+              completion={{ inspectionComplete: walkaroundInspection?.inspection_complete || false }}
+            />
           </CardContent>
         </Card>
 
