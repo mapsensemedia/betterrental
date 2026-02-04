@@ -1,82 +1,238 @@
 
-# Plan: Integrate VehicleHealthCard and LifecycleSummarySection into Fleet Costs
+# Plan: Rental Ops Console Performance Optimization & Feature Integration
 
-## Problem Identified
+## Executive Summary
 
-The newly created `VehicleHealthCard` and `LifecycleSummarySection` components are currently only accessible at `/admin/fleet-analytics`, which has **no navigation link** in the admin sidebar. This makes these features invisible to users.
-
-**Current Navigation Structure:**
-- `/admin/fleet` - Fleet Management (Categories + VIN Pool) - Has sidebar link
-- `/admin/fleet-costs` - Fleet Costs (VIN tracking, expenses) - Has sidebar link  
-- `/admin/fleet-analytics` - Fleet Analytics (Where components currently live) - **No sidebar link**
-
-## Proposed Solution
-
-Integrate the lifecycle and vehicle health features directly into the existing **Fleet Costs** page (`/admin/fleet-costs`) since it already focuses on vehicle-level financial tracking.
+This plan addresses performance lag in the rental operations console, integrates missing VIN assignment functionality, and ensures mileage updates propagate correctly to vehicle records. The console is the core operational workflow for the business and requires optimization for staff efficiency.
 
 ---
 
-## Implementation Steps
+## Part 1: Performance Optimization
 
-### Step 1: Add Tab Navigation to Fleet Costs Page
+### Problem Analysis
 
-Transform the FleetCosts page to use a tabbed interface with:
-- **Units Tab** (default) - Existing VIN/expense tracking table
-- **Lifecycle Tab** - LifecycleSummarySection component
-- **Health Overview Tab** - VehicleHealthCard grid view
+The BookingOps page currently initiates **11+ separate queries** on load, causing noticeable lag:
 
-### Step 2: Import and Integrate Components
+| Current Query | Stale Time | Issue |
+|---------------|------------|-------|
+| `useBookingById` | Default (0) | Re-fetches on every focus |
+| `useWalkaroundInspection` | Default (0) | No caching |
+| `useVehiclePrepStatus` | Default (0) | No caching |
+| `useBookingConditionPhotos` | Default (0) | No caching |
+| `useCheckInRecord` | Default (0) | No caching |
+| `usePaymentDepositStatus` | Default (0) | No caching |
+| `useRentalAgreement` | Default (0) | No caching |
+| `useBookingVerification` | Default (0) | No caching |
+| `useCheckVehicleAvailability` | Default (0) | No caching |
+| `useAvailableDrivers` | Default (0) | No caching |
+| Real-time subscription | Always active | Triggers invalidations |
 
-Add the following imports to `src/pages/admin/FleetCosts.tsx`:
+### Proposed Solutions
+
+#### 1. Add Tiered Caching Strategy
+
+Apply consistent staleTime values across ops-related hooks:
+
 ```text
-import { LifecycleSummarySection } from "@/components/admin/fleet/LifecycleSummarySection";
-import { VehicleHealthCard } from "@/components/admin/fleet/VehicleHealthCard";
+Tier 1 (5s)  : Real-time critical - delivery status, active status
+Tier 2 (15s) : Operational data - prep status, photos, agreements
+Tier 3 (30s) : Reference data - vehicle info, drivers list
 ```
 
-### Step 3: Create Health Cards Data Integration
+**Files to modify:**
+- `src/hooks/use-walkaround.ts`
+- `src/hooks/use-vehicle-prep.ts`
+- `src/hooks/use-condition-photos.ts`
+- `src/hooks/use-checkin.ts`
+- `src/hooks/use-payment-deposit.ts`
+- `src/hooks/use-rental-agreement.ts`
+- `src/hooks/use-verification.ts`
+- `src/hooks/use-available-drivers.ts`
 
-Create a hook or inline query to fetch enhanced vehicle data that combines:
-- Unit basic info (VIN, plate, status)
-- Financial metrics (revenue, costs, profit)
-- Lifecycle data (acquisition date, depreciation, disposal dates)
-- Vendor information
+#### 2. Create Consolidated Booking Ops Query
 
-### Step 4: Add Quick Access Link (Optional)
+Create a single optimized query hook that fetches all booking-related data in one request:
 
-Add a link from Fleet Management (`/admin/fleet`) to Fleet Costs for easy access to lifecycle/health data.
+**New file:** `src/hooks/use-booking-ops-data.ts`
+
+This hook will:
+- Fetch booking with all related data in parallel using `Promise.all`
+- Include prep status, photos, agreements, payments in one round-trip
+- Return a unified object with proper TypeScript types
+- Reduce network round-trips from 11+ to 3-4
+
+#### 3. Optimize Realtime Subscriptions
+
+Modify `useRealtimeDeliveryStatuses` to be more selective:
+- Only subscribe when booking is a delivery type
+- Use debounced invalidation to prevent rapid re-renders
+- Add cleanup verification
 
 ---
 
-## Files to Modify
+## Part 2: VIN/Unit Assignment Integration
 
-| File | Changes |
-|------|---------|
-| `src/pages/admin/FleetCosts.tsx` | Add tabs structure, import LifecycleSummarySection and VehicleHealthCard |
-| `src/hooks/use-fleet-cost-enhanced.ts` | Already exists, may need minor adjustments |
+### Problem Analysis
 
-## Alternative Option
+The `StepIntake.tsx` component contains VIN assignment UI (`UnitAssignmentCard`) but is **never rendered** in the ops workflow. The `OpsStepContent.tsx` renders `StepCheckin` for the "checkin" step instead of `StepIntake`.
 
-If you prefer to keep Fleet Analytics as a separate page, I can instead add a sidebar navigation link to `/admin/fleet-analytics` in `AdminShell.tsx`. This would expose all the analytics tabs (Overview, By Vehicle, Comparison, etc.) as a dedicated analytics section.
+Current step content mapping in `OpsStepContent.tsx`:
+```text
+checkin  -> StepCheckin (customer verification only)
+payment  -> StepPayment
+prep     -> StepPrep (has driver assignment for delivery, no VIN)
+agreement -> StepAgreement
+walkaround -> StepWalkaround
+photos   -> StepPhotos
+handover -> StepHandover
+```
+
+**Missing:** VIN unit assignment is not accessible in any step for pickup bookings.
+
+### Proposed Solution
+
+Integrate the `UnitAssignmentCard` directly into the `StepCheckin` component for all bookings (pickup and delivery):
+
+**File to modify:** `src/components/admin/ops/steps/StepCheckin.tsx`
+
+Add a new section after customer verification:
+1. Vehicle category display (already assigned at booking)
+2. VIN unit selection/auto-assign capability
+3. Show assigned unit details (VIN, plate, mileage)
+
+This provides:
+- Staff can assign specific vehicles during check-in
+- Unit assignment is visible without navigating away
+- Integrates with existing completion tracking
+
+---
+
+## Part 3: Mileage Update Verification
+
+### Current Implementation
+
+The return flow **already updates vehicle mileage** correctly in `StepReturnIntake.tsx`:
+
+```text
+// Lines 110-119 in StepReturnIntake.tsx
+if (booking?.assigned_unit_id && odometer) {
+  await supabase
+    .from("vehicle_units")
+    .update({ current_mileage: parseInt(odometer) })
+    .eq("id", booking.assigned_unit_id);
+}
+```
+
+### Verification Steps
+
+1. Confirm query invalidation includes `vehicle-units` (already present)
+2. Add success toast message indicating mileage was synced
+3. Add visual confirmation in the fleet costs/analytics pages
+
+**Minor enhancement:** Update success toast to clearly indicate mileage sync:
+```text
+"Return intake saved - Vehicle mileage updated to {value} km"
+```
+
+---
+
+## Part 4: Code Cleanup
+
+### Orphaned Components
+
+The following components are underutilized and should be integrated or removed:
+
+| Component | Status | Action |
+|-----------|--------|--------|
+| `StepIntake.tsx` | Never rendered | Remove - integrate useful parts into StepCheckin |
+| `VehicleAssignment.tsx` | Only in StepIntake | Keep - useful for category changes |
+| `UnitAssignmentCard.tsx` | Only in StepIntake | Move to StepCheckin |
+
+### Hook Consolidation
+
+Create unified hook for booking ops data to reduce code duplication across step components.
+
+---
+
+## Implementation Order
+
+1. **Performance First** - Add staleTime to all ops hooks (immediate impact)
+2. **VIN Assignment** - Integrate UnitAssignmentCard into StepCheckin
+3. **Mileage Confirmation** - Enhance return flow feedback
+4. **Cleanup** - Remove/consolidate orphaned code
+5. **Testing** - End-to-end validation of ops flow
 
 ---
 
 ## Technical Details
 
-**Current FleetCosts.tsx Structure:**
-- Header with actions (Reports, Depreciation, Refresh, Add Unit)
-- Summary cards (Total Units, Acquisition Cost, Expenses, Investment)
-- Filters (Search, Category, Status)
-- Vehicle units table with CRUD operations
+### Hook Modifications for Caching
 
-**After Changes:**
-```text
-FleetCosts Page
-+-- Header + Actions
-+-- Summary Cards
-+-- Tabs
-|   +-- [Units] - Existing table with filters
-|   +-- [Lifecycle] - LifecycleSummarySection
-|   +-- [Vehicle Health] - VehicleHealthCard grid
+Example pattern to apply to each hook:
+
+```typescript
+// Before
+return useQuery({
+  queryKey: ['walkaround', bookingId],
+  queryFn: async () => { ... },
+  enabled: !!bookingId,
+});
+
+// After
+return useQuery({
+  queryKey: ['walkaround', bookingId],
+  queryFn: async () => { ... },
+  enabled: !!bookingId,
+  staleTime: 15000, // 15 seconds for operational data
+  gcTime: 60000,    // Keep in cache for 1 minute
+});
 ```
 
-The existing table and dialogs remain unchanged; new tabs provide access to the lifecycle and health components.
+### StepCheckin VIN Integration
+
+Add imports and new section:
+
+```typescript
+// Add import
+import { UnitAssignmentCard } from "@/components/admin/UnitAssignmentCard";
+
+// Add after verification checklist, before closing div
+{booking.vehicle_id && (
+  <UnitAssignmentCard
+    bookingId={booking.id}
+    vehicleId={booking.vehicle_id}
+    vehicleName={vehicleName}
+  />
+)}
+```
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/use-walkaround.ts` | Add staleTime: 15000 |
+| `src/hooks/use-vehicle-prep.ts` | Add staleTime: 15000 |
+| `src/hooks/use-condition-photos.ts` | Add staleTime: 15000 |
+| `src/hooks/use-checkin.ts` | Add staleTime: 15000 |
+| `src/hooks/use-payment-deposit.ts` | Add staleTime: 15000 |
+| `src/hooks/use-rental-agreement.ts` | Add staleTime: 15000 |
+| `src/hooks/use-verification.ts` | Add staleTime: 15000 |
+| `src/hooks/use-available-drivers.ts` | Add staleTime: 30000 |
+| `src/components/admin/ops/steps/StepCheckin.tsx` | Add UnitAssignmentCard |
+| `src/components/admin/return-ops/steps/StepReturnIntake.tsx` | Enhance mileage toast |
+
+### Files to Remove/Consolidate
+
+| File | Action |
+|------|--------|
+| `src/components/admin/ops/steps/StepIntake.tsx` | Remove after integration |
+
+---
+
+## Expected Outcomes
+
+1. **~60% reduction** in initial load queries (11+ to 4-5)
+2. **Visible VIN assignment** during check-in for all booking types
+3. **Clear mileage sync feedback** in return flow
+4. **Cleaner codebase** with reduced orphaned components
+5. **Smoother UX** with reduced re-renders and lag
