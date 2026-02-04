@@ -159,12 +159,12 @@ export function useAutoAssignUnit() {
       bookingId: string;
       vehicleId: string;
     }) => {
-      // Get available units for this vehicle
+      // Get available units for this vehicle/category
       const { data: units, error: unitsError } = await supabase
         .from("vehicle_units")
-        .select("id, vin, license_plate")
-        .eq("vehicle_id", vehicleId)
-        .eq("status", "active");
+        .select("id, vin, license_plate, color, current_mileage")
+        .eq("category_id", vehicleId)
+        .eq("status", "available");
 
       if (unitsError) throw unitsError;
 
@@ -207,7 +207,8 @@ export function useAutoAssignUnit() {
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available-units"] });
       queryClient.invalidateQueries({ queryKey: ["low-inventory-alerts"] });
-      toast.success(`Unit ${data.unit.vin.slice(-8)} assigned to booking`);
+      queryClient.invalidateQueries({ queryKey: ["booking-assigned-unit"] });
+      toast.success(`VIN ${data.unit.vin} assigned successfully${data.unit.license_plate ? ` (${data.unit.license_plate})` : ""}`);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -253,12 +254,13 @@ export function useAssignUnit() {
 
       return { bookingId, unitId };
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["booking"] });
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available-units"] });
       queryClient.invalidateQueries({ queryKey: ["low-inventory-alerts"] });
-      toast.success("Unit assigned successfully");
+      queryClient.invalidateQueries({ queryKey: ["booking-assigned-unit", variables.bookingId] });
+      toast.success("VIN unit assigned successfully!");
     },
     onError: (error: Error) => {
       toast.error(error.message);

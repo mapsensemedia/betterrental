@@ -174,16 +174,21 @@ export function UnitAssignmentCard({
             <SelectContent>
               {availableUnits.map((unit) => (
                 <SelectItem key={unit.id} value={unit.id}>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs">{unit.vin.slice(-8)}</span>
+                  <div className="flex items-center gap-2 w-full">
+                    <span className="font-mono text-xs font-medium">{unit.vin}</span>
                     {unit.licensePlate && (
                       <Badge variant="outline" className="text-xs py-0">
                         {unit.licensePlate}
                       </Badge>
                     )}
                     {unit.color && (
-                      <span className="text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="text-xs py-0">
                         {unit.color}
+                      </Badge>
+                    )}
+                    {unit.currentMileage && (
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {unit.currentMileage.toLocaleString()} mi
                       </span>
                     )}
                   </div>
