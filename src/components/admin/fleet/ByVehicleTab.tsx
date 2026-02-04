@@ -1,6 +1,6 @@
 /**
  * Fleet Cost Analysis - By Vehicle Tab
- * Shows detailed metrics per VIN with highlighting for underperformers
+ * Shows detailed metrics per VIN with fuel type, vendor, and lifecycle columns
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFleetCostAnalysisByVehicle, FleetCostFilters } from "@/hooks/use-fleet-cost-analysis";
+import { useFleetCostAnalysisEnhanced, FleetCostFilters } from "@/hooks/use-fleet-cost-enhanced";
 import { useVehicleCategories } from "@/hooks/use-vehicle-categories";
 import { useLocations } from "@/hooks/use-locations";
 import { 
@@ -23,8 +23,11 @@ import {
   Eye,
   Download,
   RefreshCw,
+  Fuel,
+  Building2,
+  Calendar,
 } from "lucide-react";
-import { format, subDays, subMonths } from "date-fns";
+import { format, subDays, subMonths, differenceInDays } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function ByVehicleTab() {
@@ -37,7 +40,7 @@ export function ByVehicleTab() {
 
   const { data: categories } = useVehicleCategories();
   const { data: locations } = useLocations();
-  const { data: vehicleMetrics, isLoading } = useFleetCostAnalysisByVehicle(filters);
+  const { data: vehicleMetrics, isLoading } = useFleetCostAnalysisEnhanced(filters);
 
   const handleDateRangeChange = (range: string) => {
     setDateRange(range);
@@ -63,7 +66,7 @@ export function ByVehicleTab() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: ["fleet-cost-analysis"] });
+    await queryClient.invalidateQueries({ queryKey: ["fleet-cost-analysis-enhanced"] });
     setIsRefreshing(false);
   };
 
@@ -74,7 +77,8 @@ export function ByVehicleTab() {
       v.vin.toLowerCase().includes(searchLower) ||
       v.licensePlate?.toLowerCase().includes(searchLower) ||
       v.vehicleMake.toLowerCase().includes(searchLower) ||
-      v.vehicleModel.toLowerCase().includes(searchLower)
+      v.vehicleModel.toLowerCase().includes(searchLower) ||
+      v.vendorName?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -82,9 +86,10 @@ export function ByVehicleTab() {
     if (!filteredMetrics?.length) return;
 
     const headers = [
-      "VIN", "Plate", "Vehicle", "Category", "Acquisition Cost", 
-      "Rental Revenue", "Damage Cost", "Maintenance Cost", "Net Profit",
-      "Rentals", "Avg Duration", "Cost/Mile", "Recommendation"
+      "VIN", "Plate", "Vehicle", "Category", "Fuel Type", "Vendor",
+      "Acquisition Cost", "Rental Revenue", "Damage Cost", "Maintenance Cost", 
+      "Net Profit", "Rentals", "Avg Duration", "Cost/Mile", 
+      "Acquisition Date", "Disposal Target", "Days to Disposal", "Recommendation"
     ];
 
     const rows = filteredMetrics.map((v) => [
@@ -92,6 +97,8 @@ export function ByVehicleTab() {
       v.licensePlate || "",
       `${v.vehicleYear} ${v.vehicleMake} ${v.vehicleModel}`,
       v.categoryName || "",
+      v.fuelType || "",
+      v.vendorName || "",
       v.acquisitionCost.toFixed(2),
       v.totalRentalRevenue.toFixed(2),
       v.totalDamageCost.toFixed(2),
@@ -100,6 +107,9 @@ export function ByVehicleTab() {
       v.rentalCount,
       v.avgRentalDuration.toFixed(1),
       v.costPerMile.toFixed(2),
+      v.acquisitionDate || "",
+      v.expectedDisposalDate || "",
+      v.daysUntilDisposal !== null ? v.daysUntilDisposal : "",
       v.recommendation,
     ]);
 
@@ -128,7 +138,7 @@ export function ByVehicleTab() {
             <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search VIN, plate, model..."
+                placeholder="Search VIN, plate, model, vendor..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -221,13 +231,26 @@ export function ByVehicleTab() {
                 <TableRow>
                   <TableHead>Vehicle</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>
+                    <span className="flex items-center gap-1">
+                      <Fuel className="w-3 h-3" /> Fuel
+                    </span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="flex items-center gap-1">
+                      <Building2 className="w-3 h-3" /> Vendor
+                    </span>
+                  </TableHead>
                   <TableHead className="text-right">Acquisition</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
-                  <TableHead className="text-right">Damage</TableHead>
-                  <TableHead className="text-right">Maintenance</TableHead>
+                  <TableHead className="text-right">Costs</TableHead>
                   <TableHead className="text-right">Net Profit</TableHead>
                   <TableHead className="text-right">Rentals</TableHead>
-                  <TableHead className="text-right">Cost/Mile</TableHead>
+                  <TableHead>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> Disposal
+                    </span>
+                  </TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -264,15 +287,34 @@ export function ByVehicleTab() {
                         <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {v.fuelType ? (
+                        <Badge variant="secondary" className="text-xs">{v.fuelType}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {v.vendorName ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <span className="text-sm truncate max-w-[100px] block">{v.vendorName}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{v.vendorName}</p>
+                            {v.vendorContact && <p className="text-xs">{v.vendorContact}</p>}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{formatCurrency(v.acquisitionCost)}</TableCell>
                     <TableCell className="text-right font-medium text-green-600">
                       {formatCurrency(v.totalRentalRevenue)}
                     </TableCell>
-                    <TableCell className="text-right text-destructive">
-                      {v.totalDamageCost > 0 ? formatCurrency(v.totalDamageCost) : "—"}
-                    </TableCell>
                     <TableCell className="text-right text-amber-600">
-                      {v.totalMaintenanceCost > 0 ? formatCurrency(v.totalMaintenanceCost) : "—"}
+                      {v.totalExpenses > 0 ? formatCurrency(v.totalExpenses) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -287,8 +329,34 @@ export function ByVehicleTab() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{v.rentalCount}</TableCell>
-                    <TableCell className="text-right text-sm">
-                      ${v.costPerMile.toFixed(2)}
+                    <TableCell>
+                      {v.expectedDisposalDate ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                v.daysUntilDisposal !== null && v.daysUntilDisposal <= 90
+                                  ? v.daysUntilDisposal <= 30 
+                                    ? "bg-destructive/10 text-destructive"
+                                    : "bg-amber-500/10 text-amber-600"
+                                  : ""
+                              }
+                            >
+                              {v.daysUntilDisposal !== null 
+                                ? v.daysUntilDisposal > 0 
+                                  ? `${v.daysUntilDisposal}d`
+                                  : "Overdue"
+                                : "N/A"}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Target: {format(new Date(v.expectedDisposalDate), "MMM d, yyyy")}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Tooltip>
@@ -308,7 +376,7 @@ export function ByVehicleTab() {
                 ))}
                 {!filteredMetrics?.length && (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       No vehicles found
                     </TableCell>
                   </TableRow>
