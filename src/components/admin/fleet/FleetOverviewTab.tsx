@@ -1,5 +1,5 @@
 /**
- * Fleet Overview Tab - Summary metrics and top/bottom performers
+ * Fleet Overview Tab - Summary metrics, top/bottom performers, and lifecycle summary
  */
 import { useState } from "react";
 import { useFleetSummary, useFleetAnalytics } from "@/hooks/use-fleet-analytics";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LifecycleSummarySection } from "./LifecycleSummarySection";
 import { 
   Car, 
   DollarSign, 
@@ -191,6 +192,12 @@ export function FleetOverviewTab() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Lifecycle Summary Section */}
+      <div className="pt-2">
+        <h3 className="text-lg font-semibold mb-4">Lifecycle & Depreciation</h3>
+        <LifecycleSummarySection />
       </div>
     </div>
   );
