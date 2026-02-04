@@ -14,10 +14,10 @@ import {
   Car, 
   Clock, 
   MapPin, 
-  User,
   ChevronRight,
   Search,
   Truck,
+  Calendar,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listBookings, BookingSummary } from "@/domain/bookings";
@@ -27,6 +27,7 @@ import { useState } from "react";
 function PickupCard({ booking }: { booking: BookingSummary }) {
   const navigate = useNavigate();
   const pickupTime = parseISO(booking.startAt);
+  const returnTime = parseISO(booking.endAt);
   const isDelivery = !!booking.pickupAddress;
 
   return (
@@ -53,12 +54,20 @@ function PickupCard({ booking }: { booking: BookingSummary }) {
               <span>{booking.vehicle?.name || "Vehicle"}</span>
             </div>
 
-            {/* Time & Location */}
+            {/* Pickup Date & Time */}
             <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {format(pickupTime, "MMM d, yyyy")}
+              </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {format(pickupTime, "h:mm a")}
               </span>
+            </div>
+
+            {/* Location / Delivery & Return Date */}
+            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
               {isDelivery ? (
                 <span className="flex items-center gap-1 text-blue-600">
                   <Truck className="w-3 h-3" />
@@ -70,6 +79,8 @@ function PickupCard({ booking }: { booking: BookingSummary }) {
                   {booking.location?.name || "Location"}
                 </span>
               )}
+              <span className="text-muted-foreground/60">•</span>
+              <span>Return: {format(returnTime, "MMM d, h:mm a")}</span>
             </div>
           </div>
 
@@ -87,7 +98,8 @@ function PickupCard({ booking }: { booking: BookingSummary }) {
 export default function OpsPickups() {
   const [search, setSearch] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
-  const dayFilter = searchParams.get("day") || "today";
+  // Default to "all" instead of "today"
+  const dayFilter = searchParams.get("day") || "all";
 
   // Fetch both confirmed and pending bookings for pickups
   const { data: bookings, isLoading } = useQuery({
@@ -103,7 +115,7 @@ export default function OpsPickups() {
   });
   
   const setDayFilter = (day: string) => {
-    if (day === "today") {
+    if (day === "all") {
       setSearchParams({});
     } else {
       setSearchParams({ day });
