@@ -32,6 +32,13 @@ export function SignedStorageImage({
       return;
     }
 
+    // If path is already a full URL (signed URL or public URL), use it directly
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      setSignedUrl(path);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchSignedUrl = async () => {
       setIsLoading(true);
       setError(false);
