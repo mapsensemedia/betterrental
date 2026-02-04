@@ -6,12 +6,21 @@ import { validateAuth } from "../_shared/auth.ts";
 /**
  * Agreement Generator
  * 
- * Security features:
- * - Origin whitelist
- * - Rate limiting
- * - Authentication required
- * - Input validation
+ * Generates comprehensive rental agreement with:
+ * - C2C Car Rental branding
+ * - Renter info only (no business phone in renter section)
+ * - Pickup and drop-off locations
+ * - Vehicle details with odometer/fuel at pickup
+ * - Full financial breakdown (add-ons, taxes, PVRT, ACSRCH)
+ * - Tank capacity and fuel level
+ * - Updated T&C including age requirements, late fees, liability, etc.
  */
+
+// Tax rates
+const PST_RATE = 0.07;
+const GST_RATE = 0.05;
+const PVRT_DAILY_FEE = 1.50;
+const ACSRCH_DAILY_FEE = 1.00;
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -38,7 +47,6 @@ serve(async (req) => {
     // Validate authentication
     const auth = await validateAuth(req);
     if (!auth.authenticated) {
-      // Allow service role calls
       const authHeader = req.headers.get("Authorization");
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       if (!authHeader?.includes(serviceKey || "no-match")) {
@@ -91,7 +99,6 @@ serve(async (req) => {
         );
       }
 
-      // Check if user owns booking or is admin
       const { data: userRole } = await supabase
         .from("user_roles")
         .select("role")
@@ -113,7 +120,8 @@ serve(async (req) => {
       .select(`
         *,
         vehicle_id,
-        locations (id, name, address, city, phone)
+        locations (id, name, address, city, phone),
+        assigned_unit_id
       `)
       .eq("id", bookingId)
       .single();
@@ -126,8 +134,15 @@ serve(async (req) => {
       );
     }
 
-    // Fetch category info separately
-    let categoryInfo = { id: "", name: "Vehicle", fuel_type: "", transmission: "", seats: 0 };
+    // Fetch category info
+    let categoryInfo = { 
+      id: "", 
+      name: "Vehicle", 
+      fuel_type: "", 
+      transmission: "", 
+      seats: 0,
+      tank_capacity_liters: null as number | null
+    };
     if (booking.vehicle_id) {
       const { data: category } = await supabase
         .from("vehicle_categories")
@@ -135,20 +150,45 @@ serve(async (req) => {
         .eq("id", booking.vehicle_id)
         .single();
       if (category) {
-        categoryInfo = category;
+        categoryInfo = { ...categoryInfo, ...category };
       }
     }
-    // Attach as vehicles for template compatibility
-    (booking as any).vehicles = {
-      id: categoryInfo.id,
-      make: "",
-      model: categoryInfo.name,
-      year: 0,
-      category: categoryInfo.name,
-      fuel_type: categoryInfo.fuel_type,
-      transmission: categoryInfo.transmission,
-      seats: categoryInfo.seats,
+
+    // Fetch vehicle unit details (VIN, tank capacity)
+    let unitInfo = {
+      vin: null as string | null,
+      license_plate: null as string | null,
+      tank_capacity_liters: null as number | null,
+      color: null as string | null,
+      year: null as number | null,
+      make: null as string | null,
+      model: null as string | null,
     };
+    if (booking.assigned_unit_id) {
+      const { data: unit } = await supabase
+        .from("vehicle_units")
+        .select("vin, license_plate, tank_capacity_liters, color, year, make, model")
+        .eq("id", booking.assigned_unit_id)
+        .single();
+      if (unit) {
+        unitInfo = unit;
+      }
+    }
+
+    // Fetch inspection metrics (odometer/fuel at pickup)
+    let pickupMetrics = {
+      odometer: null as number | null,
+      fuel_level: null as number | null,
+    };
+    const { data: inspectionData } = await supabase
+      .from("inspection_metrics")
+      .select("odometer, fuel_level")
+      .eq("booking_id", bookingId)
+      .eq("phase", "pickup")
+      .maybeSingle();
+    if (inspectionData) {
+      pickupMetrics = inspectionData;
+    }
 
     console.log(`Found booking: ${booking.booking_code}`);
 
@@ -160,6 +200,18 @@ serve(async (req) => {
       .maybeSingle();
 
     console.log(`Found profile: ${profile?.full_name || 'N/A'}`);
+
+    // Fetch add-ons for this booking
+    const { data: bookingAddOns } = await supabase
+      .from("booking_add_ons")
+      .select(`
+        id,
+        price,
+        quantity,
+        add_on_id,
+        add_ons (name, description)
+      `)
+      .eq("booking_id", bookingId);
 
     // Check if agreement already exists
     const { data: existingAgreement } = await supabase
@@ -176,176 +228,315 @@ serve(async (req) => {
       );
     }
 
-    // Build terms object
-    const terms = {
-      vehicle: {
-        make: booking.vehicles?.make,
-        model: booking.vehicles?.model,
-        year: booking.vehicles?.year,
-        category: booking.vehicles?.category,
-        fuelType: booking.vehicles?.fuel_type,
-        transmission: booking.vehicles?.transmission,
-        seats: booking.vehicles?.seats,
-      },
-      rental: {
-        startAt: booking.start_at,
-        endAt: booking.end_at,
-        totalDays: booking.total_days,
-        dailyRate: booking.daily_rate,
-        subtotal: booking.subtotal,
-        taxAmount: booking.tax_amount,
-        depositAmount: booking.deposit_amount,
-        totalAmount: booking.total_amount,
-      },
-      location: {
-        name: booking.locations?.name,
-        address: booking.locations?.address,
-        city: booking.locations?.city,
-        phone: booking.locations?.phone,
-      },
-      customer: {
-        name: profile?.full_name,
-        email: profile?.email,
-        phone: profile?.phone,
-      },
-      mileageLimits: {
-        dailyLimit: 200,
-        excessRate: 0.35,
-        unit: "miles",
-      },
-      policies: {
-        lateFeePerHour: 25,
-        gracePeriodMinutes: 30,
-        fuelReturnPolicy: "Return with same fuel level as pickup",
-        smokingAllowed: false,
-        petsAllowed: false,
-        internationalTravel: false,
-      },
-    };
+    // Calculate financial breakdown
+    const rentalDays = booking.total_days || 1;
+    const dailyRate = Number(booking.daily_rate) || 0;
+    const vehicleSubtotal = dailyRate * rentalDays;
+    
+    // Add-ons total
+    const addOnsTotal = (bookingAddOns || []).reduce((sum, addon) => {
+      return sum + (Number(addon.price) || 0);
+    }, 0);
+    
+    // Young driver fee
+    const youngDriverFee = Number(booking.young_driver_fee) || 0;
+    
+    // Daily regulatory fees
+    const pvrtTotal = PVRT_DAILY_FEE * rentalDays;
+    const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
+    
+    // Calculate subtotal before tax
+    const subtotalBeforeTax = vehicleSubtotal + addOnsTotal + youngDriverFee + pvrtTotal + acsrchTotal;
+    
+    // Calculate taxes
+    const pstAmount = subtotalBeforeTax * PST_RATE;
+    const gstAmount = subtotalBeforeTax * GST_RATE;
+    const totalTax = pstAmount + gstAmount;
+    
+    const grandTotal = subtotalBeforeTax + totalTax;
 
-    // Generate agreement content
+    // Format dates
     const startDate = new Date(booking.start_at).toLocaleDateString('en-US', { 
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
     });
     const endDate = new Date(booking.end_at).toLocaleDateString('en-US', { 
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
     });
+    const generatedDate = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', month: 'long', day: 'numeric' 
+    });
 
+    // Tank capacity - prefer unit-specific, fallback to category default
+    const tankCapacity = unitInfo.tank_capacity_liters || categoryInfo.tank_capacity_liters || 50;
+    
+    // Build add-ons section
+    let addOnsSection = "";
+    if (bookingAddOns && bookingAddOns.length > 0) {
+      addOnsSection = bookingAddOns.map(addon => {
+        const name = (addon.add_ons as any)?.name || "Add-on";
+        const price = Number(addon.price) || 0;
+        return `   ${name}: $${price.toFixed(2)}`;
+      }).join("\n");
+    } else {
+      addOnsSection = "   No add-ons selected";
+    }
+
+    // Generate comprehensive agreement content
     const agreementContent = `
-VEHICLE RENTAL AGREEMENT
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+                         C2C CAR RENTAL
+
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+                   VEHICLE LEGAL AGREEMENT
+
+═══════════════════════════════════════════════════════════════════
 Booking Reference: ${booking.booking_code}
-Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-
+Agreement Date: ${generatedDate}
 ═══════════════════════════════════════════════════════════════════
 
-PARTIES TO THIS AGREEMENT
+┌─────────────────────────────────────────────────────────────────┐
+│                        RENTER INFORMATION                       │
+└─────────────────────────────────────────────────────────────────┘
 
-RENTER:
-Name: ${profile?.full_name || 'N/A'}
+Name:  ${profile?.full_name || 'N/A'}
 Email: ${profile?.email || 'N/A'}
-Phone: ${profile?.phone || 'N/A'}
 
-RENTAL COMPANY:
-Location: ${booking.locations?.name || 'N/A'}
-Address: ${booking.locations?.address || 'N/A'}, ${booking.locations?.city || 'N/A'}
-Phone: ${booking.locations?.phone || 'N/A'}
+┌─────────────────────────────────────────────────────────────────┐
+│                           LOCATIONS                             │
+└─────────────────────────────────────────────────────────────────┘
 
-═══════════════════════════════════════════════════════════════════
+Pickup Location:
+   ${booking.locations?.name || 'N/A'}
+   ${booking.locations?.address || 'N/A'}, ${booking.locations?.city || 'N/A'}
 
-VEHICLE DETAILS
+${booking.pickup_address ? `Delivery Address:
+   ${booking.pickup_address}
+` : ''}Drop-off Location:
+   ${booking.locations?.name || 'Same as pickup'}
+   ${booking.locations?.address || 'N/A'}, ${booking.locations?.city || 'N/A'}
 
-Make: ${booking.vehicles?.make || 'N/A'}
-Model: ${booking.vehicles?.model || 'N/A'}
-Year: ${booking.vehicles?.year || 'N/A'}
-Category: ${booking.vehicles?.category || 'N/A'}
-Fuel Type: ${booking.vehicles?.fuel_type || 'N/A'}
-Transmission: ${booking.vehicles?.transmission || 'N/A'}
-Seating Capacity: ${booking.vehicles?.seats || 'N/A'} passengers
+┌─────────────────────────────────────────────────────────────────┐
+│                        VEHICLE DETAILS                          │
+└─────────────────────────────────────────────────────────────────┘
 
-═══════════════════════════════════════════════════════════════════
+Category:     ${categoryInfo.name || 'N/A'}
+${unitInfo.make ? `Make:         ${unitInfo.make}` : ''}
+${unitInfo.model ? `Model:        ${unitInfo.model}` : ''}
+${unitInfo.year ? `Year:         ${unitInfo.year}` : ''}
+${unitInfo.color ? `Color:        ${unitInfo.color}` : ''}
+${unitInfo.license_plate ? `License Plate: ${unitInfo.license_plate}` : ''}
+${unitInfo.vin ? `VIN:          ${unitInfo.vin}` : ''}
+Fuel Type:    ${categoryInfo.fuel_type || 'N/A'}
+Transmission: ${categoryInfo.transmission || 'N/A'}
+Seats:        ${categoryInfo.seats || 'N/A'} passengers
+Tank Capacity: ${tankCapacity} litres
 
-RENTAL PERIOD
+CONDITION AT PICKUP:
+   Kilometres Out: ${pickupMetrics.odometer !== null ? `${pickupMetrics.odometer.toLocaleString()} km` : 'To be recorded at pickup'}
+   Fuel Level:     ${pickupMetrics.fuel_level !== null ? `${pickupMetrics.fuel_level}%` : 'To be recorded at pickup'}
 
-Pick-up: ${startDate}
-Return: ${endDate}
-Duration: ${booking.total_days} day(s)
+┌─────────────────────────────────────────────────────────────────┐
+│                        RENTAL PERIOD                            │
+└─────────────────────────────────────────────────────────────────┘
 
-═══════════════════════════════════════════════════════════════════
+Pick-up Date/Time: ${startDate}
+Return Date/Time:  ${endDate}
+Duration:          ${booking.total_days} day(s)
 
-FINANCIAL TERMS
+┌─────────────────────────────────────────────────────────────────┐
+│                      FINANCIAL SUMMARY                          │
+└─────────────────────────────────────────────────────────────────┘
 
-Daily Rate: $${Number(booking.daily_rate).toFixed(2)}
-Subtotal (${booking.total_days} days): $${Number(booking.subtotal).toFixed(2)}
-Taxes & Fees: $${Number(booking.tax_amount || 0).toFixed(2)}
-Security Deposit: $${Number(booking.deposit_amount || 0).toFixed(2)}
+VEHICLE RENTAL:
+   Daily Rate: $${dailyRate.toFixed(2)} × ${rentalDays} days = $${vehicleSubtotal.toFixed(2)}
+
+ADD-ONS & EXTRAS:
+${addOnsSection}
+${youngDriverFee > 0 ? `   Young Driver Fee (20-24): $${youngDriverFee.toFixed(2)}` : ''}
+
+REGULATORY FEES:
+   PVRT (Passenger Vehicle Rental Tax): $${PVRT_DAILY_FEE.toFixed(2)}/day × ${rentalDays} = $${pvrtTotal.toFixed(2)}
+   ACSRCH (Airport Concession Surcharge): $${ACSRCH_DAILY_FEE.toFixed(2)}/day × ${rentalDays} = $${acsrchTotal.toFixed(2)}
+
 ─────────────────────────────────────────────────────────────────
-TOTAL DUE: $${Number(booking.total_amount).toFixed(2)}
+SUBTOTAL: $${subtotalBeforeTax.toFixed(2)}
 
-═══════════════════════════════════════════════════════════════════
+TAXES:
+   PST (7%): $${pstAmount.toFixed(2)}
+   GST (5%): $${gstAmount.toFixed(2)}
 
-MILEAGE ALLOWANCE
+─────────────────────────────────────────────────────────────────
+TOTAL AMOUNT DUE: $${grandTotal.toFixed(2)} CAD
+─────────────────────────────────────────────────────────────────
 
-Daily Mileage Limit: 200 miles per day
-Total Included Mileage: ${booking.total_days * 200} miles
-Excess Mileage Rate: $0.35 per mile over limit
+Security Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
 
-═══════════════════════════════════════════════════════════════════
-
-TERMS AND CONDITIONS
+┌─────────────────────────────────────────────────────────────────┐
+│                    TERMS AND CONDITIONS                         │
+└─────────────────────────────────────────────────────────────────┘
 
 1. DRIVER REQUIREMENTS
-   - Renter must be at least 21 years of age
-   - Valid driver's license required
-   - Additional drivers must be registered and approved
+   • Renter must be at least 20 years of age.
+   • Valid driver's license required at time of pickup.
+   • Signature requires government-issued photo ID.
+   • If the renter holds an interim driving license, they must provide
+     valid government-issued photo ID at the time of pickup.
+   • Additional drivers must be registered and approved.
 
 2. VEHICLE USE RESTRICTIONS
-   - No smoking in the vehicle
-   - No pets without prior written approval
-   - No racing, towing, or off-road use
-   - No international travel without prior authorization
-   - Vehicle may only be operated on paved public roads
+   • No smoking in the vehicle.
+   • No pets without prior written approval.
+   • No racing, towing, or off-road use.
+   • No international travel without prior authorization.
+   • Vehicle may only be operated on paved public roads.
 
 3. FUEL POLICY
-   - Vehicle must be returned with same fuel level as at pickup
-   - Refueling charges apply if vehicle is returned with less fuel
+   • Vehicle must be returned with same fuel level as at pickup.
+   • Tank Capacity: ${tankCapacity} litres
+   • Refueling charges apply if vehicle is returned with less fuel.
 
-4. RETURN POLICY
-   - Grace period: 30 minutes past scheduled return time
-   - Late fee: $25 per hour after grace period
-   - Extended rentals require prior approval
+4. RETURN POLICY & LATE FEES
+   • Grace period: 30 minutes past scheduled return time.
+   • Late fee: 25% of the daily rate for each additional hour after
+     the grace period has expired.
+   • Extended rentals require prior approval.
 
 5. DAMAGE AND LIABILITY
-   - Renter is responsible for all damage during rental period
-   - Any damage must be reported immediately
-   - Security deposit may be applied to cover damages
-   - Renter is liable for all traffic violations and tolls
+   • Renter is responsible for all damage during rental period.
+   • Any damage must be reported immediately.
+   • Security deposit may be applied to cover damages.
+   • Renter is liable for all traffic violations and tolls.
+   • Third party liability coverage comes standard with all rentals.
 
-6. INSURANCE
-   - Renter must maintain valid auto insurance
-   - Additional coverage options available at pickup
-   - Renter's insurance is primary coverage
+6. INSURANCE & COVERAGE
+   • Third party liability is included with all rentals.
+   • Optional rental coverage is available at pickup.
 
-7. TERMINATION
-   - Rental company may terminate agreement for violation of terms
-   - Early return does not guarantee refund
+7. KILOMETRE ALLOWANCE
+   • Unlimited kilometres included.
+   • Vehicle must be used responsibly.
+
+8. TERMINATION
+   • Rental company may terminate agreement for violation of terms.
+   • Early return does not guarantee refund.
+
+9. TAX INFORMATION
+   • PST (Provincial Sales Tax): 7%
+   • GST (Goods and Services Tax): 5%
+   • PVRT (Passenger Vehicle Rental Tax): $1.50/day
+   • ACSRCH (Airport Concession Surcharge): $1.00/day
+
+┌─────────────────────────────────────────────────────────────────┐
+│                  ACKNOWLEDGMENT AND SIGNATURE                   │
+└─────────────────────────────────────────────────────────────────┘
+
+☐ I confirm I have read and understood all terms and conditions 
+  outlined in this Vehicle Legal Agreement.
+
+☐ I confirm I am at least 20 years of age.
+
+☐ I acknowledge that my electronic signature has the same legal 
+  effect as a handwritten signature.
+
+☐ I understand that third party liability coverage is included and 
+  optional rental coverage is available at pickup.
+
+☐ I agree to return the vehicle with the same fuel level as at pickup.
+
+☐ I understand late fees will be charged at 25% of the daily rate 
+  per hour after the 30-minute grace period.
+
+
+RENTER SIGNATURE: ________________________________
+
+DATE: ________________________________
+
 
 ═══════════════════════════════════════════════════════════════════
-
-ACKNOWLEDGMENT AND SIGNATURE
-
-By signing below, I acknowledge that I have read, understood, and agree 
-to all terms and conditions outlined in this Rental Agreement. I confirm 
-that all information provided is accurate and complete.
-
-I understand that my electronic signature below has the same legal effect 
-as a handwritten signature.
-
-Renter Signature: ________________________________
-
-Date: ________________________________
-
+                        C2C Car Rental
+                  Thank you for choosing us!
 ═══════════════════════════════════════════════════════════════════
 `.trim();
+
+    // Build comprehensive terms JSON for database storage
+    const terms = {
+      vehicle: {
+        category: categoryInfo.name,
+        make: unitInfo.make,
+        model: unitInfo.model,
+        year: unitInfo.year,
+        color: unitInfo.color,
+        licensePlate: unitInfo.license_plate,
+        vin: unitInfo.vin,
+        fuelType: categoryInfo.fuel_type,
+        transmission: categoryInfo.transmission,
+        seats: categoryInfo.seats,
+        tankCapacityLiters: tankCapacity,
+      },
+      condition: {
+        odometerOut: pickupMetrics.odometer,
+        fuelLevelOut: pickupMetrics.fuel_level,
+      },
+      rental: {
+        startAt: booking.start_at,
+        endAt: booking.end_at,
+        totalDays: booking.total_days,
+        dailyRate: dailyRate,
+      },
+      locations: {
+        pickup: {
+          name: booking.locations?.name,
+          address: booking.locations?.address,
+          city: booking.locations?.city,
+        },
+        deliveryAddress: booking.pickup_address,
+        dropoff: {
+          name: booking.locations?.name,
+          address: booking.locations?.address,
+          city: booking.locations?.city,
+        },
+      },
+      customer: {
+        name: profile?.full_name,
+        email: profile?.email,
+      },
+      financial: {
+        vehicleSubtotal,
+        addOnsTotal,
+        youngDriverFee,
+        pvrtTotal,
+        acsrchTotal,
+        subtotalBeforeTax,
+        pstAmount,
+        gstAmount,
+        totalTax,
+        grandTotal,
+        depositAmount: Number(booking.deposit_amount || 350),
+        addOns: (bookingAddOns || []).map(addon => ({
+          name: (addon.add_ons as any)?.name,
+          price: Number(addon.price),
+        })),
+      },
+      policies: {
+        minAge: 20,
+        lateFeePercentOfDaily: 25,
+        gracePeriodMinutes: 30,
+        thirdPartyLiabilityIncluded: true,
+        optionalCoverageAvailable: true,
+        fuelReturnPolicy: "Return with same fuel level as pickup",
+        smokingAllowed: false,
+        petsAllowed: false,
+        internationalTravel: false,
+      },
+      taxes: {
+        pstRate: 0.07,
+        gstRate: 0.05,
+        pvrtDailyFee: 1.50,
+        acsrchDailyFee: 1.00,
+      },
+    };
 
     // Create the agreement record
     const { data: agreement, error: createError } = await supabase
