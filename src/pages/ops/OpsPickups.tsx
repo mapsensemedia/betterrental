@@ -89,9 +89,17 @@ export default function OpsPickups() {
   const [searchParams] = useSearchParams();
   const dayFilter = searchParams.get("day") || "today";
 
+  // Fetch both confirmed and pending bookings for pickups
   const { data: bookings, isLoading } = useQuery({
     queryKey: ["ops-pickups", dayFilter],
-    queryFn: () => listBookings({ status: "confirmed" }),
+    queryFn: async () => {
+      // Fetch both pending and confirmed bookings
+      const [pending, confirmed] = await Promise.all([
+        listBookings({ status: "pending" }),
+        listBookings({ status: "confirmed" }),
+      ]);
+      return [...pending, ...confirmed];
+    },
   });
 
   // Filter by day and search
