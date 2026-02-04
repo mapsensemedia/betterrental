@@ -1,16 +1,17 @@
 // Operational steps definition for full-screen wizard
-// UPDATED: Simplified workflow with delivery-specific support
+// UPDATED: Simplified workflow - removed locks, staff can freely navigate
+// Photos moved to end as "handover photos"
 
 export type OpsStepId = 
-  | "prep" 
   | "checkin" 
   | "payment" 
   | "agreement" 
   | "walkaround" 
+  | "photos"
   | "handover";
 
-// Enhanced status types including blocked states
-export type OpsStepStatus = "locked" | "ready" | "in_progress" | "complete" | "blocked" | "needs_attention";
+// Enhanced status types - simplified without locked state
+export type OpsStepStatus = "ready" | "in_progress" | "complete" | "needs_attention";
 
 export interface OpsStep {
   id: OpsStepId;
@@ -22,29 +23,20 @@ export interface OpsStep {
   deliveryDescription?: string; // Alternative description for delivery bookings
 }
 
-// Standard pickup flow (6 steps)
+// Updated pickup flow (6 steps) - No prep/checklist, photos at end
 export const OPS_STEPS: OpsStep[] = [
   {
-    id: "prep",
-    number: 1,
-    title: "Pre-Arrival Preparation",
-    description: "Complete prep checklist and capture pre-inspection photos",
-    icon: "wrench",
-    deliveryTitle: "Dispatch Preparation",
-    deliveryDescription: "Assign driver, complete prep checklist, and capture photos",
-  },
-  {
     id: "checkin",
-    number: 2,
+    number: 1,
     title: "Customer Check-In",
-    description: "Verify Gov ID, driver's license on file, age, and expiry",
+    description: "Verify ID, license, contact details, and customer information",
     icon: "user-check",
-    deliveryTitle: "En Route / Arrival",
-    deliveryDescription: "Track driver en route, verify customer at delivery address",
+    deliveryTitle: "Customer Verification",
+    deliveryDescription: "Verify customer at delivery address",
   },
   {
     id: "payment",
-    number: 3,
+    number: 2,
     title: "Payment & Deposit",
     description: "Payment auto-syncs if online; deposit is manual/offline",
     icon: "credit-card",
@@ -53,7 +45,7 @@ export const OPS_STEPS: OpsStep[] = [
   },
   {
     id: "agreement",
-    number: 4,
+    number: 3,
     title: "Rental Agreement",
     description: "Manual in-person agreement signing",
     icon: "file-text",
@@ -62,12 +54,21 @@ export const OPS_STEPS: OpsStep[] = [
   },
   {
     id: "walkaround",
-    number: 5,
+    number: 4,
     title: "Vehicle Walkaround",
     description: "Staff-only inspection checklist (no customer signature)",
     icon: "eye",
     deliveryTitle: "On-Site Walkaround",
     deliveryDescription: "Driver performs inspection at delivery address",
+  },
+  {
+    id: "photos",
+    number: 5,
+    title: "Handover Photos",
+    description: "Capture vehicle photos before handover",
+    icon: "camera",
+    deliveryTitle: "Delivery Photos",
+    deliveryDescription: "Capture vehicle photos at delivery location",
   },
   {
     id: "handover",
@@ -95,17 +96,14 @@ export function getStepForDisplay(step: OpsStep, isDelivery: boolean): { title: 
 }
 
 export interface StepCompletion {
-  prep: {
-    checklistComplete: boolean;
-    photosComplete: boolean;
-    driverAssigned?: boolean; // Required for delivery bookings only
-  };
   checkin: {
     govIdVerified: boolean;
     licenseOnFile: boolean;
+    licenseNumber: string | null;
     nameMatches: boolean;
     licenseNotExpired: boolean;
     ageVerified: boolean;
+    contactInfoComplete: boolean;
     // Delivery-specific
     driverEnRoute?: boolean;
     driverArrived?: boolean;
@@ -120,6 +118,9 @@ export interface StepCompletion {
   walkaround: {
     inspectionComplete: boolean;
   };
+  photos: {
+    photosComplete: boolean;
+  };
   handover: {
     activated: boolean;
     smsSent: boolean;
@@ -133,46 +134,23 @@ export interface BlockingIssue {
   canOverride: boolean;
 }
 
+// SIMPLIFIED: No locks - staff can navigate freely
 export function getStepStatus(
   stepId: OpsStepId,
   completion: StepCompletion,
   currentStepIndex: number,
   isDelivery: boolean = false
 ): { status: OpsStepStatus; reason?: string; missingCount?: number; isBlocked?: boolean } {
-  const stepIndex = OPS_STEPS.findIndex(s => s.id === stepId);
-  
-  // Check for blocking issues first
-  const blockingIssues = getBlockingIssues(stepId, completion, isDelivery);
-  if (blockingIssues.length > 0) {
-    return {
-      status: "blocked",
-      reason: blockingIssues[0].message,
-      isBlocked: true,
-    };
-  }
-  
-  // Check if step is complete
   const isComplete = checkStepComplete(stepId, completion, isDelivery);
   if (isComplete) {
     return { status: "complete" };
-  }
-  
-  // If previous step is not complete, this step is locked
-  if (stepIndex > 0) {
-    const prevStep = OPS_STEPS[stepIndex - 1];
-    if (!checkStepComplete(prevStep.id, completion, isDelivery)) {
-      return { 
-        status: "locked", 
-        reason: `Complete "${isDelivery && prevStep.deliveryTitle ? prevStep.deliveryTitle : prevStep.title}" first` 
-      };
-    }
   }
   
   // Check for issues that need attention but don't block
   const missing = getMissingItems(stepId, completion, isDelivery);
   if (missing.length > 0) {
     return { 
-      status: stepIndex === currentStepIndex ? "in_progress" : "needs_attention",
+      status: "needs_attention",
       missingCount: missing.length,
       reason: missing.join(", ")
     };
@@ -181,40 +159,34 @@ export function getStepStatus(
   return { status: "ready" };
 }
 
+// No blocking issues for regular steps - staff has full access
 export function getBlockingIssues(stepId: OpsStepId, completion: StepCompletion, isDelivery: boolean = false): BlockingIssue[] {
-  const issues: BlockingIssue[] = [];
-  
-  // For delivery bookings, driver assignment is required before completing prep
-  if (isDelivery && stepId === "prep" && !completion.prep.driverAssigned) {
-    issues.push({
-      type: "driver_required",
-      message: "Assign a driver before dispatching the vehicle",
-      stepId: "prep",
-      canOverride: false,
-    });
+  // Only block handover if critical items missing
+  if (stepId === "handover") {
+    const issues: BlockingIssue[] = [];
+    if (!completion.payment.paymentComplete) {
+      issues.push({
+        type: "missing",
+        message: "Payment must be collected before activation",
+        stepId: "handover",
+        canOverride: false,
+      });
+    }
+    return issues;
   }
-  
-  return issues;
+  return [];
 }
 
 export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion, isDelivery: boolean = false): boolean {
   switch (stepId) {
-    case "prep":
-      const prepBaseComplete = completion.prep.checklistComplete && completion.prep.photosComplete;
-      // For delivery, driver must also be assigned
-      if (isDelivery) {
-        return prepBaseComplete && (completion.prep.driverAssigned ?? false);
-      }
-      return prepBaseComplete;
     case "checkin":
-      // For delivery, check-in is based on driver arrival, not customer walk-in
+      // For delivery, check-in is based on driver arrival
       if (isDelivery) {
-        // If using delivery en-route tracking
         if (completion.checkin.driverArrived !== undefined) {
           return completion.checkin.driverArrived;
         }
       }
-      // Standard check-in validations
+      // Standard check-in - simplified
       return (
         completion.checkin.govIdVerified &&
         completion.checkin.licenseOnFile &&
@@ -228,6 +200,8 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion,
       return completion.agreement.agreementSigned;
     case "walkaround":
       return completion.walkaround.inspectionComplete;
+    case "photos":
+      return completion.photos.photosComplete;
     case "handover":
       return completion.handover.activated;
     default:
@@ -239,14 +213,8 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
   const missing: string[] = [];
   
   switch (stepId) {
-    case "prep":
-      if (!completion.prep.checklistComplete) missing.push("Prep checklist");
-      if (!completion.prep.photosComplete) missing.push("Pre-inspection photos");
-      if (isDelivery && !completion.prep.driverAssigned) missing.push("Driver assignment");
-      break;
     case "checkin":
       if (isDelivery) {
-        // Delivery-specific items
         if (completion.checkin.driverEnRoute !== undefined && !completion.checkin.driverEnRoute) {
           missing.push("Driver en route");
         }
@@ -254,7 +222,6 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
           missing.push("Driver arrived");
         }
       }
-      // Standard check-in items (also apply to delivery for on-site verification)
       if (!completion.checkin.govIdVerified) missing.push("Government Photo ID");
       if (!completion.checkin.licenseOnFile) missing.push("Driver's License on file");
       if (!completion.checkin.nameMatches) missing.push("Name matches booking");
@@ -270,6 +237,9 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
       break;
     case "walkaround":
       if (!completion.walkaround.inspectionComplete) missing.push(isDelivery ? "On-site inspection" : "Staff inspection");
+      break;
+    case "photos":
+      if (!completion.photos.photosComplete) missing.push("Handover photos");
       break;
     case "handover":
       if (!completion.handover.activated) missing.push("Rental activation");

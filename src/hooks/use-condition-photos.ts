@@ -8,8 +8,9 @@ export type PhotoType =
   | 'back' 
   | 'left' 
   | 'right' 
-  | 'odometer' 
-  | 'fuel_gauge';
+  | 'odometer_fuel'  // Combined odometer and fuel in one photo
+  | 'front_seat'
+  | 'back_seat';
 
 export interface ConditionPhoto {
   id: string;
@@ -22,13 +23,15 @@ export interface ConditionPhoto {
   captured_by: string;
 }
 
+// Updated required photos - combined odometer/fuel, added seats
 export const REQUIRED_PHOTOS: PhotoType[] = [
   'front',
   'back', 
   'left',
   'right',
-  'odometer',
-  'fuel_gauge',
+  'odometer_fuel',  // Combined: odometer and fuel gauge in one photo
+  'front_seat',
+  'back_seat',
 ];
 
 export const PHOTO_LABELS: Record<PhotoType, string> = {
@@ -36,8 +39,9 @@ export const PHOTO_LABELS: Record<PhotoType, string> = {
   back: 'Back View',
   left: 'Left Side',
   right: 'Right Side',
-  odometer: 'Odometer',
-  fuel_gauge: 'Fuel Gauge',
+  odometer_fuel: 'Odometer & Fuel',
+  front_seat: 'Front Seat',
+  back_seat: 'Back Seat',
 };
 
 export function useBookingConditionPhotos(bookingId: string | null) {
@@ -64,6 +68,7 @@ export function useBookingConditionPhotos(bookingId: string | null) {
   });
 }
 
+// Optimized parallel upload mutation
 export function useUploadConditionPhoto() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -85,13 +90,16 @@ export function useUploadConditionPhoto() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Upload file to storage
+      // Upload file to storage with unique timestamp
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${bookingId}/${phase}/${photoType}-${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('condition-photos')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false, // Don't upsert - create new each time
+        });
 
       if (uploadError) throw uploadError;
 
@@ -132,14 +140,11 @@ export function useUploadConditionPhoto() {
         if (insertError) throw insertError;
       }
 
-      return { fileName };
+      return { fileName, photoType };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate immediately for faster UI update
       queryClient.invalidateQueries({ queryKey: ['condition-photos'] });
-      toast({
-        title: 'Photo uploaded',
-        description: 'Condition photo has been saved.',
-      });
     },
     onError: (error: Error) => {
       toast({
@@ -149,6 +154,52 @@ export function useUploadConditionPhoto() {
       });
     },
   });
+}
+
+// Batch upload helper - uploads in parallel without blocking
+export function useBatchUploadPhotos() {
+  const uploadMutation = useUploadConditionPhoto();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return {
+    uploadMultiple: async (
+      bookingId: string,
+      phase: PhotoPhase,
+      files: Array<{ photoType: PhotoType; file: File }>
+    ) => {
+      // Start all uploads in parallel - don't wait for each one
+      const uploadPromises = files.map(({ photoType, file }) => 
+        uploadMutation.mutateAsync({ bookingId, phase, photoType, file })
+          .catch(err => ({ error: err, photoType }))
+      );
+
+      // Wait for all to complete
+      const results = await Promise.allSettled(uploadPromises);
+      
+      // Count successes and failures
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      if (failed > 0) {
+        toast({
+          title: 'Some uploads failed',
+          description: `${succeeded} succeeded, ${failed} failed`,
+          variant: 'destructive',
+        });
+      } else if (succeeded > 0) {
+        toast({
+          title: 'Photos uploaded',
+          description: `${succeeded} photos saved successfully`,
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['condition-photos'] });
+      
+      return { succeeded, failed };
+    },
+    isUploading: uploadMutation.isPending,
+  };
 }
 
 export function getPhotoCompletionStatus(

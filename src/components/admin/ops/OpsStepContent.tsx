@@ -16,7 +16,6 @@ import {
 } from "@/lib/ops-steps";
 import { 
   Check, 
-  Lock, 
   AlertCircle,
   ArrowRight,
   AlertTriangle,
@@ -25,11 +24,11 @@ import {
 import { cn } from "@/lib/utils";
 
 // Step-specific components
-import { StepPrep } from "./steps/StepPrep";
 import { StepCheckin } from "./steps/StepCheckin";
 import { StepPayment } from "./steps/StepPayment";
 import { StepAgreement } from "./steps/StepAgreement";
 import { StepWalkaround } from "./steps/StepWalkaround";
+import { StepPhotos } from "./steps/StepPhotos";
 import { StepHandover } from "./steps/StepHandover";
 import { StepEnRoute } from "./steps/StepEnRoute";
 
@@ -78,41 +77,14 @@ export function OpsStepContent({
   const isBookingCancelled = bookingStatus === "cancelled";
   
   const currentStepIndex = getCurrentStepIndex(completion, isDelivery);
-  const { status, reason, isBlocked } = getStepStatus(stepId, completion, currentStepIndex, isDelivery);
+  const { status, reason } = getStepStatus(stepId, completion, currentStepIndex, isDelivery);
   const isComplete = checkStepComplete(stepId, completion, isDelivery);
-  const isLocked = status === "locked" && !isRentalActive;
   const missing = getMissingItems(stepId, completion, isDelivery);
   const blockingIssues = getBlockingIssues(stepId, completion, isDelivery);
+  const isBlocked = blockingIssues.length > 0;
   const showNextStepButton = canAdvanceToNextStep(stepId, completion, isDelivery) && stepId !== "handover";
   
-  // For locked steps (prior to completion), show locked state
-  if (isLocked) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-              <Lock className="w-5 h-5 text-muted-foreground" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-muted-foreground">{stepDisplay.title}</h2>
-              <p className="text-muted-foreground">{stepDisplay.description}</p>
-            </div>
-          </div>
-        </div>
-        
-        <Alert>
-          <Lock className="h-4 w-4" />
-          <AlertTitle>Step Locked</AlertTitle>
-          <AlertDescription>
-            {reason || "Complete the previous steps to unlock this step."}
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-  
-  // Render step content
+  // Render step content - no locks, staff can access any step
   return (
     <div className="space-y-6">
       {/* Step Header with Status */}
@@ -159,28 +131,19 @@ export function OpsStepContent({
         </Alert>
       )}
       
-      {/* Missing Items Alert */}
+      {/* Missing Items Alert - informational only, not blocking */}
       {!isComplete && !isBlocked && missing.length > 0 && (
         <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
           <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-700 dark:text-amber-400">Required Items</AlertTitle>
+          <AlertTitle className="text-amber-700 dark:text-amber-400">Pending Items</AlertTitle>
           <AlertDescription className="text-amber-600 dark:text-amber-500">
-            Complete the following to proceed: {missing.join(", ")}
+            Items to complete: {missing.join(", ")}
           </AlertDescription>
         </Alert>
       )}
       
         {/* Step-specific Content */}
         <div className="space-y-4">
-          {stepId === "prep" && (
-            <StepPrep 
-              bookingId={booking.id} 
-              completion={completion.prep}
-              isDelivery={isDelivery}
-              assignedDriverId={booking.assigned_driver_id}
-              onDriverAssigned={onCompleteStep}
-            />
-          )}
           {stepId === "checkin" && (
             isDelivery ? (
               <StepEnRoute 
@@ -213,6 +176,12 @@ export function OpsStepContent({
             <StepWalkaround 
               bookingId={booking.id}
               completion={completion.walkaround}
+            />
+          )}
+          {stepId === "photos" && (
+            <StepPhotos 
+              bookingId={booking.id}
+              completion={completion.photos}
             />
           )}
           {stepId === "handover" && (

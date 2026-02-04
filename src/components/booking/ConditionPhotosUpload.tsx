@@ -9,8 +9,8 @@ import {
   Circle,
   Loader2,
   Car,
-  Fuel,
-  Gauge
+  Gauge,
+  Armchair
 } from 'lucide-react';
 import { 
   useBookingConditionPhotos, 
@@ -32,8 +32,9 @@ const PHOTO_ICONS: Record<PhotoType, React.ReactNode> = {
   back: <Car className="h-4 w-4 rotate-180" />,
   left: <Car className="h-4 w-4 -rotate-90" />,
   right: <Car className="h-4 w-4 rotate-90" />,
-  odometer: <Gauge className="h-4 w-4" />,
-  fuel_gauge: <Fuel className="h-4 w-4" />,
+  odometer_fuel: <Gauge className="h-4 w-4" />,
+  front_seat: <Armchair className="h-4 w-4" />,
+  back_seat: <Armchair className="h-4 w-4" />,
 };
 
 export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPhotosUploadProps) {
@@ -77,7 +78,7 @@ export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPho
               {status.uploaded.length} of {REQUIRED_PHOTOS.length} photos
             </span>
             {status.complete && (
-              <Badge variant="default" className="bg-green-500">
+              <Badge variant="default" className="bg-emerald-500">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Complete
               </Badge>
@@ -97,7 +98,7 @@ export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPho
                 key={key}
                 className={`
                   relative border rounded-lg p-3 transition-colors
-                  ${isUploaded ? 'border-green-500 bg-green-500/5' : 'border-dashed'}
+                  ${isUploaded ? 'border-emerald-500 bg-emerald-500/5' : 'border-dashed'}
                   ${canUpload && !isUploading ? 'hover:border-primary cursor-pointer' : ''}
                 `}
                 onClick={() => canUpload && !isUploading && handleUploadClick(phase, photoType)}
@@ -120,7 +121,7 @@ export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPho
                 <div className="flex flex-col items-center gap-2 text-center">
                   <div className={`
                     w-10 h-10 rounded-full flex items-center justify-center
-                    ${isUploaded ? 'bg-green-500 text-white' : 'bg-muted'}
+                    ${isUploaded ? 'bg-emerald-500 text-white' : 'bg-muted'}
                   `}>
                     {isUploading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -139,14 +140,14 @@ export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPho
                       <p className="text-xs text-muted-foreground">Tap to capture</p>
                     )}
                     {isUploaded && (
-                      <p className="text-xs text-green-600">Captured</p>
+                      <p className="text-xs text-emerald-600">Captured</p>
                     )}
                   </div>
                 </div>
 
                 {isUploaded && (
                   <div className="absolute top-1 right-1">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   </div>
                 )}
               </div>
@@ -198,7 +199,7 @@ export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPho
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pickup" className="flex items-center gap-2">
               {pickupStatus.complete ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               ) : (
                 <Circle className="h-4 w-4" />
               )}
@@ -206,7 +207,7 @@ export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPho
             </TabsTrigger>
             <TabsTrigger value="return" className="flex items-center gap-2">
               {returnStatus.complete ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               ) : (
                 <Circle className="h-4 w-4" />
               )}
