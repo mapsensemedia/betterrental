@@ -163,11 +163,12 @@ serve(async (req) => {
       year: null as number | null,
       make: null as string | null,
       model: null as string | null,
+      current_mileage: null as number | null,
     };
     if (booking.assigned_unit_id) {
       const { data: unit } = await supabase
         .from("vehicle_units")
-        .select("vin, license_plate, tank_capacity_liters, color, year, make, model")
+        .select("vin, license_plate, tank_capacity_liters, color, year, make, model, current_mileage")
         .eq("id", booking.assigned_unit_id)
         .single();
       if (unit) {
@@ -334,8 +335,8 @@ Seats:        ${categoryInfo.seats || 'N/A'} passengers
 Tank Capacity: ${tankCapacity} litres
 
 CONDITION AT PICKUP:
-   Kilometres Out: ${pickupMetrics.odometer !== null ? `${pickupMetrics.odometer.toLocaleString()} km` : 'To be recorded at pickup'}
-   Fuel Level:     ${pickupMetrics.fuel_level !== null ? `${pickupMetrics.fuel_level}%` : 'To be recorded at pickup'}
+   Kilometres Out: ${pickupMetrics.odometer !== null ? `${pickupMetrics.odometer.toLocaleString()} km` : (unitInfo.current_mileage ? `${unitInfo.current_mileage.toLocaleString()} km` : 'N/A')}
+   Fuel Level:     ${pickupMetrics.fuel_level !== null ? `${pickupMetrics.fuel_level}%` : '100%'}
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                        RENTAL PERIOD                            │
@@ -358,7 +359,7 @@ ${youngDriverFee > 0 ? `   Young Driver Fee (20-24): $${youngDriverFee.toFixed(2
 
 REGULATORY FEES:
    PVRT (Passenger Vehicle Rental Tax): $${PVRT_DAILY_FEE.toFixed(2)}/day × ${rentalDays} = $${pvrtTotal.toFixed(2)}
-   ACSRCH (Airport Concession Surcharge): $${ACSRCH_DAILY_FEE.toFixed(2)}/day × ${rentalDays} = $${acsrchTotal.toFixed(2)}
+   ACSRCH (AC Surcharge): $${ACSRCH_DAILY_FEE.toFixed(2)}/day × ${rentalDays} = $${acsrchTotal.toFixed(2)}
 
 ─────────────────────────────────────────────────────────────────
 SUBTOTAL: $${subtotalBeforeTax.toFixed(2)}
@@ -426,7 +427,7 @@ Security Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundab
    • PST (Provincial Sales Tax): 7%
    • GST (Goods and Services Tax): 5%
    • PVRT (Passenger Vehicle Rental Tax): $1.50/day
-   • ACSRCH (Airport Concession Surcharge): $1.00/day
+   • ACSRCH (AC Surcharge): $1.00/day
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                  ACKNOWLEDGMENT AND SIGNATURE                   │
