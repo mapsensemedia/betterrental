@@ -41,11 +41,9 @@ interface StepCheckinProps {
   completion: {
     govIdVerified: boolean;
     licenseOnFile: boolean;
-    licenseNumber: string | null;
     nameMatches: boolean;
     licenseNotExpired: boolean;
     ageVerified: boolean;
-    contactInfoComplete: boolean;
   };
   onStepComplete?: () => void;
 }
@@ -78,7 +76,16 @@ export function StepCheckin({ booking, completion, onStepComplete }: StepCheckin
         .select("driver_license_status, driver_license_expiry, driver_license_front_url, driver_license_number, full_name, email, phone, address")
         .eq("id", booking.user_id)
         .maybeSingle();
-      return data;
+      return data as {
+        driver_license_status: string | null;
+        driver_license_expiry: string | null;
+        driver_license_front_url: string | null;
+        driver_license_number: string | null;
+        full_name: string | null;
+        email: string | null;
+        phone: string | null;
+        address: string | null;
+      } | null;
     },
     enabled: !!booking.user_id,
   });

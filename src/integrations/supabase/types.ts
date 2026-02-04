@@ -1720,11 +1720,13 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           avatar_url: string | null
           created_at: string
           driver_license_back_url: string | null
           driver_license_expiry: string | null
           driver_license_front_url: string | null
+          driver_license_number: string | null
           driver_license_reviewed_at: string | null
           driver_license_reviewed_by: string | null
           driver_license_status: string | null
@@ -1745,11 +1747,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
           created_at?: string
           driver_license_back_url?: string | null
           driver_license_expiry?: string | null
           driver_license_front_url?: string | null
+          driver_license_number?: string | null
           driver_license_reviewed_at?: string | null
           driver_license_reviewed_by?: string | null
           driver_license_status?: string | null
@@ -1772,11 +1776,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
           created_at?: string
           driver_license_back_url?: string | null
           driver_license_expiry?: string | null
           driver_license_front_url?: string | null
+          driver_license_number?: string | null
           driver_license_reviewed_at?: string | null
           driver_license_reviewed_by?: string | null
           driver_license_status?: string | null
