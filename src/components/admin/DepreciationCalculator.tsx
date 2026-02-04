@@ -359,7 +359,7 @@ export function DepreciationCalculator({ open, onClose }: DepreciationCalculator
                               {result.milesDriven > 0 && (
                                 <span className="flex items-center gap-1">
                                   <Gauge className="w-3 h-3" />
-                                  {result.milesDriven.toLocaleString()} mi
+                                  {result.milesDriven.toLocaleString()} km
                                 </span>
                               )}
                             </div>

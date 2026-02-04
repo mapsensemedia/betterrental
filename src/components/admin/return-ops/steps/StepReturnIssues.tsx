@@ -265,12 +265,12 @@ export function StepReturnIssues({
                     Late Return Fee
                   </span>
                   <span className="font-semibold text-destructive">
-                    ${lateFee.toFixed(2)}
+                    ${lateFee.toFixed(2)} CAD
                   </span>
                 </div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                ${LATE_RETURN_HOURLY_RATE}/hr after {LATE_RETURN_GRACE_MINUTES}min grace
+                ${LATE_RETURN_HOURLY_RATE} CAD/hr after {LATE_RETURN_GRACE_MINUTES}min grace
               </p>
             </>
           )}
@@ -358,7 +358,7 @@ export function StepReturnIssues({
                     </div>
                     {damage.estimated_cost && (
                       <span className="text-destructive font-semibold text-sm">
-                        ${damage.estimated_cost.toFixed(2)}
+                        ${damage.estimated_cost.toFixed(2)} CAD
                       </span>
                     )}
                   </div>
@@ -369,7 +369,7 @@ export function StepReturnIssues({
               <div className="pt-3 border-t flex items-center justify-between">
                 <span className="font-medium">Total Damage Estimate</span>
                 <span className="text-lg font-bold text-destructive">
-                  ${totalDamageCost.toFixed(2)}
+                  ${totalDamageCost.toFixed(2)} CAD
                 </span>
               </div>
             </div>

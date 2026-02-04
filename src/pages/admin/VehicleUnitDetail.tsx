@@ -285,18 +285,18 @@ export default function VehicleUnitDetail() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Current Mileage</span>
                     <span className="font-medium">
-                      {metrics?.currentMileage?.toLocaleString() || "—"} mi
+                      {metrics?.currentMileage?.toLocaleString() || "—"} km
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Miles Driven</span>
+                    <span className="text-muted-foreground">Distance Driven</span>
                     <span className="font-medium">
-                      {metrics?.totalMilesDriven?.toLocaleString() || 0} mi
+                      {metrics?.totalMilesDriven?.toLocaleString() || 0} km
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Cost per Mile</span>
-                    <span className="font-medium">${metrics?.costPerMile?.toFixed(2) || "0.00"}</span>
+                    <span className="text-muted-foreground">Cost per km</span>
+                    <span className="font-medium">${metrics?.costPerMile?.toFixed(2) || "0.00"} CAD</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Revenue per Mile</span>

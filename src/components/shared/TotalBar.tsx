@@ -74,7 +74,7 @@ export function TotalBar({
       <div className="flex items-center justify-between">
         <span className="font-semibold text-lg">Total</span>
         <span className="font-bold text-xl">
-          CA${pricing.total.toFixed(2)}
+          ${pricing.total.toFixed(2)} CAD
           <span className="text-destructive">*</span>
         </span>
       </div>

@@ -159,8 +159,8 @@ export function CategoryUpgradeDialog({
     onSuccess: (data) => {
       toast.success(
         isUpgrade
-          ? `Category upgraded! New total: CA$${data.newTotal.toFixed(2)}`
-          : `Category changed! New total: CA$${data.newTotal.toFixed(2)}`
+          ? `Category upgraded! New total: $${data.newTotal.toFixed(2)} CAD`
+          : `Category changed! New total: $${data.newTotal.toFixed(2)} CAD`
       );
       queryClient.invalidateQueries({ queryKey: ["booking"] });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
@@ -194,7 +194,7 @@ export function CategoryUpgradeDialog({
               {currentCategory?.name || booking.vehicles?.category || "Unknown"}
             </p>
             <p className="text-sm text-muted-foreground">
-              CA${Number(booking.daily_rate).toFixed(2)}/day
+              ${Number(booking.daily_rate).toFixed(2)} CAD/day
             </p>
           </div>
 
@@ -215,7 +215,7 @@ export function CategoryUpgradeDialog({
                     <div className="flex items-center justify-between gap-4 w-full">
                       <span>{cat.name}</span>
                       <span className="text-muted-foreground">
-                        CA${Number(cat.daily_rate).toFixed(2)}/day
+                        ${Number(cat.daily_rate).toFixed(2)} CAD/day
                       </span>
                     </div>
                   </SelectItem>
@@ -231,11 +231,11 @@ export function CategoryUpgradeDialog({
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Original Total</span>
-                  <span>CA${booking.total_amount.toFixed(2)}</span>
+                  <span>${booking.total_amount.toFixed(2)} CAD</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">New Total</span>
-                  <span className="font-semibold">CA${newPricing.total.toFixed(2)}</span>
+                  <span className="font-semibold">${newPricing.total.toFixed(2)} CAD</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground text-sm">Difference</span>
@@ -250,7 +250,7 @@ export function CategoryUpgradeDialog({
                     }
                   >
                     {priceDifference >= 0 ? "+" : ""}
-                    CA${priceDifference.toFixed(2)}
+                    ${priceDifference.toFixed(2)} CAD
                   </Badge>
                 </div>
               </div>

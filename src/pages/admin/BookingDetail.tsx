@@ -418,9 +418,9 @@ export default function BookingDetail() {
                       {pickupInspection && returnInspection && (
                         <div className="mt-4 pt-4 border-t">
                           <p className="text-sm">
-                            <span className="text-muted-foreground">Miles Driven: </span>
+                            <span className="text-muted-foreground">Distance Driven: </span>
                             <span className="font-medium">
-                              {((returnInspection.odometer || 0) - (pickupInspection.odometer || 0)).toLocaleString()} miles
+                              {((returnInspection.odometer || 0) - (pickupInspection.odometer || 0)).toLocaleString()} km
                             </span>
                           </p>
                         </div>

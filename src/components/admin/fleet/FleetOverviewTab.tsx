@@ -38,7 +38,7 @@ export function FleetOverviewTab() {
   }
 
   const formatCurrency = (value: number) => 
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+    `$${value.toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CAD`;
 
   return (
     <div className="space-y-6">

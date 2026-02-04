@@ -628,7 +628,7 @@ export default function NewCheckout() {
                 <div className="text-right">
                   <p className="text-[10px] sm:text-sm text-muted-foreground">Total:</p>
                   <p className="text-base sm:text-2xl font-bold whitespace-nowrap">
-                    CA${pricing.total.toFixed(2)}
+                    ${pricing.total.toFixed(2)} CAD
                   </p>
                 </div>
               </div>
@@ -799,7 +799,7 @@ export default function NewCheckout() {
                         <p className="text-sm font-medium">Amount to pay now</p>
                         <p className="text-xs text-muted-foreground">Secure payment via Stripe</p>
                       </div>
-                      <p className="text-lg font-bold">CA${finalTotal.toFixed(2)}</p>
+                      <p className="text-lg font-bold">${finalTotal.toFixed(2)} CAD</p>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
@@ -807,7 +807,7 @@ export default function NewCheckout() {
                         <p className="text-sm font-medium">Pay at pickup</p>
                         <p className="text-xs text-muted-foreground">Card verified for booking</p>
                       </div>
-                      <p className="text-lg font-bold">CA${finalTotal.toFixed(2)}</p>
+                      <p className="text-lg font-bold">${finalTotal.toFixed(2)} CAD</p>
                     </div>
                   )}
                 </div>
@@ -894,10 +894,10 @@ export default function NewCheckout() {
                   <div className="text-right">
                     {pointsDiscount > 0 && (
                       <p className="text-sm text-muted-foreground line-through">
-                        CA${pricing.total.toFixed(2)}
+                        ${pricing.total.toFixed(2)} CAD
                       </p>
                     )}
-                    <p className="text-2xl font-bold">CA${finalTotal.toFixed(2)}</p>
+                    <p className="text-2xl font-bold">${finalTotal.toFixed(2)} CAD</p>
                   </div>
                 </div>
 
@@ -907,78 +907,78 @@ export default function NewCheckout() {
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-2 text-sm mb-4 p-4 bg-muted rounded-lg">
                     <div className="flex justify-between">
-                      <span>Vehicle ({rentalDays} days × CA${vehicle?.dailyRate}/day)</span>
-                      <span>CA${pricing.vehicleBaseTotal.toFixed(2)}</span>
+                      <span>Vehicle ({rentalDays} days × ${vehicle?.dailyRate} CAD/day)</span>
+                      <span>${pricing.vehicleBaseTotal.toFixed(2)} CAD</span>
                     </div>
                     {pricing.weekendSurcharge > 0 && (
                       <div className="flex justify-between text-amber-600">
                         <span>Weekend surcharge (15%)</span>
-                        <span>+CA${pricing.weekendSurcharge.toFixed(2)}</span>
+                        <span>+${pricing.weekendSurcharge.toFixed(2)} CAD</span>
                       </div>
                     )}
                     {pricing.durationDiscount > 0 && (
                       <div className="flex justify-between text-emerald-600">
                         <span>{pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount</span>
-                        <span>-CA${pricing.durationDiscount.toFixed(2)}</span>
+                        <span>-${pricing.durationDiscount.toFixed(2)} CAD</span>
                       </div>
                     )}
                     {pricing.protectionTotal > 0 && (
                       <div className="flex justify-between">
                         <span>{pricing.protectionName}</span>
-                        <span>CA${pricing.protectionTotal.toFixed(2)}</span>
+                        <span>${pricing.protectionTotal.toFixed(2)} CAD</span>
                       </div>
                     )}
                     {pricing.addOnsTotal > 0 && (
                       <div className="flex justify-between">
                         <span>Add-ons</span>
-                        <span>CA${pricing.addOnsTotal.toFixed(2)}</span>
+                        <span>${pricing.addOnsTotal.toFixed(2)} CAD</span>
                       </div>
                     )}
                     {pricing.deliveryFee > 0 && (
                       <div className="flex justify-between">
                         <span>Delivery fee</span>
-                        <span>CA${pricing.deliveryFee.toFixed(2)}</span>
+                        <span>${pricing.deliveryFee.toFixed(2)} CAD</span>
                       </div>
                     )}
                     {pricing.youngDriverFee > 0 && (
                       <div className="flex justify-between">
                         <span>Young driver fee</span>
-                        <span>CA${pricing.youngDriverFee.toFixed(2)}</span>
+                        <span>${pricing.youngDriverFee.toFixed(2)} CAD</span>
                       </div>
                     )}
                     {pricing.dailyFeesTotal > 0 && (
                       <div className="flex justify-between">
                         <span>Daily fees (PVRT + ACSRCH)</span>
-                        <span>CA${pricing.dailyFeesTotal.toFixed(2)}</span>
+                        <span>${pricing.dailyFeesTotal.toFixed(2)} CAD</span>
                       </div>
                     )}
                     <Separator className="my-2" />
                     <div className="flex justify-between">
                       <span>Subtotal</span>
-                      <span>CA${pricing.subtotal.toFixed(2)}</span>
+                      <span>${pricing.subtotal.toFixed(2)} CAD</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Taxes (12%)</span>
-                      <span>CA${pricing.taxAmount.toFixed(2)}</span>
+                      <span>${pricing.taxAmount.toFixed(2)} CAD</span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground pl-4">
                       <span>PST (7%)</span>
-                      <span>CA${pricing.pstAmount.toFixed(2)}</span>
+                      <span>${pricing.pstAmount.toFixed(2)} CAD</span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground pl-4">
                       <span>GST (5%)</span>
-                      <span>CA${pricing.gstAmount.toFixed(2)}</span>
+                      <span>${pricing.gstAmount.toFixed(2)} CAD</span>
                     </div>
                     <Separator className="my-2" />
                     {pointsDiscount > 0 && (
                       <div className="flex justify-between text-primary font-medium">
                         <span>Points Discount ({pointsUsed.toLocaleString()} pts)</span>
-                        <span>-CA${pointsDiscount.toFixed(2)}</span>
+                        <span>-${pointsDiscount.toFixed(2)} CAD</span>
                       </div>
                     )}
                     <div className="flex justify-between font-semibold">
                       <span>Total</span>
-                      <span>CA${finalTotal.toFixed(2)}</span>
+                      <span>${finalTotal.toFixed(2)} CAD</span>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
@@ -988,8 +988,8 @@ export default function NewCheckout() {
                     IMPORTANT INFORMATION about your {paymentMethod === "pay-now" ? "PREPAID" : "PAY LATER"} reservation:
                   </p>
                   <ul className="list-disc pl-4 space-y-1">
-                    <li>$150.00 for cancellations within 24 hours prior to pickup time</li>
-                    <li>$65.00 for cancellations up to 24 hours prior to pickup time</li>
+                    <li>$150.00 CAD for cancellations within 24 hours prior to pickup time</li>
+                    <li>$65.00 CAD for cancellations up to 24 hours prior to pickup time</li>
                     <li>Cancellations or changes made within 24 hours of booking are free</li>
                     <li>No show: No refund will be issued for no show</li>
                   </ul>

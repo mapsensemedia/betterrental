@@ -370,18 +370,18 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
                   <p className="font-medium">{unit.vehicle?.category || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Starting Mileage</p>
+                  <p className="text-muted-foreground">Starting Odometer</p>
                   <p className="font-medium">
                     {unit.mileage_at_acquisition
-                      ? `${unit.mileage_at_acquisition.toLocaleString()} mi`
+                      ? `${unit.mileage_at_acquisition.toLocaleString()} km`
                       : "—"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Current Mileage</p>
+                  <p className="text-muted-foreground">Current Odometer</p>
                   <p className="font-medium">
                     {unit.current_mileage
-                      ? `${unit.current_mileage.toLocaleString()} mi`
+                      ? `${unit.current_mileage.toLocaleString()} km`
                       : "—"}
                   </p>
                 </div>
@@ -731,14 +731,14 @@ export function VehicleUnitDetail({ unit, open, onClose }: VehicleUnitDetailProp
             </div>
 
             <div className="space-y-2">
-              <Label>Mileage at Expense</Label>
+              <Label>Odometer at Expense (km)</Label>
               <Input
                 type="number"
                 value={expenseForm.mileage_at_expense}
                 onChange={(e) =>
                   setExpenseForm({ ...expenseForm, mileage_at_expense: e.target.value })
                 }
-                placeholder="Current odometer reading"
+                placeholder="Current odometer reading (km)"
                 min="0"
               />
             </div>

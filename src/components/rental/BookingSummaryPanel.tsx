@@ -207,7 +207,7 @@ export function BookingSummaryPanel({
                   : `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
               </p>
               <p className="text-sm text-muted-foreground">
-                ${vehicle.dailyRate}/day
+                ${vehicle.dailyRate} CAD/day
               </p>
               {vehicle.imageUrl && (
                 <img
@@ -243,13 +243,13 @@ export function BookingSummaryPanel({
                         <span>{addon.name}</span>
                         {fuelInfo && (
                           <span className="font-medium text-foreground">
-                            CA${fuelInfo.ourPrice.toFixed(2)}
+                            ${fuelInfo.ourPrice.toFixed(2)} CAD
                           </span>
                         )}
                       </div>
                       {fuelInfo && (
                         <p className="text-xs text-emerald-600 mt-0.5">
-                          {fuelInfo.tankLiters}L tank • Save CA${fuelInfo.savings.toFixed(2)}
+                          {fuelInfo.tankLiters}L tank • Save ${fuelInfo.savings.toFixed(2)} CAD
                         </p>
                       )}
                     </li>
@@ -276,27 +276,27 @@ export function BookingSummaryPanel({
                 <span className="text-muted-foreground">
                   ${vehicle?.dailyRate}/day × {rentalDays} days
                 </span>
-                <span>${pricing.basePrice.toFixed(0)}</span>
+                <span>${pricing.basePrice.toFixed(0)} CAD</span>
               </div>
               
               {pricing.weekendSurcharge > 0 && (
                 <div className="flex justify-between text-amber-600">
                   <span>Weekend surcharge</span>
-                  <span>+${pricing.weekendSurcharge.toFixed(0)}</span>
+                  <span>+${pricing.weekendSurcharge.toFixed(0)} CAD</span>
                 </div>
               )}
               
               {pricing.durationDiscount > 0 && (
                 <div className="flex justify-between text-emerald-600">
                   <span>{pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount</span>
-                  <span>-${pricing.durationDiscount.toFixed(0)}</span>
+                  <span>-${pricing.durationDiscount.toFixed(0)} CAD</span>
                 </div>
               )}
               
               {pricing.addOnsTotal > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Add-ons</span>
-                  <span>${pricing.addOnsTotal.toFixed(0)}</span>
+                  <span>${pricing.addOnsTotal.toFixed(0)} CAD</span>
                 </div>
               )}
               
@@ -305,28 +305,28 @@ export function BookingSummaryPanel({
                   <span className="text-muted-foreground">
                     Additional drivers ({effectiveAdditionalDrivers.length})
                   </span>
-                  <span>${pricing.additionalDriversCost.total.toFixed(0)}</span>
+                  <span>${pricing.additionalDriversCost.total.toFixed(0)} CAD</span>
                 </div>
               )}
               
               {pricing.deliveryFee > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery fee</span>
-                  <span>${pricing.deliveryFee.toFixed(0)}</span>
+                  <span>${pricing.deliveryFee.toFixed(0)} CAD</span>
                 </div>
               )}
               
               {pricing.youngDriverFee > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Young driver fee (primary)</span>
-                  <span>${pricing.youngDriverFee.toFixed(0)}</span>
+                  <span>${pricing.youngDriverFee.toFixed(0)} CAD</span>
                 </div>
               )}
               
               {pricing.dailyFeesTotal > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Daily fees (PVRT + ACSRCH)</span>
-                  <span>${pricing.dailyFeesTotal.toFixed(2)}</span>
+                  <span>${pricing.dailyFeesTotal.toFixed(2)} CAD</span>
                 </div>
               )}
               
@@ -334,22 +334,22 @@ export function BookingSummaryPanel({
                 <span className="text-muted-foreground">
                   Tax ({(TOTAL_TAX_RATE * 100).toFixed(0)}%)
                 </span>
-                <span>${pricing.taxAmount.toFixed(0)}</span>
+                <span>${pricing.taxAmount.toFixed(0)} CAD</span>
               </div>
               <div className="flex justify-between text-xs text-muted-foreground pl-4">
                 <span>PST (7%)</span>
-                <span>${pricing.pstAmount.toFixed(2)}</span>
+                <span>${pricing.pstAmount.toFixed(2)} CAD</span>
               </div>
               <div className="flex justify-between text-xs text-muted-foreground pl-4">
                 <span>GST (5%)</span>
-                <span>${pricing.gstAmount.toFixed(2)}</span>
+                <span>${pricing.gstAmount.toFixed(2)} CAD</span>
               </div>
               
               <Separator className="my-2" />
               
               <div className="flex justify-between font-semibold text-base">
                 <span>Total</span>
-                <span>${pricing.total.toFixed(0)}<span className="text-destructive">*</span></span>
+                <span>${pricing.total.toFixed(0)} CAD<span className="text-destructive">*</span></span>
               </div>
               
               <p className="text-xs text-muted-foreground">

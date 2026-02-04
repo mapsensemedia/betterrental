@@ -229,7 +229,7 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
                 value={odometerReading || inspection.odometer_reading?.toString() || ""}
                 onChange={(e) => setOdometerReading(e.target.value)}
                 disabled={isComplete}
-                placeholder="Miles"
+                placeholder="km"
               />
             </div>
             <div className="space-y-2">

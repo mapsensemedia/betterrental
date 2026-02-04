@@ -183,7 +183,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="acquisition_cost">Acquisition Cost ($)</Label>
+              <Label htmlFor="acquisition_cost">Acquisition Cost ($ CAD)</Label>
               <Input
                 id="acquisition_cost"
                 type="number"
@@ -208,7 +208,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="mileage_at_acquisition">Mileage at Acquisition</Label>
+              <Label htmlFor="mileage_at_acquisition">Odometer at Acquisition (km)</Label>
               <Input
                 id="mileage_at_acquisition"
                 type="number"
@@ -220,7 +220,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="current_mileage">Current Mileage</Label>
+              <Label htmlFor="current_mileage">Current Odometer (km)</Label>
               <Input
                 id="current_mileage"
                 type="number"

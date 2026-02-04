@@ -211,7 +211,7 @@ export function MaintenanceLogDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="mileage">Mileage at Service</Label>
+              <Label htmlFor="mileage">Odometer at Service (km)</Label>
               <Input
                 id="mileage"
                 type="number"

@@ -4,7 +4,7 @@
  */
 
 // ========== FEE CONSTANTS ==========
-export const YOUNG_DRIVER_FEE = 20; // One-time fee for drivers aged 21-25
+export const YOUNG_DRIVER_FEE = 15; // One-time fee for drivers aged 20-24 (CAD)
 export const DEFAULT_DEPOSIT_AMOUNT = 350; // Standard security deposit
 
 // ========== TAX RATES (BC Canada) ==========
@@ -223,10 +223,26 @@ export const VERIFICATION_STATUS_STYLES: Record<string, { label: string; classNa
 export const BOOKING_INCLUDED_FEATURES = [
   "Third party insurance",
   "24/7 Roadside Assistance Hotline",
-  "Unlimited kilometers",
+  "Unlimited kilometres",
   "Extended Roadside Protection",
   "Booking option: Best price - Pay now, cancel and rebook for a fee",
 ];
+
+// ========== CURRENCY FORMATTING ==========
+/**
+ * Format a number as CAD currency: "$XX.XX CAD"
+ * Use this everywhere prices are displayed
+ */
+export function formatCAD(amount: number, decimals: number = 2): string {
+  return `$${amount.toFixed(decimals)} CAD`;
+}
+
+/**
+ * Format a number as CAD currency for compact display: "$XX CAD"
+ */
+export function formatCADCompact(amount: number): string {
+  return `$${Math.round(amount)} CAD`;
+}
 
 // ========== HELPER FUNCTIONS ==========
 

@@ -197,7 +197,7 @@ export default function BookingReturn() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">CA${booking.deposit_amount?.toFixed(2) || "500.00"}</p>
+                  <p className="font-medium">${booking.deposit_amount?.toFixed(2) || "500.00"} CAD</p>
                   <p className="text-sm text-muted-foreground">
                     {depositStatus === "Returned" 
                       ? "Refunded to your payment method"

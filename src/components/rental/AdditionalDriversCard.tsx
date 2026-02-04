@@ -76,7 +76,7 @@ export function AdditionalDriversCard({
           <div>
             <h3 className="font-medium">Additional Drivers</h3>
             <p className="text-sm text-muted-foreground">
-              CA${baseDriverFee.toFixed(2)} / day per driver
+              ${baseDriverFee.toFixed(2)} CAD / day per driver
             </p>
           </div>
         </div>
@@ -93,7 +93,7 @@ export function AdditionalDriversCard({
           </Button>
         ) : (
           <div className="text-right">
-            <p className="font-semibold">CA${totalFees.toFixed(2)}</p>
+            <p className="font-semibold">${totalFees.toFixed(2)} CAD</p>
             <p className="text-xs text-muted-foreground">
               {drivers.length} driver{drivers.length > 1 ? "s" : ""}
             </p>
@@ -151,7 +151,7 @@ export function AdditionalDriversCard({
                     <SelectContent>
                       <SelectItem value="25_70">25-70 years</SelectItem>
                       <SelectItem value="20_24">
-                        20-24 years (+${YOUNG_DRIVER_FEE} fee)
+                        20-24 years (+${YOUNG_DRIVER_FEE} CAD fee)
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -162,7 +162,7 @@ export function AdditionalDriversCard({
                 <div className="flex items-start gap-2 p-2 bg-amber-500/10 rounded-md">
                   <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
                   <p className="text-xs text-amber-700">
-                    A CAD ${YOUNG_DRIVER_FEE} young driver fee applies for drivers
+                    A ${YOUNG_DRIVER_FEE} CAD young driver fee applies for drivers
                     aged 20-24.
                   </p>
                 </div>
@@ -187,13 +187,13 @@ export function AdditionalDriversCard({
                   Base ({drivers.length} × ${baseDriverFee}/day × {rentalDays}{" "}
                   days)
                 </span>
-                <span>CA${totalBaseFees.toFixed(2)}</span>
+                <span>${totalBaseFees.toFixed(2)} CAD</span>
               </div>
               <div className="flex justify-between text-sm text-amber-600">
                 <span>
-                  Young driver fees ({youngDriverCount} × ${YOUNG_DRIVER_FEE})
+                  Young driver fees ({youngDriverCount} × ${YOUNG_DRIVER_FEE} CAD)
                 </span>
-                <span>CA${totalYoungDriverFees.toFixed(2)}</span>
+                <span>${totalYoungDriverFees.toFixed(2)} CAD</span>
               </div>
             </div>
           )}
