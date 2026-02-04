@@ -79,6 +79,7 @@ const OpsPickups = lazy(() => import("./pages/ops/OpsPickups"));
 const OpsActiveRentals = lazy(() => import("./pages/ops/OpsActiveRentals"));
 const OpsReturns = lazy(() => import("./pages/ops/OpsReturns"));
 const OpsFleet = lazy(() => import("./pages/ops/OpsFleet"));
+const OpsBookings = lazy(() => import("./pages/ops/OpsBookings"));
 
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
@@ -184,6 +185,7 @@ const App = () => (
 
                 {/* Ops Panel Routes - For Staff/Operations */}
                 <Route path="/ops" element={<OpsProtectedRoute><OpsWorkboard /></OpsProtectedRoute>} />
+                <Route path="/ops/bookings" element={<OpsProtectedRoute><OpsBookings /></OpsProtectedRoute>} />
                 <Route path="/ops/pickups" element={<OpsProtectedRoute><OpsPickups /></OpsProtectedRoute>} />
                 <Route path="/ops/active" element={<OpsProtectedRoute><OpsActiveRentals /></OpsProtectedRoute>} />
                 <Route path="/ops/returns" element={<OpsProtectedRoute><OpsReturns /></OpsProtectedRoute>} />

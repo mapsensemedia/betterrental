@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { AdminShell } from "@/components/layout/AdminShell";
+import { PanelShell } from "@/components/shared/PanelShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -65,6 +65,7 @@ type BookingStatus = Database["public"]["Enums"]["booking_status"];
 export default function BookingOps() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   
   const { data: booking, isLoading } = useBookingById(bookingId || null);
@@ -196,8 +197,14 @@ export default function BookingOps() {
   };
   
   const handleBack = () => {
-    const returnTo = searchParams.get("returnTo") || "/admin/bookings";
-    navigate(returnTo);
+    // Context-aware navigation
+    const isOpsContext = location.pathname.startsWith("/ops");
+    const returnTo = searchParams.get("returnTo");
+    if (returnTo) {
+      navigate(returnTo);
+    } else {
+      navigate(isOpsContext ? "/ops/pickups" : "/admin/bookings");
+    }
   };
   
   const handleActivateRental = () => {
@@ -234,9 +241,10 @@ export default function BookingOps() {
               description: "The customer now has the vehicle. Redirecting to active rental...",
               duration: 3000,
             });
-            // Redirect to active rental detail page after short delay
+            // Redirect to active rental detail page after short delay - context-aware
+            const isOpsContext = location.pathname.startsWith("/ops");
             setTimeout(() => {
-              navigate(`/admin/active-rentals/${bookingId}`);
+              navigate(isOpsContext ? `/ops/rental/${bookingId}` : `/admin/active-rentals/${bookingId}`);
             }, 1500);
           },
         }
@@ -257,22 +265,22 @@ export default function BookingOps() {
   
   if (isLoading) {
     return (
-      <AdminShell>
+      <PanelShell>
         <div className="flex items-center justify-center h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </AdminShell>
+      </PanelShell>
     );
   }
   
   if (!booking) {
     return (
-      <AdminShell>
+      <PanelShell>
         <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
           <p className="text-muted-foreground">Booking not found</p>
           <Button onClick={handleBack}>Back to Bookings</Button>
         </div>
-      </AdminShell>
+      </PanelShell>
     );
   }
   
@@ -283,7 +291,7 @@ export default function BookingOps() {
   const isRentalActive = booking.status === "active" || booking.status === "completed";
   
   return (
-    <AdminShell hideNav>
+    <PanelShell hideNav>
       <div className="h-[calc(100vh-2rem)] lg:h-[calc(100vh-2rem)] flex flex-col">
         {/* Top Header */}
         <div className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border-b bg-background shrink-0">
@@ -500,10 +508,10 @@ export default function BookingOps() {
             bookingCode={booking.booking_code}
             customerName={booking.profiles?.full_name || undefined}
             vehicleName={vehicleName}
-            onSuccess={() => navigate("/admin/bookings")}
+            onSuccess={() => navigate(location.pathname.startsWith("/ops") ? "/ops/pickups" : "/admin/bookings")}
           />
         </>
       )}
-    </AdminShell>
+    </PanelShell>
   );
 }

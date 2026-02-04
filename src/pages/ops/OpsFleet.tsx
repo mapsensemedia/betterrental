@@ -3,7 +3,6 @@
  * View-only for ops, no admin actions
  */
 
-import { useNavigate } from "react-router-dom";
 import { OpsShell } from "@/components/ops/OpsShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,14 +28,12 @@ const STATUS_CONFIG = {
 };
 
 function CategoryCard({ category }: { category: FleetCategory }) {
-  const navigate = useNavigate();
   const availablePercent = category.totalCount 
     ? Math.round((category.availableCount || 0) / category.totalCount * 100)
     : 0;
 
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-all"
-          onClick={() => navigate(`/admin/fleet/category/${category.id}`)}>
+    <Card className="hover:shadow-md transition-all">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           {/* Image */}
@@ -72,7 +69,6 @@ function CategoryCard({ category }: { category: FleetCategory }) {
 
 export default function OpsFleet() {
   const [search, setSearch] = useState("");
-  const navigate = useNavigate();
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ["ops-fleet-categories"],

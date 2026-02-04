@@ -52,6 +52,12 @@ const opsNavItems = [
     description: "Today's tasks at a glance",
   },
   {
+    href: "/ops/bookings",
+    label: "All Bookings",
+    icon: ClipboardCheck,
+    description: "Search all reservations",
+  },
+  {
     href: "/ops/pickups",
     label: "Pickups",
     icon: Car,
@@ -75,16 +81,17 @@ const opsNavItems = [
   {
     href: "/ops/fleet",
     label: "Fleet Status",
-    icon: ClipboardCheck,
+    icon: Car,
     description: "Vehicle availability",
   },
 ];
 
 interface OpsShellProps {
   children: ReactNode;
+  hideNav?: boolean;
 }
 
-export function OpsShell({ children }: OpsShellProps) {
+export function OpsShell({ children, hideNav }: OpsShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -116,6 +123,11 @@ export function OpsShell({ children }: OpsShellProps) {
     }
     return location.pathname.startsWith(href);
   };
+
+  // Full-screen mode (no nav) - used by workflow pages like BookingOps
+  if (hideNav) {
+    return <div className="min-h-screen bg-background">{children}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">

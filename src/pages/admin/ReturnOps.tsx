@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { AdminShell } from "@/components/layout/AdminShell";
+import { PanelShell } from "@/components/shared/PanelShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,6 +36,7 @@ import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle, Wrench } from "
 export default function ReturnOps() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   
   const { data: booking, isLoading, refetch: refetchBooking } = useBookingById(bookingId || null);
@@ -240,13 +241,17 @@ export default function ReturnOps() {
 
   const handleDepositComplete = () => {
     toast.success("Return completed successfully! Redirecting...");
-    // Short delay to allow the user to see the success state
+    // Short delay to allow the user to see the success state - context-aware
+    const isOpsContext = location.pathname.startsWith("/ops");
     setTimeout(() => {
-      navigate("/admin/returns");
+      navigate(isOpsContext ? "/ops/returns" : "/admin/returns");
     }, 1500);
   };
 
-  const handleBack = () => navigate("/admin/returns");
+  const handleBack = () => {
+    const isOpsContext = location.pathname.startsWith("/ops");
+    navigate(isOpsContext ? "/ops/returns" : "/admin/returns");
+  };
 
   // Refetch data when switching steps
   useEffect(() => {
@@ -263,22 +268,22 @@ export default function ReturnOps() {
 
   if (isLoading) {
     return (
-      <AdminShell>
+      <PanelShell>
         <div className="flex items-center justify-center h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </AdminShell>
+      </PanelShell>
     );
   }
 
   if (!booking) {
     return (
-      <AdminShell>
+      <PanelShell>
         <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
           <p className="text-muted-foreground">Booking not found</p>
           <Button onClick={handleBack}>Back to Returns</Button>
         </div>
-      </AdminShell>
+      </PanelShell>
     );
   }
 
@@ -308,7 +313,7 @@ export default function ReturnOps() {
   const currentStepComplete = isStepComplete(activeStep, returnState);
 
   return (
-    <AdminShell hideNav>
+    <PanelShell hideNav>
       <div className="h-[calc(100vh-2rem)] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b bg-background shrink-0">
@@ -447,6 +452,6 @@ export default function ReturnOps() {
           </div>
         </div>
       </div>
-    </AdminShell>
+    </PanelShell>
   );
 }
