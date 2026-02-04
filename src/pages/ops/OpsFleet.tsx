@@ -1,10 +1,10 @@
 /**
  * OpsFleet - Fleet status view for ops staff
- * View-only for ops, no admin actions
+ * Shows unit-level availability including on-rent status
  */
 
 import { OpsShell } from "@/components/ops/OpsShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -12,78 +12,64 @@ import {
   Car, 
   Search,
   CheckCircle2,
-  XCircle,
-  Wrench,
   AlertTriangle,
+  Wrench,
+  CarFront,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { listCategories, FleetCategory } from "@/domain/fleet";
+import { listAllUnits, listCategories } from "@/domain/fleet";
 import { useState } from "react";
 
-const STATUS_CONFIG = {
-  available: { label: "Available", icon: CheckCircle2, color: "text-green-600" },
-  on_rent: { label: "On Rent", icon: Car, color: "text-blue-600" },
-  maintenance: { label: "Maintenance", icon: Wrench, color: "text-amber-600" },
-  damage: { label: "Damage", icon: AlertTriangle, color: "text-red-600" },
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }> = {
+  available: { label: "Available", icon: CheckCircle2, color: "text-green-600", bgColor: "bg-green-50" },
+  on_rent: { label: "On Rent", icon: CarFront, color: "text-blue-600", bgColor: "bg-blue-50" },
+  maintenance: { label: "Maintenance", icon: Wrench, color: "text-amber-600", bgColor: "bg-amber-50" },
+  damage: { label: "Damage", icon: AlertTriangle, color: "text-red-600", bgColor: "bg-red-50" },
+  retired: { label: "Retired", icon: Car, color: "text-gray-500", bgColor: "bg-gray-50" },
+  pending: { label: "Pending", icon: Car, color: "text-gray-500", bgColor: "bg-gray-50" },
 };
-
-function CategoryCard({ category }: { category: FleetCategory }) {
-  const availablePercent = category.totalCount 
-    ? Math.round((category.availableCount || 0) / category.totalCount * 100)
-    : 0;
-
-  return (
-    <Card className="hover:shadow-md transition-all">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          {/* Image */}
-          <div className="w-16 h-12 rounded bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-            {category.imageUrl ? (
-              <img
-                src={category.imageUrl}
-                alt={category.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Car className="w-6 h-6 text-muted-foreground" />
-            )}
-          </div>
-
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="font-medium truncate">{category.name}</div>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge 
-                variant={availablePercent > 50 ? "default" : availablePercent > 0 ? "secondary" : "destructive"}
-                className="text-xs"
-              >
-                {category.availableCount || 0} / {category.totalCount || 0} available
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function OpsFleet() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const { data: categories, isLoading } = useQuery({
+  // Fetch all units with status
+  const { data: units, isLoading: unitsLoading } = useQuery({
+    queryKey: ["ops-fleet-units"],
+    queryFn: () => listAllUnits(),
+  });
+
+  // Fetch categories for name lookup
+  const { data: categories } = useQuery({
     queryKey: ["ops-fleet-categories"],
     queryFn: listCategories,
   });
 
-  // Filter by search
-  const filteredCategories = (categories || []).filter((c) => {
+  // Create category name map
+  const categoryMap = new Map(categories?.map(c => [c.id, c]) || []);
+
+  // Filter units
+  const filteredUnits = (units || []).filter((u) => {
+    if (statusFilter !== "all" && u.status !== statusFilter) return false;
     if (!search) return true;
-    return c.name.toLowerCase().includes(search.toLowerCase());
+    const cat = u.categoryId ? categoryMap.get(u.categoryId) : null;
+    return (
+      u.vin?.toLowerCase().includes(search.toLowerCase()) ||
+      u.licensePlate?.toLowerCase().includes(search.toLowerCase()) ||
+      cat?.name?.toLowerCase().includes(search.toLowerCase())
+    );
   });
 
-  // Calculate totals
-  const totalUnits = filteredCategories.reduce((sum, c) => sum + (c.totalCount || 0), 0);
-  const availableUnits = filteredCategories.reduce((sum, c) => sum + (c.availableCount || 0), 0);
+  // Calculate summary counts
+  const statusCounts = {
+    available: units?.filter(u => u.status === "available").length || 0,
+    on_rent: units?.filter(u => u.status === "on_rent").length || 0,
+    maintenance: units?.filter(u => u.status === "maintenance").length || 0,
+    other: units?.filter(u => !["available", "on_rent", "maintenance"].includes(u.status)).length || 0,
+    total: units?.length || 0,
+  };
+
+  const isLoading = unitsLoading;
 
   return (
     <OpsShell>
@@ -93,20 +79,41 @@ export default function OpsFleet() {
           <div>
             <h1 className="text-xl font-bold">Fleet Status</h1>
             <p className="text-sm text-muted-foreground">
-              {availableUnits} of {totalUnits} vehicles available
+              {statusCounts.available} of {statusCounts.total} vehicles available
             </p>
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search categories..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        {/* Search & Filter */}
+        <div className="flex gap-2 flex-wrap">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search VIN, plate, or category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {["all", "available", "on_rent", "maintenance"].map((status) => (
+              <Badge
+                key={status}
+                variant={statusFilter === status ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setStatusFilter(status)}
+              >
+                {status === "all" ? "All" : STATUS_CONFIG[status]?.label || status}
+                {status !== "all" && (
+                  <span className="ml-1 opacity-70">
+                    ({status === "available" ? statusCounts.available : 
+                      status === "on_rent" ? statusCounts.on_rent : 
+                      status === "maintenance" ? statusCounts.maintenance : 0})
+                  </span>
+                )}
+              </Badge>
+            ))}
+          </div>
         </div>
 
         {/* Summary Card */}
@@ -114,30 +121,28 @@ export default function OpsFleet() {
           <CardContent className="p-4">
             <div className="grid grid-cols-4 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-green-600">{availableUnits}</div>
+                <div className="text-2xl font-bold text-green-600">{statusCounts.available}</div>
                 <div className="text-xs text-muted-foreground">Available</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-blue-600">
-                  {totalUnits - availableUnits}
-                </div>
+                <div className="text-2xl font-bold text-blue-600">{statusCounts.on_rent}</div>
                 <div className="text-xs text-muted-foreground">On Rent</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-amber-600">0</div>
+                <div className="text-2xl font-bold text-amber-600">{statusCounts.maintenance}</div>
                 <div className="text-xs text-muted-foreground">Maintenance</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{totalUnits}</div>
+                <div className="text-2xl font-bold">{statusCounts.total}</div>
                 <div className="text-xs text-muted-foreground">Total</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Categories List */}
+        {/* Units List */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i}>
                 <CardContent className="p-4">
@@ -146,18 +151,58 @@ export default function OpsFleet() {
               </Card>
             ))}
           </div>
-        ) : filteredCategories.length === 0 ? (
+        ) : filteredUnits.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
               <Car className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p className="font-medium">No categories found</p>
+              <p className="font-medium">No units found</p>
+              <p className="text-sm text-muted-foreground">
+                Try adjusting your search or filters
+              </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {filteredCategories.map((category) => (
-              <CategoryCard key={category.id} category={category} />
-            ))}
+          <div className="space-y-2">
+            {filteredUnits.map((unit) => {
+              const category = unit.categoryId ? categoryMap.get(unit.categoryId) : null;
+              const statusConfig = STATUS_CONFIG[unit.status] || STATUS_CONFIG.pending;
+              const StatusIcon = statusConfig.icon;
+
+              return (
+                <Card key={unit.id} className={`${statusConfig.bgColor} border-l-4`} style={{ borderLeftColor: statusConfig.color.replace('text-', 'var(--') }}>
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Unit Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono font-medium text-sm">
+                            {unit.licensePlate || "No Plate"}
+                          </span>
+                          <Badge variant="outline" className={`text-xs ${statusConfig.color}`}>
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {statusConfig.label}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {category?.name || "Uncategorized"}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          VIN: ...{unit.vin?.slice(-6) || "N/A"}
+                          {unit.currentMileage && (
+                            <span className="ml-2">• {unit.currentMileage.toLocaleString()} km</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Location */}
+                      <div className="text-right text-xs text-muted-foreground">
+                        {unit.locationName || "—"}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

@@ -263,7 +263,7 @@ export function useUpdateBookingStatus() {
       // First get booking details for notification
       const { data: bookingDetails, error: fetchError } = await supabase
         .from("bookings")
-        .select("booking_code, user_id, vehicle_id")
+        .select("booking_code, user_id, vehicle_id, assigned_unit_id")
         .eq("id", bookingId)
         .single();
 
@@ -312,6 +312,25 @@ export function useUpdateBookingStatus() {
         new_status: newStatus,
         notes 
       });
+
+      // Update vehicle unit status based on booking status change
+      if (bookingDetails.assigned_unit_id) {
+        if (newStatus === "active") {
+          // Set unit to on_rent when rental is activated
+          await supabase
+            .from("vehicle_units")
+            .update({ status: "on_rent" })
+            .eq("id", bookingDetails.assigned_unit_id);
+          console.log(`Set vehicle unit ${bookingDetails.assigned_unit_id} to on_rent`);
+        } else if (newStatus === "completed" || newStatus === "cancelled") {
+          // Set unit back to available when rental ends
+          await supabase
+            .from("vehicle_units")
+            .update({ status: "available" })
+            .eq("id", bookingDetails.assigned_unit_id);
+          console.log(`Set vehicle unit ${bookingDetails.assigned_unit_id} to available`);
+        }
+      }
 
       // Handle deposit based on status change
       await handleDepositOnStatusChange(bookingId, newStatus);
@@ -469,6 +488,8 @@ export function useUpdateBookingStatus() {
       queryClient.invalidateQueries({ queryKey: ["booking"] });
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
+      queryClient.invalidateQueries({ queryKey: ["ops-fleet-units"] });
       toast.success("Booking status updated - customer notified");
     },
     onError: (error) => {
