@@ -73,6 +73,13 @@ const DeliveryDashboard = lazy(() => import("./pages/delivery/DeliveryDashboard"
 const DeliveryDetail = lazy(() => import("./pages/delivery/DeliveryDetail"));
 const DeliveryWalkIn = lazy(() => import("./pages/delivery/DeliveryWalkIn"));
 
+// Ops Panel Pages - lazy loaded
+const OpsWorkboard = lazy(() => import("./pages/ops/OpsWorkboard"));
+const OpsPickups = lazy(() => import("./pages/ops/OpsPickups"));
+const OpsActiveRentals = lazy(() => import("./pages/ops/OpsActiveRentals"));
+const OpsReturns = lazy(() => import("./pages/ops/OpsReturns"));
+const OpsFleet = lazy(() => import("./pages/ops/OpsFleet"));
+
 // Admin Protection
 import { AdminProtectedRoute } from "./components/admin/AdminProtectedRoute";
 
@@ -81,6 +88,9 @@ import { SupportProtectedRoute } from "./components/support/SupportProtectedRout
 
 // Delivery Protection
 import { DeliveryProtectedRoute } from "./components/delivery/DeliveryProtectedRoute";
+
+// Ops Protection
+import { OpsProtectedRoute } from "./components/ops/OpsProtectedRoute";
 
 // Redirects for removed nav items
 import { Navigate } from "react-router-dom";
@@ -171,6 +181,18 @@ const App = () => (
                 <Route path="/delivery" element={<DeliveryProtectedRoute><DeliveryDashboard /></DeliveryProtectedRoute>} />
                 <Route path="/delivery/walk-in" element={<DeliveryProtectedRoute><DeliveryWalkIn /></DeliveryProtectedRoute>} />
                 <Route path="/delivery/:bookingId" element={<DeliveryProtectedRoute><DeliveryDetail /></DeliveryProtectedRoute>} />
+
+                {/* Ops Panel Routes - For Staff/Operations */}
+                <Route path="/ops" element={<OpsProtectedRoute><OpsWorkboard /></OpsProtectedRoute>} />
+                <Route path="/ops/pickups" element={<OpsProtectedRoute><OpsPickups /></OpsProtectedRoute>} />
+                <Route path="/ops/active" element={<OpsProtectedRoute><OpsActiveRentals /></OpsProtectedRoute>} />
+                <Route path="/ops/returns" element={<OpsProtectedRoute><OpsReturns /></OpsProtectedRoute>} />
+                <Route path="/ops/fleet" element={<OpsProtectedRoute><OpsFleet /></OpsProtectedRoute>} />
+                {/* Ops booking/return routes use same pages as admin but with ops shell */}
+                <Route path="/ops/booking/:bookingId" element={<OpsProtectedRoute><AdminBookingDetail /></OpsProtectedRoute>} />
+                <Route path="/ops/booking/:bookingId/handover" element={<OpsProtectedRoute><BookingOps /></OpsProtectedRoute>} />
+                <Route path="/ops/rental/:bookingId" element={<OpsProtectedRoute><ActiveRentalDetail /></OpsProtectedRoute>} />
+                <Route path="/ops/return/:bookingId" element={<OpsProtectedRoute><ReturnOps /></OpsProtectedRoute>} />
 
                 {/* Redirects for consolidated nav items - all go to Operations hub */}
                 <Route path="/admin/pickups" element={<Navigate to="/admin/bookings?tab=pickups" replace />} />
