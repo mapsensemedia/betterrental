@@ -92,7 +92,7 @@ export default function BookingOps() {
   // Get available drivers for delivery bookings
   const { data: drivers } = useAvailableDrivers();
   
-  const [activeStep, setActiveStep] = useState<OpsStepId>("prep");
+  const [activeStep, setActiveStep] = useState<OpsStepId>("checkin");
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; action: string | null }>({ 
     open: false, 
     action: null 
@@ -120,7 +120,6 @@ export default function BookingOps() {
   const pickupPhotos = photos?.pickup || [];
   const photoStatus = getPhotoCompletionStatus(pickupPhotos, 'pickup');
   const checkinPassed = checkinRecord?.checkInStatus === 'passed';
-  const isCheckedIn = checkinPassed || checkinRecord?.checkInStatus === 'needs_review';
   const isPaymentComplete = depositData?.paymentStatus === 'paid';
   const isDepositCollected = depositData?.depositStatus === 'held' || depositData?.depositStatus === 'released';
   const isAgreementSigned = agreement?.status === 'signed' || agreement?.status === 'confirmed';
@@ -135,16 +134,10 @@ export default function BookingOps() {
   
   // Delivery status tracking
   const deliveryStatus = booking?.delivery_statuses?.status;
-  const isDriverAssigned = !!booking?.assigned_driver_id;
   const isDriverEnRoute = deliveryStatus === 'en_route' || deliveryStatus === 'picked_up';
   const isDriverArrived = deliveryStatus === 'delivered';
   
   const completion: StepCompletion = {
-    prep: {
-      checklistComplete: prepStatus?.allComplete || false,
-      photosComplete: photoStatus.complete,
-      driverAssigned: isDeliveryBooking ? isDriverAssigned : undefined,
-    },
     checkin: {
       // If check-in is passed, all fields are considered verified
       govIdVerified: checkinPassed || checkinRecord?.identityVerified || false,
@@ -165,6 +158,9 @@ export default function BookingOps() {
     },
     walkaround: {
       inspectionComplete: walkaround?.inspection_complete || false,
+    },
+    photos: {
+      photosComplete: photoStatus.complete,
     },
     handover: {
       activated: booking?.status === 'active' || booking?.status === 'completed',

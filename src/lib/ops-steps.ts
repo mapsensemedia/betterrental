@@ -99,11 +99,9 @@ export interface StepCompletion {
   checkin: {
     govIdVerified: boolean;
     licenseOnFile: boolean;
-    licenseNumber: string | null;
     nameMatches: boolean;
     licenseNotExpired: boolean;
     ageVerified: boolean;
-    contactInfoComplete: boolean;
     // Delivery-specific
     driverEnRoute?: boolean;
     driverArrived?: boolean;
