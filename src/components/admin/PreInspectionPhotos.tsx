@@ -4,14 +4,10 @@ import {
   Camera, 
   CheckCircle2, 
   Loader2,
-  Fuel,
-  Gauge,
   Upload,
   ChevronDown,
-  CarFront,
-  CircleDot,
-  PanelLeft,
-  PanelRight,
+  Gauge,
+  Armchair,
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -47,13 +43,22 @@ const CarBackIcon = () => (
   </svg>
 );
 
+const CarSideIcon = ({ flip }: { flip?: boolean }) => (
+  <svg className={cn("h-4 w-4", flip && "scale-x-[-1]")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 12h2l2-4h8l2 4h4v4H3z" />
+    <circle cx="6" cy="16" r="2" />
+    <circle cx="18" cy="16" r="2" />
+  </svg>
+);
+
 const PHOTO_ICONS: Record<PhotoType, React.ReactNode> = {
   front: <CarFrontIcon />,
   back: <CarBackIcon />,
-  left: <PanelLeft className="h-4 w-4" />,
-  right: <PanelRight className="h-4 w-4" />,
-  odometer: <Gauge className="h-4 w-4" />,
-  fuel_gauge: <Fuel className="h-4 w-4" />,
+  left: <CarSideIcon />,
+  right: <CarSideIcon flip />,
+  odometer_fuel: <Gauge className="h-4 w-4" />,
+  front_seat: <Armchair className="h-4 w-4" />,
+  back_seat: <Armchair className="h-4 w-4" />,
 };
 
 export function PreInspectionPhotos({ bookingId }: PreInspectionPhotosProps) {

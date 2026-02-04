@@ -18,13 +18,13 @@ import {
   Eye,
   Key,
   Check,
-  Lock,
   Circle,
   ChevronDown,
   ChevronUp,
   AlertTriangle,
   Clock,
   Truck,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,7 @@ interface OpsStepSidebarProps {
   currentStepIndex: number;
   onStepClick: (stepId: OpsStepId) => void;
   isRentalActive: boolean;
-  isDelivery?: boolean; // NEW: delivery mode flag
+  isDelivery?: boolean;
   stepTimestamps?: Record<OpsStepId, Date | null>;
 }
 
@@ -49,9 +49,10 @@ const stepIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   "file-text": FileText,
   "eye": Eye,
   "key": Key,
+  "camera": Camera,
 };
 
-// Map status to visual styling
+// Map status to visual styling - simplified without locked/blocked
 function getStatusStyling(status: string, isActive: boolean) {
   switch (status) {
     case "complete":
@@ -59,12 +60,6 @@ function getStatusStyling(status: string, isActive: boolean) {
         bgClass: "bg-emerald-500 text-white",
         textClass: "text-emerald-600 dark:text-emerald-400",
         chipBg: "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300",
-      };
-    case "blocked":
-      return {
-        bgClass: "bg-destructive text-white",
-        textClass: "text-destructive",
-        chipBg: "bg-destructive/10 text-destructive",
       };
     case "needs_attention":
       return {
@@ -79,16 +74,10 @@ function getStatusStyling(status: string, isActive: boolean) {
         chipBg: "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300",
       };
     case "ready":
+    default:
       return {
         bgClass: isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
         textClass: "",
-        chipBg: "",
-      };
-    case "locked":
-    default:
-      return {
-        bgClass: "bg-muted text-muted-foreground",
-        textClass: "text-muted-foreground",
         chipBg: "",
       };
   }
@@ -98,8 +87,6 @@ function getStatusLabel(status: string): string | null {
   switch (status) {
     case "complete":
       return "Complete";
-    case "blocked":
-      return "Blocked";
     case "needs_attention":
       return "Needs Review";
     case "in_progress":
@@ -125,11 +112,6 @@ export function OpsStepSidebar({
     ? steps.length 
     : steps.filter(s => checkStepComplete(s.id, completion, isDelivery)).length;
   
-  const blockedCount = steps.filter(s => {
-    const issues = getBlockingIssues(s.id, completion, isDelivery);
-    return issues.length > 0;
-  }).length;
-  
   const currentStep = steps.find(s => s.id === activeStep);
   const currentStepDisplay = currentStep ? getStepForDisplay(currentStep, isDelivery) : null;
 
@@ -151,11 +133,6 @@ export function OpsStepSidebar({
                 <p className="text-[10px] sm:text-xs text-muted-foreground">
                   {completedCount}/{steps.length} complete
                 </p>
-                {blockedCount > 0 && (
-                  <Badge variant="destructive" className="text-[9px] sm:text-[10px] px-1 py-0 h-4">
-                    {blockedCount} blocked
-                  </Badge>
-                )}
               </div>
             </div>
           </div>
@@ -193,9 +170,7 @@ export function OpsStepSidebar({
                     "w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium shrink-0",
                     styling.bgClass
                   )}>
-                    {isComplete ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : 
-                     displayStatus === "blocked" ? <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> :
-                     step.number}
+                    {isComplete ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : step.number}
                   </div>
                   <div className="flex-1 flex items-center justify-between min-w-0">
                     <span className={cn(
@@ -224,12 +199,6 @@ export function OpsStepSidebar({
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Operations Steps
             </h2>
-            {blockedCount > 0 && (
-              <Badge variant="destructive" className="text-[10px]">
-                <AlertTriangle className="w-3 h-3 mr-1" />
-                {blockedCount} blocked
-              </Badge>
-            )}
           </div>
           
           <div className="space-y-1">
@@ -265,10 +234,6 @@ export function OpsStepSidebar({
                     )}>
                       {displayComplete ? (
                         <Check className="w-4 h-4" />
-                      ) : displayStatus === "blocked" ? (
-                        <AlertTriangle className="w-4 h-4" />
-                      ) : displayStatus === "locked" ? (
-                        <Lock className="w-4 h-4" />
                       ) : (
                         step.number
                       )}

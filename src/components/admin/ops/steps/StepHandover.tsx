@@ -26,10 +26,8 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
   const isRentalActive = booking?.status === "active";
   const isCompleted = booking?.status === "completed" || isBookingCompleted;
   
-  // UPDATED: Prerequisites for handover - no customer acknowledgement needed
+  // UPDATED: Prerequisites for handover - simplified flow
   const allPrerequisitesMet = 
-    completion.prep.checklistComplete &&
-    completion.prep.photosComplete &&
     completion.checkin.govIdVerified &&
     completion.checkin.licenseOnFile &&
     completion.checkin.nameMatches &&
@@ -38,11 +36,10 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
     completion.payment.paymentComplete &&
     completion.payment.depositCollected &&
     completion.agreement.agreementSigned &&
-    completion.walkaround.inspectionComplete; // Staff-only, no customer signature
+    completion.walkaround.inspectionComplete &&
+    completion.photos.photosComplete;
     
   const prerequisites = [
-    { label: "Prep Checklist", complete: completion.prep.checklistComplete },
-    { label: "Pre-Inspection Photos", complete: completion.prep.photosComplete },
     { label: "Gov ID Verified", complete: completion.checkin.govIdVerified },
     { label: "License On File", complete: completion.checkin.licenseOnFile },
     { label: "Name Matches", complete: completion.checkin.nameMatches },
@@ -52,6 +49,7 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
     { label: "Deposit Held (manual)", complete: completion.payment.depositCollected },
     { label: "Agreement Signed (manual)", complete: completion.agreement.agreementSigned },
     { label: "Walkaround Complete (staff)", complete: completion.walkaround.inspectionComplete },
+    { label: "Handover Photos", complete: completion.photos.photosComplete },
   ];
   
   const incompleteItems = prerequisites.filter(p => !p.complete);

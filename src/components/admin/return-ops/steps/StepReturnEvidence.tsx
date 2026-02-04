@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   useBookingConditionPhotos, 
   useUploadConditionPhoto,
+  REQUIRED_PHOTOS,
+  PHOTO_LABELS,
   type PhotoType 
 } from "@/hooks/use-condition-photos";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
@@ -18,6 +20,7 @@ import {
   Car,
   Fuel,
   Gauge,
+  Armchair,
   Lock,
   ArrowRight,
 } from "lucide-react";
@@ -39,8 +42,9 @@ const RETURN_PHOTO_TYPES: { type: PhotoType; label: string }[] = [
   { type: "back", label: "Rear" },
   { type: "left", label: "Driver Side" },
   { type: "right", label: "Passenger Side" },
-  { type: "odometer", label: "Odometer" },
-  { type: "fuel_gauge", label: "Fuel Gauge" },
+  { type: "odometer_fuel", label: "Odometer & Fuel" },
+  { type: "front_seat", label: "Front Seat" },
+  { type: "back_seat", label: "Back Seat" },
 ];
 
 const PHOTO_ICONS: Record<PhotoType, React.ReactNode> = {
@@ -48,8 +52,9 @@ const PHOTO_ICONS: Record<PhotoType, React.ReactNode> = {
   back: <Car className="h-4 w-4 rotate-180" />,
   left: <Car className="h-4 w-4 -rotate-90" />,
   right: <Car className="h-4 w-4 rotate-90" />,
-  odometer: <Gauge className="h-4 w-4" />,
-  fuel_gauge: <Fuel className="h-4 w-4" />,
+  odometer_fuel: <Gauge className="h-4 w-4" />,
+  front_seat: <Armchair className="h-4 w-4" />,
+  back_seat: <Armchair className="h-4 w-4" />,
 };
 
 export function StepReturnEvidence({ 
@@ -96,7 +101,6 @@ export function StepReturnEvidence({
   const canProceed = !isException || hasMinimumPhotos;
   
   // Use isComplete (from state machine) as the primary indicator
-  // stepIsComplete = true only when state machine says this step is done
   const stepIsComplete = isComplete;
 
   return (
