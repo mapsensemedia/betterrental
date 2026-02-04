@@ -86,7 +86,7 @@ function PickupCard({ booking }: { booking: BookingSummary }) {
 
 export default function OpsPickups() {
   const [search, setSearch] = useState("");
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const dayFilter = searchParams.get("day") || "today";
 
   // Fetch both confirmed and pending bookings for pickups
@@ -101,6 +101,14 @@ export default function OpsPickups() {
       return [...pending, ...confirmed];
     },
   });
+  
+  const setDayFilter = (day: string) => {
+    if (day === "today") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ day });
+    }
+  };
 
   // Filter by day and search
   const filteredBookings = (bookings || []).filter((b) => {
@@ -151,25 +159,21 @@ export default function OpsPickups() {
             <Button
               variant={dayFilter === "today" ? "default" : "outline"}
               size="sm"
-              onClick={() => window.history.replaceState(null, "", "/ops/pickups")}
+              onClick={() => setDayFilter("today")}
             >
               Today
             </Button>
             <Button
               variant={dayFilter === "tomorrow" ? "default" : "outline"}
               size="sm"
-              onClick={() =>
-                window.history.replaceState(null, "", "/ops/pickups?day=tomorrow")
-              }
+              onClick={() => setDayFilter("tomorrow")}
             >
               Tomorrow
             </Button>
             <Button
               variant={dayFilter === "all" ? "default" : "outline"}
               size="sm"
-              onClick={() =>
-                window.history.replaceState(null, "", "/ops/pickups?day=all")
-              }
+              onClick={() => setDayFilter("all")}
             >
               All
             </Button>

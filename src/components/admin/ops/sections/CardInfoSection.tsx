@@ -67,29 +67,12 @@ export function CardInfoSection({ cardLastFour, cardType, cardHolderName, cardEx
         <CardTypeIcon type={(cardType as CardType) || "unknown"} />
       </div>
       
-      {/* Full card number display (masked except last 4) */}
+      {/* Card number display - showing last 4 digits only (full number not stored for PCI compliance) */}
       <div className="mb-3">
-        <div className="font-mono text-lg sm:text-xl tracking-[0.15em] flex items-center flex-wrap gap-x-3">
-          <span className="text-slate-300 flex gap-1">
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-          </span>
-          <span className="text-slate-300 flex gap-1">
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-          </span>
-          <span className="text-slate-300 flex gap-1">
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-            <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-          </span>
-          <span className="text-white font-semibold">{cardLastFour}</span>
+        <div className="font-mono text-xl sm:text-2xl tracking-[0.2em] font-semibold">
+          {cardLastFour}
         </div>
+        <div className="text-[10px] text-slate-400 mt-1">Last 4 digits</div>
       </div>
       
       {/* Expiry and Name Row */}
