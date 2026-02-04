@@ -152,7 +152,7 @@ export function OpsStepContent({
       
         {/* Step-specific Content */}
         <div className="space-y-4">
-          {stepId === "checkin" && (
+        {stepId === "checkin" && (
             isDelivery ? (
               <StepEnRoute 
                 booking={booking}
@@ -164,6 +164,7 @@ export function OpsStepContent({
                 booking={booking}
                 completion={completion.checkin}
                 onStepComplete={onCompleteStep}
+                vehicleName={booking.vehicle_categories?.name || "Vehicle"}
               />
             )
           )}

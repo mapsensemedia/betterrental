@@ -150,7 +150,10 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
   const handleSaveOnly = async () => {
     try {
       await saveMutation.mutateAsync();
-      toast.success("Return intake saved" + (booking?.assigned_unit_id && odometer ? " (mileage updated)" : ""));
+      const mileageNote = booking?.assigned_unit_id && odometer 
+        ? ` - Vehicle mileage updated to ${parseInt(odometer).toLocaleString()} km`
+        : "";
+      toast.success(`Return intake saved${mileageNote}`);
     } catch (error) {
       // Error already handled in mutation
     }

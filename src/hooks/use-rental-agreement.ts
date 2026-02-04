@@ -37,6 +37,8 @@ export function useRentalAgreement(bookingId: string | null) {
       return data as RentalAgreement | null;
     },
     enabled: !!bookingId,
+    staleTime: 15000, // 15 seconds - operational data tier
+    gcTime: 60000,    // Keep cached for 1 minute
   });
 }
 
