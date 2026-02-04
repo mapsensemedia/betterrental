@@ -85,7 +85,8 @@ function BookingCard({ booking, onClick }: { booking: BookingSummary; onClick: (
 export default function OpsBookings() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get("code") || "");
+  // Support both "code" (legacy) and "search" (new) query params
+  const [search, setSearch] = useState(searchParams.get("search") || searchParams.get("code") || "");
   const activeTab = (searchParams.get("tab") as TabValue) || "all";
 
   // Fetch all bookings - no status filter for 'all', otherwise filter by status
