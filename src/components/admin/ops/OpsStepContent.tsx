@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
-  OPS_STEPS, 
+  OPS_STEPS,
+  type OpsStep, 
   type OpsStepId, 
   type StepCompletion,
   checkStepComplete,
@@ -13,6 +14,7 @@ import {
   getBlockingIssues,
   getStepForDisplay,
   ACTION_LABELS,
+  getOpsSteps,
 } from "@/lib/ops-steps";
 import { 
   Check, 
@@ -26,6 +28,7 @@ import { cn } from "@/lib/utils";
 // Step-specific components
 import { StepCheckin } from "./steps/StepCheckin";
 import { StepPayment } from "./steps/StepPayment";
+import { StepPrep } from "./steps/StepPrep";
 import { StepAgreement } from "./steps/StepAgreement";
 import { StepWalkaround } from "./steps/StepWalkaround";
 import { StepPhotos } from "./steps/StepPhotos";
@@ -43,13 +46,14 @@ interface OpsStepContentProps {
   isRentalActive: boolean;
   isDelivery?: boolean;
   driverInfo?: { fullName: string; phone?: string | null } | null;
+  steps?: OpsStep[];
 }
 
 // Helper to check if we can advance to the next step
-function canAdvanceToNextStep(stepId: OpsStepId, completion: StepCompletion, isDelivery: boolean = false): boolean {
+function canAdvanceToNextStep(stepId: OpsStepId, completion: StepCompletion, isDelivery: boolean = false, steps: OpsStep[]): boolean {
   const currentStepComplete = checkStepComplete(stepId, completion, isDelivery);
-  const currentIndex = OPS_STEPS.findIndex(s => s.id === stepId);
-  const hasNextStep = currentIndex < OPS_STEPS.length - 1;
+  const currentIndex = steps.findIndex(s => s.id === stepId);
+  const hasNextStep = currentIndex < steps.length - 1;
   
   // Also check that there are no blocking issues
   const blockingIssues = getBlockingIssues(stepId, completion, isDelivery);
@@ -67,8 +71,12 @@ export function OpsStepContent({
   isRentalActive,
   isDelivery = false,
   driverInfo,
+  steps: propSteps,
 }: OpsStepContentProps) {
-  const step = OPS_STEPS.find(s => s.id === stepId);
+  // Use provided steps or get default
+  const steps = propSteps || getOpsSteps(isDelivery);
+  
+  const step = steps.find(s => s.id === stepId);
   if (!step) return null;
   
   const stepDisplay = getStepForDisplay(step, isDelivery);
@@ -82,7 +90,7 @@ export function OpsStepContent({
   const missing = getMissingItems(stepId, completion, isDelivery);
   const blockingIssues = getBlockingIssues(stepId, completion, isDelivery);
   const isBlocked = blockingIssues.length > 0;
-  const showNextStepButton = canAdvanceToNextStep(stepId, completion, isDelivery) && stepId !== "handover";
+  const showNextStepButton = canAdvanceToNextStep(stepId, completion, isDelivery, steps) && stepId !== "handover" && stepId !== "dispatch";
   
   // Render step content - no locks, staff can access any step
   return (
@@ -165,6 +173,18 @@ export function OpsStepContent({
               completion={completion.payment}
             />
           )}
+          {stepId === "prep" && (
+            <StepPrep 
+              bookingId={booking.id}
+              completion={{
+                checklistComplete: completion.prep?.vehiclePrepared || false,
+                photosComplete: completion.photos.photosComplete,
+                driverAssigned: completion.dispatch?.driverAssigned,
+              }}
+              isDelivery={isDelivery}
+              assignedDriverId={booking.assigned_driver_id}
+            />
+          )}
           {stepId === "agreement" && (
             <StepAgreement 
               bookingId={booking.id}
@@ -182,6 +202,14 @@ export function OpsStepContent({
             <StepPhotos 
               bookingId={booking.id}
               completion={completion.photos}
+            />
+          )}
+          {stepId === "dispatch" && isDelivery && (
+            <StepHandover 
+              booking={booking}
+              completion={completion}
+              onActivate={onActivate}
+              isBookingCompleted={isBookingCompleted}
             />
           )}
           {stepId === "handover" && (

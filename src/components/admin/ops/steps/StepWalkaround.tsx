@@ -14,8 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle2, XCircle, Eye, Loader2, ClipboardCheck, Gauge, Fuel, Plus, Trash2 } from "lucide-react";
-import { useWalkaroundInspection, useStartWalkaround, useUpdateWalkaround, useCompleteWalkaround, type ScratchDent } from "@/hooks/use-walkaround";
+import { CheckCircle2, XCircle, Eye, Loader2, ClipboardCheck, Gauge, Fuel, Plus, Trash2, Pencil } from "lucide-react";
+import { useWalkaroundInspection, useStartWalkaround, useUpdateWalkaround, useCompleteWalkaround, useReopenWalkaround, type ScratchDent } from "@/hooks/use-walkaround";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
 import { format } from "date-fns";
 
@@ -46,6 +46,7 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
   const startWalkaround = useStartWalkaround();
   const updateWalkaround = useUpdateWalkaround();
   const completeWalkaround = useCompleteWalkaround();
+  const reopenWalkaround = useReopenWalkaround();
 
   const [odometerReading, setOdometerReading] = useState("");
   const [fuelLevel, setFuelLevel] = useState("");
@@ -114,6 +115,12 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
   const handleComplete = () => {
     if (!inspection) return;
     completeWalkaround.mutate(inspection.id);
+  };
+
+  // Re-open inspection for editing
+  const handleReopen = () => {
+    if (!inspection) return;
+    reopenWalkaround.mutate(inspection.id);
   };
 
   const pickupPhotos = photos?.pickup || [];
@@ -210,7 +217,25 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
               <Eye className="w-4 h-4 text-muted-foreground" />
               <CardTitle className="text-base">Vehicle Walkaround</CardTitle>
             </div>
-            <StatusIndicator complete={isComplete || false} />
+            <div className="flex items-center gap-2">
+              {isComplete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReopen}
+                  disabled={reopenWalkaround.isPending}
+                  className="gap-1"
+                >
+                  {reopenWalkaround.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Pencil className="h-3.5 w-3.5" />
+                  )}
+                  Edit
+                </Button>
+              )}
+              <StatusIndicator complete={isComplete || false} />
+            </div>
           </div>
           <CardDescription>
             Staff-only inspection. Started {format(new Date(inspection.conducted_at), "PPp")}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { 
-  OPS_STEPS, 
+  type OpsStep,
   type OpsStepId, 
   type StepCompletion,
   getStepStatus,
@@ -25,13 +25,14 @@ import {
   Clock,
   Truck,
   Camera,
+  Car,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 
 interface OpsStepSidebarProps {
-  steps: typeof OPS_STEPS;
+  steps: OpsStep[];
   activeStep: OpsStepId;
   completion: StepCompletion;
   currentStepIndex: number;
@@ -50,6 +51,8 @@ const stepIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   "eye": Eye,
   "key": Key,
   "camera": Camera,
+  "truck": Truck,
+  "car": Car,
 };
 
 // Map status to visual styling - simplified without locked/blocked

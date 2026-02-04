@@ -49,7 +49,7 @@ import { useAvailableDrivers } from "@/hooks/use-available-drivers";
 import { useRealtimeDeliveryStatuses } from "@/hooks/use-realtime-subscriptions";
 
 // Types
-import { OPS_STEPS, type OpsStepId, type StepCompletion, getCurrentStepIndex, checkStepComplete } from "@/lib/ops-steps";
+import { OPS_STEPS, OPS_STEPS_DELIVERY_PRE, getOpsSteps, type OpsStepId, type StepCompletion, getCurrentStepIndex, checkStepComplete } from "@/lib/ops-steps";
 import { ArrowLeft, MoreVertical, X, Loader2, Wrench, Truck, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -137,6 +137,21 @@ export default function BookingOps() {
   const isDriverEnRoute = deliveryStatus === 'en_route' || deliveryStatus === 'picked_up';
   const isDriverArrived = deliveryStatus === 'delivered';
   
+  
+  // Get the correct steps based on booking type
+  const steps = getOpsSteps(isDeliveryBooking);
+  
+  // Add prep and dispatch completion for delivery bookings
+  const prepCompletion = isDeliveryBooking ? {
+    unitAssigned: !!booking?.assigned_unit_id,
+    vehiclePrepared: !!prepStatus?.allComplete,
+  } : undefined;
+  
+  const dispatchCompletion = isDeliveryBooking ? {
+    driverAssigned: !!booking?.assigned_driver_id,
+    dispatched: deliveryStatus === 'picked_up' || deliveryStatus === 'en_route' || deliveryStatus === 'delivered',
+  } : undefined;
+  
   const completion: StepCompletion = {
     checkin: {
       // If check-in is passed, all fields are considered verified
@@ -153,6 +168,7 @@ export default function BookingOps() {
       paymentComplete: isPaymentComplete,
       depositCollected: isDepositCollected,
     },
+    prep: prepCompletion,
     agreement: {
       agreementSigned: isAgreementSigned,
     },
@@ -162,6 +178,7 @@ export default function BookingOps() {
     photos: {
       photosComplete: photoStatus.complete,
     },
+    dispatch: dispatchCompletion,
     handover: {
       activated: booking?.status === 'active' || booking?.status === 'completed',
       smsSent: !!booking?.handover_sms_sent_at,
@@ -174,21 +191,21 @@ export default function BookingOps() {
   useEffect(() => {
     if (!hasInitializedStepRef.current && booking) {
       // Start on the first incomplete step, or last step if all complete
-      const step = OPS_STEPS[currentStepIndex];
+      const step = steps[currentStepIndex];
       if (step && step.id !== activeStep) {
         setActiveStep(step.id);
       }
       hasInitializedStepRef.current = true;
     }
-  }, [booking, currentStepIndex]);
+  }, [booking, currentStepIndex, steps]);
   
   // Handle manual step completion - move to next step when user clicks button
   const handleCompleteStep = () => {
-    const activeStepIndex = OPS_STEPS.findIndex(s => s.id === activeStep);
+    const activeStepIndex = steps.findIndex(s => s.id === activeStep);
     const nextIndex = activeStepIndex + 1;
-    if (nextIndex < OPS_STEPS.length) {
-      setActiveStep(OPS_STEPS[nextIndex].id);
-      toast.success(`Moving to ${OPS_STEPS[nextIndex].title}`);
+    if (nextIndex < steps.length) {
+      setActiveStep(steps[nextIndex].id);
+      toast.success(`Moving to ${steps[nextIndex].title}`);
     }
   };
   
@@ -387,7 +404,7 @@ export default function BookingOps() {
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Left Stepper Panel */}
           <OpsStepSidebar
-            steps={OPS_STEPS}
+            steps={steps}
             activeStep={activeStep}
             completion={completion}
             currentStepIndex={currentStepIndex}
@@ -418,6 +435,7 @@ export default function BookingOps() {
                   isRentalActive={isRentalActive}
                   isDelivery={isDeliveryBooking}
                   driverInfo={driverInfo}
+                  steps={steps}
                 />
               </div>
             </ScrollArea>

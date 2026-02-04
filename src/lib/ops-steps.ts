@@ -1,14 +1,17 @@
 // Operational steps definition for full-screen wizard
 // UPDATED: Simplified workflow - removed locks, staff can freely navigate
 // Photos moved to end as "handover photos"
+// Delivery bookings split into pre-dispatch (Ops) and on-site (Delivery Portal) steps
 
 export type OpsStepId = 
   | "checkin" 
   | "payment" 
+  | "prep"
   | "agreement" 
   | "walkaround" 
   | "photos"
-  | "handover";
+  | "handover"
+  | "dispatch"; // For delivery bookings only
 
 // Enhanced status types - simplified without locked state
 export type OpsStepStatus = "ready" | "in_progress" | "complete" | "needs_attention";
@@ -23,7 +26,7 @@ export interface OpsStep {
   deliveryDescription?: string; // Alternative description for delivery bookings
 }
 
-// Updated pickup flow (6 steps) - No prep/checklist, photos at end
+// Standard pickup flow (6 steps) - No prep/checklist, photos at end
 export const OPS_STEPS: OpsStep[] = [
   {
     id: "checkin",
@@ -31,8 +34,6 @@ export const OPS_STEPS: OpsStep[] = [
     title: "Customer Check-In",
     description: "Verify ID, license, contact details, and customer information",
     icon: "user-check",
-    deliveryTitle: "Customer Verification",
-    deliveryDescription: "Verify customer at delivery address",
   },
   {
     id: "payment",
@@ -40,8 +41,6 @@ export const OPS_STEPS: OpsStep[] = [
     title: "Payment & Deposit",
     description: "Payment auto-syncs if online; deposit is manual/offline",
     icon: "credit-card",
-    deliveryTitle: "Payment & Deposit",
-    deliveryDescription: "Verify payment; collect deposit on delivery if needed",
   },
   {
     id: "agreement",
@@ -49,8 +48,6 @@ export const OPS_STEPS: OpsStep[] = [
     title: "Rental Agreement",
     description: "Manual in-person agreement signing",
     icon: "file-text",
-    deliveryTitle: "On-Site Agreement",
-    deliveryDescription: "Agreement signing at delivery location",
   },
   {
     id: "walkaround",
@@ -58,8 +55,6 @@ export const OPS_STEPS: OpsStep[] = [
     title: "Vehicle Walkaround",
     description: "Staff-only inspection checklist (no customer signature)",
     icon: "eye",
-    deliveryTitle: "On-Site Walkaround",
-    deliveryDescription: "Driver performs inspection at delivery address",
   },
   {
     id: "photos",
@@ -67,8 +62,6 @@ export const OPS_STEPS: OpsStep[] = [
     title: "Handover Photos",
     description: "Capture vehicle photos before handover",
     icon: "camera",
-    deliveryTitle: "Delivery Photos",
-    deliveryDescription: "Capture vehicle photos at delivery location",
   },
   {
     id: "handover",
@@ -76,8 +69,79 @@ export const OPS_STEPS: OpsStep[] = [
     title: "Handover & Activation",
     description: "Complete handover, send SMS, move to Active Rentals",
     icon: "key",
-    deliveryTitle: "Handover & Activation",
-    deliveryDescription: "Driver hands keys at delivery address, activate rental",
+  },
+];
+
+// DELIVERY PRE-DISPATCH STEPS (Ops Panel)
+// These steps are done at the office before vehicle leaves
+export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
+  {
+    id: "checkin",
+    number: 1,
+    title: "Customer Verification",
+    description: "Verify ID, license, and contact details remotely",
+    icon: "user-check",
+  },
+  {
+    id: "payment",
+    number: 2,
+    title: "Payment & Deposit",
+    description: "Collect full payment before vehicle leaves depot",
+    icon: "credit-card",
+  },
+  {
+    id: "prep",
+    number: 3,
+    title: "Vehicle Assignment",
+    description: "Assign specific VIN and prepare vehicle for dispatch",
+    icon: "car",
+  },
+  {
+    id: "photos",
+    number: 4,
+    title: "Pre-Delivery Photos",
+    description: "Capture vehicle condition before dispatch",
+    icon: "camera",
+  },
+  {
+    id: "dispatch",
+    number: 5,
+    title: "Dispatch to Driver",
+    description: "Assign driver and dispatch vehicle for delivery",
+    icon: "truck",
+  },
+];
+
+// DELIVERY ON-SITE STEPS (Delivery Portal)
+// These steps are done by driver at customer location
+export const DELIVERY_PORTAL_STEPS: OpsStep[] = [
+  {
+    id: "agreement",
+    number: 1,
+    title: "Rental Agreement",
+    description: "Customer signs agreement at delivery location",
+    icon: "file-text",
+  },
+  {
+    id: "walkaround",
+    number: 2,
+    title: "Vehicle Walkaround",
+    description: "Complete vehicle inspection with customer",
+    icon: "eye",
+  },
+  {
+    id: "photos",
+    number: 3,
+    title: "Handover Photos",
+    description: "Capture final photos at delivery location",
+    icon: "camera",
+  },
+  {
+    id: "handover",
+    number: 4,
+    title: "Complete Delivery",
+    description: "Hand over keys and activate rental",
+    icon: "key",
   },
 ];
 
@@ -110,6 +174,10 @@ export interface StepCompletion {
     paymentComplete: boolean;
     depositCollected: boolean;
   };
+  prep?: {
+    unitAssigned: boolean;
+    vehiclePrepared: boolean;
+  };
   agreement: {
     agreementSigned: boolean;
   };
@@ -118,6 +186,10 @@ export interface StepCompletion {
   };
   photos: {
     photosComplete: boolean;
+  };
+  dispatch?: {
+    driverAssigned: boolean;
+    dispatched: boolean;
   };
   handover: {
     activated: boolean;
@@ -130,6 +202,11 @@ export interface BlockingIssue {
   message: string;
   stepId: OpsStepId;
   canOverride: boolean;
+}
+
+// Get steps based on booking type
+export function getOpsSteps(isDelivery: boolean): OpsStep[] {
+  return isDelivery ? OPS_STEPS_DELIVERY_PRE : OPS_STEPS;
 }
 
 // SIMPLIFIED: No locks - staff can navigate freely
@@ -172,19 +249,29 @@ export function getBlockingIssues(stepId: OpsStepId, completion: StepCompletion,
     }
     return issues;
   }
+  
+  // Block dispatch if driver not assigned
+  if (stepId === "dispatch" && isDelivery) {
+    const issues: BlockingIssue[] = [];
+    if (!completion.dispatch?.driverAssigned) {
+      issues.push({
+        type: "driver_required",
+        message: "Driver must be assigned before dispatch",
+        stepId: "dispatch",
+        canOverride: false,
+      });
+    }
+    return issues;
+  }
+  
   return [];
 }
 
 export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion, isDelivery: boolean = false): boolean {
   switch (stepId) {
     case "checkin":
-      // For delivery, check-in is based on driver arrival
-      if (isDelivery) {
-        if (completion.checkin.driverArrived !== undefined) {
-          return completion.checkin.driverArrived;
-        }
-      }
-      // Standard check-in - simplified
+      // For delivery, check-in is based on driver arrival (for on-site steps)
+      // For pre-dispatch, standard verification
       return (
         completion.checkin.govIdVerified &&
         completion.checkin.licenseOnFile &&
@@ -194,12 +281,16 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion,
       );
     case "payment":
       return completion.payment.paymentComplete && completion.payment.depositCollected;
+    case "prep":
+      return completion.prep?.unitAssigned && completion.prep?.vehiclePrepared || false;
     case "agreement":
       return completion.agreement.agreementSigned;
     case "walkaround":
       return completion.walkaround.inspectionComplete;
     case "photos":
       return completion.photos.photosComplete;
+    case "dispatch":
+      return completion.dispatch?.driverAssigned && completion.dispatch?.dispatched || false;
     case "handover":
       return completion.handover.activated;
     default:
@@ -212,14 +303,6 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
   
   switch (stepId) {
     case "checkin":
-      if (isDelivery) {
-        if (completion.checkin.driverEnRoute !== undefined && !completion.checkin.driverEnRoute) {
-          missing.push("Driver en route");
-        }
-        if (completion.checkin.driverArrived !== undefined && !completion.checkin.driverArrived) {
-          missing.push("Driver arrived");
-        }
-      }
       if (!completion.checkin.govIdVerified) missing.push("Government Photo ID");
       if (!completion.checkin.licenseOnFile) missing.push("Driver's License on file");
       if (!completion.checkin.nameMatches) missing.push("Name matches booking");
@@ -228,16 +311,24 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
       break;
     case "payment":
       if (!completion.payment.paymentComplete) missing.push("Payment");
-      if (!completion.payment.depositCollected) missing.push(isDelivery ? "Deposit (collect on delivery)" : "Deposit (manual)");
+      if (!completion.payment.depositCollected) missing.push("Deposit");
+      break;
+    case "prep":
+      if (!completion.prep?.unitAssigned) missing.push("Unit assignment");
+      if (!completion.prep?.vehiclePrepared) missing.push("Vehicle preparation");
       break;
     case "agreement":
-      if (!completion.agreement.agreementSigned) missing.push(isDelivery ? "Agreement signed (on-site)" : "Agreement signed (manual)");
+      if (!completion.agreement.agreementSigned) missing.push("Agreement signed");
       break;
     case "walkaround":
-      if (!completion.walkaround.inspectionComplete) missing.push(isDelivery ? "On-site inspection" : "Staff inspection");
+      if (!completion.walkaround.inspectionComplete) missing.push("Staff inspection");
       break;
     case "photos":
       if (!completion.photos.photosComplete) missing.push("Handover photos");
+      break;
+    case "dispatch":
+      if (!completion.dispatch?.driverAssigned) missing.push("Driver assignment");
+      if (!completion.dispatch?.dispatched) missing.push("Vehicle dispatched");
       break;
     case "handover":
       if (!completion.handover.activated) missing.push("Rental activation");
@@ -248,12 +339,13 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
 }
 
 export function getCurrentStepIndex(completion: StepCompletion, isDelivery: boolean = false): number {
-  for (let i = 0; i < OPS_STEPS.length; i++) {
-    if (!checkStepComplete(OPS_STEPS[i].id, completion, isDelivery)) {
+  const steps = getOpsSteps(isDelivery);
+  for (let i = 0; i < steps.length; i++) {
+    if (!checkStepComplete(steps[i].id, completion, isDelivery)) {
       return i;
     }
   }
-  return OPS_STEPS.length - 1;
+  return steps.length - 1;
 }
 
 // Standard action labels for consistency

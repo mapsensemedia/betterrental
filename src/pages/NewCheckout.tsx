@@ -117,6 +117,13 @@ export default function NewCheckout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
   
+  // Force pay-now for delivery bookings
+  useEffect(() => {
+    if (searchData.deliveryMode === "delivery" && paymentMethod === "pay-later") {
+      setPaymentMethod("pay-now");
+    }
+  }, [searchData.deliveryMode, paymentMethod]);
+  
   // Save Time at Counter state
   const [saveTimeAtCounter, setSaveTimeAtCounter] = useState(false);
   const [pickupContactName, setPickupContactName] = useState("");
@@ -761,34 +768,47 @@ export default function NewCheckout() {
                 {/* Payment Method Selection */}
                 <div className="mt-6 pt-4 border-t border-border">
                   <p className="text-sm font-medium mb-3">When would you like to pay?</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("pay-now")}
-                      className={cn(
-                        "p-3 rounded-lg border-2 text-left transition-all",
-                        paymentMethod === "pay-now"
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-muted-foreground/50"
-                      )}
-                    >
-                      <p className="font-medium text-sm">Pay Now</p>
-                      <p className="text-xs text-muted-foreground">Instant confirmation</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("pay-later")}
-                      className={cn(
-                        "p-3 rounded-lg border-2 text-left transition-all",
-                        paymentMethod === "pay-later"
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-muted-foreground/50"
-                      )}
-                    >
-                      <p className="font-medium text-sm">Pay at Pickup</p>
-                      <p className="text-xs text-muted-foreground">Card required on file</p>
-                    </button>
-                  </div>
+                  {/* Hide Pay at Pickup for delivery bookings */}
+                  {searchData.deliveryMode === "delivery" ? (
+                    <>
+                      <div className="p-3 rounded-lg border-2 border-primary bg-primary/5">
+                        <p className="font-medium text-sm">Pay Now</p>
+                        <p className="text-xs text-muted-foreground">Instant confirmation</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Payment is required before delivery. Pay at pickup is not available for deliveries.
+                      </p>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("pay-now")}
+                        className={cn(
+                          "p-3 rounded-lg border-2 text-left transition-all",
+                          paymentMethod === "pay-now"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-muted-foreground/50"
+                        )}
+                      >
+                        <p className="font-medium text-sm">Pay Now</p>
+                        <p className="text-xs text-muted-foreground">Instant confirmation</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("pay-later")}
+                        className={cn(
+                          "p-3 rounded-lg border-2 text-left transition-all",
+                          paymentMethod === "pay-later"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-muted-foreground/50"
+                        )}
+                      >
+                        <p className="font-medium text-sm">Pay at Pickup</p>
+                        <p className="text-xs text-muted-foreground">Card required on file</p>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Payment Summary */}

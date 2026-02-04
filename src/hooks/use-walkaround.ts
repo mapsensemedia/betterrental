@@ -319,3 +319,53 @@ export function useAdminCompleteWalkaround() {
     },
   });
 }
+
+// Re-open a completed walkaround for editing
+export function useReopenWalkaround() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (inspectionId: string) => {
+      const { data: user } = await supabase.auth.getUser();
+
+      // Get the inspection for audit log
+      const { data: inspection, error: fetchError } = await supabase
+        .from("walkaround_inspections")
+        .select("booking_id")
+        .eq("id", inspectionId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Re-open the inspection
+      const { error } = await supabase
+        .from("walkaround_inspections")
+        .update({
+          inspection_complete: false,
+          completed_at: null,
+        })
+        .eq("id", inspectionId);
+
+      if (error) throw error;
+
+      // Log to audit
+      await supabase.from("audit_logs").insert({
+        entity_type: "walkaround_inspection",
+        entity_id: inspectionId,
+        action: "walkaround_reopened",
+        user_id: user.user?.id,
+        new_data: { booking_id: inspection.booking_id, reopened_for_edit: true },
+      });
+
+      return { bookingId: inspection.booking_id };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
+      queryClient.invalidateQueries({ queryKey: ["booking"] });
+      toast.success("Walkaround reopened for editing");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to reopen walkaround: ${error.message}`);
+    },
+  });
+}

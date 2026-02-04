@@ -24,6 +24,7 @@ import {
   User,
   ChevronDown,
   Search,
+  Loader2,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts } from "@/hooks/use-sidebar-counts";
+import { getBookingByCode } from "@/domain/bookings/queries";
 
 /**
  * Ops Navigation - Simplified for operational tasks
@@ -96,14 +98,37 @@ export function OpsShell({ children, hideNav }: OpsShellProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [bookingCode, setBookingCode] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const { counts } = useSidebarCounts();
 
-  const handleBookingSearch = (e: React.FormEvent) => {
+  const handleBookingSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (bookingCode.trim()) {
-      navigate(`/ops/booking/${encodeURIComponent(bookingCode.trim())}`);
-      setBookingCode("");
+    const term = searchTerm.trim();
+    if (!term) return;
+
+    setIsSearching(true);
+    try {
+      // Check if it looks like a booking code (starts with C2C)
+      if (term.match(/^C2C[A-Z0-9]+$/i)) {
+        const booking = await getBookingByCode(term);
+        if (booking) {
+          navigate(`/ops/booking/${booking.id}/handover`);
+          setSearchTerm("");
+          return;
+        }
+      }
+      
+      // Otherwise, redirect to search page with the term
+      navigate(`/ops/bookings?search=${encodeURIComponent(term)}`);
+      setSearchTerm("");
+    } catch (error) {
+      console.error("Search error:", error);
+      // Fall back to search page
+      navigate(`/ops/bookings?search=${encodeURIComponent(term)}`);
+      setSearchTerm("");
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -241,15 +266,20 @@ export function OpsShell({ children, hideNav }: OpsShellProps) {
           </Button>
 
           {/* Quick Booking Search */}
-          <form onSubmit={handleBookingSearch} className="flex-1 max-w-[200px]">
+          <form onSubmit={handleBookingSearch} className="flex-1 max-w-[220px]">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              {isSearching ? (
+                <Loader2 className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+              ) : (
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              )}
               <Input
                 type="text"
-                placeholder="Booking code..."
-                value={bookingCode}
-                onChange={(e) => setBookingCode(e.target.value.toUpperCase())}
+                placeholder="Code, name, phone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 h-8 bg-secondary border-0 text-sm"
+                disabled={isSearching}
               />
             </div>
           </form>
