@@ -104,19 +104,19 @@ export function DepositLedgerPanel({ bookingId, depositAmount }: DepositLedgerPa
         <div className="grid grid-cols-4 gap-2 text-sm">
           <div className="text-center p-2 bg-muted/30 rounded">
             <p className="text-muted-foreground text-xs">Required</p>
-            <p className="font-medium">${depositAmount || 0}</p>
+            <p className="font-medium">${depositAmount || 0} CAD</p>
           </div>
           <div className="text-center p-2 bg-blue-500/5 rounded">
             <p className="text-muted-foreground text-xs">Held</p>
-            <p className="font-medium text-blue-600">${held}</p>
+            <p className="font-medium text-blue-600">${held} CAD</p>
           </div>
           <div className="text-center p-2 bg-red-500/5 rounded">
             <p className="text-muted-foreground text-xs">Deducted</p>
-            <p className="font-medium text-red-600">${deducted}</p>
+            <p className="font-medium text-red-600">${deducted} CAD</p>
           </div>
           <div className="text-center p-2 bg-green-500/5 rounded">
             <p className="text-muted-foreground text-xs">Released</p>
-            <p className="font-medium text-green-600">${released}</p>
+            <p className="font-medium text-green-600">${released} CAD</p>
           </div>
         </div>
 
@@ -166,7 +166,7 @@ export function DepositLedgerPanel({ bookingId, depositAmount }: DepositLedgerPa
                         entry.action === "hold" ? "text-blue-600" :
                         entry.action === "release" ? "text-green-600" : "text-red-600"
                       }`}>
-                        {entry.action === "hold" ? "+" : "-"}${entry.amount}
+                        {entry.action === "hold" ? "+" : "-"}${entry.amount} CAD
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(entry.created_at), "MMM d, HH:mm")}
@@ -188,7 +188,7 @@ export function DepositLedgerPanel({ bookingId, depositAmount }: DepositLedgerPa
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Amount ($)</Label>
+              <Label>Amount ($ CAD)</Label>
               <Input
                 type="number"
                 value={amount}
@@ -199,7 +199,7 @@ export function DepositLedgerPanel({ bookingId, depositAmount }: DepositLedgerPa
               />
               {actionType !== "hold" && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Available to {actionType}: ${remaining}
+                  Available to {actionType}: ${remaining} CAD
                 </p>
               )}
             </div>

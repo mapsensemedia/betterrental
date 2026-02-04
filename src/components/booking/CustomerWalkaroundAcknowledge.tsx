@@ -98,7 +98,7 @@ export function CustomerWalkaroundAcknowledge({ bookingId }: CustomerWalkaroundA
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Odometer</span>
-              <p className="font-medium">{inspection.odometer_reading?.toLocaleString() || "N/A"} miles</p>
+              <p className="font-medium">{inspection.odometer_reading?.toLocaleString() || "N/A"} km</p>
             </div>
             <div>
               <span className="text-muted-foreground">Fuel Level</span>

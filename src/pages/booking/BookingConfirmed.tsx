@@ -183,7 +183,7 @@ export default function BookingConfirmed() {
               {/* Total */}
               <div className="flex items-center justify-between text-lg font-semibold">
                 <span>Total</span>
-                <span>CA${booking.total_amount.toFixed(2)}</span>
+                <span>${booking.total_amount.toFixed(2)} CAD</span>
               </div>
             </CardContent>
           </Card>

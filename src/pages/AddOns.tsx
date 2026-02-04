@@ -182,7 +182,7 @@ export default function AddOns() {
                 <div className="text-right">
                   <p className="text-[10px] sm:text-sm text-muted-foreground">Total:</p>
                   <p className="text-base sm:text-2xl font-bold whitespace-nowrap">
-                    CA${totalPrice.toFixed(2)}
+                    ${totalPrice.toFixed(2)} CAD
                   </p>
                 </div>
                 <Button
@@ -247,14 +247,14 @@ export default function AddOns() {
                             <div className="flex-1">
                               <h3 className="font-medium">{addon.name}</h3>
                               <p className="text-sm font-semibold text-foreground">
-                                CA${fuelCost.ourPrice.toFixed(2)}
+                                ${fuelCost.ourPrice.toFixed(2)} CAD
                                 <span className="text-destructive">*</span>
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 Pre-purchase fuel with us and save time at the pump
                               </p>
                               <p className="text-xs text-emerald-600 font-medium mt-1">
-                                *{FUEL_DISCOUNT_CENTS}¢/L below market price – Save CA${fuelCost.savings.toFixed(2)}
+                                *{FUEL_DISCOUNT_CENTS}¢/L below market price – Save ${fuelCost.savings.toFixed(2)} CAD
                               </p>
                             </div>
                           </div>
@@ -299,8 +299,8 @@ export default function AddOns() {
                           <div>
                             <h3 className="font-medium">{addon.name}</h3>
                             <p className="text-sm text-muted-foreground">
-                              CA${addon.dailyRate.toFixed(2)} / day
-                              {addon.oneTimeFee ? ` + $${addon.oneTimeFee} one-time` : ""}
+                              ${addon.dailyRate.toFixed(2)} CAD / day
+                              {addon.oneTimeFee ? ` + $${addon.oneTimeFee} CAD one-time` : ""}
                             </p>
                             {addon.description && (
                               <p className="text-xs text-muted-foreground mt-0.5">

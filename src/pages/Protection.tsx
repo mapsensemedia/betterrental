@@ -117,7 +117,7 @@ export default function Protection() {
                 <div className="text-right">
                   <p className="text-[10px] sm:text-sm text-muted-foreground">Total:</p>
                   <p className="text-base sm:text-2xl font-bold whitespace-nowrap">
-                    CA${totalPrice.toFixed(2)}
+                    ${totalPrice.toFixed(2)} CAD
                   </p>
                 </div>
                 <Button
@@ -239,14 +239,14 @@ export default function Protection() {
                         <p className="text-sm font-semibold">Included</p>
                       ) : (
                         <div className="flex items-baseline gap-1 flex-wrap">
-                          <span className="text-xs text-muted-foreground">CA$</span>
+                          <span className="text-xs text-muted-foreground">$</span>
                           <span className="text-lg font-bold">
                             {pkg.dailyRate.toFixed(2)}
                           </span>
-                          <span className="text-xs text-muted-foreground">/ day</span>
+                          <span className="text-xs text-muted-foreground">CAD / day</span>
                           {pkg.originalRate && (
                             <span className="text-xs text-muted-foreground line-through ml-1">
-                              CA${pkg.originalRate.toFixed(2)}/day
+                              ${pkg.originalRate.toFixed(2)} CAD/day
                             </span>
                           )}
                         </div>

@@ -145,7 +145,7 @@ export default function AbandonedCartsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold">
-                CA${(carts?.reduce((sum, c) => sum + (c.total_amount || 0), 0) || 0).toLocaleString()}
+                ${(carts?.reduce((sum, c) => sum + (c.total_amount || 0), 0) || 0).toLocaleString()} CAD
               </div>
               <p className="text-sm text-muted-foreground">Potential revenue</p>
             </CardContent>
@@ -258,7 +258,7 @@ export default function AbandonedCartsPage() {
                             {/* Value */}
                             {cart.total_amount && (
                               <div className="text-right">
-                                <p className="font-semibold">CA${cart.total_amount.toFixed(2)}</p>
+                                <p className="font-semibold">${cart.total_amount.toFixed(2)} CAD</p>
                                 <p className="text-xs text-muted-foreground">Cart value</p>
                               </div>
                             )}

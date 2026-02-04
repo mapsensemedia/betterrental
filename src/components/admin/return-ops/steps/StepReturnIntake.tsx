@@ -227,7 +227,7 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
                 disabled={isLocked}
               />
             </div>
-            <span className="text-muted-foreground">miles</span>
+            <span className="text-muted-foreground">km</span>
           </div>
         </CardContent>
       </Card>
