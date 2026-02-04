@@ -1,128 +1,169 @@
 
-# Points & Membership System Fix Plan
+# Admin/Ops Panel Separation Plan
 
-## Problems Identified
+## Current State Analysis
 
-### 1. Points Settings Key Mismatch
-The database stores setting keys in `snake_case` format (`earn_rate`, `earn_base`, etc.) but the frontend code expects `camelCase` keys (`earnRate`, `earnBase`, etc.). This causes the settings to never be properly loaded from the database.
+The codebase currently has both Admin and Ops panels, but there's significant overlap:
 
-**Database keys:** `earn_rate`, `earn_base`, `redeem_rate`, `redeem_rules`, `expiration`
-**Code expects:** `earnRate`, `earnBase`, `redeemRate`, `redeemRules`, `expiration`
+- **Admin Panel** (`/admin/*`): Contains Dashboard, Operations hub (bookings, pickups, active, returns), Fleet, Billing, Incidents, Settings, etc.
+- **Ops Panel** (`/ops/*`): Has Workboard, Pickups, Active, Returns, Fleet - but uses thin wrappers that sometimes navigate to admin routes
 
-### 2. Missing Membership Tiers Table
-The `MembershipManagementPanel` component tries to query a `membership_tiers` table that does not exist in the database. This table needs to be created to store tier configuration.
+## Proposed Separation
 
-### 3. Points Not Being Awarded
-Because the settings aren't loading correctly (Issue 1), when a booking is marked as "completed", the points calculation uses only default values and the settings lookup fails silently. The completed booking `ACTV0001` has no points ledger entry.
+### Admin Panel Purpose (Strategic/Configuration)
+Focus on business management, configuration, and oversight:
+- Dashboard (overview metrics)
+- Alerts (action required items)
+- **Bookings** (reservation management, not day-to-day ops)
+- Fleet Management (categories, vehicles, CRUD)
+- Fleet Costs (depreciation, cost tracking)
+- Incidents (accidents, damages)
+- Calendar (schedule view)
+- Billing (payments, receipts, deposits)
+- Analytics/Reports
+- Offers (points, rewards)
+- Settings (pricing, configuration)
 
-### 4. Customer Dashboard Display
-While the dashboard code is correct, it shows 0 points because no points have been awarded due to the above issues.
-
----
-
-## Solution
-
-### Step 1: Create Membership Tiers Table
-Create the missing `membership_tiers` table with proper structure and seed data for Bronze, Silver, Gold, and Platinum tiers.
-
-```sql
-CREATE TABLE membership_tiers (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT UNIQUE NOT NULL,
-  display_name TEXT NOT NULL,
-  min_points INTEGER NOT NULL DEFAULT 0,
-  benefits JSONB DEFAULT '[]',
-  color TEXT DEFAULT '#CD7F32',
-  icon TEXT DEFAULT 'medal',
-  sort_order INTEGER NOT NULL,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Seed default tiers
-INSERT INTO membership_tiers (name, display_name, min_points, benefits, color, icon, sort_order)
-VALUES 
-  ('bronze', 'Bronze', 0, '["5% bonus points", "Birthday reward"]', '#CD7F32', 'medal', 1),
-  ('silver', 'Silver', 5000, '["10% bonus points", "Priority support", "Free GPS on rentals"]', '#C0C0C0', 'award', 2),
-  ('gold', 'Gold', 15000, '["15% bonus points", "Free upgrades", "Dedicated support line"]', '#FFD700', 'crown', 3),
-  ('platinum', 'Platinum', 30000, '["25% bonus points", "Exclusive offers", "VIP lounge access"]', '#E5E4E2', 'gem', 4);
-
--- RLS policies
-ALTER TABLE membership_tiers ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Anyone can view tiers" ON membership_tiers FOR SELECT USING (true);
-CREATE POLICY "Admins can modify tiers" ON membership_tiers FOR ALL USING (is_admin_or_staff(auth.uid()));
-```
-
-### Step 2: Fix Points Settings Key Mapping
-Update the frontend code to properly map between database snake_case keys and frontend camelCase keys.
-
-**Files to modify:**
-- `src/hooks/use-points.ts` - Add key mapping in `usePointsSettings()` and `useUpdatePointsSettings()`
-- `src/hooks/use-bookings.ts` - Fix the inline settings parsing
-
-**Key mapping approach:**
-```typescript
-const KEY_MAP: Record<string, keyof PointsSettings> = {
-  earn_rate: 'earnRate',
-  earn_base: 'earnBase',
-  redeem_rate: 'redeemRate',
-  redeem_rules: 'redeemRules',
-  expiration: 'expiration',
-};
-
-// When reading from DB:
-const mappedKey = KEY_MAP[row.setting_key];
-if (mappedKey) {
-  settings[mappedKey] = row.setting_value;
-}
-
-// When writing to DB:
-const REVERSE_KEY_MAP: Record<keyof PointsSettings, string> = {
-  earnRate: 'earn_rate',
-  earnBase: 'earn_base',
-  redeemRate: 'redeem_rate',
-  redeemRules: 'redeem_rules',
-  expiration: 'expiration',
-};
-```
-
-### Step 3: Retroactively Award Points for Completed Bookings
-Create an admin action or one-time script to award points for already-completed bookings that didn't get points.
-
-**Option A:** Add a "Sync Missing Points" button in admin settings
-**Option B:** Run a database function to backfill
-
-### Step 4: Real-time Points Updates
-Ensure the customer dashboard refreshes points when they change by adding `points_ledger` and `profiles` to the realtime subscription.
+### Ops Panel Purpose (Day-to-Day Operations)
+Focus on frontline staff workflow:
+- **Workboard** (today's tasks at a glance)
+- **Pickups** (handover processing)
+- **Active Rentals** (in-progress tracking, issue flagging)
+- **Returns** (return processing)
+- **Fleet Status** (vehicle availability, quick status updates)
 
 ---
 
-## Files to Modify
+## Implementation Plan
+
+### Phase 1: Update Admin Navigation
+
+**File:** `src/components/layout/AdminShell.tsx`
+
+Remove "Operations" from admin sidebar since day-to-day ops move to Ops Panel. Replace with:
+- Keep "Bookings" but rename to focus on reservation management (view/search all bookings)
+- Add link to "Ops Panel" for users with ops access
+
+Updated navigation items:
+```text
+1. Alerts (priority)
+2. Dashboard
+3. Bookings (view/search all - not workflow)
+4. Fleet
+5. Incidents
+6. Fleet Costs
+7. Analytics
+8. Calendar
+9. Billing
+10. Support/Tickets
+11. Offers
+12. Settings
+13. [Divider] → Switch to Ops Panel (for eligible users)
+```
+
+### Phase 2: Update Ops Panel Navigation  
+
+**File:** `src/components/ops/OpsShell.tsx`
+
+Ensure Ops navigation is focused and complete:
+```text
+1. Workboard (today's overview)
+2. Pickups (pending handovers)
+3. Active Rentals (currently on road)
+4. Returns (incoming returns)
+5. Fleet Status (quick availability view)
+```
+
+Add better quick actions and ensure routes work independently of admin panel.
+
+### Phase 3: Enhance Ops Pages to Be Self-Sufficient
+
+Currently, some Ops pages navigate to `/admin/*` routes. Update them to use `/ops/*` routes consistently:
+
+**Files to update:**
+- `src/pages/ops/OpsWorkboard.tsx` - Change `/admin/calendar` link to work within ops context
+- `src/pages/ops/OpsPickups.tsx` - Already navigates to `/ops/booking/` ✓
+- `src/pages/ops/OpsActiveRentals.tsx` - Ensure uses `/ops/rental/`
+- `src/pages/ops/OpsReturns.tsx` - Ensure uses `/ops/return/`
+
+### Phase 4: Update Admin Bookings Page
+
+**File:** `src/pages/admin/Bookings.tsx`
+
+Simplify to be a **reservation viewer** rather than full ops workflow:
+- Keep the "All" tab with full booking list
+- Keep search/filter functionality
+- Remove or simplify the "Pickups", "Active", "Returns" workflow tabs (those live in Ops now)
+- Add prominent link: "Process in Ops Panel →" for staff who need to do workflow tasks
+
+### Phase 5: Add Cross-Panel Navigation
+
+**Both shells:** Add clear navigation to switch between panels when user has access to both:
+
+- In AdminShell: Show "Switch to Ops Panel" link in footer or dropdown
+- In OpsShell: Show "Switch to Admin Panel" link (already exists, verify it works)
+
+---
+
+## Technical Details
+
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/hooks/use-points.ts` | Add KEY_MAP for snake_case to camelCase conversion in settings hooks |
-| `src/hooks/use-bookings.ts` | Fix inline settings parsing to use same key mapping |
-| `src/components/admin/PointsSettingsPanel.tsx` | Ensure save uses correct key format |
-| **Database Migration** | Create `membership_tiers` table with seed data and RLS |
+| `src/components/layout/AdminShell.tsx` | Remove Operations workflow link, add Ops Panel switch |
+| `src/components/ops/OpsShell.tsx` | Already good, minor refinements |
+| `src/pages/admin/Bookings.tsx` | Simplify to viewer mode, remove workflow tabs |
+| `src/pages/ops/OpsWorkboard.tsx` | Fix calendar link |
+| `src/pages/ops/OpsActiveRentals.tsx` | Verify self-contained |
+| `src/pages/ops/OpsReturns.tsx` | Verify self-contained |
+| `src/App.tsx` | No changes needed - routes are already set up |
+
+### Capabilities Check
+
+The existing capabilities system already supports this:
+- `canAccessAdminPanel` - Controls admin access
+- `canAccessOpsPanel` - Controls ops access
+- Users can have access to both panels
+
+### Sidebar Counts
+
+Update `use-sidebar-counts.ts` to include ops-specific counts:
+- `pickups` - Confirmed bookings ready for handover
+- `active` - Active rentals count
+- `returns` - Returns expected today/tomorrow
 
 ---
 
-## Testing Verification
+## Expected Outcome
 
-After implementation:
-1. Visit Admin Settings page - should show Membership Tiers panel without errors
-2. Check that points settings are loaded correctly (not using defaults)
-3. Mark a booking as "completed" - verify points are awarded
-4. Check customer dashboard - verify points balance updates
-5. Try editing membership tier benefits - verify changes persist
+### Admin Users Will See:
+- Strategic dashboard with KPIs
+- Full booking history and search
+- Fleet CRUD operations
+- Billing and financial management
+- Settings and configuration
+- Quick link to Ops Panel when needed
+
+### Ops Staff Will See:
+- Task-focused workboard
+- Pickup queue by time (Today/Tomorrow/All)
+- Active rental monitoring with issue flagging
+- Return processing workflow
+- Quick fleet availability view
+- Link to Admin Panel (if they have access)
+
+### Shared Components:
+- BookingOps workflow page (used by both `/admin/bookings/:id/ops` and `/ops/booking/:id/handover`)
+- ReturnOps workflow page (used by both panels)
+- ActiveRentalDetail page (used by both panels)
+- All existing shared components remain unchanged
 
 ---
 
-## Technical Notes
+## No Code Duplication
 
-- The `update_points_balance` database function already exists and works correctly
-- RLS policies for `points_ledger` and `points_settings` are already in place
-- The `profiles` table already has the necessary membership columns
+This plan maintains the architecture principle of **no duplicate pages**:
+- Same BookingOps, ReturnOps, ActiveRentalDetail pages used in both panels
+- Different shells (AdminShell vs OpsShell) provide panel-specific navigation
+- Capability-based rendering shows/hides actions based on role + panel
