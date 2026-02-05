@@ -15,7 +15,7 @@ const features = [
   {
     icon: Clock,
     title: "Flexible Cancellation",
-    description: "Free cancellation up to 24 hours before pickup",
+    description: "Free cancellation anytime before pickup",
   },
   {
     icon: ReceiptText,
