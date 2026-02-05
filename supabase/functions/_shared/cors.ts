@@ -40,6 +40,7 @@ export function getCorsHeaders(req: Request, isWebhook = false): Record<string, 
   // Check if origin is allowed
   const isAllowed = ALLOWED_ORIGINS.includes(origin) || 
     origin.endsWith(".lovable.app") || // Allow all Lovable preview URLs
+    origin.endsWith(".lovableproject.com") || // Allow Lovable project preview URLs
     origin.endsWith(".c4r.ca"); // Allow subdomains
   
   const allowedOrigin = isAllowed ? origin : ALLOWED_ORIGINS[0];
