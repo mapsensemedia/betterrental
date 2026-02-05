@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { usePaymentDepositStatus, useReleaseDeposit } from "@/hooks/use-payment-deposit";
+import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
+import { useReleaseDepositHold } from "@/hooks/use-deposit-hold";
 import { useAddDepositLedgerEntry, useDepositLedger } from "@/hooks/use-deposit-ledger";
 import { useGenerateReturnReceipt } from "@/hooks/use-return-receipt";
 import { useCreateAuditLog } from "@/hooks/use-audit-logs";
@@ -49,7 +50,7 @@ export function StepReturnDeposit({
   const queryClient = useQueryClient();
   const { data: depositData, isLoading, refetch } = usePaymentDepositStatus(bookingId);
   const { data: ledgerData } = useDepositLedger(bookingId);
-  const releaseDeposit = useReleaseDeposit();
+  const releaseDeposit = useReleaseDepositHold();
   const addLedgerEntry = useAddDepositLedgerEntry();
   const generateReceipt = useGenerateReturnReceipt();
   const createAuditLog = useCreateAuditLog();
@@ -132,21 +133,12 @@ export function StepReturnDeposit({
         reason: releaseReason,
       });
 
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("id")
-        .eq("booking_id", bookingId)
-        .eq("payment_type", "deposit")
-        .eq("status", "completed")
-        .limit(1);
-      
-      if (payments && payments.length > 0) {
-        await releaseDeposit.mutateAsync({
-          bookingId,
-          paymentId: payments[0].id,
-          reason: releaseReason,
-        });
-      }
+      // Release deposit via Stripe
+      await releaseDeposit.mutateAsync({
+        bookingId,
+        reason: releaseReason,
+        bypassStatusCheck: true,
+      });
 
       await sendDepositNotification("released", remainingDeposit, releaseReason);
       
@@ -209,21 +201,12 @@ export function StepReturnDeposit({
         });
       }
 
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("id")
-        .eq("booking_id", bookingId)
-        .eq("payment_type", "deposit")
-        .eq("status", "completed")
-        .limit(1);
-      
-      if (payments && payments.length > 0) {
-        await releaseDeposit.mutateAsync({
-          bookingId,
-          paymentId: payments[0].id,
-          reason: `Withheld: $${amountToWithhold.toFixed(2)} for ${withholdReason}. Released: $${remainingToRelease.toFixed(2)}`,
-        });
-      }
+      // Release remaining deposit via Stripe
+      await releaseDeposit.mutateAsync({
+        bookingId,
+        reason: `Withheld: $${amountToWithhold.toFixed(2)} for ${withholdReason}. Released: $${remainingToRelease.toFixed(2)}`,
+        bypassStatusCheck: true,
+      });
 
       await sendDepositNotification("withheld", amountToWithhold, withholdReason);
 
