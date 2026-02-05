@@ -59,7 +59,6 @@ import { WalkaroundInspection } from "./WalkaroundInspection";
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
-import { useRecordPayment, type PaymentMethod } from "@/hooks/use-payments";
 import { useBookingReceipts, useCreateReceipt, useIssueReceipt } from "@/hooks/use-receipts";
 import { useUpdateVerificationStatus } from "@/hooks/use-verification";
 import { useIntakeStatus } from "@/hooks/use-intake-status";
@@ -104,7 +103,6 @@ const statusFlow: BookingStatus[] = ["pending", "confirmed", "active", "complete
 export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerProps) {
   const { data: booking, isLoading } = useBookingById(bookingId);
   const updateStatus = useUpdateBookingStatus();
-  const recordPayment = useRecordPayment();
   const { data: receipts = [] } = useBookingReceipts(bookingId);
   const createReceipt = useCreateReceipt();
   const issueReceipt = useIssueReceipt();
@@ -161,15 +159,6 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   });
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   
-  // Payment dialog
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [paymentData, setPaymentData] = useState({
-    amount: "",
-    method: "cash" as PaymentMethod,
-    reference: "",
-    notes: "",
-  });
-  
   // Receipt dialog
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [receiptDraft, setReceiptDraft] = useState<{
@@ -204,40 +193,6 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
       updateStatus.mutate({ bookingId, newStatus: confirmDialog.status });
       setConfirmDialog({ open: false, status: null });
     }
-  };
-
-  const getAmountDue = () => {
-    if (!booking) return 0;
-    const paid = booking.payments?.reduce((sum: number, p: any) => 
-      p.status === "completed" ? sum + Number(p.amount) : sum, 0) || 0;
-    return Number(booking.total_amount) - paid;
-  };
-
-  const handleOpenPaymentDialog = () => {
-    const amountDue = getAmountDue();
-    setPaymentData({
-      amount: amountDue > 0 ? amountDue.toFixed(2) : "",
-      method: "cash",
-      reference: "",
-      notes: "",
-    });
-    setPaymentDialogOpen(true);
-  };
-
-  const handleRecordPayment = () => {
-    if (!bookingId || !paymentData.amount) return;
-    recordPayment.mutate({
-      bookingId,
-      amount: parseFloat(paymentData.amount),
-      method: paymentData.method,
-      reference: paymentData.reference || undefined,
-      notes: paymentData.notes || undefined,
-    }, {
-      onSuccess: () => {
-        setPaymentDialogOpen(false);
-        setPaymentData({ amount: "", method: "cash", reference: "", notes: "" });
-      },
-    });
   };
 
   const hasReceipt = receipts.length > 0;
@@ -525,8 +480,8 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                             isComplete={isPaymentComplete && isDepositCollected}
                             summary={
                               isPaymentComplete && isDepositCollected 
-                                ? "Collected" 
-                                : `Due: $${getAmountDue().toFixed(2)}`
+                                ? "Authorization Held" 
+                                : "Awaiting Checkout"
                             }
                           />
                         </AccordionTrigger>
@@ -666,58 +621,6 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
-            <DialogDescription>Record a cash, card, or e-transfer payment.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Amount</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={paymentData.amount}
-                onChange={(e) => setPaymentData(prev => ({ ...prev, amount: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Method</Label>
-              <Select
-                value={paymentData.method}
-                onValueChange={(value: PaymentMethod) => setPaymentData(prev => ({ ...prev, method: value }))}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card_terminal">Card Terminal</SelectItem>
-                  <SelectItem value="e_transfer">E-Transfer</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Reference (optional)</Label>
-              <Input
-                placeholder="Transaction ID"
-                value={paymentData.reference}
-                onChange={(e) => setPaymentData(prev => ({ ...prev, reference: e.target.value }))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleRecordPayment} disabled={!paymentData.amount || recordPayment.isPending}>
-              {recordPayment.isPending ? "Recording..." : "Record"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Receipt Dialog */}
       <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>

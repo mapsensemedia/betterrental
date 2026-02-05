@@ -6,11 +6,12 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 /**
  * Create Checkout Deposit Hold
  * 
- * Creates a SetupIntent for card verification + PaymentIntent with manual capture
- * for the deposit authorization hold during customer checkout.
+ * Creates a UNIFIED authorization hold covering BOTH the rental total and deposit.
+ * Uses PaymentIntent with manual capture for the combined amount.
  * 
- * This is called DURING checkout to create the authorization hold immediately,
- * rather than later at the ops panel.
+ * At closeout:
+ * - Rental amount is captured
+ * - Deposit portion is either captured (for damages) or released
  */
 
 interface CreateCheckoutHoldRequest {
@@ -47,9 +48,9 @@ serve(async (req) => {
       rentalAmount,
     }: CreateCheckoutHoldRequest = await req.json();
 
-    if (!bookingId || !depositAmount) {
+    if (!bookingId || depositAmount === undefined || rentalAmount === undefined) {
       return new Response(
-        JSON.stringify({ error: "bookingId and depositAmount are required" }),
+        JSON.stringify({ error: "bookingId, depositAmount, and rentalAmount are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -62,7 +63,8 @@ serve(async (req) => {
         booking_code, 
         user_id, 
         deposit_status,
-        stripe_deposit_pi_id
+        stripe_deposit_pi_id,
+        total_amount
       `)
       .eq("id", bookingId)
       .single();
@@ -87,7 +89,9 @@ serve(async (req) => {
           alreadyExists: true,
           paymentIntentId: existingPI.id,
           clientSecret: existingPI.client_secret,
-          depositAmount: existingPI.amount / 100,
+          totalHoldAmount: existingPI.amount / 100,
+          depositAmount: depositAmount,
+          rentalAmount: rentalAmount,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -125,26 +129,31 @@ serve(async (req) => {
       }
     }
 
+    // UNIFIED HOLD: Rental + Deposit combined
+    const totalHoldAmount = rentalAmount + depositAmount;
+    const totalHoldAmountCents = Math.round(totalHoldAmount * 100);
     const depositAmountCents = Math.round(depositAmount * 100);
+    const rentalAmountCents = Math.round(rentalAmount * 100);
     
     // Calculate expiration (7 days from now - Stripe's auth hold limit)
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Create PaymentIntent with manual capture for the deposit hold
+    // Create PaymentIntent with manual capture for the COMBINED amount
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: depositAmountCents,
+      amount: totalHoldAmountCents,
       currency: "cad",
-      capture_method: "manual", // Authorization hold
+      capture_method: "manual", // Authorization hold - not charged yet
       customer: stripeCustomerId || undefined,
       metadata: {
-        type: "deposit_hold",
+        type: "unified_rental_hold",
         booking_id: bookingId,
         booking_code: booking.booking_code,
         user_id: booking.user_id,
-        rental_amount: rentalAmount.toString(),
+        rental_amount_cents: rentalAmountCents.toString(),
+        deposit_amount_cents: depositAmountCents.toString(),
       },
-      description: `Security Deposit - Booking ${booking.booking_code}`,
-      statement_descriptor_suffix: `DEP ${booking.booking_code}`.substring(0, 22),
+      description: `Rental + Deposit - Booking ${booking.booking_code}`,
+      statement_descriptor_suffix: `C2C ${booking.booking_code}`.substring(0, 22),
       // Payment method types that support manual capture
       payment_method_types: ["card"],
     });
@@ -158,38 +167,34 @@ serve(async (req) => {
         stripe_deposit_client_secret: paymentIntent.client_secret,
         deposit_amount: depositAmount,
         deposit_expires_at: expiresAt,
+        total_amount: rentalAmount, // Ensure total_amount is set correctly
       })
       .eq("id", bookingId);
 
     // Add ledger entry
     await supabase.from("deposit_ledger").insert({
       booking_id: bookingId,
-      action: "checkout_hold_created",
-      amount: depositAmount,
+      action: "unified_hold_created",
+      amount: totalHoldAmount,
       created_by: booking.user_id,
-      reason: "Deposit authorization created at checkout",
+      reason: `Unified authorization created at checkout (Rental: $${rentalAmount.toFixed(2)} + Deposit: $${depositAmount.toFixed(2)})`,
       stripe_pi_id: paymentIntent.id,
     });
 
-    console.log(`Created checkout deposit hold ${paymentIntent.id} for booking ${bookingId}`);
+    console.log(`Created unified checkout hold ${paymentIntent.id} for booking ${bookingId}: $${totalHoldAmount} (Rental: $${rentalAmount}, Deposit: $${depositAmount})`);
 
     return new Response(
       JSON.stringify({
         success: true,
         paymentIntentId: paymentIntent.id,
         clientSecret: paymentIntent.client_secret,
+        totalHoldAmount,
         depositAmount,
+        rentalAmount,
         expiresAt,
         customerId: stripeCustomerId,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error: any) {
-    console.error("Error creating checkout deposit hold:", error);
-    
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
