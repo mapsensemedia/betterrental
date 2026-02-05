@@ -1,342 +1,220 @@
 
-# Return & Inspection Module Hardening Plan
+# Security & Workflow Hardening Plan
 
-## Executive Summary
-
-This plan addresses five key improvements to strengthen the Return & Inspection flow - already the most robust part of the system with its strict state machine. The focus is on preventing data entry errors, ensuring proper evidence capture, enforcing accountability, and consolidating customer communications.
+This plan addresses three critical operational gaps that can lead to audit trail issues, workflow bypasses, and fleet tracking problems.
 
 ---
 
-## Current State Assessment
+## Overview
 
-### Strengths (Already Implemented)
-- **Strict state machine** in `src/lib/return-steps.ts` with enforced transitions
-- **Late fee calculation** with 30-minute grace period (25% of perday price at every hour after grace period)
-- **Damage reporting** integrated into Issues step with cost calculation
-- **Deposit ledger** tracking all hold/release/deduct actions
-- **Auto-release logic** in `src/lib/deposit-automation.ts` for clean returns
-- **Customer self-return marking** for key-drop scenarios
-
-### Identified Risks
-
-| Risk | Impact | Current State |
-|------|--------|---------------|
-| Odometer has no sanity validation | Over/undercharging for mileage | Free-form number input |
-| Fuel level is coarse | No 7/8, no photo proof | Slider 0-100% in 5% steps |
-| Deposit withhold reason optional | Dispute vulnerability | Optional textarea |
-| Invoice email timing | Customer confusion | Receipt sent during deposit step |
-| No geofence for customer return | Timestamp disputes | Manual only |
+| Issue | Risk Level | Impact |
+|-------|------------|--------|
+| No Void Booking UI | Medium | Admins can't void bookings through UI - must be done via API |
+| Return workflow bypass | High | Status can be changed without damage inspection, auto-releasing deposits |
+| VIN not enforced | Medium | Vehicles rented without proper fleet assignment tracking |
 
 ---
 
-## Implementation Plan
+## 1. Add Void Booking UI to Admin Panel
 
-### 1. Odometer Validation Against Pickup
+### What's Missing
+- The `void-booking` edge function exists and properly logs to `audit_logs`
+- The domain mutation `voidBooking()` exists in `src/domain/bookings/mutations.ts`
+- But there's no UI component to trigger this action
 
-**Problem:** Staff can enter any odometer value, including typos that result in impossible readings (e.g., lower than pickup, or extreme jumps indicating data entry errors).
+### Solution
+Create a `VoidBookingDialog` component similar to `CancelBookingDialog`:
 
-**Solution:** Cross-reference return odometer against pickup metrics and vehicle unit data.
+- **Reason selection** (required): Fraud detected, Booking error, Dispute resolution, Duplicate entry, Other
+- **Detailed notes** (minimum 20 characters)
+- **Optional refund amount input** (for tracking purposes)
+- **Confirmation step** with warning about permanent nature
 
-**Changes:**
+### Files to Create/Modify
+- Create: `src/components/admin/VoidBookingDialog.tsx`
+- Modify: `src/pages/admin/BookingDetail.tsx` - Add "Void Booking" option to actions menu
+- Modify: `src/pages/admin/Bookings.tsx` - Add void action to row-level menu
 
-```text
-File: src/components/admin/return-ops/steps/StepReturnIntake.tsx
-
-1. Fetch pickup inspection metrics for comparison
-2. Add validation logic:
-   - Return odometer must be >= pickup odometer
-   - Flag if difference > 5000 km (unusual for typical rental)
-   - Show warning for extreme values but allow override with reason
-3. Display pickup odometer for staff reference
-```
-
-**Validation Rules:**
-- **Hard block:** Return odometer < pickup odometer
-- **Soft warning:** Return odometer > (pickup + 5000 km) - requires confirmation
-- **UI shows:** "Pickup odometer: X km | Expected range: X to X+500 km"
-
-**Database:** No schema changes needed - just UI validation using existing `inspection_metrics` data.
+### UI Placement
+- BookingDetail page: Add to header actions dropdown (only visible for admin role)
+- Bookings list: Add to row-level context menu (hidden from completed/cancelled)
 
 ---
 
-### 2. Require Fuel Gauge Photo
+## 2. Enforce Return Workflow State Machine
 
-**Problem:** Fuel level is subjective (slider value), no proof for disputes about fuel charges.
-
-**Solution:** Add a dedicated fuel gauge photo requirement to the return evidence step.
-
-**Changes:**
-
-```text
-File: src/hooks/use-condition-photos.ts
-
-1. Add 'fuel_gauge' as a new PhotoType (separate from odometer_fuel combo)
-   - Keep odometer_fuel for backward compatibility
-   - Add fuel_gauge as optional but recommended
-
-File: src/components/admin/return-ops/steps/StepReturnEvidence.tsx
-
-1. Add fuel gauge photo tile to the grid
-2. Add visual indicator showing pickup vs return fuel levels
-3. Make fuel photo required when fuel level < pickup fuel level
-
-File: src/components/admin/return-ops/steps/StepReturnIntake.tsx
-
-1. Replace coarse slider with 8-step dropdown:
-   - Empty (0), 1/8, 1/4, 3/8, 1/2, 5/8, 3/4, 7/8, Full (100%)
-2. Display pickup fuel level for comparison
-3. Add note field for fuel discrepancy explanation
-```
-
-**Fuel Level Mapping:**
+### Current Problem
+The `useUpdateBookingStatus` hook allows direct status changes:
 ```typescript
-const FUEL_LEVELS = [
-  { value: 0, label: "Empty" },
-  { value: 12, label: "1/8" },
-  { value: 25, label: "1/4" },
-  { value: 37, label: "3/8" },
-  { value: 50, label: "1/2" },
-  { value: 62, label: "5/8" },
-  { value: 75, label: "3/4" },
-  { value: 87, label: "7/8" },
-  { value: 100, label: "Full" },
+// This bypasses the entire return workflow!
+updateStatus.mutate({ bookingId, newStatus: "completed" });
+```
+
+### Solution
+Add workflow validation before status changes:
+
+**A. Create validation function** in `src/lib/return-steps.ts`:
+```typescript
+export function canBypassReturnWorkflow(
+  currentStatus: BookingStatus,
+  newStatus: BookingStatus,
+  returnState: ReturnState
+): { allowed: boolean; reason?: string } {
+  // Only block active → completed transitions
+  if (currentStatus === "active" && newStatus === "completed") {
+    if (!isStateAtLeast(returnState, "closeout_done")) {
+      return {
+        allowed: false,
+        reason: "Complete return workflow first (intake, evidence, issues, closeout)"
+      };
+    }
+  }
+  return { allowed: true };
+}
+```
+
+**B. Update `useUpdateBookingStatus`** to check workflow:
+- Fetch `return_state` along with booking details
+- Call validation before allowing `active → completed`
+- Show error toast if workflow not complete
+- Add optional `bypassReason` parameter for exceptional cases (admin override with logged reason)
+
+**C. Add admin override capability**:
+- If admin provides `bypassReason`, log it prominently in audit
+- Require minimum 50 characters for bypass justification
+- Create admin alert for any bypassed workflows
+
+### Files to Modify
+- `src/lib/return-steps.ts` - Add validation function
+- `src/hooks/use-bookings.ts` - Enforce workflow check in `useUpdateBookingStatus`
+- `src/domain/bookings/mutations.ts` - Add bypass handling to domain function
+
+---
+
+## 3. Enforce VIN Assignment Before Activation
+
+### Current Problem
+In `BookingOps.tsx`, the `handleActivateRental` function checks:
+- ✅ Walkaround complete
+- ✅ Payment collected  
+- ✅ Agreement signed
+- ❌ **VIN assigned (missing!)**
+
+### Solution
+
+**A. Update `StepHandover.tsx`** prerequisites:
+Add "Unit Assigned" to the checklist:
+```typescript
+const prerequisites = [
+  // ... existing checks
+  { label: "Vehicle Unit Assigned", complete: !!booking.assigned_unit_id },
 ];
 ```
 
----
-
-### 3. Require Reason When Withholding Deposit
-
-**Problem:** Staff can withhold deposit funds without documenting why, creating dispute risk.
-
-**Solution:** Make withhold reason mandatory and enforce minimum detail.
-
-**Changes:**
-
-```text
-File: src/components/admin/return-ops/steps/StepReturnDeposit.tsx
-
-1. Withhold reason already has validation (`!withholdReason.trim()`)
-2. Enhance to require minimum 20 characters for meaningful explanation
-3. Add structured reason categories dropdown:
-   - Damage repair
-   - Fuel refill
-   - Late return fee
-   - Cleaning fee
-   - Traffic violation
-   - Other (requires text)
-4. Store both category and detailed reason
-5. Display linked damage reports when "Damage repair" selected
-
-File: src/lib/deposit-automation.ts
-
-1. Update alert creation to include damage details when flagging for review
-2. Ensure reason is passed through to all ledger entries
+**B. Update `handleActivateRental`** in `BookingOps.tsx`:
+```typescript
+if (!booking.assigned_unit_id) {
+  toast.error("Assign a vehicle unit (VIN) before activation");
+  return;
+}
 ```
 
-**UI Enhancement:**
-```text
-┌─────────────────────────────────────────┐
-│ Withhold Partial Deposit                │
-├─────────────────────────────────────────┤
-│ Category: [Dropdown: Damage/Fuel/Late…] │
-│                                         │
-│ Amount: [$_____]                        │
-│                                         │
-│ Detailed Reason: (min 20 chars)         │
-│ ┌─────────────────────────────────────┐ │
-│ │                                     │ │
-│ └─────────────────────────────────────┘ │
-│                                         │
-│ Linked Damages: [Damage #1 - $200]      │
-└─────────────────────────────────────────┘
+**C. Update completion object**:
+Add VIN check to `StepCompletion.handover`:
+```typescript
+handover: {
+  activated: booking?.status === 'active',
+  smsSent: !!booking?.handover_sms_sent_at,
+  unitAssigned: !!booking?.assigned_unit_id, // NEW
+}
 ```
 
----
-
-### 4. Customer Timestamp Return with Location
-
-**Problem:** Key-drop returns rely solely on customer self-marking without location verification.
-
-**Solution:** Capture GPS coordinates and timestamp when customer marks returned.
-
-**Changes:**
-
-```text
-File: src/hooks/use-late-return.ts
-
-1. Enhance markReturned mutation to capture:
-   - Timestamp (already captured)
-   - GPS coordinates (new)
-   - Device info (optional)
-
-File: src/pages/Dashboard.tsx (Customer Dashboard)
-
-1. Add geolocation request when customer clicks "Mark as Returned"
-2. Show confirmation modal with location permission request
-3. Store coordinates in booking record
-4. Display "Marked returned at [time] near [location]" confirmation
-```
-
-**Database Migration:**
-```sql
-ALTER TABLE bookings 
-ADD COLUMN customer_return_lat DECIMAL(10,8),
-ADD COLUMN customer_return_lng DECIMAL(11,8),
-ADD COLUMN customer_return_address TEXT;
-```
-
-**Privacy Note:** Location is only captured at the moment of return marking with explicit user action.
-
----
-
-### 5. Consolidate Communications - Invoice After Deposit
-
-**Problem:** Receipt email is sent during deposit processing, but if partial withholding occurs, customer may receive receipt before final deposit decision, causing confusion.
-
-**Current Flow:**
-1. Closeout step → status = completed
-2. Deposit step → release/withhold decision
-3. Receipt generated + emailed during deposit step
-4. Deposit notification sent separately
-
-**Solution:** Ensure receipt and deposit notification are sent together AFTER deposit decision.
-
-**Changes:**
-
-```text
-File: src/components/admin/return-ops/steps/StepReturnDeposit.tsx
-
-1. Receipt generation already happens after deposit action (correct)
-2. Add explicit sequencing:
-   a. Process deposit hold/release via Stripe
-   b. Add ledger entry
-   c. Generate receipt
-   d. Send consolidated email with both receipt AND deposit status
-3. Remove separate deposit notification when receipt is sent
-4. Add "skip email" option for edge cases
-
-File: supabase/functions/generate-return-receipt/index.ts
-
-1. Include deposit status section in receipt email (already present)
-2. Add explicit deposit summary with action taken
-3. Merge deposit notification content into receipt email
-4. Only send separate deposit notification if receipt generation fails
-```
-
-**Consolidated Email Structure:**
-```text
-Subject: "Your Rental Receipt & Deposit Status - [Booking Code]"
-
-┌────────────────────────────────────────┐
-│ C2C RENTAL - RETURN CONFIRMATION       │
-├────────────────────────────────────────┤
-│ ✓ Your rental is complete              │
-│                                        │
-│ VEHICLE: 2024 Toyota Camry             │
-│ DATES: Feb 1-5, 2025                   │
-│                                        │
-│ ── CHARGES ──────────────────────────  │
-│ Rental: $200.00                        │
-│ Add-ons: $50.00                        │
-│ Tax: $30.00                            │
-│ TOTAL PAID: $280.00                    │
-│                                        │
-│ ── DEPOSIT ──────────────────────────  │
-│ Deposit Held: $350.00                  │
-│ Withheld: $0.00                        │
-│ Released: $350.00 ✓                    │
-│                                        │
-│ Your deposit has been released and     │
-│ will appear in 5-10 business days.     │
-└────────────────────────────────────────┘
-```
-
----
-
-## Technical Implementation Details
+**D. For delivery bookings** (already handled):
+- Delivery prep step already requires VIN assignment
+- Validate in dispatch step as well
 
 ### Files to Modify
+- `src/pages/admin/BookingOps.tsx` - Add VIN check to activation
+- `src/components/admin/ops/steps/StepHandover.tsx` - Add to prerequisites list
+- `src/lib/ops-steps.ts` - Add `unitAssigned` to completion interface
 
-| File | Changes |
-|------|---------|
-| `src/components/admin/return-ops/steps/StepReturnIntake.tsx` | Odometer validation, fuel dropdown, pickup reference |
-| `src/components/admin/return-ops/steps/StepReturnEvidence.tsx` | Fuel gauge photo slot |
-| `src/components/admin/return-ops/steps/StepReturnDeposit.tsx` | Mandatory reason with category, consolidated comms |
-| `src/hooks/use-condition-photos.ts` | Add fuel_gauge photo type |
-| `src/hooks/use-late-return.ts` | GPS capture for customer return |
-| `src/pages/Dashboard.tsx` | Geolocation prompt for return marking |
-| `src/pages/admin/ReturnOps.tsx` | Fetch pickup metrics for comparison |
-| `supabase/functions/generate-return-receipt/index.ts` | Enhanced email with deposit status |
+---
 
-### Database Migration
+## Technical Details
 
-```sql
--- Add fields for customer return location
-ALTER TABLE bookings 
-ADD COLUMN IF NOT EXISTS customer_return_lat DECIMAL(10,8),
-ADD COLUMN IF NOT EXISTS customer_return_lng DECIMAL(11,8),
-ADD COLUMN IF NOT EXISTS customer_return_address TEXT;
+### VoidBookingDialog Component
+```text
++------------------------------------------+
+|  ⚠️ Void Booking                          |
+|  GHTZ5KW2                                 |
++------------------------------------------+
+|  Reason for voiding: *                    |
+|  [Dropdown: Fraud/Error/Dispute/etc]      |
+|                                          |
+|  Detailed explanation: *                  |
+|  [Textarea - min 20 chars]               |
+|                                          |
+|  Refund amount (optional):               |
+|  [$ ______]                              |
+|                                          |
+|  ⚠️ This action cannot be undone.         |
+|  The booking will be marked as voided    |
+|  and logged in the audit trail.          |
+|                                          |
+|  [Cancel]  [Void Booking]                |
++------------------------------------------+
+```
 
--- Add withhold category to deposit_ledger
-ALTER TABLE deposit_ledger
-ADD COLUMN IF NOT EXISTS category TEXT;
+### Return Workflow Validation Flow
+```text
+User clicks "Complete Return"
+         ↓
+Check: currentStatus === "active" && newStatus === "completed"?
+         ↓ Yes
+Fetch return_state from database
+         ↓
+Check: isStateAtLeast(returnState, "closeout_done")?
+         ↓ No
+❌ Block: "Complete return workflow first"
+         ↓ Yes
+✅ Allow status change → Deposit automation runs
+```
 
--- Add fuel photo type to condition_photos enum (if using enum)
--- Note: Current system uses TEXT for photo_type, no migration needed
+### VIN Enforcement Flow  
+```text
+User clicks "Activate Rental"
+         ↓
+Check: assigned_unit_id is not null?
+         ↓ No
+❌ Block: "Assign vehicle unit first"
+         ↓ Yes
+Continue with existing validation
+         ↓
+✅ Activate rental
 ```
 
 ---
 
-## Validation Rules Summary
+## Summary of Changes
 
-### Odometer Validation
-```typescript
-const validateReturnOdometer = (returnReading: number, pickupReading: number) => {
-  if (returnReading < pickupReading) {
-    return { valid: false, error: "Return odometer cannot be less than pickup" };
-  }
-  
-  const difference = returnReading - pickupReading;
-  if (difference > 5000) {
-    return { valid: true, warning: `Unusual mileage: ${difference} km. Confirm this is correct.` };
-  }
-  
-  return { valid: true };
-};
-```
-
-### Deposit Withhold Validation
-```typescript
-const validateWithholdReason = (reason: string, category: string) => {
-  if (!category) return { valid: false, error: "Select a category" };
-  if (!reason || reason.trim().length < 20) {
-    return { valid: false, error: "Reason must be at least 20 characters" };
-  }
-  return { valid: true };
-};
-```
+| File | Change |
+|------|--------|
+| **New:** `src/components/admin/VoidBookingDialog.tsx` | Void booking UI component |
+| `src/pages/admin/BookingDetail.tsx` | Add void action to menu |
+| `src/lib/return-steps.ts` | Add bypass validation function |
+| `src/hooks/use-bookings.ts` | Enforce workflow in status updates |
+| `src/pages/admin/BookingOps.tsx` | Add VIN check to activation |
+| `src/components/admin/ops/steps/StepHandover.tsx` | Add VIN to prerequisites |
+| `src/lib/ops-steps.ts` | Add unitAssigned to completion |
 
 ---
 
-## Risk Mitigation
+## Testing Checklist
 
-| Original Risk | Mitigation | Confidence |
-|--------------|------------|------------|
-| Odometer typos | Cross-validation against pickup + warnings | High |
-| Fuel disputes | Photo proof + granular levels | High |
-| Deposit disputes | Mandatory categorized reasons | High |
-| Timestamp disputes | GPS coordinates on customer mark | Medium |
-| Email confusion | Single consolidated receipt/deposit email | High |
-
----
-
-## Implementation Order
-
-1. **Odometer validation** - Highest impact, prevents billing errors
-2. **Deposit reason requirement** - Protects against disputes
-3. **Fuel level improvements** - Better granularity + photo
-4. **Consolidated communications** - Better customer experience
-5. **Customer GPS return** - Nice-to-have for disputes
-
-Each step can be implemented and tested independently.
+After implementation, verify:
+1. [ ] Void booking dialog appears only for admin users
+2. [ ] Voided bookings are logged with user ID and reason in audit_logs
+3. [ ] Attempting to complete a rental without return workflow shows error
+4. [ ] Attempting to activate without VIN shows error  
+5. [ ] Delivery bookings still work correctly with VIN assignment
+6. [ ] Admin override with justification is logged prominently
