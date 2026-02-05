@@ -18,10 +18,10 @@ export interface LateReturnInfo {
 }
 
 /**
- * Calculate late return fee based on actual return time vs scheduled return time
+ * Calculate late return info (without fee - use calculateLateReturnFeeWithRate for fee)
  * @param scheduledEndAt Scheduled return datetime
  * @param actualReturnAt Actual return datetime (or now if still active)
- * @returns Late return information including fee
+ * @returns Late return information (fee requires daily rate)
  */
 export function calculateLateReturnFee(
   scheduledEndAt: Date | string,
@@ -63,25 +63,51 @@ export function calculateLateReturnFee(
   
   // Round up to nearest hour for billing
   const hoursLate = Math.ceil(billableMinutes / 60);
-  
-  // Calculate fee
-  const fee = hoursLate * LATE_RETURN_HOURLY_FEE;
 
   return {
     isLate: true,
     inGracePeriod: false,
     minutesLate,
     hoursLate,
+    fee: 0, // Fee calculated with daily rate in calculateLateReturnFeeWithRate
+    message: `${hoursLate} hour${hoursLate !== 1 ? "s" : ""} late`,
+  };
+}
+
+/**
+ * Calculate late return fee with daily rate (25% of daily rate per hour after grace period)
+ */
+export function calculateLateReturnFeeWithRate(
+  scheduledEndAt: Date | string,
+  dailyRate: number,
+  actualReturnAt?: Date | string | null
+): LateReturnInfo {
+  const baseInfo = calculateLateReturnFee(scheduledEndAt, actualReturnAt);
+  
+  if (!baseInfo.isLate) {
+    return baseInfo;
+  }
+  
+  // 25% of daily rate per hour
+  const hourlyFee = dailyRate * LATE_RETURN_FEE_PERCENTAGE;
+  const fee = Math.round(baseInfo.hoursLate * hourlyFee * 100) / 100;
+  
+  return {
+    ...baseInfo,
     fee,
-    message: `${hoursLate} hour${hoursLate !== 1 ? "s" : ""} late - CA$${fee} fee`,
+    message: `${baseInfo.hoursLate} hour${baseInfo.hoursLate !== 1 ? "s" : ""} late - CA$${fee.toFixed(2)} fee`,
   };
 }
 
 /**
  * Get late return fee summary for display
  */
-export function getLateReturnSummary(): string {
-  return `${LATE_RETURN_GRACE_PERIOD_MINUTES}-minute grace period, then CA$${LATE_RETURN_HOURLY_FEE}/hour`;
+export function getLateReturnSummary(dailyRate?: number): string {
+  if (dailyRate) {
+    const hourlyFee = dailyRate * LATE_RETURN_FEE_PERCENTAGE;
+    return `${LATE_RETURN_GRACE_PERIOD_MINUTES}-minute grace period, then CA$${hourlyFee.toFixed(2)}/hour (25% of daily rate)`;
+  }
+  return `${LATE_RETURN_GRACE_PERIOD_MINUTES}-minute grace period, then 25% of daily rate per hour`;
 }
 
 /**
