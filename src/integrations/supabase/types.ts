@@ -2636,6 +2636,9 @@ export type Database = {
           assigned_to: string | null
           booking_id: string | null
           created_at: string
+          escalated_at: string | null
+          escalated_from: string | null
+          escalation_count: number | null
           id: string
           priority: string | null
           resolution_summary: string | null
@@ -2650,6 +2653,9 @@ export type Database = {
           assigned_to?: string | null
           booking_id?: string | null
           created_at?: string
+          escalated_at?: string | null
+          escalated_from?: string | null
+          escalation_count?: number | null
           id?: string
           priority?: string | null
           resolution_summary?: string | null
@@ -2664,6 +2670,9 @@ export type Database = {
           assigned_to?: string | null
           booking_id?: string | null
           created_at?: string
+          escalated_at?: string | null
+          escalated_from?: string | null
+          escalation_count?: number | null
           id?: string
           priority?: string | null
           resolution_summary?: string | null
@@ -3120,6 +3129,7 @@ export type Database = {
         }
         Returns: string
       }
+      check_ticket_escalation: { Args: never; Returns: undefined }
       generate_booking_code: { Args: never; Returns: string }
       get_available_categories: {
         Args: { p_location_id: string }
