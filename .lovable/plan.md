@@ -1,259 +1,342 @@
 
-# Comprehensive Step-by-Step Manual Testing Documentation
+# Return & Inspection Module Hardening Plan
 
-## Overview
+## Executive Summary
 
-This plan creates an enhanced **MANUAL_TESTING_GUIDE.md** that replaces the existing one with extremely detailed, click-by-click instructions for testing every feature across all 5 operational panels. The new guide will be a practical "follow along" document that tells testers exactly what to do, where to click, what to enter, and what to verify.
+This plan addresses five key improvements to strengthen the Return & Inspection flow - already the most robust part of the system with its strict state machine. The focus is on preventing data entry errors, ensuring proper evidence capture, enforcing accountability, and consolidating customer communications.
 
 ---
 
-## Document Structure
+## Current State Assessment
 
-The new guide will be organized as follows:
+### Strengths (Already Implemented)
+- **Strict state machine** in `src/lib/return-steps.ts` with enforced transitions
+- **Late fee calculation** with 30-minute grace period (25% of perday price at every hour after grace period)
+- **Damage reporting** integrated into Issues step with cost calculation
+- **Deposit ledger** tracking all hold/release/deduct actions
+- **Auto-release logic** in `src/lib/deposit-automation.ts` for clean returns
+- **Customer self-return marking** for key-drop scenarios
+
+### Identified Risks
+
+| Risk | Impact | Current State |
+|------|--------|---------------|
+| Odometer has no sanity validation | Over/undercharging for mileage | Free-form number input |
+| Fuel level is coarse | No 7/8, no photo proof | Slider 0-100% in 5% steps |
+| Deposit withhold reason optional | Dispute vulnerability | Optional textarea |
+| Invoice email timing | Customer confusion | Receipt sent during deposit step |
+| No geofence for customer return | Timestamp disputes | Manual only |
+
+---
+
+## Implementation Plan
+
+### 1. Odometer Validation Against Pickup
+
+**Problem:** Staff can enter any odometer value, including typos that result in impossible readings (e.g., lower than pickup, or extreme jumps indicating data entry errors).
+
+**Solution:** Cross-reference return odometer against pickup metrics and vehicle unit data.
+
+**Changes:**
 
 ```text
-MANUAL_TESTING_GUIDE.md
-├── Quick Reference
-│   ├── Panel URLs
-│   ├── Test Accounts
-│   └── Stripe Test Cards
-│
-├── PART 1: Customer Portal Testing
-│   ├── 1.1 Homepage Navigation
-│   ├── 1.2 Search & Browse Flow
-│   ├── 1.3 Complete Booking Flow (Step-by-Step)
-│   ├── 1.4 Delivery Booking Flow
-│   ├── 1.5 Post-Booking Customer Actions
-│   └── 1.6 Customer Dashboard
-│
-├── PART 2: Admin Panel Testing
-│   ├── 2.1 Navigation & Dashboard
-│   ├── 2.2 Bookings Management
-│   ├── 2.3 Pickup Operations (6-Step Wizard)
-│   ├── 2.4 Return Operations (5-Step Wizard)
-│   ├── 2.5 Fleet Management
-│   ├── 2.6 Billing & Deposits
-│   ├── 2.7 Incidents & Damages
-│   └── 2.8 Reports & Analytics
-│
-├── PART 3: Ops Panel Testing
-│   ├── 3.1 Workboard Overview
-│   ├── 3.2 Pickups Queue
-│   ├── 3.3 Active Rentals
-│   ├── 3.4 Returns Queue
-│   └── 3.5 Fleet View
-│
-├── PART 4: Delivery Panel Testing
-│   ├── 4.1 Dashboard & Queue
-│   ├── 4.2 Claiming Deliveries
-│   ├── 4.3 Delivery Workflow
-│   └── 4.4 Walk-In Booking
-│
-├── PART 5: Support Panel Testing
-│   ├── 5.1 Ticket Queue
-│   ├── 5.2 Ticket Management
-│   ├── 5.3 Customer Communication
-│   └── 5.4 Analytics Dashboard
-│
-├── PART 6: End-to-End Integration Tests
-│   ├── 6.1 Complete Rental Lifecycle
-│   ├── 6.2 Delivery Booking E2E
-│   └── 6.3 Damage/Incident Flow
-│
-└── Appendices
-    ├── Test Data Templates
-    ├── Status Workflows
-    └── Troubleshooting Guide
+File: src/components/admin/return-ops/steps/StepReturnIntake.tsx
+
+1. Fetch pickup inspection metrics for comparison
+2. Add validation logic:
+   - Return odometer must be >= pickup odometer
+   - Flag if difference > 5000 km (unusual for typical rental)
+   - Show warning for extreme values but allow override with reason
+3. Display pickup odometer for staff reference
+```
+
+**Validation Rules:**
+- **Hard block:** Return odometer < pickup odometer
+- **Soft warning:** Return odometer > (pickup + 5000 km) - requires confirmation
+- **UI shows:** "Pickup odometer: X km | Expected range: X to X+500 km"
+
+**Database:** No schema changes needed - just UI validation using existing `inspection_metrics` data.
+
+---
+
+### 2. Require Fuel Gauge Photo
+
+**Problem:** Fuel level is subjective (slider value), no proof for disputes about fuel charges.
+
+**Solution:** Add a dedicated fuel gauge photo requirement to the return evidence step.
+
+**Changes:**
+
+```text
+File: src/hooks/use-condition-photos.ts
+
+1. Add 'fuel_gauge' as a new PhotoType (separate from odometer_fuel combo)
+   - Keep odometer_fuel for backward compatibility
+   - Add fuel_gauge as optional but recommended
+
+File: src/components/admin/return-ops/steps/StepReturnEvidence.tsx
+
+1. Add fuel gauge photo tile to the grid
+2. Add visual indicator showing pickup vs return fuel levels
+3. Make fuel photo required when fuel level < pickup fuel level
+
+File: src/components/admin/return-ops/steps/StepReturnIntake.tsx
+
+1. Replace coarse slider with 8-step dropdown:
+   - Empty (0), 1/8, 1/4, 3/8, 1/2, 5/8, 3/4, 7/8, Full (100%)
+2. Display pickup fuel level for comparison
+3. Add note field for fuel discrepancy explanation
+```
+
+**Fuel Level Mapping:**
+```typescript
+const FUEL_LEVELS = [
+  { value: 0, label: "Empty" },
+  { value: 12, label: "1/8" },
+  { value: 25, label: "1/4" },
+  { value: 37, label: "3/8" },
+  { value: 50, label: "1/2" },
+  { value: 62, label: "5/8" },
+  { value: 75, label: "3/4" },
+  { value: 87, label: "7/8" },
+  { value: 100, label: "Full" },
+];
 ```
 
 ---
 
-## Key Improvements Over Existing Guide
+### 3. Require Reason When Withholding Deposit
 
-| Aspect | Current Guide | New Guide |
-|--------|---------------|-----------|
-| **Navigation** | Generic "go to page" | Exact URL + sidebar menu item name |
-| **Button clicks** | "Click button" | "Click the blue 'Walk-In' button in top-right" |
-| **Form inputs** | "Enter details" | Exact field names + sample values |
-| **Verification** | Checklist format | Step-by-step expected results |
-| **Screenshots context** | None | "You should see..." descriptions |
-| **Error scenarios** | Limited | Specific error messages + recovery |
+**Problem:** Staff can withhold deposit funds without documenting why, creating dispute risk.
 
----
+**Solution:** Make withhold reason mandatory and enforce minimum detail.
 
-## Sample Content Format
+**Changes:**
 
-Each test case will follow this detailed format:
+```text
+File: src/components/admin/return-ops/steps/StepReturnDeposit.tsx
 
-```markdown
-### TEST 1.3: Complete Booking Flow (Counter Pickup)
+1. Withhold reason already has validation (`!withholdReason.trim()`)
+2. Enhance to require minimum 20 characters for meaningful explanation
+3. Add structured reason categories dropdown:
+   - Damage repair
+   - Fuel refill
+   - Late return fee
+   - Cleaning fee
+   - Traffic violation
+   - Other (requires text)
+4. Store both category and detailed reason
+5. Display linked damage reports when "Damage repair" selected
 
-**What we're testing:** A customer booking a vehicle for counter pickup
+File: src/lib/deposit-automation.ts
 
-**Starting point:** Homepage (https://c4r.ca/)
+1. Update alert creation to include damage details when flagging for review
+2. Ensure reason is passed through to all ledger entries
+```
 
----
-
-#### Step 1: Access the Search Page
-
-1. **Look at the homepage** - You see a hero image with "C2C Rental" heading
-2. **Find the search card** - Below the hero, there's a card with "Pickup Location" dropdown
-3. **Click the "Pickup Location" dropdown** - A list of available locations appears
-4. **Select "Miami Airport"** from the list
-5. **Click the "Pickup Date" field** - A calendar picker opens
-6. **Select tomorrow's date** by clicking on it
-7. **Click the "Return Date" field** and select a date 3 days after pickup
-8. **Click the orange "Search Vehicles" button**
-
-**Expected Result:** Page navigates to /search with vehicle categories displayed
-
----
-
-#### Step 2: Select a Vehicle Category
-
-1. **Review the vehicle cards** - Each shows: image, name, specs (seats, fuel, transmission), daily rate
-2. **Notice the badges** - Cards may show "X available" or "Select Location" if no context
-3. **Click on "Economy" category card** (or any available category)
-4. **A prompt appears** asking to confirm age requirement
-
-**Expected Result:** Age confirmation dialog appears
-
----
-
-[continues with detailed steps...]
+**UI Enhancement:**
+```text
+┌─────────────────────────────────────────┐
+│ Withhold Partial Deposit                │
+├─────────────────────────────────────────┤
+│ Category: [Dropdown: Damage/Fuel/Late…] │
+│                                         │
+│ Amount: [$_____]                        │
+│                                         │
+│ Detailed Reason: (min 20 chars)         │
+│ ┌─────────────────────────────────────┐ │
+│ │                                     │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ Linked Damages: [Damage #1 - $200]      │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-## Technical Details
+### 4. Customer Timestamp Return with Location
 
-### Panel Routes Reference
+**Problem:** Key-drop returns rely solely on customer self-marking without location verification.
 
-| Panel | URL | Access |
-|-------|-----|--------|
-| Customer Homepage | `/` | Public |
-| Search | `/search` | Public |
-| Checkout | `/checkout` | Public |
-| Customer Dashboard | `/dashboard` | Authenticated |
-| **Admin Panel** | `/admin` | Admin role |
-| Admin Bookings | `/admin/bookings` | Admin role |
-| Admin Fleet | `/admin/fleet` | Admin role |
-| Admin Billing | `/admin/billing` | Admin role |
-| Admin Incidents | `/admin/incidents` | Admin role |
-| **Ops Panel** | `/ops` | Staff/Admin role |
-| Ops Pickups | `/ops/pickups` | Staff/Admin role |
-| Ops Returns | `/ops/returns` | Staff/Admin role |
-| **Delivery Panel** | `/delivery` | Driver role |
-| **Support Panel** | `/support` | Support/Staff/Admin role |
+**Solution:** Capture GPS coordinates and timestamp when customer marks returned.
 
-### Admin Sidebar Menu Items (in order)
-1. Alerts (badge count)
-2. Dashboard
-3. Bookings
-4. Fleet
-5. Incidents
-6. Fleet Costs
-7. Fleet Analytics
-8. Analytics
-9. Calendar
-10. Billing
-11. Support
-12. Offers
-13. Settings
+**Changes:**
 
-### Ops Sidebar Menu Items
-1. Workboard
-2. Bookings
-3. Pickups
-4. Active Rentals
-5. Returns
-6. Fleet
+```text
+File: src/hooks/use-late-return.ts
+
+1. Enhance markReturned mutation to capture:
+   - Timestamp (already captured)
+   - GPS coordinates (new)
+   - Device info (optional)
+
+File: src/pages/Dashboard.tsx (Customer Dashboard)
+
+1. Add geolocation request when customer clicks "Mark as Returned"
+2. Show confirmation modal with location permission request
+3. Store coordinates in booking record
+4. Display "Marked returned at [time] near [location]" confirmation
+```
+
+**Database Migration:**
+```sql
+ALTER TABLE bookings 
+ADD COLUMN customer_return_lat DECIMAL(10,8),
+ADD COLUMN customer_return_lng DECIMAL(11,8),
+ADD COLUMN customer_return_address TEXT;
+```
+
+**Privacy Note:** Location is only captured at the moment of return marking with explicit user action.
 
 ---
 
-## Test Coverage Matrix
+### 5. Consolidate Communications - Invoice After Deposit
 
-### Customer Portal (15 tests)
-- Homepage load and navigation
-- Search with location/dates
-- Search without location (browse mode)
-- Protection package selection
-- Add-ons selection
-- Guest checkout flow
-- Authenticated checkout flow
-- Delivery mode booking
-- Counter pickup booking
-- Payment success
-- Payment failure handling
-- Post-booking license upload
-- Agreement signing
-- Booking pass viewing
-- Customer dashboard navigation
+**Problem:** Receipt email is sent during deposit processing, but if partial withholding occurs, customer may receive receipt before final deposit decision, causing confusion.
 
-### Admin Panel (25 tests)
-- Dashboard overview stats
-- Walk-in booking creation
-- Booking search by code
-- Booking detail view
-- 6-step pickup wizard (each step)
-- Active rental monitoring
-- 5-step return wizard (each step)
-- Category CRUD operations
-- Vehicle unit CRUD operations
-- Incident creation
-- Damage report creation
-- Billing receipts
-- Deposit capture/release
-- Reports generation
-- Settings modification
+**Current Flow:**
+1. Closeout step → status = completed
+2. Deposit step → release/withhold decision
+3. Receipt generated + emailed during deposit step
+4. Deposit notification sent separately
 
-### Ops Panel (10 tests)
-- Workboard counts accuracy
-- Pickups queue filtering
-- Active rentals view
-- Returns queue
-- Fleet status view
-- Booking handover process
-- Return processing
+**Solution:** Ensure receipt and deposit notification are sent together AFTER deposit decision.
 
-### Delivery Panel (8 tests)
-- My deliveries view
-- Available deliveries view
-- Claiming a delivery
-- Starting delivery
-- GPS capture
-- Handover completion
-- Walk-in booking
+**Changes:**
 
-### Support Panel (8 tests)
-- Ticket queue view
-- Ticket filtering
-- Creating new ticket
-- Replying to ticket
-- Using macros
-- Ticket escalation
-- Ticket closure
-- Analytics dashboard
+```text
+File: src/components/admin/return-ops/steps/StepReturnDeposit.tsx
+
+1. Receipt generation already happens after deposit action (correct)
+2. Add explicit sequencing:
+   a. Process deposit hold/release via Stripe
+   b. Add ledger entry
+   c. Generate receipt
+   d. Send consolidated email with both receipt AND deposit status
+3. Remove separate deposit notification when receipt is sent
+4. Add "skip email" option for edge cases
+
+File: supabase/functions/generate-return-receipt/index.ts
+
+1. Include deposit status section in receipt email (already present)
+2. Add explicit deposit summary with action taken
+3. Merge deposit notification content into receipt email
+4. Only send separate deposit notification if receipt generation fails
+```
+
+**Consolidated Email Structure:**
+```text
+Subject: "Your Rental Receipt & Deposit Status - [Booking Code]"
+
+┌────────────────────────────────────────┐
+│ C2C RENTAL - RETURN CONFIRMATION       │
+├────────────────────────────────────────┤
+│ ✓ Your rental is complete              │
+│                                        │
+│ VEHICLE: 2024 Toyota Camry             │
+│ DATES: Feb 1-5, 2025                   │
+│                                        │
+│ ── CHARGES ──────────────────────────  │
+│ Rental: $200.00                        │
+│ Add-ons: $50.00                        │
+│ Tax: $30.00                            │
+│ TOTAL PAID: $280.00                    │
+│                                        │
+│ ── DEPOSIT ──────────────────────────  │
+│ Deposit Held: $350.00                  │
+│ Withheld: $0.00                        │
+│ Released: $350.00 ✓                    │
+│                                        │
+│ Your deposit has been released and     │
+│ will appear in 5-10 business days.     │
+└────────────────────────────────────────┘
+```
 
 ---
 
-## Implementation
+## Technical Implementation Details
 
-I will create a comprehensive **MANUAL_TESTING_GUIDE.md** file (~1500+ lines) that completely replaces the existing guide with:
+### Files to Modify
 
-1. **Exact click-by-click instructions** for every test
-2. **Sample data** to enter in forms
-3. **Expected results** after each action
-4. **Visual cues** ("You should see...", "The button is located...")
-5. **Error scenarios** with expected messages
-6. **Integration test scripts** combining multiple flows
+| File | Changes |
+|------|---------|
+| `src/components/admin/return-ops/steps/StepReturnIntake.tsx` | Odometer validation, fuel dropdown, pickup reference |
+| `src/components/admin/return-ops/steps/StepReturnEvidence.tsx` | Fuel gauge photo slot |
+| `src/components/admin/return-ops/steps/StepReturnDeposit.tsx` | Mandatory reason with category, consolidated comms |
+| `src/hooks/use-condition-photos.ts` | Add fuel_gauge photo type |
+| `src/hooks/use-late-return.ts` | GPS capture for customer return |
+| `src/pages/Dashboard.tsx` | Geolocation prompt for return marking |
+| `src/pages/admin/ReturnOps.tsx` | Fetch pickup metrics for comparison |
+| `supabase/functions/generate-return-receipt/index.ts` | Enhanced email with deposit status |
+
+### Database Migration
+
+```sql
+-- Add fields for customer return location
+ALTER TABLE bookings 
+ADD COLUMN IF NOT EXISTS customer_return_lat DECIMAL(10,8),
+ADD COLUMN IF NOT EXISTS customer_return_lng DECIMAL(11,8),
+ADD COLUMN IF NOT EXISTS customer_return_address TEXT;
+
+-- Add withhold category to deposit_ledger
+ALTER TABLE deposit_ledger
+ADD COLUMN IF NOT EXISTS category TEXT;
+
+-- Add fuel photo type to condition_photos enum (if using enum)
+-- Note: Current system uses TEXT for photo_type, no migration needed
+```
 
 ---
 
-## File Changes
+## Validation Rules Summary
 
-| File | Action |
-|------|--------|
-| `MANUAL_TESTING_GUIDE.md` | Complete rewrite with detailed step-by-step instructions |
+### Odometer Validation
+```typescript
+const validateReturnOdometer = (returnReading: number, pickupReading: number) => {
+  if (returnReading < pickupReading) {
+    return { valid: false, error: "Return odometer cannot be less than pickup" };
+  }
+  
+  const difference = returnReading - pickupReading;
+  if (difference > 5000) {
+    return { valid: true, warning: `Unusual mileage: ${difference} km. Confirm this is correct.` };
+  }
+  
+  return { valid: true };
+};
+```
 
-The new guide will serve as a complete walkthrough that even non-technical testers can follow to validate all platform functionality.
+### Deposit Withhold Validation
+```typescript
+const validateWithholdReason = (reason: string, category: string) => {
+  if (!category) return { valid: false, error: "Select a category" };
+  if (!reason || reason.trim().length < 20) {
+    return { valid: false, error: "Reason must be at least 20 characters" };
+  }
+  return { valid: true };
+};
+```
+
+---
+
+## Risk Mitigation
+
+| Original Risk | Mitigation | Confidence |
+|--------------|------------|------------|
+| Odometer typos | Cross-validation against pickup + warnings | High |
+| Fuel disputes | Photo proof + granular levels | High |
+| Deposit disputes | Mandatory categorized reasons | High |
+| Timestamp disputes | GPS coordinates on customer mark | Medium |
+| Email confusion | Single consolidated receipt/deposit email | High |
+
+---
+
+## Implementation Order
+
+1. **Odometer validation** - Highest impact, prevents billing errors
+2. **Deposit reason requirement** - Protects against disputes
+3. **Fuel level improvements** - Better granularity + photo
+4. **Consolidated communications** - Better customer experience
+5. **Customer GPS return** - Nice-to-have for disputes
+
+Each step can be implemented and tested independently.
