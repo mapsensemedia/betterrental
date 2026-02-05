@@ -6,13 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { useReleaseDepositHold } from "@/hooks/use-deposit-hold";
 import { useAddDepositLedgerEntry, useDepositLedger } from "@/hooks/use-deposit-ledger";
 import { useGenerateReturnReceipt } from "@/hooks/use-return-receipt";
 import { useCreateAuditLog } from "@/hooks/use-audit-logs";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
   Wallet, 
@@ -23,10 +24,22 @@ import {
   MinusCircle,
   AlertTriangle,
   Lock,
-  Receipt,
   CreditCard,
   RefreshCw,
+  FileWarning,
 } from "lucide-react";
+
+// Withhold reason categories
+const WITHHOLD_CATEGORIES = [
+  { value: "damage_repair", label: "Damage Repair" },
+  { value: "fuel_refill", label: "Fuel Refill" },
+  { value: "late_return", label: "Late Return Fee" },
+  { value: "cleaning_fee", label: "Cleaning Fee" },
+  { value: "traffic_violation", label: "Traffic Violation" },
+  { value: "other", label: "Other" },
+];
+
+const MIN_REASON_LENGTH = 20;
 
 interface StepReturnDepositProps {
   bookingId: string;
@@ -59,66 +72,63 @@ export function StepReturnDeposit({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRefundingStripe, setIsRefundingStripe] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
+  const [withholdCategory, setWithholdCategory] = useState<string>("");
   const [withholdReason, setWithholdReason] = useState("");
-  const [sendingNotification, setSendingNotification] = useState(false);
   const [receiptGenerated, setReceiptGenerated] = useState(false);
   const [stripeRefundComplete, setStripeRefundComplete] = useState(false);
+
+  // Fetch linked damages
+  const { data: damages = [] } = useQuery({
+    queryKey: ["booking-damages", bookingId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("damage_reports")
+        .select("id, severity, estimated_cost, description")
+        .eq("booking_id", bookingId)
+        .neq("status", "closed");
+      return data || [];
+    },
+  });
 
   const depositAmount = booking.deposit_amount || 0;
   const hasDeposit = depositAmount > 0;
   const depositHeld = depositData?.depositHeld || 0;
   const depositStatus = depositData?.depositStatus || "none";
 
-  // NOTE: ledgerData is always a summary object (even when there are zero entries).
-  // If we blindly prefer ledgerData.remaining, we can end up with remainingDeposit=0
-  // even when a deposit payment exists (hiding the release UI). Only trust ledger
-  // amounts when there are actual ledger entries.
   const ledgerHasEntries = (ledgerData?.entries?.length ?? 0) > 0;
 
-  // Check if deposit has been released via ledger entries or payment status
   const isReleased =
     depositStatus === "released" ||
     ledgerData?.status === "released" ||
     ledgerData?.status === "deducted";
 
-  // Deposit is held if payment status says held OR we have ledger entries showing held status
-  // Important: If depositHeld > 0 from payments, consider it "held" even without ledger entries
   const isHeld = depositStatus === "held" || (depositHeld > 0 && depositStatus !== "released");
-
-  // Remaining deposit: prefer ledger remaining only when ledger has entries
   const remainingDeposit = ledgerHasEntries ? (ledgerData?.remaining ?? 0) : depositHeld;
 
-  // Auto-populate withhold amount from damage costs
+  // Auto-populate withhold amount and category from damage costs
   useEffect(() => {
-    if (totalDamageCost > 0 && !partialAmount) {
+    if (totalDamageCost > 0 && !partialAmount && damages.length > 0) {
       const suggestedAmount = Math.min(totalDamageCost, remainingDeposit);
       setPartialAmount(suggestedAmount.toFixed(2));
-      setWithholdReason(`Damage repair costs`);
+      setWithholdCategory("damage_repair");
+      setWithholdReason(`Damage repair costs for ${damages.length} reported issue${damages.length > 1 ? 's' : ''}`);
     }
-  }, [totalDamageCost, remainingDeposit, partialAmount]);
+  }, [totalDamageCost, remainingDeposit, partialAmount, damages]);
 
-  // Send notification to customer
-  const sendDepositNotification = async (action: "released" | "withheld", amount: number, reason?: string) => {
-    try {
-      setSendingNotification(true);
-      
-      await supabase.functions.invoke("send-deposit-notification", {
-        body: {
-          bookingId,
-          action,
-          amount,
-          reason,
-          withheldAmount: action === "withheld" ? amount : 0,
-          releasedAmount: action === "released" ? amount : (remainingDeposit - amount),
-        },
-      });
-      
-      toast.success("Customer notified about deposit");
-    } catch (error) {
-      console.warn("Failed to send deposit notification:", error);
-    } finally {
-      setSendingNotification(false);
-    }
+  // Validate withhold reason
+  const withholdReasonValid = withholdCategory && withholdReason.trim().length >= MIN_REASON_LENGTH;
+  const withholdReasonError = withholdReason.trim().length > 0 && withholdReason.trim().length < MIN_REASON_LENGTH
+    ? `Reason must be at least ${MIN_REASON_LENGTH} characters (${withholdReason.trim().length}/${MIN_REASON_LENGTH})`
+    : null;
+
+  // Send consolidated notification (receipt includes deposit info)
+  const sendConsolidatedNotification = async (
+    action: "released" | "withheld",
+    amount: number,
+    reason?: string
+  ) => {
+    // Receipt email already includes deposit status - no separate notification needed
+    // The generate-return-receipt function sends a consolidated email
   };
 
   const handleReleaseFullDeposit = async () => {
@@ -126,6 +136,7 @@ export function StepReturnDeposit({
     
     setIsProcessing(true);
     try {
+      // 1. Add ledger entry
       await addLedgerEntry.mutateAsync({
         bookingId,
         action: "release",
@@ -133,16 +144,14 @@ export function StepReturnDeposit({
         reason: releaseReason,
       });
 
-      // Release deposit via Stripe
+      // 2. Release deposit via Stripe
       await releaseDeposit.mutateAsync({
         bookingId,
         reason: releaseReason,
         bypassStatusCheck: true,
       });
 
-      await sendDepositNotification("released", remainingDeposit, releaseReason);
-      
-      // Log audit event
+      // 3. Log audit event
       await createAuditLog.mutateAsync({
         action: "return_deposit_processed",
         entityType: "booking",
@@ -150,7 +159,7 @@ export function StepReturnDeposit({
         newData: { action: "release_full", amount: remainingDeposit, reason: releaseReason },
       });
 
-      // Auto-generate receipt after deposit processing
+      // 4. Generate receipt (includes deposit status) - this sends consolidated email
       await generateReceipt.mutateAsync({
         bookingId,
         depositReleased: remainingDeposit,
@@ -160,9 +169,8 @@ export function StepReturnDeposit({
       
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
-      toast.success("Full deposit released and receipt generated");
+      toast.success("Full deposit released and receipt emailed to customer");
       
-      // Call onComplete callback to trigger redirect
       onComplete?.();
     } catch (error) {
       console.error("Error releasing deposit:", error);
@@ -173,7 +181,7 @@ export function StepReturnDeposit({
   };
 
   const handleWithholdPartial = async () => {
-    if (!hasDeposit || !partialAmount || !withholdReason.trim() || isLocked) return;
+    if (!hasDeposit || !partialAmount || !withholdReasonValid || isLocked) return;
     
     const amountToWithhold = parseFloat(partialAmount);
     if (isNaN(amountToWithhold) || amountToWithhold <= 0 || amountToWithhold > remainingDeposit) {
@@ -183,12 +191,32 @@ export function StepReturnDeposit({
     
     setIsProcessing(true);
     try {
+      const fullReason = `[${WITHHOLD_CATEGORIES.find(c => c.value === withholdCategory)?.label}] ${withholdReason}`;
+      
+      // 1. Add deduction ledger entry with category
       await addLedgerEntry.mutateAsync({
         bookingId,
         action: "deduct",
         amount: amountToWithhold,
-        reason: withholdReason,
+        reason: fullReason,
       });
+
+      // Update ledger entry with category
+      const { data: latestEntry } = await supabase
+        .from("deposit_ledger")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .eq("action", "deduct")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (latestEntry) {
+        await supabase
+          .from("deposit_ledger")
+          .update({ category: withholdCategory })
+          .eq("id", latestEntry.id);
+      }
 
       const remainingToRelease = remainingDeposit - amountToWithhold;
       
@@ -197,20 +225,18 @@ export function StepReturnDeposit({
           bookingId,
           action: "release",
           amount: remainingToRelease,
-          reason: `Partial release after withholding $${amountToWithhold.toFixed(2)} for: ${withholdReason}`,
+          reason: `Partial release after withholding $${amountToWithhold.toFixed(2)} for: ${fullReason}`,
         });
       }
 
-      // Release remaining deposit via Stripe
+      // 2. Release remaining deposit via Stripe
       await releaseDeposit.mutateAsync({
         bookingId,
-        reason: `Withheld: $${amountToWithhold.toFixed(2)} for ${withholdReason}. Released: $${remainingToRelease.toFixed(2)}`,
+        reason: `Withheld: $${amountToWithhold.toFixed(2)} for ${fullReason}. Released: $${remainingToRelease.toFixed(2)}`,
         bypassStatusCheck: true,
       });
 
-      await sendDepositNotification("withheld", amountToWithhold, withholdReason);
-
-      // Log audit event
+      // 3. Log audit event
       await createAuditLog.mutateAsync({
         action: "return_deposit_processed",
         entityType: "booking",
@@ -219,26 +245,27 @@ export function StepReturnDeposit({
           action: "withhold_partial", 
           withheld: amountToWithhold, 
           released: remainingToRelease,
+          category: withholdCategory,
           reason: withholdReason,
         },
       });
 
-      // Auto-generate receipt after deposit processing
+      // 4. Generate receipt (includes deposit status) - consolidated email
       await generateReceipt.mutateAsync({
         bookingId,
         depositReleased: remainingToRelease,
         depositWithheld: amountToWithhold,
-        withholdReason,
+        withholdReason: fullReason,
       });
       setReceiptGenerated(true);
 
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
-      toast.success(`Withheld $${amountToWithhold.toFixed(2)}, released $${remainingToRelease.toFixed(2)}, receipt generated`);
+      toast.success(`Withheld $${amountToWithhold.toFixed(2)}, released $${remainingToRelease.toFixed(2)} - receipt emailed to customer`);
       setPartialAmount("");
       setWithholdReason("");
+      setWithholdCategory("");
       
-      // Call onComplete callback to trigger redirect
       onComplete?.();
     } catch (error) {
       console.error("Error processing deposit:", error);
@@ -248,7 +275,6 @@ export function StepReturnDeposit({
     }
   };
 
-  // Handle Stripe refund for deposit
   const handleStripeRefund = async () => {
     if (!hasDeposit || isLocked) return;
     
@@ -262,24 +288,14 @@ export function StepReturnDeposit({
         },
       });
 
-      if (error) {
-        throw new Error(error.message || "Failed to process Stripe refund");
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (error) throw new Error(error.message || "Failed to process Stripe refund");
+      if (data?.error) throw new Error(data.error);
 
       setStripeRefundComplete(true);
-      
-      // Send notification to customer
-      await sendDepositNotification("released", data.amount, `Refund processed via Stripe (${data.refundId})`);
       
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
-      
-      toast.success(`Stripe refund of $${data.amount.toFixed(2)} processed successfully`);
       
       // Generate receipt
       await generateReceipt.mutateAsync({
@@ -288,6 +304,8 @@ export function StepReturnDeposit({
         depositWithheld: 0,
       });
       setReceiptGenerated(true);
+      
+      toast.success(`Stripe refund of $${data.amount.toFixed(2)} processed - receipt emailed to customer`);
       
       onComplete?.();
     } catch (error) {
@@ -378,15 +396,21 @@ export function StepReturnDeposit({
                   <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
                     Total damage estimate: <strong>${totalDamageCost.toFixed(2)}</strong>
                   </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
-                    Withhold amount has been auto-calculated based on damages
-                  </p>
+                  {damages.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {damages.map(d => (
+                        <p key={d.id} className="text-xs text-amber-600">
+                          • {d.severity}: {d.description?.slice(0, 50)}... (${d.estimated_cost || 0})
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Release Options - Only show if deposit is held and not released */}
+          {/* Release Options */}
           {hasDeposit && isHeld && !isReleased && remainingDeposit > 0 && !isLocked && (
             <>
               {/* Full Release Option */}
@@ -431,6 +455,22 @@ export function StepReturnDeposit({
                 </h4>
                 <div className="grid gap-3">
                   <div className="space-y-2">
+                    <Label>Category <span className="text-destructive">*</span></Label>
+                    <Select value={withholdCategory} onValueChange={setWithholdCategory}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select reason category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WITHHOLD_CATEGORIES.map(cat => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Amount to Withhold ($)</Label>
                     <Input
                       type="number"
@@ -447,20 +487,43 @@ export function StepReturnDeposit({
                       </p>
                     )}
                   </div>
+
                   <div className="space-y-2">
-                    <Label>Reason for Withholding</Label>
+                    <Label>
+                      Detailed Reason <span className="text-destructive">*</span>
+                      <span className="text-muted-foreground text-xs ml-1">(min {MIN_REASON_LENGTH} chars)</span>
+                    </Label>
                     <Textarea
                       value={withholdReason}
                       onChange={(e) => setWithholdReason(e.target.value)}
-                      placeholder="e.g., Damage repair costs, cleaning fee..."
-                      rows={2}
+                      placeholder="Provide detailed explanation for withholding (minimum 20 characters for dispute protection)..."
+                      rows={3}
+                      className={withholdReasonError ? "border-destructive" : ""}
                     />
+                    {withholdReasonError && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <FileWarning className="h-3 w-3" />
+                        {withholdReasonError}
+                      </p>
+                    )}
                   </div>
+
+                  {/* Linked damages display */}
+                  {withholdCategory === "damage_repair" && damages.length > 0 && (
+                    <div className="p-3 rounded bg-muted/50">
+                      <p className="text-xs font-medium mb-2">Linked Damage Reports:</p>
+                      {damages.map(d => (
+                        <Badge key={d.id} variant="outline" className="mr-1 mb-1 text-xs">
+                          {d.severity} - ${d.estimated_cost || 0}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="destructive"
                   onClick={handleWithholdPartial}
-                  disabled={isProcessing || !partialAmount || !withholdReason.trim()}
+                  disabled={isProcessing || !partialAmount || !withholdReasonValid}
                   className="w-full"
                 >
                   {isProcessing ? (
@@ -538,7 +601,7 @@ export function StepReturnDeposit({
                 Deposit Successfully Processed
               </p>
               <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
-                The customer has been notified
+                Receipt emailed to customer
               </p>
               {ledgerData && (
                 <div className="mt-3 text-xs text-emerald-600 space-y-1">

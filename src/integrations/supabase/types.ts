@@ -371,6 +371,9 @@ export type Database = {
           card_type: string | null
           created_at: string
           customer_marked_returned_at: string | null
+          customer_return_address: string | null
+          customer_return_lat: number | null
+          customer_return_lng: number | null
           daily_rate: number
           deposit_amount: number | null
           deposit_authorized_at: string | null
@@ -446,6 +449,9 @@ export type Database = {
           card_type?: string | null
           created_at?: string
           customer_marked_returned_at?: string | null
+          customer_return_address?: string | null
+          customer_return_lat?: number | null
+          customer_return_lng?: number | null
           daily_rate: number
           deposit_amount?: number | null
           deposit_authorized_at?: string | null
@@ -521,6 +527,9 @@ export type Database = {
           card_type?: string | null
           created_at?: string
           customer_marked_returned_at?: string | null
+          customer_return_address?: string | null
+          customer_return_lat?: number | null
+          customer_return_lng?: number | null
           daily_rate?: number
           deposit_amount?: number | null
           deposit_authorized_at?: string | null
@@ -996,6 +1005,7 @@ export type Database = {
           action: string
           amount: number
           booking_id: string
+          category: string | null
           created_at: string
           created_by: string
           id: string
@@ -1010,6 +1020,7 @@ export type Database = {
           action: string
           amount: number
           booking_id: string
+          category?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -1024,6 +1035,7 @@ export type Database = {
           action?: string
           amount?: number
           booking_id?: string
+          category?: string | null
           created_at?: string
           created_by?: string
           id?: string

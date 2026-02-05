@@ -9,6 +9,7 @@ export type PhotoType =
   | 'left' 
   | 'right' 
   | 'odometer_fuel'  // Combined odometer and fuel in one photo
+  | 'fuel_gauge'     // Dedicated fuel gauge photo for return (when fuel is lower)
   | 'front_seat'
   | 'back_seat';
 
@@ -40,6 +41,7 @@ export const PHOTO_LABELS: Record<PhotoType, string> = {
   left: 'Left Side',
   right: 'Right Side',
   odometer_fuel: 'Odometer & Fuel',
+  fuel_gauge: 'Fuel Gauge',
   front_seat: 'Front Seat',
   back_seat: 'Back Seat',
 };

@@ -6,11 +6,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   useBookingConditionPhotos, 
   useUploadConditionPhoto,
-  REQUIRED_PHOTOS,
   PHOTO_LABELS,
   type PhotoType 
 } from "@/hooks/use-condition-photos";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Camera, 
   CheckCircle2,
@@ -23,6 +24,7 @@ import {
   Armchair,
   Lock,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,22 +39,25 @@ interface StepReturnEvidenceProps {
   isException?: boolean;
 }
 
-const RETURN_PHOTO_TYPES: { type: PhotoType; label: string }[] = [
+// Return photos include fuel_gauge as a separate slot
+const RETURN_PHOTO_TYPES: { type: PhotoType | "fuel_gauge"; label: string }[] = [
   { type: "front", label: "Front" },
   { type: "back", label: "Rear" },
   { type: "left", label: "Driver Side" },
   { type: "right", label: "Passenger Side" },
-  { type: "odometer_fuel", label: "Odometer & Fuel" },
+  { type: "odometer_fuel", label: "Odometer" },
+  { type: "fuel_gauge", label: "Fuel Gauge" },
   { type: "front_seat", label: "Front Seat" },
   { type: "back_seat", label: "Back Seat" },
 ];
 
-const PHOTO_ICONS: Record<PhotoType, React.ReactNode> = {
+const PHOTO_ICONS: Record<string, React.ReactNode> = {
   front: <Car className="h-4 w-4" />,
   back: <Car className="h-4 w-4 rotate-180" />,
   left: <Car className="h-4 w-4 -rotate-90" />,
   right: <Car className="h-4 w-4 rotate-90" />,
   odometer_fuel: <Gauge className="h-4 w-4" />,
+  fuel_gauge: <Fuel className="h-4 w-4" />,
   front_seat: <Armchair className="h-4 w-4" />,
   back_seat: <Armchair className="h-4 w-4" />,
 };
@@ -70,16 +75,47 @@ export function StepReturnEvidence({
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   
+  // Check if fuel is lower than pickup (requires fuel photo)
+  const { data: returnMetrics } = useQuery({
+    queryKey: ["return-inspection-metrics", bookingId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("inspection_metrics")
+        .select("fuel_level")
+        .eq("booking_id", bookingId)
+        .eq("phase", "return")
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: pickupMetrics } = useQuery({
+    queryKey: ["pickup-inspection-metrics", bookingId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("inspection_metrics")
+        .select("fuel_level")
+        .eq("booking_id", bookingId)
+        .eq("phase", "pickup")
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const fuelIsLower = (returnMetrics?.fuel_level ?? 100) < (pickupMetrics?.fuel_level ?? 0);
+  const requiresFuelPhoto = fuelIsLower;
+  
   const returnPhotos = photos?.return || [];
   const uploadedTypes = new Set(returnPhotos.map(p => p.photo_type));
+  const hasFuelPhoto = uploadedTypes.has("fuel_gauge");
 
-  const handleFileSelect = async (photoType: PhotoType, file: File) => {
+  const handleFileSelect = async (photoType: string, file: File) => {
     setUploadingPhoto(photoType);
     try {
       await uploadMutation.mutateAsync({
         bookingId,
         phase: 'return',
-        photoType,
+        photoType: photoType as PhotoType,
         file,
       });
       refetch();
@@ -88,7 +124,7 @@ export function StepReturnEvidence({
     }
   };
 
-  const handleUploadClick = (photoType: PhotoType) => {
+  const handleUploadClick = (photoType: string) => {
     if (isLocked) return;
     fileInputRefs.current[photoType]?.click();
   };
@@ -97,10 +133,10 @@ export function StepReturnEvidence({
   const totalRequired = RETURN_PHOTO_TYPES.length;
   const hasMinimumPhotos = uploadedCount >= 4;
   
-  // For exception returns, require photos. For normal, optional
-  const canProceed = !isException || hasMinimumPhotos;
+  // For exception returns, require photos. For normal, optional but fuel photo required if fuel is lower
+  const fuelPhotoRequired = requiresFuelPhoto && !hasFuelPhoto;
+  const canProceed = (!isException || hasMinimumPhotos) && !fuelPhotoRequired;
   
-  // Use isComplete (from state machine) as the primary indicator
   const stepIsComplete = isComplete;
 
   return (
@@ -115,17 +151,29 @@ export function StepReturnEvidence({
         </Alert>
       )}
 
+      {/* Fuel Photo Required Warning */}
+      {requiresFuelPhoto && !hasFuelPhoto && !isLocked && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-600">
+            <strong>Fuel photo required:</strong> Fuel level is lower than at pickup. Please capture a photo of the fuel gauge for evidence.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Status Card */}
       <Card className={stepIsComplete 
         ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" 
         : isException && !hasMinimumPhotos
           ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20"
-          : "border-muted"
+          : fuelPhotoRequired
+            ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20"
+            : "border-muted"
       }>
         <CardContent className="py-4">
           <div className={`flex items-center gap-2 ${
             stepIsComplete ? "text-emerald-600" : 
-            isException && !hasMinimumPhotos ? "text-amber-600" : "text-muted-foreground"
+            (isException && !hasMinimumPhotos) || fuelPhotoRequired ? "text-amber-600" : "text-muted-foreground"
           }`}>
             {stepIsComplete ? (
               <>
@@ -138,7 +186,8 @@ export function StepReturnEvidence({
                 <span className="font-medium">
                   {uploadedCount} of {totalRequired} photos captured
                   {isException && !hasMinimumPhotos && " (minimum 4 required for exception returns)"}
-                  {!isException && " (optional for normal returns)"}
+                  {fuelPhotoRequired && " (fuel photo required)"}
+                  {!isException && !fuelPhotoRequired && " (optional for normal returns)"}
                 </span>
               </>
             )}
@@ -166,11 +215,12 @@ export function StepReturnEvidence({
           ) : (
             <div className="space-y-4">
               {/* Photo Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {RETURN_PHOTO_TYPES.map((photoType) => {
                   const photo = returnPhotos.find(p => p.photo_type === photoType.type);
                   const hasPhoto = !!photo;
                   const isUploading = uploadingPhoto === photoType.type;
+                  const isFuelAndRequired = photoType.type === "fuel_gauge" && requiresFuelPhoto;
                   
                   return (
                     <div key={photoType.type} className="space-y-2">
@@ -179,7 +229,9 @@ export function StepReturnEvidence({
                           "aspect-square rounded-lg border-2 overflow-hidden transition-all",
                           hasPhoto 
                             ? "border-emerald-500/50" 
-                            : "border-dashed border-muted-foreground/30 hover:border-primary",
+                            : isFuelAndRequired
+                              ? "border-dashed border-amber-500 hover:border-amber-600"
+                              : "border-dashed border-muted-foreground/30 hover:border-primary",
                           isLocked ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
                         )}
                         onClick={() => !isUploading && handleUploadClick(photoType.type)}
@@ -211,21 +263,46 @@ export function StepReturnEvidence({
                             <span className="text-xs text-muted-foreground">Uploading...</span>
                           </div>
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center bg-muted/30 hover:bg-muted/50 transition-colors">
-                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-2">
+                          <div className={cn(
+                            "w-full h-full flex flex-col items-center justify-center transition-colors",
+                            isFuelAndRequired 
+                              ? "bg-amber-50/50 hover:bg-amber-100/50 dark:bg-amber-950/20" 
+                              : "bg-muted/30 hover:bg-muted/50"
+                          )}>
+                            <div className={cn(
+                              "w-10 h-10 rounded-full flex items-center justify-center mb-2",
+                              isFuelAndRequired ? "bg-amber-100 dark:bg-amber-900/30" : "bg-muted"
+                            )}>
                               {PHOTO_ICONS[photoType.type]}
                             </div>
-                            <Upload className="h-4 w-4 text-muted-foreground mb-1" />
-                            <span className="text-xs text-muted-foreground">Tap to capture</span>
+                            <Upload className={cn(
+                              "h-4 w-4 mb-1",
+                              isFuelAndRequired ? "text-amber-600" : "text-muted-foreground"
+                            )} />
+                            <span className={cn(
+                              "text-xs",
+                              isFuelAndRequired ? "text-amber-600 font-medium" : "text-muted-foreground"
+                            )}>
+                              {isFuelAndRequired ? "Required" : "Tap to capture"}
+                            </span>
                           </div>
                         )}
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium">{photoType.label}</span>
+                        <span className={cn(
+                          "text-xs font-medium",
+                          isFuelAndRequired && !hasPhoto ? "text-amber-600" : ""
+                        )}>
+                          {photoType.label}
+                          {isFuelAndRequired && !hasPhoto && " *"}
+                        </span>
                         {hasPhoto ? (
                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                         ) : (
-                          <XCircle className="h-3.5 w-3.5 text-muted-foreground/50" />
+                          <XCircle className={cn(
+                            "h-3.5 w-3.5",
+                            isFuelAndRequired ? "text-amber-500" : "text-muted-foreground/50"
+                          )} />
                         )}
                       </div>
                     </div>
@@ -256,9 +333,11 @@ export function StepReturnEvidence({
           size="lg"
         >
           <ArrowRight className="h-4 w-4 mr-2" />
-          {isException && !hasMinimumPhotos 
-            ? `Capture at least 4 photos to proceed`
-            : `Complete Evidence Step`
+          {fuelPhotoRequired 
+            ? "Capture fuel photo to proceed"
+            : isException && !hasMinimumPhotos 
+              ? `Capture at least 4 photos to proceed`
+              : `Complete Evidence Step`
           }
         </Button>
       )}

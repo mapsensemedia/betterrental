@@ -14,7 +14,7 @@ import { useLicenseUpload } from "@/hooks/use-license-upload";
 import { useToast } from "@/hooks/use-toast";
 import { useMembershipInfo, usePointsLedger } from "@/hooks/use-points";
 import { useActiveOffers } from "@/hooks/use-offers";
-import { useCustomerMarkReturned } from "@/hooks/use-late-return";
+import { useCustomerMarkReturned, requestGeolocation } from "@/hooks/use-late-return";
 import { canCustomerMarkReturned } from "@/lib/late-return";
 import { useCustomerRealtimeSubscriptions } from "@/hooks/use-realtime-subscriptions";
 import {
@@ -452,8 +452,16 @@ export default function Dashboard() {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => markReturned.mutate({ bookingId: b.id })}
+                              <AlertDialogAction
+                                  onClick={async () => {
+                                    // Request GPS location
+                                    const location = await requestGeolocation();
+                                    markReturned.mutate({ 
+                                      bookingId: b.id,
+                                      latitude: location?.latitude,
+                                      longitude: location?.longitude,
+                                    });
+                                  }}
                                   disabled={markReturned.isPending}
                                 >
                                   {markReturned.isPending ? "Marking..." : "Confirm Return"}
