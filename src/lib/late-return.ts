@@ -5,8 +5,8 @@
 import { differenceInMinutes, isPast } from "date-fns";
 
 // ========== LATE RETURN CONFIGURATION ==========
-export const LATE_RETURN_GRACE_PERIOD_MINUTES = 15; // 15 minutes grace period
-export const LATE_RETURN_HOURLY_FEE = 25; // $25 per hour after grace period
+export const LATE_RETURN_GRACE_PERIOD_MINUTES = 30; // 30 minutes grace period
+export const LATE_RETURN_FEE_PERCENTAGE = 0.25; // 25% of daily rate per hour after grace period
 
 export interface LateReturnInfo {
   isLate: boolean;
