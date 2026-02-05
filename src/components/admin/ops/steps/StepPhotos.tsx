@@ -62,6 +62,7 @@ const PHOTO_ICONS: Record<PhotoType, React.ReactNode> = {
   left: <CarSideIcon />,
   right: <CarSideIcon flip />,
   odometer_fuel: <Gauge className="h-5 w-5" />,
+  fuel_gauge: <Gauge className="h-5 w-5" />,
   front_seat: <Armchair className="h-5 w-5" />,
   back_seat: <Armchair className="h-5 w-5" />,
 };
