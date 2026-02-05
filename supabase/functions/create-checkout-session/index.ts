@@ -1,11 +1,12 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+/**
+ * create-checkout-session - Create Stripe Checkout Session for payment
+ * 
+ * Supports both authenticated users and guest checkout.
+ * For guests, we pass userId in the request body since they don't have a session.
+ */
+import { createClient } from "npm:@supabase/supabase-js@2";
+import Stripe from "npm:stripe@14.21.0";
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 interface CreateCheckoutSessionRequest {
   bookingId: string;
@@ -13,11 +14,14 @@ interface CreateCheckoutSessionRequest {
   currency?: string;
   successUrl: string;
   cancelUrl: string;
+  userId?: string; // For guest checkout - passed from frontend
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsPreflightRequest(req);
   }
 
   try {
@@ -32,29 +36,16 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "No authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get the user from the auth header
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid authentication" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { bookingId, amount, currency = "cad", successUrl, cancelUrl }: CreateCheckoutSessionRequest = await req.json();
+    const { 
+      bookingId, 
+      amount, 
+      currency = "cad", 
+      successUrl, 
+      cancelUrl,
+      userId: guestUserId,
+    }: CreateCheckoutSessionRequest = await req.json();
 
     if (!bookingId || !amount || !successUrl || !cancelUrl) {
       return new Response(
@@ -63,8 +54,37 @@ serve(async (req) => {
       );
     }
 
-    // Verify booking belongs to user and get category details
-    const { data: booking, error: bookingError } = await supabase
+    // Try to get authenticated user if auth header present
+    let userId: string | null = null;
+    let userEmail: string | null = null;
+    
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (!authError && user) {
+        userId = user.id;
+        userEmail = user.email || null;
+      }
+    }
+    
+    // For guest checkout, use the passed userId
+    if (!userId && guestUserId) {
+      userId = guestUserId;
+      // Fetch guest user's email
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", guestUserId)
+        .single();
+      if (profile) {
+        userEmail = profile.email;
+      }
+    }
+
+    // Verify booking exists and get details
+    // For security, we verify the booking's user_id matches if we have one
+    const bookingQuery = supabase
       .from("bookings")
       .select(`
         id, 
@@ -74,11 +94,17 @@ serve(async (req) => {
         total_days,
         start_at,
         end_at,
-        vehicle_id
+        vehicle_id,
+        status
       `)
-      .eq("id", bookingId)
-      .eq("user_id", user.id)
-      .single();
+      .eq("id", bookingId);
+    
+    // If we have a user ID, verify ownership
+    if (userId) {
+      bookingQuery.eq("user_id", userId);
+    }
+
+    const { data: booking, error: bookingError } = await bookingQuery.single();
 
     if (bookingError || !booking) {
       console.error("Booking lookup error:", bookingError);
@@ -86,6 +112,23 @@ serve(async (req) => {
         JSON.stringify({ error: "Booking not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Use booking's user_id if we don't have one
+    if (!userId) {
+      userId = booking.user_id;
+    }
+    
+    // Fetch user email if we still don't have it
+    if (!userEmail) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", userId)
+        .single();
+      if (profile) {
+        userEmail = profile.email;
+      }
     }
 
     // Fetch category info separately
@@ -105,32 +148,36 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    // Check if user has a Stripe customer ID
+    // Check if user has a Stripe customer ID or create one
     let customerId: string | undefined;
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", user.id)
-      .single();
-
-    // Search for existing customer
-    const customers = await stripe.customers.list({
-      email: user.email,
-      limit: 1,
-    });
-
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-    } else {
-      // Create new customer
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: profile?.full_name || undefined,
-        metadata: {
-          supabase_user_id: user.id,
-        },
+    
+    if (userEmail) {
+      // Search for existing customer
+      const customers = await stripe.customers.list({
+        email: userEmail,
+        limit: 1,
       });
-      customerId = customer.id;
+
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+      } else {
+        // Fetch profile for name
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", userId)
+          .single();
+        
+        // Create new customer
+        const customer = await stripe.customers.create({
+          email: userEmail,
+          name: profile?.full_name || undefined,
+          metadata: {
+            supabase_user_id: userId,
+          },
+        });
+        customerId = customer.id;
+      }
     }
 
     // Create Stripe Checkout Session
@@ -156,13 +203,13 @@ serve(async (req) => {
       metadata: {
         booking_id: bookingId,
         booking_code: booking.booking_code,
-        user_id: user.id,
+        user_id: userId,
       },
       payment_intent_data: {
         metadata: {
           booking_id: bookingId,
           booking_code: booking.booking_code,
-          user_id: user.id,
+          user_id: userId,
         },
       },
     });
@@ -176,10 +223,11 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in create-checkout-session:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
