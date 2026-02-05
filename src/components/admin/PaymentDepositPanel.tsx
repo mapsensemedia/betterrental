@@ -11,6 +11,7 @@
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -21,6 +22,7 @@ import {
   useDepositHoldStatus,
   useRealtimeDepositStatus,
 } from '@/hooks/use-deposit-hold';
+import { useCreateCheckoutHold } from '@/hooks/use-checkout-hold';
 import {
   DepositHoldVisualizer,
   ReleaseHoldDialog,
@@ -35,9 +37,13 @@ import {
   AlertCircle,
   Shield,
   Info,
+  Plus,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface PaymentDepositPanelProps {
   bookingId: string;
@@ -55,9 +61,26 @@ export function PaymentDepositPanel({
   const [activeTab, setActiveTab] = useState<'payment' | 'deposit'>('payment');
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [captureDialogOpen, setCaptureDialogOpen] = useState(false);
+  
+  const createHoldMutation = useCreateCheckoutHold();
 
   // Real-time subscription for deposit status
   useRealtimeDepositStatus(bookingId);
+
+  const handleCreateHold = () => {
+    if (!status) return;
+    
+    createHoldMutation.mutate({
+      bookingId,
+      depositAmount: status.depositRequired || 350,
+      rentalAmount: status.totalDue || 0,
+    });
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard`);
+  };
 
   if (isLoading || depositLoading) {
     return (
@@ -167,6 +190,64 @@ export function PaymentDepositPanel({
                   {getPaymentStatusBadge()}
                 </div>
                 
+                {/* Show Stripe IDs when hold exists */}
+                {hasStripeHold && depositHoldInfo?.stripePaymentIntentId && (
+                  <div className="mb-3 p-3 rounded-md bg-muted/50 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Hold ID (PI)</span>
+                      <div className="flex items-center gap-2">
+                        <code className="font-mono text-xs bg-background px-2 py-0.5 rounded">
+                          {depositHoldInfo.stripePaymentIntentId.slice(0, 20)}...
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => copyToClipboard(depositHoldInfo.stripePaymentIntentId!, "Hold ID")}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        <a
+                          href={`https://dashboard.stripe.com/payments/${depositHoldInfo.stripePaymentIntentId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                    
+                    {depositHoldInfo.stripeChargeId && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Charge ID</span>
+                        <div className="flex items-center gap-2">
+                          <code className="font-mono text-xs bg-background px-2 py-0.5 rounded">
+                            {depositHoldInfo.stripeChargeId.slice(0, 20)}...
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => copyToClipboard(depositHoldInfo.stripeChargeId!, "Charge ID")}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {depositHoldInfo.cardLast4 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Card</span>
+                        <span className="font-mono">
+                          {depositHoldInfo.cardBrand || 'Card'} •••• {depositHoldInfo.cardLast4}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 {isAuthorized && depositHoldInfo && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
@@ -191,9 +272,40 @@ export function PaymentDepositPanel({
                 )}
 
                 {!hasStripeHold && (
-                  <p className="text-sm text-muted-foreground">
-                    No payment authorization found. Customer must complete checkout.
-                  </p>
+                  <div className="space-y-3">
+                    <Alert variant="default" className="border-amber-500/20 bg-amber-500/5">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-sm">
+                        <p className="font-medium text-amber-700">No payment authorization found</p>
+                        <p className="text-muted-foreground mt-1">
+                          The customer needs to complete checkout with their credit card. Authorization is collected automatically during the booking process.
+                        </p>
+                      </AlertDescription>
+                    </Alert>
+                    
+                    <Button 
+                      onClick={handleCreateHold}
+                      disabled={createHoldMutation.isPending}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      {createHoldMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Creating Hold...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Authorization Hold
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Creates a ${((status.totalDue || 0) + (status.depositRequired || 350)).toFixed(2)} hold 
+                      (Rental: ${status.totalDue?.toFixed(2)} + Deposit: ${(status.depositRequired || 350).toFixed(2)})
+                    </p>
+                  </div>
                 )}
               </div>
 
