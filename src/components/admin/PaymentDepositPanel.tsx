@@ -1,3 +1,10 @@
+/**
+ * PaymentDepositPanel
+ * 
+ * Comprehensive payment and deposit management panel
+ * Now integrated with Stripe authorization holds for security deposits
+ */
+
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -41,6 +49,16 @@ import {
   type PaymentType,
 } from '@/hooks/use-payment-deposit';
 import {
+  useDepositHoldStatus,
+  useCreateDepositHold,
+  useRealtimeDepositStatus,
+} from '@/hooks/use-deposit-hold';
+import {
+  DepositHoldVisualizer,
+  ReleaseHoldDialog,
+  CaptureDepositDialog,
+} from '@/components/admin/deposit';
+import {
   CreditCard,
   DollarSign,
   Banknote,
@@ -50,11 +68,14 @@ import {
   Loader2,
   AlertCircle,
   RefreshCcw,
-  ChevronRight,
+  Shield,
+  Zap,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface PaymentDepositPanelProps {
   bookingId: string;
+  bookingStatus?: string;
   onComplete?: () => void;
 }
 
@@ -66,12 +87,22 @@ const paymentMethods: { value: PaymentMethod; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPanelProps) {
+export function PaymentDepositPanel({ 
+  bookingId, 
+  bookingStatus = 'confirmed',
+  onComplete 
+}: PaymentDepositPanelProps) {
   const { data: status, isLoading } = usePaymentDepositStatus(bookingId);
+  const { data: depositHoldInfo, isLoading: depositLoading } = useDepositHoldStatus(bookingId);
   const recordPayment = useRecordPaymentDeposit();
   const sendRequest = useSendPaymentRequest();
   const releaseDeposit = useReleaseDeposit();
+  const createDepositHold = useCreateDepositHold();
 
+  // Real-time subscription for deposit status
+  useRealtimeDepositStatus(bookingId);
+
+  const [activeTab, setActiveTab] = useState<'payment' | 'deposit'>('payment');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentType, setPaymentType] = useState<PaymentType>('rental');
   const [paymentData, setPaymentData] = useState({
@@ -86,9 +117,11 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
 
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [captureDialogOpen, setCaptureDialogOpen] = useState(false);
   const [selectedDepositId, setSelectedDepositId] = useState<string | null>(null);
+  const [legacyReleaseDialogOpen, setLegacyReleaseDialogOpen] = useState(false);
 
-  if (isLoading) {
+  if (isLoading || depositLoading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
@@ -99,6 +132,11 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
   }
 
   if (!status) return null;
+
+  // Determine if using Stripe hold or legacy manual tracking
+  const hasStripeHold = depositHoldInfo && 
+    ['requires_payment', 'authorizing', 'authorized', 'capturing', 'captured', 'releasing', 'released'].includes(depositHoldInfo.status);
+  const canCreateStripeHold = !hasStripeHold && status.depositRequired > 0;
 
   const handleOpenPaymentDialog = (type: PaymentType) => {
     setPaymentType(type);
@@ -114,7 +152,6 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
   };
 
   const handleRecordPayment = () => {
-    // Show confirmation dialog before recording
     setConfirmPaymentOpen(true);
   };
 
@@ -154,12 +191,19 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
     });
   };
 
-  const handleReleaseDeposit = (paymentId: string) => {
-    setSelectedDepositId(paymentId);
-    setReleaseDialogOpen(true);
+  const handleCreateStripeHold = () => {
+    createDepositHold.mutate({
+      bookingId,
+      amount: status.depositRequired,
+    });
   };
 
-  const confirmReleaseDeposit = () => {
+  const handleLegacyReleaseDeposit = (paymentId: string) => {
+    setSelectedDepositId(paymentId);
+    setLegacyReleaseDialogOpen(true);
+  };
+
+  const confirmLegacyReleaseDeposit = () => {
     if (!selectedDepositId) return;
     
     releaseDeposit.mutate({
@@ -167,7 +211,7 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
       paymentId: selectedDepositId,
     }, {
       onSuccess: () => {
-        setReleaseDialogOpen(false);
+        setLegacyReleaseDialogOpen(false);
         setSelectedDepositId(null);
       },
     });
@@ -176,7 +220,7 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
   const getPaymentStatusBadge = () => {
     switch (status.paymentStatus) {
       case 'paid':
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Paid</Badge>;
+        return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Paid</Badge>;
       case 'partial':
         return <Badge variant="secondary">Partial</Badge>;
       default:
@@ -185,6 +229,26 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
   };
 
   const getDepositStatusBadge = () => {
+    if (hasStripeHold && depositHoldInfo) {
+      const holdStatus = depositHoldInfo.status;
+      if (holdStatus === 'authorized') {
+        return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+          <Shield className="h-3 w-3 mr-1" /> Hold Active
+        </Badge>;
+      }
+      if (holdStatus === 'captured') {
+        return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Captured</Badge>;
+      }
+      if (holdStatus === 'released') {
+        return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Released</Badge>;
+      }
+      if (['authorizing', 'capturing', 'releasing'].includes(holdStatus)) {
+        return <Badge variant="secondary">
+          <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Processing
+        </Badge>;
+      }
+    }
+
     switch (status.depositStatus) {
       case 'held':
         return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Held</Badge>;
@@ -208,158 +272,243 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
               <DollarSign className="h-4 w-4" />
               Payment & Deposit
             </CardTitle>
-            {status.allComplete && (
-              <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
+            {status.allComplete && !hasStripeHold && (
+              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Complete
+              </Badge>
+            )}
+            {hasStripeHold && depositHoldInfo?.status === 'authorized' && status.paymentStatus === 'paid' && (
+              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Ready
               </Badge>
             )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Payment Summary Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Rental Payment */}
-            <div className="p-4 rounded-lg border bg-card">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground uppercase tracking-wide">Rental</span>
-                {getPaymentStatusBadge()}
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total Due</span>
-                  <span className="font-medium">${status.totalDue.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Paid</span>
-                  <span className="text-green-600 font-medium">${status.totalPaid.toFixed(2)}</span>
-                </div>
-                {status.balance > 0 && (
-                  <div className="flex justify-between text-sm pt-1 border-t">
-                    <span className="text-muted-foreground">Balance</span>
-                    <span className="text-destructive font-semibold">${status.balance.toFixed(2)}</span>
-                  </div>
+          {/* Tabbed Interface */}
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'payment' | 'deposit')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="payment" className="gap-2">
+                <CreditCard className="h-4 w-4" />
+                Payment
+                {status.paymentStatus !== 'paid' && status.balance > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                    ${status.balance.toFixed(0)}
+                  </Badge>
                 )}
-              </div>
-            </div>
-
-            {/* Security Deposit */}
-            <div className="p-4 rounded-lg border bg-card">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground uppercase tracking-wide">Deposit</span>
-                {getDepositStatusBadge()}
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Required</span>
-                  <span className="font-medium">${status.depositRequired.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Held</span>
-                  <span className={status.depositHeld > 0 ? "text-blue-600 font-medium" : ""}>
-                    ${status.depositHeld.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          {(!status.allComplete || status.balance > 0 || status.depositStatus === 'pending') && (
-            <>
-              <Separator />
-              <div className="flex flex-wrap gap-2">
-                {status.balance > 0 && (
-                  <>
-                    <Button size="sm" onClick={() => handleOpenPaymentDialog('rental')}>
-                      <Banknote className="h-4 w-4 mr-2" />
-                      Record Payment
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      setRequestAmount(status.balance.toFixed(2));
-                      setSendRequestOpen(true);
-                    }}>
-                      <Send className="h-4 w-4 mr-2" />
-                      Send Request
-                    </Button>
-                  </>
+              </TabsTrigger>
+              <TabsTrigger value="deposit" className="gap-2">
+                <Shield className="h-4 w-4" />
+                Deposit
+                {hasStripeHold && depositHoldInfo?.status === 'authorized' && (
+                  <div className="ml-1 h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 )}
-                {status.depositStatus === 'pending' && (
-                  <Button size="sm" variant="secondary" onClick={() => handleOpenPaymentDialog('deposit')}>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Record Deposit
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Release Deposit (for completed bookings) */}
-          {status.depositStatus === 'held' && depositPayments.length > 0 && (
-            <>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Deposit held: ${status.depositHeld.toFixed(2)}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleReleaseDeposit(depositPayments[0].id)}
-                >
-                  <RefreshCcw className="h-4 w-4 mr-2" />
-                  Release Deposit
-                </Button>
-              </div>
-            </>
-          )}
-
-          {/* Transaction History */}
-          {status.payments.length > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Transactions
-                </p>
+            {/* Payment Tab */}
+            <TabsContent value="payment" className="mt-4 space-y-4">
+              {/* Payment Summary */}
+              <div className="p-4 rounded-lg border bg-card">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Rental Payment</span>
+                  {getPaymentStatusBadge()}
+                </div>
                 <div className="space-y-2">
-                  {status.payments.map((payment) => (
-                    <div
-                      key={payment.id}
-                      className="flex items-center justify-between p-2 rounded bg-muted/50 text-sm"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px]">
-                          {payment.paymentType}
-                        </Badge>
-                        <span className="text-muted-foreground">
-                          {payment.paymentMethod || 'N/A'}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Due</span>
+                    <span className="font-medium font-mono">${status.totalDue.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Paid</span>
+                    <span className="text-emerald-600 font-medium font-mono">${status.totalPaid.toFixed(2)}</span>
+                  </div>
+                  {status.balance > 0 && (
+                    <div className="flex justify-between text-sm pt-2 border-t">
+                      <span className="font-medium">Balance Due</span>
+                      <span className="text-destructive font-semibold font-mono">${status.balance.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment Actions */}
+              {status.balance > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => handleOpenPaymentDialog('rental')}>
+                    <Banknote className="h-4 w-4 mr-2" />
+                    Record Payment
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setRequestAmount(status.balance.toFixed(2));
+                    setSendRequestOpen(true);
+                  }}>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send Link
+                  </Button>
+                </div>
+              )}
+
+              {/* Transaction History */}
+              {status.payments.filter(p => p.paymentType === 'rental').length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Transactions
+                  </p>
+                  <div className="space-y-2">
+                    {status.payments.filter(p => p.paymentType === 'rental').map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between p-2 rounded bg-muted/50 text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">
+                            {format(new Date(payment.createdAt), 'MMM d')}
+                          </span>
+                          <Badge variant="outline" className="text-[10px]">
+                            {payment.paymentMethod || 'N/A'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium font-mono">${payment.amount.toFixed(2)}</span>
+                          <CheckCircle className="h-3 w-3 text-emerald-600" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Deposit Tab */}
+            <TabsContent value="deposit" className="mt-4 space-y-4">
+              {/* Stripe Hold Visualizer */}
+              {hasStripeHold && depositHoldInfo && (
+                <DepositHoldVisualizer depositInfo={depositHoldInfo} />
+              )}
+
+              {/* No deposit required */}
+              {status.depositRequired === 0 && (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No security deposit required</p>
+                </div>
+              )}
+
+              {/* Create Stripe Hold Option */}
+              {canCreateStripeHold && (
+                <div className="p-4 rounded-lg border border-dashed bg-muted/30 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-600" />
+                    <span className="font-medium text-sm">Stripe Authorization Hold</span>
+                    <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Place a ${status.depositRequired.toFixed(2)} hold on customer's card without charging.
+                    Can be captured for damages or released when rental completes.
+                  </p>
+                  <Button 
+                    size="sm" 
+                    onClick={handleCreateStripeHold}
+                    disabled={createDepositHold.isPending}
+                  >
+                    {createDepositHold.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Shield className="h-4 w-4 mr-2" />
+                    )}
+                    Create Hold
+                  </Button>
+                </div>
+              )}
+
+              {/* Legacy Manual Deposit */}
+              {!hasStripeHold && status.depositRequired > 0 && (
+                <>
+                  <div className="p-4 rounded-lg border bg-card">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Manual Deposit</span>
+                      {getDepositStatusBadge()}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Required</span>
+                        <span className="font-medium font-mono">${status.depositRequired.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Held</span>
+                        <span className={cn(
+                          "font-mono",
+                          status.depositHeld > 0 ? "text-blue-600 font-medium" : ""
+                        )}>
+                          ${status.depositHeld.toFixed(2)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">${payment.amount.toFixed(2)}</span>
-                        <Badge
-                          variant={payment.status === 'completed' ? 'default' : 'secondary'}
-                          className="text-[10px]"
-                        >
-                          {payment.status}
-                        </Badge>
-                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+                  </div>
 
-          {/* Next Steps - Show after payment complete */}
-          {status.allComplete && (
+                  {status.depositStatus === 'pending' && (
+                    <Button size="sm" variant="secondary" onClick={() => handleOpenPaymentDialog('deposit')}>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Record Deposit (Manual)
+                    </Button>
+                  )}
+
+                  {status.depositStatus === 'held' && depositPayments.length > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <span className="text-sm">
+                        Deposit held: <span className="font-mono font-medium">${status.depositHeld.toFixed(2)}</span>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleLegacyReleaseDeposit(depositPayments[0].id)}
+                      >
+                        <RefreshCcw className="h-4 w-4 mr-2" />
+                        Release
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Stripe Hold Actions */}
+              {hasStripeHold && depositHoldInfo?.status === 'authorized' && (
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setReleaseDialogOpen(true)}
+                    className="flex-1"
+                  >
+                    <RefreshCcw className="h-4 w-4 mr-2" />
+                    Release Hold
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="secondary"
+                    onClick={() => setCaptureDialogOpen(true)}
+                    className="flex-1"
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Capture
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {/* Next Steps Alert */}
+          {status.paymentStatus === 'paid' && 
+           (status.depositStatus === 'held' || (hasStripeHold && depositHoldInfo?.status === 'authorized')) && (
             <>
               <Separator />
               <Alert>
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription className="text-sm">
-                  <strong>Next steps:</strong> Agreement signing → Vehicle walkaround
+                  <strong>Ready for handover:</strong> Agreement signing → Vehicle walkaround
                 </AlertDescription>
               </Alert>
             </>
@@ -367,16 +516,35 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
         </CardContent>
       </Card>
 
+      {/* Stripe Hold Dialogs */}
+      {depositHoldInfo && (
+        <>
+          <ReleaseHoldDialog
+            open={releaseDialogOpen}
+            onOpenChange={setReleaseDialogOpen}
+            depositInfo={depositHoldInfo}
+            bookingStatus={bookingStatus}
+            onSuccess={() => setReleaseDialogOpen(false)}
+          />
+          <CaptureDepositDialog
+            open={captureDialogOpen}
+            onOpenChange={setCaptureDialogOpen}
+            depositInfo={depositHoldInfo}
+            onSuccess={() => setCaptureDialogOpen(false)}
+          />
+        </>
+      )}
+
       {/* Record Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {paymentType === 'deposit' ? 'Record Deposit Hold' : 'Record Payment'}
+              {paymentType === 'deposit' ? 'Record Deposit (Manual)' : 'Record Payment'}
             </DialogTitle>
             <DialogDescription>
               {paymentType === 'deposit'
-                ? 'Record a security deposit authorization or hold'
+                ? 'Record a security deposit received manually (cash, terminal, etc.)'
                 : 'Record a rental payment received from the customer'}
             </DialogDescription>
           </DialogHeader>
@@ -389,7 +557,7 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
                   type="number"
                   step="0.01"
                   min="0"
-                  className="pl-7"
+                  className="pl-7 font-mono"
                   value={paymentData.amount}
                   onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
                   placeholder="0.00"
@@ -431,7 +599,7 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
               onClick={handleRecordPayment}
               disabled={!paymentData.amount || parseFloat(paymentData.amount) <= 0}
             >
-              {paymentType === 'deposit' ? 'Confirm Hold' : 'Confirm Payment'}
+              Confirm
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -442,22 +610,18 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Confirm {paymentType === 'deposit' ? 'Deposit Hold' : 'Payment'}
+              Confirm {paymentType === 'deposit' ? 'Deposit' : 'Payment'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {paymentType === 'deposit' ? (
                 <>
                   This will mark <strong>${paymentData.amount}</strong> as held via{' '}
                   <strong>{paymentMethods.find(m => m.value === paymentData.method)?.label}</strong>.
-                  The deposit status will change to "Held".
                 </>
               ) : (
                 <>
                   This will record <strong>${paymentData.amount}</strong> received via{' '}
                   <strong>{paymentMethods.find(m => m.value === paymentData.method)?.label}</strong>.
-                  {parseFloat(paymentData.amount) >= status.balance && (
-                    <> Payment status will change to "Paid".</>
-                  )}
                 </>
               )}
             </AlertDialogDescription>
@@ -468,9 +632,7 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
               onClick={confirmAndRecordPayment}
               disabled={recordPayment.isPending}
             >
-              {recordPayment.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
+              {recordPayment.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Confirm
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -483,7 +645,7 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
           <DialogHeader>
             <DialogTitle>Send Payment Request</DialogTitle>
             <DialogDescription>
-              Send a payment link to the customer to collect the balance due
+              Send a payment link to the customer to collect the balance
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -495,7 +657,7 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
                   type="number"
                   step="0.01"
                   min="0"
-                  className="pl-7"
+                  className="pl-7 font-mono"
                   value={requestAmount}
                   onChange={(e) => setRequestAmount(e.target.value)}
                   placeholder="0.00"
@@ -532,14 +694,14 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
               ) : (
                 <Send className="h-4 w-4 mr-2" />
               )}
-              Send Request
+              Send
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Release Deposit Confirmation */}
-      <AlertDialog open={releaseDialogOpen} onOpenChange={setReleaseDialogOpen}>
+      {/* Legacy Release Deposit Confirmation */}
+      <AlertDialog open={legacyReleaseDialogOpen} onOpenChange={setLegacyReleaseDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Release Security Deposit</AlertDialogTitle>
@@ -551,12 +713,10 @@ export function PaymentDepositPanel({ bookingId, onComplete }: PaymentDepositPan
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmReleaseDeposit}
+              onClick={confirmLegacyReleaseDeposit}
               disabled={releaseDeposit.isPending}
             >
-              {releaseDeposit.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
+              {releaseDeposit.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Release Deposit
             </AlertDialogAction>
           </AlertDialogFooter>

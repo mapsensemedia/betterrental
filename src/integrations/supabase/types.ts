@@ -359,6 +359,8 @@ export type Database = {
       }
       bookings: {
         Row: {
+          account_closed_at: string | null
+          account_closed_by: string | null
           actual_return_at: string | null
           assigned_driver_id: string | null
           assigned_unit_id: string | null
@@ -371,8 +373,17 @@ export type Database = {
           customer_marked_returned_at: string | null
           daily_rate: number
           deposit_amount: number | null
+          deposit_authorized_at: string | null
+          deposit_capture_reason: string | null
+          deposit_captured_amount: number | null
+          deposit_captured_at: string | null
+          deposit_expires_at: string | null
+          deposit_released_at: string | null
+          deposit_status: string | null
           driver_age_band: string | null
           end_at: string
+          final_invoice_generated: boolean | null
+          final_invoice_id: string | null
           handed_over_at: string | null
           handed_over_by: string | null
           handover_sms_sent_at: string | null
@@ -405,6 +416,11 @@ export type Database = {
           special_instructions: string | null
           start_at: string
           status: Database["public"]["Enums"]["booking_status"]
+          stripe_deposit_charge_id: string | null
+          stripe_deposit_client_secret: string | null
+          stripe_deposit_pi_id: string | null
+          stripe_deposit_pm_id: string | null
+          stripe_deposit_refund_id: string | null
           subtotal: number
           tax_amount: number | null
           total_amount: number
@@ -418,6 +434,8 @@ export type Database = {
           young_driver_fee: number | null
         }
         Insert: {
+          account_closed_at?: string | null
+          account_closed_by?: string | null
           actual_return_at?: string | null
           assigned_driver_id?: string | null
           assigned_unit_id?: string | null
@@ -430,8 +448,17 @@ export type Database = {
           customer_marked_returned_at?: string | null
           daily_rate: number
           deposit_amount?: number | null
+          deposit_authorized_at?: string | null
+          deposit_capture_reason?: string | null
+          deposit_captured_amount?: number | null
+          deposit_captured_at?: string | null
+          deposit_expires_at?: string | null
+          deposit_released_at?: string | null
+          deposit_status?: string | null
           driver_age_band?: string | null
           end_at: string
+          final_invoice_generated?: boolean | null
+          final_invoice_id?: string | null
           handed_over_at?: string | null
           handed_over_by?: string | null
           handover_sms_sent_at?: string | null
@@ -464,6 +491,11 @@ export type Database = {
           special_instructions?: string | null
           start_at: string
           status?: Database["public"]["Enums"]["booking_status"]
+          stripe_deposit_charge_id?: string | null
+          stripe_deposit_client_secret?: string | null
+          stripe_deposit_pi_id?: string | null
+          stripe_deposit_pm_id?: string | null
+          stripe_deposit_refund_id?: string | null
           subtotal: number
           tax_amount?: number | null
           total_amount: number
@@ -477,6 +509,8 @@ export type Database = {
           young_driver_fee?: number | null
         }
         Update: {
+          account_closed_at?: string | null
+          account_closed_by?: string | null
           actual_return_at?: string | null
           assigned_driver_id?: string | null
           assigned_unit_id?: string | null
@@ -489,8 +523,17 @@ export type Database = {
           customer_marked_returned_at?: string | null
           daily_rate?: number
           deposit_amount?: number | null
+          deposit_authorized_at?: string | null
+          deposit_capture_reason?: string | null
+          deposit_captured_amount?: number | null
+          deposit_captured_at?: string | null
+          deposit_expires_at?: string | null
+          deposit_released_at?: string | null
+          deposit_status?: string | null
           driver_age_band?: string | null
           end_at?: string
+          final_invoice_generated?: boolean | null
+          final_invoice_id?: string | null
           handed_over_at?: string | null
           handed_over_by?: string | null
           handover_sms_sent_at?: string | null
@@ -523,6 +566,11 @@ export type Database = {
           special_instructions?: string | null
           start_at?: string
           status?: Database["public"]["Enums"]["booking_status"]
+          stripe_deposit_charge_id?: string | null
+          stripe_deposit_client_secret?: string | null
+          stripe_deposit_pi_id?: string | null
+          stripe_deposit_pm_id?: string | null
+          stripe_deposit_refund_id?: string | null
           subtotal?: number
           tax_amount?: number | null
           total_amount?: number
@@ -953,6 +1001,10 @@ export type Database = {
           id: string
           payment_id: string | null
           reason: string | null
+          stripe_balance_txn_id: string | null
+          stripe_charge_id: string | null
+          stripe_pi_id: string | null
+          stripe_refund_id: string | null
         }
         Insert: {
           action: string
@@ -963,6 +1015,10 @@ export type Database = {
           id?: string
           payment_id?: string | null
           reason?: string | null
+          stripe_balance_txn_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_pi_id?: string | null
+          stripe_refund_id?: string | null
         }
         Update: {
           action?: string
@@ -973,6 +1029,10 @@ export type Database = {
           id?: string
           payment_id?: string | null
           reason?: string | null
+          stripe_balance_txn_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_pi_id?: string | null
+          stripe_refund_id?: string | null
         }
         Relationships: [
           {
@@ -987,6 +1047,101 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      final_invoices: {
+        Row: {
+          addons_total: number | null
+          amount_due: number | null
+          amount_refunded: number | null
+          booking_id: string
+          created_at: string | null
+          created_by: string | null
+          damage_charges: number | null
+          deposit_captured: number | null
+          deposit_held: number | null
+          deposit_released: number | null
+          fees_total: number | null
+          grand_total: number
+          id: string
+          invoice_number: string
+          issued_at: string | null
+          late_fees: number | null
+          line_items_json: Json
+          notes: string | null
+          payments_received: number | null
+          rental_subtotal: number
+          status: string | null
+          stripe_charge_ids: Json | null
+          stripe_payment_ids: Json | null
+          stripe_refund_ids: Json | null
+          taxes_total: number
+          updated_at: string | null
+        }
+        Insert: {
+          addons_total?: number | null
+          amount_due?: number | null
+          amount_refunded?: number | null
+          booking_id: string
+          created_at?: string | null
+          created_by?: string | null
+          damage_charges?: number | null
+          deposit_captured?: number | null
+          deposit_held?: number | null
+          deposit_released?: number | null
+          fees_total?: number | null
+          grand_total?: number
+          id?: string
+          invoice_number: string
+          issued_at?: string | null
+          late_fees?: number | null
+          line_items_json?: Json
+          notes?: string | null
+          payments_received?: number | null
+          rental_subtotal?: number
+          status?: string | null
+          stripe_charge_ids?: Json | null
+          stripe_payment_ids?: Json | null
+          stripe_refund_ids?: Json | null
+          taxes_total?: number
+          updated_at?: string | null
+        }
+        Update: {
+          addons_total?: number | null
+          amount_due?: number | null
+          amount_refunded?: number | null
+          booking_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          damage_charges?: number | null
+          deposit_captured?: number | null
+          deposit_held?: number | null
+          deposit_released?: number | null
+          fees_total?: number | null
+          grand_total?: number
+          id?: string
+          invoice_number?: string
+          issued_at?: string | null
+          late_fees?: number | null
+          line_items_json?: Json
+          notes?: string | null
+          payments_received?: number | null
+          rental_subtotal?: number
+          status?: string | null
+          stripe_charge_ids?: Json | null
+          stripe_payment_ids?: Json | null
+          stripe_refund_ids?: Json | null
+          taxes_total?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "final_invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
         ]
