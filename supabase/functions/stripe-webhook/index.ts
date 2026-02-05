@@ -90,19 +90,34 @@ serve(async (req) => {
         break;
       case "payment_intent.succeeded":
       case "payment_intent.payment_failed":
+      case "payment_intent.amount_capturable_updated":
+      case "payment_intent.canceled":
         bookingId = (event.data.object as Stripe.PaymentIntent).metadata?.booking_id || null;
         break;
+      case "charge.captured":
       case "charge.refunded":
-        // For refunds, we need to look up the booking from the payment
+        // For charges, we need to look up the booking from the payment
         const charge = event.data.object as Stripe.Charge;
         const paymentIntentId = charge.payment_intent as string;
         if (paymentIntentId) {
-          const { data: payment } = await supabase
-            .from("payments")
-            .select("booking_id")
-            .eq("transaction_id", paymentIntentId)
+          // First check if it's a deposit by looking at bookings
+          const { data: bookingByPI } = await supabase
+            .from("bookings")
+            .select("id")
+            .eq("stripe_deposit_pi_id", paymentIntentId)
             .maybeSingle();
-          bookingId = payment?.booking_id || null;
+          
+          if (bookingByPI) {
+            bookingId = bookingByPI.id;
+          } else {
+            // Check payments table
+            const { data: payment } = await supabase
+              .from("payments")
+              .select("booking_id")
+              .eq("transaction_id", paymentIntentId)
+              .maybeSingle();
+            bookingId = payment?.booking_id || null;
+          }
         }
         break;
     }
@@ -320,44 +335,149 @@ serve(async (req) => {
       }
 
       case "charge.refunded": {
-        const charge = event.data.object as Stripe.Charge;
-        const paymentIntentId = charge.payment_intent as string;
+        const chargeObj = event.data.object as Stripe.Charge;
+        const chargePaymentIntentId = chargeObj.payment_intent as string;
 
         // Find the payment by transaction ID
-        const { data: payment } = await supabase
+        const { data: paymentRecord } = await supabase
           .from("payments")
           .select("booking_id, user_id")
-          .eq("transaction_id", paymentIntentId)
+          .eq("transaction_id", chargePaymentIntentId)
           .maybeSingle();
 
-        if (payment) {
-          const refundAmount = (charge.amount_refunded || 0) / 100;
+        if (paymentRecord) {
+          const refundAmount = (chargeObj.amount_refunded || 0) / 100;
           
           // Check if this refund was already recorded
           const { data: existingRefund } = await supabase
             .from("payments")
             .select("id")
-            .eq("transaction_id", charge.id)
+            .eq("transaction_id", chargeObj.id)
             .eq("payment_type", "refund")
             .maybeSingle();
 
           if (!existingRefund) {
             // Record refund
             await supabase.from("payments").insert({
-              booking_id: payment.booking_id,
-              user_id: payment.user_id,
+              booking_id: paymentRecord.booking_id,
+              user_id: paymentRecord.user_id,
               amount: -refundAmount,
               payment_type: "refund",
               payment_method: "card",
               status: "completed",
-              transaction_id: charge.id,
+              transaction_id: chargeObj.id,
             });
 
-            console.log(`Refund of $${refundAmount} recorded for booking ${payment.booking_id}`);
+            console.log(`Refund of $${refundAmount} recorded for booking ${paymentRecord.booking_id}`);
           }
 
-          result.bookingId = payment.booking_id;
+          result.bookingId = paymentRecord.booking_id;
           result.refundAmount = refundAmount;
+        }
+        break;
+      }
+
+      // ========== DEPOSIT HOLD EVENTS ==========
+      
+      case "payment_intent.amount_capturable_updated": {
+        // Authorization hold confirmed
+        const pi = event.data.object as Stripe.PaymentIntent;
+        
+        if (pi.metadata?.type === "deposit_hold" && pi.metadata?.booking_id) {
+          const depositBookingId = pi.metadata.booking_id;
+          console.log(`Deposit authorization confirmed for booking ${depositBookingId}`);
+          
+          // Update booking with authorization details
+          await supabase
+            .from("bookings")
+            .update({
+              deposit_status: "authorized",
+              deposit_authorized_at: new Date().toISOString(),
+              stripe_deposit_pm_id: pi.payment_method as string,
+              deposit_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            })
+            .eq("id", depositBookingId);
+          
+          // Get user_id from booking for ledger entry
+          const { data: bookingForLedger } = await supabase
+            .from("bookings")
+            .select("user_id, deposit_amount")
+            .eq("id", depositBookingId)
+            .single();
+            
+          if (bookingForLedger) {
+            // Add ledger entry
+            await supabase.from("deposit_ledger").insert({
+              booking_id: depositBookingId,
+              action: "authorize",
+              amount: (pi.amount || 0) / 100,
+              created_by: bookingForLedger.user_id,
+              reason: "Card authorization hold confirmed",
+              stripe_pi_id: pi.id,
+            });
+          }
+          
+          result.depositAuthorized = true;
+          result.bookingId = depositBookingId;
+          result.amount = pi.amount / 100;
+        }
+        break;
+      }
+
+      case "payment_intent.canceled": {
+        // Authorization hold released/expired
+        const pi = event.data.object as Stripe.PaymentIntent;
+        
+        if (pi.metadata?.type === "deposit_hold" && pi.metadata?.booking_id) {
+          const depositBookingId = pi.metadata.booking_id;
+          console.log(`Deposit authorization canceled for booking ${depositBookingId}`);
+          
+          // Check if this was an expiration or manual cancel
+          const isExpired = pi.cancellation_reason === "automatic";
+          
+          // Update booking status
+          await supabase
+            .from("bookings")
+            .update({
+              deposit_status: isExpired ? "expired" : "canceled",
+              deposit_released_at: new Date().toISOString(),
+            })
+            .eq("id", depositBookingId);
+          
+          result.depositCanceled = true;
+          result.expired = isExpired;
+          result.bookingId = depositBookingId;
+        }
+        break;
+      }
+
+      case "charge.captured": {
+        // Deposit was captured
+        const capturedCharge = event.data.object as Stripe.Charge;
+        const capturedPiId = capturedCharge.payment_intent as string;
+        
+        // Check if this is a deposit capture
+        const { data: bookingForCapture } = await supabase
+          .from("bookings")
+          .select("id, deposit_amount")
+          .eq("stripe_deposit_pi_id", capturedPiId)
+          .maybeSingle();
+          
+        if (bookingForCapture) {
+          console.log(`Deposit captured for booking ${bookingForCapture.id}`);
+          
+          // Update with charge ID if not already set
+          await supabase
+            .from("bookings")
+            .update({
+              stripe_deposit_charge_id: capturedCharge.id,
+            })
+            .eq("id", bookingForCapture.id)
+            .is("stripe_deposit_charge_id", null);
+          
+          result.depositCaptured = true;
+          result.bookingId = bookingForCapture.id;
+          result.amount = capturedCharge.amount_captured / 100;
         }
         break;
       }
