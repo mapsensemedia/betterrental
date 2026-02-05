@@ -68,10 +68,10 @@ const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 const SupportTickets = lazy(() => import("./pages/support/SupportTickets"));
 const SupportAnalyticsPage = lazy(() => import("./pages/support/SupportAnalytics"));
 
-// Delivery Panel Pages - lazy loaded
-const DeliveryDashboard = lazy(() => import("./pages/delivery/DeliveryDashboard"));
-const DeliveryDetail = lazy(() => import("./pages/delivery/DeliveryDetail"));
-const DeliveryWalkIn = lazy(() => import("./pages/delivery/DeliveryWalkIn"));
+// Delivery Panel Pages - lazy loaded (NEW: Using feature-based architecture)
+const DeliveryDashboard = lazy(() => import("./features/delivery/pages/Dashboard"));
+const DeliveryDetail = lazy(() => import("./features/delivery/pages/Detail"));
+const DeliveryWalkIn = lazy(() => import("./features/delivery/pages/WalkIn"));
 
 // Ops Panel Pages - lazy loaded
 const OpsWorkboard = lazy(() => import("./pages/ops/OpsWorkboard"));
@@ -181,7 +181,7 @@ const App = () => (
                 {/* Delivery Panel Routes - For Drivers */}
                 <Route path="/delivery" element={<DeliveryProtectedRoute><DeliveryDashboard /></DeliveryProtectedRoute>} />
                 <Route path="/delivery/walk-in" element={<DeliveryProtectedRoute><DeliveryWalkIn /></DeliveryProtectedRoute>} />
-                <Route path="/delivery/:bookingId" element={<DeliveryProtectedRoute><DeliveryDetail /></DeliveryProtectedRoute>} />
+                <Route path="/delivery/:id" element={<DeliveryProtectedRoute><DeliveryDetail /></DeliveryProtectedRoute>} />
 
                 {/* Ops Panel Routes - For Staff/Operations */}
                 <Route path="/ops" element={<OpsProtectedRoute><OpsWorkboard /></OpsProtectedRoute>} />

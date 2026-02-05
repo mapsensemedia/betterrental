@@ -796,6 +796,53 @@ export type Database = {
           },
         ]
       }
+      delivery_status_log: {
+        Row: {
+          booking_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          location_lat: number | null
+          location_lng: number | null
+          notes: string | null
+          odometer_reading: number | null
+          photo_urls: Json | null
+          status: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          odometer_reading?: number | null
+          photo_urls?: Json | null
+          status: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          notes?: string | null
+          odometer_reading?: number | null
+          photo_urls?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_status_log_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_statuses: {
         Row: {
           booking_id: string
