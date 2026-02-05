@@ -23,6 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listBookings, BookingSummary } from "@/domain/bookings";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { useState } from "react";
+import { OpsLocationFilter, useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
 
 function PickupCard({ booking }: { booking: BookingSummary }) {
   const navigate = useNavigate();
@@ -100,26 +101,29 @@ export default function OpsPickups() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Default to "all" instead of "today"
   const dayFilter = searchParams.get("day") || "all";
+  const locationFilter = useOpsLocationFilter();
 
   // Fetch both confirmed and pending bookings for pickups
   const { data: bookings, isLoading } = useQuery({
-    queryKey: ["ops-pickups", dayFilter],
+    queryKey: ["ops-pickups", dayFilter, locationFilter],
     queryFn: async () => {
-      // Fetch both pending and confirmed bookings
+      // Fetch both pending and confirmed bookings with location filter
       const [pending, confirmed] = await Promise.all([
-        listBookings({ status: "pending" }),
-        listBookings({ status: "confirmed" }),
+        listBookings({ status: "pending", locationId: locationFilter || undefined }),
+        listBookings({ status: "confirmed", locationId: locationFilter || undefined }),
       ]);
       return [...pending, ...confirmed];
     },
   });
   
   const setDayFilter = (day: string) => {
+    const newParams = new URLSearchParams(searchParams);
     if (day === "all") {
-      setSearchParams({});
+      newParams.delete("day");
     } else {
-      setSearchParams({ day });
+      newParams.set("day", day);
     }
+    setSearchParams(newParams);
   };
 
   // Filter by day and search
@@ -156,9 +160,9 @@ export default function OpsPickups() {
           </div>
         </div>
 
-        {/* Search & Filters */}
-        <div className="flex gap-2">
-          <div className="relative flex-1 max-w-xs">
+        {/* Search, Location & Day Filters */}
+        <div className="flex flex-wrap gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search by code or name..."
@@ -167,6 +171,10 @@ export default function OpsPickups() {
               className="pl-9"
             />
           </div>
+          
+          {/* Location Filter */}
+          <OpsLocationFilter />
+          
           <div className="flex gap-1">
             <Button
               variant={dayFilter === "today" ? "default" : "outline"}
