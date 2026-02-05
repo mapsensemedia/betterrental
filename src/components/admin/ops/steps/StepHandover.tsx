@@ -25,9 +25,11 @@ interface StepHandoverProps {
 export function StepHandover({ booking, completion, onActivate, isBookingCompleted }: StepHandoverProps) {
   const isRentalActive = booking?.status === "active";
   const isCompleted = booking?.status === "completed" || isBookingCompleted;
+  const hasUnitAssigned = !!booking?.assigned_unit_id;
   
-  // UPDATED: Prerequisites for handover - simplified flow
+  // UPDATED: Prerequisites for handover - includes VIN assignment
   const allPrerequisitesMet = 
+    hasUnitAssigned &&
     completion.checkin.govIdVerified &&
     completion.checkin.licenseOnFile &&
     completion.checkin.nameMatches &&
@@ -40,6 +42,7 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
     completion.photos.photosComplete;
     
   const prerequisites = [
+    { label: "Vehicle Unit Assigned (VIN)", complete: hasUnitAssigned },
     { label: "Gov ID Verified", complete: completion.checkin.govIdVerified },
     { label: "License On File", complete: completion.checkin.licenseOnFile },
     { label: "Name Matches", complete: completion.checkin.nameMatches },

@@ -1,6 +1,10 @@
 // Return operational steps definition with STRICT STATE MACHINE
 // States must progress: not_started → initiated → intake_done → evidence_done → issues_reviewed → closeout_done → deposit_processed
 
+import type { Database } from "@/integrations/supabase/types";
+
+export type BookingStatus = Database["public"]["Enums"]["booking_status"];
+
 export type ReturnState = 
   | "not_started"
   | "initiated"
@@ -10,7 +14,7 @@ export type ReturnState =
   | "closeout_done"
   | "deposit_processed";
 
-export type ReturnStepId = 
+export type ReturnStepId =
   | "intake"
   | "evidence"
   | "issues"
@@ -223,4 +227,39 @@ export function getCurrentReturnStepIndex(completion: ReturnCompletion): number 
     }
   }
   return RETURN_STEPS.length - 1;
+}
+
+// ========== WORKFLOW ENFORCEMENT ==========
+
+/**
+ * Validates whether a booking status transition can bypass the return workflow.
+ * Only blocks active → completed if return workflow is incomplete.
+ */
+export function validateReturnWorkflow(
+  currentStatus: BookingStatus,
+  newStatus: BookingStatus,
+  returnState: ReturnState | null | undefined
+): { allowed: boolean; reason?: string } {
+  // Only enforce for active → completed transitions
+  if (currentStatus === "active" && newStatus === "completed") {
+    const state = returnState || "not_started";
+    
+    // Must have completed at least the closeout step
+    if (!isStateAtLeast(state as ReturnState, "closeout_done")) {
+      return {
+        allowed: false,
+        reason: "Complete return workflow first (intake, evidence, issues, closeout)",
+      };
+    }
+  }
+  
+  return { allowed: true };
+}
+
+/**
+ * Check if an admin override is valid for bypassing workflow
+ * Requires minimum 50 characters for bypass justification
+ */
+export function isValidBypassReason(reason: string | undefined): boolean {
+  return !!reason && reason.trim().length >= 50;
 }

@@ -212,9 +212,33 @@ Continue with existing validation
 ## Testing Checklist
 
 After implementation, verify:
-1. [ ] Void booking dialog appears only for admin users
-2. [ ] Voided bookings are logged with user ID and reason in audit_logs
-3. [ ] Attempting to complete a rental without return workflow shows error
-4. [ ] Attempting to activate without VIN shows error  
-5. [ ] Delivery bookings still work correctly with VIN assignment
-6. [ ] Admin override with justification is logged prominently
+1. [x] Void booking dialog appears only for admin users
+2. [x] Voided bookings are logged with user ID and reason in audit_logs
+3. [x] Attempting to complete a rental without return workflow shows error
+4. [x] Attempting to activate without VIN shows error  
+5. [x] Delivery bookings still work correctly with VIN assignment
+6. [x] Admin override with justification is logged prominently
+
+---
+
+## Implementation Status: ✅ COMPLETE
+
+All three security hardening items have been implemented:
+
+1. **VoidBookingDialog** - Created new component at `src/components/admin/VoidBookingDialog.tsx`
+   - Reason dropdown with 6 options (fraud, error, dispute, duplicate, customer request, other)
+   - Notes field requiring minimum 20 characters
+   - Optional refund tracking field
+   - Destructive warning before action
+   - Added to BookingDetail.tsx header actions dropdown
+
+2. **Return Workflow Enforcement** - Updated `src/lib/return-steps.ts` and `src/hooks/use-bookings.ts`
+   - Added `validateReturnWorkflow()` function
+   - Blocks `active → completed` unless `return_state` is `closeout_done`
+   - Admin bypass requires 50+ character justification
+   - Bypasses create admin alerts and prominent audit logs
+
+3. **VIN Enforcement** - Updated `BookingOps.tsx`, `StepHandover.tsx`, and `ops-steps.ts`
+   - Added VIN check to `handleActivateRental()`
+   - Added "Vehicle Unit Assigned (VIN)" to handover prerequisites
+   - Added `unitAssigned` field to `StepCompletion.handover` interface

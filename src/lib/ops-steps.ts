@@ -194,6 +194,7 @@ export interface StepCompletion {
   handover: {
     activated: boolean;
     smsSent: boolean;
+    unitAssigned: boolean; // VIN must be assigned before handover
   };
 }
 
