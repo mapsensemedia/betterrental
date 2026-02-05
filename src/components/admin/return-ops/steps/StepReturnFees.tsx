@@ -3,15 +3,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DamageReportDialog } from "@/components/admin/DamageReportDialog";
+import { calculateFuelShortage, TANK_SIZES, getFuelLevelLabel } from "@/lib/fuel-pricing";
 import { 
   DollarSign, 
   CheckCircle2,
   ShieldAlert,
   Loader2,
   Plus,
+  Fuel,
+  AlertTriangle,
 } from "lucide-react";
 
 interface StepReturnFeesProps {
@@ -41,7 +45,7 @@ export function StepReturnFees({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vehicles")
-        .select("make, model, year")
+        .select("make, model, year, category")
         .eq("id", vehicleId)
         .single();
       if (error) throw error;
@@ -50,17 +54,56 @@ export function StepReturnFees({
     enabled: !!vehicleId,
   });
 
-  // Fetch booking for code
+  // Fetch booking for code and assigned unit
   const { data: booking } = useQuery({
-    queryKey: ["booking-code", bookingId],
+    queryKey: ["booking-for-fees", bookingId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("booking_code")
+        .select("booking_code, assigned_unit_id, late_return_fee")
         .eq("id", bookingId)
         .single();
       if (error) throw error;
       return data;
+    },
+    enabled: !!bookingId,
+  });
+
+  // Fetch vehicle unit for tank capacity
+  const { data: vehicleUnit } = useQuery({
+    queryKey: ["vehicle-unit-tank", booking?.assigned_unit_id],
+    queryFn: async () => {
+      if (!booking?.assigned_unit_id) return null;
+      const { data, error } = await supabase
+        .from("vehicle_units")
+        .select("tank_capacity_liters")
+        .eq("id", booking.assigned_unit_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!booking?.assigned_unit_id,
+  });
+
+  // Fetch inspection metrics (pickup & return fuel levels)
+  const { data: inspectionMetrics } = useQuery({
+    queryKey: ["inspection-metrics-fuel", bookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("inspection_metrics")
+        .select("phase, fuel_level")
+        .eq("booking_id", bookingId)
+        .in("phase", ["pickup", "return"]);
+      
+      if (error) throw error;
+      
+      const pickup = data?.find(m => m.phase === "pickup");
+      const returnMetrics = data?.find(m => m.phase === "return");
+      
+      return {
+        pickupFuel: pickup?.fuel_level ?? null,
+        returnFuel: returnMetrics?.fuel_level ?? null,
+      };
     },
     enabled: !!bookingId,
   });
@@ -79,8 +122,25 @@ export function StepReturnFees({
     },
   });
 
+  // Calculate fuel shortage
+  const tankCapacity = vehicleUnit?.tank_capacity_liters || 
+    (vehicle?.category ? TANK_SIZES[vehicle.category.toLowerCase()] : null) || 
+    TANK_SIZES.default;
+  
+  const fuelShortage = calculateFuelShortage(
+    inspectionMetrics?.pickupFuel ?? null,
+    inspectionMetrics?.returnFuel ?? null,
+    tankCapacity
+  );
+
   const hasDamages = damages && damages.length > 0;
   const totalDamageCost = damages?.reduce((sum, d) => sum + (d.estimated_cost || 0), 0) || 0;
+  const lateReturnFee = booking?.late_return_fee || 0;
+  const fuelCharge = fuelShortage?.chargeAmount || 0;
+  
+  // Total additional fees
+  const totalFees = totalDamageCost + lateReturnFee + fuelCharge;
+  const hasFees = totalFees > 0;
 
   const vehicleName = vehicle 
     ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` 
@@ -91,33 +151,100 @@ export function StepReturnFees({
       {/* Status Card */}
       <Card className={completion.reviewed 
         ? "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20" 
-        : hasDamages 
-          ? "border-destructive/50 bg-destructive/5"
+        : hasFees 
+          ? "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20"
           : "border-muted"
       }>
         <CardContent className="py-4">
           <div className={`flex items-center gap-2 ${
-            completion.reviewed ? "text-emerald-600" : hasDamages ? "text-destructive" : "text-muted-foreground"
+            completion.reviewed ? "text-emerald-600" : hasFees ? "text-amber-600" : "text-muted-foreground"
           }`}>
             {completion.reviewed ? (
               <>
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="font-medium">Fees reviewed</span>
               </>
-            ) : hasDamages ? (
+            ) : hasFees ? (
               <>
-                <ShieldAlert className="h-5 w-5" />
-                <span className="font-medium">{damages.length} damage report{damages.length !== 1 ? "s" : ""} found</span>
+                <AlertTriangle className="h-5 w-5" />
+                <span className="font-medium">
+                  ${totalFees.toFixed(2)} in additional charges
+                </span>
               </>
             ) : (
               <>
                 <CheckCircle2 className="h-5 w-5" />
-                <span className="font-medium">No additional fees or damages</span>
+                <span className="font-medium">No additional fees</span>
               </>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Fuel Shortage Card */}
+      {inspectionMetrics && (
+        <Card className={fuelShortage?.hasShortage ? "border-amber-500/50" : ""}>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Fuel className="h-4 w-4" />
+              Fuel Status
+            </CardTitle>
+            <CardDescription>
+              Compare fuel levels at pickup and return
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {inspectionMetrics.pickupFuel !== null && inspectionMetrics.returnFuel !== null ? (
+              <div className="space-y-4">
+                {/* Fuel comparison */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">At Pickup</p>
+                    <p className="text-lg font-semibold">{getFuelLevelLabel(inspectionMetrics.pickupFuel)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">At Return</p>
+                    <p className="text-lg font-semibold">{getFuelLevelLabel(inspectionMetrics.returnFuel)}</p>
+                  </div>
+                </div>
+
+                {/* Fuel shortage alert */}
+                {fuelShortage?.hasShortage ? (
+                  <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700 dark:text-amber-400">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Fuel shortage detected</p>
+                          <p className="text-sm mt-1">
+                            {fuelShortage.shortageLiters}L missing ({fuelShortage.shortagePercent}% of tank)
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold">${fuelShortage.chargeAmount.toFixed(2)}</p>
+                          <p className="text-xs">fuel charge</p>
+                        </div>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    <span className="text-emerald-700 dark:text-emerald-300">
+                      Fuel returned at or above pickup level
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="py-4 text-center text-muted-foreground">
+                <p className="text-sm">Fuel readings not recorded</p>
+                <p className="text-xs mt-1">Complete intake step to record fuel levels</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Report Damage Button */}
       <Card>
@@ -210,21 +337,75 @@ export function StepReturnFees({
         </CardContent>
       </Card>
 
-      {/* Additional Fees */}
+      {/* Additional Fees Summary */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
-            Additional Fees
+            Additional Fees Summary
           </CardTitle>
           <CardDescription>
-            Any additional charges for this rental
+            All additional charges for this rental
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="py-6 text-center text-muted-foreground">
-            <p className="text-sm">No additional fees applied</p>
-            <p className="text-xs mt-1">Late fees and other charges can be added through Billing</p>
+          <div className="space-y-3">
+            {/* Fuel charge */}
+            {fuelCharge > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20">
+                <div className="flex items-center gap-2">
+                  <Fuel className="h-4 w-4 text-amber-600" />
+                  <span>Fuel shortage</span>
+                </div>
+                <span className="font-medium text-amber-700 dark:text-amber-400">
+                  ${fuelCharge.toFixed(2)}
+                </span>
+              </div>
+            )}
+            
+            {/* Late return fee */}
+            {lateReturnFee > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span>Late return fee</span>
+                </div>
+                <span className="font-medium text-amber-700 dark:text-amber-400">
+                  ${lateReturnFee.toFixed(2)}
+                </span>
+              </div>
+            )}
+            
+            {/* Damage charges */}
+            {totalDamageCost > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/10">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-destructive" />
+                  <span>Damage charges</span>
+                </div>
+                <span className="font-medium text-destructive">
+                  ${totalDamageCost.toFixed(2)}
+                </span>
+              </div>
+            )}
+            
+            {/* No fees */}
+            {!hasFees && (
+              <div className="py-4 text-center text-muted-foreground">
+                <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-500 mb-2" />
+                <p className="text-sm">No additional fees</p>
+              </div>
+            )}
+            
+            {/* Total */}
+            {hasFees && (
+              <div className="pt-4 border-t flex items-center justify-between">
+                <span className="font-semibold">Total Additional Fees</span>
+                <span className="text-xl font-bold">
+                  ${totalFees.toFixed(2)}
+                </span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
