@@ -227,6 +227,15 @@ export function useUpdateDamage() {
   });
 }
 
+/**
+ * Recommended withholding amount based on damage severity
+ */
+const DAMAGE_WITHHOLD_AMOUNTS: Record<DamageSeverity, number> = {
+  minor: 100,
+  moderate: 250,
+  severe: 500,
+};
+
 export function useCreateDamage() {
   const queryClient = useQueryClient();
   const { logAction } = useAuditLog();
@@ -250,7 +259,7 @@ export function useCreateDamage() {
       
       const { data: booking } = await supabase
         .from("bookings")
-        .select("booking_code")
+        .select("booking_code, deposit_status, deposit_amount, status, return_state")
         .eq("id", damageData.bookingId)
         .maybeSingle();
       
@@ -268,6 +277,7 @@ export function useCreateDamage() {
         vehicleName = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
       }
 
+      // Create the damage report
       const { data, error } = await supabase
         .from("damage_reports")
         .insert([{
@@ -277,7 +287,7 @@ export function useCreateDamage() {
           location_on_vehicle: damageData.locationOnVehicle,
           severity: damageData.severity,
           photo_urls: damageData.photoUrls || [],
-          estimated_cost: damageData.estimatedCost,
+          estimated_cost: damageData.estimatedCost || DAMAGE_WITHHOLD_AMOUNTS[damageData.severity],
           reported_by: user.id,
           status: "under_review",
         }])
@@ -286,9 +296,45 @@ export function useCreateDamage() {
 
       if (error) throw error;
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // AUTOMATIC DEPOSIT HOLD TRIGGER
+      // ═══════════════════════════════════════════════════════════════════════
+      
+      // Flag booking as exception and hold deposit if in return flow
+      const isInReturnFlow = booking?.status === "active" || 
+                             booking?.return_state !== null;
+      const hasDeposit = booking?.deposit_status === "authorized" || 
+                         booking?.deposit_status === "hold_created";
+      
+      if (isInReturnFlow) {
+        // Update booking to flag as exception (prevents automatic deposit release)
+        await supabase
+          .from("bookings")
+          .update({
+            return_is_exception: true,
+            return_exception_reason: `Damage reported: ${damageData.severity} - ${damageData.locationOnVehicle}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", damageData.bookingId);
+
+        // Record deposit hold reason in ledger
+        if (hasDeposit) {
+          const withholdAmount = damageData.estimatedCost || DAMAGE_WITHHOLD_AMOUNTS[damageData.severity];
+          
+          await supabase.from("deposit_ledger").insert({
+            booking_id: damageData.bookingId,
+            action: "withhold",
+            amount: withholdAmount,
+            reason: `Damage hold: ${damageData.severity} ${damageData.locationOnVehicle} - ${damageData.description.slice(0, 100)}`,
+            category: "damage",
+            created_by: user.id,
+          });
+        }
+      }
+
       // Create alert for the damage
       await supabase.from("admin_alerts").insert([{
-        alert_type: "damage_reported",
+        alert_type: "damage_reported" as const,
         title: `Damage reported: ${damageData.severity}`,
         message: damageData.description,
         booking_id: damageData.bookingId,
@@ -307,14 +353,29 @@ export function useCreateDamage() {
       await logAction("damage_created", "damage_report", data.id, {
         severity: damageData.severity,
         description: damageData.description,
+        deposit_held: isInReturnFlow && hasDeposit,
+        exception_flagged: isInReturnFlow,
       });
 
-      return data;
+      return { 
+        ...data, 
+        depositHeld: isInReturnFlow && hasDeposit,
+        exceptionFlagged: isInReturnFlow,
+      };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-damages"] });
       queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
-      toast.success("Damage report created");
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["booking"] });
+      
+      if (data.depositHeld) {
+        toast.success("Damage report created - Deposit held pending review");
+      } else if (data.exceptionFlagged) {
+        toast.success("Damage report created - Booking flagged as exception");
+      } else {
+        toast.success("Damage report created");
+      }
     },
     onError: (error) => {
       console.error("Failed to create damage:", error);

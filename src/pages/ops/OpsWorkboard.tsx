@@ -2,17 +2,15 @@
  * OpsWorkboard - Daily task overview for operations staff
  */
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpsShell } from "@/components/ops/OpsShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Car, 
   ArrowRightLeft, 
   RotateCcw, 
-  Clock, 
   AlertTriangle,
   ChevronRight,
   CheckCircle2,
@@ -20,6 +18,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { OpsLocationFilter, useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
 
 interface TaskCount {
   pickupsToday: number;
@@ -29,26 +28,35 @@ interface TaskCount {
   overdueReturns: number;
 }
 
-function useWorkboardCounts() {
+function useWorkboardCounts(locationId: string | null) {
   return useQuery({
-    queryKey: ["ops-workboard-counts"],
+    queryKey: ["ops-workboard-counts", locationId],
     queryFn: async (): Promise<TaskCount> => {
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
       const tomorrowEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2).toISOString();
 
+      // Build base queries with optional location filter
+      let pickupsQuery = supabase
+        .from("bookings")
+        .select("id, start_at")
+        .eq("status", "confirmed")
+        .gte("start_at", todayStart)
+        .lt("start_at", tomorrowEnd);
+      
+      let activeQuery = supabase
+        .from("bookings")
+        .select("id, end_at")
+        .eq("status", "active");
+
+      if (locationId) {
+        pickupsQuery = pickupsQuery.eq("location_id", locationId);
+        activeQuery = activeQuery.eq("location_id", locationId);
+      }
+
       const [pickupsRes, activeRes] = await Promise.all([
-        supabase
-          .from("bookings")
-          .select("id, start_at")
-          .eq("status", "confirmed")
-          .gte("start_at", todayStart)
-          .lt("start_at", tomorrowEnd),
-        supabase
-          .from("bookings")
-          .select("id, end_at")
-          .eq("status", "active"),
+        pickupsQuery,
+        activeQuery,
       ]);
 
       const pickups = pickupsRes.data || [];
@@ -137,18 +145,33 @@ function StatCard({
 }
 
 export default function OpsWorkboard() {
-  const { data: counts, isLoading } = useWorkboardCounts();
+  const [searchParams] = useSearchParams();
+  const locationFilter = useOpsLocationFilter();
+  const { data: counts, isLoading } = useWorkboardCounts(locationFilter);
   const navigate = useNavigate();
+
+  // Build URLs that preserve location filter
+  const buildHref = (basePath: string) => {
+    const params = new URLSearchParams();
+    if (locationFilter) {
+      params.set("locationId", locationFilter);
+    }
+    const queryString = params.toString();
+    return queryString ? `${basePath}?${queryString}` : basePath;
+  };
 
   return (
     <OpsShell>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold">Workboard</h1>
-          <p className="text-muted-foreground">
-            {format(new Date(), "EEEE, MMMM d")} — Today's overview
-          </p>
+        {/* Header with Location Filter */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Workboard</h1>
+            <p className="text-muted-foreground">
+              {format(new Date(), "EEEE, MMMM d")} — Today's overview
+            </p>
+          </div>
+          <OpsLocationFilter />
         </div>
 
         {/* Stats Grid */}
@@ -170,13 +193,13 @@ export default function OpsWorkboard() {
               value={counts?.pickupsToday || 0}
               subtitle={`+${counts?.pickupsTomorrow || 0} tomorrow`}
               icon={Car}
-              href="/ops/pickups"
+              href={buildHref("/ops/pickups")}
             />
             <StatCard
               title="Active Rentals"
               value={counts?.activeRentals || 0}
               icon={ArrowRightLeft}
-              href="/ops/active"
+              href={buildHref("/ops/active")}
               variant="success"
             />
             <StatCard
@@ -184,7 +207,7 @@ export default function OpsWorkboard() {
               value={counts?.returnsExpected || 0}
               subtitle="Today & tomorrow"
               icon={RotateCcw}
-              href="/ops/returns"
+              href={buildHref("/ops/returns")}
             />
             {(counts?.overdueReturns || 0) > 0 && (
               <StatCard
@@ -192,7 +215,7 @@ export default function OpsWorkboard() {
                 value={counts?.overdueReturns || 0}
                 subtitle="Requires action"
                 icon={AlertTriangle}
-                href="/ops/returns?filter=overdue"
+                href={buildHref("/ops/returns") + (locationFilter ? "&filter=overdue" : "?filter=overdue")}
                 variant="warning"
               />
             )}
@@ -208,7 +231,7 @@ export default function OpsWorkboard() {
             <Button
               variant="outline"
               className="justify-between"
-              onClick={() => navigate("/ops/pickups")}
+              onClick={() => navigate(buildHref("/ops/pickups"))}
             >
               <span className="flex items-center gap-2">
                 <Car className="w-4 h-4" />
@@ -219,7 +242,7 @@ export default function OpsWorkboard() {
             <Button
               variant="outline"
               className="justify-between"
-              onClick={() => navigate("/ops/returns")}
+              onClick={() => navigate(buildHref("/ops/returns"))}
             >
               <span className="flex items-center gap-2">
                 <RotateCcw className="w-4 h-4" />
