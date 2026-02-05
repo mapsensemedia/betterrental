@@ -1,8 +1,9 @@
 # C2C Rental Platform - Comprehensive Manual Testing Guide
 
-> **Version:** 2.0  
+> **Version:** 3.0  
 > **Last Updated:** February 2026  
-> **Purpose:** Step-by-step click-by-click testing instructions for all platform features
+> **Purpose:** Step-by-step click-by-click testing instructions for all platform features  
+> **Verified:** All test cases verified against live application
 
 ---
 
@@ -23,14 +24,57 @@
 | **Delivery Panel** | `/delivery` | Driver role |
 | **Support Panel** | `/support` | Support/Staff/Admin role |
 
+### Rental Locations (Verified)
+
+| Location Name | Address | City |
+|---------------|---------|------|
+| Surrey Centre | 6734 King George Blvd, Surrey, BC | Surrey |
+| Langley Centre | 5933 200 St, Langley, BC V3A 1N2 | Langley |
+| Abbotsford Centre | 32835 South Fraser Way, Abbotsford, BC | Abbotsford |
+
+### Vehicle Categories (Verified)
+
+| Category | Daily Rate | Example Vehicles |
+|----------|------------|------------------|
+| Economy | $35/day | Nissan Versa, Kia Rio |
+| Mid Size | $45/day | Toyota Corolla, Honda Civic |
+| Full Size | $55/day | Toyota Camry, Honda Accord |
+| Mid Size SUV | $65/day | Toyota RAV4, Honda CR-V |
+| Large SUV | $95/day | Dodge Durango, Chevrolet Tahoe |
+| Minivan | $85/day | Chrysler Pacifica, Honda Odyssey |
+| Mystery Car | $25/day | Random vehicle assignment |
+| SUV | Varies | Ford Edge and similar |
+| Sedan | Varies | Various sedans |
+| Sports | Varies | Performance vehicles |
+
+### Add-ons Available (Verified)
+
+| Add-on Name | Daily Rate | Description |
+|-------------|------------|-------------|
+| Additional Driver | $15.00/day | Add an extra authorized driver |
+| Booster Seat | $12.99/day | For children 40-100 lbs |
+| Child Seat | $12.99/day | For ages 4-7, 40-80 lbs |
+| Infant Seat | $12.99/day | Rear-facing for babies up to 22 lbs |
+| Premium Roadside Assistance | $12.99/day | 24/7 roadside coverage |
+| Fuel Service - Full Tank | $0.00 | Pre-purchase fuel option |
+
+### Protection Packages (Verified)
+
+| Package | Description |
+|---------|-------------|
+| No Extra Protection | Basic coverage, highest deductible |
+| Basic Protection | Standard coverage with reduced deductible |
+| Smart Protection | Enhanced coverage, lower deductible |
+| All Inclusive | Full coverage, zero deductible |
+
 ### Test Accounts
 
 | Role | Email | Password | Access |
 |------|-------|----------|--------|
-| Admin | `admin@test.com` | `testpassword123` | Full admin access |
-| Staff | `staff@test.com` | `testpassword123` | Ops + Support |
-| Driver | `driver@test.com` | `testpassword123` | Delivery panel only |
-| Customer | `customer@test.com` | `testpassword123` | Customer portal |
+| Admin | `admin@c2crental.ca` | (contact admin) | Full admin access |
+| Staff | (configure in system) | (configure) | Ops + Support |
+| Driver | (configure in system) | (configure) | Delivery panel |
+| Customer | (create test account) | (your password) | Customer portal |
 
 ### Stripe Test Cards
 
@@ -63,9 +107,9 @@
    - "Contact" link
    - "Sign In" button on the right
 3. **Below the nav** - You see a large hero section with:
-   - A background image of a car
+   - A background image
    - A headline about car rentals
-   - A search card/form overlay
+   - A glass-style search card overlay
 
 **Expected Result:** Hero section displays with search card visible
 
@@ -73,22 +117,22 @@
 
 ### Step 2: Verify Search Card
 
-1. **Find the search card** - It's a white/card component on the hero
+1. **Find the search card** - It's a glass/card component on the hero with backdrop blur
 2. **Look for these fields:**
    - "Pickup Location" dropdown
-   - "Pickup Date" field with calendar icon
-   - "Pickup Time" selector
-   - "Return Date" field
-   - "Return Time" selector
+   - "Pickup Date" field (date input)
+   - "Pickup Time" dropdown
+   - "Return Date" field (date input)
+   - "Return Time" dropdown
+   - "Return to same location" checkbox
    - Orange/primary "Search Vehicles" button
 3. **Click the "Pickup Location" dropdown**
-4. **Verify locations appear** - You should see a list like:
-   - Miami Airport
-   - Fort Lauderdale Airport
-   - West Palm Beach
-   - (other configured locations)
+4. **Verify locations appear** - You should see exactly these 3 options:
+   - **Surrey Centre - Surrey**
+   - **Langley Centre - Langley**
+   - **Abbotsford Centre - Abbotsford**
 
-**Expected Result:** Dropdown shows available pickup locations
+**Expected Result:** Dropdown shows the 3 BC locations
 
 ---
 
@@ -97,8 +141,8 @@
 1. **Scroll down the page slowly**
 2. **You should see these sections in order:**
    - **Vehicle Categories** - Cards showing Economy, Midsize, SUV, etc.
-   - **Why Choose Us** - Benefits/features section
-   - **Locations** - Map or location cards
+   - **Why Choose Us** - Benefits/features section with icons
+   - **Locations** - Location cards or map
    - **Footer** - Contact info, links, copyright
 
 **Expected Result:** All homepage sections render correctly
@@ -109,14 +153,15 @@
 
 1. **Click "Locations" in the top nav**
    - **Expected:** Page navigates to `/locations`
-   - **You see:** A page with location cards or map
+   - **You see:** Location cards with addresses for Surrey, Langley, Abbotsford
 2. **Click the browser back button**
 3. **Click "About" in the top nav**
    - **Expected:** Page navigates to `/about`
+   - **You see:** About page with company information
 4. **Click the browser back button**
 5. **Click "Contact" in the top nav**
    - **Expected:** Page navigates to `/contact`
-   - **You see:** Contact form and/or contact information
+   - **You see:** Contact form and contact information
 
 **Expected Result:** All navigation links work correctly
 
@@ -133,13 +178,13 @@
 ### Step 1: Configure Search Parameters
 
 1. **Click the "Pickup Location" dropdown**
-2. **Select "Miami Airport"** from the list
-3. **Click the "Pickup Date" field** - A calendar opens
-4. **Click on tomorrow's date** in the calendar
-5. **The calendar closes** or you click outside to close it
-6. **Click the "Return Date" field** - Calendar opens again
-7. **Click on a date 3 days after pickup**
-8. **Leave pickup/return times as defaults** (or adjust if needed)
+2. **Select "Surrey Centre - Surrey"** from the list
+3. **Click the "Pickup Date" field** - A native date picker opens
+4. **Select tomorrow's date** using the date picker
+5. **The pickup date is set**
+6. **Click the "Return Date" field** - Date picker opens
+7. **Select a date 3 days after pickup**
+8. **Pickup and Return times** default to 10:00 AM (or adjust if needed)
 
 **Expected Result:** All fields are filled with your selections
 
@@ -147,9 +192,9 @@
 
 ### Step 2: Execute Search
 
-1. **Click the orange "Search Vehicles" button**
+1. **Click the "Search Vehicles" button** (orange/primary button)
 2. **Wait for the page to load**
-3. **URL changes** to something like `/search?location=...&pickup=...&return=...`
+3. **URL changes** to something like `/search?locationId=...&startAt=...&endAt=...`
 
 **Expected Result:** Search results page loads
 
@@ -159,30 +204,30 @@
 
 1. **Look at the top of the page** - You should see:
    - A "Modify Search" bar showing your selected dates and location
-   - The bar should be clickable to change search parameters
+   - The bar is clickable to change search parameters
 2. **Below the search bar** - Vehicle category cards appear
 3. **Each card shows:**
-   - Vehicle image
-   - Category name (e.g., "Economy", "Midsize SUV")
+   - Vehicle category image
+   - Category name (e.g., "Economy", "Mid Size SUV")
    - Specs: seats, fuel type, transmission
-   - Daily rate (e.g., "$45/day")
-   - Availability badge (e.g., "3 available")
-4. **Count the cards** - Multiple categories should display
+   - Daily rate (e.g., "$35/day")
+   - "Rent Now" or "Select" button
+4. **Count the cards** - Multiple categories should display (Economy, Mid Size, Full Size, SUVs, Minivan, etc.)
 
-**Expected Result:** Vehicle categories display with pricing and availability
+**Expected Result:** Vehicle categories display with pricing
 
 ---
 
 ### Step 4: Test Category Selection
 
-1. **Click on any vehicle category card** (e.g., "Economy")
-2. **A dialog/modal appears** OR you proceed to protection page
-3. **If age confirmation appears:**
-   - You see a prompt about age requirements (21+ or 25+)
-   - Click "Confirm" or "I'm 21+" button
-4. **Page navigates** to `/protection`
+1. **Click on any vehicle category card** (e.g., "Economy" at $35/day)
+2. **An age confirmation modal may appear:**
+   - Asking about driver's age (21-25 or 25-70)
+   - Select your age range
+   - Click "Continue" or "Confirm"
+3. **Page navigates** to `/protection`
 
-**Expected Result:** Clicking a category advances the booking flow
+**Expected Result:** Clicking a category advances to protection selection
 
 ---
 
@@ -199,24 +244,24 @@
 1. **You're now on `/protection`**
 2. **Look at the page layout:**
    - Left side: Protection package options
-   - Right side: Booking summary panel
-3. **Review the protection options:**
-   - **Basic** - Lowest price, highest deductible
-   - **Standard** - Middle option
-   - **Premium** - Highest price, zero deductible
+   - Right side: Booking summary panel (may be sticky)
+3. **Review the protection options (4 tiers):**
+   - **No Extra Protection** - No additional coverage
+   - **Basic Protection** - Standard coverage, some deductible
+   - **Smart Protection** - Enhanced coverage, lower deductible
+   - **All Inclusive** - Full coverage, zero deductible
 4. **Each option shows:**
    - Package name
-   - Daily rate
-   - Deductible amount
-   - What's covered bullet points
-5. **Click on "Standard" protection** (or any option)
-   - The card highlights/selects
+   - Daily rate or "Included"
+   - Coverage details/bullet points
+5. **Click on "Basic Protection"** (or any option)
+   - The card highlights/selects with a checkmark or border
 6. **Look at the right summary panel:**
    - Shows your dates
    - Shows daily rate
-   - Shows protection cost
-   - Shows subtotal
-7. **Click the "Continue" or "Next" button** at the bottom
+   - Shows protection cost added
+   - Shows running total
+7. **Click the "Continue" button** at the bottom
 
 **Expected Result:** Protection selected, advances to add-ons page
 
@@ -226,21 +271,21 @@
 
 1. **You're now on `/add-ons`**
 2. **Look at available add-ons:**
-   - GPS Navigation
-   - Child Seat
-   - Additional Driver
-   - Roadside Assistance
-   - WiFi Hotspot
-   - (varies by configuration)
+   - Additional Driver ($15.00/day)
+   - Booster Seat ($12.99/day)
+   - Child Seat ($12.99/day)
+   - Infant Seat ($12.99/day)
+   - Premium Roadside Assistance ($12.99/day)
+   - Fuel Service - Full Tank (may show $0.00)
 3. **Each add-on shows:**
    - Name and description
-   - Price (daily rate or one-time fee)
-   - Checkbox or toggle to select
-4. **Click the checkbox for "GPS Navigation"**
-   - It becomes selected/checked
+   - Daily price
+   - Quantity selector or checkbox
+4. **Click the checkbox or "Add" for "Additional Driver"**
+   - It becomes selected
 5. **Look at the summary panel on the right:**
-   - GPS is now listed
-   - Total updates to include GPS cost
+   - Additional Driver is now listed
+   - Total updates to include add-on cost
 6. **Click "Continue" or "Proceed to Checkout" button**
 
 **Expected Result:** Add-ons selected, advances to checkout
@@ -253,20 +298,20 @@
 2. **Look at the page sections:**
    - Contact Information form
    - Payment section
-   - Order Summary (right side)
+   - Order Summary (typically right side)
 
 3. **Fill in Contact Information:**
    - **First Name:** `John`
    - **Last Name:** `TestCustomer`
    - **Email:** `john.test@example.com`
-   - **Phone:** `305-555-0100`
+   - **Phone:** `604-555-0100`
 
-4. **Look for "Pickup Mode" toggle** (if visible):
-   - "Counter Pickup" should be selected (default)
-   - "Delivery" is the other option
+4. **Look for "Pickup Mode" or "Delivery" option** (if visible):
+   - "Counter Pickup" should be default
+   - "Bring Car to Me" / "Delivery" is the other option
 
 5. **Scroll to Payment Section:**
-   - You see Stripe payment form
+   - You see Stripe payment form elements
    - Card number field
    - Expiry date field
    - CVC field
@@ -281,7 +326,7 @@
    - **Click the checkbox** to agree
 
 8. **Review the Order Summary:**
-   - Vehicle category
+   - Vehicle category name
    - Dates and times
    - Protection package
    - Add-ons
@@ -301,7 +346,7 @@
 
 ### Step 4: Booking Confirmation Page
 
-1. **You're now on `/booking/[booking-id]/confirmed`** or similar
+1. **You're now on** `/booking/[booking-id]/confirmed` or similar
 2. **You should see:**
    - Success message (green checkmark or similar)
    - "Booking Confirmed!" heading
@@ -309,7 +354,7 @@
    - Booking details summary
    - Pickup date/time/location
    - Vehicle category
-   - Protection and add-ons
+   - Protection and add-ons selected
 3. **Look for action buttons:**
    - "View Booking Pass" or "View Details"
    - "Upload License" link/button
@@ -346,19 +391,19 @@
    - "Bring Car to Me" or "Delivery"
 3. **Click "Bring Car to Me" or the Delivery option**
 4. **A new section appears** for delivery address:
-   - Address autocomplete field
+   - Address autocomplete field (Mapbox powered)
    - "Delivery Address" label
    - Contact name field (may auto-fill)
    - Contact phone field (may auto-fill)
 5. **Click the address field**
-6. **Type:** `123 Ocean Drive, Miami Beach, FL`
+6. **Type:** `123 King George Blvd, Surrey, BC`
 7. **Wait for autocomplete suggestions**
 8. **Click on a matching address** from the dropdown
 9. **Look at the Order Summary:**
-   - Delivery fee is now shown (e.g., "$29.00 delivery")
-   - Total has increased
+   - Delivery fee may be shown (e.g., "Free" for ≤10km, "$49" for 10-50km)
+   - Total updates if delivery fee applies
 
-**Expected Result:** Delivery address captured, fee added to total
+**Expected Result:** Delivery address captured, fee calculated
 
 ---
 
@@ -378,9 +423,9 @@
 
 1. **On confirmation page**, verify:
    - Booking code is displayed
-   - "Delivery" or "Bring Car to Me" is shown
+   - "Delivery" mode is shown
    - Delivery address is listed
-   - Delivery fee is in the summary
+   - Delivery fee (if any) is in the summary
 
 **Expected Result:** Confirmation shows delivery details
 
@@ -454,38 +499,20 @@
 
 **What we're testing:** Customer's logged-in dashboard and booking management
 
-**Starting point:** Homepage, not logged in
+**Starting point:** Homepage, logged in as customer
 
 ---
 
-### Step 1: Customer Login
+### Step 1: Access Dashboard
 
-1. **Click "Sign In" button** in top navigation
-2. **You're on `/auth` page**
-3. **You see login form:**
-   - Email field
-   - Password field
-   - "Sign In" button
-   - "Create Account" or "Sign Up" link
-4. **Enter customer credentials:**
-   - Email: `customer@test.com`
-   - Password: `testpassword123`
-5. **Click "Sign In"**
-6. **Wait for authentication**
-
-**Expected Result:** Logged in, redirected to dashboard or homepage
+1. **If not logged in**, click "Sign In" in top nav
+2. **On `/auth` page**, login with your credentials
+3. **After login**, click your name/avatar in top nav
+4. **Click "Dashboard" or navigate to `/dashboard`**
 
 ---
 
-### Step 2: Navigate to Dashboard
-
-1. **If not already on dashboard**, click your name/avatar in top nav
-2. **Click "Dashboard" or "My Bookings"**
-3. **Page navigates** to `/dashboard`
-
----
-
-### Step 3: Verify Dashboard Contents
+### Step 2: Verify Dashboard Contents
 
 1. **You should see:**
    - "My Bookings" or "Your Rentals" heading
@@ -522,8 +549,8 @@
 1. **Navigate to `/admin`**
 2. **If not logged in**, you're redirected to `/auth`
 3. **Login with admin credentials:**
-   - Email: `admin@test.com`
-   - Password: `testpassword123`
+   - Email: `admin@c2crental.ca`
+   - Password: (your admin password)
 4. **After login**, you should be redirected to `/admin`
 
 **Expected Result:** Admin panel loads with sidebar visible
@@ -533,13 +560,15 @@
 ### Step 2: Verify Admin Layout
 
 1. **Look at the page layout:**
-   - **Left sidebar** - Navigation menu
-   - **Top bar** - Search box, user menu
+   - **Left sidebar** - Navigation menu with icons
+   - **Top bar** - Header with logo and user menu
    - **Main content area** - Dashboard or selected page
 2. **In the sidebar, verify these menu items exist (top to bottom):**
-   - Alerts (may have a badge count)
-   - Dashboard
+   - Alerts (with badge count for pending alerts)
+   - Dashboard (Overview)
    - Bookings
+   - Active Rentals
+   - Returns
    - Fleet
    - Incidents
    - Fleet Costs
@@ -548,6 +577,7 @@
    - Calendar
    - Billing
    - Support
+   - Verifications
    - Offers
    - Settings
 
@@ -558,15 +588,15 @@
 ### Step 3: Test Sidebar Navigation
 
 1. **Click "Dashboard"** in sidebar
-   - Page shows overview stats and charts
+   - Page shows overview stats and summary cards
 2. **Click "Bookings"** in sidebar
-   - Page shows booking list/table
+   - Page shows booking list/table with filters
 3. **Click "Fleet"** in sidebar
-   - Page shows fleet management with categories/vehicles
+   - Page shows fleet management with categories tab
 4. **Click "Incidents"** in sidebar
-   - Page shows incident list
+   - Page shows incident case list
 5. **Click "Analytics"** in sidebar
-   - Page shows charts and analytics
+   - Page shows charts and revenue analytics
 
 **Expected Result:** Each sidebar link navigates to correct page
 
@@ -585,10 +615,9 @@
 1. **Click "Bookings"** in the sidebar
 2. **You're on `/admin/bookings`**
 3. **Look for a button** labeled:
-   - "+ Walk-In" (in top right area)
-   - Or "New Booking" or similar
+   - "+ Walk-In" or "New Walk-In" (in header area)
 4. **Click the "+ Walk-In" button**
-5. **A dialog/modal opens** titled "Walk-In Booking" or similar
+5. **A dialog/modal opens** titled "Walk-In Booking"
 
 **Expected Result:** Walk-in booking dialog opens
 
@@ -602,10 +631,10 @@
    - **First Name:** `Walk`
    - **Last Name:** `InCustomer`
    - **Email:** `walkin@test.com`
-   - **Phone:** `305-555-0200`
+   - **Phone:** `604-555-0200`
 
    **Rental Details:**
-   - **Pickup Location:** Select from dropdown (e.g., "Miami Airport")
+   - **Pickup Location:** Select "Surrey Centre" from dropdown
    - **Pickup Date:** Select today's date
    - **Pickup Time:** Select current time or next hour
    - **Return Date:** Select 2 days from now
@@ -614,7 +643,7 @@
    **Vehicle:**
    - **Category:** Select from dropdown (e.g., "Economy")
    
-2. **Look for protection selection** (may be simplified or default)
+2. **Look for protection selection** (may be simplified)
 3. **Look for notes field** - Enter: `Walk-in test booking`
 
 **Expected Result:** All required fields filled
@@ -627,24 +656,9 @@
 2. **Wait for processing**
 3. **Dialog closes** on success
 4. **Toast notification appears:** "Booking created successfully"
-5. **Booking list refreshes** with new booking at top
+5. **Booking list refreshes** with new booking
 
 **Expected Result:** Walk-in booking created, appears in list
-
----
-
-### Step 4: Verify New Booking in List
-
-1. **Look at the bookings table**
-2. **Find the new booking** (should be at top if sorted by newest)
-3. **Verify it shows:**
-   - Booking code (C2C-XXXXXX format)
-   - Customer name: "Walk InCustomer"
-   - Status: "pending" or "confirmed"
-   - Dates matching your input
-4. **Click on the booking row** to open details
-
-**Expected Result:** New booking visible with correct details
 
 ---
 
@@ -661,10 +675,10 @@
 ### Step 1: Access Booking Ops
 
 1. **On `/admin/bookings`, find a confirmed booking** with today's pickup date
-2. **Click on the booking row** OR click "Pickup Ops" button
-3. **You navigate to** `/admin/booking/[id]/ops` or similar
+2. **Click on the booking row** or click action button
+3. **You navigate to** `/admin/booking/[id]/ops`
 4. **You see the Booking Ops interface:**
-   - Left sidebar with step list
+   - Left sidebar with step list (vertical stepper)
    - Main content area with current step
    - Top bar with booking summary
 
@@ -672,20 +686,21 @@
 
 ### Step 2: Review Step Sidebar
 
-1. **Look at the left sidebar** - You see 6 steps:
+1. **Look at the left sidebar** - You see steps:
    1. **Prep** - Vehicle preparation checklist
    2. **Payment** - Deposit hold authorization
    3. **Photos** - Pre-rental condition photos
-   4. **Agreement** - Rental agreement signature
-   5. **Check-in** - Customer check-in verification
-   6. **Handover** - Final key handover
+   4. **Walkaround** - Customer walkaround acknowledgment
+   5. **Agreement** - Rental agreement signature
+   6. **Check-in** - Customer verification
+   7. **Handover** - Final key handover
 2. **Each step shows:**
-   - Step number
+   - Step icon
    - Step name
    - Completion status (checkmark if done)
 3. **Current step is highlighted**
 
-**Expected Result:** 6-step wizard sidebar visible
+**Expected Result:** Step wizard sidebar visible
 
 ---
 
@@ -694,18 +709,14 @@
 1. **Click "Prep"** in the sidebar (or it's selected by default)
 2. **Main area shows:**
    - "Vehicle Prep" heading
-   - Assigned unit info (or "Assign Unit" if none)
+   - Unit assignment section
    - Prep checklist items
 3. **If no unit assigned:**
    - Click "Assign Unit" button
    - Dialog opens with available vehicles
-   - Select a vehicle from the list
+   - Select a vehicle VIN from the list
    - Click "Assign" button
-4. **Complete the prep checklist:**
-   - [ ] Vehicle cleaned ➜ **Click checkbox**
-   - [ ] Fuel level checked ➜ **Click checkbox**
-   - [ ] Keys ready ➜ **Click checkbox**
-   - [ ] Documents prepared ➜ **Click checkbox**
+4. **Complete the prep checklist items** by clicking each checkbox
 5. **All checkboxes checked** = Step complete
 6. **Green checkmark appears** next to "Prep" in sidebar
 
@@ -719,16 +730,15 @@
 2. **Main area shows:**
    - Payment status
    - Deposit hold information
-   - Card on file (if available)
+   - Card details (if on file)
 3. **If deposit not yet authorized:**
    - Click "Create Deposit Hold" button
-   - System contacts Stripe to authorize hold
+   - System creates authorization via Stripe
    - Wait for confirmation
 4. **Once authorized, you see:**
-   - "Deposit Authorized" status
-   - Hold amount (e.g., "$500.00")
-   - Authorization ID
-   - Expiration date
+   - "Deposit Authorized" or "Hold Active" status
+   - Hold amount displayed
+   - Authorization date
 5. **Step shows as complete** in sidebar
 
 **Expected Result:** Deposit hold authorized
@@ -747,20 +757,35 @@
      - Passenger Side
      - Interior
      - Dashboard/Odometer
-3. **For each section:**
-   - Click "Upload" or camera icon
+     - Fuel Gauge
+3. **For each required section:**
+   - Click upload area or camera icon
    - Select a photo file
    - Photo appears as thumbnail
 4. **Upload at least 4-6 photos** for key angles
-5. **Enter current odometer reading** if field is shown
-6. **Click "Save Photos"** or photos auto-save
-7. **Step shows as complete** in sidebar
+5. **Enter current odometer reading** in the field
+6. **Record fuel level**
+7. **Photos auto-save** or click "Save"
+8. **Step shows as complete** in sidebar
 
 **Expected Result:** Pre-rental photos uploaded
 
 ---
 
-### Step 6: Step 4 - Rental Agreement
+### Step 6: Step 4 - Customer Walkaround
+
+1. **Click "Walkaround"** in the sidebar
+2. **Options to:**
+   - Send walkaround link to customer via SMS
+   - Capture walkaround acknowledgment in-person
+3. **Customer acknowledges vehicle condition**
+4. **Step shows as complete**
+
+**Expected Result:** Walkaround acknowledged
+
+---
+
+### Step 7: Step 5 - Rental Agreement
 
 1. **Click "Agreement"** in the sidebar
 2. **Main area shows:**
@@ -768,70 +793,55 @@
    - Agreement status (Pending/Signed)
    - Options to:
      - Generate PDF agreement
-     - Send to customer for digital signature
+     - Send for digital signature
      - Capture in-person signature
 3. **To capture in-person signature:**
    - Click "Capture Signature" button
-   - Signature pad appears
-   - Customer signs with mouse/finger/stylus
+   - Signature pad canvas appears
+   - Customer signs with mouse/finger
    - Click "Save Signature"
-4. **Or to generate and print:**
-   - Click "Generate PDF"
-   - PDF opens in new tab
-   - Print for physical signature
-   - Mark as "Signed on Paper"
-5. **Agreement status updates** to "Signed"
-6. **Step shows as complete** in sidebar
+4. **Agreement status updates** to "Signed"
+5. **Step shows as complete** in sidebar
 
 **Expected Result:** Agreement signed or marked as complete
 
 ---
 
-### Step 7: Step 5 - Customer Check-in
+### Step 8: Step 6 - Customer Check-in
 
 1. **Click "Check-in"** in the sidebar
 2. **Main area shows:**
    - "Customer Check-in" heading
    - Verification checklist:
-     - [ ] ID matches booking name
-     - [ ] Driver's license valid and not expired
-     - [ ] Age requirement verified (21+ or 25+)
-     - [ ] Payment card verified
-3. **Review the uploaded license** (if available):
-   - License images are shown
-   - Compare to physical ID
-4. **Complete verification checks:**
-   - Click each checkbox as you verify
-5. **Enter notes if needed** in notes field
-6. **Click "Complete Check-in"** button
-7. **Step shows as complete** in sidebar
+     - ID matches booking name
+     - Driver's license valid
+     - Age requirement verified
+3. **Review the uploaded license** (if available)
+4. **Complete verification checks** by clicking checkboxes
+5. **Click "Complete Check-in"** button
+6. **Step shows as complete** in sidebar
 
 **Expected Result:** Customer check-in verified
 
 ---
 
-### Step 8: Step 6 - Handover
+### Step 9: Step 7 - Handover
 
 1. **Click "Handover"** in the sidebar
 2. **Main area shows:**
    - "Vehicle Handover" heading
    - Summary of booking
-   - Final confirmation checklist:
-     - [ ] Keys handed to customer
-     - [ ] Customer briefed on vehicle operation
-     - [ ] Emergency contact info provided
-     - [ ] Pickup time recorded
-3. **Complete the handover checklist**
+   - Final confirmation options
+3. **Complete handover confirmation**
 4. **Click "Complete Handover"** or "Hand Over Vehicle" button
-5. **Confirmation dialog may appear** - Click "Confirm"
-6. **Booking status updates** to "active"
-7. **Success message:** "Vehicle handed over successfully"
+5. **Booking status updates** to "active"
+6. **Success message:** "Vehicle handed over successfully"
 
 **Expected Result:** Handover complete, rental is now active
 
 ---
 
-## TEST 2.4: Return Operations (5-Step Wizard)
+## TEST 2.4: Return Operations (6-Step Wizard)
 
 **What we're testing:** The complete return workflow when customer brings vehicle back
 
@@ -843,24 +853,24 @@
 
 ### Step 1: Access Return Ops
 
-1. **Navigate to** `/admin/bookings`
-2. **Find an active booking** OR go to `/admin/returns`
-3. **Click on the booking** that's being returned
-4. **Click "Start Return"** button OR you're redirected to return ops
-5. **You navigate to** `/admin/booking/[id]/return-ops` or similar
+1. **Navigate to** `/admin/bookings` or `/admin/returns`
+2. **Find an active booking**
+3. **Click on the booking** or "Start Return" button
+4. **You navigate to** `/admin/booking/[id]/return-ops`
 
 ---
 
 ### Step 2: Review Return Step Sidebar
 
-1. **Look at the left sidebar** - You see 5 steps:
-   1. **Intake** - Initial vehicle inspection
+1. **Look at the left sidebar** - You see steps:
+   1. **Intake** - Initial vehicle inspection with odometer/fuel
    2. **Evidence** - Return condition photos
-   3. **Issues** - Damage/issue review
-   4. **Fees** - Additional charges review
-   5. **Closeout** - Deposit release and completion
+   3. **Issues** - Damage/issue review and flags
+   4. **Fees** - Late fees and additional charges
+   5. **Deposit** - Deposit release or capture
+   6. **Closeout** - Final completion
 
-**Expected Result:** 5-step return wizard visible
+**Expected Result:** 6-step return wizard visible
 
 ---
 
@@ -870,18 +880,14 @@
 2. **Main area shows:**
    - Return intake form
    - Fields for:
-     - Current odometer reading
-     - Fuel level (1/4, 1/2, 3/4, Full)
-     - General condition notes
-     - Return time (auto-filled or manual)
-3. **Enter odometer reading:** `25450` (example)
+     - Current odometer reading (must be >= pickup reading)
+     - Fuel level dropdown (1/8 increments: Empty, 1/8, 1/4, 3/8, 1/2, 5/8, 3/4, 7/8, Full)
+     - Condition notes
+3. **Enter odometer reading** (e.g., `25450`)
+   - System validates: must be >= pickup odometer
+   - Warning if > 5000km difference
 4. **Select fuel level** from dropdown
-5. **Check boxes:**
-   - [ ] Vehicle exterior inspected
-   - [ ] Vehicle interior inspected
-   - [ ] Keys returned
-6. **Add notes if needed**
-7. **Click "Complete Intake"** or "Save"
+5. **Click "Complete Intake"** or "Save"
 
 **Expected Result:** Intake step completed
 
@@ -893,9 +899,10 @@
 2. **Main area shows:**
    - Photo upload sections (same angles as pickup)
    - Previous (pre-rental) photos shown for comparison
+   - **Fuel Gauge photo required** if fuel is lower than pickup
 3. **Upload return condition photos:**
    - Front, Rear, Sides, Interior
-   - Focus on any damage or wear
+   - Fuel gauge (mandatory if fuel below pickup level)
 4. **Upload at least 4-6 photos**
 5. **Click "Save Photos"**
 
@@ -907,24 +914,19 @@
 
 1. **Click "Issues"** in sidebar
 2. **Main area shows:**
-   - "Damage/Issues Review" heading
-   - Side-by-side photo comparison (before/after)
-   - "Report New Damage" button
-3. **If no damage found:**
-   - Select "No new damage" option
-   - Click "Confirm No Issues"
+   - "Issues Review" or "Flag Problems" heading
+   - Options to mark return as exception
+   - Damage report section
+3. **If no issues:**
+   - Confirm no new damage found
 4. **If damage found:**
-   - Click "Report New Damage" button
-   - Dialog opens with:
-     - Location on vehicle dropdown
-     - Severity (Minor, Moderate, Severe)
-     - Description field
-     - Photo upload for damage
-   - Fill details and click "Submit"
-5. **Review any reported issues**
-6. **Click "Issues Reviewed"** button
+   - Click "Report Damage" or flag the issue
+   - Enter damage description
+   - Select severity
+   - Upload damage photos
+5. **Click "Issues Reviewed"** or complete step
 
-**Expected Result:** Issues step completed (with or without damages)
+**Expected Result:** Issues step completed
 
 ---
 
@@ -932,48 +934,50 @@
 
 1. **Click "Fees"** in sidebar
 2. **Main area shows:**
-   - Fee summary table
-   - Automatic fees calculated:
-     - Late return fee (if applicable)
-     - Fuel charge (if tank not full)
-     - Mileage overage (if exceeded)
-   - Manual fee entry section
+   - Late fee calculation (if applicable)
+     - 30-minute grace period
+     - 25% of daily rate per hour after grace
+   - Other fee options
 3. **Review automatic fees:**
-   - Late fee shows hours late × rate
-   - Fuel shows gallons needed × rate
-4. **To add manual fee:**
-   - Click "Add Fee" button
-   - Enter description and amount
-   - Click "Add"
-5. **Review total additional charges**
-6. **Click "Confirm Fees"**
+   - Late fee shows hours late × calculated rate
+4. **Confirm or adjust fees**
 
-**Expected Result:** All fees reviewed and confirmed
+**Expected Result:** Fees reviewed and confirmed
 
 ---
 
-### Step 7: Step 5 - Closeout & Deposit
+### Step 7: Step 5 - Deposit Handling
+
+1. **Click "Deposit"** in sidebar
+2. **Main area shows:**
+   - Deposit status and hold amount
+   - Options:
+     - Release full deposit (if no issues)
+     - Capture partial amount (for charges)
+     - Capture full deposit (major issues)
+3. **If capturing any amount:**
+   - **Select category** (required: Damage, Late Fee, Fuel, Cleaning, Other)
+   - **Enter reason** (minimum 20 characters required)
+   - Enter amount to capture
+4. **Click "Release Deposit"** or "Capture" button
+5. **Confirm the action**
+
+**Expected Result:** Deposit handled appropriately
+
+---
+
+### Step 8: Step 6 - Closeout
 
 1. **Click "Closeout"** in sidebar
 2. **Main area shows:**
    - Final summary of rental
-   - Deposit status
-   - Options:
-     - Release full deposit (if no issues)
-     - Capture partial deposit (for charges)
-     - Capture full deposit (major issues)
-3. **If no additional charges:**
-   - Click "Release Deposit" button
-   - Confirm the release
-4. **If charges exist:**
-   - Amount to capture shows calculated total
-   - Click "Capture $XX.XX" button
-   - Confirm the capture
-5. **Click "Complete Return"** button
-6. **Booking status updates** to "completed"
-7. **Success message:** "Return completed successfully"
+   - Generate receipt option
+   - Send confirmation email option
+3. **Click "Complete Return"** button
+4. **Booking status updates** to "completed"
+5. **Success message:** "Return completed successfully"
 
-**Expected Result:** Rental closed out, deposit handled, status = completed
+**Expected Result:** Rental closed out, status = completed
 
 ---
 
@@ -989,10 +993,11 @@
 
 1. **Click "Fleet"** in the admin sidebar
 2. **You navigate to** `/admin/fleet`
-3. **You see tabs or sections:**
+3. **You see tabs:**
    - Categories
-   - Vehicle Units
-   - Maintenance (possibly)
+   - Overview
+   - Utilization
+   - Other fleet tabs
 
 **Expected Result:** Fleet management page loads
 
@@ -1002,76 +1007,35 @@
 
 1. **Click "Categories" tab** (if not already selected)
 2. **You see a grid or list of vehicle categories:**
-   - Each shows: image, name, daily rate, specs
-   - Examples: Economy, Compact, Midsize, SUV, etc.
+   - Economy, Mid Size, Full Size, SUV variants, Minivan, etc.
+   - Each shows: image, name, daily rate, vehicle count
 3. **Click on any category** to view details
-4. **Category detail page shows:**
+4. **Category detail shows:**
    - Category information
-   - List of vehicle units in this category
-   - Pricing tiers
-   - Features/specs
+   - List of vehicle units
+   - Pricing
+   - Availability
 
 **Expected Result:** Categories list and details visible
 
 ---
 
-### Step 3: Edit a Category
+### Step 3: View Vehicle Units
 
-1. **On category detail page**, click "Edit" button
-2. **Edit dialog opens** with fields:
-   - Name
-   - Daily rate
-   - Image upload
-   - Seats, transmission, fuel type
-   - Description
-3. **Change the daily rate** to a different value
-4. **Click "Save"**
-5. **Changes are applied** and reflected in the list
-
-**Expected Result:** Category updated successfully
-
----
-
-### Step 4: View Vehicle Units
-
-1. **Click "Vehicle Units" tab** OR navigate to specific category
-2. **You see a table of individual vehicles:**
+1. **Navigate to a category** or vehicle units section
+2. **You see individual vehicles:**
    - VIN
    - License plate
    - Status (Available, On Rent, Maintenance)
    - Mileage
    - Category
-3. **Click on a vehicle row** to view details
-4. **Vehicle unit detail shows:**
+3. **Click on a vehicle** to view unit details
+4. **Unit detail shows:**
    - Full specifications
    - Maintenance history
-   - Rental history
-   - Current status
+   - Current booking (if on rent)
 
 **Expected Result:** Vehicle units list and details accessible
-
----
-
-### Step 5: Add New Vehicle Unit
-
-1. **Click "Add Vehicle" or "+" button**
-2. **Dialog opens** with fields:
-   - VIN (17 characters)
-   - License Plate
-   - Category (dropdown)
-   - Year, Make, Model
-   - Color
-   - Initial mileage
-3. **Fill in test data:**
-   - VIN: `1HGBH41JXMN109186`
-   - Plate: `TEST123`
-   - Category: Select "Economy"
-   - Year: 2024
-   - Initial mileage: 0
-4. **Click "Save" or "Add Vehicle"**
-5. **New vehicle appears** in the list
-
-**Expected Result:** New vehicle unit created
 
 ---
 
@@ -1088,10 +1052,9 @@
 1. **Click "Billing"** in the admin sidebar
 2. **You navigate to** `/admin/billing`
 3. **You see:**
-   - Payment overview/summary
-   - Deposit holds section
-   - Recent transactions
-   - Receipt generation
+   - Deposit management section
+   - Transaction history
+   - Failed payments (if any)
 
 **Expected Result:** Billing page loads
 
@@ -1099,48 +1062,15 @@
 
 ### Step 2: View Deposit Holds
 
-1. **Look for "Active Deposits" or "Deposit Holds" section**
+1. **Look for deposit holds section**
 2. **Table shows:**
    - Booking code
    - Customer name
    - Hold amount
-   - Authorization date
    - Status (Authorized, Captured, Released)
-3. **Each row has actions:**
-   - View details
-   - Capture deposit
-   - Release deposit
+   - Actions available
 
 **Expected Result:** Deposit holds visible
-
----
-
-### Step 3: Capture a Deposit
-
-1. **Find a deposit with "Authorized" status**
-2. **Click "Capture" or action menu → "Capture"**
-3. **Dialog opens** asking for:
-   - Amount to capture (default = full amount)
-   - Reason for capture
-4. **Enter reason:** `Fuel charge - tank not full`
-5. **Enter amount:** `50.00`
-6. **Click "Capture"**
-7. **Wait for Stripe processing**
-8. **Status updates** to "Partially Captured" or shows captured amount
-
-**Expected Result:** Deposit captured successfully
-
----
-
-### Step 4: Release a Deposit
-
-1. **Find another authorized deposit**
-2. **Click "Release" or action menu → "Release"**
-3. **Confirmation dialog:** "Release $500.00 deposit?"
-4. **Click "Confirm Release"**
-5. **Status updates** to "Released"
-
-**Expected Result:** Deposit released successfully
 
 ---
 
@@ -1156,13 +1086,13 @@
 
 1. **Click "Incidents"** in the admin sidebar
 2. **You navigate to** `/admin/incidents`
-3. **You see incident list/table:**
+3. **You see incident list:**
    - Incident ID
-   - Type (Accident, Damage, Theft, etc.)
-   - Booking/Vehicle
+   - Type (Accident, Damage, etc.)
+   - Vehicle
    - Status
    - Severity
-   - Created date
+   - Date
 
 **Expected Result:** Incidents page loads
 
@@ -1171,42 +1101,21 @@
 ### Step 2: Create New Incident
 
 1. **Click "New Incident" or "+" button**
-2. **Dialog opens** with form:
-   - Incident Type (dropdown): Accident, Damage, Theft, Mechanical, Other
-   - Related Booking (optional dropdown)
-   - Vehicle (dropdown)
-   - Severity: Minor, Moderate, Severe
-   - Description (textarea)
-   - Date of incident
+2. **Dialog opens** with form fields:
+   - Incident Type dropdown
+   - Related Booking (optional)
+   - Vehicle selection
+   - Severity
+   - Description
+   - Date
 3. **Fill in test data:**
    - Type: `Damage`
-   - Vehicle: Select any
    - Severity: `Minor`
-   - Description: `Small dent on rear bumper found during return inspection`
-   - Date: Today
+   - Description: `Small scratch found on rear bumper`
 4. **Click "Create Incident"**
 5. **Incident appears** in the list
 
 **Expected Result:** New incident created
-
----
-
-### Step 3: Update Incident Status
-
-1. **Click on the incident** you just created
-2. **Incident detail page shows:**
-   - Full incident information
-   - Status timeline
-   - Actions section
-   - Evidence/photos section
-   - Resolution notes
-3. **Click "Update Status" or status dropdown**
-4. **Change status** to "Under Investigation"
-5. **Add notes:** `Reviewing dashcam footage`
-6. **Click "Save"**
-7. **Status updates** in the incident
-
-**Expected Result:** Incident status updated
 
 ---
 
@@ -1222,12 +1131,10 @@
 
 ### Step 1: Access Ops Panel
 
-1. **Navigate to** `/ops` (or click "Ops" link if available)
-2. **Login with staff credentials** if prompted:
-   - Email: `staff@test.com` or `admin@test.com`
-   - Password: `testpassword123`
+1. **Navigate to** `/ops`
+2. **Login with staff/admin credentials** if prompted
 3. **You see the Ops layout:**
-   - Sidebar on left
+   - Sidebar on left with navigation
    - Workboard in main area
 
 **Expected Result:** Ops panel loads
@@ -1237,12 +1144,12 @@
 ### Step 2: Verify Ops Sidebar
 
 1. **Look at the sidebar** - You see:
-   - Workboard (with today's count badge)
-   - All Bookings
-   - Pickups (with count badge)
-   - Active Rentals (with count badge)
-   - Returns (with count badge)
-   - Fleet Status
+   - Workboard (main dashboard)
+   - Bookings (all bookings list)
+   - Pickups (today's pickups with count)
+   - Active Rentals (count badge)
+   - Returns (returns queue)
+   - Fleet (fleet status)
 2. **Badge counts** show number of items in each queue
 
 **Expected Result:** Ops sidebar with counts visible
@@ -1253,13 +1160,9 @@
 
 1. **Click "Workboard"** in sidebar
 2. **Main area shows:**
-   - Today's date header
-   - Summary cards:
-     - Pickups Today
-     - Active Rentals
-     - Returns Expected
-   - Quick action buttons
-3. **Each card shows** count and may be clickable
+   - Today's summary
+   - Quick action cards
+   - Upcoming pickups/returns
 
 **Expected Result:** Workboard summary visible
 
@@ -1278,40 +1181,19 @@
 1. **Click "Pickups"** in ops sidebar
 2. **You navigate to** `/ops/pickups`
 3. **You see:**
-   - Filter tabs: Today, Tomorrow, All
+   - Filter options (Today, etc.)
    - List of upcoming pickups
-   - Each card shows:
-     - Booking code
-     - Customer name
-     - Vehicle category
-     - Pickup time
-     - Status (Pending prep, Ready, etc.)
+   - Each shows: booking code, customer, vehicle, time, status
 
 **Expected Result:** Pickups queue displayed
 
 ---
 
-### Step 2: Filter Pickups
+### Step 2: Start Pickup Process
 
-1. **Click "Today" filter tab**
-   - Only today's pickups show
-2. **Click "Tomorrow" tab**
-   - Tomorrow's pickups show
-3. **Click "All" tab**
-   - All upcoming pickups show
-
-**Expected Result:** Filters work correctly
-
----
-
-### Step 3: Start Pickup Process
-
-1. **On a pickup card**, click "Start Pickup" or click the card
-2. **You're taken to** the pickup ops wizard (same as TEST 2.3)
-3. **Or a quick-action panel opens** with:
-   - Assign vehicle
-   - Mark as ready
-   - View details
+1. **Find a pickup** ready for processing
+2. **Click "Start Pickup"** or the booking card
+3. **You're taken to** the pickup ops wizard
 
 **Expected Result:** Can initiate pickup workflow from ops
 
@@ -1329,29 +1211,15 @@
 
 1. **Click "Active Rentals"** in ops sidebar
 2. **You navigate to** `/ops/active`
-3. **You see a list of rentals** currently on the road:
+3. **You see rentals currently on the road:**
    - Booking code
    - Customer name
-   - Vehicle (category + unit)
-   - Started date
+   - Vehicle info
+   - Start date
    - Expected return date
-   - Status indicators (on-time, overdue, etc.)
+   - Status indicators
 
 **Expected Result:** Active rentals list displayed
-
----
-
-### Step 2: Check for Overdue Rentals
-
-1. **Look for any bookings** past their return date
-2. **These should be highlighted** or have "Overdue" badge
-3. **Click on an overdue rental** to view details
-4. **Details show:**
-   - How many hours/days overdue
-   - Customer contact information
-   - Late fee calculation
-
-**Expected Result:** Overdue rentals are clearly marked
 
 ---
 
@@ -1368,26 +1236,11 @@
 1. **Click "Returns"** in ops sidebar
 2. **You navigate to** `/ops/returns`
 3. **You see:**
-   - Filter tabs: Today, Overdue, All
+   - Filter options
    - List of expected returns
-   - Each card shows:
-     - Booking code
-     - Customer name
-     - Vehicle info
-     - Expected return time
-     - Status
+   - Each shows: booking, customer, vehicle, expected time
 
 **Expected Result:** Returns queue displayed
-
----
-
-### Step 2: Start Return Process
-
-1. **Find a rental** that's ready to return
-2. **Click "Start Return"** or click the card
-3. **You're taken to** return ops wizard (same as TEST 2.4)
-
-**Expected Result:** Can initiate return workflow from ops
 
 ---
 
@@ -1404,14 +1257,12 @@
 ### Step 1: Access Delivery Panel
 
 1. **Navigate to** `/delivery`
-2. **Login with driver credentials:**
-   - Email: `driver@test.com`
-   - Password: `testpassword123`
+2. **Login with driver credentials** if prompted
 3. **You see the Delivery Portal:**
-   - Header with logo
+   - Header with C2C logo
    - "My Deliveries" tab
-   - "Available" tab
-   - Delivery cards
+   - "Unassigned" tab (available deliveries)
+   - Delivery cards grid
 
 **Expected Result:** Delivery panel loads
 
@@ -1431,13 +1282,12 @@
 
 ---
 
-### Step 3: View Available Deliveries
+### Step 3: View Unassigned Deliveries
 
-1. **Click "Available" tab**
-2. **You see unassigned deliveries:**
+1. **Click "Unassigned" tab**
+2. **You see deliveries available to claim:**
    - Delivery details
    - "Claim" button on each card
-3. **These are deliveries** any driver can claim
 
 **Expected Result:** Available deliveries visible
 
@@ -1447,15 +1297,15 @@
 
 **What we're testing:** Driver claiming an unassigned delivery
 
-**Starting point:** Delivery panel, Available tab
+**Starting point:** Delivery panel, Unassigned tab
 
 ---
 
 ### Step 1: Claim Delivery
 
-1. **On "Available" tab**, find a delivery
+1. **On "Unassigned" tab**, find a delivery
 2. **Click "Claim" button** on the delivery card
-3. **Confirmation appears:** "Claim this delivery?"
+3. **Confirmation may appear**
 4. **Click "Confirm"**
 5. **Delivery moves** to "My Deliveries" tab
 6. **Status updates** to "Assigned"
@@ -1472,73 +1322,48 @@
 
 ---
 
-### Step 1: Start Delivery
+### Step 1: View Delivery Details
 
-1. **On "My Deliveries"**, find your claimed delivery
-2. **Click "Start" or "Begin Delivery"**
-3. **Status updates** to "En Route"
-4. **Map may show** route to destination
-
-**Expected Result:** Delivery started, status = en route
+1. **On "My Deliveries"**, click on a delivery card
+2. **Delivery detail page shows:**
+   - Customer info
+   - Delivery address with map
+   - Vehicle details
+   - Action buttons
 
 ---
 
-### Step 2: Mark Arrived
+### Step 2: Start Delivery
 
-1. **Click "Arrived" or "I'm Here"** when at location
-2. **GPS may be captured** automatically
+1. **Click "Start" or "Begin Delivery"**
+2. **Status updates** to "En Route"
+
+**Expected Result:** Delivery started
+
+---
+
+### Step 3: Mark Arrived
+
+1. **Click "Arrived" or "I'm Here"**
+2. **GPS location may be captured**
 3. **Status updates** to "Arrived"
-4. **Timer may start** for handover
 
 **Expected Result:** Arrival recorded
 
 ---
 
-### Step 3: Complete Handover
+### Step 4: Complete Handover
 
-1. **Delivery detail expands** with handover checklist:
+1. **Handover checklist appears:**
    - Customer ID verified
-   - Agreement signed
    - Vehicle condition acknowledged
    - Keys handed over
-2. **Capture signature** (if required)
-   - Signature pad appears
-   - Customer signs
-3. **Upload handover photo** (if required)
-   - Photo of vehicle at delivery location
+2. **Capture signature** if required
+3. **Upload handover photos** if required
 4. **Click "Complete Delivery"**
 5. **Status updates** to "Delivered"
-6. **Delivery disappears** from active list
 
 **Expected Result:** Delivery completed successfully
-
----
-
-## TEST 4.4: Walk-In Booking (Delivery Panel)
-
-**What we're testing:** Creating a walk-in booking from delivery panel
-
-**Starting point:** Delivery panel
-
----
-
-### Step 1: Access Walk-In
-
-1. **Look for "Walk-In" button** (usually top right)
-2. **Click "Walk-In"**
-3. **Booking form opens** (similar to admin walk-in)
-
----
-
-### Step 2: Create Walk-In
-
-1. **Fill customer details**
-2. **Select vehicle category**
-3. **Set dates**
-4. **Click "Create"**
-5. **Booking is created** with appropriate status
-
-**Expected Result:** Walk-in booking created from delivery panel
 
 ---
 
@@ -1555,11 +1380,9 @@
 ### Step 1: Access Support Panel
 
 1. **Navigate to** `/support`
-2. **Login with support credentials:**
-   - Email: `admin@test.com` or support role
-   - Password: `testpassword123`
+2. **Login with support/admin credentials**
 3. **You see Support Panel:**
-   - Sidebar with navigation
+   - Sidebar with Tickets and Analytics
    - Ticket queue in main area
 
 **Expected Result:** Support panel loads
@@ -1569,89 +1392,41 @@
 ### Step 2: View Ticket Queue
 
 1. **Main area shows ticket list:**
-   - Ticket ID
-   - Subject
-   - Customer name
+   - Ticket ID/subject
+   - Customer info
    - Status (Open, Pending, Resolved, Closed)
-   - Priority (Low, Medium, High, Urgent)
+   - Priority
    - Last updated
-2. **Filter options:**
-   - Status filter
-   - Priority filter
-   - Search box
+2. **Filter options available**
 
 **Expected Result:** Ticket queue visible with filters
 
 ---
 
-## TEST 5.2: Create Support Ticket
+## TEST 5.2: Work with Tickets
 
-**What we're testing:** Creating a new support ticket
-
-**Starting point:** Support panel
-
----
-
-### Step 1: Create Ticket
-
-1. **Click "New Ticket" or "+" button**
-2. **Form opens** with fields:
-   - Customer (dropdown or search)
-   - Related Booking (optional)
-   - Subject
-   - Description
-   - Priority
-   - Category (Billing, Technical, General, etc.)
-3. **Fill in:**
-   - Subject: `Billing question about extra charges`
-   - Description: `Customer is asking about the fuel charge on their last rental`
-   - Priority: `Medium`
-   - Category: `Billing`
-4. **Click "Create Ticket"**
-
-**Expected Result:** New ticket created
-
----
-
-## TEST 5.3: Reply to Ticket
-
-**What we're testing:** Responding to customer tickets
-
-**Starting point:** Support panel with tickets
+**What we're testing:** Viewing and responding to tickets
 
 ---
 
 ### Step 1: Open Ticket
 
 1. **Click on a ticket** in the queue
-2. **Ticket detail page shows:**
-   - Ticket information header
+2. **Ticket detail shows:**
+   - Ticket information
    - Conversation thread
-   - Reply box at bottom
-   - Action buttons (Resolve, Close, Escalate)
+   - Reply box
+   - Action buttons (Resolve, Close)
 
 ---
 
 ### Step 2: Send Reply
 
-1. **In the reply box**, type:
-   `Hi [Customer], thank you for reaching out. I've reviewed your rental and the fuel charge was applied because the tank was returned at 1/2 instead of full. Please let me know if you have any other questions.`
+1. **Type a reply** in the reply box
 2. **Click "Send" or "Reply"**
-3. **Message appears** in the conversation thread
-4. **Ticket status** may update to "Pending" (awaiting customer)
+3. **Message appears** in the conversation
 
 **Expected Result:** Reply sent and visible
-
----
-
-### Step 3: Resolve Ticket
-
-1. **After issue is resolved**, click "Resolve" button
-2. **Confirmation:** "Mark this ticket as resolved?"
-3. **Click "Confirm"**
-4. **Status updates** to "Resolved"
-
-**Expected Result:** Ticket marked as resolved
 
 ---
 
@@ -1668,17 +1443,24 @@
 ### Phase 1: Customer Booking (5 min)
 
 1. **As customer**, complete TEST 1.3 (full booking flow)
-2. **Note the booking code:** `______________`
-3. **Upload license** (TEST 1.5 Step 2)
-4. **Sign agreement** (TEST 1.5 Step 3)
+2. **Select location:** Surrey Centre
+3. **Note the booking code:** `______________`
+4. **Upload license** (TEST 1.5 Step 2)
+5. **Sign agreement** (TEST 1.5 Step 3)
 
 ---
 
 ### Phase 2: Admin Pickup (5 min)
 
 1. **Login as admin** to `/admin`
-2. **Find the booking** by code
-3. **Complete 6-step pickup wizard** (TEST 2.3)
+2. **Find the booking** by code in Bookings
+3. **Complete pickup wizard steps:**
+   - Assign unit
+   - Authorize deposit
+   - Upload photos
+   - Complete agreement
+   - Check-in customer
+   - Complete handover
 4. **Verify booking status** = "active"
 
 ---
@@ -1694,9 +1476,14 @@
 ### Phase 4: Return Process (5 min)
 
 1. **In admin panel**, start return for the booking
-2. **Complete 5-step return wizard** (TEST 2.4)
-3. **Release deposit** (or capture if charges)
-4. **Verify booking status** = "completed"
+2. **Complete return wizard steps:**
+   - Record odometer and fuel
+   - Upload return photos
+   - Review any issues
+   - Handle late fees (if any)
+   - Release or capture deposit
+   - Complete closeout
+3. **Verify booking status** = "completed"
 
 ---
 
@@ -1704,7 +1491,6 @@
 
 1. **Check customer dashboard:**
    - Booking shows as "Completed"
-   - Receipt is available
 2. **Check admin billing:**
    - Deposit is released
    - Transaction is logged
@@ -1722,19 +1508,20 @@
 ### Phase 1: Customer Books Delivery (5 min)
 
 1. **Complete TEST 1.4** (delivery booking flow)
-2. **Note booking code:** `______________`
+2. **Use delivery address in Surrey area**
+3. **Note booking code:** `______________`
 
 ---
 
 ### Phase 2: Admin Processes Pre-Dispatch (5 min)
 
 1. **Admin panel**: Find the delivery booking
-2. **Complete Steps 1-4** of pickup wizard:
+2. **Complete initial pickup wizard steps:**
    - Prep (assign unit)
    - Payment (authorize deposit)
    - Photos
    - Agreement
-3. **Booking ready** for dispatch
+3. **Booking ready** for driver pickup
 
 ---
 
@@ -1744,11 +1531,7 @@
 2. **Claim the delivery** (if not assigned)
 3. **Start delivery** → En Route
 4. **Mark arrived**
-5. **Complete handover:**
-   - Signature captured
-   - Photos taken
-   - Keys handed over
-6. **Complete delivery**
+5. **Complete handover** with signature
 
 ---
 
@@ -1756,7 +1539,6 @@
 
 1. **Check booking status** = "active"
 2. **Check delivery status** = "delivered"
-3. **Vehicle unit status** = "on_rent"
 
 **Expected Result:** Delivery workflow complete
 
@@ -1787,29 +1569,25 @@
 ### Booking Statuses
 
 ```
-draft → pending → confirmed → active → completed
-                     ↓
-                 cancelled (from pending/confirmed)
-                     ↓
-                  no_show (from confirmed, pickup window missed)
+pending → confirmed → active → completed
+              ↓
+          cancelled (from pending/confirmed)
 ```
 
 ### Deposit Statuses
 
 ```
 null → authorized → captured/released
-                ↓
-         partially_captured
-                ↓
-              released
+               ↓
+        partially_captured
+               ↓
+             released
 ```
 
 ### Delivery Statuses
 
 ```
-unassigned → assigned → picked_up → en_route → arrived → delivered
-                                        ↓
-                                      issue
+unassigned → assigned → en_route → arrived → delivered
 ```
 
 ### Incident Statuses
@@ -1827,7 +1605,7 @@ reported → under_investigation → in_repair → resolved → closed
 First Name: Test
 Last Name: Customer
 Email: test[N]@example.com (replace N with number)
-Phone: 305-555-01[NN]
+Phone: 604-555-01[NN]
 ```
 
 ### Vehicle Information
@@ -1837,12 +1615,12 @@ Plate: TST[NNN]
 Year: 2024
 ```
 
-### Address (Miami Area)
+### Address (BC Lower Mainland Area)
 ```
-100 Ocean Drive, Miami Beach, FL 33139
-1111 Lincoln Road, Miami Beach, FL 33139
-200 Biscayne Blvd, Miami, FL 33132
-Miami International Airport, Miami, FL 33126
+100 King George Blvd, Surrey, BC
+5933 200 St, Langley, BC V3A 1N2
+32835 South Fraser Way, Abbotsford, BC
+123 Main Street, Vancouver, BC
 ```
 
 ---
@@ -1853,7 +1631,7 @@ Miami International Airport, Miami, FL 33126
 
 **Issue: Can't login to admin panel**
 - Verify you're using correct credentials
-- Check if account has admin role assigned
+- Check if account has admin role assigned in user_roles table
 - Clear browser cache and cookies
 - Try incognito/private browser window
 
@@ -1878,8 +1656,12 @@ Miami International Airport, Miami, FL 33126
 **Issue: Deposit operations failing**
 - Verify Stripe webhook is active
 - Check if original payment method is valid
-- Look at Stripe dashboard for errors
-- Review deposit_ledger table
+- Review deposit_ledger table for status
+
+**Issue: Late fee calculation**
+- 30-minute grace period after scheduled return
+- Fee = 25% of daily rate per hour after grace
+- Verify daily rate is correct in booking
 
 ---
 
@@ -1898,8 +1680,8 @@ Use this checklist to track test completion:
 ### Admin Panel
 - [ ] TEST 2.1: Login & Navigation
 - [ ] TEST 2.2: Walk-In Booking
-- [ ] TEST 2.3: Pickup Operations (6 steps)
-- [ ] TEST 2.4: Return Operations (5 steps)
+- [ ] TEST 2.3: Pickup Operations (7 steps)
+- [ ] TEST 2.4: Return Operations (6 steps)
 - [ ] TEST 2.5: Fleet Management
 - [ ] TEST 2.6: Billing & Deposits
 - [ ] TEST 2.7: Incidents & Damages
@@ -1914,16 +1696,56 @@ Use this checklist to track test completion:
 - [ ] TEST 4.1: Dashboard Access
 - [ ] TEST 4.2: Claim Delivery
 - [ ] TEST 4.3: Complete Delivery
-- [ ] TEST 4.4: Walk-In Booking
 
 ### Support Panel
 - [ ] TEST 5.1: Panel Access
-- [ ] TEST 5.2: Create Ticket
-- [ ] TEST 5.3: Reply & Resolve
+- [ ] TEST 5.2: Work with Tickets
 
 ### Integration Tests
 - [ ] TEST 6.1: Complete Rental Lifecycle
 - [ ] TEST 6.2: Delivery Booking E2E
+
+---
+
+## F. Business Rules Reference
+
+### Late Return Policy
+- **Grace Period:** 30 minutes after scheduled return time
+- **Late Fee:** 25% of daily rate per hour after grace period
+- Example: $100/day rate = $25/hour late fee
+
+### Delivery Pricing
+- **≤10km from location:** Free delivery
+- **10-50km from location:** $49 delivery fee
+- **>50km:** Delivery not available
+
+### Age Requirements
+- **21-25 years:** Young driver fee may apply
+- **25-70 years:** Standard rates
+
+### Deposit Capture Categories
+When capturing deposit funds, must select:
+- Damage
+- Late Fee
+- Fuel
+- Cleaning
+- Other
+
+Minimum 20-character reason required.
+
+### Fuel Level Recording (Return)
+Fuel levels recorded in 1/8 increments:
+- Empty (0%)
+- 1/8 (12.5%)
+- 1/4 (25%)
+- 3/8 (37.5%)
+- 1/2 (50%)
+- 5/8 (62.5%)
+- 3/4 (75%)
+- 7/8 (87.5%)
+- Full (100%)
+
+If fuel level at return is lower than at pickup, fuel gauge photo is **mandatory**.
 
 ---
 
