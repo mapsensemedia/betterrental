@@ -3,7 +3,7 @@
  * 
  * PR5: Now uses shared booking-core for reduced duplication
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { 
   getCorsHeaders, 
   handleCorsPreflightRequest,

@@ -368,7 +368,7 @@ export default function Contact() {
               },
               {
                 q: "What's your cancellation policy?",
-                a: "Free cancellation up to 24 hours before your rental. Cancellations within 24 hours may incur a fee."
+                a: "Free cancellation anytime prior to pickup. No-shows (cancellations after pickup time) are subject to a $19.99 CAD fee."
               },
               {
                 q: "Is insurance included?",

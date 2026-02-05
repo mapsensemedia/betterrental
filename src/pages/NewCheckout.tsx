@@ -1008,10 +1008,10 @@ export default function NewCheckout() {
                     IMPORTANT INFORMATION about your {paymentMethod === "pay-now" ? "PREPAID" : "PAY LATER"} reservation:
                   </p>
                   <ul className="list-disc pl-4 space-y-1">
-                    <li>$150.00 CAD for cancellations within 24 hours prior to pickup time</li>
-                    <li>$65.00 CAD for cancellations up to 24 hours prior to pickup time</li>
-                    <li>Cancellations or changes made within 24 hours of booking are free</li>
-                    <li>No show: No refund will be issued for no show</li>
+                    <li>Free cancellation anytime prior to the scheduled pickup time</li>
+                    <li>No-show fee: ${CANCELLATION_POLICY.cancellationFee.toFixed(2)} CAD if cancelled after pickup time</li>
+                    <li>A valid credit card (not debit) must be presented at pickup</li>
+                    <li>Authorization hold of up to ${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} CAD will be placed on your card</li>
                   </ul>
                 </div>
 

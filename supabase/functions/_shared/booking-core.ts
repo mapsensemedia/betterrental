@@ -86,9 +86,10 @@ export async function checkBookingConflicts(
 
 /**
  * Validate driver age band
+ * Matches the frontend values from src/lib/pricing.ts: "20_24" | "25_70"
  */
 export function isValidAgeBand(ageBand: string | undefined): boolean {
-  return !!ageBand && ["21_25", "25_70"].includes(ageBand);
+  return !!ageBand && ["20_24", "25_70"].includes(ageBand);
 }
 
 /**
