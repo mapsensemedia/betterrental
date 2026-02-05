@@ -6,6 +6,7 @@
 // ========== FEE CONSTANTS ==========
 export const YOUNG_DRIVER_FEE = 15; // One-time fee for drivers aged 20-24 (CAD)
 export const DEFAULT_DEPOSIT_AMOUNT = 350; // Standard security deposit
+export const MINIMUM_DEPOSIT_AMOUNT = 350; // BUSINESS RULE: Deposit is ALWAYS required, never zero
 
 // ========== TAX RATES (BC Canada) ==========
 export const PST_RATE = 0.07; // 7% Provincial Sales Tax

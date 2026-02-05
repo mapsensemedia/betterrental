@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Shield, Clock, CheckCircle, AlertCircle } from "lucide-react";
 
-export type DepositStatus = "not_required" | "due" | "held" | "partially_released" | "released" | "deducted";
+export type DepositStatus = "not_required" | "pending" | "due" | "held" | "partially_released" | "released" | "deducted";
 
 interface DepositStatusBadgeProps {
   status: DepositStatus;
@@ -12,14 +12,19 @@ interface DepositStatusBadgeProps {
 
 const STATUS_CONFIG: Record<DepositStatus, { label: string; className: string; icon: typeof Shield }> = {
   not_required: { 
-    label: "No Deposit", 
-    className: "bg-muted text-muted-foreground border-border",
-    icon: DollarSign 
+    label: "Pending Authorization", 
+    className: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    icon: Clock 
+  },
+  pending: { 
+    label: "Pending Authorization", 
+    className: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    icon: Clock 
   },
   due: { 
     label: "Due", 
     className: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    icon: Clock 
+    icon: Clock
   },
   held: { 
     label: "Held", 
