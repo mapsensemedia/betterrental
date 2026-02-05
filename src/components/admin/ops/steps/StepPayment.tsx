@@ -17,11 +17,13 @@ import {
   AlertCircle,
   Plus,
   Copy,
-  ExternalLink 
+  ExternalLink,
+  RefreshCw
 } from "lucide-react";
 import { useDepositHoldStatus, useRealtimeDepositStatus } from "@/hooks/use-deposit-hold";
 import { useCreateCheckoutHold } from "@/hooks/use-checkout-hold";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
+import { useSyncDepositStatus } from "@/hooks/use-sync-deposit";
 import { DepositHoldVisualizer } from "@/components/admin/deposit";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -39,6 +41,7 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: depositInfo, isLoading } = useDepositHoldStatus(bookingId);
   const { data: paymentStatus } = usePaymentDepositStatus(bookingId);
   const createHoldMutation = useCreateCheckoutHold();
+  const syncStatusMutation = useSyncDepositStatus();
   
   // Real-time subscription for deposit status updates
   useRealtimeDepositStatus(bookingId);
@@ -53,6 +56,10 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
       depositAmount,
       rentalAmount,
     });
+  };
+
+  const handleSyncStatus = () => {
+    syncStatusMutation.mutate(bookingId);
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -197,11 +204,22 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                 </div>
               )}
 
-              {depositInfo.cardLast4 && (
+              {/* Only show card when actually authorized - stripePaymentMethodId confirms card is attached */}
+              {depositInfo.stripePaymentMethodId && depositInfo.cardLast4 && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Card</span>
                   <span className="font-mono">
                     {depositInfo.cardBrand || 'Card'} •••• {depositInfo.cardLast4}
+                  </span>
+                </div>
+              )}
+              
+              {/* Show warning if card info exists but not attached to this PI */}
+              {!depositInfo.stripePaymentMethodId && depositInfo.cardLast4 && isPending && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Card (unconfirmed)</span>
+                  <span className="font-mono text-amber-600">
+                    {depositInfo.cardBrand || 'Card'} •••• {depositInfo.cardLast4} ⚠️
                   </span>
                 </div>
               )}
@@ -252,15 +270,48 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             </div>
           )}
 
-          {/* Awaiting Payment Alert */}
-          {isPending && (
+          {/* Awaiting Payment Alert with Sync Button */}
+          {isPending && depositInfo?.stripePaymentIntentId && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                <p className="font-medium mb-1">Awaiting customer payment</p>
+                <p className="text-sm mb-3">
+                  The customer has started checkout but hasn't completed payment yet.
+                  If the customer has already confirmed their card, click "Sync Status" to refresh.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSyncStatus}
+                  disabled={syncStatusMutation.isPending}
+                  className="bg-white"
+                >
+                  {syncStatusMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-2" />
+                      Sync Status from Stripe
+                    </>
+                  )}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Pending without PI - truly awaiting */}
+          {isPending && !depositInfo?.stripePaymentIntentId && (
             <Alert className="border-amber-200 bg-amber-50">
               <Clock className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
                 <p className="font-medium mb-1">Awaiting customer payment</p>
                 <p className="text-sm">
-                  The customer has started checkout but hasn't completed payment yet.
-                  Once they confirm their card, the authorization will be placed.
+                  No payment authorization has been created yet. 
+                  Use the button above to create an authorization hold.
                 </p>
               </AlertDescription>
             </Alert>

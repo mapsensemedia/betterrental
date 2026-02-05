@@ -380,22 +380,64 @@ serve(async (req) => {
       // ========== DEPOSIT HOLD EVENTS ==========
       
       case "payment_intent.amount_capturable_updated": {
-        // Authorization hold confirmed
+        // Authorization hold confirmed - supports both deposit_hold and unified_rental_hold types
         const pi = event.data.object as Stripe.PaymentIntent;
+        const holdType = pi.metadata?.type;
+        const isDepositHold = holdType === "deposit_hold" || holdType === "unified_rental_hold";
         
-        if (pi.metadata?.type === "deposit_hold" && pi.metadata?.booking_id) {
-          const depositBookingId = pi.metadata.booking_id;
-          console.log(`Deposit authorization confirmed for booking ${depositBookingId}`);
+        // Also check by stripe_deposit_pi_id if metadata isn't matching
+        let depositBookingId = isDepositHold ? pi.metadata?.booking_id : null;
+        
+        if (!depositBookingId) {
+          // Fallback: Look up booking by PaymentIntent ID
+          const { data: bookingByPI } = await supabase
+            .from("bookings")
+            .select("id")
+            .eq("stripe_deposit_pi_id", pi.id)
+            .maybeSingle();
+          
+          if (bookingByPI) {
+            depositBookingId = bookingByPI.id;
+            console.log(`Found booking ${depositBookingId} by PI ID lookup`);
+          }
+        }
+        
+        if (depositBookingId && pi.amount_capturable && pi.amount_capturable > 0) {
+          console.log(`Authorization confirmed for booking ${depositBookingId}, type: ${holdType || 'lookup'}, amount: $${pi.amount_capturable / 100}`);
+          
+          // Get card details from payment method if available
+          let cardLast4: string | null = null;
+          let cardBrand: string | null = null;
+          
+          if (pi.payment_method) {
+            try {
+              const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
+              const stripe = new Stripe(stripeSecretKey!, { apiVersion: "2023-10-16" });
+              const pm = await stripe.paymentMethods.retrieve(pi.payment_method as string);
+              if (pm.card) {
+                cardLast4 = pm.card.last4;
+                cardBrand = pm.card.brand;
+              }
+            } catch (e) {
+              console.warn("Could not fetch payment method details:", e);
+            }
+          }
           
           // Update booking with authorization details
+          const updateData: Record<string, unknown> = {
+            deposit_status: "authorized",
+            deposit_authorized_at: new Date().toISOString(),
+            stripe_deposit_pm_id: pi.payment_method as string,
+            deposit_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          };
+          
+          // Add card details if we have them
+          if (cardLast4) updateData.card_last_four = cardLast4;
+          if (cardBrand) updateData.card_type = cardBrand;
+          
           await supabase
             .from("bookings")
-            .update({
-              deposit_status: "authorized",
-              deposit_authorized_at: new Date().toISOString(),
-              stripe_deposit_pm_id: pi.payment_method as string,
-              deposit_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-            })
+            .update(updateData)
             .eq("id", depositBookingId);
           
           // Get user_id from booking for ledger entry
@@ -410,16 +452,17 @@ serve(async (req) => {
             await supabase.from("deposit_ledger").insert({
               booking_id: depositBookingId,
               action: "authorize",
-              amount: (pi.amount || 0) / 100,
+              amount: pi.amount_capturable / 100,
               created_by: bookingForLedger.user_id,
-              reason: "Card authorization hold confirmed",
+              reason: `Card authorization hold confirmed (${holdType || 'direct lookup'})`,
               stripe_pi_id: pi.id,
             });
           }
           
           result.depositAuthorized = true;
           result.bookingId = depositBookingId;
-          result.amount = pi.amount / 100;
+          result.amount = pi.amount_capturable / 100;
+          result.holdType = holdType || "lookup";
         }
         break;
       }
@@ -427,10 +470,26 @@ serve(async (req) => {
       case "payment_intent.canceled": {
         // Authorization hold released/expired
         const pi = event.data.object as Stripe.PaymentIntent;
+        const cancelHoldType = pi.metadata?.type;
+        const isCancelDepositHold = cancelHoldType === "deposit_hold" || cancelHoldType === "unified_rental_hold";
         
-        if (pi.metadata?.type === "deposit_hold" && pi.metadata?.booking_id) {
-          const depositBookingId = pi.metadata.booking_id;
-          console.log(`Deposit authorization canceled for booking ${depositBookingId}`);
+        let cancelBookingId = isCancelDepositHold ? pi.metadata?.booking_id : null;
+        
+        if (!cancelBookingId) {
+          // Fallback: Look up booking by PaymentIntent ID
+          const { data: bookingByPI } = await supabase
+            .from("bookings")
+            .select("id")
+            .eq("stripe_deposit_pi_id", pi.id)
+            .maybeSingle();
+          
+          if (bookingByPI) {
+            cancelBookingId = bookingByPI.id;
+          }
+        }
+        
+        if (cancelBookingId) {
+          console.log(`Deposit authorization canceled for booking ${cancelBookingId}`);
           
           // Check if this was an expiration or manual cancel
           const isExpired = pi.cancellation_reason === "automatic";
@@ -442,11 +501,11 @@ serve(async (req) => {
               deposit_status: isExpired ? "expired" : "canceled",
               deposit_released_at: new Date().toISOString(),
             })
-            .eq("id", depositBookingId);
+            .eq("id", cancelBookingId);
           
           result.depositCanceled = true;
           result.expired = isExpired;
-          result.bookingId = depositBookingId;
+          result.bookingId = cancelBookingId;
         }
         break;
       }
