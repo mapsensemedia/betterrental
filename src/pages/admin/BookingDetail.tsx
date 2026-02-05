@@ -2,6 +2,7 @@
  * Comprehensive Booking Detail Page
  * Shows complete booking information including all associated data
  */
+import { useState } from "react";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { PanelShell } from "@/components/shared/PanelShell";
@@ -17,8 +18,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { AuditTimeline } from "@/components/shared/AuditTimeline";
+import { VoidBookingDialog } from "@/components/admin/VoidBookingDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   ArrowLeft, 
   Car, 
@@ -43,6 +52,8 @@ import {
   Receipt,
   FileCheck,
   Shield,
+  MoreVertical,
+  Ban,
 } from "lucide-react";
 
 export default function BookingDetail() {
@@ -52,6 +63,7 @@ export default function BookingDetail() {
   const [searchParams] = useSearchParams();
   const isOpsContext = location.pathname.startsWith("/ops");
   const returnTo = searchParams.get("returnTo") || (isOpsContext ? "/ops/bookings" : "/admin/bookings");
+  const [showVoidDialog, setShowVoidDialog] = useState(false);
 
   const { data: booking, isLoading, refetch } = useBookingById(bookingId || null);
   const { data: photos, isLoading: photosLoading } = useBookingConditionPhotos(bookingId || "");
@@ -196,6 +208,26 @@ export default function BookingDetail() {
                 </TooltipTrigger>
                 <TooltipContent>Refresh</TooltipContent>
               </Tooltip>
+              
+              {/* Admin Actions Dropdown - only for non-completed/cancelled bookings */}
+              {booking.status !== "completed" && booking.status !== "cancelled" && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setShowVoidDialog(true)}
+                    >
+                      <Ban className="h-4 w-4 mr-2" />
+                      Void Booking
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
 
@@ -799,6 +831,18 @@ export default function BookingDetail() {
           </Tabs>
         </div>
       </TooltipProvider>
+      
+      {/* Void Booking Dialog */}
+      {bookingId && booking && (
+        <VoidBookingDialog
+          open={showVoidDialog}
+          onOpenChange={setShowVoidDialog}
+          bookingId={bookingId}
+          bookingCode={booking.booking_code}
+          panelSource={isOpsContext ? "ops" : "admin"}
+          onSuccess={() => navigate(returnTo)}
+        />
+      )}
     </PanelShell>
   );
 }

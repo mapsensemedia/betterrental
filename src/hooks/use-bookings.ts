@@ -4,6 +4,7 @@ import { useAuditLog } from "./use-admin";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { handleDepositOnStatusChange } from "@/lib/deposit-automation";
+import { validateReturnWorkflow, isValidBypassReason, type ReturnState } from "@/lib/return-steps";
 import { 
   useAwardPoints, 
   useReversePoints,
@@ -259,15 +260,56 @@ export function useUpdateBookingStatus() {
   const { logAction } = useAuditLog();
 
   return useMutation({
-    mutationFn: async ({ bookingId, newStatus, notes }: { bookingId: string; newStatus: BookingStatus; notes?: string }) => {
-      // First get booking details for notification
+    mutationFn: async ({ 
+      bookingId, 
+      newStatus, 
+      notes,
+      bypassReason 
+    }: { 
+      bookingId: string; 
+      newStatus: BookingStatus; 
+      notes?: string;
+      bypassReason?: string; // Optional: admin override with logged justification
+    }) => {
+      // First get booking details including current status and return_state
       const { data: bookingDetails, error: fetchError } = await supabase
         .from("bookings")
-        .select("booking_code, user_id, vehicle_id, assigned_unit_id")
+        .select("booking_code, user_id, vehicle_id, assigned_unit_id, status, return_state")
         .eq("id", bookingId)
         .single();
 
       if (fetchError) throw fetchError;
+
+      const currentStatus = bookingDetails.status as BookingStatus;
+      const returnState = bookingDetails.return_state as ReturnState | null;
+
+      // Validate return workflow for active → completed transitions
+      const validation = validateReturnWorkflow(currentStatus, newStatus, returnState);
+      
+      if (!validation.allowed) {
+        // Check for admin bypass
+        if (bypassReason && isValidBypassReason(bypassReason)) {
+          // Log the bypass prominently
+          await logAction("workflow_bypass", "booking", bookingId, {
+            from_status: currentStatus,
+            to_status: newStatus,
+            return_state: returnState,
+            bypass_reason: bypassReason,
+            warning: "ADMIN OVERRIDE: Return workflow bypassed"
+          });
+          
+          // Create admin alert for bypassed workflow
+          await supabase.from("admin_alerts").insert([{
+            alert_type: "customer_issue" as const,
+            title: `⚠️ Workflow Bypassed - ${bookingDetails.booking_code}`,
+            message: `Return workflow bypassed: ${bypassReason}`,
+            booking_id: bookingId,
+            status: "pending" as const,
+          }]);
+        } else {
+          throw new Error(validation.reason || "Cannot complete booking without finishing return workflow");
+        }
+      }
 
       // Fetch category name separately (no FK relationship)
       let categoryName = "Vehicle";
@@ -309,8 +351,10 @@ export function useUpdateBookingStatus() {
       if (error) throw error;
 
       await logAction("booking_status_change", "booking", bookingId, { 
+        from_status: currentStatus,
         new_status: newStatus,
-        notes 
+        notes,
+        workflow_bypassed: !!bypassReason,
       });
 
       // Update vehicle unit status based on booking status change

@@ -179,9 +179,10 @@ export default function BookingOps() {
       photosComplete: photoStatus.complete,
     },
     dispatch: dispatchCompletion,
-    handover: {
+  handover: {
       activated: booking?.status === 'active' || booking?.status === 'completed',
       smsSent: !!booking?.handover_sms_sent_at,
+      unitAssigned: !!booking?.assigned_unit_id,
     },
   };
   
@@ -222,6 +223,10 @@ export default function BookingOps() {
   
   const handleActivateRental = () => {
     // Validate all prerequisites
+    if (!booking?.assigned_unit_id) {
+      toast.error("Assign a vehicle unit (VIN) before activation");
+      return;
+    }
     if (!checkStepComplete("walkaround", completion, isDeliveryBooking)) {
       toast.error("Complete walkaround inspection before activating");
       return;
