@@ -6,6 +6,7 @@
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   CheckCircle2, 
@@ -14,11 +15,17 @@ import {
   Clock, 
   Loader2,
   AlertCircle,
+  Plus,
+  Copy,
   ExternalLink 
 } from "lucide-react";
 import { useDepositHoldStatus, useRealtimeDepositStatus } from "@/hooks/use-deposit-hold";
+import { useCreateCheckoutHold } from "@/hooks/use-checkout-hold";
+import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { DepositHoldVisualizer } from "@/components/admin/deposit";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { MINIMUM_DEPOSIT_AMOUNT } from "@/lib/pricing";
 
 interface StepPaymentProps {
   bookingId: string;
@@ -30,9 +37,28 @@ interface StepPaymentProps {
 
 export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: depositInfo, isLoading } = useDepositHoldStatus(bookingId);
+  const { data: paymentStatus } = usePaymentDepositStatus(bookingId);
+  const createHoldMutation = useCreateCheckoutHold();
   
   // Real-time subscription for deposit status updates
   useRealtimeDepositStatus(bookingId);
+
+  const handleCreateHold = () => {
+    // Use minimum deposit if not set or zero
+    const depositAmount = Math.max(paymentStatus?.depositRequired || 0, MINIMUM_DEPOSIT_AMOUNT);
+    const rentalAmount = paymentStatus?.totalDue || 0;
+    
+    createHoldMutation.mutate({
+      bookingId,
+      depositAmount,
+      rentalAmount,
+    });
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard`);
+  };
 
   if (isLoading) {
     return (
@@ -51,6 +77,7 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const isPending = depositInfo?.status === "requires_payment" || depositInfo?.status === "authorizing";
   const isCaptured = depositInfo?.status === "captured";
   const isReleased = depositInfo?.status === "released";
+  const noHold = !depositInfo?.stripePaymentIntentId && !isPending;
 
   const getStatusBadge = () => {
     if (isAuthorized) {
@@ -92,6 +119,11 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
     );
   };
 
+  // Calculate amounts for display
+  const depositAmount = Math.max(paymentStatus?.depositRequired || 0, MINIMUM_DEPOSIT_AMOUNT);
+  const rentalAmount = paymentStatus?.totalDue || 0;
+  const totalHoldAmount = depositAmount + rentalAmount;
+
   return (
     <div className="space-y-4">
       {/* Payment & Deposit Status Card */}
@@ -118,23 +150,106 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Show Stripe IDs when hold exists */}
+          {depositInfo?.stripePaymentIntentId && (
+            <div className="p-3 rounded-md bg-muted/50 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Hold ID (PI)</span>
+                <div className="flex items-center gap-2">
+                  <code className="font-mono text-xs bg-background px-2 py-0.5 rounded">
+                    {depositInfo.stripePaymentIntentId.slice(0, 20)}...
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => copyToClipboard(depositInfo.stripePaymentIntentId!, "Hold ID")}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                  <a
+                    href={`https://dashboard.stripe.com/payments/${depositInfo.stripePaymentIntentId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+              
+              {depositInfo.stripeChargeId && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Charge ID</span>
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono text-xs bg-background px-2 py-0.5 rounded">
+                      {depositInfo.stripeChargeId.slice(0, 20)}...
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => copyToClipboard(depositInfo.stripeChargeId!, "Charge ID")}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {depositInfo.cardLast4 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Card</span>
+                  <span className="font-mono">
+                    {depositInfo.cardBrand || 'Card'} •••• {depositInfo.cardLast4}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Stripe Hold Visualizer */}
           {depositInfo && hasActiveHold && (
             <DepositHoldVisualizer depositInfo={depositInfo} />
           )}
 
-          {/* No Authorization Alert */}
-          {!depositInfo?.stripePaymentIntentId && !isPending && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <p className="font-medium mb-1">No payment authorization found</p>
-                <p className="text-sm text-muted-foreground">
-                  The customer needs to complete checkout with their credit card. 
-                  Authorization is collected automatically during the booking process.
-                </p>
-              </AlertDescription>
-            </Alert>
+          {/* No Authorization Alert with Create Button */}
+          {noHold && (
+            <div className="space-y-3">
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <p className="font-medium mb-1">No payment authorization found</p>
+                  <p className="text-sm">
+                    The customer needs to complete checkout with their credit card. 
+                    Authorization is collected automatically during the booking process.
+                  </p>
+                </AlertDescription>
+              </Alert>
+              
+              <Button 
+                onClick={handleCreateHold}
+                disabled={createHoldMutation.isPending}
+                className="w-full"
+                variant="default"
+              >
+                {createHoldMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating Hold...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Authorization Hold
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Creates a ${totalHoldAmount.toFixed(2)} hold 
+                (Rental: ${rentalAmount.toFixed(2)} + Deposit: ${depositAmount.toFixed(2)})
+              </p>
+            </div>
           )}
 
           {/* Awaiting Payment Alert */}
