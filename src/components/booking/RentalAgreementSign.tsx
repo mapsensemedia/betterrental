@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { FileText, CheckCircle, PenLine, Loader2, Download, FileDown } from "lucide-react";
 import { useRentalAgreement, useSignAgreement } from "@/hooks/use-rental-agreement";
 import { format } from "date-fns";
-import jsPDF from "jspdf";
+import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
 import { toast } from "sonner";
 
 interface RentalAgreementSignProps {
@@ -35,142 +35,11 @@ export function RentalAgreementSign({ bookingId }: RentalAgreementSignProps) {
   };
 
   // Generate PDF from agreement content
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!agreement) return;
     
     try {
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "letter",
-      });
-
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 15;
-      const contentWidth = pageWidth - margin * 2;
-      let yPos = margin;
-
-      const checkPageBreak = (lineHeight: number = 10) => {
-        if (yPos + lineHeight > pageHeight - margin) {
-          pdf.addPage();
-          yPos = margin;
-        }
-      };
-
-      // Title
-      pdf.setFontSize(24);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("C2C CAR RENTAL", pageWidth / 2, yPos, { align: "center" });
-      yPos += 12;
-
-      pdf.setFontSize(14);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("VEHICLE LEGAL AGREEMENT", pageWidth / 2, yPos, { align: "center" });
-      yPos += 10;
-
-      pdf.setLineWidth(0.5);
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 8;
-
-      const lines = agreement.agreement_content.split('\n');
-      
-      for (const line of lines) {
-        checkPageBreak(6);
-        
-        if (line.includes('▓') || line.includes('═══') || line.includes('───')) {
-          yPos += 2;
-          continue;
-        }
-
-        if (line.includes('┌') || line.includes('└') || line.includes('│')) {
-          if (line.includes('│') && line.trim().length > 2) {
-            const headerText = line.replace(/[┌┐└┘│─]/g, '').trim();
-            if (headerText) {
-              pdf.setFontSize(11);
-              pdf.setFont("helvetica", "bold");
-              pdf.text(headerText, pageWidth / 2, yPos, { align: "center" });
-              yPos += 8;
-            }
-          }
-          continue;
-        }
-
-        const trimmedLine = line.trim();
-        if (!trimmedLine) {
-          yPos += 3;
-          continue;
-        }
-
-        if (trimmedLine.includes(':')) {
-          const [label, ...valueParts] = trimmedLine.split(':');
-          const value = valueParts.join(':').trim();
-          
-          if (label && value) {
-            pdf.setFontSize(9);
-            pdf.setFont("helvetica", "bold");
-            pdf.text(label + ":", margin, yPos);
-            pdf.setFont("helvetica", "normal");
-            const labelWidth = pdf.getTextWidth(label + ": ");
-            const valueLines = pdf.splitTextToSize(value, contentWidth - labelWidth - 5);
-            pdf.text(valueLines, margin + labelWidth, yPos);
-            yPos += Math.max(5, valueLines.length * 4);
-            continue;
-          }
-        }
-
-        if (trimmedLine.startsWith('☐')) {
-          pdf.setFontSize(9);
-          pdf.setFont("helvetica", "normal");
-          pdf.rect(margin, yPos - 3, 3, 3);
-          const checkboxText = trimmedLine.replace('☐', '').trim();
-          const wrappedText = pdf.splitTextToSize(checkboxText, contentWidth - 8);
-          pdf.text(wrappedText, margin + 5, yPos);
-          yPos += Math.max(6, wrappedText.length * 4);
-          continue;
-        }
-
-        if (/^[1-9]\./.test(trimmedLine) || trimmedLine.startsWith('•')) {
-          pdf.setFontSize(9);
-          pdf.setFont("helvetica", "bold");
-          const wrappedText = pdf.splitTextToSize(trimmedLine, contentWidth);
-          pdf.text(wrappedText, margin, yPos);
-          yPos += Math.max(5, wrappedText.length * 4);
-          continue;
-        }
-
-        if (line.startsWith('   ')) {
-          pdf.setFontSize(9);
-          pdf.setFont("helvetica", "normal");
-          const wrappedText = pdf.splitTextToSize(trimmedLine, contentWidth - 10);
-          pdf.text(wrappedText, margin + 8, yPos);
-          yPos += Math.max(5, wrappedText.length * 4);
-          continue;
-        }
-
-        pdf.setFontSize(9);
-        pdf.setFont("helvetica", "normal");
-        const wrappedText = pdf.splitTextToSize(trimmedLine, contentWidth);
-        pdf.text(wrappedText, margin, yPos);
-        yPos += Math.max(5, wrappedText.length * 4);
-      }
-
-      if (agreement.customer_signature) {
-        checkPageBreak(20);
-        yPos += 5;
-        pdf.setLineWidth(0.3);
-        pdf.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 8;
-        
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("SIGNED BY: " + agreement.customer_signature, margin, yPos);
-        yPos += 6;
-        pdf.setFont("helvetica", "normal");
-        pdf.text("Date: " + format(new Date(agreement.customer_signed_at!), "PPpp"), margin, yPos);
-      }
-
-      pdf.save(`C2C-Rental-Agreement-${bookingId.slice(0, 8)}.pdf`);
+      await generateRentalAgreementPdf(agreement, bookingId);
       toast.success("Agreement PDF downloaded");
     } catch (error) {
       console.error("PDF generation error:", error);
