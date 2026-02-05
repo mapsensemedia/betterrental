@@ -342,7 +342,7 @@ export default function NewCheckout() {
           : `Special instructions: ${specialInstructions}`;
       }
 
-      let booking: { id: string; booking_code: string } | null = null;
+      let booking: { id: string; booking_code: string; user_id?: string } | null = null;
 
       // Extract card info for storage (last 4 digits only - never store full card)
       const cardLast4 = formData.cardNumber.replace(/\s+/g, "").slice(-4);
@@ -488,6 +488,7 @@ export default function NewCheckout() {
         booking = {
           id: bookingResponse.id,
           booking_code: bookingResponse.bookingCode || bookingResponse.booking_code || "",
+          user_id: response.data.userId, // For guest checkout - pass to checkout session
         };
       }
 
@@ -510,6 +511,7 @@ export default function NewCheckout() {
               currency: "cad",
               successUrl: `${baseUrl}/booking/${booking.id}?payment=success`,
               cancelUrl: `${baseUrl}/booking/${booking.id}?payment=cancelled`,
+              userId: booking.user_id, // For guest checkout - helps associate payment with booking
             },
           });
 
