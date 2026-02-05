@@ -4,7 +4,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { calculateLateReturnFee, LATE_RETURN_GRACE_PERIOD_MINUTES, LATE_RETURN_HOURLY_FEE } from "@/lib/late-return";
+import { calculateLateReturnFeeWithRate, LATE_RETURN_GRACE_PERIOD_MINUTES, LATE_RETURN_FEE_PERCENTAGE } from "@/lib/late-return";
 
 interface MarkReturnedOptions {
   bookingId: string;
@@ -145,12 +145,13 @@ export function useCalculateLateFee() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ bookingId, scheduledEndAt, actualReturnAt }: {
+    mutationFn: async ({ bookingId, scheduledEndAt, dailyRate, actualReturnAt }: {
       bookingId: string;
       scheduledEndAt: string;
+      dailyRate: number;
       actualReturnAt?: string | null;
     }) => {
-      const lateInfo = calculateLateReturnFee(scheduledEndAt, actualReturnAt);
+      const lateInfo = calculateLateReturnFeeWithRate(scheduledEndAt, dailyRate, actualReturnAt);
       
       const { error } = await supabase
         .from("bookings")
@@ -168,4 +169,4 @@ export function useCalculateLateFee() {
   });
 }
 
-export { LATE_RETURN_GRACE_PERIOD_MINUTES, LATE_RETURN_HOURLY_FEE };
+export { LATE_RETURN_GRACE_PERIOD_MINUTES, LATE_RETURN_FEE_PERCENTAGE };
