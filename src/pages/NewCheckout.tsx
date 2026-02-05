@@ -431,64 +431,86 @@ export default function NewCheckout() {
           youngDriverFee: driver.ageBand === "20_24" ? YOUNG_DRIVER_FEE : 0,
         }));
 
-        const response = await supabase.functions.invoke("create-guest-booking", {
-          body: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: `${formData.countryCode}${formData.phone}`,
-            vehicleId: categoryId, // This is the category ID
-            locationId,
-            startAt: searchData.pickupDate.toISOString(),
-            endAt: searchData.returnDate.toISOString(),
-            dailyRate: vehicle.dailyRate,
-            totalDays: rentalDays,
-            subtotal: pricing.subtotal,
-            taxAmount: pricing.taxAmount,
-            depositAmount: DEFAULT_DEPOSIT_AMOUNT,
-            totalAmount: pricing.total,
-            driverAgeBand,
-            youngDriverFee: pricing.youngDriverFee,
-            addOns: addOnData.length > 0 ? addOnData : undefined,
-            additionalDrivers: additionalDriversData.length > 0 ? additionalDriversData : undefined,
-            notes: bookingNotes,
-            pickupAddress: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : undefined,
-            pickupLat: searchData.deliveryLat,
-            pickupLng: searchData.deliveryLng,
-            saveTimeAtCounter,
-            pickupContactName: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : undefined,
-            pickupContactPhone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : undefined,
-            specialInstructions: saveTimeAtCounter && specialInstructions ? specialInstructions : undefined,
-            cardLastFour: cardLast4,
-            cardType: cardTypeValue,
-            cardHolderName: formData.cardName,
-          },
-        });
+        let guestResponse;
+        try {
+          guestResponse = await supabase.functions.invoke("create-guest-booking", {
+            body: {
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              email: formData.email,
+              phone: `${formData.countryCode}${formData.phone}`,
+              vehicleId: categoryId, // This is the category ID
+              locationId,
+              startAt: searchData.pickupDate.toISOString(),
+              endAt: searchData.returnDate.toISOString(),
+              dailyRate: vehicle.dailyRate,
+              totalDays: rentalDays,
+              subtotal: pricing.subtotal,
+              taxAmount: pricing.taxAmount,
+              depositAmount: DEFAULT_DEPOSIT_AMOUNT,
+              totalAmount: pricing.total,
+              driverAgeBand,
+              youngDriverFee: pricing.youngDriverFee,
+              addOns: addOnData.length > 0 ? addOnData : undefined,
+              additionalDrivers: additionalDriversData.length > 0 ? additionalDriversData : undefined,
+              notes: bookingNotes,
+              pickupAddress: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : undefined,
+              pickupLat: searchData.deliveryLat,
+              pickupLng: searchData.deliveryLng,
+              saveTimeAtCounter,
+              pickupContactName: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : undefined,
+              pickupContactPhone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : undefined,
+              specialInstructions: saveTimeAtCounter && specialInstructions ? specialInstructions : undefined,
+              cardLastFour: cardLast4,
+              cardType: cardTypeValue,
+              cardHolderName: formData.cardName,
+            },
+          });
+        } catch (networkError: any) {
+          console.error("Network error during guest booking:", networkError);
+          throw new Error("Unable to connect to booking service. Please check your internet connection and try again.");
+        }
 
-        // Handle edge function errors - could be in response.error or response.data
-        if (response.error) {
-          const errorMessage = response.error.message || "Failed to create booking";
-          console.error("Guest booking error:", response.error);
+        // Handle edge function errors with detailed messages
+        if (guestResponse.error) {
+          const errorMessage = guestResponse.error.message || "Failed to create booking";
+          console.error("Guest booking edge function error:", guestResponse.error);
+          
+          // Parse specific error types for user-friendly messages
+          if (errorMessage.includes("non-2xx")) {
+            throw new Error("Booking service temporarily unavailable. Please try again in a moment.");
+          }
           throw new Error(errorMessage);
         }
 
-        // Also check for error in data (when edge function returns 4xx with JSON body)
-        if (response.data?.error) {
-          const errorMessage = response.data.message || response.data.error || "Failed to create booking";
-          console.error("Guest booking validation error:", response.data);
-          throw new Error(errorMessage);
+        // Handle validation errors returned in data (when edge function returns 4xx with JSON body)
+        if (guestResponse.data?.error) {
+          const errorCode = guestResponse.data.error;
+          const errorMessage = guestResponse.data.message || "Validation error";
+          console.error("Guest booking validation error:", guestResponse.data);
+          
+          // Map error codes to user-friendly messages
+          const errorMessages: Record<string, string> = {
+            "age_validation_failed": "Please confirm your age on the search page before booking.",
+            "validation_failed": errorMessage,
+            "vehicle_unavailable": "This vehicle is no longer available for the selected dates. Please choose another.",
+            "server_error": "An unexpected error occurred. Please try again.",
+          };
+          
+          throw new Error(errorMessages[errorCode] || errorMessage);
         }
 
-        if (!response.data?.booking) {
-          throw new Error("No booking returned from server");
+        if (!guestResponse.data?.booking) {
+          console.error("No booking in response:", guestResponse.data);
+          throw new Error("Failed to create booking. Please try again.");
         }
 
         // Map camelCase response from Edge Function to snake_case expected by UI
-        const bookingResponse = response.data.booking;
+        const bookingResponse = guestResponse.data.booking;
         booking = {
           id: bookingResponse.id,
           booking_code: bookingResponse.bookingCode || bookingResponse.booking_code || "",
-          user_id: response.data.userId, // For guest checkout - pass to checkout session
+          user_id: guestResponse.data.userId, // For guest checkout - pass to checkout session
         };
       }
 
@@ -504,29 +526,51 @@ export default function NewCheckout() {
         // Create Stripe Checkout Session and redirect
         try {
           const baseUrl = window.location.origin;
-          const response = await supabase.functions.invoke("create-checkout-session", {
-            body: {
-              bookingId: booking.id,
-              amount: pricing.total,
-              currency: "cad",
-              successUrl: `${baseUrl}/booking/${booking.id}?payment=success`,
-              cancelUrl: `${baseUrl}/booking/${booking.id}?payment=cancelled`,
-              userId: booking.user_id, // For guest checkout - helps associate payment with booking
-            },
-          });
-
-          if (response.error) {
-            throw new Error(response.error.message || "Failed to create checkout session");
+          
+          let checkoutResponse;
+          try {
+            checkoutResponse = await supabase.functions.invoke("create-checkout-session", {
+              body: {
+                bookingId: booking.id,
+                amount: pricing.total,
+                currency: "cad",
+                successUrl: `${baseUrl}/booking/${booking.id}?payment=success`,
+                cancelUrl: `${baseUrl}/booking/${booking.id}?payment=cancelled`,
+                userId: booking.user_id, // For guest checkout - helps associate payment with booking
+              },
+            });
+          } catch (networkError: any) {
+            console.error("Network error during checkout session:", networkError);
+            throw new Error("Unable to connect to payment service. Please try again.");
           }
 
-          const { url } = response.data;
+          // Handle edge function errors with detailed messages
+          if (checkoutResponse.error) {
+            const errorMessage = checkoutResponse.error.message || "Failed to create checkout session";
+            console.error("Checkout session error:", checkoutResponse.error);
+            
+            // Parse specific error types for user-friendly messages
+            if (errorMessage.includes("non-2xx")) {
+              throw new Error("Payment service temporarily unavailable. Please try again in a moment.");
+            }
+            throw new Error(errorMessage);
+          }
+          
+          // Check for errors in data response
+          if (checkoutResponse.data?.error) {
+            console.error("Checkout session validation error:", checkoutResponse.data);
+            throw new Error(checkoutResponse.data.error);
+          }
+
+          const { url } = checkoutResponse.data || {};
 
           if (url) {
             // Redirect to Stripe Checkout
             window.location.href = url;
             return; // Stop execution - we're redirecting
           } else {
-            throw new Error("No checkout URL returned");
+            console.error("No checkout URL in response:", checkoutResponse.data);
+            throw new Error("Unable to initialize payment. Please try again.");
           }
         } catch (paymentError: any) {
           console.error("Payment error:", paymentError);
@@ -541,8 +585,8 @@ export default function NewCheckout() {
           }
           
           toast({
-            title: "Payment failed",
-            description: "Your booking was not created. Please try again.",
+            title: "Payment initialization failed",
+            description: paymentError.message || "Your booking was not created. Please try again.",
             variant: "destructive",
           });
 

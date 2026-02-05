@@ -295,10 +295,11 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error) {
-    console.error("Unexpected error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+    console.error("Unexpected error:", errorMessage, error);
     return new Response(
-      JSON.stringify({ error: "server_error", message: "An unexpected error occurred." }),
+      JSON.stringify({ error: "server_error", message: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
