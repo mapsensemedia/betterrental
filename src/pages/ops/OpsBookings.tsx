@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { OpsLocationFilter, useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
 import { 
   Search, 
   Calendar, 
@@ -88,22 +89,24 @@ export default function OpsBookings() {
   // Support both "code" (legacy) and "search" (new) query params
   const [search, setSearch] = useState(searchParams.get("search") || searchParams.get("code") || "");
   const activeTab = (searchParams.get("tab") as TabValue) || "all";
+  const locationId = useOpsLocationFilter();
 
-  // Fetch all bookings - no status filter for 'all', otherwise filter by status
+  // Fetch all bookings - filtered by location and status
   const { data: bookings = [], isLoading, refetch } = useQuery({
-    queryKey: ["ops-all-bookings", activeTab],
+    queryKey: ["ops-all-bookings", activeTab, locationId],
     queryFn: async () => {
+      const filters = { locationId: locationId || undefined };
       if (activeTab === "all") {
         // Fetch all statuses in parallel
         const [pending, confirmed, active, completed] = await Promise.all([
-          listBookings({ status: "pending" }),
-          listBookings({ status: "confirmed" }),
-          listBookings({ status: "active" }),
-          listBookings({ status: "completed" }),
+          listBookings({ ...filters, status: "pending" }),
+          listBookings({ ...filters, status: "confirmed" }),
+          listBookings({ ...filters, status: "active" }),
+          listBookings({ ...filters, status: "completed" }),
         ]);
         return [...pending, ...confirmed, ...active, ...completed];
       }
-      return listBookings({ status: activeTab });
+      return listBookings({ ...filters, status: activeTab });
     },
   });
 
@@ -152,9 +155,12 @@ export default function OpsBookings() {
               {filteredBookings.length} booking{filteredBookings.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <Button variant="outline" size="icon" onClick={() => refetch()}>
-            <RefreshCw className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <OpsLocationFilter />
+            <Button variant="outline" size="icon" onClick={() => refetch()}>
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
