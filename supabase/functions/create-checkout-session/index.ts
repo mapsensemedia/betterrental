@@ -224,11 +224,20 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
-    console.error("Error in create-checkout-session:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in create-checkout-session:", message, error);
+    
+    // Determine appropriate status code based on error type
+    let statusCode = 500;
+    if (message.includes("not found") || message.includes("No such")) {
+      statusCode = 404;
+    } else if (message.includes("Invalid") || message.includes("Missing")) {
+      statusCode = 400;
+    }
+    
     return new Response(
       JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: statusCode, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
