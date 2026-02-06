@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useMyDeliveries } from "@/hooks/use-my-deliveries";
-import { useRealtimeDeliveries } from "@/hooks/use-realtime-subscriptions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { countByPortalStatus } from "@/lib/delivery-portal";
+import { useGlobalRealtime } from "@/hooks/use-global-realtime";
 
 interface DeliveryShellProps {
   children: ReactNode;
@@ -59,8 +59,8 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
   const { data: deliveries } = useMyDeliveries(undefined, (isAdmin ?? false) ? "all" : "assigned");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Enable real-time updates for sidebar counts
-  useRealtimeDeliveries();
+  // Enable real-time updates for all data across the app
+  useGlobalRealtime();
 
   const handleLogout = async () => {
     try {

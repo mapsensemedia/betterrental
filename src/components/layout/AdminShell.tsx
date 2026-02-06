@@ -33,6 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts, type SidebarCounts } from "@/hooks/use-sidebar-counts";
 import { useCapabilities } from "@/auth/capabilities";
+import { useGlobalRealtime } from "@/hooks/use-global-realtime";
 
 type BadgeKey = keyof SidebarCounts;
 
@@ -151,6 +152,7 @@ export function AdminShell({
   const [bookingCode, setBookingCode] = useState("");
   const { counts } = useSidebarCounts();
   const { data: caps } = useCapabilities("admin");
+  useGlobalRealtime();
   const handleBookingSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (bookingCode.trim()) {
