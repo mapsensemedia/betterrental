@@ -46,6 +46,7 @@ import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/
 import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
 import { PointsRedemption } from "@/components/checkout/PointsRedemption";
 import { CreditCardInput, CreditCardDisplay } from "@/components/checkout/CreditCardInput";
+import { StripeCheckoutWrapper } from "@/components/checkout/StripeCheckoutWrapper";
 import { validateCard, detectCardType, maskCardNumber, CardType, validateDriverCardholderMatch, isCardTypeAllowed } from "@/lib/card-validation";
 import { CREDIT_CARD_AUTHORIZATION_POLICY, CANCELLATION_POLICY } from "@/lib/checkout-policies";
 import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
@@ -117,6 +118,12 @@ export default function NewCheckout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
   
+  // Inline Stripe payment state
+  const [showStripePayment, setShowStripePayment] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
+  const [holdAmounts, setHoldAmounts] = useState<{ deposit: number; rental: number } | null>(null);
+  
   // Force pay-now for delivery bookings
   useEffect(() => {
     if (searchData.deliveryMode === "delivery" && paymentMethod === "pay-later") {
@@ -186,6 +193,42 @@ export default function NewCheckout() {
   const handleApplyPointsDiscount = (discount: number, points: number) => {
     setPointsDiscount(discount);
     setPointsUsed(points);
+  };
+
+  // Handler for successful Stripe payment authorization
+  const handlePaymentSuccess = async (paymentIntentId: string, paymentMethodId: string) => {
+    if (!pendingBookingId) return;
+    
+    try {
+      // Update booking with authorized deposit status
+      await supabase.from("bookings").update({
+        deposit_status: "authorized",
+        deposit_authorized_at: new Date().toISOString(),
+        stripe_deposit_pi_id: paymentIntentId,
+        stripe_deposit_pm_id: paymentMethodId,
+      }).eq("id", pendingBookingId);
+
+      toast({
+        title: "Booking confirmed!",
+        description: "Your card has been authorized. You'll only be charged when your rental is complete.",
+      });
+
+      navigate(`/booking/${pendingBookingId}?payment=success`);
+    } catch (error: any) {
+      console.error("Failed to update booking status:", error);
+      // Still navigate - the payment was successful
+      navigate(`/booking/${pendingBookingId}?payment=success`);
+    }
+  };
+
+  // Handler for Stripe payment errors
+  const handlePaymentError = (error: string) => {
+    console.error("Payment authorization failed:", error);
+    toast({
+      title: "Payment authorization failed",
+      description: error || "Please try again or use a different card.",
+      variant: "destructive",
+    });
   };
 
   // Save abandoned cart when user leaves with info filled in
@@ -523,33 +566,27 @@ export default function NewCheckout() {
       markCartConverted.mutate(booking.id);
 
       if (paymentMethod === "pay-now") {
-        // Create Stripe Checkout Session and redirect
+        // Create authorization hold with inline Stripe Elements
         try {
-          const baseUrl = window.location.origin;
-          
-          let checkoutResponse;
+          let holdResponse;
           try {
-            checkoutResponse = await supabase.functions.invoke("create-checkout-session", {
+            holdResponse = await supabase.functions.invoke("create-checkout-hold", {
               body: {
                 bookingId: booking.id,
-                amount: pricing.total,
-                currency: "cad",
-                successUrl: `${baseUrl}/booking/${booking.id}?payment=success`,
-                cancelUrl: `${baseUrl}/booking/${booking.id}?payment=cancelled`,
-                userId: booking.user_id, // For guest checkout - helps associate payment with booking
+                depositAmount: DEFAULT_DEPOSIT_AMOUNT,
+                rentalAmount: pricing.total,
               },
             });
           } catch (networkError: any) {
-            console.error("Network error during checkout session:", networkError);
+            console.error("Network error during checkout hold:", networkError);
             throw new Error("Unable to connect to payment service. Please try again.");
           }
 
-          // Handle edge function errors with detailed messages
-          if (checkoutResponse.error) {
-            const errorMessage = checkoutResponse.error.message || "Failed to create checkout session";
-            console.error("Checkout session error:", checkoutResponse.error);
+          // Handle edge function errors
+          if (holdResponse.error) {
+            const errorMessage = holdResponse.error.message || "Failed to create payment authorization";
+            console.error("Checkout hold error:", holdResponse.error);
             
-            // Parse specific error types for user-friendly messages
             if (errorMessage.includes("non-2xx")) {
               throw new Error("Payment service temporarily unavailable. Please try again in a moment.");
             }
@@ -557,25 +594,29 @@ export default function NewCheckout() {
           }
           
           // Check for errors in data response
-          if (checkoutResponse.data?.error) {
-            console.error("Checkout session validation error:", checkoutResponse.data);
-            throw new Error(checkoutResponse.data.error);
+          if (holdResponse.data?.error) {
+            console.error("Checkout hold validation error:", holdResponse.data);
+            throw new Error(holdResponse.data.error);
           }
 
-          const { url } = checkoutResponse.data || {};
+          const { clientSecret: secret, depositAmount, rentalAmount } = holdResponse.data || {};
 
-          if (url) {
-            // Redirect to Stripe Checkout
-            window.location.href = url;
-            return; // Stop execution - we're redirecting
+          if (secret) {
+            // Show inline Stripe Elements form
+            setClientSecret(secret);
+            setPendingBookingId(booking.id);
+            setHoldAmounts({ deposit: depositAmount, rental: rentalAmount });
+            setShowStripePayment(true);
+            setIsSubmitting(false);
+            return; // Stay on page to show payment form
           } else {
-            console.error("No checkout URL in response:", checkoutResponse.data);
+            console.error("No client secret in response:", holdResponse.data);
             throw new Error("Unable to initialize payment. Please try again.");
           }
         } catch (paymentError: any) {
           console.error("Payment error:", paymentError);
           
-          // Delete the booking since payment failed - don't allow unpaid bookings
+          // Delete the booking since payment failed
           try {
             await supabase.from("booking_add_ons").delete().eq("booking_id", booking.id);
             await supabase.from("bookings").delete().eq("id", booking.id);
@@ -590,7 +631,6 @@ export default function NewCheckout() {
             variant: "destructive",
           });
 
-          // Stay on checkout page to retry
           setIsSubmitting(false);
           return;
         }
@@ -1076,21 +1116,55 @@ export default function NewCheckout() {
                   </Label>
                 </div>
 
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="w-full h-14 text-lg bg-primary hover:bg-primary/90"
-                  size="lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    "Pay and Book"
-                  )}
-                </Button>
+                {/* Show Stripe Elements form or Submit button */}
+                {showStripePayment && clientSecret && holdAmounts ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        Complete your payment authorization
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        An authorization hold of ${(holdAmounts.deposit + holdAmounts.rental).toFixed(2)} CAD will be placed on your card.
+                        You will only be charged when your rental is complete.
+                      </p>
+                    </div>
+                    <StripeCheckoutWrapper
+                      clientSecret={clientSecret}
+                      depositAmount={holdAmounts.deposit}
+                      rentalAmount={holdAmounts.rental}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowStripePayment(false);
+                        setClientSecret(null);
+                        setPendingBookingId(null);
+                        setHoldAmounts(null);
+                      }}
+                      className="w-full"
+                    >
+                      Cancel and go back
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className="w-full h-14 text-lg bg-primary hover:bg-primary/90"
+                    size="lg"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Pay and Book"
+                    )}
+                  </Button>
+                )}
               </Card>
             </div>
 
