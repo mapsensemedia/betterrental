@@ -226,6 +226,7 @@ export function validateCard(card: {
   number: string;
   expiry: string;
   name: string;
+  cvv?: string;
 }): { valid: boolean; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
   
@@ -253,6 +254,20 @@ export function validateCard(card: {
     errors.name = "Cardholder name is required";
   } else if (card.name.trim().length < 2) {
     errors.name = "Name is too short";
+  }
+
+  // Validate CVV if provided
+  if (card.cvv !== undefined) {
+    const cardType = detectCardType(card.number);
+    const expectedLength = CARD_TYPES[cardType]?.cvvLength || 3;
+    
+    if (!card.cvv.trim()) {
+      errors.cvv = "Security code is required";
+    } else if (card.cvv.length < expectedLength) {
+      errors.cvv = `Security code must be ${expectedLength} digits`;
+    } else if (!/^\d+$/.test(card.cvv)) {
+      errors.cvv = "Security code must be digits only";
+    }
   }
   
   return {
