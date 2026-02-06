@@ -1,154 +1,91 @@
 
-# Inline Stripe Payment with Authorization Hold
+# Persist Dates Immediately on Change
 
-## Overview
-Replace the current Stripe Hosted Checkout redirect flow with an inline Stripe Elements payment form that processes authorization holds directly on the checkout page.
+## Problem
+Currently, pickup and return dates are stored in local component state when the user changes them, but they're only synced to the RentalBookingContext when the "Search" button is clicked. This means if a user navigates away or the page refreshes, the dates are lost.
 
-## Current Behavior
-When you click "Pay and Book":
-1. A booking is created in the database
-2. The system calls `create-checkout-session` edge function
-3. You are redirected to an external Stripe-hosted payment page
-4. After payment, you're redirected back to the booking confirmation
+The location field already works correctly - it persists to context immediately when changed.
 
-## Proposed Behavior
-When you click "Pay and Book":
-1. A booking is created in the database
-2. The system calls `create-checkout-hold` (already exists) to create a PaymentIntent with manual capture
-3. A Stripe Elements payment form appears inline on the page
-4. You enter your card details in the secure Stripe form
-5. The card is authorized (no redirect) and a hold is placed
-6. You see a success message and are navigated to the confirmation page
+## Solution
+Update the date input `onChange` handlers to call the context setters (`setPickupDateTime` and `setReturnDateTime`) immediately, in addition to updating local state.
 
----
+## Changes Required
 
-## Implementation Steps
+### File: `src/components/rental/RentalSearchCard.tsx`
 
-### 1. Add Missing Secret
-The `STRIPE_PUBLISHABLE_KEY` secret needs to be configured for the inline payment form to work. This is required for client-side Stripe initialization.
+There are 4 date inputs that need updating (2 in delivery mode, 2 in pickup mode):
 
-### 2. Modify Checkout Page State Management
-Add new state variables to track:
-- Whether the inline payment form should be shown
-- The client secret from the PaymentIntent
-- The booking ID for the current transaction
+| Location | Lines | Current Behavior | New Behavior |
+|----------|-------|------------------|--------------|
+| Delivery Mode - Pickup Date | 399-406 | Only sets local `pickupDate` | Also calls `setPickupDateTime()` |
+| Delivery Mode - Return Date | 461 | Only sets local `returnDate` | Also calls `setReturnDateTime()` |
+| Pickup Mode - Pickup Date | 559-566 | Only sets local `pickupDate` | Also calls `setPickupDateTime()` |
+| Pickup Mode - Return Date | 621 | Only sets local `returnDate` | Also calls `setReturnDateTime()` |
 
-### 3. Update the Submit Flow
-Change `handleSubmit` in `NewCheckout.tsx`:
-- After creating the booking, call `create-checkout-hold` instead of `create-checkout-session`
-- Store the returned `clientSecret` in state
-- Display the `StripeCheckoutWrapper` component instead of redirecting
-
-### 4. Add Success Handler
-Create a handler for when the Stripe Elements form successfully authorizes the card:
-- Update the booking's deposit status to "authorized"
-- Navigate to the confirmation page
-- Show success toast
-
-### 5. Replace CreditCardInput with Stripe Elements
-The current custom `CreditCardInput` component collects card info that isn't actually used for processing (for reference only). In the new flow:
-- Show `CreditCardInput` initially for validation/display purposes
-- After booking creation, replace it with the secure `StripeCheckoutWrapper` that uses Stripe's own card input
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/pages/NewCheckout.tsx` | Add state for inline payment flow; modify `handleSubmit` to use `create-checkout-hold`; render `StripeCheckoutWrapper` conditionally |
-| `supabase/functions/create-checkout-hold/index.ts` | Minor updates to support customer checkout (not just admin) |
-| `supabase/config.toml` | Add `verify_jwt = false` for `create-checkout-hold` |
-
-## Files to Use (Already Exist)
-- `src/components/checkout/StripeCheckoutWrapper.tsx` - Already built for inline Stripe Elements
-- `src/components/checkout/StripePaymentForm.tsx` - Already handles authorization holds
-- `src/hooks/use-stripe-config.ts` - Already fetches publishable key
-- `supabase/functions/get-stripe-config/index.ts` - Already returns publishable key
-
----
-
-## Technical Details
-
-### Checkout Flow Diagram
-
-```text
-User Fills Form
-       |
-       v
-[Pay and Book Button]
-       |
-       v
-Create Booking (DB)
-       |
-       v
-Call create-checkout-hold
-       |
-       v
-Return clientSecret
-       |
-       v
-Show StripeCheckoutWrapper
-(Stripe Elements Card Form)
-       |
-       v
-User Enters Card Details
-       |
-       v
-stripe.confirmPayment()
-       |
-       v
-Authorization Hold Created
-(requires_capture status)
-       |
-       v
-Navigate to Confirmation
-```
-
-### Key State Changes in NewCheckout.tsx
+**Example change for pickup date:**
 ```typescript
-// New state
-const [showStripePayment, setShowStripePayment] = useState(false);
-const [clientSecret, setClientSecret] = useState<string | null>(null);
-const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
+// Before (line 559-566):
+onChange={(e) => {
+  setPickupDate(e.target.value);
+  if (!returnDate || e.target.value > returnDate) {
+    const nextDay = new Date(e.target.value);
+    nextDay.setDate(nextDay.getDate() + 1);
+    setReturnDate(nextDay.toISOString().split("T")[0]);
+  }
+}}
 
-// In handleSubmit (after booking creation):
-// Replace create-checkout-session with:
-const holdResponse = await supabase.functions.invoke("create-checkout-hold", {
-  body: { 
-    bookingId: booking.id, 
-    depositAmount: DEFAULT_DEPOSIT_AMOUNT,
-    rentalAmount: pricing.total 
-  },
-});
-
-setClientSecret(holdResponse.data.clientSecret);
-setPendingBookingId(booking.id);
-setShowStripePayment(true);
+// After:
+onChange={(e) => {
+  const newDate = e.target.value;
+  setPickupDate(newDate);
+  // Persist to context immediately
+  if (newDate) {
+    setPickupDateTime(new Date(`${newDate}T${pickupTime}`), pickupTime);
+  }
+  if (!returnDate || newDate > returnDate) {
+    const nextDay = new Date(newDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayStr = nextDay.toISOString().split("T")[0];
+    setReturnDate(nextDayStr);
+    // Also persist return date
+    setReturnDateTime(new Date(`${nextDayStr}T${returnTime}`), returnTime);
+  }
+}}
 ```
 
-### Success Handler
+**Example change for return date:**
 ```typescript
-const handlePaymentSuccess = async (paymentIntentId: string) => {
-  // Update booking status
-  await supabase.from("bookings").update({ 
-    deposit_status: "authorized",
-    stripe_deposit_pi_id: paymentIntentId 
-  }).eq("id", pendingBookingId);
-  
-  navigate(`/booking/${pendingBookingId}?payment=success`);
-};
+// Before (line 621):
+onChange={(e) => setReturnDate(e.target.value)}
+
+// After:
+onChange={(e) => {
+  const newDate = e.target.value;
+  setReturnDate(newDate);
+  if (newDate) {
+    setReturnDateTime(new Date(`${newDate}T${returnTime}`), returnTime);
+  }
+}}
 ```
 
----
+### Time Selects Also Need Updates
+The time selects (lines 417, 487, 577, 647) should also persist immediately:
 
-## Security Considerations
-- Raw card data never touches application servers (PCI compliant)
-- Stripe Elements handles all sensitive card input
-- Authorization uses manual capture - funds are held but not charged
-- The existing CVV field in `CreditCardInput` is for display/validation only
+```typescript
+// Before:
+onValueChange={setPickupTime}
 
----
+// After:
+onValueChange={(time) => {
+  setPickupTime(time);
+  if (pickupDate) {
+    setPickupDateTime(new Date(`${pickupDate}T${time}`), time);
+  }
+}}
+```
 
-## Required Secret
-You'll need to add `STRIPE_PUBLISHABLE_KEY` (starts with `pk_`) to your backend secrets before this will work. This is different from the secret key - it's safe to expose on the client side and is required for Stripe Elements initialization.
+### Remove Redundant Code in handleSearch
+After implementing immediate persistence, lines 274-275 in `handleSearch` become redundant but can be kept as a safety net.
+
+## Summary
+This is a straightforward fix that mirrors the existing location persistence pattern. All 8 input handlers (4 dates + 4 times) need to call their respective context setters immediately on change.
