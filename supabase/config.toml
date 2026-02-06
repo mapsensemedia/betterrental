@@ -83,3 +83,9 @@ verify_jwt = true
 
 [functions.close-account]
 verify_jwt = true
+
+[functions.create-checkout-hold]
+verify_jwt = false
+
+[functions.get-stripe-config]
+verify_jwt = false
