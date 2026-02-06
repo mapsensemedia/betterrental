@@ -471,33 +471,33 @@ export default function NewCheckout() {
           throw new Error("Unable to connect to booking service. Please check your internet connection and try again.");
         }
 
-        // Handle edge function errors with detailed messages
-        if (guestResponse.error) {
-          const errorMessage = guestResponse.error.message || "Failed to create booking";
-          console.error("Guest booking edge function error:", guestResponse.error);
-          
-          // Parse specific error types for user-friendly messages
-          if (errorMessage.includes("non-2xx")) {
-            throw new Error("Booking service temporarily unavailable. Please try again in a moment.");
-          }
-          throw new Error(errorMessage);
-        }
+        // Map error codes to user-friendly messages
+        const errorMessages: Record<string, string> = {
+          "age_validation_failed": "Please confirm your age on the search page before booking.",
+          "validation_failed": "Please check your information and try again.",
+          "vehicle_unavailable": "This vehicle is no longer available for the selected dates. Please choose another.",
+          "server_error": "An unexpected error occurred. Please try again.",
+        };
 
-        // Handle validation errors returned in data (when edge function returns 4xx with JSON body)
+        // Handle validation errors in response data (Supabase SDK puts 4xx JSON body in data)
+        // Check this FIRST because even with non-2xx errors, the data contains the actual error details
         if (guestResponse.data?.error) {
           const errorCode = guestResponse.data.error;
           const errorMessage = guestResponse.data.message || "Validation error";
           console.error("Guest booking validation error:", guestResponse.data);
-          
-          // Map error codes to user-friendly messages
-          const errorMessages: Record<string, string> = {
-            "age_validation_failed": "Please confirm your age on the search page before booking.",
-            "validation_failed": errorMessage,
-            "vehicle_unavailable": "This vehicle is no longer available for the selected dates. Please choose another.",
-            "server_error": "An unexpected error occurred. Please try again.",
-          };
-          
           throw new Error(errorMessages[errorCode] || errorMessage);
+        }
+
+        // Handle edge function errors (network issues, 5xx errors)
+        if (guestResponse.error) {
+          const errorMessage = guestResponse.error.message || "Failed to create booking";
+          console.error("Guest booking edge function error:", guestResponse.error);
+          
+          // Only show generic message for true network/server failures
+          if (errorMessage.includes("non-2xx") || errorMessage.includes("Failed to fetch")) {
+            throw new Error("Booking service temporarily unavailable. Please try again in a moment.");
+          }
+          throw new Error(errorMessage);
         }
 
         if (!guestResponse.data?.booking) {
