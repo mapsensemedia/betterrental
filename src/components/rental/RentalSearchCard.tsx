@@ -397,11 +397,19 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                   min={today}
                   value={pickupDate}
                   onChange={(e) => {
-                    setPickupDate(e.target.value);
-                    if (!returnDate || e.target.value > returnDate) {
-                      const nextDay = new Date(e.target.value);
+                    const newDate = e.target.value;
+                    setPickupDate(newDate);
+                    // Persist to context immediately
+                    if (newDate) {
+                      setPickupDateTime(new Date(`${newDate}T${pickupTime}`), pickupTime);
+                    }
+                    if (!returnDate || newDate > returnDate) {
+                      const nextDay = new Date(newDate);
                       nextDay.setDate(nextDay.getDate() + 1);
-                      setReturnDate(nextDay.toISOString().split("T")[0]);
+                      const nextDayStr = nextDay.toISOString().split("T")[0];
+                      setReturnDate(nextDayStr);
+                      // Also persist return date
+                      setReturnDateTime(new Date(`${nextDayStr}T${returnTime}`), returnTime);
                     }
                   }}
                   className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
@@ -414,7 +422,12 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Delivery Time
               </label>
-              <Select value={pickupTime} onValueChange={setPickupTime}>
+              <Select value={pickupTime} onValueChange={(time) => {
+                setPickupTime(time);
+                if (pickupDate) {
+                  setPickupDateTime(new Date(`${pickupDate}T${time}`), time);
+                }
+              }}>
                 <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                   <div className="flex items-center gap-2 min-w-0">
                     <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -458,7 +471,13 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                     return maxDate.toISOString().split("T")[0];
                   })() : undefined}
                   value={returnDate}
-                  onChange={(e) => setReturnDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setReturnDate(newDate);
+                    if (newDate) {
+                      setReturnDateTime(new Date(`${newDate}T${returnTime}`), returnTime);
+                    }
+                  }}
                   className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
                 />
               </div>
@@ -484,7 +503,12 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Return Time
               </label>
-              <Select value={returnTime} onValueChange={setReturnTime}>
+              <Select value={returnTime} onValueChange={(time) => {
+                setReturnTime(time);
+                if (returnDate) {
+                  setReturnDateTime(new Date(`${returnDate}T${time}`), time);
+                }
+              }}>
                 <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                   <div className="flex items-center gap-2 min-w-0">
                     <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -557,11 +581,19 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                 min={today}
                 value={pickupDate}
                 onChange={(e) => {
-                  setPickupDate(e.target.value);
-                  if (!returnDate || e.target.value > returnDate) {
-                    const nextDay = new Date(e.target.value);
+                  const newDate = e.target.value;
+                  setPickupDate(newDate);
+                  // Persist to context immediately
+                  if (newDate) {
+                    setPickupDateTime(new Date(`${newDate}T${pickupTime}`), pickupTime);
+                  }
+                  if (!returnDate || newDate > returnDate) {
+                    const nextDay = new Date(newDate);
                     nextDay.setDate(nextDay.getDate() + 1);
-                    setReturnDate(nextDay.toISOString().split("T")[0]);
+                    const nextDayStr = nextDay.toISOString().split("T")[0];
+                    setReturnDate(nextDayStr);
+                    // Also persist return date
+                    setReturnDateTime(new Date(`${nextDayStr}T${returnTime}`), returnTime);
                   }
                 }}
                 className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
@@ -574,7 +606,12 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Pickup Time
             </label>
-            <Select value={pickupTime} onValueChange={setPickupTime}>
+            <Select value={pickupTime} onValueChange={(time) => {
+              setPickupTime(time);
+              if (pickupDate) {
+                setPickupDateTime(new Date(`${pickupDate}T${time}`), time);
+              }
+            }}>
               <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -618,7 +655,13 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                   return maxDate.toISOString().split("T")[0];
                 })() : undefined}
                 value={returnDate}
-                onChange={(e) => setReturnDate(e.target.value)}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setReturnDate(newDate);
+                  if (newDate) {
+                    setReturnDateTime(new Date(`${newDate}T${returnTime}`), returnTime);
+                  }
+                }}
                 className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
               />
             </div>
@@ -644,7 +687,12 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Return Time
             </label>
-            <Select value={returnTime} onValueChange={setReturnTime}>
+            <Select value={returnTime} onValueChange={(time) => {
+              setReturnTime(time);
+              if (returnDate) {
+                setReturnDateTime(new Date(`${returnDate}T${time}`), time);
+              }
+            }}>
               <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
