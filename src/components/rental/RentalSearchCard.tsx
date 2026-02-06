@@ -207,16 +207,11 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
 
   // Handle manual address entry (when user types without selecting from suggestions)
   const handleManualAddressBlur = useCallback(() => {
-    // If user typed an address but didn't select from autocomplete,
-    // store the address text without coordinates
-    // The booking will still work, but delivery fee calculation may be approximate
     if (deliveryAddress && deliveryAddress.length >= 10 && !deliveryCoords) {
       setDeliveryAddress(deliveryAddress, null, null, deliveryAddress);
-      // Use a default fallback to Surrey Centre for fee calculation
       const defaultCenter = pickupLocations[0];
       if (defaultCenter) {
         setClosestCenter(defaultCenter.id, defaultCenter.name, defaultCenter.address);
-        // Default to $49 fee when exact distance unknown
         setDeliveryDetails(49, null, "TBD at pickup");
       }
       toast({
@@ -229,7 +224,6 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
   // Handle route calculation from map
   const handleRouteCalculated = useCallback(
     (distanceKm: number, durationMins: number) => {
-      // Update with actual driving distance
       const feeResult = calculateDeliveryFee(distanceKm);
       setDeliveryDetails(feeResult.fee, distanceKm, `~${durationMins} mins`);
     },
@@ -238,7 +232,6 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
 
   // Handle search
   const handleSearch = () => {
-    // Validate
     if (deliveryMode === "pickup" && !locationId) {
       toast({
         title: "Select a pickup location",
@@ -281,10 +274,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
     setPickupDateTime(new Date(`${pickupDate}T${pickupTime}`), pickupTime);
     setReturnDateTime(new Date(`${returnDate}T${returnTime}`), returnTime);
 
-    // Notify parent (e.g., close dialog) before navigation
     onSearchComplete?.();
-
-    // Navigate to browse cars
     navigate("/search");
   };
 
@@ -324,7 +314,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
         </button>
       </div>
 
-      {/* Map Preview Banner - Show early when delivery selected and address entered */}
+      {/* Map Preview Banner */}
       {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
         <div className="mb-6 rounded-xl overflow-hidden border border-border bg-muted/30">
           <div className="p-3 bg-success/10 border-b border-success/20 flex items-center gap-3">
@@ -357,7 +347,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
       {/* Search Fields - Different layout for delivery mode */}
       {deliveryMode === "delivery" ? (
         <div className="space-y-4">
-          {/* Delivery Address - Full Width Card */}
+          {/* Delivery Address */}
           <div className="space-y-2 relative z-20">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Delivery Address
@@ -370,7 +360,6 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                 onBlur={handleManualAddressBlur}
                 placeholder="Enter your full delivery address"
               />
-              {/* Show selected address confirmation */}
               {deliveryCoords && deliveryAddress && (
                 <div className="mt-3 pt-3 border-t border-border/50 flex items-start gap-2">
                   <MapPin className="w-4 h-4 text-success shrink-0 mt-0.5" />
@@ -473,6 +462,21 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                   className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
                 />
               </div>
+              {pickupDate && returnDate && (
+                (() => {
+                  const days = Math.ceil(
+                    (new Date(returnDate).getTime() - new Date(pickupDate).getTime()) / (1000 * 60 * 60 * 24)
+                  );
+                  if (days > MAX_RENTAL_DAYS) {
+                    return (
+                      <p className="text-xs text-destructive">
+                        Maximum rental is {MAX_RENTAL_DAYS} days
+                      </p>
+                    );
+                  }
+                  return null;
+                })()
+              )}
             </div>
 
             {/* Return Time */}
@@ -485,7 +489,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                   <div className="flex items-center gap-2 min-w-0">
                     <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span className="truncate">
-                      <SelectValue placeholder="Select window" />
+                      <SelectValue placeholder="Select time" />
                     </span>
                   </div>
                 </SelectTrigger>
@@ -501,10 +505,10 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
           </div>
         </div>
       ) : (
-        /* Pickup Mode - Original 5-column grid */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 items-end">
-          {/* Location Field */}
-          <div className="space-y-2 min-w-0 relative z-20">
+        // Pickup mode - grid layout
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Pickup Location */}
+          <div className="space-y-2 min-w-0">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Pickup Location
             </label>
@@ -661,7 +665,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
         </div>
       )}
 
-      {/* Delivery Pricing Display - Compact version below form */}
+      {/* Delivery Pricing Display */}
       {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
         <div className="mt-4">
           <DeliveryPricingDisplay
@@ -726,8 +730,6 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
           Search
         </Button>
       </div>
-
-      {/* Map is now shown at the top when delivery is selected */}
     </div>
   );
 }
