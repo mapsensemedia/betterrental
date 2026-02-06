@@ -1,7 +1,5 @@
 /**
  * NewCheckout - Full checkout page with driver info, payment, and booking summary
- * 
- * Uses embedded Stripe Elements for authorization hold instead of redirect flow.
  */
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, Link, useLocation } from "react-router-dom";
@@ -47,7 +45,8 @@ import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
 import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
 import { PointsRedemption } from "@/components/checkout/PointsRedemption";
-import { StripeCheckoutWrapper } from "@/components/checkout/StripeCheckoutWrapper";
+import { CreditCardInput, CreditCardDisplay } from "@/components/checkout/CreditCardInput";
+import { validateCard, detectCardType, maskCardNumber, CardType, validateDriverCardholderMatch, isCardTypeAllowed } from "@/lib/card-validation";
 import { CREDIT_CARD_AUTHORIZATION_POLICY, CANCELLATION_POLICY } from "@/lib/checkout-policies";
 import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
 
@@ -91,6 +90,9 @@ export default function NewCheckout() {
     email: user?.email || "",
     countryCode: "+1",
     phone: "",
+    cardNumber: "",
+    cardName: "",
+    expiryDate: "",
     country: "Canada",
     streetAddress: "",
     city: "",
@@ -111,14 +113,10 @@ export default function NewCheckout() {
   }, [searchData.ageConfirmed, searchData.ageRange, navigate]);
 
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
   
-  // Stripe payment state
-  const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [isCreatingBooking, setIsCreatingBooking] = useState(false);
-
   // Force pay-now for delivery bookings
   useEffect(() => {
     if (searchData.deliveryMode === "delivery" && paymentMethod === "pay-later") {
@@ -262,7 +260,7 @@ export default function NewCheckout() {
   };
 
   const handleSubmit = async () => {
-    // Validation - driver info only (card handled by Stripe Elements)
+    // Validation
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
@@ -274,6 +272,42 @@ export default function NewCheckout() {
       return;
     }
 
+    // Validate credit card
+    const cardValidation = validateCard({
+      number: formData.cardNumber,
+      expiry: formData.expiryDate,
+      name: formData.cardName,
+    });
+
+    if (!cardValidation.valid) {
+      setCardErrors(cardValidation.errors);
+      toast({ title: "Please check your card details", variant: "destructive" });
+      return;
+    }
+    
+    // Validate driver name matches cardholder name
+    const nameMatch = validateDriverCardholderMatch(
+      formData.firstName,
+      formData.lastName,
+      formData.cardName
+    );
+    
+    if (!nameMatch.matches) {
+      setCardErrors({ name: nameMatch.error || "Primary driver name must match the cardholder name." });
+      toast({ title: nameMatch.error || "Primary driver name must match the cardholder name.", variant: "destructive" });
+      return;
+    }
+    
+    // Check for debit/prepaid card (messaging-based validation)
+    const cardTypeCheck = isCardTypeAllowed(formData.cardNumber);
+    if (!cardTypeCheck.allowed) {
+      setCardErrors({ number: cardTypeCheck.reason || "This card type is not accepted." });
+      toast({ title: cardTypeCheck.reason || "This card type is not accepted.", variant: "destructive" });
+      return;
+    }
+    
+    setCardErrors({});
+
     if (!formData.termsAccepted) {
       toast({ title: "Please accept the terms and conditions", variant: "destructive" });
       return;
@@ -284,7 +318,7 @@ export default function NewCheckout() {
       return;
     }
 
-    setIsCreatingBooking(true);
+    setIsSubmitting(true);
 
     try {
       // Get location ID - use the first available location UUID as fallback
@@ -310,13 +344,18 @@ export default function NewCheckout() {
 
       let booking: { id: string; booking_code: string; user_id?: string } | null = null;
 
+      // Extract card info for storage (last 4 digits only - never store full card)
+      const cardLast4 = formData.cardNumber.replace(/\s+/g, "").slice(-4);
+      const cardTypeValue = detectCardType(formData.cardNumber);
+
       if (session) {
         // Logged-in user flow - create booking directly
+        // Note: vehicle_id stores the category ID for category-based bookings
         const { data: bookingData, error } = await supabase
           .from("bookings")
           .insert({
             user_id: session.user.id,
-            vehicle_id: categoryId,
+            vehicle_id: categoryId, // This is the category ID
             location_id: locationId,
             start_at: searchData.pickupDate.toISOString(),
             end_at: searchData.returnDate.toISOString(),
@@ -338,6 +377,9 @@ export default function NewCheckout() {
             pickup_contact_name: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : null,
             pickup_contact_phone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : null,
             special_instructions: saveTimeAtCounter && specialInstructions ? specialInstructions : null,
+            card_last_four: cardLast4,
+            card_type: cardTypeValue,
+            card_holder_name: formData.cardName,
           })
           .select()
           .single();
@@ -397,7 +439,7 @@ export default function NewCheckout() {
               lastName: formData.lastName,
               email: formData.email,
               phone: `${formData.countryCode}${formData.phone}`,
-              vehicleId: categoryId,
+              vehicleId: categoryId, // This is the category ID
               locationId,
               startAt: searchData.pickupDate.toISOString(),
               endAt: searchData.returnDate.toISOString(),
@@ -419,6 +461,9 @@ export default function NewCheckout() {
               pickupContactName: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : undefined,
               pickupContactPhone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : undefined,
               specialInstructions: saveTimeAtCounter && specialInstructions ? specialInstructions : undefined,
+              cardLastFour: cardLast4,
+              cardType: cardTypeValue,
+              cardHolderName: formData.cardName,
             },
           });
         } catch (networkError: any) {
@@ -426,25 +471,32 @@ export default function NewCheckout() {
           throw new Error("Unable to connect to booking service. Please check your internet connection and try again.");
         }
 
+        // Handle edge function errors with detailed messages
         if (guestResponse.error) {
           const errorMessage = guestResponse.error.message || "Failed to create booking";
           console.error("Guest booking edge function error:", guestResponse.error);
+          
+          // Parse specific error types for user-friendly messages
           if (errorMessage.includes("non-2xx")) {
             throw new Error("Booking service temporarily unavailable. Please try again in a moment.");
           }
           throw new Error(errorMessage);
         }
 
+        // Handle validation errors returned in data (when edge function returns 4xx with JSON body)
         if (guestResponse.data?.error) {
           const errorCode = guestResponse.data.error;
           const errorMessage = guestResponse.data.message || "Validation error";
           console.error("Guest booking validation error:", guestResponse.data);
+          
+          // Map error codes to user-friendly messages
           const errorMessages: Record<string, string> = {
             "age_validation_failed": "Please confirm your age on the search page before booking.",
             "validation_failed": errorMessage,
             "vehicle_unavailable": "This vehicle is no longer available for the selected dates. Please choose another.",
             "server_error": "An unexpected error occurred. Please try again.",
           };
+          
           throw new Error(errorMessages[errorCode] || errorMessage);
         }
 
@@ -453,11 +505,12 @@ export default function NewCheckout() {
           throw new Error("Failed to create booking. Please try again.");
         }
 
+        // Map camelCase response from Edge Function to snake_case expected by UI
         const bookingResponse = guestResponse.data.booking;
         booking = {
           id: bookingResponse.id,
           booking_code: bookingResponse.bookingCode || bookingResponse.booking_code || "",
-          user_id: guestResponse.data.userId,
+          user_id: guestResponse.data.userId, // For guest checkout - pass to checkout session
         };
       }
 
@@ -470,38 +523,59 @@ export default function NewCheckout() {
       markCartConverted.mutate(booking.id);
 
       if (paymentMethod === "pay-now") {
-        // Create checkout hold (PaymentIntent) for Stripe Elements
+        // Create Stripe Checkout Session and redirect
         try {
-          const holdResponse = await supabase.functions.invoke("create-checkout-hold", {
-            body: {
-              bookingId: booking.id,
-              depositAmount: DEFAULT_DEPOSIT_AMOUNT,
-              rentalAmount: pricing.total,
-            },
-          });
-
-          if (holdResponse.error) {
-            throw new Error(holdResponse.error.message || "Failed to initialize payment");
-          }
-
-          if (!holdResponse.data?.success && !holdResponse.data?.alreadyExists) {
-            throw new Error(holdResponse.data?.error || "Failed to create authorization hold");
-          }
-
-          if (holdResponse.data?.clientSecret) {
-            // Store booking ID and client secret for Stripe Elements
-            setPendingBookingId(booking.id);
-            setClientSecret(holdResponse.data.clientSecret);
-            toast({
-              title: "Booking created!",
-              description: "Please complete payment to confirm your reservation.",
+          const baseUrl = window.location.origin;
+          
+          let checkoutResponse;
+          try {
+            checkoutResponse = await supabase.functions.invoke("create-checkout-session", {
+              body: {
+                bookingId: booking.id,
+                amount: pricing.total,
+                currency: "cad",
+                successUrl: `${baseUrl}/booking/${booking.id}?payment=success`,
+                cancelUrl: `${baseUrl}/booking/${booking.id}?payment=cancelled`,
+                userId: booking.user_id, // For guest checkout - helps associate payment with booking
+              },
             });
+          } catch (networkError: any) {
+            console.error("Network error during checkout session:", networkError);
+            throw new Error("Unable to connect to payment service. Please try again.");
+          }
+
+          // Handle edge function errors with detailed messages
+          if (checkoutResponse.error) {
+            const errorMessage = checkoutResponse.error.message || "Failed to create checkout session";
+            console.error("Checkout session error:", checkoutResponse.error);
+            
+            // Parse specific error types for user-friendly messages
+            if (errorMessage.includes("non-2xx")) {
+              throw new Error("Payment service temporarily unavailable. Please try again in a moment.");
+            }
+            throw new Error(errorMessage);
+          }
+          
+          // Check for errors in data response
+          if (checkoutResponse.data?.error) {
+            console.error("Checkout session validation error:", checkoutResponse.data);
+            throw new Error(checkoutResponse.data.error);
+          }
+
+          const { url } = checkoutResponse.data || {};
+
+          if (url) {
+            // Redirect to Stripe Checkout
+            window.location.href = url;
+            return; // Stop execution - we're redirecting
           } else {
-            throw new Error("No client secret received from payment service");
+            console.error("No checkout URL in response:", checkoutResponse.data);
+            throw new Error("Unable to initialize payment. Please try again.");
           }
         } catch (paymentError: any) {
-          console.error("Payment initialization error:", paymentError);
-          // Delete the booking since payment initialization failed
+          console.error("Payment error:", paymentError);
+          
+          // Delete the booking since payment failed - don't allow unpaid bookings
           try {
             await supabase.from("booking_add_ons").delete().eq("booking_id", booking.id);
             await supabase.from("bookings").delete().eq("id", booking.id);
@@ -509,48 +583,33 @@ export default function NewCheckout() {
           } catch (deleteError) {
             console.error("Failed to cleanup booking:", deleteError);
           }
+          
           toast({
             title: "Payment initialization failed",
             description: paymentError.message || "Your booking was not created. Please try again.",
             variant: "destructive",
           });
+
+          // Stay on checkout page to retry
+          setIsSubmitting(false);
+          return;
         }
       } else {
-        // Pay at pickup flow - no payment needed now
+        // Pay at pickup flow
         toast({
           title: "Booking reserved!",
           description: `Your reservation code is ${booking.booking_code}. Please pay at pickup.`,
         });
+
         navigate(`/booking/${booking.id}`);
       }
     } catch (error: any) {
       console.error("Booking error:", error);
       toast({ title: "Booking failed", description: error.message, variant: "destructive" });
     } finally {
-      setIsCreatingBooking(false);
+      setIsSubmitting(false);
     }
   };
-
-  // Handle successful Stripe payment
-  const handleStripeSuccess = useCallback((paymentIntentId: string, paymentMethodId: string) => {
-    if (pendingBookingId) {
-      hasCompletedBooking.current = true;
-      toast({
-        title: "Payment authorized!",
-        description: "Your booking is confirmed. An authorization hold has been placed on your card.",
-      });
-      navigate(`/booking/${pendingBookingId}?payment=success`);
-    }
-  }, [pendingBookingId, navigate]);
-
-  // Handle Stripe payment error
-  const handleStripeError = useCallback((error: string) => {
-    toast({
-      title: "Payment failed",
-      description: error,
-      variant: "destructive",
-    });
-  }, []);
 
   // Redirect if no vehicle/category selected or still loading
   if (!categoryId) {
@@ -716,126 +775,109 @@ export default function NewCheckout() {
                 </div>
               </Card>
 
-              {/* Payment Section */}
-              {clientSecret && pendingBookingId ? (
-                /* Stripe Elements Form - shown after booking is created */
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 mb-6">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-semibold">Complete Payment</h2>
-                    <Lock className="w-4 h-4 text-muted-foreground ml-auto" />
-                    <span className="text-xs text-muted-foreground">Secure</span>
-                  </div>
-                  
-                  <StripeCheckoutWrapper
-                    clientSecret={clientSecret}
-                    depositAmount={DEFAULT_DEPOSIT_AMOUNT}
-                    rentalAmount={pricing.total}
-                    onSuccess={handleStripeSuccess}
-                    onError={handleStripeError}
-                    disabled={isSubmitting}
-                  />
-                </Card>
-              ) : (
-                /* Payment Options - shown before booking is created */
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 mb-6">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-semibold">Payment Details</h2>
-                    <Lock className="w-4 h-4 text-muted-foreground ml-auto" />
-                    <span className="text-xs text-muted-foreground">Secure</span>
-                  </div>
+              {/* Payment - Credit Card Form */}
+              <Card className="p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-semibold">Payment Details</h2>
+                  <Lock className="w-4 h-4 text-muted-foreground ml-auto" />
+                  <span className="text-xs text-muted-foreground">Secure</span>
+                </div>
 
-                  {/* Payment information notice */}
-                  <div className="p-4 bg-muted/50 rounded-lg mb-6">
-                    <p className="text-sm text-muted-foreground">
-                      Complete the form above, then click "Continue to Payment" to securely enter your card details.
+                {/* Credit Card Input Form */}
+                <CreditCardInput
+                  cardNumber={formData.cardNumber}
+                  cardName={formData.cardName}
+                  expiryDate={formData.expiryDate}
+                  onCardNumberChange={(v) => handleInputChange("cardNumber", v)}
+                  onCardNameChange={(v) => handleInputChange("cardName", v)}
+                  onExpiryDateChange={(v) => handleInputChange("expiryDate", v)}
+                  errors={cardErrors}
+                  showValidation={true}
+                />
+
+                {/* Policy text under the form */}
+                <div className="mt-6 pt-4 border-t border-border space-y-3">
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                      ⚠️ Debit and prepaid cards are not accepted.
                     </p>
                   </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {CREDIT_CARD_AUTHORIZATION_POLICY.shortVersion}
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {CANCELLATION_POLICY.content}
+                  </p>
+                </div>
 
-                  {/* Policy text */}
-                  <div className="space-y-3 mb-6">
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                        ⚠️ Debit and prepaid cards are not accepted.
+                {/* Payment Method Selection */}
+                <div className="mt-6 pt-4 border-t border-border">
+                  <p className="text-sm font-medium mb-3">When would you like to pay?</p>
+                  {/* Hide Pay at Pickup for delivery bookings */}
+                  {searchData.deliveryMode === "delivery" ? (
+                    <>
+                      <div className="p-3 rounded-lg border-2 border-primary bg-primary/5">
+                        <p className="font-medium text-sm">Pay Now</p>
+                        <p className="text-xs text-muted-foreground">Instant confirmation</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Payment is required before delivery. Pay at pickup is not available for deliveries.
                       </p>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("pay-now")}
+                        className={cn(
+                          "p-3 rounded-lg border-2 text-left transition-all",
+                          paymentMethod === "pay-now"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-muted-foreground/50"
+                        )}
+                      >
+                        <p className="font-medium text-sm">Pay Now</p>
+                        <p className="text-xs text-muted-foreground">Instant confirmation</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("pay-later")}
+                        className={cn(
+                          "p-3 rounded-lg border-2 text-left transition-all",
+                          paymentMethod === "pay-later"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-muted-foreground/50"
+                        )}
+                      >
+                        <p className="font-medium text-sm">Pay at Pickup</p>
+                        <p className="text-xs text-muted-foreground">Card required on file</p>
+                      </button>
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {CREDIT_CARD_AUTHORIZATION_POLICY.shortVersion}
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {CANCELLATION_POLICY.content}
-                    </p>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Payment Method Selection */}
-                  <div className="pt-4 border-t border-border">
-                    <p className="text-sm font-medium mb-3">When would you like to pay?</p>
-                    {/* Hide Pay at Pickup for delivery bookings */}
-                    {searchData.deliveryMode === "delivery" ? (
-                      <>
-                        <div className="p-3 rounded-lg border-2 border-primary bg-primary/5">
-                          <p className="font-medium text-sm">Pay Now</p>
-                          <p className="text-xs text-muted-foreground">Instant confirmation</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Payment is required before delivery. Pay at pickup is not available for deliveries.
-                        </p>
-                      </>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod("pay-now")}
-                          className={cn(
-                            "p-3 rounded-lg border-2 text-left transition-all",
-                            paymentMethod === "pay-now"
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-muted-foreground/50"
-                          )}
-                        >
-                          <p className="font-medium text-sm">Pay Now</p>
-                          <p className="text-xs text-muted-foreground">Instant confirmation</p>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod("pay-later")}
-                          className={cn(
-                            "p-3 rounded-lg border-2 text-left transition-all",
-                            paymentMethod === "pay-later"
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-muted-foreground/50"
-                          )}
-                        >
-                          <p className="font-medium text-sm">Pay at Pickup</p>
-                          <p className="text-xs text-muted-foreground">Card required on file</p>
-                        </button>
+                {/* Payment Summary */}
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                  {paymentMethod === "pay-now" ? (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Amount to pay now</p>
+                        <p className="text-xs text-muted-foreground">Secure payment via Stripe</p>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Payment Summary */}
-                  <div className="mt-4 p-4 bg-muted/50 rounded-lg">
-                    {paymentMethod === "pay-now" ? (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Authorization hold</p>
-                          <p className="text-xs text-muted-foreground">Rental + ${DEFAULT_DEPOSIT_AMOUNT} deposit</p>
-                        </div>
-                        <p className="text-lg font-bold">${(finalTotal + DEFAULT_DEPOSIT_AMOUNT).toFixed(2)} CAD</p>
+                      <p className="text-lg font-bold">${finalTotal.toFixed(2)} CAD</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Pay at pickup</p>
+                        <p className="text-xs text-muted-foreground">Card verified for booking</p>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Pay at pickup</p>
-                          <p className="text-xs text-muted-foreground">Card verified for booking</p>
-                        </div>
-                        <p className="text-lg font-bold">${finalTotal.toFixed(2)} CAD</p>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              )}
+                      <p className="text-lg font-bold">${finalTotal.toFixed(2)} CAD</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
 
               {/* Save Time at Counter */}
               <SaveTimeAtCounter
@@ -1034,26 +1076,21 @@ export default function NewCheckout() {
                   </Label>
                 </div>
 
-                {/* Only show submit button if not in Stripe payment flow */}
-                {!clientSecret && (
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={isCreatingBooking || isSubmitting}
-                    className="w-full h-14 text-lg"
-                    size="lg"
-                  >
-                    {isCreatingBooking ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Creating Booking...
-                      </>
-                    ) : paymentMethod === "pay-now" ? (
-                      "Continue to Payment"
-                    ) : (
-                      "Reserve Now - Pay at Pickup"
-                    )}
-                  </Button>
-                )}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="w-full h-14 text-lg bg-primary hover:bg-primary/90"
+                  size="lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Pay and Book"
+                  )}
+                </Button>
               </Card>
             </div>
 
