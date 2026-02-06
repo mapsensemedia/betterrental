@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useGlobalRealtime } from "@/hooks/use-global-realtime";
 
 interface SupportShellProps {
   children: ReactNode;
@@ -57,6 +58,7 @@ export function SupportShell({ children }: SupportShellProps) {
   const { data: isAdmin } = useIsAdmin();
   const { data: queueCounts } = useTicketQueueCounts();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  useGlobalRealtime();
 
   const handleLogout = async () => {
     try {

@@ -42,6 +42,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts } from "@/hooks/use-sidebar-counts";
 import { getBookingByCode } from "@/domain/bookings/queries";
+import { useGlobalRealtime } from "@/hooks/use-global-realtime";
 
 /**
  * Ops Navigation - Simplified for operational tasks
@@ -101,6 +102,7 @@ export function OpsShell({ children, hideNav }: OpsShellProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const { counts } = useSidebarCounts();
+  useGlobalRealtime();
 
   const handleBookingSearch = async (e: React.FormEvent) => {
     e.preventDefault();
