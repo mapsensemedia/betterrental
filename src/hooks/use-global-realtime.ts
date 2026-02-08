@@ -231,6 +231,17 @@ export function useGlobalRealtime() {
         () => invalidate([["delivery-detail"], ["delivery-status-log"]])
       )
 
+      // ─── System Settings (protection pricing, fuel rates, etc.) ──
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "system_settings" },
+        () =>
+          invalidate([
+            ["protection-settings"],
+            ["fuel-pricing-settings"],
+          ])
+      )
+
       .subscribe();
 
     return () => {

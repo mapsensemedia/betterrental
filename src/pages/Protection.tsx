@@ -17,9 +17,9 @@ import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { 
   calculateBookingPricing, 
   ageRangeToAgeBand, 
-  PROTECTION_PACKAGES,
   BOOKING_INCLUDED_FEATURES,
 } from "@/lib/pricing";
+import { useProtectionPackages } from "@/hooks/use-protection-settings";
 
 export default function Protection() {
   const navigate = useNavigate();
@@ -37,6 +37,7 @@ export default function Protection() {
   const vehicle = category || legacyVehicle;
   
   const [selectedPackage, setSelectedPackage] = useState<string>("none");
+  const { packages: PROTECTION_PACKAGES } = useProtectionPackages();
 
   // Track page view on mount
   useEffect(() => {
