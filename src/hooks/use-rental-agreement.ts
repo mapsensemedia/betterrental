@@ -2,11 +2,77 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export interface AgreementTermsJson {
+  vehicle: {
+    category?: string;
+    make?: string | null;
+    model?: string | null;
+    year?: number | null;
+    color?: string | null;
+    licensePlate?: string | null;
+    vin?: string | null;
+    fuelType?: string | null;
+    transmission?: string | null;
+    seats?: number | null;
+    tankCapacityLiters?: number | null;
+  };
+  condition: {
+    odometerOut?: number | null;
+    fuelLevelOut?: number | null;
+  };
+  rental: {
+    startAt: string;
+    endAt: string;
+    totalDays: number;
+    dailyRate: number;
+  };
+  locations: {
+    pickup: { name?: string; address?: string; city?: string };
+    deliveryAddress?: string | null;
+    dropoff: { name?: string; address?: string; city?: string };
+  };
+  customer: {
+    name?: string | null;
+    email?: string | null;
+  };
+  financial: {
+    vehicleSubtotal: number;
+    addOnsTotal: number;
+    youngDriverFee: number;
+    pvrtTotal: number;
+    acsrchTotal: number;
+    subtotalBeforeTax: number;
+    pstAmount: number;
+    gstAmount: number;
+    totalTax: number;
+    grandTotal: number;
+    depositAmount: number;
+    addOns: Array<{ name: string; price: number }>;
+  };
+  policies: {
+    minAge: number;
+    lateFeePercentOfDaily: number;
+    gracePeriodMinutes: number;
+    thirdPartyLiabilityIncluded: boolean;
+    optionalCoverageAvailable: boolean;
+    fuelReturnPolicy: string;
+    smokingAllowed: boolean;
+    petsAllowed: boolean;
+    internationalTravel: boolean;
+  };
+  taxes: {
+    pstRate: number;
+    gstRate: number;
+    pvrtDailyFee: number;
+    acsrchDailyFee: number;
+  };
+}
+
 export interface RentalAgreement {
   id: string;
   booking_id: string;
   agreement_content: string;
-  terms_json: Record<string, any>;
+  terms_json: AgreementTermsJson | Record<string, any>;
   customer_signature: string | null;
   customer_signed_at: string | null;
   customer_ip_address: string | null;

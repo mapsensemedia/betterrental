@@ -282,184 +282,19 @@ serve(async (req) => {
       addOnsSection = "   No add-ons selected";
     }
 
-    // Generate comprehensive agreement content
-    const agreementContent = `
-▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    // Generate compact agreement content (structured data is in terms_json)
+    const agreementContent = `C2C CAR RENTAL — VEHICLE RENTAL AGREEMENT
+Booking: ${booking.booking_code} | Date: ${generatedDate}
 
-                         C2C CAR RENTAL
+Renter: ${profile?.full_name || 'N/A'} | Email: ${profile?.email || 'N/A'}
+Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(s)
+Location: ${booking.locations?.name || 'N/A'}, ${booking.locations?.address || 'N/A'}, ${booking.locations?.city || 'N/A'}
+Vehicle: ${categoryInfo.name}${unitInfo.make ? ` — ${unitInfo.make} ${unitInfo.model || ''}` : ''}${unitInfo.year ? ` (${unitInfo.year})` : ''}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
+Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)} | Add-ons: $${addOnsTotal.toFixed(2)}${youngDriverFee > 0 ? ` | Young Driver: $${youngDriverFee.toFixed(2)}` : ''}
+PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)} | GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
+TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
 
-▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-
-                   VEHICLE LEGAL AGREEMENT
-
-═══════════════════════════════════════════════════════════════════
-Booking Reference: ${booking.booking_code}
-Agreement Date: ${generatedDate}
-═══════════════════════════════════════════════════════════════════
-
-┌─────────────────────────────────────────────────────────────────┐
-│                        RENTER INFORMATION                       │
-└─────────────────────────────────────────────────────────────────┘
-
-Name:  ${profile?.full_name || 'N/A'}
-Email: ${profile?.email || 'N/A'}
-
-┌─────────────────────────────────────────────────────────────────┐
-│                           LOCATIONS                             │
-└─────────────────────────────────────────────────────────────────┘
-
-Pickup Location:
-   ${booking.locations?.name || 'N/A'}
-   ${booking.locations?.address || 'N/A'}, ${booking.locations?.city || 'N/A'}
-
-${booking.pickup_address ? `Delivery Address:
-   ${booking.pickup_address}
-` : ''}Drop-off Location:
-   ${booking.locations?.name || 'Same as pickup'}
-   ${booking.locations?.address || 'N/A'}, ${booking.locations?.city || 'N/A'}
-
-┌─────────────────────────────────────────────────────────────────┐
-│                        VEHICLE DETAILS                          │
-└─────────────────────────────────────────────────────────────────┘
-
-Category:     ${categoryInfo.name || 'N/A'}
-${unitInfo.make ? `Make:         ${unitInfo.make}` : ''}
-${unitInfo.model ? `Model:        ${unitInfo.model}` : ''}
-${unitInfo.year ? `Year:         ${unitInfo.year}` : ''}
-${unitInfo.color ? `Color:        ${unitInfo.color}` : ''}
-${unitInfo.license_plate ? `License Plate: ${unitInfo.license_plate}` : ''}
-${unitInfo.vin ? `VIN:          ${unitInfo.vin}` : ''}
-Fuel Type:    ${categoryInfo.fuel_type || 'N/A'}
-Transmission: ${categoryInfo.transmission || 'N/A'}
-Seats:        ${categoryInfo.seats || 'N/A'} passengers
-Tank Capacity: ${tankCapacity} litres
-
-CONDITION AT PICKUP:
-   Kilometres Out: ${pickupMetrics.odometer !== null ? `${pickupMetrics.odometer.toLocaleString()} km` : (unitInfo.current_mileage ? `${unitInfo.current_mileage.toLocaleString()} km` : 'N/A')}
-   Fuel Level:     ${pickupMetrics.fuel_level !== null ? `${pickupMetrics.fuel_level}%` : '100%'}
-
-┌─────────────────────────────────────────────────────────────────┐
-│                        RENTAL PERIOD                            │
-└─────────────────────────────────────────────────────────────────┘
-
-Pick-up Date/Time: ${startDate}
-Return Date/Time:  ${endDate}
-Duration:          ${booking.total_days} day(s)
-
-┌─────────────────────────────────────────────────────────────────┐
-│                      FINANCIAL SUMMARY                          │
-└─────────────────────────────────────────────────────────────────┘
-
-VEHICLE RENTAL:
-   Daily Rate: $${dailyRate.toFixed(2)} × ${rentalDays} days = $${vehicleSubtotal.toFixed(2)}
-
-ADD-ONS & EXTRAS:
-${addOnsSection}
-${youngDriverFee > 0 ? `   Young Driver Fee (20-24): $${youngDriverFee.toFixed(2)}` : ''}
-
-REGULATORY FEES:
-   PVRT (Passenger Vehicle Rental Tax): $${PVRT_DAILY_FEE.toFixed(2)}/day × ${rentalDays} = $${pvrtTotal.toFixed(2)}
-   ACSRCH (AC Surcharge): $${ACSRCH_DAILY_FEE.toFixed(2)}/day × ${rentalDays} = $${acsrchTotal.toFixed(2)}
-
-─────────────────────────────────────────────────────────────────
-SUBTOTAL: $${subtotalBeforeTax.toFixed(2)}
-
-TAXES:
-   PST (7%): $${pstAmount.toFixed(2)}
-   GST (5%): $${gstAmount.toFixed(2)}
-
-─────────────────────────────────────────────────────────────────
-TOTAL AMOUNT DUE: $${grandTotal.toFixed(2)} CAD
-─────────────────────────────────────────────────────────────────
-
-Security Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
-
-┌─────────────────────────────────────────────────────────────────┐
-│                    TERMS AND CONDITIONS                         │
-└─────────────────────────────────────────────────────────────────┘
-
-1. DRIVER REQUIREMENTS
-   • Renter must be at least 20 years of age.
-   • Valid driver's license required at time of pickup.
-   • Signature requires government-issued photo ID.
-   • If the renter holds an interim driving license, they must provide
-     valid government-issued photo ID at the time of pickup.
-   • Additional drivers must be registered and approved.
-
-2. VEHICLE USE RESTRICTIONS
-   • No smoking in the vehicle.
-   • No pets without prior written approval.
-   • No racing, towing, or off-road use.
-   • No international travel without prior authorization.
-   • Vehicle may only be operated on paved public roads.
-
-3. FUEL POLICY
-   • Vehicle must be returned with same fuel level as at pickup.
-   • Tank Capacity: ${tankCapacity} litres
-   • Refueling charges apply if vehicle is returned with less fuel.
-
-4. RETURN POLICY & LATE FEES
-   • Grace period: 30 minutes past scheduled return time.
-   • Late fee: 25% of the daily rate for each additional hour after
-     the grace period has expired.
-   • Extended rentals require prior approval.
-
-5. DAMAGE AND LIABILITY
-   • Renter is responsible for all damage during rental period.
-   • Any damage must be reported immediately.
-   • Security deposit may be applied to cover damages.
-   • Renter is liable for all traffic violations and tolls.
-   • Third party liability coverage comes standard with all rentals.
-
-6. INSURANCE & COVERAGE
-   • Third party liability is included with all rentals.
-   • Optional rental coverage is available at pickup.
-
-7. KILOMETRE ALLOWANCE
-   • Unlimited kilometres included.
-   • Vehicle must be used responsibly.
-
-8. TERMINATION
-   • Rental company may terminate agreement for violation of terms.
-   • Early return does not guarantee refund.
-
-9. TAX INFORMATION
-   • PST (Provincial Sales Tax): 7%
-   • GST (Goods and Services Tax): 5%
-   • PVRT (Passenger Vehicle Rental Tax): $1.50/day
-   • ACSRCH (AC Surcharge): $1.00/day
-
-┌─────────────────────────────────────────────────────────────────┐
-│                  ACKNOWLEDGMENT AND SIGNATURE                   │
-└─────────────────────────────────────────────────────────────────┘
-
-☐ I confirm I have read and understood all terms and conditions 
-  outlined in this Vehicle Legal Agreement.
-
-☐ I confirm I am at least 20 years of age.
-
-☐ I acknowledge that my electronic signature has the same legal 
-  effect as a handwritten signature.
-
-☐ I understand that third party liability coverage is included and 
-  optional rental coverage is available at pickup.
-
-☐ I agree to return the vehicle with the same fuel level as at pickup.
-
-☐ I understand late fees will be charged at 25% of the daily rate 
-  per hour after the 30-minute grace period.
-
-
-RENTER SIGNATURE: ________________________________
-
-DATE: ________________________________
-
-
-═══════════════════════════════════════════════════════════════════
-                        C2C Car Rental
-                  Thank you for choosing us!
-═══════════════════════════════════════════════════════════════════
-`.trim();
+Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (without approval), racing, off-road, or international travel. Return with same fuel level. Late fee: 25% daily rate/hr after 30-min grace. Renter liable for damage & traffic violations. Third party liability included. Optional coverage available. Unlimited km.`.trim();
 
     // Build comprehensive terms JSON for database storage
     const terms = {
