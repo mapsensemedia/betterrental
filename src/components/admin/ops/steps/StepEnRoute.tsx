@@ -3,6 +3,7 @@
  * Replaces the standard check-in step for delivery bookings
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { displayName } from "@/lib/format-customer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -173,7 +174,7 @@ export function StepEnRoute({ booking, driverInfo, completion }: StepEnRouteProp
             <div className="p-3 rounded-lg border bg-muted/30">
               <p className="text-xs text-muted-foreground mb-1">Customer</p>
               <p className="font-medium text-sm mb-2">
-                {booking.profiles?.full_name || "Unknown"}
+                {displayName(booking.profiles?.full_name)}
               </p>
               {booking.profiles?.phone && (
                 <Button 

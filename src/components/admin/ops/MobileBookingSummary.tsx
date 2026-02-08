@@ -2,6 +2,7 @@
  * Mobile/Tablet Booking Summary - accessible via drawer
  */
 import { format } from "date-fns";
+import { displayName, formatPhone } from "@/lib/format-customer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -176,12 +177,12 @@ export function MobileBookingSummary({
                 Customer
               </div>
               <div className="pl-6 space-y-1 text-sm">
-                <p className="font-medium">{booking.profiles?.full_name || "Unknown"}</p>
+                <p className="font-medium">{displayName(booking.profiles?.full_name)}</p>
                 {booking.profiles?.email && (
                   <p className="text-muted-foreground text-xs">{booking.profiles.email}</p>
                 )}
                 {booking.profiles?.phone && (
-                  <p className="text-muted-foreground text-xs">{booking.profiles.phone}</p>
+                  <p className="text-muted-foreground text-xs">{formatPhone(booking.profiles.phone)}</p>
                 )}
               </div>
             </div>
