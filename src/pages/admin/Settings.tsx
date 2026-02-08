@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { AddOnsPricingPanel } from "@/components/admin/AddOnsPricingPanel";
+import { ProtectionPricingPanel } from "@/components/admin/ProtectionPricingPanel";
 import { PointsSettingsPanel } from "@/components/admin/PointsSettingsPanel";
 import { MembershipManagementPanel } from "@/components/admin/MembershipManagementPanel";
 import { 
@@ -140,6 +141,9 @@ export default function AdminSettings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Protection Package Pricing */}
+        <ProtectionPricingPanel />
 
         {/* Add-Ons & Pricing */}
         <AddOnsPricingPanel />

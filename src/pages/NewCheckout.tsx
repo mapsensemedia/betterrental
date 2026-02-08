@@ -55,11 +55,11 @@ import {
   calculateBookingPricing, 
   ageRangeToAgeBand, 
   YOUNG_DRIVER_FEE, 
-  PROTECTION_RATES,
   BOOKING_INCLUDED_FEATURES,
   DEFAULT_DEPOSIT_AMOUNT,
   DriverAgeBand 
 } from "@/lib/pricing";
+import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
 
 export default function NewCheckout() {
@@ -68,6 +68,7 @@ export default function NewCheckout() {
   const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
   const { searchData, rentalDays } = useRentalBooking();
+  const { rates: PROTECTION_RATES } = useProtectionPackages();
   const { data: addOns = [] } = useAddOns();
   const saveAbandonedCart = useSaveAbandonedCart();
   const markCartConverted = useMarkCartConverted();
