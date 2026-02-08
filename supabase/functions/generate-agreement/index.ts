@@ -154,25 +154,38 @@ serve(async (req) => {
       }
     }
 
-    // Fetch vehicle unit details (VIN, tank capacity)
+    // Fetch vehicle unit details (VIN, tank capacity) + make/model/year from related vehicles table
     let unitInfo = {
       vin: null as string | null,
       license_plate: null as string | null,
       tank_capacity_liters: null as number | null,
       color: null as string | null,
-      year: null as number | null,
+      current_mileage: null as number | null,
       make: null as string | null,
       model: null as string | null,
-      current_mileage: null as number | null,
+      year: null as number | null,
     };
     if (booking.assigned_unit_id) {
-      const { data: unit } = await supabase
+      const { data: unit, error: unitError } = await supabase
         .from("vehicle_units")
-        .select("vin, license_plate, tank_capacity_liters, color, year, make, model, current_mileage")
+        .select("vin, license_plate, tank_capacity_liters, color, current_mileage, vehicles(make, model, year)")
         .eq("id", booking.assigned_unit_id)
         .single();
-      if (unit) {
-        unitInfo = unit;
+      if (unit && !unitError) {
+        const vehicle = (unit as any).vehicles;
+        unitInfo = {
+          vin: unit.vin,
+          license_plate: unit.license_plate,
+          tank_capacity_liters: unit.tank_capacity_liters,
+          color: unit.color,
+          current_mileage: unit.current_mileage,
+          make: vehicle?.make || null,
+          model: vehicle?.model || null,
+          year: vehicle?.year || null,
+        };
+      }
+      if (unitError) {
+        console.error("Failed to fetch vehicle unit:", unitError);
       }
     }
 
@@ -200,7 +213,14 @@ serve(async (req) => {
       .eq("id", booking.user_id)
       .maybeSingle();
 
-    console.log(`Found profile: ${profile?.full_name || 'N/A'}`);
+    // Handle customer name: avoid displaying raw email as name
+    let customerName = profile?.full_name || null;
+    if (customerName && customerName.includes("@")) {
+      customerName = null; // Email used as name — fall back
+    }
+    const displayName = customerName || "Valued Customer";
+
+    console.log(`Found profile: ${displayName}`);
 
     // Fetch add-ons for this booking
     const { data: bookingAddOns } = await supabase
@@ -283,13 +303,16 @@ serve(async (req) => {
     }
 
     // Generate compact agreement content (structured data is in terms_json)
+    const vehicleDesc = unitInfo.make 
+      ? `${categoryInfo.name} — ${[unitInfo.year, unitInfo.make, unitInfo.model].filter(Boolean).join(" ")}` 
+      : categoryInfo.name;
     const agreementContent = `C2C CAR RENTAL — VEHICLE RENTAL AGREEMENT
 Booking: ${booking.booking_code} | Date: ${generatedDate}
 
-Renter: ${profile?.full_name || 'N/A'} | Email: ${profile?.email || 'N/A'}
+Renter: ${displayName} | Email: ${profile?.email || 'N/A'}
 Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(s)
 Location: ${booking.locations?.name || 'N/A'}, ${booking.locations?.address || 'N/A'}, ${booking.locations?.city || 'N/A'}
-Vehicle: ${categoryInfo.name}${unitInfo.make ? ` — ${unitInfo.make} ${unitInfo.model || ''}` : ''}${unitInfo.year ? ` (${unitInfo.year})` : ''}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
+Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
 Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)} | Add-ons: $${addOnsTotal.toFixed(2)}${youngDriverFee > 0 ? ` | Young Driver: $${youngDriverFee.toFixed(2)}` : ''}
 PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)} | GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
 TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
@@ -335,7 +358,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         },
       },
       customer: {
-        name: profile?.full_name,
+        name: displayName,
         email: profile?.email,
       },
       financial: {
