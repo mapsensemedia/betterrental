@@ -1,66 +1,66 @@
 
-# Fix All Issues Plan
 
-## Issues Found
+# Make Verification Checklist Interactive in OPS Check-In Step
 
-### Issue 1 (Critical): Edge Function Queries Non-Existent Database Columns
-The `generate-agreement` edge function tries to select `make`, `model`, and `year` from the `vehicle_units` table, but **these columns do not exist**. The actual columns on `vehicle_units` are: `id`, `vehicle_id`, `vin`, `license_plate`, `color`, `current_mileage`, `tank_capacity_liters`, `status`, etc.
+## Problem
 
-This causes the entire unit query to fail silently, so VIN, license plate, color, and tank capacity are all lost -- even when a vehicle unit IS assigned to the booking.
+The Verification Checklist in the OPS Check-In step (Step 1) displays 5 items as **read-only status indicators** -- staff can see them but cannot toggle or complete any of them. There are no checkboxes, no date inputs, and no save button.
 
-**Proof**: Booking `SLJN543Z` has unit `6386a933` assigned (VIN: `3KPA24AD1PE112233`, Plate: `ECO-103`), but the agreement's `terms_json` shows all vehicle fields as null.
+Meanwhile, a fully interactive `CheckInSection` component already exists with:
+- Checkboxes for Gov ID, Name Match, Age Verified
+- Date input for License Expiry (auto-validates expired/valid)
+- Date of Birth input (auto-calculates age and validates 21+)
+- Notes fields for each section
+- Save and Complete buttons that persist to the `checkin_records` database table
 
-### Issue 2 (Medium): Existing Agreements Have Missing Data
-All 3 rental agreements in the database were generated with the broken edge function, so they all have null vehicle details. Regenerating them requires voiding and recreating.
+The OPS `StepCheckin` component was built separately and never integrated these interactive controls.
 
-### Issue 3 (Minor): Customer Name Displays as Email
-Some profiles have `full_name` set to their email address (e.g., `admin@c2crental.ca`). The edge function and PDF display this verbatim, making the rental record look unprofessional.
+## Solution
 
-### Issue 4 (Minor): Console Warning - forwardRef in SelectContent
-A React warning about function components not supporting refs appears in the console from the `OpsLocationFilter` component. This is cosmetic and does not affect functionality.
+Replace the read-only `VerificationItem` list in `StepCheckin` with interactive checkbox controls that persist to the `checkin_records` table, reusing the existing database hooks.
 
----
+## Changes
 
-## Fix Plan
+### File: `src/components/admin/ops/steps/StepCheckin.tsx`
 
-### Step 1: Fix Edge Function (`supabase/functions/generate-agreement/index.ts`)
+**Replace the Verification Checklist card** with an interactive version:
 
-**Remove non-existent columns from the vehicle_units query:**
+1. **Import the check-in hooks**: Add `useCheckInRecord`, `useCreateOrUpdateCheckIn`, `useCompleteCheckIn`, `calculateAge`, `isLicenseExpired` from `@/hooks/use-checkin`
 
-Current (broken):
-```
-.select("vin, license_plate, tank_capacity_liters, color, year, make, model, current_mileage")
-```
+2. **Add local state for each verification field**:
+   - `govIdVerified` (boolean, checkbox)
+   - `licenseNameMatches` (boolean, checkbox)
+   - `licenseExpiryDate` (string, date input -- auto-checks if expired)
+   - `ageVerified` (boolean, auto-set from DOB)
+   - `customerDob` (string, date input -- auto-calculates age)
 
-Fixed:
-```
-.select("vin, license_plate, tank_capacity_liters, color, current_mileage")
-```
+3. **Load existing check-in record**: Use `useCheckInRecord(booking.id)` to fetch any previously saved data and pre-fill the form fields
 
-Also remove `make`, `model`, and `year` from the `unitInfo` default object since they don't come from this table.
+4. **Replace the 5 read-only `VerificationItem` components** with interactive controls:
+   - **Gov Photo ID**: Checkbox toggle (staff clicks to verify)
+   - **License on File**: Auto-detected from profile (read-only, already works)
+   - **Name Matches**: Checkbox toggle
+   - **License Not Expired**: Date input for expiry date, auto-validates
+   - **Age Verified (21+)**: Date of Birth input, auto-calculates age and validates
 
-**Extract make/model info from category name** as a fallback. The category names follow a pattern like `"MID SIZE SUV - Toyota Rav4 or Similar"`, so we can parse this to extract the make/model for the PDF.
+5. **Add a "Save Check-In" button** at the bottom that calls `useCreateOrUpdateCheckIn` to persist all verification fields to the `checkin_records` table
 
-**Handle customer name = email**: If `full_name` equals the email or is empty, use a formatted version or "Valued Customer" as fallback.
+6. **Add a "Complete Check-In" button** (enabled when all required items pass) that calls `useCompleteCheckIn` to mark the check-in as "passed"
 
-### Step 2: Update PDF Renderer (`src/lib/pdf/rental-agreement-pdf.ts`)
+7. **Remove the old `VerificationItem` and `StatusIndicator` helper components** since they will be replaced by the interactive controls
 
-- Use the category name directly for the vehicle description (e.g., "MID SIZE SUV - Toyota Rav4 or Similar") since that's more descriptive than separate make/model fields
-- Show VIN and plate only when available (skip the line rather than showing "N/A")
-- Show odometer/fuel only when inspection data exists
-- Remove the `make`/`model`/`year` fields from the `TermsJson` interface since they aren't reliably available
+### No Other Files Change
 
-### Step 3: Re-deploy and Test
+- The `ops-steps.ts` completion logic already reads from `checkinRecord` in `BookingOps.tsx` (lines 157-163), so once the interactive controls save data to `checkin_records`, the step completion status will automatically update
+- The database schema (`checkin_records` table) already has all the needed columns
+- The hooks (`use-checkin.ts`) already handle create/update/complete flows
 
-- Deploy the fixed edge function
-- For existing bookings: void the current agreement and regenerate to get correct data
-- Verify the PDF now shows all available information on a single page
+## How It Will Work
 
----
+1. Staff opens the Check-In step
+2. They see interactive checkboxes and date inputs instead of static icons
+3. They toggle "Gov ID Verified", "Name Matches", enter license expiry date and DOB
+4. They click "Save" to persist progress (can come back later)
+5. When all items pass, they click "Complete Check-In" to finalize
+6. The step status automatically updates to "Complete" and the green checkmark appears in the step nav
 
-## What Won't Change
-
-- Database schema stays the same (no new columns needed)
-- The signing/confirming/voiding workflow stays the same
-- Protection pricing (already fixed)
-- The overall PDF layout and single-page design stays the same
