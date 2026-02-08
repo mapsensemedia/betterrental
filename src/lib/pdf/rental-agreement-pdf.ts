@@ -193,9 +193,12 @@ function renderStructuredPdf(
   y += 6;
 
   // ── CUSTOMER NAME (large, left) ──
+  const displayName = t.customer.name && !t.customer.name.includes("@")
+    ? t.customer.name
+    : "VALUED CUSTOMER";
   pdf.setFontSize(11);
   pdf.setFont("helvetica", "bold");
-  pdf.text((t.customer.name || "N/A").toUpperCase(), COL_LEFT, y + 10);
+  pdf.text(displayName.toUpperCase(), COL_LEFT, y + 10);
 
   // ── RENTAL / DUE dates (right side) ──
   const pickupLoc = t.locations.pickup;
@@ -222,34 +225,39 @@ function renderStructuredPdf(
 
   // Row 1: Vehicle class & Make/Model
   const vehClass = `VEH CLASS: ${(t.vehicle.category || "N/A").toUpperCase()}`;
-  const makeModel = t.vehicle.make || t.vehicle.model
-    ? `MODEL: ${[t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean).join(" ").toUpperCase()}`
-    : "";
-  const colorStr = t.vehicle.color ? `COLOR: ${t.vehicle.color.toUpperCase()}` : "";
   monoLine(pdf, vehClass, COL_LEFT, y);
-  monoLine(pdf, makeModel, COL_MID, y);
+  // Build make/model from available fields
+  const makeModelParts = [t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean);
+  if (makeModelParts.length > 0) {
+    monoLine(pdf, `MODEL: ${makeModelParts.join(" ").toUpperCase()}`, COL_MID, y);
+  }
+  const colorStr = t.vehicle.color ? `COLOR: ${t.vehicle.color.toUpperCase()}` : "";
   if (colorStr) monoLine(pdf, colorStr, COL_MID + 180, y);
   y += LH;
 
-  // Row 2: VIN & Plate
-  const vinStr = t.vehicle.vin ? `VIN#: ${t.vehicle.vin.toUpperCase()}` : "VIN#: N/A";
-  const plateStr = t.vehicle.licensePlate ? `PLATE: ${t.vehicle.licensePlate.toUpperCase()}` : "";
-  monoLine(pdf, vinStr, COL_LEFT, y);
-  if (plateStr) monoLine(pdf, plateStr, COL_MID, y);
-  y += LH;
+  // Row 2: VIN & Plate (only show when available)
+  const hasVin = t.vehicle.vin && t.vehicle.vin !== "N/A";
+  const hasPlate = t.vehicle.licensePlate && t.vehicle.licensePlate !== "N/A";
+  if (hasVin || hasPlate) {
+    if (hasVin) monoLine(pdf, `VIN#: ${t.vehicle.vin!.toUpperCase()}`, COL_LEFT, y);
+    if (hasPlate) monoLine(pdf, `PLATE: ${t.vehicle.licensePlate!.toUpperCase()}`, hasVin ? COL_MID : COL_LEFT, y);
+    y += LH;
+  }
 
-  // Row 3: Fuel/Trans/Seats & KMs Out / Fuel Level
+  // Row 3: Fuel/Trans/Seats & KMs Out
   const fuelTrans = `FUEL: ${(t.vehicle.fuelType || "N/A").toUpperCase()}  TRANS: ${(t.vehicle.transmission || "N/A").toUpperCase()}  SEATS: ${t.vehicle.seats || "N/A"}`;
   monoLine(pdf, fuelTrans, COL_LEFT, y);
-  const kmsOut = t.condition.odometerOut != null ? t.condition.odometerOut.toLocaleString() : "N/A";
-  monoLine(pdf, `KMS OUT: ${kmsOut}`, COL_MID, y);
+  if (t.condition.odometerOut != null) {
+    monoLine(pdf, `KMS OUT: ${t.condition.odometerOut.toLocaleString()}`, COL_MID, y);
+  }
   y += LH;
 
-  // Row 4: Tank capacity & Fuel level
+  // Row 4: Tank capacity & Fuel level (only show fuel level if recorded)
   const tankStr = `TANK CAP: ${t.vehicle.tankCapacityLiters || 50}L`;
-  const fuelLvl = t.condition.fuelLevelOut != null ? `${t.condition.fuelLevelOut}%` : "100%";
   monoLine(pdf, tankStr, COL_LEFT, y);
-  monoLine(pdf, `FUEL LVL: ${fuelLvl}`, COL_MID, y);
+  if (t.condition.fuelLevelOut != null) {
+    monoLine(pdf, `FUEL LVL: ${t.condition.fuelLevelOut}%`, COL_MID, y);
+  }
   y += LH + 2;
 
   // Separator
