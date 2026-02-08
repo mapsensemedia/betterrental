@@ -3,6 +3,7 @@
  * Reads from and writes to system_settings via the protection settings hook.
  */
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -78,15 +79,33 @@ export function ProtectionPricingPanel() {
   }, [settings, dirty]);
 
   const handleSave = async () => {
+    // Validate rates are not empty
+    const basicRate = parseFloat(basicForm.rate);
+    const smartRate = parseFloat(smartForm.rate);
+    const premiumRate = parseFloat(premiumForm.rate);
+
+    if (isNaN(basicRate) || basicRate <= 0) {
+      toast.error("Basic Protection daily rate is required");
+      return;
+    }
+    if (isNaN(smartRate) || smartRate <= 0) {
+      toast.error("Smart Protection daily rate is required");
+      return;
+    }
+    if (isNaN(premiumRate) || premiumRate <= 0) {
+      toast.error("All Inclusive Protection daily rate is required");
+      return;
+    }
+
     await updateSettings.mutateAsync({
-      protection_basic_rate: basicForm.rate,
+      protection_basic_rate: basicRate.toFixed(2),
       protection_basic_deductible: basicForm.deductible,
-      protection_smart_rate: smartForm.rate,
-      protection_smart_original_rate: smartForm.originalRate,
+      protection_smart_rate: smartRate.toFixed(2),
+      protection_smart_original_rate: smartForm.originalRate || smartForm.rate,
       protection_smart_discount: smartForm.discount,
       protection_smart_deductible: smartForm.deductible,
-      protection_premium_rate: premiumForm.rate,
-      protection_premium_original_rate: premiumForm.originalRate,
+      protection_premium_rate: premiumRate.toFixed(2),
+      protection_premium_original_rate: premiumForm.originalRate || premiumForm.rate,
       protection_premium_discount: premiumForm.discount,
       protection_premium_deductible: premiumForm.deductible,
     });
