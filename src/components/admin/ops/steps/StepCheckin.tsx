@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  useCheckInRecord,
+  useCreateOrUpdateCheckIn,
+  useCompleteCheckIn,
+  calculateAge,
+  isLicenseExpired,
+  type CheckInValidation,
+} from "@/hooks/use-checkin";
 import { Separator } from "@/components/ui/separator";
 import { 
   CheckCircle2, 
@@ -37,7 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { UnitAssignmentCard } from "@/components/admin/UnitAssignmentCard";
-import { cn } from "@/lib/utils";
+
 
 interface StepCheckinProps {
   booking: any;
@@ -60,6 +68,12 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   const [editingContact, setEditingContact] = useState(false);
   const [licenseNumber, setLicenseNumber] = useState("");
   
+  // Interactive verification state
+  const [govIdVerified, setGovIdVerified] = useState(false);
+  const [licenseNameMatches, setLicenseNameMatches] = useState(false);
+  const [licenseExpiryDate, setLicenseExpiryDate] = useState("");
+  const [customerDob, setCustomerDob] = useState("");
+  
   // Contact info state
   const [contactInfo, setContactInfo] = useState({
     phone: "",
@@ -70,6 +84,21 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Check-in hooks
+  const { data: checkinRecord } = useCheckInRecord(booking.id);
+  const createOrUpdateCheckIn = useCreateOrUpdateCheckIn();
+  const completeCheckIn = useCompleteCheckIn();
+
+  // Sync local state from existing check-in record
+  useEffect(() => {
+    if (checkinRecord) {
+      setGovIdVerified(checkinRecord.identityVerified);
+      setLicenseNameMatches(checkinRecord.licenseNameMatches);
+      setLicenseExpiryDate(checkinRecord.licenseExpiryDate || "");
+      setCustomerDob(checkinRecord.customerDob || "");
+    }
+  }, [checkinRecord]);
 
   // Fetch profile-level license status
   const { data: profile, refetch: refetchProfile } = useQuery({
@@ -110,12 +139,66 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   const licenseExpiry = profile?.driver_license_expiry;
   const licenseFrontUrl = profile?.driver_license_front_url;
   
+  // Derived verification values
+  const licenseNotExpired = licenseExpiryDate ? !isLicenseExpired(licenseExpiryDate) : false;
+  const computedAge = customerDob ? calculateAge(customerDob) : null;
+  const ageVerified = computedAge !== null && computedAge >= 21;
+  
   const isComplete = 
-    completion.govIdVerified &&
-    completion.licenseOnFile &&
-    completion.nameMatches &&
-    completion.licenseNotExpired &&
-    completion.ageVerified;
+    govIdVerified &&
+    licenseOnFile &&
+    licenseNameMatches &&
+    licenseNotExpired &&
+    ageVerified;
+
+  const isSaving = createOrUpdateCheckIn.isPending;
+  const isCompleting = completeCheckIn.isPending;
+
+  const handleSaveCheckIn = () => {
+    createOrUpdateCheckIn.mutate({
+      bookingId: booking.id,
+      data: {
+        identityVerified: govIdVerified,
+        licenseNameMatches,
+        licenseExpiryDate: licenseExpiryDate || undefined,
+        licenseValid: licenseNotExpired,
+        customerDob: customerDob || undefined,
+        ageVerified,
+        licenseVerified: licenseOnFile,
+      },
+    });
+  };
+
+  const handleCompleteCheckIn = () => {
+    const validations: CheckInValidation[] = [
+      { field: "identity", label: "Gov Photo ID", passed: govIdVerified, required: true },
+      { field: "license_on_file", label: "License on File", passed: licenseOnFile, required: true },
+      { field: "name_matches", label: "Name Matches", passed: licenseNameMatches, required: true },
+      { field: "license_valid", label: "License Not Expired", passed: licenseNotExpired, required: true },
+      { field: "age", label: "Age Verified (21+)", passed: ageVerified, required: true },
+    ];
+
+    // Save all data first, then complete
+    createOrUpdateCheckIn.mutate(
+      {
+        bookingId: booking.id,
+        data: {
+          identityVerified: govIdVerified,
+          licenseNameMatches,
+          licenseExpiryDate: licenseExpiryDate || undefined,
+          licenseValid: licenseNotExpired,
+          customerDob: customerDob || undefined,
+          ageVerified,
+          licenseVerified: licenseOnFile,
+        },
+      },
+      {
+        onSuccess: () => {
+          completeCheckIn.mutate({ bookingId: booking.id, validations });
+        },
+      }
+    );
+  };
 
   // Update contact info mutation
   const updateContactMutation = useMutation({
@@ -401,7 +484,7 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
         </CardContent>
       </Card>
 
-      {/* Verification Checklist */}
+      {/* Verification Checklist - Interactive */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -409,35 +492,162 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
               <UserCheck className="w-4 h-4 text-muted-foreground" />
               <CardTitle className="text-base">Verification Checklist</CardTitle>
             </div>
-            <StatusIndicator complete={isComplete} />
+            {checkinRecord?.checkInStatus === "passed" ? (
+              <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Complete
+              </Badge>
+            ) : isComplete ? (
+              <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                All Verified
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                <XCircle className="w-3 h-3 mr-1" />
+                Pending
+              </Badge>
+            )}
           </div>
           <CardDescription>
-            Verify all items by comparing with the physical ID
+            Toggle each item as you verify against the physical ID
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <VerificationItem 
-              label="Government Photo ID verified (in person)"
-              passed={completion.govIdVerified}
+        <CardContent className="space-y-4">
+          {/* Gov Photo ID */}
+          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+            <Checkbox
+              checked={govIdVerified}
+              onCheckedChange={(checked) => setGovIdVerified(checked === true)}
+              disabled={checkinRecord?.checkInStatus === "passed"}
             />
-            <VerificationItem 
-              label="Driver's License on file"
-              passed={completion.licenseOnFile}
-            />
-            <VerificationItem 
-              label="Name matches booking"
-              passed={completion.nameMatches}
-            />
-            <VerificationItem 
-              label="License not expired"
-              passed={completion.licenseNotExpired}
-            />
-            <VerificationItem 
-              label="Age verified (21+)"
-              passed={completion.ageVerified}
-            />
+            <Label className="text-sm cursor-pointer flex-1">
+              Government Photo ID verified (in person)
+            </Label>
+            {govIdVerified && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
           </div>
+
+          {/* License on File (read-only, auto-detected) */}
+          <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+            <Checkbox checked={licenseOnFile} disabled />
+            <Label className="text-sm flex-1 text-muted-foreground">
+              Driver's License on file
+            </Label>
+            {licenseOnFile ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            ) : (
+              <span className="text-xs text-muted-foreground">Upload above</span>
+            )}
+          </div>
+
+          {/* Name Matches */}
+          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+            <Checkbox
+              checked={licenseNameMatches}
+              onCheckedChange={(checked) => setLicenseNameMatches(checked === true)}
+              disabled={checkinRecord?.checkInStatus === "passed"}
+            />
+            <Label className="text-sm cursor-pointer flex-1">
+              Name matches booking
+            </Label>
+            {licenseNameMatches && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+          </div>
+
+          <Separator />
+
+          {/* License Expiry Date */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">License Expiry Date</Label>
+            <Input
+              type="date"
+              value={licenseExpiryDate}
+              onChange={(e) => setLicenseExpiryDate(e.target.value)}
+              disabled={checkinRecord?.checkInStatus === "passed"}
+            />
+            {licenseExpiryDate && (
+              <div className="flex items-center gap-2 text-xs">
+                {licenseNotExpired ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-emerald-600 dark:text-emerald-400">License is valid</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-3.5 w-3.5 text-destructive" />
+                    <span className="text-destructive">License is expired</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Date of Birth */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Date of Birth</Label>
+            <Input
+              type="date"
+              value={customerDob}
+              onChange={(e) => setCustomerDob(e.target.value)}
+              disabled={checkinRecord?.checkInStatus === "passed"}
+            />
+            {customerDob && (
+              <div className="flex items-center gap-2 text-xs">
+                {ageVerified ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      Age {computedAge} — meets minimum (21+)
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-3.5 w-3.5 text-destructive" />
+                    <span className="text-destructive">
+                      Age {computedAge} — does NOT meet minimum (21+)
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Action Buttons */}
+          {checkinRecord?.checkInStatus === "passed" ? (
+            <div className="p-3 bg-emerald-500/10 rounded-lg text-center text-sm text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4 inline mr-2" />
+              Check-in completed
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleSaveCheckIn}
+                disabled={isSaving || isCompleting}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save Progress
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleCompleteCheckIn}
+                disabled={!isComplete || isSaving || isCompleting}
+              >
+                {isCompleting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                Complete Check-In
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -599,37 +809,4 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   );
 }
 
-function VerificationItem({ label, passed }: { label: string; passed: boolean }) {
-  return (
-    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-      {passed ? (
-        <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
-      ) : (
-        <XCircle className="h-5 w-5 text-muted-foreground shrink-0" />
-      )}
-      <span className={cn(
-        "text-sm",
-        passed && "text-emerald-700 dark:text-emerald-400"
-      )}>
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function StatusIndicator({ complete }: { complete: boolean }) {
-  if (complete) {
-    return (
-      <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-        <CheckCircle2 className="w-3 h-3 mr-1" />
-        Verified
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="text-muted-foreground">
-      <XCircle className="w-3 h-3 mr-1" />
-      Pending
-    </Badge>
-  );
-}
+// VerificationItem and StatusIndicator removed — replaced by interactive controls inline
