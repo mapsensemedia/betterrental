@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { displayName } from "@/lib/format-customer";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -327,7 +328,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                 <OpsTopBar
                   bookingCode={booking.booking_code}
                   status={booking.status}
-                  customerName={booking.profiles?.full_name || null}
+                  customerName={displayName(booking.profiles?.full_name, null)}
                   vehicleName={vehicleName}
                   pickupDate={booking.start_at}
                   locationName={booking.locations?.name || null}
@@ -461,7 +462,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                           <CheckInSection
                             bookingId={booking.id}
                             bookingStartAt={booking.start_at}
-                            customerName={booking.profiles?.full_name || null}
+                            customerName={displayName(booking.profiles?.full_name, null)}
                             licenseOnFile={booking.profiles?.driver_license_status === 'on_file'}
                             licenseExpiryFromProfile={booking.profiles?.driver_license_expiry || null}
                           />
@@ -504,7 +505,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                           />
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-4">
-                          <RentalAgreementPanel bookingId={booking.id} customerName={booking.profiles?.full_name} />
+                          <RentalAgreementPanel bookingId={booking.id} customerName={displayName(booking.profiles?.full_name)} />
                         </AccordionContent>
                       </div>
                     </AccordionItem>

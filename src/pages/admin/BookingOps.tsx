@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { displayName } from "@/lib/format-customer";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -525,7 +526,7 @@ export default function BookingOps() {
             onOpenChange={setShowCancelDialog}
             bookingId={booking.id}
             bookingCode={booking.booking_code}
-            customerName={booking.profiles?.full_name || undefined}
+            customerName={displayName(booking.profiles?.full_name) || undefined}
             vehicleName={vehicleName}
             onSuccess={() => navigate(location.pathname.startsWith("/ops") ? "/ops/pickups" : "/admin/bookings")}
           />

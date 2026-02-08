@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { displayName, formatPhone } from "@/lib/format-customer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -296,11 +297,11 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{booking.profiles?.full_name || "Unknown"}</span>
+                <span className="font-medium">{displayName(booking.profiles?.full_name)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground" />
-                <span>{contactInfo.phone || booking.profiles?.phone || "Not provided"}</span>
+                <span>{formatPhone(contactInfo.phone || booking.profiles?.phone) || "Not provided"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />

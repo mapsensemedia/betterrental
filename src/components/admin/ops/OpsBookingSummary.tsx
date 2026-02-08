@@ -4,6 +4,7 @@
  * Updated: Now includes delivery status section for delivery bookings
  */
 import { useState, useCallback } from "react";
+import { displayName, formatPhone } from "@/lib/format-customer";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -267,7 +268,7 @@ export function OpsBookingSummary({
             onOpenChange={(open) => updateSectionState('customer', open)}
           >
             <div className="space-y-2 text-sm">
-              <p className="font-medium">{booking.profiles?.full_name || "Unknown"}</p>
+              <p className="font-medium">{displayName(booking.profiles?.full_name)}</p>
               {booking.profiles?.email && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="h-3.5 w-3.5" />
@@ -277,7 +278,7 @@ export function OpsBookingSummary({
               {booking.profiles?.phone && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Phone className="h-3.5 w-3.5" />
-                  <span className="text-xs">{booking.profiles.phone}</span>
+                  <span className="text-xs">{formatPhone(booking.profiles.phone)}</span>
                 </div>
               )}
             </div>

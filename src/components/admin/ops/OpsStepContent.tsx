@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/format-customer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -192,7 +193,7 @@ export function OpsStepContent({
           {stepId === "agreement" && (
             <StepAgreement 
               bookingId={booking.id}
-              customerName={booking.profiles?.full_name}
+              customerName={displayName(booking.profiles?.full_name)}
               completion={completion.agreement}
             />
           )}
