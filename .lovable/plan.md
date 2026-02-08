@@ -1,93 +1,66 @@
 
+# Fix All Issues Plan
 
-# Single-Page Rental Agreement PDF
+## Issues Found
 
-## Problem
-The current rental agreement PDF spills onto multiple pages because:
-1. The edge function generates ~5,800 characters of verbose content with decorative borders, 9 sections of detailed terms, and 6 checkboxes
-2. The PDF renderer parses this raw text line-by-line and keeps adding content vertically without enforcing a single-page boundary
+### Issue 1 (Critical): Edge Function Queries Non-Existent Database Columns
+The `generate-agreement` edge function tries to select `make`, `model`, and `year` from the `vehicle_units` table, but **these columns do not exist**. The actual columns on `vehicle_units` are: `id`, `vehicle_id`, `vin`, `license_plate`, `color`, `current_mileage`, `tank_capacity_liters`, `status`, etc.
 
-## Solution
-Redesign both the **content generation** (edge function) and the **PDF renderer** to produce a compact, single-page rental record inspired by the Hertz reference image.
+This causes the entire unit query to fail silently, so VIN, license plate, color, and tank capacity are all lost -- even when a vehicle unit IS assigned to the booking.
 
-### Approach: Use Structured Data (`terms_json`) Instead of Raw Text
+**Proof**: Booking `SLJN543Z` has unit `6386a933` assigned (VIN: `3KPA24AD1PE112233`, Plate: `ECO-103`), but the agreement's `terms_json` shows all vehicle fields as null.
 
-The edge function already stores a well-structured `terms_json` object with all booking data (vehicle, rental period, financials, policies). Instead of parsing the verbose `agreement_content` text, the PDF renderer will build the layout directly from `terms_json`, giving us precise control over spacing and layout.
+### Issue 2 (Medium): Existing Agreements Have Missing Data
+All 3 rental agreements in the database were generated with the broken edge function, so they all have null vehicle details. Regenerating them requires voiding and recreating.
 
-### Layout Design (Letter size: 612 x 792 pt)
+### Issue 3 (Minor): Customer Name Displays as Email
+Some profiles have `full_name` set to their email address (e.g., `admin@c2crental.ca`). The edge function and PDF display this verbatim, making the rental record look unprofessional.
 
-```text
-+----------------------------------------------------------+
-|  [LOGO]           RENTAL RECORD         Booking: XXXX    |
-|----------------------------------------------------------|
-| RENTER                    |  RENTAL PERIOD               |
-| Name: John Doe            |  Pickup: Jan 26, 2026 3:33PM |
-| Email: john@email.com     |  Return: Jan 27, 2026 3:33PM |
-|                           |  Duration: 1 day(s)          |
-|----------------------------------------------------------|
-| VEHICLE                   |  LOCATIONS                   |
-| Category: Economy         |  Pickup: Airport Location    |
-| Make/Model: Toyota Corolla|  Address: 123 Main St        |
-| Year: 2024  Color: White  |  Drop-off: Same as pickup    |
-| Plate: ABC 1234           |                              |
-| VIN: 1HGBH41JXMN109186   |  CONDITION AT PICKUP         |
-| Fuel: Gas  Trans: Auto    |  KMs Out: 12,345 km          |
-| Tank: 50L  Seats: 5       |  Fuel Level: 100%            |
-|----------------------------------------------------------|
-| CHARGES                   | SERVICE CHARGES/TAXES        |
-| Daily Rate: $49.99 x 1    | PVRT: $1.50/day        (G)  |
-| Vehicle Subtotal: $49.99  | ACSRCH: $1.00/day      (S)  |
-| Add-ons: $0.00            | GST 5%: $2.63          (N)  |
-| Young Driver Fee: $0.00   | PST 7%: $3.68          (N)  |
-|                           |                              |
-| TOTAL: $57.80 CAD         | Deposit: $350.00 (refundable)|
-|----------------------------------------------------------|
-| TERMS (compact, small font ~5pt, two-column)             |
-| Driver must be 20+. Valid license & govt ID required.    |
-| No smoking, pets, racing, off-road, or intl travel.      |
-| Return with same fuel level. Late fee: 25% daily rate/hr |
-| after 30-min grace. Renter liable for damage & tickets.  |
-| Third party liability included. Optional coverage avail. |
-|----------------------------------------------------------|
-| ACKNOWLEDGMENT                                           |
-| Signed By: ____________  Date: ____________              |
-| Confirmed: ____________                                  |
-|----------------------------------------------------------|
-| C2C Car Rental | Generated Feb 8, 2026 | Booking XXXX   |
-+----------------------------------------------------------+
+### Issue 4 (Minor): Console Warning - forwardRef in SelectContent
+A React warning about function components not supporting refs appears in the console from the `OpsLocationFilter` component. This is cosmetic and does not affect functionality.
+
+---
+
+## Fix Plan
+
+### Step 1: Fix Edge Function (`supabase/functions/generate-agreement/index.ts`)
+
+**Remove non-existent columns from the vehicle_units query:**
+
+Current (broken):
+```
+.select("vin, license_plate, tank_capacity_liters, color, year, make, model, current_mileage")
 ```
 
-## Technical Changes
+Fixed:
+```
+.select("vin, license_plate, tank_capacity_liters, color, current_mileage")
+```
 
-### 1. Rewrite PDF Renderer (`src/lib/pdf/rental-agreement-pdf.ts`)
+Also remove `make`, `model`, and `year` from the `unitInfo` default object since they don't come from this table.
 
-- **Stop parsing raw text**: Remove `parseAndRenderContent()` and all the line-by-line text parsing logic
-- **Use `terms_json`**: Build the PDF from the structured JSON data already stored in the agreement
-- **Two-column grid layout**: Render renter/rental period, vehicle/locations, charges/taxes side-by-side
-- **Condensed terms**: Render all 9 T&C sections as a single dense paragraph block in ~5pt font
-- **Fixed positioning**: Place the signature block and footer at fixed positions near the bottom of the page, ensuring content never overflows
-- **Auto-scaling safety net**: If content approaches the signature area, reduce font sizes dynamically
+**Extract make/model info from category name** as a fallback. The category names follow a pattern like `"MID SIZE SUV - Toyota Rav4 or Similar"`, so we can parse this to extract the make/model for the PDF.
 
-Key changes:
-- New function `renderFromTermsJson()` replacing `parseAndRenderContent()`
-- Two-column helper using fixed column widths (half of content width)
-- Condensed terms rendered as a single wrapped text block instead of individual numbered items with bullet points
-- Signature block positioned at a fixed Y coordinate (e.g., 700pt) rather than flowing after content
-- Footer at fixed position (778pt)
+**Handle customer name = email**: If `full_name` equals the email or is empty, use a formatted version or "Valued Customer" as fallback.
 
-### 2. Update Edge Function (`supabase/functions/generate-agreement/index.ts`)
+### Step 2: Update PDF Renderer (`src/lib/pdf/rental-agreement-pdf.ts`)
 
-- **Shorten `agreement_content`**: Reduce the verbose text to a compact summary (the full structured data is already in `terms_json`)
-- **Remove decorative borders**: No more `▓▓▓`, `═══`, `┌──┐` box-drawing characters
-- **Condense T&C**: Merge 9 sections into a short paragraph
-- **Remove checkboxes**: Acknowledgment is implicit in the signature
+- Use the category name directly for the vehicle description (e.g., "MID SIZE SUV - Toyota Rav4 or Similar") since that's more descriptive than separate make/model fields
+- Show VIN and plate only when available (skip the line rather than showing "N/A")
+- Show odometer/fuel only when inspection data exists
+- Remove the `make`/`model`/`year` fields from the `TermsJson` interface since they aren't reliably available
 
-### 3. Update Agreement Interface (`src/hooks/use-rental-agreement.ts`)
+### Step 3: Re-deploy and Test
 
-- Add `terms_json` typing to properly type the structured data used by the new PDF renderer
+- Deploy the fixed edge function
+- For existing bookings: void the current agreement and regenerate to get correct data
+- Verify the PDF now shows all available information on a single page
+
+---
 
 ## What Won't Change
-- The database schema stays the same
-- The signing/confirming/voiding flow stays the same
-- The `RentalAgreementSign.tsx` component keeps calling `generateRentalAgreementPdf()` the same way
-- Existing agreements in the database will still work (the renderer falls back to text parsing if `terms_json` is empty)
+
+- Database schema stays the same (no new columns needed)
+- The signing/confirming/voiding workflow stays the same
+- Protection pricing (already fixed)
+- The overall PDF layout and single-page design stays the same
