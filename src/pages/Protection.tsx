@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check, X, Info, Shield } from "lucide-react";
+import { PriceTooltip } from "@/components/shared/PriceTooltip";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -228,7 +229,7 @@ export default function Protection() {
                             {feature.name}
                           </span>
                           {feature.tooltip && (
-                            <Info className="w-3 h-3 text-muted-foreground shrink-0" />
+                            <PriceTooltip content={feature.tooltip} />
                           )}
                         </div>
                       ))}
@@ -268,7 +269,6 @@ export default function Protection() {
                     <div key={feature} className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                       <span>{feature}</span>
-                      <Info className="w-3 h-3 text-muted-foreground ml-auto" />
                     </div>
                   ))}
                 </div>

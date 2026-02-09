@@ -21,6 +21,7 @@ import { AuditTimeline } from "@/components/shared/AuditTimeline";
 import { VoidBookingDialog } from "@/components/admin/VoidBookingDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PriceTooltip, PRICE_TOOLTIPS } from "@/components/shared/PriceTooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -643,23 +644,71 @@ export default function BookingDetail() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Daily Rate:</span>
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-muted-foreground flex items-center">
+                        Daily Rate:
+                        <PriceTooltip content={PRICE_TOOLTIPS.vehicleRental} />
+                      </span>
                       <span>${Number(booking.daily_rate).toFixed(2)}/day</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal ({booking.total_days} days):</span>
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-muted-foreground flex items-center">
+                        Subtotal ({booking.total_days} days):
+                        <PriceTooltip content={PRICE_TOOLTIPS.subtotal} />
+                      </span>
                       <span>${Number(booking.subtotal).toFixed(2)}</span>
                     </div>
+
+                    {/* Protection plan */}
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-muted-foreground flex items-center">
+                        Protection:
+                        <PriceTooltip content={booking.protection_plan && booking.protection_plan !== "none" 
+                          ? PRICE_TOOLTIPS.protection(booking.protection_plan) 
+                          : PRICE_TOOLTIPS.protectionNone} />
+                      </span>
+                      <span className="capitalize">
+                        {booking.protection_plan && booking.protection_plan !== "none" 
+                          ? booking.protection_plan 
+                          : "None"}
+                      </span>
+                    </div>
+
+                    {/* Add-ons list */}
+                    {(booking as any).addOns && (booking as any).addOns.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <span className="flex items-center font-medium">
+                            Add-ons:
+                            <PriceTooltip content={PRICE_TOOLTIPS.addOns} />
+                          </span>
+                        </div>
+                        {(booking as any).addOns.map((addon: any) => (
+                          <div key={addon.id} className="flex justify-between text-sm pl-3">
+                            <span className="text-muted-foreground">
+                              {addon.add_ons?.name || addon.add_on?.name || "Add-on"}
+                            </span>
+                            <span>${Number(addon.price).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {booking.tax_amount && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Tax:</span>
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="text-muted-foreground flex items-center">
+                          Tax:
+                          <PriceTooltip content={PRICE_TOOLTIPS.totalTax} />
+                        </span>
                         <span>${Number(booking.tax_amount).toFixed(2)}</span>
                       </div>
                     )}
                     {booking.young_driver_fee && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Young Driver Fee:</span>
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="text-muted-foreground flex items-center">
+                          Young Driver Fee:
+                          <PriceTooltip content={PRICE_TOOLTIPS.youngDriverFee} />
+                        </span>
                         <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
                       </div>
                     )}

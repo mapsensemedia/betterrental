@@ -15,6 +15,7 @@ import {
   Loader2,
   Lock,
 } from "lucide-react";
+import { PriceTooltip, PRICE_TOOLTIPS } from "@/components/shared/PriceTooltip";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -1014,79 +1015,156 @@ export default function NewCheckout() {
                     Price details
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-2 text-sm mb-4 p-4 bg-muted rounded-lg">
-                    <div className="flex justify-between">
-                      <span>Vehicle ({rentalDays} days × ${vehicle?.dailyRate} CAD/day)</span>
+                    {/* Vehicle base rental */}
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        Vehicle ({rentalDays} days × ${vehicle?.dailyRate} CAD/day)
+                        <PriceTooltip content={PRICE_TOOLTIPS.vehicleRental} />
+                      </span>
                       <span>${pricing.vehicleBaseTotal.toFixed(2)} CAD</span>
                     </div>
                     {pricing.weekendSurcharge > 0 && (
-                      <div className="flex justify-between text-amber-600">
-                        <span>Weekend surcharge (15%)</span>
+                      <div className="flex justify-between items-center text-amber-600">
+                        <span className="flex items-center">
+                          Weekend surcharge (15%)
+                          <PriceTooltip content={PRICE_TOOLTIPS.weekendSurcharge} />
+                        </span>
                         <span>+${pricing.weekendSurcharge.toFixed(2)} CAD</span>
                       </div>
                     )}
                     {pricing.durationDiscount > 0 && (
-                      <div className="flex justify-between text-emerald-600">
-                        <span>{pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount</span>
+                      <div className="flex justify-between items-center text-emerald-600">
+                        <span className="flex items-center">
+                          {pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount
+                          <PriceTooltip content={pricing.discountType === "monthly" ? PRICE_TOOLTIPS.monthlyDiscount : PRICE_TOOLTIPS.weeklyDiscount} />
+                        </span>
                         <span>-${pricing.durationDiscount.toFixed(2)} CAD</span>
                       </div>
                     )}
-                    {pricing.protectionTotal > 0 && (
-                      <div className="flex justify-between">
-                        <span>{pricing.protectionName}</span>
-                        <span>${pricing.protectionTotal.toFixed(2)} CAD</span>
+
+                    {/* Protection plan — always show */}
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        {pricing.protectionName || "No Extra Protection"}
+                        <PriceTooltip content={pricing.protectionTotal > 0 ? PRICE_TOOLTIPS.protection(pricing.protectionName) : PRICE_TOOLTIPS.protectionNone} />
+                      </span>
+                      <span>${pricing.protectionTotal.toFixed(2)} CAD</span>
+                    </div>
+
+                    {/* Add-ons — itemized list, always show section */}
+                    <div className="pt-1">
+                      <div className="flex justify-between items-center font-medium text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                        <span className="flex items-center">
+                          Add-ons & Extras
+                          <PriceTooltip content={PRICE_TOOLTIPS.addOns} />
+                        </span>
                       </div>
-                    )}
-                    {pricing.addOnsTotal > 0 && (
-                      <div className="flex justify-between">
-                        <span>Add-ons</span>
-                        <span>${pricing.addOnsTotal.toFixed(2)} CAD</span>
-                      </div>
-                    )}
+                      {pricing.itemized && pricing.itemized.length > 0 ? (
+                        pricing.itemized.map((item, idx) => (
+                          <div key={idx} className="flex justify-between pl-3 text-sm">
+                            <span className="text-muted-foreground">{item.name}</span>
+                            <span>${item.total.toFixed(2)} CAD</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="pl-3 text-sm text-muted-foreground italic">No add-ons selected</div>
+                      )}
+                      {/* Additional drivers */}
+                      {pricing.additionalDriversCost.total > 0 && (
+                        <div className="flex justify-between pl-3 text-sm items-center">
+                          <span className="flex items-center text-muted-foreground">
+                            Additional drivers ({(searchData.additionalDrivers || []).length})
+                            <PriceTooltip content={PRICE_TOOLTIPS.additionalDrivers} />
+                          </span>
+                          <span>${pricing.additionalDriversCost.total.toFixed(2)} CAD</span>
+                        </div>
+                      )}
+                    </div>
+
                     {pricing.deliveryFee > 0 && (
-                      <div className="flex justify-between">
-                        <span>Delivery fee</span>
+                      <div className="flex justify-between items-center">
+                        <span className="flex items-center">
+                          Delivery fee
+                          <PriceTooltip content={PRICE_TOOLTIPS.deliveryFee} />
+                        </span>
                         <span>${pricing.deliveryFee.toFixed(2)} CAD</span>
                       </div>
                     )}
                     {pricing.youngDriverFee > 0 && (
-                      <div className="flex justify-between">
-                        <span>Young driver fee</span>
+                      <div className="flex justify-between items-center">
+                        <span className="flex items-center">
+                          Young driver fee
+                          <PriceTooltip content={PRICE_TOOLTIPS.youngDriverFee} />
+                        </span>
                         <span>${pricing.youngDriverFee.toFixed(2)} CAD</span>
                       </div>
                     )}
-                    {pricing.dailyFeesTotal > 0 && (
-                      <div className="flex justify-between">
-                        <span>Daily fees (PVRT + ACSRCH)</span>
-                        <span>${pricing.dailyFeesTotal.toFixed(2)} CAD</span>
-                      </div>
-                    )}
+
+                    {/* Regulatory fees — itemized */}
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        PVRT ($1.50/day × {rentalDays})
+                        <PriceTooltip content={PRICE_TOOLTIPS.pvrt} />
+                      </span>
+                      <span>${(1.50 * rentalDays).toFixed(2)} CAD</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        ACSRCH ($1.00/day × {rentalDays})
+                        <PriceTooltip content={PRICE_TOOLTIPS.acsrch} />
+                      </span>
+                      <span>${(1.00 * rentalDays).toFixed(2)} CAD</span>
+                    </div>
+
                     <Separator className="my-2" />
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        Subtotal
+                        <PriceTooltip content={PRICE_TOOLTIPS.subtotal} />
+                      </span>
                       <span>${pricing.subtotal.toFixed(2)} CAD</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Taxes (12%)</span>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center">
+                        Taxes (12%)
+                        <PriceTooltip content={PRICE_TOOLTIPS.totalTax} />
+                      </span>
                       <span>${pricing.taxAmount.toFixed(2)} CAD</span>
                     </div>
-                    <div className="flex justify-between text-xs text-muted-foreground pl-4">
-                      <span>PST (7%)</span>
+                    <div className="flex justify-between text-xs text-muted-foreground pl-4 items-center">
+                      <span className="flex items-center">
+                        PST (7%)
+                        <PriceTooltip content={PRICE_TOOLTIPS.pst} />
+                      </span>
                       <span>${pricing.pstAmount.toFixed(2)} CAD</span>
                     </div>
-                    <div className="flex justify-between text-xs text-muted-foreground pl-4">
-                      <span>GST (5%)</span>
+                    <div className="flex justify-between text-xs text-muted-foreground pl-4 items-center">
+                      <span className="flex items-center">
+                        GST (5%)
+                        <PriceTooltip content={PRICE_TOOLTIPS.gst} />
+                      </span>
                       <span>${pricing.gstAmount.toFixed(2)} CAD</span>
                     </div>
                     <Separator className="my-2" />
                     {pointsDiscount > 0 && (
-                      <div className="flex justify-between text-primary font-medium">
-                        <span>Points Discount ({pointsUsed.toLocaleString()} pts)</span>
+                      <div className="flex justify-between text-primary font-medium items-center">
+                        <span className="flex items-center">
+                          Points Discount ({pointsUsed.toLocaleString()} pts)
+                          <PriceTooltip content={PRICE_TOOLTIPS.pointsDiscount} />
+                        </span>
                         <span>-${pointsDiscount.toFixed(2)} CAD</span>
                       </div>
                     )}
                     <div className="flex justify-between font-semibold">
                       <span>Total</span>
                       <span>${finalTotal.toFixed(2)} CAD</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground pt-1 items-center">
+                      <span className="flex items-center">
+                        Security Deposit (refundable)
+                        <PriceTooltip content={PRICE_TOOLTIPS.deposit} />
+                      </span>
+                      <span>${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} CAD</span>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>

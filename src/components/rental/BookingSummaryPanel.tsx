@@ -14,6 +14,7 @@ import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE, YOUNG_DRIVE
 import { formatTimeDisplay } from "@/lib/rental-rules";
 import { useSearchParams } from "react-router-dom";
 import { calculateAdditionalDriversCost } from "./AdditionalDriversCard";
+import { PriceTooltip, PRICE_TOOLTIPS } from "@/components/shared/PriceTooltip";
 
 interface BookingSummaryPanelProps {
   className?: string;
@@ -272,69 +273,117 @@ export function BookingSummaryPanel({
             </div>
             
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground flex items-center">
                   ${vehicle?.dailyRate}/day × {rentalDays} days
+                  <PriceTooltip content={PRICE_TOOLTIPS.vehicleRental} />
                 </span>
-                <span>${pricing.basePrice.toFixed(0)} CAD</span>
+                <span>${pricing.basePrice.toFixed(2)} CAD</span>
               </div>
               
               {pricing.weekendSurcharge > 0 && (
-                <div className="flex justify-between text-amber-600">
-                  <span>Weekend surcharge</span>
-                  <span>+${pricing.weekendSurcharge.toFixed(0)} CAD</span>
+                <div className="flex justify-between items-center text-amber-600">
+                  <span className="flex items-center">
+                    Weekend surcharge
+                    <PriceTooltip content={PRICE_TOOLTIPS.weekendSurcharge} />
+                  </span>
+                  <span>+${pricing.weekendSurcharge.toFixed(2)} CAD</span>
                 </div>
               )}
               
               {pricing.durationDiscount > 0 && (
-                <div className="flex justify-between text-emerald-600">
-                  <span>{pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount</span>
-                  <span>-${pricing.durationDiscount.toFixed(0)} CAD</span>
+                <div className="flex justify-between items-center text-emerald-600">
+                  <span className="flex items-center">
+                    {pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount
+                    <PriceTooltip content={pricing.discountType === "monthly" ? PRICE_TOOLTIPS.monthlyDiscount : PRICE_TOOLTIPS.weeklyDiscount} />
+                  </span>
+                  <span>-${pricing.durationDiscount.toFixed(2)} CAD</span>
                 </div>
               )}
-              
-              {pricing.addOnsTotal > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Add-ons</span>
-                  <span>${pricing.addOnsTotal.toFixed(0)} CAD</span>
+
+              {/* Protection — always show */}
+              {protectionDailyRate > 0 ? (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center">
+                    Protection
+                    <PriceTooltip content={PRICE_TOOLTIPS.protection("Selected protection")} />
+                  </span>
+                  <span>${(protectionDailyRate * rentalDays).toFixed(2)} CAD</span>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center">
+                    No Extra Protection
+                    <PriceTooltip content={PRICE_TOOLTIPS.protectionNone} />
+                  </span>
+                  <span>$0.00</span>
                 </div>
               )}
+
+              {/* Add-ons — itemized */}
+              <div className="pt-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium flex items-center">
+                  Add-ons & Extras
+                  <PriceTooltip content={PRICE_TOOLTIPS.addOns} />
+                </p>
+                {pricing.itemized && pricing.itemized.length > 0 ? (
+                  pricing.itemized.map((item, idx) => (
+                    <div key={idx} className="flex justify-between pl-3 text-sm">
+                      <span className="text-muted-foreground">{item.name}</span>
+                      <span>${item.total.toFixed(2)} CAD</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="pl-3 text-sm text-muted-foreground italic">No add-ons selected</p>
+                )}
+              </div>
               
               {pricing.additionalDriversCost.total > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center">
                     Additional drivers ({effectiveAdditionalDrivers.length})
+                    <PriceTooltip content={PRICE_TOOLTIPS.additionalDrivers} />
                   </span>
-                  <span>${pricing.additionalDriversCost.total.toFixed(0)} CAD</span>
+                  <span>${pricing.additionalDriversCost.total.toFixed(2)} CAD</span>
                 </div>
               )}
               
               {pricing.deliveryFee > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Delivery fee</span>
-                  <span>${pricing.deliveryFee.toFixed(0)} CAD</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center">
+                    Delivery fee
+                    <PriceTooltip content={PRICE_TOOLTIPS.deliveryFee} />
+                  </span>
+                  <span>${pricing.deliveryFee.toFixed(2)} CAD</span>
                 </div>
               )}
               
               {pricing.youngDriverFee > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Young driver fee (primary)</span>
-                  <span>${pricing.youngDriverFee.toFixed(0)} CAD</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center">
+                    Young driver fee (primary)
+                    <PriceTooltip content={PRICE_TOOLTIPS.youngDriverFee} />
+                  </span>
+                  <span>${pricing.youngDriverFee.toFixed(2)} CAD</span>
                 </div>
               )}
               
               {pricing.dailyFeesTotal > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Daily fees (PVRT + ACSRCH)</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center">
+                    Daily fees (PVRT + ACSRCH)
+                    <PriceTooltip content={PRICE_TOOLTIPS.dailyFees} />
+                  </span>
                   <span>${pricing.dailyFeesTotal.toFixed(2)} CAD</span>
                 </div>
               )}
               
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground flex items-center">
                   Tax ({(TOTAL_TAX_RATE * 100).toFixed(0)}%)
+                  <PriceTooltip content={PRICE_TOOLTIPS.totalTax} />
                 </span>
-                <span>${pricing.taxAmount.toFixed(0)} CAD</span>
+                <span>${pricing.taxAmount.toFixed(2)} CAD</span>
               </div>
               <div className="flex justify-between text-xs text-muted-foreground pl-4">
                 <span>PST (7%)</span>
@@ -349,7 +398,7 @@ export function BookingSummaryPanel({
               
               <div className="flex justify-between font-semibold text-base">
                 <span>Total</span>
-                <span>${pricing.total.toFixed(0)} CAD<span className="text-destructive">*</span></span>
+                <span>${pricing.total.toFixed(2)} CAD<span className="text-destructive">*</span></span>
               </div>
               
               <p className="text-xs text-muted-foreground">
