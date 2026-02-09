@@ -41,6 +41,7 @@ import { StepDispatch } from "./steps/StepDispatch";
 import { OpsBackupActivation } from "./steps/OpsBackupActivation";
 import { CounterUpsellPanel } from "./CounterUpsellPanel";
 import { BookingEditPanel } from "./BookingEditPanel";
+import { ProtectionChangePanel } from "./ProtectionChangePanel";
 import { UnifiedVehicleManager } from "../UnifiedVehicleManager";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
@@ -175,6 +176,10 @@ export function OpsStepContent({
               {/* Vehicle & Category Management — unified component */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
                 <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
+              )}
+              {/* Protection Plan Change */}
+              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+                <ProtectionChangePanel bookingId={booking.id} booking={booking} />
               )}
               {/* Counter Upsell */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
