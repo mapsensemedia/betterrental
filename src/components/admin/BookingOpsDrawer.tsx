@@ -58,6 +58,7 @@ import { PaymentDepositPanel } from "./PaymentDepositPanel";
 import { RentalAgreementPanel } from "./RentalAgreementPanel";
 import { WalkaroundInspection } from "./WalkaroundInspection";
 import { BookingModificationPanel } from "./ops/BookingModificationPanel";
+import { BookingEditPanel } from "./ops/BookingEditPanel";
 import { CounterUpsellPanel } from "./ops/CounterUpsellPanel";
 import { useAvailableDrivers } from "@/hooks/use-available-drivers";
 import { useAssignDriver, useUnassignDriver } from "@/hooks/use-assign-driver";
@@ -686,13 +687,28 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                     </AccordionItem>
                   )}
 
-                  {/* Booking Modification */}
-                  {(booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
+                  {/* Edit Booking Details */}
+                  <AccordionItem value="edit-booking" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <CalendarClock className="w-4 h-4" />
+                        {(booking.status === "pending" || booking.status === "confirmed") 
+                          ? "Edit Booking Details" 
+                          : "Booking Details"}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <BookingEditPanel booking={booking} />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Modify Rental Duration (for active bookings) */}
+                  {booking.status === "active" && (
                     <AccordionItem value="modify" className="border rounded-lg">
                       <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
                         <div className="flex items-center gap-2 text-sm font-medium">
                           <CalendarClock className="w-4 h-4" />
-                          Modify Rental Duration
+                          Extend Rental Duration
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="px-4 pb-4">

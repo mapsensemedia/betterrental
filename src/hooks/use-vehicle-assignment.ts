@@ -175,3 +175,53 @@ export function useAssignVehicle() {
     },
   });
 }
+
+/**
+ * Unassign the current VIN unit from a booking and release it back to available.
+ * Used when staff want to change the vehicle before activation.
+ */
+export function useUnassignVehicle() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      // Release the VIN unit first
+      try {
+        await supabase.rpc("release_vin_from_booking", { p_booking_id: bookingId });
+      } catch (e) {
+        console.error("Failed to release VIN:", e);
+      }
+
+      // Clear vehicle and unit assignment
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          vehicle_id: null,
+          assigned_unit_id: null,
+        })
+        .eq("id", bookingId);
+
+      if (error) throw error;
+
+      return bookingId;
+    },
+    onSuccess: (bookingId) => {
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-availability"] });
+      queryClient.invalidateQueries({ queryKey: ["available-vehicles"] });
+      toast({
+        title: "Vehicle unassigned",
+        description: "Vehicle cleared. You can now assign a different one.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to unassign vehicle",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
