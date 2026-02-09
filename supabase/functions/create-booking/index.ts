@@ -260,10 +260,8 @@ Deno.serve(async (req) => {
       console.log("Failed to fetch names for notification:", e);
     }
 
-    // Fire-and-forget notifications
-    const notificationPromises = [];
-
-    notificationPromises.push(
+    // Send notifications — must await before returning response
+    const notificationPromises = [
       fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
         method: "POST",
         headers: {
@@ -271,10 +269,8 @@ Deno.serve(async (req) => {
           "Authorization": `Bearer ${supabaseServiceKey}`,
         },
         body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
-      }).catch(err => console.error("SMS notification failed:", err))
-    );
+      }).catch(err => console.error("SMS notification failed:", err)),
 
-    notificationPromises.push(
       fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
         method: "POST",
         headers: {
@@ -282,10 +278,8 @@ Deno.serve(async (req) => {
           "Authorization": `Bearer ${supabaseServiceKey}`,
         },
         body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
-      }).catch(err => console.error("Email notification failed:", err))
-    );
+      }).catch(err => console.error("Email notification failed:", err)),
 
-    notificationPromises.push(
       fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
         method: "POST",
         headers: {
@@ -299,10 +293,10 @@ Deno.serve(async (req) => {
           customerName,
           vehicleName,
         }),
-      }).catch(err => console.error("Admin notification failed:", err))
-    );
+      }).catch(err => console.error("Admin notification failed:", err)),
+    ];
 
-    Promise.all(notificationPromises).catch(console.error);
+    await Promise.all(notificationPromises);
 
     return new Response(
       JSON.stringify({ 

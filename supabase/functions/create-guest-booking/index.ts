@@ -272,8 +272,8 @@ Deno.serve(async (req) => {
     await createBookingAddOns(booking.id, addOns || []);
     await createAdditionalDrivers(booking.id, body.additionalDrivers || []);
 
-    // Send notifications using shared function (fire-and-forget)
-    sendBookingNotifications({
+    // Send notifications — must await before returning response
+    await sendBookingNotifications({
       bookingId: booking.id,
       bookingCode: booking.bookingCode,
       customerName: `${firstName} ${lastName}`,
