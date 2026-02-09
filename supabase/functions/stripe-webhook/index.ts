@@ -1,19 +1,19 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "npm:stripe@14.21.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 /**
- * Stripe Webhook Handler with Idempotency
+ * Stripe Webhook Handler
  * 
- * - Validates webhook signatures
- * - Checks for duplicate events before processing
- * - Queues deposit operations to prevent race conditions
- * - Records all webhook events for audit trail
+ * Handles standard payment events:
+ * - checkout.session.completed (payment link / checkout session)
+ * - payment_intent.succeeded (inline Stripe Elements payment)
+ * - payment_intent.payment_failed
+ * - charge.refunded
  */
 
-serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req, true); // true = webhook mode
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req, true);
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -42,7 +42,6 @@ serve(async (req) => {
     // Validate signature
     const signature = req.headers.get("stripe-signature");
     if (!signature) {
-      console.error("No stripe-signature header");
       return new Response(
         JSON.stringify({ error: "No signature" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -64,8 +63,7 @@ serve(async (req) => {
 
     console.log(`Received Stripe event: ${event.type} (${event.id})`);
 
-    // ========== IDEMPOTENCY CHECK ==========
-    // Check if this event has already been processed
+    // Idempotency check
     const { data: existingEvent } = await supabase
       .from("stripe_webhook_events")
       .select("id, processed_at")
@@ -73,64 +71,55 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingEvent) {
-      console.log(`Event ${event.id} already processed at ${existingEvent.processed_at}, skipping`);
+      console.log(`Event ${event.id} already processed, skipping`);
       return new Response(
         JSON.stringify({ received: true, duplicate: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Record that we're processing this event (before processing to prevent race conditions)
+    // Extract booking ID
     let bookingId: string | null = null;
-    
-    // Extract booking ID from the event data
     switch (event.type) {
       case "checkout.session.completed":
         bookingId = (event.data.object as Stripe.Checkout.Session).metadata?.booking_id || null;
         break;
       case "payment_intent.succeeded":
       case "payment_intent.payment_failed":
-      case "payment_intent.amount_capturable_updated":
-      case "payment_intent.canceled":
         bookingId = (event.data.object as Stripe.PaymentIntent).metadata?.booking_id || null;
         break;
-      case "charge.captured":
-      case "charge.refunded":
-        // For charges, we need to look up the booking from the payment
+      case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge;
-        const paymentIntentId = charge.payment_intent as string;
-        if (paymentIntentId) {
-          // First check if it's a deposit by looking at bookings
-          const { data: bookingByPI } = await supabase
-            .from("bookings")
-            .select("id")
-            .eq("stripe_deposit_pi_id", paymentIntentId)
+        const piId = charge.payment_intent as string;
+        if (piId) {
+          const { data: payment } = await supabase
+            .from("payments")
+            .select("booking_id")
+            .eq("transaction_id", piId)
             .maybeSingle();
+          bookingId = payment?.booking_id || null;
           
-          if (bookingByPI) {
-            bookingId = bookingByPI.id;
-          } else {
-            // Check payments table
-            const { data: payment } = await supabase
-              .from("payments")
-              .select("booking_id")
-              .eq("transaction_id", paymentIntentId)
+          if (!bookingId) {
+            const { data: bookingByPI } = await supabase
+              .from("bookings")
+              .select("id")
+              .eq("stripe_deposit_pi_id", piId)
               .maybeSingle();
-            bookingId = payment?.booking_id || null;
+            bookingId = bookingByPI?.id || null;
           }
         }
         break;
+      }
     }
 
-    // Insert event record
+    // Record event
     await supabase.from("stripe_webhook_events").insert({
       event_id: event.id,
       event_type: event.type,
       booking_id: bookingId,
-      payload_hash: event.created.toString(), // Simple hash using event creation time
+      payload_hash: event.created.toString(),
     });
 
-    // ========== EVENT PROCESSING ==========
     let result: Record<string, unknown> = { processed: true };
 
     switch (event.type) {
@@ -142,18 +131,17 @@ serve(async (req) => {
         if (sessionBookingId && session.payment_status === "paid") {
           console.log(`Checkout completed for booking ${sessionBookingId}, type: ${paymentType}`);
 
-          // Get booking user_id
           const { data: booking } = await supabase
             .from("bookings")
-            .select("user_id, status, deposit_amount")
+            .select("user_id, status")
             .eq("id", sessionBookingId)
             .single();
 
           const userId = booking?.user_id || session.metadata?.user_id || "";
           const amount = (session.amount_total || 0) / 100;
-
-          // Check if payment already recorded (double protection)
           const transactionId = (session.payment_intent as string) || session.id;
+
+          // Check duplicate
           const { data: existingPayment } = await supabase
             .from("payments")
             .select("id")
@@ -161,13 +149,11 @@ serve(async (req) => {
             .maybeSingle();
 
           if (existingPayment) {
-            console.log(`Payment ${transactionId} already recorded, skipping`);
             result.paymentSkipped = true;
             break;
           }
 
           if (paymentType === "payment_request") {
-            // Payment request - record as rental payment
             await supabase.from("payments").insert({
               booking_id: sessionBookingId,
               user_id: userId,
@@ -178,7 +164,6 @@ serve(async (req) => {
               transaction_id: transactionId,
             });
 
-            // Resolve any pending payment alerts
             await supabase
               .from("admin_alerts")
               .update({ status: "resolved", resolved_at: new Date().toISOString() })
@@ -186,9 +171,6 @@ serve(async (req) => {
               .eq("alert_type", "payment_pending")
               .eq("status", "pending");
 
-            console.log("Payment request payment recorded successfully");
-
-            // Send notification
             try {
               await supabase.functions.invoke("send-booking-notification", {
                 body: { bookingId: sessionBookingId, stage: "payment_received" },
@@ -197,13 +179,11 @@ serve(async (req) => {
               console.warn("Failed to send payment notification:", notifyErr);
             }
           } else {
-            // Initial booking payment - update status to confirmed
             await supabase
               .from("bookings")
               .update({ status: "confirmed" })
               .eq("id", sessionBookingId);
 
-            // Record payment
             await supabase.from("payments").insert({
               booking_id: sessionBookingId,
               user_id: userId,
@@ -214,9 +194,6 @@ serve(async (req) => {
               transaction_id: transactionId,
             });
 
-            console.log(`Booking ${sessionBookingId} confirmed`);
-
-            // Send confirmation notifications via function invoke
             try {
               await supabase.functions.invoke("send-booking-email", {
                 body: { bookingId: sessionBookingId, templateType: "confirmation", forceResend: true },
@@ -225,7 +202,7 @@ serve(async (req) => {
                 body: { bookingId: sessionBookingId, templateType: "confirmation" },
               });
             } catch (notifyErr) {
-              console.warn("Failed to send confirmation notifications:", notifyErr);
+              console.warn("Failed to send notifications:", notifyErr);
             }
           }
 
@@ -240,22 +217,20 @@ serve(async (req) => {
         const piBookingId = paymentIntent.metadata?.booking_id;
 
         if (piBookingId) {
-          console.log(`Payment intent succeeded for booking ${piBookingId}`);
+          console.log(`Payment succeeded for booking ${piBookingId}`);
 
-          // Check if booking is already confirmed
           const { data: booking } = await supabase
             .from("bookings")
             .select("status")
             .eq("id", piBookingId)
             .single();
 
-          if (booking?.status === "confirmed") {
-            console.log("Booking already confirmed via checkout session");
-            result.alreadyConfirmed = true;
+          if (booking?.status === "confirmed" || booking?.status === "pending") {
+            result.alreadyProcessed = true;
             break;
           }
 
-          // Check if payment already recorded
+          // Check duplicate
           const { data: existingPayment } = await supabase
             .from("payments")
             .select("id")
@@ -263,16 +238,14 @@ serve(async (req) => {
             .maybeSingle();
 
           if (existingPayment) {
-            console.log(`Payment ${paymentIntent.id} already recorded`);
             result.paymentSkipped = true;
           } else {
-            // Update booking status
+            // Promote draft → pending
             await supabase
               .from("bookings")
-              .update({ status: "confirmed" })
+              .update({ status: "pending" })
               .eq("id", piBookingId);
 
-            // Record payment
             await supabase.from("payments").insert({
               booking_id: piBookingId,
               user_id: paymentIntent.metadata?.user_id || "",
@@ -283,7 +256,6 @@ serve(async (req) => {
               transaction_id: paymentIntent.id,
             });
 
-            // Send notifications
             try {
               await supabase.functions.invoke("send-booking-email", {
                 body: { bookingId: piBookingId, templateType: "confirmation", forceResend: true },
@@ -308,7 +280,6 @@ serve(async (req) => {
         if (piBookingId) {
           console.log(`Payment failed for booking ${piBookingId}`);
 
-          // Record failed payment
           await supabase.from("payments").insert({
             booking_id: piBookingId,
             user_id: paymentIntent.metadata?.user_id || "",
@@ -319,7 +290,6 @@ serve(async (req) => {
             transaction_id: paymentIntent.id,
           });
 
-          // Check current booking status
           const { data: failedBooking } = await supabase
             .from("bookings")
             .select("status")
@@ -327,26 +297,9 @@ serve(async (req) => {
             .single();
 
           if (failedBooking?.status === "draft") {
-            // IMPORTANT: Do NOT promote draft → pending on payment failure.
-            // Draft bookings are "Pay Now" - if payment fails, they should
-            // stay hidden from ops queues. Only add a note.
             await supabase
               .from("bookings")
-              .update({ 
-                deposit_status: "failed",
-                notes: "Online payment failed" 
-              })
-              .eq("id", piBookingId);
-            console.log(`Kept booking ${piBookingId} as draft after payment failure`);
-          } else {
-            // For already-pending bookings (e.g. pay-at-pickup where ops 
-            // later tried to create a hold), just update deposit status
-            await supabase
-              .from("bookings")
-              .update({ 
-                deposit_status: "failed",
-                notes: "Payment authorization failed - requires new payment attempt" 
-              })
+              .update({ notes: "Online payment failed" })
               .eq("id", piBookingId);
           }
 
@@ -360,7 +313,6 @@ serve(async (req) => {
         const chargeObj = event.data.object as Stripe.Charge;
         const chargePaymentIntentId = chargeObj.payment_intent as string;
 
-        // Find the payment by transaction ID
         const { data: paymentRecord } = await supabase
           .from("payments")
           .select("booking_id, user_id")
@@ -370,7 +322,6 @@ serve(async (req) => {
         if (paymentRecord) {
           const refundAmount = (chargeObj.amount_refunded || 0) / 100;
           
-          // Check if this refund was already recorded
           const { data: existingRefund } = await supabase
             .from("payments")
             .select("id")
@@ -379,7 +330,6 @@ serve(async (req) => {
             .maybeSingle();
 
           if (!existingRefund) {
-            // Record refund
             await supabase.from("payments").insert({
               booking_id: paymentRecord.booking_id,
               user_id: paymentRecord.user_id,
@@ -389,7 +339,6 @@ serve(async (req) => {
               status: "completed",
               transaction_id: chargeObj.id,
             });
-
             console.log(`Refund of $${refundAmount} recorded for booking ${paymentRecord.booking_id}`);
           }
 
@@ -399,190 +348,12 @@ serve(async (req) => {
         break;
       }
 
-      // ========== DEPOSIT HOLD EVENTS ==========
-      
-      case "payment_intent.amount_capturable_updated": {
-        // Authorization hold confirmed - supports both deposit_hold and unified_rental_hold types
-        const pi = event.data.object as Stripe.PaymentIntent;
-        const holdType = pi.metadata?.type;
-        const isDepositHold = holdType === "deposit_hold" || holdType === "unified_rental_hold";
-        
-        // Also check by stripe_deposit_pi_id if metadata isn't matching
-        let depositBookingId = isDepositHold ? pi.metadata?.booking_id : null;
-        
-        if (!depositBookingId) {
-          // Fallback: Look up booking by PaymentIntent ID
-          const { data: bookingByPI } = await supabase
-            .from("bookings")
-            .select("id")
-            .eq("stripe_deposit_pi_id", pi.id)
-            .maybeSingle();
-          
-          if (bookingByPI) {
-            depositBookingId = bookingByPI.id;
-            console.log(`Found booking ${depositBookingId} by PI ID lookup`);
-          }
-        }
-        
-        if (depositBookingId && pi.amount_capturable && pi.amount_capturable > 0) {
-          console.log(`Authorization confirmed for booking ${depositBookingId}, type: ${holdType || 'lookup'}, amount: $${pi.amount_capturable / 100}`);
-          
-          // Get card details from payment method if available
-          let cardLast4: string | null = null;
-          let cardBrand: string | null = null;
-          
-          if (pi.payment_method) {
-            try {
-              const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-              const stripe = new Stripe(stripeSecretKey!, { apiVersion: "2023-10-16" });
-              const pm = await stripe.paymentMethods.retrieve(pi.payment_method as string);
-              if (pm.card) {
-                cardLast4 = pm.card.last4;
-                cardBrand = pm.card.brand;
-              }
-            } catch (e) {
-              console.warn("Could not fetch payment method details:", e);
-            }
-          }
-          
-          // Get current booking to check if we need to promote draft → pending
-          const { data: currentBooking } = await supabase
-            .from("bookings")
-            .select("status")
-            .eq("id", depositBookingId)
-            .single();
-
-          // Update booking with authorization details
-          const updateData: Record<string, unknown> = {
-            deposit_status: "authorized",
-            deposit_authorized_at: new Date().toISOString(),
-            stripe_deposit_pm_id: pi.payment_method as string,
-            deposit_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          };
-          
-          // Promote draft → pending when authorization succeeds
-          // This is a backup to the client-side promotion in handlePaymentSuccess
-          if (currentBooking?.status === "draft") {
-            updateData.status = "pending";
-            console.log(`Promoting booking ${depositBookingId} from draft → pending after authorization`);
-          }
-          
-          // Add card details if we have them
-          if (cardLast4) updateData.card_last_four = cardLast4;
-          if (cardBrand) updateData.card_type = cardBrand;
-          
-          await supabase
-            .from("bookings")
-            .update(updateData)
-            .eq("id", depositBookingId);
-          
-          // Get user_id from booking for ledger entry
-          const { data: bookingForLedger } = await supabase
-            .from("bookings")
-            .select("user_id, deposit_amount")
-            .eq("id", depositBookingId)
-            .single();
-            
-          if (bookingForLedger) {
-            // Add ledger entry
-            await supabase.from("deposit_ledger").insert({
-              booking_id: depositBookingId,
-              action: "authorize",
-              amount: pi.amount_capturable / 100,
-              created_by: bookingForLedger.user_id,
-              reason: `Card authorization hold confirmed (${holdType || 'direct lookup'})`,
-              stripe_pi_id: pi.id,
-            });
-          }
-          
-          result.depositAuthorized = true;
-          result.bookingId = depositBookingId;
-          result.amount = pi.amount_capturable / 100;
-          result.holdType = holdType || "lookup";
-        }
-        break;
-      }
-
-      case "payment_intent.canceled": {
-        // Authorization hold released/expired
-        const pi = event.data.object as Stripe.PaymentIntent;
-        const cancelHoldType = pi.metadata?.type;
-        const isCancelDepositHold = cancelHoldType === "deposit_hold" || cancelHoldType === "unified_rental_hold";
-        
-        let cancelBookingId = isCancelDepositHold ? pi.metadata?.booking_id : null;
-        
-        if (!cancelBookingId) {
-          // Fallback: Look up booking by PaymentIntent ID
-          const { data: bookingByPI } = await supabase
-            .from("bookings")
-            .select("id")
-            .eq("stripe_deposit_pi_id", pi.id)
-            .maybeSingle();
-          
-          if (bookingByPI) {
-            cancelBookingId = bookingByPI.id;
-          }
-        }
-        
-        if (cancelBookingId) {
-          console.log(`Deposit authorization canceled for booking ${cancelBookingId}`);
-          
-          // Check if this was an expiration or manual cancel
-          const isExpired = pi.cancellation_reason === "automatic";
-          
-          // Update booking status
-          await supabase
-            .from("bookings")
-            .update({
-              deposit_status: isExpired ? "expired" : "canceled",
-              deposit_released_at: new Date().toISOString(),
-            })
-            .eq("id", cancelBookingId);
-          
-          result.depositCanceled = true;
-          result.expired = isExpired;
-          result.bookingId = cancelBookingId;
-        }
-        break;
-      }
-
-      case "charge.captured": {
-        // Deposit was captured
-        const capturedCharge = event.data.object as Stripe.Charge;
-        const capturedPiId = capturedCharge.payment_intent as string;
-        
-        // Check if this is a deposit capture
-        const { data: bookingForCapture } = await supabase
-          .from("bookings")
-          .select("id, deposit_amount")
-          .eq("stripe_deposit_pi_id", capturedPiId)
-          .maybeSingle();
-          
-        if (bookingForCapture) {
-          console.log(`Deposit captured for booking ${bookingForCapture.id}`);
-          
-          // Update with charge ID if not already set
-          await supabase
-            .from("bookings")
-            .update({
-              stripe_deposit_charge_id: capturedCharge.id,
-            })
-            .eq("id", bookingForCapture.id)
-            .is("stripe_deposit_charge_id", null);
-          
-          result.depositCaptured = true;
-          result.bookingId = bookingForCapture.id;
-          result.amount = capturedCharge.amount_captured / 100;
-        }
-        break;
-      }
-
       default:
         console.log(`Unhandled event type: ${event.type}`);
         result.unhandled = true;
     }
 
-    // Update the webhook event record with result
+    // Update webhook event record
     await supabase
       .from("stripe_webhook_events")
       .update({ result })

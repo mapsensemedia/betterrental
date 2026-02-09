@@ -11,8 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface StripeCheckoutWrapperProps {
   clientSecret: string;
-  depositAmount: number;
-  rentalAmount: number;
+  amount: number;
   onSuccess: (paymentIntentId: string, paymentMethodId: string) => void;
   onError: (error: string) => void;
   disabled?: boolean;
@@ -20,8 +19,7 @@ interface StripeCheckoutWrapperProps {
 
 export function StripeCheckoutWrapper({
   clientSecret,
-  depositAmount,
-  rentalAmount,
+  amount,
   onSuccess,
   onError,
   disabled,
@@ -29,7 +27,6 @@ export function StripeCheckoutWrapper({
   const { data: config, isLoading: configLoading, error: configError } = useStripeConfig();
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
 
-  // Load Stripe when config is available
   useEffect(() => {
     if (config?.publishableKey && !stripePromise) {
       setStripePromise(loadStripe(config.publishableKey));
@@ -83,8 +80,7 @@ export function StripeCheckoutWrapper({
     <Elements stripe={stripePromise} options={options}>
       <StripePaymentForm
         clientSecret={clientSecret}
-        depositAmount={depositAmount}
-        rentalAmount={rentalAmount}
+        amount={amount}
         onSuccess={onSuccess}
         onError={onError}
         disabled={disabled}
