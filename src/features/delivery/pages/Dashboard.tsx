@@ -17,7 +17,7 @@ import {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DELIVERY DASHBOARD PAGE
-// Drivers see only their assigned deliveries - assignment is done from Ops
+// Shows ALL deliveries for admin/staff, filters by status via top pills
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DeliveryDashboard() {
@@ -29,15 +29,15 @@ export default function DeliveryDashboard() {
   // Setup realtime subscription (single subscription for the page)
   useRealtimeDelivery({ enabled: true });
 
-  // Fetch only "my" deliveries - drivers see what's assigned to them
+  // Fetch ALL deliveries - not scoped to current driver
   const { 
     data: deliveries = [], 
     isLoading, 
     isRefetching,
     refetch 
-  } = useDeliveryList({ scope: 'my', statusFilter });
+  } = useDeliveryList({ scope: 'all', statusFilter });
 
-  // Fetch counts for badges
+  // Fetch counts for badges (all deliveries)
   const { data: counts } = useDeliveryCounts();
 
   // Persist status filter to URL
@@ -55,15 +55,17 @@ export default function DeliveryDashboard() {
     setStatusFilter(status);
   };
 
+  const totalAll = (counts?.pending || 0) + (counts?.enRoute || 0) + (counts?.completed || 0) + (counts?.issue || 0);
+
   return (
     <DeliveryShell>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">My Deliveries</h1>
+            <h1 className="text-2xl font-bold">Deliveries</h1>
             <p className="text-sm text-muted-foreground">
-              View and manage your assigned delivery tasks
+              View and manage all delivery tasks
             </p>
           </div>
           <Button
@@ -81,7 +83,7 @@ export default function DeliveryDashboard() {
         <div className="flex flex-wrap gap-2">
           <StatusPill 
             label="All" 
-            count={counts?.my}
+            count={totalAll}
             isActive={!statusFilter}
             onClick={() => handleStatusFilter(null)}
           />
@@ -119,7 +121,7 @@ export default function DeliveryDashboard() {
         <DeliveryGrid
           deliveries={deliveries}
           isLoading={isLoading}
-          emptyMessage="No deliveries assigned to you yet. Deliveries are assigned by the operations team."
+          emptyMessage="No deliveries found."
         />
       </div>
     </DeliveryShell>

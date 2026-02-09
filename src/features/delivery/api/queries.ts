@@ -44,11 +44,6 @@ export async function fetchDeliveryList(
       assigned_driver_id,
       vehicle_id,
       location_id,
-      vehicle_categories:vehicle_id (
-        id,
-        name,
-        image_url
-      ),
       assigned_unit:assigned_unit_id (
         id,
         vin,
@@ -92,66 +87,79 @@ export async function fetchDeliveryList(
     throw error;
   }
 
-  // Map to application types
-  const deliveries: DeliveryBooking[] = await Promise.all(
-    (data || []).map(async (row) => {
-      // Get driver name if assigned
-      let assignedDriverName: string | null = null;
-      if (row.assigned_driver_id) {
-        const { data: driverProfile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", row.assigned_driver_id)
-          .maybeSingle();
-        assignedDriverName = driverProfile?.full_name || null;
-      }
+  // Collect unique vehicle_ids for batch category lookup
+  const vehicleIds = [...new Set((data || []).map(r => r.vehicle_id).filter(Boolean))];
+  const categoryMap = new Map<string, { id: string; name: string; image_url: string | null }>();
+  
+  if (vehicleIds.length > 0) {
+    const { data: categories } = await supabase
+      .from("vehicle_categories")
+      .select("id, name, image_url")
+      .in("id", vehicleIds);
+    (categories || []).forEach(c => categoryMap.set(c.id, c));
+  }
 
-      const deliveryStatus = (row.delivery_statuses?.status as DeliveryStatus) || DELIVERY_STATUSES.UNASSIGNED;
-      
-      return {
-        id: row.id,
-        bookingCode: row.booking_code,
-        status: row.status,
-        startAt: row.start_at,
-        endAt: row.end_at,
-        pickupAddress: row.pickup_address,
-        pickupContactName: row.pickup_contact_name,
-        pickupContactPhone: row.pickup_contact_phone,
-        pickupLat: row.pickup_lat,
-        pickupLng: row.pickup_lng,
-        specialInstructions: row.special_instructions,
-        deliveryStatus,
-        assignedDriverId: row.assigned_driver_id,
-        assignedDriverName,
-        vehicleId: row.vehicle_id,
-        category: row.vehicle_categories ? {
-          id: (row.vehicle_categories as any).id,
-          name: (row.vehicle_categories as any).name,
-          imageUrl: (row.vehicle_categories as any).image_url,
-        } : null,
-        assignedUnit: row.assigned_unit ? {
-          id: (row.assigned_unit as any).id,
-          vin: (row.assigned_unit as any).vin,
-          licensePlate: (row.assigned_unit as any).license_plate,
-          color: (row.assigned_unit as any).color,
-          currentMileage: (row.assigned_unit as any).current_mileage,
-        } : null,
-        customer: row.profiles ? {
-          id: (row.profiles as any).id,
-          fullName: (row.profiles as any).full_name,
-          email: (row.profiles as any).email,
-          phone: (row.profiles as any).phone,
-        } : null,
-        dispatchLocation: row.locations ? {
-          id: (row.locations as any).id,
-          name: (row.locations as any).name,
-          address: (row.locations as any).address,
-        } : null,
-        isUrgent: isDeliveryUrgent(row.start_at),
-        portalStatus: getPortalStatus(deliveryStatus),
-      };
-    })
-  );
+  // Collect unique driver IDs for batch lookup
+  const driverIds = [...new Set((data || []).map(r => r.assigned_driver_id).filter(Boolean))] as string[];
+  const driverMap = new Map<string, string>();
+  
+  if (driverIds.length > 0) {
+    const { data: drivers } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", driverIds);
+    (drivers || []).forEach(d => driverMap.set(d.id, d.full_name || "Unknown"));
+  }
+
+  // Map to application types
+  const deliveries: DeliveryBooking[] = (data || []).map((row) => {
+    const assignedDriverName = row.assigned_driver_id ? driverMap.get(row.assigned_driver_id) || null : null;
+    const cat = categoryMap.get(row.vehicle_id);
+    const deliveryStatus = (row.delivery_statuses?.status as DeliveryStatus) || DELIVERY_STATUSES.UNASSIGNED;
+    
+    return {
+      id: row.id,
+      bookingCode: row.booking_code,
+      status: row.status,
+      startAt: row.start_at,
+      endAt: row.end_at,
+      pickupAddress: row.pickup_address,
+      pickupContactName: row.pickup_contact_name,
+      pickupContactPhone: row.pickup_contact_phone,
+      pickupLat: row.pickup_lat,
+      pickupLng: row.pickup_lng,
+      specialInstructions: row.special_instructions,
+      deliveryStatus,
+      assignedDriverId: row.assigned_driver_id,
+      assignedDriverName,
+      vehicleId: row.vehicle_id,
+      category: cat ? {
+        id: cat.id,
+        name: cat.name,
+        imageUrl: cat.image_url,
+      } : null,
+      assignedUnit: row.assigned_unit ? {
+        id: (row.assigned_unit as any).id,
+        vin: (row.assigned_unit as any).vin,
+        licensePlate: (row.assigned_unit as any).license_plate,
+        color: (row.assigned_unit as any).color,
+        currentMileage: (row.assigned_unit as any).current_mileage,
+      } : null,
+      customer: row.profiles ? {
+        id: (row.profiles as any).id,
+        fullName: (row.profiles as any).full_name,
+        email: (row.profiles as any).email,
+        phone: (row.profiles as any).phone,
+      } : null,
+      dispatchLocation: row.locations ? {
+        id: (row.locations as any).id,
+        name: (row.locations as any).name,
+        address: (row.locations as any).address,
+      } : null,
+      isUrgent: isDeliveryUrgent(row.start_at),
+      portalStatus: getPortalStatus(deliveryStatus),
+    };
+  });
 
   // Apply portal status filter if provided
   if (statusFilter) {
@@ -191,11 +199,6 @@ export async function fetchDeliveryDetail(
       total_amount,
       notes,
       handed_over_at,
-      vehicle_categories:vehicle_id (
-        id,
-        name,
-        image_url
-      ),
       assigned_unit:assigned_unit_id (
         id,
         vin,
@@ -239,6 +242,19 @@ export async function fetchDeliveryDetail(
 
   if (!row) return null;
 
+  // Separate category lookup (no FK from bookings.vehicle_id to vehicle_categories)
+  let category: { id: string; name: string; imageUrl: string | null } | null = null;
+  if (row.vehicle_id) {
+    const { data: cat } = await supabase
+      .from("vehicle_categories")
+      .select("id, name, image_url")
+      .eq("id", row.vehicle_id)
+      .maybeSingle();
+    if (cat) {
+      category = { id: cat.id, name: cat.name, imageUrl: cat.image_url };
+    }
+  }
+
   // Get driver name
   let assignedDriverName: string | null = null;
   if (row.assigned_driver_id) {
@@ -275,11 +291,7 @@ export async function fetchDeliveryDetail(
     totalDays: row.total_days,
     totalAmount: row.total_amount,
     notes: row.notes,
-    category: row.vehicle_categories ? {
-      id: (row.vehicle_categories as any).id,
-      name: (row.vehicle_categories as any).name,
-      imageUrl: (row.vehicle_categories as any).image_url,
-    } : null,
+    category,
     assignedUnit: row.assigned_unit ? {
       id: (row.assigned_unit as any).id,
       vin: (row.assigned_unit as any).vin,

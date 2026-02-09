@@ -1,4 +1,6 @@
 import { displayName } from "@/lib/format-customer";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +86,22 @@ export function OpsStepContent({
 }: OpsStepContentProps) {
   // Use provided steps or get default
   const steps = propSteps || getOpsSteps(isDelivery);
-  // showCategoryUpgrade state removed — handled by UnifiedVehicleManager internally
+
+  // Query actual pre-delivery photo count for dispatch readiness
+  const { data: prepPhotoCount = 0 } = useQuery({
+    queryKey: ["prep-photo-count", booking?.id],
+    queryFn: async () => {
+      if (!booking?.id) return 0;
+      const { count } = await supabase
+        .from("condition_photos")
+        .select("id", { count: "exact", head: true })
+        .eq("booking_id", booking.id)
+        .eq("phase", "pre_delivery");
+      return count || 0;
+    },
+    enabled: isDelivery && !!booking?.id,
+    staleTime: 5000,
+  });
   
   const step = steps.find(s => s.id === stepId);
   if (!step) return null;
@@ -232,7 +249,7 @@ export function OpsStepContent({
               driverAssigned={completion.dispatch?.driverAssigned || false}
               dispatched={completion.dispatch?.dispatched || false}
               assignedDriverId={booking.assigned_driver_id}
-              prepPhotoCount={0}
+              prepPhotoCount={prepPhotoCount}
               readyLineComplete={completion.readyLine?.checklistComplete || false}
             />
           )}

@@ -2,7 +2,6 @@ import { ReactNode, useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useIsAdmin } from "@/hooks/use-admin";
-import { useMyDeliveries } from "@/hooks/use-my-deliveries";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,17 +19,12 @@ import {
   LogOut,
   Menu,
   X,
-  MapPin,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
   Plus,
-  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { countByPortalStatus } from "@/lib/delivery-portal";
 import { useGlobalRealtime } from "@/hooks/use-global-realtime";
+import { useDeliveryCounts } from "@/features/delivery/hooks/use-delivery-list";
 
 interface DeliveryShellProps {
   children: ReactNode;
@@ -56,7 +50,7 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: isAdmin } = useIsAdmin();
-  const { data: deliveries } = useMyDeliveries(undefined, (isAdmin ?? false) ? "all" : "assigned");
+  const { data: counts } = useDeliveryCounts();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Enable real-time updates for all data across the app
@@ -84,18 +78,7 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
       .slice(0, 2);
   };
 
-  // Count deliveries by portal status
-  const portalCounts = useMemo(() => countByPortalStatus(deliveries), [deliveries]);
-  const totalPending = portalCounts.pending + portalCounts.en_route;
-
-  // Portal status filters - aligned with dashboard tabs
-  const statusFilters = [
-    { key: "pending", label: "Pending", count: portalCounts.pending, icon: Clock, className: "text-amber-600" },
-    { key: "en_route", label: "En Route", count: portalCounts.en_route, icon: MapPin, className: "text-blue-600" },
-    { key: "completed", label: "Completed", count: portalCounts.completed, icon: CheckCircle, className: "text-green-600" },
-    { key: "issue", label: "Issue", count: portalCounts.issue, icon: AlertTriangle, className: "text-destructive" },
-    ...(isAdmin ? [{ key: "all", label: "All Deliveries", count: deliveries?.length || 0, icon: List, className: "text-muted-foreground" }] : []),
-  ];
+  const totalPending = (counts?.pending || 0) + (counts?.enRoute || 0);
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -161,7 +144,7 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
+        {/* Sidebar - Navigation only, no duplicate filters */}
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 w-64 bg-background border-r pt-14 transition-transform duration-200 lg:static lg:translate-x-0",
@@ -190,34 +173,6 @@ export function DeliveryShell({ children }: DeliveryShellProps) {
                 </Link>
               );
             })}
-
-            {/* Status Filters Section */}
-            <div className="pt-4 mt-4 border-t">
-              <p className="px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                Filter by Status
-              </p>
-              {statusFilters.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.key}
-                    to={`/delivery?status=${item.key}`}
-                    onClick={() => setSidebarOpen(false)}
-                    className="flex items-center justify-between px-3 py-1.5 rounded-md text-sm hover:bg-muted transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Icon className={cn("h-3.5 w-3.5", item.className)} />
-                      {item.label}
-                    </span>
-                    {item.count > 0 && (
-                      <Badge variant="secondary" className="h-5 text-xs">
-                        {item.count}
-                      </Badge>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
           </nav>
         </aside>
 
