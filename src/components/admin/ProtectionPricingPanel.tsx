@@ -79,38 +79,23 @@ export function ProtectionPricingPanel() {
   }, [settings, dirty]);
 
   const handleSave = async () => {
-    // Validate rates are not empty
     const basicRate = parseFloat(basicForm.rate);
     const smartRate = parseFloat(smartForm.rate);
     const premiumRate = parseFloat(premiumForm.rate);
 
-    if (isNaN(basicRate) || basicRate <= 0) {
-      toast.error("Basic Protection daily rate is required");
-      return;
-    }
-    if (isNaN(smartRate) || smartRate <= 0) {
-      toast.error("Smart Protection daily rate is required");
-      return;
-    }
-    if (isNaN(premiumRate) || premiumRate <= 0) {
-      toast.error("All Inclusive Protection daily rate is required");
-      return;
-    }
-
-    // Only save originalRate/discount if there's an actual discount (originalRate > rate)
     const smartOriginal = parseFloat(smartForm.originalRate);
     const premiumOriginal = parseFloat(premiumForm.originalRate);
-    const hasSmartDiscount = !isNaN(smartOriginal) && smartOriginal > smartRate;
-    const hasPremiumDiscount = !isNaN(premiumOriginal) && premiumOriginal > premiumRate;
+    const hasSmartDiscount = !isNaN(smartOriginal) && !isNaN(smartRate) && smartOriginal > smartRate;
+    const hasPremiumDiscount = !isNaN(premiumOriginal) && !isNaN(premiumRate) && premiumOriginal > premiumRate;
 
     await updateSettings.mutateAsync({
-      protection_basic_rate: basicRate.toFixed(2),
+      protection_basic_rate: !isNaN(basicRate) && basicRate > 0 ? basicRate.toFixed(2) : "",
       protection_basic_deductible: basicForm.deductible,
-      protection_smart_rate: smartRate.toFixed(2),
+      protection_smart_rate: !isNaN(smartRate) && smartRate > 0 ? smartRate.toFixed(2) : "",
       protection_smart_original_rate: hasSmartDiscount ? smartOriginal.toFixed(2) : "",
       protection_smart_discount: hasSmartDiscount ? smartForm.discount : "",
       protection_smart_deductible: smartForm.deductible,
-      protection_premium_rate: premiumRate.toFixed(2),
+      protection_premium_rate: !isNaN(premiumRate) && premiumRate > 0 ? premiumRate.toFixed(2) : "",
       protection_premium_original_rate: hasPremiumDiscount ? premiumOriginal.toFixed(2) : "",
       protection_premium_discount: hasPremiumDiscount ? premiumForm.discount : "",
       protection_premium_deductible: premiumForm.deductible,
