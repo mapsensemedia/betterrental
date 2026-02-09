@@ -212,10 +212,10 @@ export function useCompleteWalkaround() {
     mutationFn: async (inspectionId: string) => {
       const { data: user } = await supabase.auth.getUser();
 
-      // Get the inspection
+      // Get the inspection with readings
       const { data: inspection, error: fetchError } = await supabase
         .from("walkaround_inspections")
-        .select("booking_id")
+        .select("booking_id, fuel_level, odometer_reading")
         .eq("id", inspectionId)
         .single();
 
@@ -227,7 +227,6 @@ export function useCompleteWalkaround() {
         .update({
           inspection_complete: true,
           completed_at: new Date().toISOString(),
-          // Mark as staff-verified (no customer signature needed)
           customer_acknowledged: true,
           customer_acknowledged_at: new Date().toISOString(),
           customer_signature: "Staff Verified (In-Person)",
@@ -235,6 +234,38 @@ export function useCompleteWalkaround() {
         .eq("id", inspectionId);
 
       if (error) throw error;
+
+      // Sync fuel/odometer to inspection_metrics (pickup phase) for return comparison
+      if (inspection.booking_id && (inspection.fuel_level != null || inspection.odometer_reading != null)) {
+        // Upsert to avoid duplicates
+        const { data: existingMetric } = await supabase
+          .from("inspection_metrics")
+          .select("id")
+          .eq("booking_id", inspection.booking_id)
+          .eq("phase", "pickup")
+          .maybeSingle();
+
+        if (existingMetric) {
+          await supabase
+            .from("inspection_metrics")
+            .update({
+              fuel_level: inspection.fuel_level,
+              odometer: inspection.odometer_reading,
+              recorded_by: user.user?.id || "system",
+            })
+            .eq("id", existingMetric.id);
+        } else {
+          await supabase
+            .from("inspection_metrics")
+            .insert({
+              booking_id: inspection.booking_id,
+              phase: "pickup",
+              fuel_level: inspection.fuel_level,
+              odometer: inspection.odometer_reading,
+              recorded_by: user.user?.id || "system",
+            });
+        }
+      }
 
       // Log to audit
       await supabase.from("audit_logs").insert({

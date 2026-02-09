@@ -202,6 +202,8 @@ export default function BookingOps() {
     },
     walkaround: {
       inspectionComplete: walkaround?.inspection_complete || false,
+      fuelRecorded: walkaround?.fuel_level != null && walkaround.fuel_level >= 0,
+      odometerRecorded: walkaround?.odometer_reading != null && walkaround.odometer_reading > 0,
     },
     photos: {
       photosComplete: photoStatus.complete,
