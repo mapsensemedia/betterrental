@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { displayName } from "@/lib/format-customer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,8 +41,7 @@ import { StepDispatch } from "./steps/StepDispatch";
 import { OpsBackupActivation } from "./steps/OpsBackupActivation";
 import { CounterUpsellPanel } from "./CounterUpsellPanel";
 import { BookingEditPanel } from "./BookingEditPanel";
-import { VehicleAssignment } from "../VehicleAssignment";
-import { CategoryUpgradeDialog } from "../CategoryUpgradeDialog";
+import { UnifiedVehicleManager } from "../UnifiedVehicleManager";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
@@ -85,7 +83,7 @@ export function OpsStepContent({
 }: OpsStepContentProps) {
   // Use provided steps or get default
   const steps = propSteps || getOpsSteps(isDelivery);
-  const [showCategoryUpgrade, setShowCategoryUpgrade] = useState(false);
+  // showCategoryUpgrade state removed — handled by UnifiedVehicleManager internally
   
   const step = steps.find(s => s.id === stepId);
   if (!step) return null;
@@ -174,17 +172,9 @@ export function OpsStepContent({
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
                 <BookingEditPanel booking={booking} />
               )}
-              {/* Vehicle Assignment — available during checkin */}
+              {/* Vehicle & Category Management — unified component */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
-                <VehicleAssignment
-                  bookingId={booking.id}
-                  currentVehicleId={booking.vehicle_id}
-                  currentVehicle={booking.vehicles}
-                  locationId={booking.location_id}
-                  startAt={booking.start_at}
-                  endAt={booking.end_at}
-                  onChangeCategoryClick={() => setShowCategoryUpgrade(true)}
-                />
+                <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
               )}
               {/* Counter Upsell */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
@@ -286,15 +276,7 @@ export function OpsStepContent({
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-sm font-medium text-muted-foreground">Quick Actions</h3>
-                  <VehicleAssignment
-                    bookingId={booking.id}
-                    currentVehicleId={booking.vehicle_id}
-                    currentVehicle={booking.vehicles}
-                    locationId={booking.location_id}
-                    startAt={booking.start_at}
-                    endAt={booking.end_at}
-                    onChangeCategoryClick={() => setShowCategoryUpgrade(true)}
-                  />
+                  <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
                   <BookingEditPanel booking={booking} />
                 </div>
               )}
@@ -302,12 +284,7 @@ export function OpsStepContent({
           )}
         </div>
 
-      {/* Category Upgrade Dialog */}
-      <CategoryUpgradeDialog
-        open={showCategoryUpgrade}
-        onOpenChange={setShowCategoryUpgrade}
-        booking={booking}
-      />
+      {/* Category upgrade is now handled inside UnifiedVehicleManager */}
       
       {/* Primary Step Action */}
       {showNextStepButton && !isBookingCompleted && !isBookingCancelled && (

@@ -10,9 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { VehicleAssignment } from "@/components/admin/VehicleAssignment";
+import { UnifiedVehicleManager } from "@/components/admin/UnifiedVehicleManager";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
-import { CategoryUpgradeDialog } from "@/components/admin/CategoryUpgradeDialog";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +111,6 @@ export default function BookingOps() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [categoryUpgradeOpen, setCategoryUpgradeOpen] = useState(false);
   // Prevent the auto-advance effect from overriding manual navigation
   const hasInitializedStepRef = useRef(false);
 
@@ -576,52 +574,14 @@ export default function BookingOps() {
         </>
       )}
 
-      {/* Vehicle Assignment Dialog */}
-      <Dialog open={vehicleDialogOpen} onOpenChange={setVehicleDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Change / Upgrade Vehicle</DialogTitle>
-            <DialogDescription>
-              Assign a specific vehicle or change the category for this booking.
-            </DialogDescription>
-          </DialogHeader>
-          {booking && (
-            <div className="space-y-4">
-              <VehicleAssignment
-                bookingId={booking.id}
-                currentVehicleId={booking.vehicle_id}
-                currentVehicle={booking.vehicles}
-                locationId={booking.location_id}
-                startAt={booking.start_at}
-                endAt={booking.end_at}
-              />
-              {/* Category Change Option */}
-              {["pending", "confirmed"].includes(booking.status) && (
-                <div className="pt-2 border-t">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setVehicleDialogOpen(false);
-                      setCategoryUpgradeOpen(true);
-                    }}
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2 rotate-180" />
-                    Change Vehicle Category Instead
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Category Upgrade Dialog */}
+      {/* Vehicle & Category Dialog (unified) */}
       {booking && (
-        <CategoryUpgradeDialog
-          open={categoryUpgradeOpen}
-          onOpenChange={setCategoryUpgradeOpen}
+        <UnifiedVehicleManager
+          bookingId={booking.id}
           booking={booking}
+          dialogOnly
+          open={vehicleDialogOpen}
+          onOpenChange={setVehicleDialogOpen}
         />
       )}
 
