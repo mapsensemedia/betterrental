@@ -65,9 +65,8 @@ serve(async (req) => {
       .from("bookings")
       .select(`
         id, booking_code, start_at, end_at, status, total_amount, user_id,
-        daily_rate, total_days, subtotal, tax_amount, deposit_amount,
-        locations!inner (name, address, phone, email),
-        vehicles!inner (make, model, year, image_url)
+        daily_rate, total_days, subtotal, tax_amount, deposit_amount, vehicle_id,
+        locations!inner (name, address, phone, email)
       `)
       .eq("id", bookingId)
       .single();
@@ -79,6 +78,13 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch vehicle category separately (no FK between bookings and vehicle_categories)
+    const { data: vehicleCategory } = await supabase
+      .from("vehicle_categories")
+      .select("name, image_url")
+      .eq("id", booking.vehicle_id)
+      .maybeSingle();
 
     // Fetch user profile
     const { data: profile } = await supabase
@@ -148,10 +154,9 @@ serve(async (req) => {
     });
 
     // Access related data
-    const vehicleData = booking.vehicles as any;
     const locationData = booking.locations as any;
 
-    const vehicleName = `${vehicleData?.year} ${vehicleData?.make} ${vehicleData?.model}`;
+    const vehicleName = vehicleCategory?.name || "Vehicle";
     const locationName = locationData?.name || "our location";
     const locationAddress = locationData?.address || "";
     const customerName = userName || "Valued Customer";
