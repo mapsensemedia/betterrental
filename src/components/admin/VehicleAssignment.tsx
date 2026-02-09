@@ -29,7 +29,8 @@ import {
 import { 
   useAvailableVehicles, 
   useAssignVehicle,
-  useCheckVehicleAvailability 
+  useCheckVehicleAvailability,
+  useUnassignVehicle,
 } from '@/hooks/use-vehicle-assignment';
 
 interface VehicleAssignmentProps {
@@ -72,6 +73,7 @@ export function VehicleAssignment({
   );
 
   const assignVehicle = useAssignVehicle();
+  const unassignVehicle = useUnassignVehicle();
 
   const handleAssign = () => {
     if (!selectedVehicleId) return;
@@ -145,13 +147,32 @@ export function VehicleAssignment({
             </Alert>
           )}
 
-          <Button 
-            onClick={() => setDialogOpen(true)} 
-            variant={currentVehicle ? 'outline' : 'default'}
-            className="w-full"
-          >
-            {currentVehicle ? 'Change Vehicle' : 'Assign Vehicle'}
-          </Button>
+          {currentVehicle ? (
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setDialogOpen(true)} 
+                variant="outline"
+                className="flex-1"
+              >
+                Change Vehicle
+              </Button>
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => unassignVehicle.mutate(bookingId)}
+                disabled={unassignVehicle.isPending}
+              >
+                {unassignVehicle.isPending ? "..." : "Remove"}
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              onClick={() => setDialogOpen(true)} 
+              className="w-full"
+            >
+              Assign Vehicle
+            </Button>
+          )}
         </CardContent>
       </Card>
 

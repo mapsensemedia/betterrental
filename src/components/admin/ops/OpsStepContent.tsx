@@ -40,6 +40,7 @@ import { StepReadyLine } from "./steps/StepReadyLine";
 import { StepDispatch } from "./steps/StepDispatch";
 import { OpsBackupActivation } from "./steps/OpsBackupActivation";
 import { CounterUpsellPanel } from "./CounterUpsellPanel";
+import { BookingEditPanel } from "./BookingEditPanel";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
@@ -159,22 +160,17 @@ export function OpsStepContent({
           )}
           {stepId === "checkin" && (
             <>
-              {isDelivery ? (
-                <StepCheckin 
-                  booking={booking}
-                  completion={completion.checkin}
-                  onStepComplete={onCompleteStep}
-                  vehicleName={booking.vehicle_categories?.name || "Vehicle"}
-                />
-              ) : (
-                <StepCheckin 
-                  booking={booking}
-                  completion={completion.checkin}
-                  onStepComplete={onCompleteStep}
-                  vehicleName={booking.vehicle_categories?.name || "Vehicle"}
-                />
+              <StepCheckin 
+                booking={booking}
+                completion={completion.checkin}
+                onStepComplete={onCompleteStep}
+                vehicleName={booking.vehicle_categories?.name || "Vehicle"}
+              />
+              {/* Edit Booking Details — available during checkin for counter edits */}
+              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+                <BookingEditPanel booking={booking} />
               )}
-              {/* Counter Upsell - also available during checkin for counter pickups */}
+              {/* Counter Upsell */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
                 <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
               )}
