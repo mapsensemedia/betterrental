@@ -39,6 +39,7 @@ import { StepIntake } from "./steps/StepIntake";
 import { StepReadyLine } from "./steps/StepReadyLine";
 import { StepDispatch } from "./steps/StepDispatch";
 import { OpsBackupActivation } from "./steps/OpsBackupActivation";
+import { CounterUpsellPanel } from "./CounterUpsellPanel";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
@@ -174,10 +175,16 @@ export function OpsStepContent({
             )
           )}
           {stepId === "payment" && (
-            <StepPayment 
-              bookingId={booking.id}
-              completion={completion.payment}
-            />
+            <>
+              <StepPayment 
+                bookingId={booking.id}
+                completion={completion.payment}
+              />
+              {/* Counter Upsell - shown during payment step for easy add-on sales */}
+              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+                <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
+              )}
+            </>
           )}
           {/* NEW: Ready Line step for delivery (replaces prep+photos) */}
           {stepId === "ready_line" && isDelivery && (

@@ -58,6 +58,7 @@ import { PaymentDepositPanel } from "./PaymentDepositPanel";
 import { RentalAgreementPanel } from "./RentalAgreementPanel";
 import { WalkaroundInspection } from "./WalkaroundInspection";
 import { BookingModificationPanel } from "./ops/BookingModificationPanel";
+import { CounterUpsellPanel } from "./ops/CounterUpsellPanel";
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
@@ -90,6 +91,7 @@ import {
   UserCheck,
   ClipboardCheck,
   CalendarClock,
+  ShoppingCart,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -589,6 +591,21 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                       </Button>
                     </AccordionContent>
                   </AccordionItem>
+
+                  {/* Counter Upsell */}
+                  {(booking.status === "pending" || booking.status === "confirmed") && (
+                    <AccordionItem value="upsell" className="border rounded-lg">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <ShoppingCart className="w-4 h-4" />
+                          Counter Upsell
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days} />
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
 
                   {/* Booking Modification */}
                   {(booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
