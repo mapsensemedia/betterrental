@@ -152,16 +152,32 @@ export default function BookingOps() {
     driverAssigned: !!booking?.assigned_driver_id,
     dispatched: deliveryStatus === 'picked_up' || deliveryStatus === 'en_route' || deliveryStatus === 'delivered',
   } : undefined;
+
+  // New delivery pipeline completion
+  const intakeCompletion = isDeliveryBooking ? {
+    reviewed: !!(booking as any)?.delivery_tasks?.[0]?.intake_completed_at || false,
+  } : undefined;
+
+  const readyLineCompletion = isDeliveryBooking ? {
+    unitAssigned: !!booking?.assigned_unit_id,
+    checklistComplete: !!prepStatus?.allComplete,
+    photosComplete: photoStatus.complete,
+    fuelRecorded: false, // TODO: check inspection_metrics
+    odometerRecorded: false, // TODO: check inspection_metrics
+    pricingLocked: !!(booking as any)?.pricing_locked_at,
+  } : undefined;
+
+  const opsActivateCompletion = isDeliveryBooking ? {
+    activated: booking?.status === 'active' || booking?.status === 'completed',
+  } : undefined;
   
   const completion: StepCompletion = {
     checkin: {
-      // If check-in is passed, all fields are considered verified
       govIdVerified: checkinPassed || checkinRecord?.identityVerified || false,
       licenseOnFile: checkinPassed || licenseOnFile,
       nameMatches: checkinPassed || checkinRecord?.licenseNameMatches || false,
       licenseNotExpired: checkinPassed || checkinRecord?.licenseValid || false,
       ageVerified: checkinPassed || checkinRecord?.ageVerified || false,
-      // Delivery-specific
       driverEnRoute: isDeliveryBooking ? isDriverEnRoute : undefined,
       driverArrived: isDeliveryBooking ? isDriverArrived : undefined,
     },
@@ -180,11 +196,15 @@ export default function BookingOps() {
       photosComplete: photoStatus.complete,
     },
     dispatch: dispatchCompletion,
-  handover: {
+    handover: {
       activated: booking?.status === 'active' || booking?.status === 'completed',
       smsSent: !!booking?.handover_sms_sent_at,
       unitAssigned: !!booking?.assigned_unit_id,
     },
+    // New delivery pipeline stages
+    intake: intakeCompletion,
+    readyLine: readyLineCompletion,
+    opsActivate: opsActivateCompletion,
   };
   
   const currentStepIndex = getCurrentStepIndex(completion, isDeliveryBooking);
