@@ -3,6 +3,15 @@ import { displayName } from "@/lib/format-customer";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { VehicleAssignment } from "@/components/admin/VehicleAssignment";
+import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +109,8 @@ export default function BookingOps() {
   });
   const [showIncidentDialog, setShowIncidentDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   // Prevent the auto-advance effect from overriding manual navigation
   const hasInitializedStepRef = useRef(false);
 
@@ -407,14 +418,10 @@ export default function BookingOps() {
                 <DropdownMenuContent align="end">
                   {["pending", "confirmed"].includes(booking.status) && (
                     <>
-                      <DropdownMenuItem onClick={() => setActiveStep("checkin")}>
+                      <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
                         Edit Booking Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => {
-                        // Navigate to a step that shows vehicle assignment
-                        // For counter: prep step has it; for delivery: ready_line
-                        setActiveStep(isDeliveryBooking ? "ready_line" : "prep");
-                      }}>
+                      <DropdownMenuItem onClick={() => setVehicleDialogOpen(true)}>
                         Change / Upgrade Vehicle
                       </DropdownMenuItem>
                     </>
@@ -566,6 +573,41 @@ export default function BookingOps() {
           />
         </>
       )}
+
+      {/* Vehicle Assignment Dialog */}
+      <Dialog open={vehicleDialogOpen} onOpenChange={setVehicleDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Change / Upgrade Vehicle</DialogTitle>
+            <DialogDescription>
+              Assign or change the vehicle for this booking.
+            </DialogDescription>
+          </DialogHeader>
+          {booking && (
+            <VehicleAssignment
+              bookingId={booking.id}
+              currentVehicleId={booking.vehicle_id}
+              currentVehicle={booking.vehicles}
+              locationId={booking.location_id}
+              startAt={booking.start_at}
+              endAt={booking.end_at}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Booking Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Booking Details</DialogTitle>
+            <DialogDescription>
+              Update dates, location, or other booking information.
+            </DialogDescription>
+          </DialogHeader>
+          {booking && <BookingEditPanel booking={booking} />}
+        </DialogContent>
+      </Dialog>
     </PanelShell>
   );
 }
