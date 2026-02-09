@@ -81,12 +81,12 @@ interface TermsJson {
   };
 }
 
-// ── Load logo ──
+// ── Load image as base64 ──
 
-async function loadLogo(): Promise<string | null> {
+async function loadImageAsBase64(url: string): Promise<string | null> {
   try {
-    const response = await fetch(LOGO_PATH);
-    if (!response.ok) throw new Error("Logo not found");
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Image not found");
     const blob = await response.blob();
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -95,12 +95,18 @@ async function loadLogo(): Promise<string | null> {
       reader.readAsDataURL(blob);
     });
   } catch {
-    try {
-      const module = await import("@/assets/c2c-logo.png");
-      return module.default;
-    } catch {
-      return null;
-    }
+    return null;
+  }
+}
+
+async function loadLogo(): Promise<string | null> {
+  const result = await loadImageAsBase64(LOGO_PATH);
+  if (result) return result;
+  try {
+    const module = await import("@/assets/c2c-logo.png");
+    return module.default;
+  } catch {
+    return null;
   }
 }
 
@@ -154,10 +160,17 @@ export async function generateRentalAgreementPdf(
   const logoBase64 = await loadLogo();
   const terms = agreement.terms_json as unknown as TermsJson | null;
 
+  // Load signature PNG if available
+  const signaturePngUrl = (agreement as any)?.signature_png_url;
+  let signatureBase64: string | null = null;
+  if (signaturePngUrl) {
+    signatureBase64 = await loadImageAsBase64(signaturePngUrl);
+  }
+
   if (terms && terms.rental && terms.financial) {
-    renderStructuredPdf(pdf, terms, agreement, bookingId, logoBase64);
+    renderStructuredPdf(pdf, terms, agreement, bookingId, logoBase64, signatureBase64);
   } else {
-    renderLegacyPdf(pdf, agreement, bookingId, logoBase64);
+    renderLegacyPdf(pdf, agreement, bookingId, logoBase64, signatureBase64);
   }
 
   const code = bookingId.slice(0, 8).toUpperCase();
@@ -173,7 +186,8 @@ function renderStructuredPdf(
   t: TermsJson,
   agreement: RentalAgreement,
   bookingId: string,
-  logoBase64: string | null
+  logoBase64: string | null,
+  signatureBase64: string | null
 ) {
   let y = M;
   const bookingCode = bookingId.slice(0, 8).toUpperCase();
@@ -598,6 +612,16 @@ function renderStructuredPdf(
     pdf.text(fmtDateLong(agreement.customer_signed_at!), MID + 48, y);
     y += 10;
 
+    // Embed signature PNG image if available
+    if (signatureBase64) {
+      try {
+        pdf.addImage(signatureBase64, "PNG", L, y, 140, 35);
+        y += 40;
+      } catch {
+        // Skip image if it fails to render
+      }
+    }
+
     if (agreement.staff_confirmed_at) {
       pdf.setFont("helvetica", "bold");
       pdf.text("CONFIRMED BY STAFF:", L, y);
@@ -728,7 +752,8 @@ function renderLegacyPdf(
   pdf: jsPDF,
   agreement: RentalAgreement,
   bookingId: string,
-  logoBase64: string | null
+  logoBase64: string | null,
+  signatureBase64: string | null
 ) {
   let y = M;
   const centerX = PAGE_W / 2;
@@ -811,6 +836,16 @@ function renderLegacyPdf(
       pdf.text("Date:", M, y);
       pdf.setFont("helvetica", "normal");
       pdf.text(fmtDateLong(agreement.customer_signed_at), M + 55, y);
+      y += 10;
+    }
+    // Embed signature PNG image if available
+    if (signatureBase64) {
+      try {
+        pdf.addImage(signatureBase64, "PNG", M, y, 140, 35);
+        y += 40;
+      } catch {
+        // Skip image if it fails
+      }
     }
   } else {
     pdf.setFontSize(7);

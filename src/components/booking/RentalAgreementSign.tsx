@@ -11,6 +11,7 @@ import { FileText, CheckCircle, PenLine, Loader2, Download, FileDown } from "luc
 import { useRentalAgreement, useSignAgreement } from "@/hooks/use-rental-agreement";
 import { format } from "date-fns";
 import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
+import { AgreementStructuredView } from "@/components/booking/AgreementStructuredView";
 import { toast } from "sonner";
 
 interface RentalAgreementSignProps {
@@ -117,12 +118,7 @@ export function RentalAgreementSign({ bookingId }: RentalAgreementSignProps) {
         {/* Agreement Content */}
         <div className="border rounded-lg bg-muted/30">
           <ScrollArea className="h-64 p-4">
-            <pre
-              ref={contentRef}
-              className="text-xs font-mono whitespace-pre-wrap text-foreground/80"
-            >
-              {agreement.agreement_content}
-            </pre>
+            <AgreementStructuredView agreement={agreement} bookingId={bookingId} />
           </ScrollArea>
         </div>
 

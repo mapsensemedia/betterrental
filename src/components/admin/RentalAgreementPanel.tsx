@@ -42,6 +42,7 @@ import {
 import { useSaveSignature } from "@/hooks/use-signature-capture";
 import { SignatureCapturePanel } from "./signature/SignatureCapturePanel";
 import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
+import { AgreementStructuredView } from "@/components/booking/AgreementStructuredView";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -337,9 +338,9 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[60vh] border rounded-lg p-4 bg-muted/30">
-            <pre className="text-xs font-mono whitespace-pre-wrap">
-              {agreement?.agreement_content}
-            </pre>
+            {agreement && (
+              <AgreementStructuredView agreement={agreement} bookingId={bookingId} />
+            )}
           </ScrollArea>
         </DialogContent>
       </Dialog>
