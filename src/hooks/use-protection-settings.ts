@@ -12,12 +12,12 @@ const DEFAULTS = {
   protection_basic_rate: "33.99",
   protection_basic_deductible: "Up to $800.00",
   protection_smart_rate: "39.25",
-  protection_smart_original_rate: "50.97",
-  protection_smart_discount: "23% online discount",
+  protection_smart_original_rate: "",
+  protection_smart_discount: "",
   protection_smart_deductible: "No deductible",
   protection_premium_rate: "49.77",
-  protection_premium_original_rate: "59.96",
-  protection_premium_discount: "17% online discount",
+  protection_premium_original_rate: "",
+  protection_premium_discount: "",
   protection_premium_deductible: "No deductible",
 };
 
@@ -74,8 +74,11 @@ export function buildProtectionPackages(
       id: "smart",
       name: "Smart Protection",
       dailyRate: parseFloat(settings.protection_smart_rate) || 39.25,
-      originalRate:
-        parseFloat(settings.protection_smart_original_rate) || undefined,
+      originalRate: (() => {
+        const orig = parseFloat(settings.protection_smart_original_rate);
+        const daily = parseFloat(settings.protection_smart_rate) || 39.25;
+        return !isNaN(orig) && orig > daily ? orig : undefined;
+      })(),
       discount: settings.protection_smart_discount || undefined,
       deductible: settings.protection_smart_deductible,
       rating: 2,
@@ -98,8 +101,11 @@ export function buildProtectionPackages(
       id: "premium",
       name: "All Inclusive Protection",
       dailyRate: parseFloat(settings.protection_premium_rate) || 49.77,
-      originalRate:
-        parseFloat(settings.protection_premium_original_rate) || undefined,
+      originalRate: (() => {
+        const orig = parseFloat(settings.protection_premium_original_rate);
+        const daily = parseFloat(settings.protection_premium_rate) || 49.77;
+        return !isNaN(orig) && orig > daily ? orig : undefined;
+      })(),
       discount: settings.protection_premium_discount || undefined,
       deductible: settings.protection_premium_deductible,
       rating: 3,
