@@ -281,6 +281,8 @@ export default function Protection() {
                 <BookingSummaryPanel 
                   showPricing={true} 
                   protectionDailyRate={selectedProtection?.dailyRate || 0}
+                  selectedAddOnIds={[]}
+                  additionalDrivers={[]}
                 />
               </div>
             </div>

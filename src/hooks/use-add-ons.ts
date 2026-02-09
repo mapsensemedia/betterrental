@@ -20,6 +20,14 @@ export function isFuelAddOn(name: string): boolean {
 }
 
 /**
+ * Check if an add-on is the "Additional Driver" type (managed separately)
+ */
+export function isAdditionalDriverAddOn(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.includes("additional") && lower.includes("driver");
+}
+
+/**
  * Fetch all active add-ons
  */
 export function useAddOns() {
@@ -82,6 +90,9 @@ export function calculateAddOnsCost(
     .map((id) => {
       const addon = addOns.find((a) => a.id === id);
       if (!addon) return null;
+      
+      // Skip "Additional Driver" add-on — handled separately via calculateAdditionalDriversCost
+      if (isAdditionalDriverAddOn(addon.name)) return null;
       
       // Handle fuel add-on specially - use VIN-specific or category-based tank size
       if (isFuelAddOn(addon.name)) {
