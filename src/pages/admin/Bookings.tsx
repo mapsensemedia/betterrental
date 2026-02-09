@@ -599,7 +599,7 @@ export default function AdminBookings() {
                           {booking.vehicle?.year} {booking.vehicle?.make} {booking.vehicle?.model}
                         </p>
                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                          <span>{format(parseISO(booking.startAt), "MMM d")} • {booking.totalDays}d</span>
+                          <span>{format(parseISO(booking.startAt), "MMM d")} • {booking.totalDays}d{booking.totalDays !== 1 ? "s" : ""}</span>
                           {booking.pickupAddress && <DeliveryBadge hasDelivery={true} />}
                         </div>
                       </div>
@@ -666,7 +666,7 @@ export default function AdminBookings() {
                             <TableCell className="hidden lg:table-cell">
                               <div className="text-sm">
                                 <p>{format(parseISO(booking.startAt), "MMM d")}</p>
-                                <p className="text-xs text-muted-foreground">{booking.totalDays} days</p>
+                                <p className="text-xs text-muted-foreground">{booking.totalDays} day{booking.totalDays !== 1 ? "s" : ""}</p>
                               </div>
                             </TableCell>
                             <TableCell className="hidden lg:table-cell">

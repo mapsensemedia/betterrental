@@ -905,6 +905,15 @@ export default function NewCheckout() {
                       </button>
                     </div>
                   )}
+                  
+                  {/* No-show fee warning for Pay at Pickup */}
+                  {paymentMethod === "pay-later" && searchData.deliveryMode !== "delivery" && (
+                    <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                        <strong>Note:</strong> A valid credit card is required. A $19.99 CAD fee applies for no-shows or late cancellations.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Payment Summary */}

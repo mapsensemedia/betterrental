@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocations } from "@/hooks/use-locations";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
+import { toast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -22,7 +23,7 @@ interface GlassSearchBarProps {
 export function GlassSearchBar({ className }: GlassSearchBarProps) {
   const navigate = useNavigate();
   const { data: locations = [], isLoading: locationsLoading } = useLocations();
-  const { setAgeConfirmed } = useRentalBooking();
+  const { setAgeConfirmed, setPickupDateTime, setReturnDateTime } = useRentalBooking();
 
   const [locationId, setLocationId] = useState<string>("");
   const [sameDropoff, setSameDropoff] = useState(true);
@@ -33,6 +34,9 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
   const [returnTime, setReturnTime] = useState<string>(DEFAULT_PICKUP_TIME);
   const [ageRange, setAgeRange] = useState<"20-24" | "25-70" | "">("");
   const [showAgeError, setShowAgeError] = useState(false);
+  const [showLocationError, setShowLocationError] = useState(false);
+  const [showPickupDateError, setShowPickupDateError] = useState(false);
+  const [showReturnDateError, setShowReturnDateError] = useState(false);
 
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
@@ -44,25 +48,45 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
   };
 
   const handleSearch = () => {
+    // Validate all required fields
+    let hasErrors = false;
+
+    if (!locationId) {
+      setShowLocationError(true);
+      hasErrors = true;
+    }
+    if (!pickupDate) {
+      setShowPickupDateError(true);
+      hasErrors = true;
+    }
+    if (!returnDate) {
+      setShowReturnDateError(true);
+      hasErrors = true;
+    }
     if (!ageRange) {
       setShowAgeError(true);
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
 
+    // Persist dates and location to booking context immediately
+    const startAt = new Date(`${pickupDate}T${pickupTime}`);
+    const endAt = new Date(`${returnDate}T${returnTime}`);
+    setPickupDateTime(startAt, pickupTime);
+    setReturnDateTime(endAt, returnTime);
+
+    // Build URL params
     const params = new URLSearchParams();
     
     if (locationId) params.set("locationId", locationId);
     if (!sameDropoff && dropoffLocationId) params.set("dropoffLocationId", dropoffLocationId);
     
-    if (pickupDate && pickupTime) {
-      const startAt = new Date(`${pickupDate}T${pickupTime}`);
-      params.set("startAt", startAt.toISOString());
-    }
-    
-    if (returnDate && returnTime) {
-      const endAt = new Date(`${returnDate}T${returnTime}`);
-      params.set("endAt", endAt.toISOString());
-    }
+    params.set("startAt", startAt.toISOString());
+    params.set("endAt", endAt.toISOString());
 
     navigate(`/search?${params.toString()}`);
   };
@@ -76,8 +100,11 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Pickup Location
           </label>
-          <Select value={locationId} onValueChange={setLocationId}>
-            <SelectTrigger className="h-12 rounded-xl border-border bg-background">
+          <Select value={locationId} onValueChange={(v) => { setLocationId(v); setShowLocationError(false); }}>
+            <SelectTrigger className={cn(
+              "h-12 rounded-xl border-border bg-background",
+              showLocationError && "border-destructive ring-1 ring-destructive"
+            )}>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-muted-foreground" />
                 <SelectValue placeholder="Select pickup location" />
@@ -97,6 +124,9 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
               )}
             </SelectContent>
           </Select>
+          {showLocationError && (
+            <p className="text-xs text-destructive">Please select a location</p>
+          )}
         </div>
 
         {/* Pickup Date & Time */}
@@ -112,14 +142,19 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
               value={pickupDate}
               onChange={(e) => {
                 setPickupDate(e.target.value);
+                setShowPickupDateError(false);
                 // Auto-set return date if empty or before pickup
                 if (!returnDate || e.target.value > returnDate) {
                   const nextDay = new Date(e.target.value);
                   nextDay.setDate(nextDay.getDate() + 1);
                   setReturnDate(nextDay.toISOString().split("T")[0]);
+                  setShowReturnDateError(false);
                 }
               }}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className={cn(
+                "w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
+                showPickupDateError && "border-destructive ring-1 ring-destructive"
+              )}
             />
           </div>
         </div>
@@ -156,8 +191,11 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
               type="date"
               min={pickupDate || today}
               value={returnDate}
-              onChange={(e) => setReturnDate(e.target.value)}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              onChange={(e) => { setReturnDate(e.target.value); setShowReturnDateError(false); }}
+              className={cn(
+                "w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
+                showReturnDateError && "border-destructive ring-1 ring-destructive"
+              )}
             />
           </div>
         </div>
