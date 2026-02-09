@@ -159,8 +159,12 @@ export function useAssignVehicle() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['booking', variables.bookingId] });
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['vehicle-availability'] });
       queryClient.invalidateQueries({ queryKey: ['available-vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['fleet-vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicle-units'] });
+      queryClient.invalidateQueries({ queryKey: ['booking-activity-timeline', variables.bookingId] });
       toast({
         title: 'Vehicle assigned',
         description: 'The vehicle has been assigned and customer notified.',
@@ -209,8 +213,12 @@ export function useUnassignVehicle() {
     onSuccess: (bookingId) => {
       queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-availability"] });
       queryClient.invalidateQueries({ queryKey: ["available-vehicles"] });
+      queryClient.invalidateQueries({ queryKey: ["fleet-vehicles"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-activity-timeline", bookingId] });
       toast({
         title: "Vehicle unassigned",
         description: "Vehicle cleared. You can now assign a different one.",

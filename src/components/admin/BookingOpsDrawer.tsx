@@ -348,7 +348,9 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                   locationName={booking.locations?.name || null}
                   onCancel={() => handleStatusChange("cancelled")}
                   onChangeVehicle={() => scrollToSection("vehicle")}
-                  canChangeVehicle={booking.status !== "active" && booking.status !== "completed"}
+                  canChangeVehicle={["pending", "confirmed"].includes(booking.status)}
+                  onEditBooking={() => scrollToSection("edit-booking")}
+                  canEditBooking={["pending", "confirmed"].includes(booking.status)}
                 />
 
                 <Separator />
