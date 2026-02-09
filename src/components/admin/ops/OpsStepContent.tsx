@@ -41,6 +41,7 @@ import { StepDispatch } from "./steps/StepDispatch";
 import { OpsBackupActivation } from "./steps/OpsBackupActivation";
 import { CounterUpsellPanel } from "./CounterUpsellPanel";
 import { BookingEditPanel } from "./BookingEditPanel";
+import { VehicleAssignment } from "../VehicleAssignment";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
@@ -265,12 +266,29 @@ export function OpsStepContent({
             />
           )}
           {stepId === "handover" && !isDelivery && (
-            <StepHandover 
-              booking={booking}
-              completion={completion}
-              onActivate={onActivate}
-              isBookingCompleted={isBookingCompleted}
-            />
+            <>
+              <StepHandover 
+                booking={booking}
+                completion={completion}
+                onActivate={onActivate}
+                isBookingCompleted={isBookingCompleted}
+              />
+              {/* Allow vehicle change and booking edits on the handover step before activation */}
+              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="text-sm font-medium text-muted-foreground">Quick Actions</h3>
+                  <VehicleAssignment
+                    bookingId={booking.id}
+                    currentVehicleId={booking.vehicle_id}
+                    currentVehicle={booking.vehicles}
+                    locationId={booking.location_id}
+                    startAt={booking.start_at}
+                    endAt={booking.end_at}
+                  />
+                  <BookingEditPanel booking={booking} />
+                </div>
+              )}
+            </>
           )}
         </div>
       

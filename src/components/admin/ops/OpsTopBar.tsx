@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Car, MapPin, Calendar, User, MoreVertical } from "lucide-react";
+import { Car, MapPin, Calendar, User, MoreVertical, Pencil, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,8 @@ interface OpsTopBarProps {
   onCancel: () => void;
   onChangeVehicle?: () => void;
   canChangeVehicle?: boolean;
+  onEditBooking?: () => void;
+  canEditBooking?: boolean;
 }
 
 export function OpsTopBar({
@@ -36,6 +38,8 @@ export function OpsTopBar({
   onCancel,
   onChangeVehicle,
   canChangeVehicle,
+  onEditBooking,
+  canEditBooking,
 }: OpsTopBarProps) {
   return (
     <div className="space-y-3">
@@ -54,13 +58,19 @@ export function OpsTopBar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {canChangeVehicle && onChangeVehicle && (
-              <DropdownMenuItem onClick={onChangeVehicle}>
-                <Car className="h-4 w-4 mr-2" />
-                Change Vehicle
+            {canEditBooking && onEditBooking && (
+              <DropdownMenuItem onClick={onEditBooking}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit Booking Details
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
+            {canChangeVehicle && onChangeVehicle && (
+              <DropdownMenuItem onClick={onChangeVehicle}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Change / Upgrade Vehicle
+              </DropdownMenuItem>
+            )}
+            {(canEditBooking || canChangeVehicle) && <DropdownMenuSeparator />}
             <DropdownMenuItem 
               onClick={onCancel}
               className="text-destructive focus:text-destructive"

@@ -405,6 +405,20 @@ export default function BookingOps() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {["pending", "confirmed"].includes(booking.status) && (
+                    <>
+                      <DropdownMenuItem onClick={() => setActiveStep("checkin")}>
+                        Edit Booking Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        // Navigate to a step that shows vehicle assignment
+                        // For counter: prep step has it; for delivery: ready_line
+                        setActiveStep(isDeliveryBooking ? "ready_line" : "prep");
+                      }}>
+                        Change / Upgrade Vehicle
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuItem 
                     onClick={() => setShowIncidentDialog(true)}
                   >
