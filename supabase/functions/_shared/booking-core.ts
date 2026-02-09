@@ -26,7 +26,7 @@ export interface BookingInput {
   driverAgeBand: string;
   youngDriverFee?: number;
   notes?: string;
-  status?: "pending" | "confirmed";
+  status?: "draft" | "pending" | "confirmed";
   pickupAddress?: string;
   pickupLat?: number;
   pickupLng?: number;
@@ -77,7 +77,7 @@ export async function checkBookingConflicts(
     .from("bookings")
     .select("id")
     .eq("vehicle_id", vehicleId)
-    .in("status", ["pending", "confirmed", "active"])
+    .in("status", ["draft", "pending", "confirmed", "active"])
     .or(`and(start_at.lte.${endAt},end_at.gte.${startAt})`)
     .limit(1);
   

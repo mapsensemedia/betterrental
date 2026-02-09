@@ -81,6 +81,9 @@ export function useAdminBookings(filters: BookingFilters = {}) {
       // Apply filters
       if (filters.status && filters.status !== "all") {
         query = query.eq("status", filters.status);
+      } else {
+        // By default exclude "draft" bookings (unpaid Pay Now) from admin views
+        query = query.neq("status", "draft");
       }
 
       if (filters.dateRange?.start) {

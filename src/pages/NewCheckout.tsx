@@ -203,8 +203,9 @@ export default function NewCheckout() {
     if (!pendingBookingId) return;
     
     try {
-      // Update booking with authorized deposit status
+      // Promote booking from "draft" to "pending" now that payment is authorized
       await supabase.from("bookings").update({
+        status: "pending",
         deposit_status: "authorized",
         deposit_authorized_at: new Date().toISOString(),
         stripe_deposit_pi_id: paymentIntentId,
@@ -413,7 +414,7 @@ export default function NewCheckout() {
             total_amount: pricing.total,
             deposit_amount: DEFAULT_DEPOSIT_AMOUNT,
             booking_code: `C2C${Date.now().toString(36).toUpperCase()}`,
-            status: "pending",
+            status: paymentMethod === "pay-now" ? "draft" : "pending",
             notes: bookingNotes,
             pickup_address: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : null,
             pickup_lat: searchData.deliveryLat,
@@ -512,6 +513,7 @@ export default function NewCheckout() {
               cardLastFour: cardLast4,
               cardType: cardTypeValue,
               cardHolderName: formData.cardName,
+              paymentMethod: paymentMethod, // Pass payment method so edge function sets correct status
             },
           });
         } catch (networkError: any) {

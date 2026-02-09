@@ -3193,6 +3193,7 @@ export type Database = {
         | "emergency"
       app_role: "admin" | "staff" | "cleaner" | "finance" | "support" | "driver"
       booking_status:
+        | "draft"
         | "pending"
         | "confirmed"
         | "active"
@@ -3373,6 +3374,7 @@ export const Constants = {
       ],
       app_role: ["admin", "staff", "cleaner", "finance", "support", "driver"],
       booking_status: [
+        "draft",
         "pending",
         "confirmed",
         "active",

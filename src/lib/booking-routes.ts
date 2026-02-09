@@ -8,7 +8,7 @@
  * - cancelled → Read-only detail view
  */
 
-type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "cancelled";
+type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
 interface RouteOptions {
   returnTo?: string;

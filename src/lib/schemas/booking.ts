@@ -15,6 +15,7 @@ export type AgeRangeSchema = z.infer<typeof ageRangeSchema>;
 
 // Booking status enum
 export const bookingStatusSchema = z.enum([
+  "draft",
   "pending",
   "confirmed",
   "active",

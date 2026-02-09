@@ -247,6 +247,7 @@ export default function AdminOverview() {
   
   // NEW bookings - created in last 24 hours
   const recentBookings = bookings.filter(b => {
+    if (b.status === "draft") return false; // Hide draft (unpaid Pay Now) bookings
     try {
       const createdAt = parseISO(b.createdAt);
       const hoursDiff = (new Date().getTime() - createdAt.getTime()) / (1000 * 60 * 60);
