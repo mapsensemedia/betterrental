@@ -145,8 +145,6 @@ export const PROTECTION_PACKAGES: ProtectionPackage[] = [
     id: "smart",
     name: "Smart Protection",
     dailyRate: 39.25,
-    originalRate: 50.97,
-    discount: "23% online discount",
     deductible: "No deductible",
     rating: 2,
     isRecommended: true,
@@ -160,8 +158,6 @@ export const PROTECTION_PACKAGES: ProtectionPackage[] = [
     id: "premium",
     name: "All Inclusive Protection",
     dailyRate: 49.77,
-    originalRate: 59.96,
-    discount: "17% online discount",
     deductible: "No deductible",
     rating: 3,
     features: [

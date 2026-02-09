@@ -97,16 +97,22 @@ export function ProtectionPricingPanel() {
       return;
     }
 
+    // Only save originalRate/discount if there's an actual discount (originalRate > rate)
+    const smartOriginal = parseFloat(smartForm.originalRate);
+    const premiumOriginal = parseFloat(premiumForm.originalRate);
+    const hasSmartDiscount = !isNaN(smartOriginal) && smartOriginal > smartRate;
+    const hasPremiumDiscount = !isNaN(premiumOriginal) && premiumOriginal > premiumRate;
+
     await updateSettings.mutateAsync({
       protection_basic_rate: basicRate.toFixed(2),
       protection_basic_deductible: basicForm.deductible,
       protection_smart_rate: smartRate.toFixed(2),
-      protection_smart_original_rate: smartForm.originalRate || smartForm.rate,
-      protection_smart_discount: smartForm.discount,
+      protection_smart_original_rate: hasSmartDiscount ? smartOriginal.toFixed(2) : "",
+      protection_smart_discount: hasSmartDiscount ? smartForm.discount : "",
       protection_smart_deductible: smartForm.deductible,
       protection_premium_rate: premiumRate.toFixed(2),
-      protection_premium_original_rate: premiumForm.originalRate || premiumForm.rate,
-      protection_premium_discount: premiumForm.discount,
+      protection_premium_original_rate: hasPremiumDiscount ? premiumOriginal.toFixed(2) : "",
+      protection_premium_discount: hasPremiumDiscount ? premiumForm.discount : "",
       protection_premium_deductible: premiumForm.deductible,
     });
     setDirty(false);
