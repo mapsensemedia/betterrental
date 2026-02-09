@@ -1,69 +1,57 @@
 
 
-# Fix Confirmation Email and SMS Delivery
+## Fix: Vehicle Change, Duplicate Counter Upsell, and Blank Step Content
 
-## Problem
-Both `send-booking-email` and `send-booking-sms` edge functions crash when trying to fetch booking details because they attempt a PostgREST join to a `vehicles` table via `vehicles!inner(...)`. However, `bookings.vehicle_id` actually stores a `vehicle_categories` ID, and there is no foreign key relationship between `bookings` and `vehicles`. PostgREST cannot resolve the join and returns a "Could not find a relationship" error, causing the functions to return 404 before ever calling Resend or Twilio.
+### Issues Identified
 
-The `send-booking-notification` function already handles this correctly by querying `vehicle_categories` separately.
+1. **Blank screen when clicking "Change / Upgrade Vehicle"** from the 3-dot menu: The handler sets `activeStep` to `"prep"`, but the standard counter flow (`OPS_STEPS`) does not include a `"prep"` step. Steps are: checkin, payment, agreement, walkaround, photos, handover. Since no step with id `"prep"` exists, `OpsStepContent` finds no matching step and renders nothing.
 
-## Fix
+2. **No vehicle assignment/change option visible on the step content**: The `VehicleAssignment` component only appears within the "Handover & Activation" step under "Quick Actions", which is buried at the bottom. It needs to be available on the check-in step and accessible from the 3-dot menu via a dialog.
 
-### Step 1: Update `send-booking-email/index.ts`
-- Remove the `vehicles!inner (make, model, year, image_url)` from the booking query.
-- After fetching the booking, query `vehicle_categories` separately using `booking.vehicle_id` to get the vehicle name.
-- Replace `vehicleData` references with the category name (e.g., "COMPACT - Nissan Versa or Similar").
-
-### Step 2: Update `send-booking-sms/index.ts`
-- Same fix: Remove the `vehicles!inner (make, model, year)` join.
-- Query `vehicle_categories` separately using `booking.vehicle_id`.
-- Update vehicle name formatting to use category name.
-
-### Step 3: Redeploy both edge functions
-- Deploy `send-booking-email` and `send-booking-sms`.
-- Test by triggering a new booking or using the admin notification resend feature.
-
-### Secondary: Resend "From" Address
-The email function currently uses `onboarding@resend.dev` (Resend's sandbox). This only delivers to the Resend account owner's email address. For production delivery to all customers, a verified custom domain must be configured in the Resend dashboard (e.g., `noreply@c2crental.ca`), and the `from` field updated accordingly.
+3. **Duplicate Counter Upsell panels**: One appears on the "Customer Check-In" step (line 174-177 of OpsStepContent) and another on the "Payment & Deposit" step (line 186-189). The one on Payment & Deposit should be removed.
 
 ---
 
-## Regarding Pin Pad / Card Reader Integration
+### Fix Plan
 
-Connecting a physical transaction pin pad is possible through **Stripe Terminal**, which provides a JavaScript SDK for web applications. It supports authorization holds (manual capture) which is compatible with the existing payment architecture.
+#### 1. Fix 3-dot menu "Change / Upgrade Vehicle" -- Use a Dialog instead of step navigation
 
-However, this is a significant feature requiring:
-- Stripe-certified hardware purchase
-- A new backend endpoint for connection tokens
-- New admin/ops UI for reader management and payment collection
-- Testing with physical hardware
+Instead of trying to navigate to a non-existent step, clicking "Change / Upgrade Vehicle" will open a **dialog** containing the `VehicleAssignment` component. This works regardless of which step the user is currently on.
 
-This should be scoped and planned as a separate initiative. It does not block the email/SMS fix.
+**File: `src/pages/admin/BookingOps.tsx`**
+- Add state: `const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false)`
+- Change the dropdown menu item for "Change / Upgrade Vehicle" from `setActiveStep("prep")` to `setVehicleDialogOpen(true)`
+- Add a `Dialog` at the bottom of the component that renders `VehicleAssignment` with the booking's current vehicle, location, and date range
+- Same fix for the "Edit Booking Details" menu item -- open a dialog with `BookingEditPanel` instead of navigating to checkin step
+
+#### 2. Add VehicleAssignment to the Check-In step content
+
+**File: `src/components/admin/ops/OpsStepContent.tsx`**
+- In the `checkin` step section, add `VehicleAssignment` component alongside the existing `BookingEditPanel` and `CounterUpsellPanel`, only shown when status is `pending` or `confirmed`
+
+#### 3. Remove duplicate CounterUpsellPanel from Payment step
+
+**File: `src/components/admin/ops/OpsStepContent.tsx`**
+- Remove lines 186-189 (the `CounterUpsellPanel` inside the `payment` step block)
+- Keep only the one in the `checkin` step
+
+#### 4. Keep handover Quick Actions as-is
+The existing `VehicleAssignment` and `BookingEditPanel` in the handover step remain for last-minute changes.
 
 ---
 
-## Technical Details
+### Technical Details
 
-### Files Modified
-| File | Change |
-|------|--------|
-| `supabase/functions/send-booking-email/index.ts` | Replace `vehicles!inner(...)` join with separate `vehicle_categories` query |
-| `supabase/functions/send-booking-sms/index.ts` | Replace `vehicles!inner(...)` join with separate `vehicle_categories` query |
+**BookingOps.tsx changes:**
+- Add `vehicleDialogOpen` and `editDialogOpen` state variables
+- Replace step navigation with dialog open calls in the dropdown menu
+- Add two new `Dialog` components rendered at the component bottom:
+  - Vehicle Assignment Dialog with `VehicleAssignment` component
+  - Edit Booking Dialog with `BookingEditPanel` component
 
-### Current vs Fixed Query Pattern
+**OpsStepContent.tsx changes:**
+- Add `VehicleAssignment` to the checkin step section (after `BookingEditPanel`, before `CounterUpsellPanel`)
+- Remove the `CounterUpsellPanel` from the payment step (lines 186-189)
 
-Current (broken):
-```
-.select(`id, booking_code, ..., vehicles!inner (make, model, year)`)
-```
+**Backend impact:** None -- all changes are UI-only, using existing components and hooks. Cache invalidation is already handled by the existing `useAssignVehicle` and `useUnassignVehicle` hooks.
 
-Fixed (matching send-booking-notification pattern):
-```
-.select(`id, booking_code, ..., vehicle_id`)
-// Then separately:
-const { data: category } = await supabase
-  .from("vehicle_categories")
-  .select("name")
-  .eq("id", booking.vehicle_id)
-  .single();
-```
