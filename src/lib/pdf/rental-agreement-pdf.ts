@@ -178,6 +178,13 @@ function renderStructuredPdf(
   let y = M;
   const bookingCode = bookingId.slice(0, 8).toUpperCase();
 
+  // ── Spacing constants ──
+  const SEC_GAP = 7;     // gap after horizontal lines (before next section)
+  const TITLE_GAP = 9;   // gap after section title
+  const ROW_H = 8;       // height between label-value rows
+  const FIN_ROW_H = 7;   // height between financial rows
+  const FIN_HEAD_H = 8;  // gap after financial sub-headers
+
   // ─────────────────────────────────────────────
   // HEADER
   // ─────────────────────────────────────────────
@@ -190,13 +197,10 @@ function renderStructuredPdf(
   pdf.text("C2C CAR RENTAL", PAGE_W / 2, y + 8, { align: "center" });
   pdf.setFontSize(8);
   pdf.text("VEHICLE LEGAL AGREEMENT", PAGE_W / 2, y + 18, { align: "center" });
-  y += 24;
+  y += 26;
 
-  // Booking ref + date (right-aligned row)
+  // Booking ref + date
   pdf.setFontSize(6.5);
-  pdf.setFont("helvetica", "normal");
-  const refLine = `Booking Reference: ${bookingCode}`;
-  const dateLine = `Agreement Date: ${fmtDateShort(agreement.created_at)}`;
   pdf.setFont("helvetica", "bold");
   pdf.text("Booking Reference:", L, y);
   pdf.setFont("helvetica", "normal");
@@ -205,16 +209,16 @@ function renderStructuredPdf(
   pdf.text("Agreement Date:", MID, y);
   pdf.setFont("helvetica", "normal");
   pdf.text(fmtDateShort(agreement.created_at), MID + 68, y);
-  y += 6;
+  y += 8;
 
   hLine(pdf, y);
-  y += 5;
+  y += SEC_GAP;
 
   // ─────────────────────────────────────────────
   // RENTER INFORMATION
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "RENTER INFORMATION", L, y);
-  y += 8;
+  y += TITLE_GAP;
 
   const displayName = t.customer.name && !t.customer.name.includes("@")
     ? t.customer.name : "—";
@@ -222,16 +226,16 @@ function renderStructuredPdf(
 
   labelValue(pdf, "Name:", displayName, L, y);
   labelValue(pdf, "Email:", displayEmail, MID, y);
-  y += 8;
+  y += ROW_H + 2;
 
   hLine(pdf, y);
-  y += 5;
+  y += SEC_GAP;
 
   // ─────────────────────────────────────────────
   // LOCATIONS (two columns)
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "LOCATIONS", L, y);
-  y += 8;
+  y += TITLE_GAP;
 
   const pickupLoc = t.locations.pickup;
   const dropoffLoc = t.locations.dropoff;
@@ -242,9 +246,8 @@ function renderStructuredPdf(
   pdf.setFont("helvetica", "bold");
   pdf.text("Pickup Location:", L, y);
   pdf.text("Drop-off Location:", MID, y);
-  y += 7;
+  y += 8;
   pdf.setFont("helvetica", "normal");
-  // Wrap pickup address
   const pickupLines = pdf.splitTextToSize(pickupAddr || "—", CW * 0.48);
   const dropoffLines = pdf.splitTextToSize(
     dropoffAddr === pickupAddr ? `${dropoffAddr} (Same as pickup)` : (dropoffAddr || "—"),
@@ -254,26 +257,27 @@ function renderStructuredPdf(
   for (let i = 0; i < locLines; i++) {
     if (pickupLines[i]) pdf.text(pickupLines[i], L, y);
     if (dropoffLines[i]) pdf.text(dropoffLines[i], MID, y);
-    y += 6;
+    y += 7;
   }
 
   if (t.locations.deliveryAddress) {
+    y += 1;
     pdf.setFont("helvetica", "bold");
     pdf.text("Delivery Address:", L, y);
     pdf.setFont("helvetica", "normal");
     pdf.text(t.locations.deliveryAddress, L + 68, y);
-    y += 6;
+    y += 7;
   }
 
-  y += 1;
+  y += 2;
   hLine(pdf, y);
-  y += 5;
+  y += SEC_GAP;
 
   // ─────────────────────────────────────────────
-  // VEHICLE DETAILS + CONDITION (two columns)
+  // VEHICLE DETAILS + CONDITION
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "VEHICLE DETAILS", L, y);
-  y += 8;
+  y += TITLE_GAP;
 
   const makeModelParts = [t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean);
   const vehicleDesc = t.vehicle.category || "—";
@@ -282,15 +286,15 @@ function renderStructuredPdf(
   if (makeModelParts.length > 0) {
     labelValue(pdf, "Vehicle:", makeModelParts.join(" "), MID, y);
   }
-  y += 7;
+  y += ROW_H;
 
   labelValue(pdf, "Fuel Type:", t.vehicle.fuelType || "—", L, y);
   labelValue(pdf, "Transmission:", t.vehicle.transmission || "—", MID, y);
-  y += 7;
+  y += ROW_H;
 
   labelValue(pdf, "Seats:", `${t.vehicle.seats || "—"} passengers`, L, y);
   labelValue(pdf, "Tank Capacity:", `${t.vehicle.tankCapacityLiters || 50} litres`, MID, y);
-  y += 7;
+  y += ROW_H;
 
   // VIN / Plate / Color (only if present)
   const hasVin = t.vehicle.vin && t.vehicle.vin !== "N/A";
@@ -300,10 +304,10 @@ function renderStructuredPdf(
     if (hasVin) labelValue(pdf, "VIN:", t.vehicle.vin!, L, y);
     if (hasPlate) labelValue(pdf, "Plate:", t.vehicle.licensePlate!, hasVin ? MID : L, y);
     if (hasColor && !hasPlate) labelValue(pdf, "Color:", t.vehicle.color!, hasVin ? MID : L, y);
-    y += 7;
+    y += ROW_H;
     if (hasColor && hasPlate) {
       labelValue(pdf, "Color:", t.vehicle.color!, L, y);
-      y += 7;
+      y += ROW_H;
     }
   }
 
@@ -313,7 +317,7 @@ function renderStructuredPdf(
   pdf.setTextColor(60, 60, 60);
   pdf.text("CONDITION AT PICKUP:", L, y);
   pdf.setTextColor(0, 0, 0);
-  y += 7;
+  y += ROW_H;
 
   const odometerStr = t.condition.odometerOut != null
     ? `${t.condition.odometerOut.toLocaleString()} km` : "N/A";
@@ -322,43 +326,43 @@ function renderStructuredPdf(
 
   labelValue(pdf, "Kilometres Out:", odometerStr, L, y);
   labelValue(pdf, "Fuel Level:", fuelStr, MID, y);
-  y += 6;
+  y += ROW_H;
 
   hLine(pdf, y);
-  y += 5;
+  y += SEC_GAP;
 
   // ─────────────────────────────────────────────
   // RENTAL PERIOD
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "RENTAL PERIOD", L, y);
-  y += 8;
+  y += TITLE_GAP;
 
   labelValue(pdf, "Pick-up Date/Time:", fmtDateFull(t.rental.startAt), L, y);
-  y += 7;
+  y += ROW_H;
   labelValue(pdf, "Return Date/Time:", fmtDateFull(t.rental.endAt), L, y);
-  y += 7;
+  y += ROW_H;
   labelValue(pdf, "Duration:", `${t.rental.totalDays} day(s)`, L, y);
-  y += 6;
+  y += ROW_H;
 
   hLine(pdf, y);
-  y += 5;
+  y += SEC_GAP;
 
   // ─────────────────────────────────────────────
   // FINANCIAL SUMMARY
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "FINANCIAL SUMMARY", L, y);
-  y += 8;
+  y += TITLE_GAP;
 
-  const FS = 5.5; // financial font size
+  const FS = 5.5;
   pdf.setFontSize(FS);
 
   // Vehicle Rental
   pdf.setFont("helvetica", "bold");
   pdf.text("VEHICLE RENTAL:", L, y);
   pdf.setFont("helvetica", "normal");
-  y += 7;
+  y += FIN_HEAD_H;
   finRow(pdf, `Daily Rate: ${fmt(t.rental.dailyRate)} × ${t.rental.totalDays} days`, fmt(t.financial.vehicleSubtotal), y);
-  y += 6;
+  y += FIN_ROW_H;
 
   // Protection plan
   const protName = t.protection?.planName || "No Extra Protection";
@@ -368,93 +372,92 @@ function renderStructuredPdf(
   pdf.setFont("helvetica", "bold");
   pdf.text("PROTECTION PLAN:", L, y);
   pdf.setFont("helvetica", "normal");
-  y += 7;
+  y += FIN_HEAD_H;
   if (protDaily > 0) {
     finRow(pdf, `${protName}: ${fmt(protDaily)}/day × ${t.rental.totalDays} days`, fmt(protTotal), y);
   } else {
     finRow(pdf, protName, "$0.00", y);
   }
-  y += 6;
+  y += FIN_ROW_H;
 
   // Add-ons
   pdf.setFont("helvetica", "bold");
   pdf.text("ADD-ONS & EXTRAS:", L, y);
   pdf.setFont("helvetica", "normal");
-  y += 7;
+  y += FIN_HEAD_H;
 
   if (t.financial.addOns && t.financial.addOns.length > 0) {
     for (const addon of t.financial.addOns) {
       finRow(pdf, addon.name || "—", fmt(addon.price), y);
-      y += 6;
+      y += FIN_ROW_H;
     }
   } else {
     pdf.text("No add-ons selected", L + 8, y);
-    y += 6;
+    y += FIN_ROW_H;
   }
 
   // Regulatory fees
   pdf.setFont("helvetica", "bold");
   pdf.text("REGULATORY FEES:", L, y);
   pdf.setFont("helvetica", "normal");
-  y += 7;
+  y += FIN_HEAD_H;
   finRow(pdf, `PVRT (Passenger Vehicle Rental Tax): ${fmt(t.taxes.pvrtDailyFee)}/day × ${t.rental.totalDays}`, fmt(t.financial.pvrtTotal), y);
-  y += 6;
+  y += FIN_ROW_H;
   finRow(pdf, `ACSRCH (AC Surcharge): ${fmt(t.taxes.acsrchDailyFee)}/day × ${t.rental.totalDays}`, fmt(t.financial.acsrchTotal), y);
-  y += 6;
+  y += FIN_ROW_H;
 
   // Young driver fee
   if (t.financial.youngDriverFee > 0) {
     finRow(pdf, "Young Driver Fee", fmt(t.financial.youngDriverFee), y);
-    y += 6;
+    y += FIN_ROW_H;
   }
 
   // Subtotal
   pdf.setDrawColor(160, 160, 160);
   pdf.setLineWidth(0.3);
   pdf.line(L, y, R, y);
-  y += 5;
+  y += 6;
   finRowBold(pdf, "SUBTOTAL:", fmt(t.financial.subtotalBeforeTax), y);
-  y += 7;
+  y += FIN_HEAD_H;
 
   // Taxes
   pdf.setFont("helvetica", "bold");
   pdf.text("TAXES:", L, y);
   pdf.setFont("helvetica", "normal");
-  y += 7;
+  y += FIN_HEAD_H;
   finRow(pdf, `PST (${(t.taxes.pstRate * 100).toFixed(0)}%):`, fmt(t.financial.pstAmount), y);
   finRow(pdf, `GST (${(t.taxes.gstRate * 100).toFixed(0)}%):`, fmt(t.financial.gstAmount), y, MID);
-  y += 7;
+  y += FIN_HEAD_H;
 
   // Total box
   pdf.setFillColor(240, 240, 240);
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.8);
-  pdf.rect(L, y - 1, CW, 12, "FD");
+  pdf.rect(L, y - 1, CW, 13, "FD");
   pdf.setFontSize(7);
   pdf.setFont("helvetica", "bold");
-  pdf.text("TOTAL AMOUNT DUE:", L + 4, y + 7);
-  pdf.text(`${fmt(t.financial.grandTotal)} CAD`, R - 4, y + 7, { align: "right" });
-  y += 14;
+  pdf.text("TOTAL AMOUNT DUE:", L + 4, y + 8);
+  pdf.text(`${fmt(t.financial.grandTotal)} CAD`, R - 4, y + 8, { align: "right" });
+  y += 16;
 
   // Deposit
   pdf.setFontSize(FS);
   pdf.setFont("helvetica", "normal");
   finRow(pdf, "Security Deposit:", `${fmt(t.financial.depositAmount)} (refundable)`, y);
-  y += 6;
+  y += FIN_ROW_H + 1;
 
   hLine(pdf, y);
-  y += 4;
+  y += SEC_GAP - 2;
 
   // ─────────────────────────────────────────────
-  // TERMS AND CONDITIONS (two-column, ultra-compact)
+  // TERMS AND CONDITIONS (two-column, compact)
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "TERMS AND CONDITIONS", L, y);
-  y += 6;
+  y += 7;
 
   const p = t.policies;
   const tankCap = t.vehicle.tankCapacityLiters || 50;
 
-  // Build all T&C as compact numbered blocks
   const tcBlocks = [
     {
       title: "1. DRIVER REQUIREMENTS",
@@ -524,14 +527,13 @@ function renderStructuredPdf(
   ];
 
   // Render in two columns
-  const TF = 4.5; // terms font size
-  const TLH = 5.2; // terms line height
+  const TF = 4.5;
+  const TLH = 5.6; // slightly more breathing room
   const colW = CW * 0.48;
   const col1X = L;
   const col2X = MID + 4;
   const tcStartY = y;
 
-  // Split blocks into two columns (left: 1-5, right: 6-9)
   const leftBlocks = tcBlocks.slice(0, 5);
   const rightBlocks = tcBlocks.slice(5);
 
@@ -545,19 +547,19 @@ function renderStructuredPdf(
     ry = renderTcBlock(pdf, block.title, block.items, col2X, ry, colW, TF, TLH);
   }
 
-  y = Math.max(ly, ry) + 2;
+  y = Math.max(ly, ry) + 3;
 
   hLine(pdf, y);
-  y += 4;
+  y += SEC_GAP - 2;
 
   // ─────────────────────────────────────────────
   // ACKNOWLEDGMENT AND SIGNATURE
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "ACKNOWLEDGMENT AND SIGNATURE", L, y);
-  y += 6;
+  y += 7;
 
   const ackFontSize = 4.5;
-  const ackLH = 5.2;
+  const ackLH = 5.6;
   pdf.setFontSize(ackFontSize);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(30, 30, 30);
@@ -579,7 +581,7 @@ function renderStructuredPdf(
     }
   }
 
-  y += 3;
+  y += 4;
 
   // Signature block
   pdf.setTextColor(0, 0, 0);
@@ -594,14 +596,14 @@ function renderStructuredPdf(
     pdf.text("DATE:", MID + 20, y);
     pdf.setFont("helvetica", "normal");
     pdf.text(fmtDateLong(agreement.customer_signed_at!), MID + 48, y);
-    y += 8;
+    y += 10;
 
     if (agreement.staff_confirmed_at) {
       pdf.setFont("helvetica", "bold");
       pdf.text("CONFIRMED BY STAFF:", L, y);
       pdf.setFont("helvetica", "normal");
       pdf.text(fmtDateLong(agreement.staff_confirmed_at), L + 88, y);
-      y += 8;
+      y += 10;
     }
 
     if (agreement.signed_manually) {
@@ -609,7 +611,7 @@ function renderStructuredPdf(
       pdf.setFont("helvetica", "italic");
       pdf.setTextColor(100, 100, 100);
       pdf.text("(Signed in person)", L, y);
-      y += 6;
+      y += 8;
     }
   } else {
     pdf.setFontSize(6);
@@ -621,7 +623,7 @@ function renderStructuredPdf(
 
     pdf.text("DATE:", MID + 30, y);
     pdf.line(MID + 56, y, MID + 160, y);
-    y += 10;
+    y += 12;
   }
 
   // ─────────────────────────────────────────────
@@ -703,7 +705,7 @@ function renderTcBlock(
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(title, x, y);
-  y += lineH;
+  y += lineH + 0.5;
 
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(30, 30, 30);
@@ -714,7 +716,7 @@ function renderTcBlock(
       y += lineH;
     }
   }
-  y += 1; // gap between blocks
+  y += 2; // gap between blocks
   return y;
 }
 
