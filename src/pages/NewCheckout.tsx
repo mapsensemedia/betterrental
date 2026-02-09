@@ -96,6 +96,7 @@ export default function NewCheckout() {
     cardNumber: "",
     cardName: "",
     expiryDate: "",
+    cvv: "",
     country: "Canada",
     streetAddress: "",
     city: "",
@@ -322,6 +323,7 @@ export default function NewCheckout() {
       number: formData.cardNumber,
       expiry: formData.expiryDate,
       name: formData.cardName,
+      cvv: formData.cvv,
     });
 
     if (!cardValidation.valid) {
@@ -832,11 +834,14 @@ export default function NewCheckout() {
                   cardNumber={formData.cardNumber}
                   cardName={formData.cardName}
                   expiryDate={formData.expiryDate}
+                  cvv={formData.cvv}
                   onCardNumberChange={(v) => handleInputChange("cardNumber", v)}
                   onCardNameChange={(v) => handleInputChange("cardName", v)}
                   onExpiryDateChange={(v) => handleInputChange("expiryDate", v)}
+                  onCvvChange={(v) => handleInputChange("cvv", v)}
                   errors={cardErrors}
                   showValidation={true}
+                  showCvv={true}
                 />
 
                 {/* Policy text under the form */}
