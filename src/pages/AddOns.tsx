@@ -17,6 +17,7 @@ import { AdditionalDriversCard, calculateAdditionalDriversCost, type AdditionalD
 import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
 import { calculateFuelCostForUnit, FUEL_DISCOUNT_CENTS } from "@/lib/fuel-pricing";
+import { useProtectionPackages } from "@/hooks/use-protection-settings";
 
 const ADDON_ICONS: Record<string, typeof Users> = {
   "roadside": Shield,
@@ -60,6 +61,7 @@ export default function AddOns() {
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays, setSelectedAddOns, setAdditionalDrivers } = useRentalBooking();
   const { data: addOns = [] } = useAddOns();
+  const { rates: PROTECTION_RATES } = useProtectionPackages();
 
   // Support both legacy vehicleId and new categoryId
   const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
@@ -101,13 +103,8 @@ export default function AddOns() {
 
   // Calculate totals using central pricing utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);
-  const protectionRates: Record<string, number> = {
-    none: 0,
-    basic: 33.99,
-    smart: 39.25,
-    premium: 49.77,
-  };
-  const protectionDailyRate = protectionRates[protection] || 0;
+  const protectionInfo = PROTECTION_RATES[protection] || PROTECTION_RATES.none;
+  const protectionDailyRate = protectionInfo?.rate || 0;
   const deliveryFee = searchData.deliveryMode === "delivery" ? (searchData.deliveryFee || 0) : 0;
   
   // Calculate add-ons total (exclude "Additional Driver" add-on — handled separately)

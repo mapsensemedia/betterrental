@@ -282,7 +282,7 @@ export default function FleetCosts() {
           <div>
             <h1 className="text-2xl font-bold">Fleet Costs</h1>
             <p className="text-sm text-muted-foreground">
-              Track VIN numbers, acquisition costs, lifecycle, and vehicle health
+              Track individual vehicle units — VIN numbers, acquisition costs, lifecycle, and health
             </p>
           </div>
           <div className="flex gap-2">

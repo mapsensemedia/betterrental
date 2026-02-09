@@ -68,7 +68,7 @@ export function FleetOverviewTab() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{summary?.totalVehicles || 0}</p>
-                <p className="text-xs text-muted-foreground">Total Vehicles</p>
+                <p className="text-xs text-muted-foreground">Total Units (individual vehicles)</p>
               </div>
             </div>
           </CardContent>

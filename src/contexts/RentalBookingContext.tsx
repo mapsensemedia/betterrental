@@ -135,6 +135,8 @@ function loadFromStorage(): RentalSearchData {
         ...parsed,
         pickupDate: parsed.pickupDate ? new Date(parsed.pickupDate) : null,
         returnDate: parsed.returnDate ? new Date(parsed.returnDate) : null,
+        // Clear session-specific data that should not persist
+        additionalDrivers: [],
       };
     }
   } catch (e) {
@@ -157,8 +159,9 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
     console.log("[RentalContext] Persisted:", toStore);
   }, [searchData]);
 
-  // Set pickup location
+  // Set pickup location - supports both constant IDs and DB UUIDs
   const setPickupLocation = useCallback((id: string) => {
+    // First try the constants lookup
     const location = getLocationById(id);
     if (location) {
       setSearchData((prev) => ({
@@ -166,7 +169,15 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
         pickupLocationId: location.id,
         pickupLocationName: location.name,
         pickupLocationAddress: location.address,
-        pickupLocation: location.address, // Legacy compatibility
+        pickupLocation: location.address,
+      }));
+    } else {
+      // DB UUID that doesn't match constants - store the ID directly
+      // The name/address will be filled when the location data is fetched
+      setSearchData((prev) => ({
+        ...prev,
+        pickupLocationId: id,
+        pickupLocation: id,
       }));
     }
   }, []);

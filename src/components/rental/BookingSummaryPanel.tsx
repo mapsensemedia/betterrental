@@ -64,9 +64,12 @@ export function BookingSummaryPanel({
 
   // Filter out "Additional Driver" add-on ID from regular add-ons
   // since additional drivers are managed separately via additionalDrivers[]
+  // Guard: only filter if addOns list has loaded; otherwise exclude IDs we can't verify
   const effectiveAddOnIds = (overrideAddOnIds ?? searchData.selectedAddOnIds).filter((id) => {
     const addon = addOns.find((a) => a.id === id);
-    return !addon || !isAdditionalDriverAddon(addon.name);
+    // If addon not found and list is loaded, exclude it (stale ID)
+    if (!addon) return addOns.length === 0;
+    return !isAdditionalDriverAddon(addon.name);
   });
   
   // Use override additional drivers if provided, otherwise fall back to context

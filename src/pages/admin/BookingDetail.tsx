@@ -201,6 +201,17 @@ export default function BookingDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Open in Operations - for actionable bookings */}
+              {!isOpsContext && (booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate(`/ops/bookings/${bookingId}?returnTo=${returnTo}`)}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open in Operations
+                </Button>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="icon" onClick={() => refetch()}>
@@ -288,6 +299,11 @@ export default function BookingDetail() {
                       }>
                         {booking.profiles?.driver_license_status || "Pending"}
                       </Badge>
+                      {(!booking.profiles?.driver_license_status || booking.profiles?.driver_license_status === "pending") && (
+                        <p className="text-xs text-muted-foreground mt-1 italic">
+                          License can be uploaded by the customer from their booking page.
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -476,6 +492,64 @@ export default function BookingDetail() {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Financial Summary (quick glance on Overview tab) */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Financial Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Daily Rate:</span>
+                        <span>${Number(booking.daily_rate).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Duration:</span>
+                        <span>{booking.total_days} day{booking.total_days !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span>${Number(booking.subtotal).toFixed(2)}</span>
+                      </div>
+                      {booking.tax_amount && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Tax:</span>
+                          <span>${Number(booking.tax_amount).toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between font-semibold text-base">
+                      <span>Total:</span>
+                      <span>${Number(booking.total_amount).toFixed(2)} CAD</span>
+                    </div>
+                    {booking.deposit_amount && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Deposit:</span>
+                        <span>
+                          ${Number(booking.deposit_amount).toFixed(2)}
+                          {booking.deposit_status && (
+                            <Badge variant="outline" className="ml-2 text-[10px]">
+                              {booking.deposit_status}
+                            </Badge>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {booking.card_last_four && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Card on File:</span>
+                        <span className="font-mono">
+                          {booking.card_type?.toUpperCase() || "Card"} •••• {booking.card_last_four}
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 

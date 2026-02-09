@@ -4,7 +4,7 @@
  * Customer never sees VIN or plate numbers
  */
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Grid, List, ArrowUpDown, Car, MapPin, Users, Fuel, Settings2 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -30,6 +30,7 @@ type SortOption = "recommended" | "price-low" | "price-high";
 
 export default function Search() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { 
     searchData, 
     isSearchValid,
@@ -37,7 +38,39 @@ export default function Search() {
     setSelectedVehicle,
     setSelectedAddOns,
     setAdditionalDrivers,
+    setPickupDateTime,
+    setReturnDateTime,
+    setPickupLocation,
   } = useRentalBooking();
+  
+  // Hydrate context from URL params if context is empty (safety net for landing page → search)
+  useEffect(() => {
+    const urlLocationId = searchParams.get("locationId");
+    const urlStartAt = searchParams.get("startAt");
+    const urlEndAt = searchParams.get("endAt");
+
+    if (urlLocationId && !searchData.pickupLocationId) {
+      setPickupLocation(urlLocationId);
+    }
+    if (urlStartAt && !searchData.pickupDate) {
+      const startDate = new Date(urlStartAt);
+      if (!isNaN(startDate.getTime())) {
+        const time = `${String(startDate.getHours()).padStart(2, "0")}:${String(startDate.getMinutes()).padStart(2, "0")}`;
+        setPickupDateTime(startDate, time);
+      }
+    }
+    if (urlEndAt && !searchData.returnDate) {
+      const endDate = new Date(urlEndAt);
+      if (!isNaN(endDate.getTime())) {
+        const time = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+        setReturnDateTime(endDate, time);
+      }
+    }
+    
+    // Clear stale add-ons/drivers on page mount
+    setSelectedAddOns([]);
+    setAdditionalDrivers([]);
+  }, []); // Run once on mount
   
   const contextLocationId = searchData.pickupLocationId;
   const startDate = searchData.pickupDate;

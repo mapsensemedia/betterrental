@@ -63,7 +63,7 @@ export default function FleetAnalytics() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Fleet Analytics</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Vehicle utilization, costs, and profitability tracking
+              Vehicle categories — utilization, costs, and profitability tracking
             </p>
           </div>
           <div className="flex items-center gap-2">
