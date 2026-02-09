@@ -3,7 +3,7 @@
  * Shows available categories (only those with available VINs at selected location)
  * Customer never sees VIN or plate numbers
  */
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Grid, List, ArrowUpDown, Car, MapPin, Users, Fuel, Settings2 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -43,6 +43,10 @@ export default function Search() {
     setPickupLocation,
   } = useRentalBooking();
   
+  useEffect(() => {
+    document.title = "Browse Cars | C2C Rental – Surrey, Langley & Abbotsford";
+  }, []);
+
   // Hydrate context from URL params if context is empty (safety net for landing page → search)
   useEffect(() => {
     const urlLocationId = searchParams.get("locationId");

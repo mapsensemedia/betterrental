@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { MapPin, ChevronRight, Navigation } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -18,6 +19,10 @@ const LOCATION_MAPS_LINKS: Record<string, string> = {
 export default function Locations() {
   const { data: locations = [], isLoading, error } = useLocations();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Our Locations | C2C Rental – Surrey, Langley & Abbotsford";
+  }, []);
 
   const handleGetDirections = (locationName: string, lat: number | null, lng: number | null, address: string, city: string) => {
     // Use specific Google Maps link if available, otherwise fallback to generated URL
