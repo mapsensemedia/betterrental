@@ -72,7 +72,13 @@ export default function AddOns() {
   // Use category if available, otherwise legacy vehicle
   const vehicle = category || legacyVehicle;
   
-  const [selectedAddOnIds, setLocalSelectedAddOns] = useState<string[]>(searchData.selectedAddOnIds || []);
+  // Initialize local state but filter out any stale "Additional Driver" add-on IDs
+  const [selectedAddOnIds, setLocalSelectedAddOns] = useState<string[]>(() => {
+    return (searchData.selectedAddOnIds || []).filter((id) => {
+      const addon = addOns.find((a) => a.id === id);
+      return !addon || !isAdditionalDriverAddon(addon.name);
+    });
+  });
   const [additionalDrivers, setLocalAdditionalDrivers] = useState<AdditionalDriver[]>(searchData.additionalDrivers || []);
 
   // Auto-deselect Premium Roadside if All Inclusive protection is selected
@@ -104,10 +110,10 @@ export default function AddOns() {
   const protectionDailyRate = protectionRates[protection] || 0;
   const deliveryFee = searchData.deliveryMode === "delivery" ? (searchData.deliveryFee || 0) : 0;
   
-  // Calculate add-ons total
+  // Calculate add-ons total (exclude "Additional Driver" add-on — handled separately)
   const addOnsTotal = selectedAddOnIds.reduce((sum, id) => {
     const addon = addOns.find((a) => a.id === id);
-    if (!addon) return sum;
+    if (!addon || isAdditionalDriverAddon(addon.name)) return sum;
     return sum + addon.dailyRate * rentalDays + (addon.oneTimeFee || 0);
   }, 0);
 
@@ -136,8 +142,12 @@ export default function AddOns() {
     // Track add-ons selection
     funnelEvents.addonsSelected(selectedAddOnIds, addOnsTotal + additionalDriversCost.total);
 
-    // Save to context
-    setSelectedAddOns(selectedAddOnIds);
+    // Save to context — ensure "Additional Driver" add-on ID is never in selectedAddOnIds
+    const cleanedAddOnIds = selectedAddOnIds.filter((id) => {
+      const addon = addOns.find((a) => a.id === id);
+      return !addon || !isAdditionalDriverAddon(addon.name);
+    });
+    setSelectedAddOns(cleanedAddOnIds);
     setAdditionalDrivers(additionalDrivers);
 
     // Build URL params for checkout - always use categoryId for new flow

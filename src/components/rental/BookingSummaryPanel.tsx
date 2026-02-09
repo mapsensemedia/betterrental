@@ -16,6 +16,12 @@ import { useSearchParams } from "react-router-dom";
 import { calculateAdditionalDriversCost } from "./AdditionalDriversCard";
 import { PriceTooltip, PRICE_TOOLTIPS } from "@/components/shared/PriceTooltip";
 
+/** Check if an add-on is the "Additional Driver" type (handled separately) */
+function isAdditionalDriverAddon(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.includes("additional") && lower.includes("driver");
+}
+
 interface BookingSummaryPanelProps {
   className?: string;
   showPricing?: boolean;
@@ -56,8 +62,12 @@ export function BookingSummaryPanel({
   
   const { data: addOns = [] } = useAddOns();
 
-  // Use override add-on IDs if provided, otherwise fall back to context
-  const effectiveAddOnIds = overrideAddOnIds ?? searchData.selectedAddOnIds;
+  // Filter out "Additional Driver" add-on ID from regular add-ons
+  // since additional drivers are managed separately via additionalDrivers[]
+  const effectiveAddOnIds = (overrideAddOnIds ?? searchData.selectedAddOnIds).filter((id) => {
+    const addon = addOns.find((a) => a.id === id);
+    return !addon || !isAdditionalDriverAddon(addon.name);
+  });
   
   // Use override additional drivers if provided, otherwise fall back to context
   const effectiveAdditionalDrivers = overrideAdditionalDrivers ?? searchData.additionalDrivers;
@@ -113,8 +123,9 @@ export function BookingSummaryPanel({
     };
   })();
 
+  // Filter out "Additional Driver" add-on — it's managed separately via additionalDrivers[]
   const selectedAddOnsData = addOns.filter((a) =>
-    effectiveAddOnIds.includes(a.id)
+    effectiveAddOnIds.includes(a.id) && !isAdditionalDriverAddon(a.name)
   );
 
   // Location display - For delivery mode, show the delivery address prominently

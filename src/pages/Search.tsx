@@ -35,6 +35,8 @@ export default function Search() {
     isSearchValid,
     canProceedToSelectCar,
     setSelectedVehicle,
+    setSelectedAddOns,
+    setAdditionalDrivers,
   } = useRentalBooking();
   
   const contextLocationId = searchData.pickupLocationId;
@@ -100,8 +102,10 @@ export default function Search() {
       return;
     }
 
-    // Store category ID and navigate to protection step
+    // Store category ID and clear stale add-ons/drivers from any previous session
     setSelectedVehicle(category.id);
+    setSelectedAddOns([]);
+    setAdditionalDrivers([]);
     
     // Build URL params for protection step
     const params = new URLSearchParams();
