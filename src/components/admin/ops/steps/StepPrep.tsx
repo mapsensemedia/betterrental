@@ -71,8 +71,8 @@ export function StepPrep({
       queryClient.invalidateQueries({ queryKey: ["available-drivers"] });
       onDriverAssigned?.();
     },
-    onError: (error) => {
-      toast.error("Failed to assign driver", { description: error.message });
+    onError: () => {
+      toast.error("Failed to assign driver. Please try again.");
     },
   });
   

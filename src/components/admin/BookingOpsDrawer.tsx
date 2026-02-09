@@ -57,6 +57,7 @@ import { CheckInSection } from "./CheckInSection";
 import { PaymentDepositPanel } from "./PaymentDepositPanel";
 import { RentalAgreementPanel } from "./RentalAgreementPanel";
 import { WalkaroundInspection } from "./WalkaroundInspection";
+import { BookingModificationPanel } from "./ops/BookingModificationPanel";
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
@@ -88,6 +89,7 @@ import {
   Wrench,
   UserCheck,
   ClipboardCheck,
+  CalendarClock,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -587,6 +589,21 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                       </Button>
                     </AccordionContent>
                   </AccordionItem>
+
+                  {/* Booking Modification */}
+                  {(booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
+                    <AccordionItem value="modify" className="border rounded-lg">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <CalendarClock className="w-4 h-4" />
+                          Modify Rental Duration
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <BookingModificationPanel booking={booking} />
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
                 </Accordion>
               </div>
             ) : (
