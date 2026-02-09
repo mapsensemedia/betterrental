@@ -45,6 +45,7 @@ interface VehicleAssignmentProps {
   locationId: string;
   startAt: string;
   endAt: string;
+  onChangeCategoryClick?: () => void;
 }
 
 export function VehicleAssignment({
@@ -54,6 +55,7 @@ export function VehicleAssignment({
   locationId,
   startAt,
   endAt,
+  onChangeCategoryClick,
 }: VehicleAssignmentProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -148,30 +150,54 @@ export function VehicleAssignment({
           )}
 
           {currentVehicle ? (
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => setDialogOpen(true)} 
-                variant="outline"
-                className="flex-1"
-              >
-                Change Vehicle
-              </Button>
-              <Button
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={() => unassignVehicle.mutate(bookingId)}
-                disabled={unassignVehicle.isPending}
-              >
-                {unassignVehicle.isPending ? "..." : "Remove"}
-              </Button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setDialogOpen(true)} 
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Change Vehicle
+                </Button>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => unassignVehicle.mutate(bookingId)}
+                  disabled={unassignVehicle.isPending}
+                >
+                  {unassignVehicle.isPending ? "..." : "Remove"}
+                </Button>
+              </div>
+              {onChangeCategoryClick && (
+                <Button 
+                  onClick={onChangeCategoryClick} 
+                  variant="outline"
+                  className="w-full"
+                >
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Change Vehicle Category
+                </Button>
+              )}
             </div>
           ) : (
-            <Button 
-              onClick={() => setDialogOpen(true)} 
-              className="w-full"
-            >
-              Assign Vehicle
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                onClick={() => setDialogOpen(true)} 
+                className="w-full"
+              >
+                Assign Vehicle
+              </Button>
+              {onChangeCategoryClick && (
+                <Button 
+                  onClick={onChangeCategoryClick} 
+                  variant="outline"
+                  className="w-full"
+                >
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Change Vehicle Category
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

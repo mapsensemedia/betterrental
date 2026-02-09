@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { displayName } from "@/lib/format-customer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import { OpsBackupActivation } from "./steps/OpsBackupActivation";
 import { CounterUpsellPanel } from "./CounterUpsellPanel";
 import { BookingEditPanel } from "./BookingEditPanel";
 import { VehicleAssignment } from "../VehicleAssignment";
+import { CategoryUpgradeDialog } from "../CategoryUpgradeDialog";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
@@ -83,6 +85,7 @@ export function OpsStepContent({
 }: OpsStepContentProps) {
   // Use provided steps or get default
   const steps = propSteps || getOpsSteps(isDelivery);
+  const [showCategoryUpgrade, setShowCategoryUpgrade] = useState(false);
   
   const step = steps.find(s => s.id === stepId);
   if (!step) return null;
@@ -180,6 +183,7 @@ export function OpsStepContent({
                   locationId={booking.location_id}
                   startAt={booking.start_at}
                   endAt={booking.end_at}
+                  onChangeCategoryClick={() => setShowCategoryUpgrade(true)}
                 />
               )}
               {/* Counter Upsell */}
@@ -289,6 +293,7 @@ export function OpsStepContent({
                     locationId={booking.location_id}
                     startAt={booking.start_at}
                     endAt={booking.end_at}
+                    onChangeCategoryClick={() => setShowCategoryUpgrade(true)}
                   />
                   <BookingEditPanel booking={booking} />
                 </div>
@@ -296,6 +301,13 @@ export function OpsStepContent({
             </>
           )}
         </div>
+
+      {/* Category Upgrade Dialog */}
+      <CategoryUpgradeDialog
+        open={showCategoryUpgrade}
+        onOpenChange={setShowCategoryUpgrade}
+        booking={booking}
+      />
       
       {/* Primary Step Action */}
       {showNextStepButton && !isBookingCompleted && !isBookingCancelled && (
