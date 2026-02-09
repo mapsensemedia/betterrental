@@ -153,9 +153,9 @@ export default function BookingOps() {
     dispatched: deliveryStatus === 'picked_up' || deliveryStatus === 'en_route' || deliveryStatus === 'delivered',
   } : undefined;
 
-  // New delivery pipeline completion
+  // Intake is auto-completed for delivery bookings
   const intakeCompletion = isDeliveryBooking ? {
-    reviewed: !!(booking as any)?.delivery_tasks?.[0]?.intake_completed_at || false,
+    reviewed: true, // Auto-completed — no manual step needed
   } : undefined;
 
   const readyLineCompletion = isDeliveryBooking ? {

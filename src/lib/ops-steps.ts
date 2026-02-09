@@ -75,47 +75,40 @@ export const OPS_STEPS: OpsStep[] = [
   },
 ];
 
-// DELIVERY PRE-DISPATCH STEPS (Ops Panel) - New pipeline:
-// Intake → Payment/Deposit → Ready Line → Dispatch → (Ops Backup Activation)
+// DELIVERY PRE-DISPATCH STEPS (Ops Panel)
+// Intake is auto-completed — staff start at Customer Verification
 export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
   {
-    id: "intake",
-    number: 1,
-    title: "Intake Review",
-    description: "Review booking, verify customer details, confirm delivery window/address",
-    icon: "clipboard-check",
-  },
-  {
     id: "checkin",
-    number: 2,
+    number: 1,
     title: "Customer Verification",
     description: "Verify ID, license, and contact details remotely",
     icon: "user-check",
   },
   {
     id: "payment",
-    number: 3,
+    number: 2,
     title: "Payment & Deposit",
     description: "Collect full payment and deposit hold before vehicle leaves depot",
     icon: "credit-card",
   },
   {
     id: "ready_line",
-    number: 4,
+    number: 3,
     title: "Ready Line",
     description: "Prep checklist, photos, fuel/odometer, maintenance check, lock pricing",
     icon: "wrench",
   },
   {
     id: "dispatch",
-    number: 5,
+    number: 4,
     title: "Dispatch to Driver",
     description: "Assign driver, schedule window, dispatch vehicle for delivery",
     icon: "truck",
   },
   {
     id: "ops_activate",
-    number: 6,
+    number: 5,
     title: "Ops Backup Activation",
     description: "Activate rental from Ops if driver cannot (requires evidence + reason)",
     icon: "shield",
@@ -296,7 +289,8 @@ export function getBlockingIssues(stepId: OpsStepId, completion: StepCompletion,
 export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion, isDelivery: boolean = false): boolean {
   switch (stepId) {
     case "intake":
-      return completion.intake?.reviewed || false;
+      // Intake is auto-completed for delivery bookings
+      return true;
     case "checkin":
       return (
         completion.checkin.govIdVerified &&
