@@ -35,6 +35,13 @@ export interface AgreementTermsJson {
     name?: string | null;
     email?: string | null;
   };
+  protection?: {
+    planId?: string;
+    planName?: string;
+    dailyRate?: number;
+    total?: number;
+    deductible?: string;
+  };
   financial: {
     vehicleSubtotal: number;
     addOnsTotal: number;

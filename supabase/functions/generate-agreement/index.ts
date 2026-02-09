@@ -11,6 +11,7 @@ import { validateAuth } from "../_shared/auth.ts";
  * - Renter info only (no business phone in renter section)
  * - Pickup and drop-off locations
  * - Vehicle details with odometer/fuel at pickup
+ * - Protection plan details
  * - Full financial breakdown (add-ons, taxes, PVRT, ACSRCH)
  * - Tank capacity and fuel level
  * - Updated T&C including age requirements, late fees, liability, etc.
@@ -21,6 +22,14 @@ const PST_RATE = 0.07;
 const GST_RATE = 0.05;
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
+
+// Protection packages (mirrors src/lib/pricing.ts)
+const PROTECTION_PACKAGES: Record<string, { name: string; dailyRate: number; deductible: string }> = {
+  none: { name: "No Extra Protection", dailyRate: 0, deductible: "Up to full vehicle value" },
+  basic: { name: "Basic Protection", dailyRate: 33.99, deductible: "Up to $800.00" },
+  smart: { name: "Smart Protection", dailyRate: 39.25, deductible: "$0.00" },
+  premium: { name: "All Inclusive Protection", dailyRate: 49.77, deductible: "$0.00" },
+};
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -151,6 +160,8 @@ serve(async (req) => {
         .single();
       if (category) {
         categoryInfo = { ...categoryInfo, ...category };
+      } else {
+        console.error(`Category not found for vehicle_id: ${booking.vehicle_id}`);
       }
     }
 
@@ -187,6 +198,8 @@ serve(async (req) => {
       if (unitError) {
         console.error("Failed to fetch vehicle unit:", unitError);
       }
+    } else {
+      console.log(`No assigned unit for booking ${bookingId} — using category info only`);
     }
 
     // Fetch inspection metrics (odometer/fuel at pickup)
@@ -249,10 +262,18 @@ serve(async (req) => {
       );
     }
 
+    // Resolve protection plan from booking
+    const protectionPlanId = (booking as any).protection_plan || "none";
+    const protectionPkg = PROTECTION_PACKAGES[protectionPlanId] || PROTECTION_PACKAGES.none;
+    
     // Calculate financial breakdown
     const rentalDays = booking.total_days || 1;
     const dailyRate = Number(booking.daily_rate) || 0;
     const vehicleSubtotal = dailyRate * rentalDays;
+    
+    // Protection total
+    const protectionDailyRate = protectionPkg.dailyRate;
+    const protectionTotal = protectionDailyRate * rentalDays;
     
     // Add-ons total
     const addOnsTotal = (bookingAddOns || []).reduce((sum, addon) => {
@@ -267,7 +288,7 @@ serve(async (req) => {
     const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
     
     // Calculate subtotal before tax
-    const subtotalBeforeTax = vehicleSubtotal + addOnsTotal + youngDriverFee + pvrtTotal + acsrchTotal;
+    const subtotalBeforeTax = vehicleSubtotal + protectionTotal + addOnsTotal + youngDriverFee + pvrtTotal + acsrchTotal;
     
     // Calculate taxes
     const pstAmount = subtotalBeforeTax * PST_RATE;
@@ -290,7 +311,7 @@ serve(async (req) => {
     // Tank capacity - prefer unit-specific, fallback to category default
     const tankCapacity = unitInfo.tank_capacity_liters || categoryInfo.tank_capacity_liters || 50;
     
-    // Build add-ons section
+    // Build add-ons section for text content
     let addOnsSection = "";
     if (bookingAddOns && bookingAddOns.length > 0) {
       addOnsSection = bookingAddOns.map(addon => {
@@ -302,18 +323,23 @@ serve(async (req) => {
       addOnsSection = "   No add-ons selected";
     }
 
-    // Generate compact agreement content (structured data is in terms_json)
+    // Build vehicle description — NEVER hardcode a vehicle name
     const vehicleDesc = unitInfo.make 
       ? `${categoryInfo.name} — ${[unitInfo.year, unitInfo.make, unitInfo.model].filter(Boolean).join(" ")}` 
       : categoryInfo.name;
+
+    // Generate compact agreement content (structured data is in terms_json)
     const agreementContent = `C2C CAR RENTAL — VEHICLE RENTAL AGREEMENT
 Booking: ${booking.booking_code} | Date: ${generatedDate}
 
-Renter: ${displayName} | Email: ${profile?.email || 'N/A'}
+Renter: ${displayName} | Email: ${profile?.email || '—'}
 Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(s)
-Location: ${booking.locations?.name || 'N/A'}, ${booking.locations?.address || 'N/A'}, ${booking.locations?.city || 'N/A'}
+Location: ${booking.locations?.name || '—'}, ${booking.locations?.address || '—'}, ${booking.locations?.city || '—'}
 Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
-Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)} | Add-ons: $${addOnsTotal.toFixed(2)}${youngDriverFee > 0 ? ` | Young Driver: $${youngDriverFee.toFixed(2)}` : ''}
+Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}
+Protection: ${protectionPkg.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
+Add-ons: $${addOnsTotal.toFixed(2)}
+${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)}` : ''}
 PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)} | GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
 TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
 
@@ -361,8 +387,16 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         name: displayName,
         email: profile?.email,
       },
+      protection: {
+        planId: protectionPlanId,
+        planName: protectionPkg.name,
+        dailyRate: protectionDailyRate,
+        total: protectionTotal,
+        deductible: protectionPkg.deductible,
+      },
       financial: {
         vehicleSubtotal,
+        protectionTotal,
         addOnsTotal,
         youngDriverFee,
         pvrtTotal,
@@ -374,7 +408,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         grandTotal,
         depositAmount: Number(booking.deposit_amount || 350),
         addOns: (bookingAddOns || []).map(addon => ({
-          name: (addon.add_ons as any)?.name,
+          name: (addon.add_ons as any)?.name || "—",
           price: Number(addon.price),
         })),
       },

@@ -5,6 +5,14 @@ import type { RentalAgreement } from "@/hooks/use-rental-agreement";
 // Logo asset path
 const LOGO_PATH = "/c2c-logo.png";
 
+interface ProtectionTerms {
+  planId?: string;
+  planName?: string;
+  dailyRate?: number;
+  total?: number;
+  deductible?: string;
+}
+
 interface TermsJson {
   vehicle: {
     category?: string;
@@ -38,8 +46,10 @@ interface TermsJson {
     name?: string | null;
     email?: string | null;
   };
+  protection?: ProtectionTerms;
   financial: {
     vehicleSubtotal: number;
+    protectionTotal?: number;
     addOnsTotal: number;
     youngDriverFee: number;
     pvrtTotal: number;
@@ -116,10 +126,6 @@ function fmtDateLong(dateStr: string): string {
   }
 }
 
-function pad(str: string, len: number): string {
-  return str.substring(0, len).padEnd(len);
-}
-
 // ── PDF Config ──
 
 const MARGIN = 36;
@@ -163,6 +169,7 @@ function renderStructuredPdf(
 ) {
   let y = MARGIN;
   const bookingCode = bookingId.slice(0, 8).toUpperCase();
+  const LH = 9; // line height
 
   // ── HEADER ──
   if (logoBase64) {
@@ -219,12 +226,11 @@ function renderStructuredPdf(
   y += 8;
 
   // ── VEHICLE INFO GRID (monospaced dense) ──
-  const LH = 9; // line height
   pdf.setFontSize(7);
   pdf.setFont("courier", "normal");
 
   // Row 1: Vehicle class & Make/Model
-  const vehClass = `VEH CLASS: ${(t.vehicle.category || "N/A").toUpperCase()}`;
+  const vehClass = `VEH CLASS: ${(t.vehicle.category || "—").toUpperCase()}`;
   monoLine(pdf, vehClass, COL_LEFT, y);
   // Build make/model from available fields
   const makeModelParts = [t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean);
@@ -245,7 +251,7 @@ function renderStructuredPdf(
   }
 
   // Row 3: Fuel/Trans/Seats & KMs Out
-  const fuelTrans = `FUEL: ${(t.vehicle.fuelType || "N/A").toUpperCase()}  TRANS: ${(t.vehicle.transmission || "N/A").toUpperCase()}  SEATS: ${t.vehicle.seats || "N/A"}`;
+  const fuelTrans = `FUEL: ${(t.vehicle.fuelType || "—").toUpperCase()}  TRANS: ${(t.vehicle.transmission || "—").toUpperCase()}  SEATS: ${t.vehicle.seats || "—"}`;
   monoLine(pdf, fuelTrans, COL_LEFT, y);
   if (t.condition.odometerOut != null) {
     monoLine(pdf, `KMS OUT: ${t.condition.odometerOut.toLocaleString()}`, COL_MID, y);
@@ -293,6 +299,58 @@ function renderStructuredPdf(
   pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
   y += 8;
 
+  // ══════════════════════════════════════════════
+  // ── AGREEMENT SUMMARY — Protection + Add-ons ──
+  // ══════════════════════════════════════════════
+  pdf.setFontSize(7.5);
+  pdf.setFont("courier", "bold");
+  pdf.text("AGREEMENT SUMMARY", COL_LEFT, y);
+  y += LH + 2;
+
+  pdf.setFont("courier", "normal");
+  pdf.setFontSize(7);
+
+  // Protection plan
+  const protectionName = t.protection?.planName || "No Extra Protection";
+  const protectionTotal = t.protection?.total ?? t.financial.protectionTotal ?? 0;
+  const protectionDaily = t.protection?.dailyRate ?? 0;
+  const protectionDeductible = t.protection?.deductible || "—";
+
+  monoLine(pdf, `PROTECTION: ${protectionName.toUpperCase()}`, COL_LEFT, y);
+  if (protectionDaily > 0) {
+    monoLine(pdf, `${fmt(protectionDaily)}/DAY x ${t.rental.totalDays} = ${fmt(protectionTotal)}`, COL_MID, y);
+  } else {
+    monoLine(pdf, `$0.00`, COL_MID, y);
+  }
+  y += LH;
+  monoLine(pdf, `DEDUCTIBLE: ${protectionDeductible.toUpperCase()}`, COL_LEFT, y);
+  y += LH + 2;
+
+  // Add-ons list
+  pdf.setFont("courier", "bold");
+  monoLine(pdf, `ADD-ONS:`, COL_LEFT, y);
+  pdf.setFont("courier", "normal");
+
+  if (t.financial.addOns && t.financial.addOns.length > 0) {
+    monoLine(pdf, `${t.financial.addOns.length} ITEM(S)`, COL_LEFT + 60, y);
+    y += LH;
+    for (const addon of t.financial.addOns) {
+      const addonName = (addon.name || "—").toUpperCase().substring(0, 24);
+      monoLine(pdf, `  ${addonName.padEnd(24)}${fmt(addon.price).padStart(8)}`, COL_LEFT, y);
+      y += LH;
+    }
+  } else {
+    monoLine(pdf, `NONE SELECTED`, COL_LEFT + 60, y);
+    y += LH;
+  }
+
+  y += 4;
+
+  // Separator
+  pdf.setLineWidth(0.5);
+  pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
+  y += 8;
+
   // ── CHARGES LEFT COLUMN ──
   const chargesStartY = y;
   pdf.setFontSize(7.5);
@@ -312,14 +370,13 @@ function renderStructuredPdf(
   monoLine(pdf, `VEHICLE     ${fmt(t.financial.vehicleSubtotal).padStart(8)}`, COL_LEFT, y);
   y += LH;
 
-  // Add-ons
-  if (t.financial.addOns && t.financial.addOns.length > 0) {
-    for (const addon of t.financial.addOns) {
-      const addonName = (addon.name || "ADD-ON").toUpperCase().substring(0, 12);
-      monoLine(pdf, `${addonName.padEnd(12)}${fmt(addon.price).padStart(8)}`, COL_LEFT, y);
-      y += LH;
-    }
+  // Protection
+  if (protectionTotal > 0) {
+    monoLine(pdf, `PROTECTION  ${fmt(protectionTotal).padStart(8)}`, COL_LEFT, y);
+    y += LH;
   }
+
+  // Add-ons total
   monoLine(pdf, `ADD-ONS     ${fmt(t.financial.addOnsTotal).padStart(8)}`, COL_LEFT, y);
   y += LH;
 
