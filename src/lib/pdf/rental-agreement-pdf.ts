@@ -193,11 +193,11 @@ function renderStructuredPdf(
   const bookingCode = bookingId.slice(0, 8).toUpperCase();
 
   // ── Spacing constants ──
-  const SEC_GAP = 7;     // gap after horizontal lines (before next section)
-  const TITLE_GAP = 9;   // gap after section title
+  const SEC_GAP = 6;     // gap after horizontal lines (before next section)
+  const TITLE_GAP = 8;   // gap after section title
   const ROW_H = 8;       // height between label-value rows
-  const FIN_ROW_H = 7;   // height between financial rows
-  const FIN_HEAD_H = 8;  // gap after financial sub-headers
+  const FIN_ROW_H = 8;   // height between financial rows
+  const FIN_HEAD_H = 9;  // gap after financial sub-headers
 
   // ─────────────────────────────────────────────
   // HEADER
@@ -367,7 +367,7 @@ function renderStructuredPdf(
   sectionTitle(pdf, "FINANCIAL SUMMARY", L, y);
   y += TITLE_GAP;
 
-  const FS = 5.5;
+  const FS = 6;
   pdf.setFontSize(FS);
 
   // Vehicle Rental
@@ -426,42 +426,44 @@ function renderStructuredPdf(
     y += FIN_ROW_H;
   }
 
-  // Subtotal
+  // Subtotal line
   pdf.setDrawColor(160, 160, 160);
   pdf.setLineWidth(0.3);
   pdf.line(L, y, R, y);
-  y += 6;
+  y += 8;
   finRowBold(pdf, "SUBTOTAL:", fmt(t.financial.subtotalBeforeTax), y);
-  y += FIN_HEAD_H;
+  y += FIN_ROW_H + 2;
 
-  // Taxes
+  // Taxes - separate section with clear spacing
   pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(6);
   pdf.text("TAXES:", L, y);
   pdf.setFont("helvetica", "normal");
   y += FIN_HEAD_H;
   finRow(pdf, `PST (${(t.taxes.pstRate * 100).toFixed(0)}%):`, fmt(t.financial.pstAmount), y);
-  finRow(pdf, `GST (${(t.taxes.gstRate * 100).toFixed(0)}%):`, fmt(t.financial.gstAmount), y, MID);
-  y += FIN_HEAD_H;
+  y += FIN_ROW_H;
+  finRow(pdf, `GST (${(t.taxes.gstRate * 100).toFixed(0)}%):`, fmt(t.financial.gstAmount), y);
+  y += FIN_ROW_H + 2;
 
   // Total box
   pdf.setFillColor(240, 240, 240);
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.8);
-  pdf.rect(L, y - 1, CW, 13, "FD");
-  pdf.setFontSize(7);
+  pdf.rect(L, y - 1, CW, 14, "FD");
+  pdf.setFontSize(7.5);
   pdf.setFont("helvetica", "bold");
   pdf.text("TOTAL AMOUNT DUE:", L + 4, y + 8);
   pdf.text(`${fmt(t.financial.grandTotal)} CAD`, R - 4, y + 8, { align: "right" });
-  y += 16;
+  y += 18;
 
   // Deposit
   pdf.setFontSize(FS);
   pdf.setFont("helvetica", "normal");
   finRow(pdf, "Security Deposit:", `${fmt(t.financial.depositAmount)} (refundable)`, y);
-  y += FIN_ROW_H + 1;
+  y += FIN_ROW_H + 2;
 
   hLine(pdf, y);
-  y += SEC_GAP - 2;
+  y += SEC_GAP;
 
   // ─────────────────────────────────────────────
   // TERMS AND CONDITIONS (two-column, compact)
@@ -541,8 +543,8 @@ function renderStructuredPdf(
   ];
 
   // Render in two columns
-  const TF = 4.5;
-  const TLH = 5.6; // slightly more breathing room
+  const TF = 5;
+  const TLH = 6; // line height for T&C items
   const colW = CW * 0.48;
   const col1X = L;
   const col2X = MID + 4;
@@ -572,8 +574,8 @@ function renderStructuredPdf(
   sectionTitle(pdf, "ACKNOWLEDGMENT AND SIGNATURE", L, y);
   y += 7;
 
-  const ackFontSize = 4.5;
-  const ackLH = 5.6;
+  const ackFontSize = 5;
+  const ackLH = 6;
   pdf.setFontSize(ackFontSize);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(30, 30, 30);
@@ -671,7 +673,7 @@ function renderStructuredPdf(
 
 // ── Helper: Section title ──
 function sectionTitle(pdf: jsPDF, text: string, x: number, y: number) {
-  pdf.setFontSize(6.5);
+  pdf.setFontSize(7);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(text, x, y);
@@ -679,7 +681,7 @@ function sectionTitle(pdf: jsPDF, text: string, x: number, y: number) {
 
 // ── Helper: Label + value pair ──
 function labelValue(pdf: jsPDF, label: string, value: string, x: number, y: number) {
-  pdf.setFontSize(6);
+  pdf.setFontSize(6.5);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(60, 60, 60);
   pdf.text(label, x, y);
@@ -692,7 +694,7 @@ function labelValue(pdf: jsPDF, label: string, value: string, x: number, y: numb
 // ── Helper: Financial row (label left, amount right) ──
 function finRow(pdf: jsPDF, label: string, amount: string, y: number, startX?: number) {
   const x = startX || L;
-  pdf.setFontSize(5.5);
+  pdf.setFontSize(6);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(0, 0, 0);
   pdf.text(label, x + 8, y);
@@ -700,7 +702,7 @@ function finRow(pdf: jsPDF, label: string, amount: string, y: number, startX?: n
 }
 
 function finRowBold(pdf: jsPDF, label: string, amount: string, y: number) {
-  pdf.setFontSize(6);
+  pdf.setFontSize(6.5);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(label, L, y);
