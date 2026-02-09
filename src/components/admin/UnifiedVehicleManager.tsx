@@ -109,6 +109,7 @@ export function UnifiedVehicleManager({
     booking.assigned_unit_id ?? null
   );
   const [reason, setReason] = useState("");
+  const [chargeCustomer, setChargeCustomer] = useState(true);
 
   // Reset form when dialog opens
   const handleOpenChange = (open: boolean) => {
@@ -116,6 +117,7 @@ export function UnifiedVehicleManager({
       setSelectedCategoryId(booking.vehicle_id);
       setSelectedUnitId(booking.assigned_unit_id ?? null);
       setReason("");
+      setChargeCustomer(true);
     }
     setDialogOpen(open);
   };
@@ -215,22 +217,30 @@ export function UnifiedVehicleManager({
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
 
-      // 1. Category change → update booking pricing
-      if (categoryChanged && selectedCategory && newPricing) {
+      // 1. Category change → update booking record
+      if (categoryChanged && selectedCategory) {
+        const shouldUpdatePricing = chargeCustomer && newPricing;
+        
+        const updatePayload: Record<string, any> = {
+          original_vehicle_id: booking.vehicle_id,
+          vehicle_id: selectedCategoryId,
+          daily_rate: Number(selectedCategory.daily_rate),
+          upgraded_at: new Date().toISOString(),
+          upgraded_by: userId,
+          upgrade_reason: reason || null,
+          updated_at: new Date().toISOString(),
+        };
+
+        // Only update pricing if charging the customer
+        if (shouldUpdatePricing && newPricing) {
+          updatePayload.subtotal = newPricing.subtotal;
+          updatePayload.tax_amount = newPricing.taxAmount;
+          updatePayload.total_amount = newPricing.total;
+        }
+
         const { error } = await supabase
           .from("bookings")
-          .update({
-            original_vehicle_id: booking.vehicle_id,
-            vehicle_id: selectedCategoryId,
-            daily_rate: Number(selectedCategory.daily_rate),
-            subtotal: newPricing.subtotal,
-            tax_amount: newPricing.taxAmount,
-            total_amount: newPricing.total,
-            upgraded_at: new Date().toISOString(),
-            upgraded_by: userId,
-            upgrade_reason: reason || null,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq("id", bookingId);
         if (error) throw error;
 
@@ -248,7 +258,8 @@ export function UnifiedVehicleManager({
           new_data: {
             vehicle_id: selectedCategoryId,
             daily_rate: Number(selectedCategory.daily_rate),
-            total_amount: newPricing.total,
+            total_amount: shouldUpdatePricing && newPricing ? newPricing.total : booking.total_amount,
+            charge_customer: chargeCustomer,
             reason,
           },
         });
@@ -306,7 +317,9 @@ export function UnifiedVehicleManager({
     },
     onSuccess: () => {
       const msgs: string[] = [];
-      if (categoryChanged) msgs.push("Category updated");
+      if (categoryChanged) {
+        msgs.push(chargeCustomer ? "Category updated (price adjusted)" : "Category updated (no charge)");
+      }
       if (unitChanged) msgs.push(selectedUnitId ? "Vehicle assigned" : "Vehicle removed");
       toast.success(msgs.join(" • ") || "Changes saved");
 
@@ -454,33 +467,65 @@ export function UnifiedVehicleManager({
             )}
           </div>
 
-          {/* ── Price Impact ── */}
+          {/* ── Price Impact & Charge Option ── */}
           {categoryChanged && newPricing && (
             <>
               <Separator />
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Current Total</span>
-                  <span>${booking.total_amount.toFixed(2)}</span>
+              <div className="space-y-3">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Current Total</span>
+                    <span>${booking.total_amount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">New Category Rate Total</span>
+                    <span className="font-semibold">${newPricing.total.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Difference</span>
+                    <Badge
+                      variant={priceDiff > 0 ? "default" : "secondary"}
+                      className={cn(
+                        priceDiff > 0
+                          ? "bg-emerald-500 text-white"
+                          : priceDiff < 0
+                          ? "bg-amber-500 text-white"
+                          : ""
+                      )}
+                    >
+                      {priceDiff >= 0 ? "+" : ""}${priceDiff.toFixed(2)}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">New Total</span>
-                  <span className="font-semibold">${newPricing.total.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Difference</span>
-                  <Badge
-                    variant={priceDiff > 0 ? "default" : "secondary"}
-                    className={cn(
-                      priceDiff > 0
-                        ? "bg-emerald-500 text-white"
-                        : priceDiff < 0
-                        ? "bg-amber-500 text-white"
-                        : ""
-                    )}
-                  >
-                    {priceDiff >= 0 ? "+" : ""}${priceDiff.toFixed(2)}
-                  </Badge>
+
+                {/* Charge toggle */}
+                <div className="rounded-lg border p-3 space-y-2">
+                  <p className="text-sm font-medium">Charge for this change?</p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={chargeCustomer ? "default" : "outline"}
+                      className="flex-1"
+                      onClick={() => setChargeCustomer(true)}
+                    >
+                      Yes — update price to ${newPricing.total.toFixed(2)}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={!chargeCustomer ? "default" : "outline"}
+                      className="flex-1"
+                      onClick={() => setChargeCustomer(false)}
+                    >
+                      No — keep ${booking.total_amount.toFixed(2)}
+                    </Button>
+                  </div>
+                  {!chargeCustomer && (
+                    <p className="text-xs text-muted-foreground">
+                      The booking total will remain unchanged despite the category change.
+                    </p>
+                  )}
                 </div>
               </div>
               <Separator />
