@@ -310,7 +310,11 @@ export default function DeliveryDetail() {
           <CardContent className="p-4">
             <StepWalkaround 
               bookingId={delivery.id} 
-              completion={{ inspectionComplete: walkaroundInspection?.inspection_complete || false }}
+              completion={{ 
+                inspectionComplete: walkaroundInspection?.inspection_complete || false,
+                fuelRecorded: walkaroundInspection?.fuel_level != null,
+                odometerRecorded: walkaroundInspection?.odometer_reading != null && walkaroundInspection.odometer_reading > 0,
+              }}
             />
           </CardContent>
         </Card>

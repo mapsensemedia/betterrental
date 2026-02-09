@@ -186,6 +186,8 @@ export interface StepCompletion {
   };
   walkaround: {
     inspectionComplete: boolean;
+    fuelRecorded: boolean;
+    odometerRecorded: boolean;
   };
   photos: {
     photosComplete: boolean;
@@ -313,7 +315,9 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion,
     case "agreement":
       return completion.agreement.agreementSigned;
     case "walkaround":
-      return completion.walkaround.inspectionComplete;
+      return completion.walkaround.inspectionComplete &&
+        completion.walkaround.fuelRecorded &&
+        completion.walkaround.odometerRecorded;
     case "photos":
       return completion.photos.photosComplete;
     case "dispatch":
@@ -362,6 +366,8 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
       break;
     case "walkaround":
       if (!completion.walkaround.inspectionComplete) missing.push("Staff inspection");
+      if (!completion.walkaround.fuelRecorded) missing.push("Fuel level");
+      if (!completion.walkaround.odometerRecorded) missing.push("Odometer reading");
       break;
     case "photos":
       if (!completion.photos.photosComplete) missing.push("Handover photos");

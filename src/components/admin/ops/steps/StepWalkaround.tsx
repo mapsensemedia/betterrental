@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,8 @@ interface StepWalkaroundProps {
   bookingId: string;
   completion: {
     inspectionComplete: boolean;
+    fuelRecorded: boolean;
+    odometerRecorded: boolean;
   };
 }
 
@@ -111,10 +114,32 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
     setScratches(scratches.filter(s => s.id !== id));
   };
 
+  // Require fuel + odometer before completing
+  const hasFuel = !!(fuelLevel || inspection.fuel_level != null);
+  const hasOdometer = !!(odometerReading || inspection.odometer_reading);
+  const canComplete = hasFuel && hasOdometer;
+
   // UPDATED: Staff-only completion - no customer signature needed
   const handleComplete = () => {
     if (!inspection) return;
-    completeWalkaround.mutate(inspection.id);
+    if (!canComplete) {
+      toast.error("Fuel level and odometer reading are required before completing");
+      return;
+    }
+    // Save latest values first, then complete
+    updateWalkaround.mutate({
+      inspectionId: inspection.id,
+      exteriorNotes,
+      scratchesDents: scratches,
+      interiorNotes,
+      interiorCondition: interiorCondition as any,
+      odometerReading: odometerReading ? parseInt(odometerReading) : undefined,
+      fuelLevel: fuelLevel ? parseInt(fuelLevel) : undefined,
+    }, {
+      onSuccess: () => {
+        completeWalkaround.mutate(inspection.id);
+      }
+    });
   };
 
   // Re-open inspection for editing
@@ -162,7 +187,9 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start-odometer">Odometer Reading</Label>
+              <Label htmlFor="start-odometer">
+                Odometer Reading <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="start-odometer"
                 type="number"
@@ -172,7 +199,9 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="start-fuel">Fuel Level (%)</Label>
+              <Label htmlFor="start-fuel">
+                Fuel Level (%) <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="start-fuel"
                 type="number"
@@ -247,7 +276,7 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <Gauge className="h-3.5 w-3.5" />
-                Odometer
+                Odometer <span className="text-destructive">*</span>
               </Label>
               <Input
                 type="number"
@@ -260,7 +289,7 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <Fuel className="h-3.5 w-3.5" />
-                Fuel Level
+                Fuel Level <span className="text-destructive">*</span>
               </Label>
               <div className="flex items-center gap-2">
                 <Input
@@ -413,27 +442,39 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
 
           {/* Actions */}
           {!isComplete && (
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={handleSave}
-                disabled={updateWalkaround.isPending}
-                className="flex-1"
-              >
-                {updateWalkaround.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Save Progress"
-                )}
-              </Button>
-              <Button
-                onClick={handleComplete}
-                disabled={completeWalkaround.isPending}
-                className="flex-1 gap-1"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Mark Complete
-              </Button>
+            <div className="space-y-2 pt-2">
+              {!canComplete && (
+                <div className="text-xs text-destructive bg-destructive/10 rounded-md p-2 flex items-center gap-1.5">
+                  <XCircle className="h-3.5 w-3.5 shrink-0" />
+                  {!hasOdometer && !hasFuel
+                    ? "Odometer reading and fuel level are required"
+                    : !hasOdometer
+                    ? "Odometer reading is required"
+                    : "Fuel level is required"}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={updateWalkaround.isPending}
+                  className="flex-1"
+                >
+                  {updateWalkaround.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Save Progress"
+                  )}
+                </Button>
+                <Button
+                  onClick={handleComplete}
+                  disabled={completeWalkaround.isPending || updateWalkaround.isPending || !canComplete}
+                  className="flex-1 gap-1"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Mark Complete
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
