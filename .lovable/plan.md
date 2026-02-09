@@ -1,185 +1,83 @@
 
 
-# Simplify Stripe Payment System
+# SEO Overhaul: Improve Search Visibility and Remove Lovable Branding
 
-## Summary
+## Problem
+The site currently shows up in Google with a thin title ("C2C Rental") and description ("C2C car rental"), uses Lovable-branded OG images, and has no local SEO signals. This makes it nearly invisible for searches like "car rental near Surrey" or "car rental Vancouver."
 
-Replace the complex authorization hold / deposit management system with a straightforward Stripe payment flow. The current system uses `capture_method: manual` PaymentIntents to create authorization holds combining rental + deposit, with a full lifecycle of hold/capture/release/sync operations. This will be replaced with simple, standard Stripe payments where users pay the rental amount directly, and any deposits or damage charges can be sent as separate payment links later.
+## Changes
 
-## What Changes
+### 1. Rewrite `index.html` Meta Tags
+- **Title**: "C2C Rental | Affordable Car Rental in Surrey, Langley & Abbotsford BC"
+- **Description**: "Rent quality vehicles at affordable rates in Surrey, Langley, and Abbotsford, BC. Flexible pickup, transparent pricing, and 24/7 support. Book online today."
+- **Remove** all Lovable references: `meta author`, `twitter:site @Lovable`, the TODO comment
+- **Replace OG image** URL from lovable.dev to `/c2c-og-image.png` (use existing logo or a new branded image)
+- Add `og:url`, `og:site_name`, and `og:locale` tags
+- Add geo meta tags for the primary service area
 
-### Current System (Being Removed)
-- Unified authorization hold (rental + deposit combined into one `manual capture` PaymentIntent)
-- Complex deposit lifecycle: hold -> authorize -> capture/release
-- Admin UI for managing holds (DepositHoldVisualizer, CaptureDepositDialog, ReleaseHoldDialog)
-- Multiple edge functions for deposit operations (create-deposit-hold, capture-deposit, release-deposit-hold, sync-deposit-status, process-deposit-jobs, process-deposit-refund)
-- Deposit ledger tracking
-- Account closeout with automatic deposit settlement
+### 2. Add Structured Data (JSON-LD)
+Add a `LocalBusiness` + `AutoRental` schema script in `index.html` with:
+- Business name, description, URL
+- All 3 locations (Surrey, Langley, Abbotsford) as sub-locations
+- Service area covering the Lower Mainland
+- Price range indicator
 
-### New System
-- Standard Stripe payment at checkout (immediate charge, no manual capture)
-- Simple "Pay Now" or "Pay at Pickup" options remain
-- Admin can send payment links (already exists via `send-payment-request`) for deposits, damages, or any additional charges
-- Terms updated with customer liability clause for damages
+This enables Google rich snippets (address, hours, rating stars in future).
 
----
+### 3. Create `public/sitemap.xml`
+A static sitemap listing all public customer-facing routes:
+- `/` , `/search`, `/locations`, `/about`, `/contact`
+- `/location/{surrey-id}`, `/location/{langley-id}`, `/location/{abbotsford-id}`
 
-## Technical Plan
+### 4. Update `public/robots.txt`
+- Add `Sitemap: https://c4r.ca/sitemap.xml` directive
+- Keep all Allow rules
 
-### Phase 1: Simplify Checkout Flow
+### 5. Create OG Image
+- Copy the existing `public/c2c-logo.png` as the fallback OG image, or create a simple branded card
+- Update all `og:image` and `twitter:image` references to point to the project domain (`https://c4r.ca/c2c-og-image.png`)
 
-**1.1 Rewrite `create-checkout-hold` edge function -> `create-payment`**
-
-Replace the manual-capture PaymentIntent with a standard auto-capture PaymentIntent that charges the rental amount immediately:
-
-- Remove `capture_method: manual`
-- Only charge the rental total (no deposit bundled in)
-- Keep customer creation and metadata logic
-- Keep idempotency check
-- Simplify booking status updates (draft -> pending on payment success)
-
-**1.2 Update `src/pages/NewCheckout.tsx`**
-
-- Remove `holdAmounts` state and deposit-related UI
-- Change the "Pay Now" flow to call the simplified payment function
-- Remove authorization hold language from the UI ("An authorization hold will be placed...")
-- Update `handlePaymentSuccess` to simply mark booking as confirmed (no deposit_status updates)
-- Remove the deposit line from price details
-- Keep the "Pay at Pickup" flow as-is (no Stripe call)
-
-**1.3 Update `src/components/checkout/StripePaymentForm.tsx`**
-
-- Remove `depositAmount` and `rentalAmount` props -- simplify to just `amount`
-- Remove "Authorization Hold Notice" section
-- Change button text from "Authorize $X & Complete Booking" to "Pay $X & Complete Booking"
-- Handle `paymentIntent.status === "succeeded"` as the primary success case (not `requires_capture`)
-- Remove `requires_capture` handling
-
-**1.4 Update `src/components/checkout/StripeCheckoutWrapper.tsx`**
-
-- Simplify props: replace `depositAmount` + `rentalAmount` with single `amount`
-- Pass through to updated StripePaymentForm
-
-### Phase 2: Simplify Admin Panel
-
-**2.1 Rewrite `src/components/admin/PaymentDepositPanel.tsx`**
-
-Replace the complex deposit hold management panel with a simple payments view:
-- Show list of payments received for the booking
-- Show payment status and Stripe IDs
-- Add a "Send Payment Request" button (uses existing `send-payment-request` edge function) for collecting additional payments (deposits, damages, etc.)
-- Remove hold visualizer, capture/release dialogs
-
-**2.2 Simplify Account Closeout (`close-account` edge function)**
-
-- Remove Stripe capture/release logic
-- Keep invoice generation
-- Keep line item calculation (rental, add-ons, taxes, late fees, damages)
-- Calculate amount due vs payments received
-- If balance > 0, note it in the invoice (admin sends payment link separately)
-- Keep notification and audit logging
-
-**2.3 Remove deposit-specific admin components**
-
-These components will be removed as they are no longer needed:
-- `src/components/admin/deposit/DepositHoldVisualizer.tsx`
-- `src/components/admin/deposit/CaptureDepositDialog.tsx`
-- `src/components/admin/deposit/ReleaseHoldDialog.tsx`
-- `src/components/admin/deposit/TransactionHistoryCard.tsx` (keep if it shows general payment history)
-- `src/components/admin/deposit/AccountCloseoutPanel.tsx` (simplify)
-- `src/components/admin/deposit/index.ts` (update exports)
-
-### Phase 3: Clean Up Edge Functions
-
-**3.1 Edge functions to delete:**
-- `create-deposit-hold` -- no longer needed (authorization holds removed)
-- `capture-deposit` -- no longer needed
-- `release-deposit-hold` -- no longer needed
-- `sync-deposit-status` -- no longer needed
-- `process-deposit-jobs` -- no longer needed
-- `process-deposit-refund` -- no longer needed (refunds can be done through Stripe dashboard)
-- `send-deposit-notification` -- no longer needed
-
-**3.2 Edge functions to keep and update:**
-- `create-checkout-hold` -> rename/rewrite as standard payment creator (or replace with `create-payment-intent` which already exists)
-- `create-checkout-session` -- keep as-is (used by `send-payment-request`)
-- `create-payment-intent` -- keep as-is (already creates standard PaymentIntents)
-- `get-stripe-config` -- keep as-is
-- `send-payment-request` -- keep as-is (this is the "send payment link" functionality)
-- `send-payment-confirmation` -- keep as-is
-- `stripe-webhook` -- simplify (remove deposit hold event handlers, keep payment success/failure handlers)
-- `close-account` -- simplify (remove Stripe capture/release, keep invoice logic)
-
-**3.3 Edge functions to keep unchanged:**
-- All non-Stripe functions (send-booking-email, generate-agreement, etc.)
-
-### Phase 4: Clean Up Frontend Hooks
-
-**4.1 Hooks to delete:**
-- `src/hooks/use-deposit-hold.ts` -- deposit hold lifecycle
-- `src/hooks/use-checkout-hold.ts` -- checkout hold creation
-- `src/hooks/use-sync-deposit.ts` -- Stripe sync
-- `src/hooks/use-deposit-ledger.ts` -- deposit ledger tracking
-
-**4.2 Hooks to simplify:**
-- `src/hooks/use-payment-deposit.ts` -- simplify to just track payment status (remove deposit logic)
-
-**4.3 Hooks to keep:**
-- `src/hooks/use-stripe-config.ts` -- needed for Stripe Elements
-- `src/hooks/use-payments.ts` -- still used for payment queries
-- `src/hooks/use-hold.ts` -- this is for reservation holds (time-based hold on vehicle), NOT deposit holds
-
-### Phase 5: Update Policies and Terms
-
-**5.1 Update `src/lib/checkout-policies.ts`**
-
-- Remove `CREDIT_CARD_AUTHORIZATION_POLICY` (no more auth holds)
-- Remove `AUTHORIZATION_AMOUNTS` (no more deposit holds at checkout)
-- Keep `CANCELLATION_POLICY`
-- Keep `PICKUP_REQUIREMENTS` but update to remove "same credit card" requirement
-- Add new `DAMAGE_LIABILITY_POLICY` with the legal clause:
-  > "The customer is legally bound to pay for any damages to the rented vehicle, provided it is proven that such damages were caused by the customer during the rental period."
-
-**5.2 Update checkout terms text**
-
-- Remove "Authorization hold of up to $350 CAD will be placed on your card" from the checkout page
-- Add damage liability acknowledgment to the terms checkbox area
-
-### Phase 6: Update Related Components
-
-**6.1 `src/components/admin/BookingOpsDrawer.tsx`**
-- Update the Payment section to use the simplified PaymentDepositPanel
-
-**6.2 `src/components/admin/return-ops/steps/StepReturnDeposit.tsx`**
-- Simplify or remove deposit hold release logic
-- Keep general "close return" functionality
-
-**6.3 `src/components/admin/DepositLedgerPanel.tsx`**
-- Remove or simplify (ledger tracking is less relevant without holds)
-
-**6.4 `src/lib/schemas/payment.ts`**
-- Keep as-is (deposit types still valid for ledger entries, just won't be hold-based)
-
-**6.5 `src/lib/pricing.ts`**
-- Keep `DEFAULT_DEPOSIT_AMOUNT` and `MINIMUM_DEPOSIT_AMOUNT` as reference values (may still be shown as "security deposit requirement" in policies)
+### 6. Add Page-Level SEO for Key Pages
+Update the `<title>` dynamically on key pages using `document.title` in useEffect:
+- **Search page**: "Browse Cars | C2C Rental - Surrey, Langley, Abbotsford"
+- **Locations page**: "Our Locations | C2C Rental"
+- **Individual location pages**: "Car Rental in {City} | C2C Rental"
 
 ---
 
-## Database Considerations
+## Technical Details
 
-No schema migrations are strictly required. The existing deposit-related columns on the `bookings` table (`deposit_status`, `stripe_deposit_pi_id`, etc.) can remain but will simply not be used for new bookings. The `deposit_ledger` and `deposit_jobs` tables can remain dormant.
+### Files to modify:
+| File | Change |
+|------|--------|
+| `index.html` | Rewrite all meta tags, add JSON-LD structured data, remove Lovable references |
+| `public/robots.txt` | Add Sitemap directive |
+| `public/sitemap.xml` | New file with all public routes |
+| `src/pages/Search.tsx` | Add `document.title` for page-specific SEO |
+| `src/pages/Locations.tsx` | Add `document.title` |
+| `src/pages/LocationDetail.tsx` | Add dynamic `document.title` with city name |
 
----
+### JSON-LD Schema (added to index.html):
+```text
+{
+  "@context": "https://schema.org",
+  "@type": "AutoRental",
+  "name": "C2C Rental",
+  "url": "https://c4r.ca",
+  "description": "Affordable car rental...",
+  "areaServed": ["Surrey", "Langley", "Abbotsford", "Vancouver"],
+  "location": [
+    { "@type": "Place", "name": "Surrey Centre", "address": "6734 King George Blvd..." },
+    { "@type": "Place", "name": "Langley Centre", "address": "5933 200 St..." },
+    { "@type": "Place", "name": "Abbotsford Centre", "address": "32835 South Fraser Way..." }
+  ]
+}
+```
 
-## Impact Summary
-
-| Area | Before | After |
-|------|--------|-------|
-| Checkout | Auth hold (rental + deposit), manual capture | Standard payment (rental only) |
-| Deposit | $350 hold at checkout, complex lifecycle | Sent as payment link if/when needed |
-| Damage charges | Captured from deposit hold | Sent as payment link |
-| Admin panel | Hold visualizer, capture/release buttons | Payment list + "Send Payment Link" button |
-| Closeout | Auto-capture/release deposit | Generate invoice, send payment link for balance |
-| Edge functions | 7 deposit-specific functions | Removed (keep standard payment functions) |
-| Terms | Auth hold language | Damage liability clause |
+### What this achieves:
+- Google shows a richer, branded snippet with proper title and description
+- No Lovable branding anywhere in search results or social previews
+- Local SEO signals help rank for "car rental near Surrey/Langley/Abbotsford"
+- Structured data enables future rich results (ratings, pricing, locations)
+- Sitemap ensures all pages are indexed
 
