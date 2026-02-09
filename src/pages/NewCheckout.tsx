@@ -46,9 +46,6 @@ import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
 import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
 import { PointsRedemption } from "@/components/checkout/PointsRedemption";
-import { CreditCardInput, CreditCardDisplay } from "@/components/checkout/CreditCardInput";
-import { StripeCheckoutWrapper } from "@/components/checkout/StripeCheckoutWrapper";
-import { validateCard, detectCardType, maskCardNumber, CardType, validateDriverCardholderMatch, isCardTypeAllowed } from "@/lib/card-validation";
 import { CANCELLATION_POLICY, DAMAGE_LIABILITY_POLICY } from "@/lib/checkout-policies";
 import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
 
@@ -93,10 +90,6 @@ export default function NewCheckout() {
     email: user?.email || "",
     countryCode: "+1",
     phone: "",
-    cardNumber: "",
-    cardName: "",
-    expiryDate: "",
-    cvv: "",
     country: "Canada",
     streetAddress: "",
     city: "",
@@ -117,15 +110,8 @@ export default function NewCheckout() {
   }, [searchData.ageConfirmed, searchData.ageRange, navigate]);
 
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
-  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
-  
-  // Inline Stripe payment state
-  const [showStripePayment, setShowStripePayment] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   
   // Force pay-now for delivery bookings
   useEffect(() => {
@@ -198,39 +184,8 @@ export default function NewCheckout() {
     setPointsUsed(points);
   };
 
-  // Handler for successful Stripe payment
-  const handlePaymentSuccess = async (paymentIntentId: string, paymentMethodId: string) => {
-    if (!pendingBookingId) return;
-    
-    try {
-      // Promote booking from "draft" to "pending" now that payment is complete
-      await supabase.from("bookings").update({
-        status: "pending",
-        stripe_deposit_pi_id: paymentIntentId,
-        stripe_deposit_pm_id: paymentMethodId,
-      }).eq("id", pendingBookingId);
-
-      toast({
-        title: "Booking confirmed!",
-        description: "Payment received. Your reservation is confirmed.",
-      });
-
-      navigate(`/booking/${pendingBookingId}?payment=success`);
-    } catch (error: any) {
-      console.error("Failed to update booking status:", error);
-      navigate(`/booking/${pendingBookingId}?payment=success`);
-    }
-  };
-
-  // Handler for Stripe payment errors
-  const handlePaymentError = (error: string) => {
-    console.error("Payment authorization failed:", error);
-    toast({
-      title: "Payment authorization failed",
-      description: error || "Please try again or use a different card.",
-      variant: "destructive",
-    });
-  };
+  // Payment success is now handled by the Stripe webhook (checkout.session.completed)
+  // which promotes the booking from "draft" to "pending"
 
   // Save abandoned cart when user leaves with info filled in
   const saveCartData = useCallback(() => {
@@ -316,42 +271,7 @@ export default function NewCheckout() {
       return;
     }
 
-    // Validate credit card
-    const cardValidation = validateCard({
-      number: formData.cardNumber,
-      expiry: formData.expiryDate,
-      name: formData.cardName,
-      cvv: formData.cvv,
-    });
-
-    if (!cardValidation.valid) {
-      setCardErrors(cardValidation.errors);
-      toast({ title: "Please check your card details", variant: "destructive" });
-      return;
-    }
-    
-    // Validate driver name matches cardholder name
-    const nameMatch = validateDriverCardholderMatch(
-      formData.firstName,
-      formData.lastName,
-      formData.cardName
-    );
-    
-    if (!nameMatch.matches) {
-      setCardErrors({ name: nameMatch.error || "Primary driver name must match the cardholder name." });
-      toast({ title: nameMatch.error || "Primary driver name must match the cardholder name.", variant: "destructive" });
-      return;
-    }
-    
-    // Check for debit/prepaid card (messaging-based validation)
-    const cardTypeCheck = isCardTypeAllowed(formData.cardNumber);
-    if (!cardTypeCheck.allowed) {
-      setCardErrors({ number: cardTypeCheck.reason || "This card type is not accepted." });
-      toast({ title: cardTypeCheck.reason || "This card type is not accepted.", variant: "destructive" });
-      return;
-    }
-    
-    setCardErrors({});
+    // Card validation removed — Stripe hosted checkout handles card collection
 
     if (!formData.termsAccepted) {
       toast({ title: "Please accept the terms and conditions", variant: "destructive" });
@@ -389,9 +309,7 @@ export default function NewCheckout() {
 
       let booking: { id: string; booking_code: string; user_id?: string } | null = null;
 
-      // Extract card info for storage (last 4 digits only - never store full card)
-      const cardLast4 = formData.cardNumber.replace(/\s+/g, "").slice(-4);
-      const cardTypeValue = detectCardType(formData.cardNumber);
+      // Card info will be collected by Stripe checkout — store nulls for now
 
       if (session) {
         // Logged-in user flow - create booking directly
@@ -422,9 +340,9 @@ export default function NewCheckout() {
             pickup_contact_name: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : null,
             pickup_contact_phone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : null,
             special_instructions: saveTimeAtCounter && specialInstructions ? specialInstructions : null,
-            card_last_four: cardLast4,
-            card_type: cardTypeValue,
-            card_holder_name: formData.cardName,
+            card_last_four: null,
+            card_type: null,
+            card_holder_name: null,
             protection_plan: protection,
           })
           .select()
@@ -507,9 +425,9 @@ export default function NewCheckout() {
               pickupContactName: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : undefined,
               pickupContactPhone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : undefined,
               specialInstructions: saveTimeAtCounter && specialInstructions ? specialInstructions : undefined,
-              cardLastFour: cardLast4,
-              cardType: cardTypeValue,
-              cardHolderName: formData.cardName,
+              cardLastFour: null,
+              cardType: null,
+              cardHolderName: null,
               paymentMethod: paymentMethod, // Pass payment method so edge function sets correct status
             },
           });
@@ -570,14 +488,21 @@ export default function NewCheckout() {
       markCartConverted.mutate(booking.id);
 
       if (paymentMethod === "pay-now") {
-        // Create standard payment with inline Stripe Elements
+        // Create Stripe Checkout Session and redirect to hosted payment page
         try {
+          const successUrl = `${window.location.origin}/booking/${booking.id}?payment=success`;
+          const cancelUrl = window.location.href;
+          
           let paymentResponse;
           try {
-            paymentResponse = await supabase.functions.invoke("create-checkout-hold", {
+            paymentResponse = await supabase.functions.invoke("create-checkout-session", {
               body: {
                 bookingId: booking.id,
                 amount: pricing.total,
+                currency: "cad",
+                successUrl,
+                cancelUrl,
+                userId: booking.user_id, // For guest checkout
               },
             });
           } catch (networkError: any) {
@@ -597,14 +522,11 @@ export default function NewCheckout() {
             throw new Error(paymentResponse.data.error);
           }
 
-          const { clientSecret: secret, amount: payAmount } = paymentResponse.data || {};
+          const { url: stripeUrl } = paymentResponse.data || {};
 
-          if (secret) {
-            setClientSecret(secret);
-            setPendingBookingId(booking.id);
-            setPaymentAmount(payAmount || pricing.total);
-            setShowStripePayment(true);
-            setIsSubmitting(false);
+          if (stripeUrl) {
+            // Redirect to Stripe hosted checkout page
+            window.location.href = stripeUrl;
             return;
           } else {
             throw new Error("Unable to initialize payment. Please try again.");
@@ -811,46 +733,8 @@ export default function NewCheckout() {
                 </div>
               </Card>
 
-              {/* Payment - Credit Card Form */}
+              {/* Payment Method Selection */}
               <Card className="p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <CreditCard className="w-5 h-5 text-primary" />
-                  <h2 className="text-xl font-semibold">Payment Details</h2>
-                  <Lock className="w-4 h-4 text-muted-foreground ml-auto" />
-                  <span className="text-xs text-muted-foreground">Secure</span>
-                </div>
-
-                {/* Credit Card Input Form */}
-                <CreditCardInput
-                  cardNumber={formData.cardNumber}
-                  cardName={formData.cardName}
-                  expiryDate={formData.expiryDate}
-                  cvv={formData.cvv}
-                  onCardNumberChange={(v) => handleInputChange("cardNumber", v)}
-                  onCardNameChange={(v) => handleInputChange("cardName", v)}
-                  onExpiryDateChange={(v) => handleInputChange("expiryDate", v)}
-                  onCvvChange={(v) => handleInputChange("cvv", v)}
-                  errors={cardErrors}
-                  showValidation={true}
-                  showCvv={true}
-                />
-
-                {/* Policy text under the form */}
-                <div className="mt-6 pt-4 border-t border-border space-y-3">
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                      ⚠️ Debit and prepaid cards are not accepted.
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {DAMAGE_LIABILITY_POLICY.shortVersion}
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {CANCELLATION_POLICY.content}
-                  </p>
-                </div>
-
-                {/* Payment Method Selection */}
                 <div className="mt-6 pt-4 border-t border-border">
                   <p className="text-sm font-medium mb-3">When would you like to pay?</p>
                   {/* Hide Pay at Pickup for delivery bookings */}
@@ -1201,37 +1085,7 @@ export default function NewCheckout() {
                   </Label>
                 </div>
 
-                {/* Show Stripe Elements form or Submit button */}
-                {showStripePayment && clientSecret && paymentAmount ? (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                      <p className="text-sm font-medium text-foreground mb-1">
-                        Complete your payment
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        You will be charged ${paymentAmount.toFixed(2)} CAD for your rental.
-                      </p>
-                    </div>
-                    <StripeCheckoutWrapper
-                      clientSecret={clientSecret}
-                      amount={paymentAmount}
-                      onSuccess={handlePaymentSuccess}
-                      onError={handlePaymentError}
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowStripePayment(false);
-                        setClientSecret(null);
-                        setPendingBookingId(null);
-                        setPaymentAmount(null);
-                      }}
-                      className="w-full"
-                    >
-                      Cancel and go back
-                    </Button>
-                  </div>
-                ) : (
+                {/* Submit button */}
                   <Button
                     onClick={handleSubmit}
                     disabled={isSubmitting}
@@ -1247,7 +1101,6 @@ export default function NewCheckout() {
                       "Pay and Book"
                     )}
                   </Button>
-                )}
               </Card>
             </div>
 
