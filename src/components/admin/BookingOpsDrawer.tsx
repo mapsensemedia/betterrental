@@ -59,6 +59,8 @@ import { RentalAgreementPanel } from "./RentalAgreementPanel";
 import { WalkaroundInspection } from "./WalkaroundInspection";
 import { BookingModificationPanel } from "./ops/BookingModificationPanel";
 import { CounterUpsellPanel } from "./ops/CounterUpsellPanel";
+import { useAvailableDrivers } from "@/hooks/use-available-drivers";
+import { useAssignDriver, useUnassignDriver } from "@/hooks/use-assign-driver";
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
@@ -92,6 +94,8 @@ import {
   ClipboardCheck,
   CalendarClock,
   ShoppingCart,
+  User,
+  Truck,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -119,6 +123,11 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   const { data: checkinRecord } = useCheckInRecord(bookingId || "");
   const { data: depositData } = usePaymentDepositStatus(bookingId || "");
   const { data: agreement } = useRentalAgreement(bookingId || "");
+  const { data: drivers } = useAvailableDrivers();
+  const assignDriver = useAssignDriver();
+  const unassignDriver = useUnassignDriver();
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const isDeliveryBooking = !!booking?.pickup_address;
 
   // Refs for scrolling
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -554,6 +563,76 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                     </AccordionItem>
                   )}
 
+                  {/* Driver Assignment (Delivery Bookings) */}
+                  {isDeliveryBooking && (booking.status === "confirmed" || booking.status === "pending") && (
+                    <AccordionItem value="driver" className="border rounded-lg">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
+                        <CompactTaskRow
+                          title="Driver Assignment"
+                          isComplete={!!booking.assigned_driver_id}
+                          summary={
+                            booking.assigned_driver_id
+                              ? drivers?.find((d: any) => d.id === booking.assigned_driver_id)?.fullName || "Assigned"
+                              : "No driver assigned"
+                          }
+                        />
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        {booking.assigned_driver_id ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                              <User className="h-4 w-4 text-emerald-600" />
+                              <span className="font-medium text-sm">
+                                {drivers?.find((d: any) => d.id === booking.assigned_driver_id)?.fullName || "Assigned Driver"}
+                              </span>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full text-destructive"
+                              onClick={() => unassignDriver.mutate(booking.id)}
+                              disabled={unassignDriver.isPending}
+                            >
+                              Unassign Driver
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Select a driver" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {drivers?.map((driver: any) => (
+                                  <SelectItem key={driver.id} value={driver.id}>
+                                    <div className="flex items-center gap-2">
+                                      <User className="h-3 w-3" />
+                                      {driver.fullName}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                if (selectedDriverId) {
+                                  assignDriver.mutate(
+                                    { bookingId: booking.id, driverId: selectedDriverId },
+                                    { onSuccess: () => setSelectedDriverId("") }
+                                  );
+                                }
+                              }}
+                              disabled={!selectedDriverId || assignDriver.isPending}
+                            >
+                              {assignDriver.isPending ? "..." : "Assign"}
+                            </Button>
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
+
                   {/* Receipts */}
                   <AccordionItem value="receipts" className="border rounded-lg">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
@@ -593,7 +672,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                   </AccordionItem>
 
                   {/* Counter Upsell */}
-                  {(booking.status === "pending" || booking.status === "confirmed") && (
+                  {(booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
                     <AccordionItem value="upsell" className="border rounded-lg">
                       <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
                         <div className="flex items-center gap-2 text-sm font-medium">
