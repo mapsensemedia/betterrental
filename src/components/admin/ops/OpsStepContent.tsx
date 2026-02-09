@@ -36,7 +36,7 @@ import { StepPhotos } from "./steps/StepPhotos";
 import { StepHandover } from "./steps/StepHandover";
 import { StepEnRoute } from "./steps/StepEnRoute";
 
-type BookingStatus = "pending" | "confirmed" | "active" | "completed" | "cancelled";
+type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
 interface OpsStepContentProps {
   stepId: OpsStepId;

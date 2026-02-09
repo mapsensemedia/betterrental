@@ -57,6 +57,7 @@ interface GuestBookingRequest {
   cardLastFour?: string;
   cardType?: string;
   cardHolderName?: string;
+  paymentMethod?: "pay-now" | "pay-later";
 }
 
 Deno.serve(async (req) => {
@@ -244,7 +245,7 @@ Deno.serve(async (req) => {
       driverAgeBand,
       youngDriverFee,
       notes,
-      status: "pending", // Guest bookings start as pending
+      status: body.paymentMethod === "pay-now" ? "draft" : "pending", // Draft until payment confirmed
       pickupAddress,
       pickupLat,
       pickupLng,
