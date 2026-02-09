@@ -171,6 +171,17 @@ export function OpsStepContent({
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
                 <BookingEditPanel booking={booking} />
               )}
+              {/* Vehicle Assignment — available during checkin */}
+              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+                <VehicleAssignment
+                  bookingId={booking.id}
+                  currentVehicleId={booking.vehicle_id}
+                  currentVehicle={booking.vehicles}
+                  locationId={booking.location_id}
+                  startAt={booking.start_at}
+                  endAt={booking.end_at}
+                />
+              )}
               {/* Counter Upsell */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
                 <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
@@ -178,16 +189,10 @@ export function OpsStepContent({
             </>
           )}
           {stepId === "payment" && (
-            <>
-              <StepPayment 
-                bookingId={booking.id}
-                completion={completion.payment}
-              />
-              {/* Counter Upsell - shown during payment step for easy add-on sales */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
-                <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
-              )}
-            </>
+            <StepPayment 
+              bookingId={booking.id}
+              completion={completion.payment}
+            />
           )}
           {/* NEW: Ready Line step for delivery (replaces prep+photos) */}
           {stepId === "ready_line" && isDelivery && (
