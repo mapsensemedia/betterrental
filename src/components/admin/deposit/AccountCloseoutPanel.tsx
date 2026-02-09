@@ -1,8 +1,7 @@
 /**
- * AccountCloseoutPanel
+ * AccountCloseoutPanel (Simplified)
  * 
- * Complete account closing workflow for Ops
- * Displays final charges, handles deposit settlement, generates invoice
+ * No deposit hold logic — just charges, payments, settlement, and invoice generation.
  */
 
 import { useState } from "react";
@@ -14,19 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Receipt, 
-  CreditCard, 
-  Shield, 
-  CheckCircle2, 
-  Loader2,
-  AlertCircle,
-  FileText
-} from "lucide-react";
+import { Receipt, CreditCard, CheckCircle2, Loader2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { useCloseAccount, useDepositHoldStatus } from "@/hooks/use-deposit-hold";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCloseAccount } from "@/hooks/use-deposit-hold";
 
 interface AccountCloseoutPanelProps {
   bookingId: string;
@@ -40,39 +30,23 @@ interface ChargeLineItem {
   type: "rental" | "addon" | "fee" | "tax" | "late" | "damage";
 }
 
-export function AccountCloseoutPanel({ 
-  bookingId, 
-  onCloseComplete,
-  className 
-}: AccountCloseoutPanelProps) {
+export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: AccountCloseoutPanelProps) {
   const [confirmCharges, setConfirmCharges] = useState(false);
   const [confirmInspection, setConfirmInspection] = useState(false);
   const [confirmInvoice, setConfirmInvoice] = useState(false);
 
   const closeAccount = useCloseAccount();
-  const { data: depositInfo } = useDepositHoldStatus(bookingId);
 
-  // Fetch booking and payment data
   const { data: bookingData, isLoading } = useQuery({
     queryKey: ["closeout-data", bookingId],
     queryFn: async () => {
       const { data: booking, error } = await supabase
         .from("bookings")
-        .select(`
-          *,
-          booking_add_ons (
-            id,
-            price,
-            quantity,
-            add_on:add_ons (name)
-          )
-        `)
+        .select(`*, booking_add_ons (id, price, quantity, add_on:add_ons (name))`)
         .eq("id", bookingId)
         .single();
-
       if (error) throw error;
 
-      // Get payments
       const { data: payments } = await supabase
         .from("payments")
         .select("*")
@@ -87,9 +61,7 @@ export function AccountCloseoutPanel({
   if (isLoading) {
     return (
       <Card className={className}>
-        <CardHeader>
-          <CardTitle>Close Account</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Close Account</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-24 w-full" />
@@ -101,16 +73,13 @@ export function AccountCloseoutPanel({
   if (!bookingData) {
     return (
       <Card className={className}>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          Booking not found
-        </CardContent>
+        <CardContent className="py-8 text-center text-muted-foreground">Booking not found</CardContent>
       </Card>
     );
   }
 
   const { booking, payments } = bookingData;
 
-  // Check if already closed
   if (booking.account_closed_at) {
     return (
       <Card className={className}>
@@ -138,8 +107,7 @@ export function AccountCloseoutPanel({
   // Calculate charges
   const rentalSubtotal = Number(booking.subtotal) || 0;
   const addonsTotal = (booking.booking_add_ons || []).reduce(
-    (sum: number, addon: any) => sum + Number(addon.price) * (addon.quantity || 1),
-    0
+    (sum: number, addon: any) => sum + Number(addon.price) * (addon.quantity || 1), 0
   );
   const taxAmount = Number(booking.tax_amount) || 0;
   const lateFees = Number(booking.late_return_fee) || 0;
@@ -161,27 +129,10 @@ export function AccountCloseoutPanel({
     .reduce((sum, p) => sum + Number(p.amount), 0);
   const amountDue = totalCharges - paymentsReceived;
 
-  const depositHeld = depositInfo?.amount || 0;
-  const depositStatus = depositInfo?.status || "none";
-  const canUseDeposit = depositStatus === "authorized";
-
-  // Settlement calculation
-  let depositToCapture = 0;
-  let depositToRelease = 0;
-
-  if (canUseDeposit && amountDue > 0) {
-    depositToCapture = Math.min(amountDue, depositHeld);
-    depositToRelease = depositHeld - depositToCapture;
-  } else if (canUseDeposit) {
-    depositToRelease = depositHeld;
-  }
-
-  const finalAmountDue = Math.max(0, amountDue - depositToCapture);
   const allChecked = confirmCharges && confirmInspection && confirmInvoice;
 
   const handleCloseAccount = async () => {
     if (!allChecked) return;
-
     await closeAccount.mutateAsync({ bookingId });
     onCloseComplete?.();
   };
@@ -195,26 +146,20 @@ export function AccountCloseoutPanel({
               <Receipt className="h-5 w-5" />
               Close Account
             </CardTitle>
-            <CardDescription>
-              Booking: {booking.booking_code}
-            </CardDescription>
+            <CardDescription>Booking: {booking.booking_code}</CardDescription>
           </div>
           <Badge variant="outline">{booking.status}</Badge>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Final Charges Summary */}
+        {/* Final Charges */}
         <div>
-          <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
-            📋 FINAL CHARGES SUMMARY
-          </h4>
+          <h4 className="font-medium text-sm mb-3">📋 FINAL CHARGES SUMMARY</h4>
           <div className="space-y-1 text-sm">
             {lineItems.map((item, idx) => (
               <div key={idx} className="flex justify-between py-1">
-                <span className={item.type === "tax" ? "text-muted-foreground" : ""}>
-                  {item.description}
-                </span>
+                <span className={item.type === "tax" ? "text-muted-foreground" : ""}>{item.description}</span>
                 <span className="font-mono">${item.amount.toFixed(2)}</span>
               </div>
             ))}
@@ -229,8 +174,7 @@ export function AccountCloseoutPanel({
         {/* Payments Received */}
         <div>
           <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            PAYMENTS RECEIVED
+            <CreditCard className="h-4 w-4" /> PAYMENTS RECEIVED
           </h4>
           <div className="space-y-1 text-sm">
             {payments.filter((p) => p.payment_type === "rental").map((p) => (
@@ -244,35 +188,6 @@ export function AccountCloseoutPanel({
             {paymentsReceived === 0 && (
               <div className="text-muted-foreground py-1">No payments recorded</div>
             )}
-          </div>
-        </div>
-
-        {/* Security Deposit */}
-        <div>
-          <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            SECURITY DEPOSIT
-          </h4>
-          <div className="rounded-lg border p-3 bg-muted/50 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Authorization Hold</span>
-              <span className="font-mono">${depositHeld.toFixed(2)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className={cn(
-                depositStatus === "authorized" ? "bg-blue-500/10 text-blue-600" :
-                depositStatus === "captured" ? "bg-amber-500/10 text-amber-600" :
-                depositStatus === "released" ? "bg-emerald-500/10 text-emerald-600" :
-                "bg-muted"
-              )}>
-                {depositStatus === "authorized" ? "Active" : depositStatus}
-              </Badge>
-              {depositInfo?.expiresAt && depositStatus === "authorized" && (
-                <span className="text-xs text-muted-foreground">
-                  Expires: {format(new Date(depositInfo.expiresAt), "MMM d")}
-                </span>
-              )}
-            </div>
           </div>
         </div>
 
@@ -293,104 +208,49 @@ export function AccountCloseoutPanel({
             <Separator className="my-2" />
             <div className="flex justify-between font-medium">
               <span>Amount Due</span>
-              <span className={cn(
-                "font-mono",
-                amountDue > 0 ? "text-amber-600" : "text-emerald-600"
-              )}>
+              <span className={cn("font-mono", amountDue > 0 ? "text-destructive" : "text-emerald-600")}>
                 ${amountDue.toFixed(2)}
               </span>
             </div>
           </div>
-
-          {/* Deposit Settlement Preview */}
-          {canUseDeposit && (
-            <Alert className="mt-3 bg-blue-500/5 border-blue-500/20">
-              <Shield className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-sm">
-                {depositToCapture > 0 ? (
-                  <>
-                    <strong>Deposit will cover:</strong> ${depositToCapture.toFixed(2)} (capture from hold)
-                    <br />
-                    {depositToRelease > 0 && (
-                      <><strong>Remaining deposit:</strong> ${depositToRelease.toFixed(2)} (will be released)</>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <strong>No amount due:</strong> Full deposit of ${depositHeld.toFixed(2)} will be released
-                  </>
-                )}
-              </AlertDescription>
-            </Alert>
+          {amountDue > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Outstanding balance can be collected via a payment link after closing.
+            </p>
           )}
         </div>
 
         <Separator />
 
-        {/* Confirmation Checkboxes */}
+        {/* Confirmations */}
         <div className="space-y-3">
           <div className="flex items-start space-x-3">
-            <Checkbox 
-              id="confirm-charges" 
-              checked={confirmCharges}
-              onCheckedChange={(c) => setConfirmCharges(!!c)}
-            />
-            <label htmlFor="confirm-charges" className="text-sm cursor-pointer">
-              Confirm all charges reviewed
-            </label>
+            <Checkbox id="confirm-charges" checked={confirmCharges} onCheckedChange={(c) => setConfirmCharges(!!c)} />
+            <label htmlFor="confirm-charges" className="text-sm cursor-pointer">Confirm all charges reviewed</label>
           </div>
           <div className="flex items-start space-x-3">
-            <Checkbox 
-              id="confirm-inspection" 
-              checked={confirmInspection}
-              onCheckedChange={(c) => setConfirmInspection(!!c)}
-            />
-            <label htmlFor="confirm-inspection" className="text-sm cursor-pointer">
-              Confirm vehicle inspection complete
-            </label>
+            <Checkbox id="confirm-inspection" checked={confirmInspection} onCheckedChange={(c) => setConfirmInspection(!!c)} />
+            <label htmlFor="confirm-inspection" className="text-sm cursor-pointer">Confirm vehicle inspection complete</label>
           </div>
           <div className="flex items-start space-x-3">
-            <Checkbox 
-              id="confirm-invoice" 
-              checked={confirmInvoice}
-              onCheckedChange={(c) => setConfirmInvoice(!!c)}
-            />
-            <label htmlFor="confirm-invoice" className="text-sm cursor-pointer">
-              Generate final invoice
-            </label>
+            <Checkbox id="confirm-invoice" checked={confirmInvoice} onCheckedChange={(c) => setConfirmInvoice(!!c)} />
+            <label htmlFor="confirm-invoice" className="text-sm cursor-pointer">Generate final invoice</label>
           </div>
         </div>
 
-        {/* Close Account Button */}
-        <Button
-          className="w-full"
-          size="lg"
-          disabled={!allChecked || closeAccount.isPending}
-          onClick={handleCloseAccount}
-        >
+        <Button className="w-full" size="lg" disabled={!allChecked || closeAccount.isPending} onClick={handleCloseAccount}>
           {closeAccount.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Processing...
-            </>
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
           ) : (
-            <>
-              💰 CLOSE ACCOUNT & PROCESS SETTLEMENT
-            </>
+            <>💰 CLOSE ACCOUNT & GENERATE INVOICE</>
           )}
         </Button>
 
-        {/* Settlement Preview */}
         {allChecked && (
           <div className="text-xs text-muted-foreground text-center space-y-1">
-            {depositToCapture > 0 && (
-              <div>• Capture ${depositToCapture.toFixed(2)} from deposit hold</div>
-            )}
-            {depositToRelease > 0 && (
-              <div>• Release ${depositToRelease.toFixed(2)} authorization</div>
-            )}
             <div>• Generate final invoice</div>
             <div>• Email receipt to customer</div>
+            {amountDue > 0 && <div>• Outstanding balance: ${amountDue.toFixed(2)} (collect separately)</div>}
           </div>
         )}
       </CardContent>
