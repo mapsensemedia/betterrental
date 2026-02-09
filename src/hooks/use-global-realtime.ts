@@ -1,7 +1,7 @@
 /**
  * Global Realtime Subscriptions
  *
- * A single Supabase channel that listens to all operationally-critical tables
+ * A single Supabase channel that listens to ALL operationally-critical tables
  * and invalidates the relevant React Query caches so every panel (Admin, Ops,
  * Delivery, Support) refreshes automatically when data changes.
  *
@@ -44,9 +44,11 @@ function useDebouncedInvalidator(delayMs = 300) {
  * Subscribe to all operationally-important tables and auto-refresh caches.
  *
  * Covers: bookings, admin_alerts, damage_reports, delivery_statuses,
- * support_tickets_v2, ticket_messages, incident_cases, payments,
- * condition_photos, checkin_records, vehicle_units, verification_requests,
- * deposit_ledger, deposit_jobs
+ * delivery_status_log, delivery_tasks, support_tickets_v2, ticket_messages_v2,
+ * incident_cases, payments, condition_photos, checkin_records, vehicle_units,
+ * verification_requests, deposit_ledger, deposit_jobs, rental_agreements,
+ * system_settings, booking_add_ons, booking_additional_drivers,
+ * final_invoices, inspection_metrics, audit_logs
  */
 export function useGlobalRealtime() {
   const invalidate = useDebouncedInvalidator();
@@ -73,6 +75,8 @@ export function useGlobalRealtime() {
             ["my-bookings"],
             ["my-deliveries"],
             ["delivery-detail"],
+            ["deposit-hold-status"],
+            ["payment-deposit-status"],
           ])
       )
 
@@ -93,7 +97,7 @@ export function useGlobalRealtime() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "damage_reports" },
-        () => invalidate([["damage-reports"]])
+        () => invalidate([["damage-reports"], ["sidebar-counts"]])
       )
 
       // ─── Delivery Statuses ─────────────────────────────────────
@@ -127,7 +131,7 @@ export function useGlobalRealtime() {
       // ─── Ticket Messages ───────────────────────────────────────
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "ticket_messages" },
+        { event: "*", schema: "public", table: "ticket_messages_v2" },
         () =>
           invalidate([
             ["ticket-messages"],
@@ -155,6 +159,7 @@ export function useGlobalRealtime() {
         () =>
           invalidate([
             ["payments"],
+            ["payment-deposit-status"],
             ["sidebar-counts"],
           ])
       )
@@ -163,7 +168,7 @@ export function useGlobalRealtime() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "condition_photos" },
-        () => invalidate([["condition-photos"]])
+        () => invalidate([["condition-photos"], ["booking"]])
       )
 
       // ─── Check-in Records ──────────────────────────────────────
@@ -183,6 +188,7 @@ export function useGlobalRealtime() {
             ["vehicle-unit"],
             ["fleet-categories"],
             ["browse-categories"],
+            ["sidebar-counts"],
           ])
       )
 
@@ -203,14 +209,20 @@ export function useGlobalRealtime() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "deposit_ledger" },
-        () => invalidate([["deposit-ledger"]])
+        () =>
+          invalidate([
+            ["deposit-ledger"],
+            ["deposit-hold-status"],
+            ["payment-deposit-status"],
+            ["booking"],
+          ])
       )
 
       // ─── Deposit Jobs ──────────────────────────────────────────
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "deposit_jobs" },
-        () => invalidate([["deposit-jobs"]])
+        () => invalidate([["deposit-jobs"], ["deposit-hold-status"]])
       )
 
       // ─── Rental Agreements ─────────────────────────────────────
@@ -231,6 +243,19 @@ export function useGlobalRealtime() {
         () => invalidate([["delivery-detail"], ["delivery-status-log"]])
       )
 
+      // ─── Delivery Tasks ────────────────────────────────────────
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "delivery_tasks" },
+        () =>
+          invalidate([
+            ["delivery-task"],
+            ["booking"],
+            ["booking-activity-timeline"],
+            ["my-deliveries"],
+          ])
+      )
+
       // ─── System Settings (protection pricing, fuel rates, etc.) ──
       .on(
         "postgres_changes",
@@ -239,6 +264,66 @@ export function useGlobalRealtime() {
           invalidate([
             ["protection-settings"],
             ["fuel-pricing-settings"],
+          ])
+      )
+
+      // ─── Booking Add-Ons ───────────────────────────────────────
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "booking_add_ons" },
+        () =>
+          invalidate([
+            ["booking-add-ons"],
+            ["booking"],
+            ["admin-bookings"],
+          ])
+      )
+
+      // ─── Booking Additional Drivers ────────────────────────────
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "booking_additional_drivers" },
+        () =>
+          invalidate([
+            ["booking-additional-drivers"],
+            ["booking"],
+          ])
+      )
+
+      // ─── Final Invoices ────────────────────────────────────────
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "final_invoices" },
+        () =>
+          invalidate([
+            ["final-invoice"],
+            ["booking"],
+            ["admin-bookings"],
+          ])
+      )
+
+      // ─── Inspection Metrics ────────────────────────────────────
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inspection_metrics" },
+        () =>
+          invalidate([
+            ["walkaround-inspection"],
+            ["return-inspection-metrics"],
+            ["pickup-inspection-metrics"],
+            ["booking-inspections-detail"],
+            ["booking"],
+          ])
+      )
+
+      // ─── Audit Logs (Activity Timeline) ────────────────────────
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "audit_logs" },
+        () =>
+          invalidate([
+            ["booking-activity-timeline"],
+            ["audit-logs"],
           ])
       )
 
