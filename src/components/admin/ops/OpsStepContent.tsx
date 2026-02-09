@@ -158,21 +158,27 @@ export function OpsStepContent({
             />
           )}
           {stepId === "checkin" && (
-            isDelivery ? (
-              <StepCheckin 
-                booking={booking}
-                completion={completion.checkin}
-                onStepComplete={onCompleteStep}
-                vehicleName={booking.vehicle_categories?.name || "Vehicle"}
-              />
-            ) : (
-              <StepCheckin 
-                booking={booking}
-                completion={completion.checkin}
-                onStepComplete={onCompleteStep}
-                vehicleName={booking.vehicle_categories?.name || "Vehicle"}
-              />
-            )
+            <>
+              {isDelivery ? (
+                <StepCheckin 
+                  booking={booking}
+                  completion={completion.checkin}
+                  onStepComplete={onCompleteStep}
+                  vehicleName={booking.vehicle_categories?.name || "Vehicle"}
+                />
+              ) : (
+                <StepCheckin 
+                  booking={booking}
+                  completion={completion.checkin}
+                  onStepComplete={onCompleteStep}
+                  vehicleName={booking.vehicle_categories?.name || "Vehicle"}
+                />
+              )}
+              {/* Counter Upsell - also available during checkin for counter pickups */}
+              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+                <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
+              )}
+            </>
           )}
           {stepId === "payment" && (
             <>

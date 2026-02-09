@@ -29,56 +29,60 @@ export const PREP_CHECKLIST_ITEMS = [
 
 export type PrepChecklistKey = typeof PREP_CHECKLIST_ITEMS[number]['key'];
 
-// Hook to get prep status from inspection_metrics (we'll use the pickup phase)
+type PrepData = Record<string, { checked: boolean; checkedAt: string | null; checkedBy: string | null }>;
+
+function parsePrepData(exteriorNotes: string | null): PrepData {
+  if (!exteriorNotes) return {};
+  try {
+    return JSON.parse(exteriorNotes);
+  } catch {
+    return {};
+  }
+}
+
+function buildPrepStatus(bookingId: string, prepData: PrepData): VehiclePrepStatus {
+  const items: VehiclePrepItem[] = PREP_CHECKLIST_ITEMS.map((item) => ({
+    id: `${bookingId}-${item.key}`,
+    key: item.key,
+    label: item.label,
+    checked: prepData[item.key]?.checked ?? false,
+    checkedAt: prepData[item.key]?.checkedAt ?? null,
+    checkedBy: prepData[item.key]?.checkedBy ?? null,
+  }));
+
+  const completedCount = items.filter(i => i.checked).length;
+
+  return {
+    bookingId,
+    items,
+    allComplete: completedCount === items.length,
+    completedCount,
+    totalCount: items.length,
+  };
+}
+
+// Hook to get prep status from inspection_metrics (pickup phase)
 export function useVehiclePrepStatus(bookingId: string | null) {
   return useQuery({
     queryKey: ['vehicle-prep', bookingId],
     queryFn: async () => {
       if (!bookingId) return null;
 
-      // Get inspection metrics for this booking (pickup phase - we store prep data here)
       const { data: inspection, error } = await supabase
         .from('inspection_metrics')
-        .select('*')
+        .select('exterior_notes')
         .eq('booking_id', bookingId)
         .eq('phase', 'pickup')
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
 
-      // Parse the prep checklist from exterior_notes (JSON stored as text)
-      let prepData: Record<string, { checked: boolean; checkedAt: string | null; checkedBy: string | null }> = {};
-      
-      if (inspection?.exterior_notes) {
-        try {
-          prepData = JSON.parse(inspection.exterior_notes);
-        } catch {
-          prepData = {};
-        }
-      }
-
-      const items: VehiclePrepItem[] = PREP_CHECKLIST_ITEMS.map((item, index) => ({
-        id: `${bookingId}-${item.key}`,
-        key: item.key,
-        label: item.label,
-        checked: prepData[item.key]?.checked ?? false,
-        checkedAt: prepData[item.key]?.checkedAt ?? null,
-        checkedBy: prepData[item.key]?.checkedBy ?? null,
-      }));
-
-      const completedCount = items.filter(i => i.checked).length;
-
-      return {
-        bookingId,
-        items,
-        allComplete: completedCount === items.length,
-        completedCount,
-        totalCount: items.length,
-      } as VehiclePrepStatus;
+      const prepData = parsePrepData(inspection?.exterior_notes ?? null);
+      return buildPrepStatus(bookingId, prepData);
     },
     enabled: !!bookingId,
-    staleTime: 15000, // 15 seconds - operational data tier
-    gcTime: 60000,    // Keep cached for 1 minute
+    staleTime: 30000, // 30 seconds — reduce refetches
+    gcTime: 120000,   // 2 minutes cache
   });
 }
 
@@ -99,36 +103,28 @@ export function useUpdateVehiclePrep() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get existing prep data (stored in pickup phase record)
       const { data: existing } = await supabase
         .from('inspection_metrics')
-        .select('*')
+        .select('id, exterior_notes')
         .eq('booking_id', bookingId)
         .eq('phase', 'pickup')
         .maybeSingle();
 
-      let prepData: Record<string, { checked: boolean; checkedAt: string | null; checkedBy: string | null }> = {};
-      
-      if (existing?.exterior_notes) {
-        try {
-          prepData = JSON.parse(existing.exterior_notes);
-        } catch {
-          prepData = {};
-        }
-      }
+      let prepData = parsePrepData(existing?.exterior_notes ?? null);
 
-      // Update the specific item
       prepData[itemKey] = {
         checked,
         checkedAt: checked ? new Date().toISOString() : null,
         checkedBy: checked ? user.id : null,
       };
 
+      const exteriorNotes = JSON.stringify(prepData);
+
       if (existing) {
         const { error } = await supabase
           .from('inspection_metrics')
           .update({
-            exterior_notes: JSON.stringify(prepData),
+            exterior_notes: exteriorNotes,
             recorded_at: new Date().toISOString(),
           })
           .eq('id', existing.id);
@@ -140,25 +136,59 @@ export function useUpdateVehiclePrep() {
           .insert({
             booking_id: bookingId,
             phase: 'pickup',
-            exterior_notes: JSON.stringify(prepData),
+            exterior_notes: exteriorNotes,
             recorded_by: user.id,
           });
 
         if (error) throw error;
       }
 
-      return { bookingId, itemKey, checked };
+      return { bookingId, itemKey, checked, prepData };
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['vehicle-prep', variables.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ['booking', variables.bookingId] });
+    // Optimistic update — instant UI response
+    onMutate: async (variables) => {
+      const queryKey = ['vehicle-prep', variables.bookingId];
+      
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey });
+      
+      // Snapshot previous value
+      const previous = queryClient.getQueryData<VehiclePrepStatus>(queryKey);
+      
+      // Optimistically update
+      if (previous) {
+        const updatedItems = previous.items.map(item =>
+          item.key === variables.itemKey
+            ? { ...item, checked: variables.checked, checkedAt: variables.checked ? new Date().toISOString() : null }
+            : item
+        );
+        const completedCount = updatedItems.filter(i => i.checked).length;
+        
+        queryClient.setQueryData<VehiclePrepStatus>(queryKey, {
+          ...previous,
+          items: updatedItems,
+          completedCount,
+          allComplete: completedCount === updatedItems.length,
+        });
+      }
+      
+      return { previous };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables, context) => {
+      // Rollback on error
+      if (context?.previous) {
+        queryClient.setQueryData(['vehicle-prep', variables.bookingId], context.previous);
+      }
       toast({
         title: 'Update failed',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: (_, __, variables) => {
+      // Refetch in background to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['vehicle-prep', variables.bookingId] });
+      queryClient.invalidateQueries({ queryKey: ['booking', variables.bookingId] });
     },
   });
 }
@@ -172,7 +202,6 @@ export function useVehicleReadyStatus(bookingId: string | null) {
     queryFn: async () => {
       if (!bookingId) return null;
 
-      // Check condition photos (pickup phase)
       const { data: photos, error } = await supabase
         .from('condition_photos')
         .select('photo_type')
@@ -188,7 +217,6 @@ export function useVehicleReadyStatus(bookingId: string | null) {
 
       const prepComplete = prepStatus?.allComplete ?? false;
       
-      // Get incomplete prep items
       const incompletePrepItems = prepStatus?.items
         .filter(i => !i.checked)
         .map(i => i.label) || [];
