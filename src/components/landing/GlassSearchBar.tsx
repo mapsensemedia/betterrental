@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Calendar, Clock, Search } from "lucide-react";
+import { MapPin, Calendar, Clock, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocations } from "@/hooks/use-locations";
+import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ interface GlassSearchBarProps {
 export function GlassSearchBar({ className }: GlassSearchBarProps) {
   const navigate = useNavigate();
   const { data: locations = [], isLoading: locationsLoading } = useLocations();
+  const { setAgeConfirmed } = useRentalBooking();
 
   const [locationId, setLocationId] = useState<string>("");
   const [sameDropoff, setSameDropoff] = useState(true);
@@ -29,11 +31,24 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
   const [pickupTime, setPickupTime] = useState<string>(DEFAULT_PICKUP_TIME);
   const [returnDate, setReturnDate] = useState<string>("");
   const [returnTime, setReturnTime] = useState<string>(DEFAULT_PICKUP_TIME);
+  const [ageRange, setAgeRange] = useState<"20-24" | "25-70" | "">("");
+  const [showAgeError, setShowAgeError] = useState(false);
 
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
 
+  const handleAgeChange = (value: string) => {
+    setAgeRange(value as "20-24" | "25-70");
+    setShowAgeError(false);
+    setAgeConfirmed(true, value as "20-24" | "25-70");
+  };
+
   const handleSearch = () => {
+    if (!ageRange) {
+      setShowAgeError(true);
+      return;
+    }
+
     const params = new URLSearchParams();
     
     if (locationId) params.set("locationId", locationId);
@@ -55,7 +70,7 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
   return (
     <div className={cn("glass rounded-2xl p-6 shadow-xl", className)}>
       {/* Search Fields */}
-      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 items-end">
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 items-end">
         {/* Pickup Location */}
         <div className="space-y-2 lg:col-span-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -166,6 +181,31 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Driver Age */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Driver's Age
+          </label>
+          <Select value={ageRange} onValueChange={handleAgeChange}>
+            <SelectTrigger className={cn(
+              "h-12 rounded-xl border-border bg-background",
+              showAgeError && "border-destructive ring-1 ring-destructive"
+            )}>
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="Select age range" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="20-24">20–24 years</SelectItem>
+              <SelectItem value="25-70">25–70 years</SelectItem>
+            </SelectContent>
+          </Select>
+          {showAgeError && (
+            <p className="text-xs text-destructive">Please select your age range</p>
+          )}
         </div>
       </div>
 
