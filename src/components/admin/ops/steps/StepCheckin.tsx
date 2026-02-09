@@ -63,6 +63,7 @@ interface StepCheckinProps {
 export function StepCheckin({ booking, completion, onStepComplete, vehicleName }: StepCheckinProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [viewLicenseOpen, setViewLicenseOpen] = useState(false);
+  const [editingVerification, setEditingVerification] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
@@ -150,6 +151,10 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
     licenseNameMatches &&
     licenseNotExpired &&
     ageVerified;
+
+  // Fields are locked only if check-in is passed AND not in edit mode
+  const isCheckinPassed = checkinRecord?.checkInStatus === "passed";
+  const isLocked = isCheckinPassed && !editingVerification;
 
   const isSaving = createOrUpdateCheckIn.isPending;
   const isCompleting = completeCheckIn.isPending;
@@ -492,7 +497,7 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
               <UserCheck className="w-4 h-4 text-muted-foreground" />
               <CardTitle className="text-base">Verification Checklist</CardTitle>
             </div>
-            {checkinRecord?.checkInStatus === "passed" ? (
+            {isCheckinPassed && !editingVerification ? (
               <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="w-3 h-3 mr-1" />
                 Complete
@@ -519,7 +524,7 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
             <Checkbox
               checked={govIdVerified}
               onCheckedChange={(checked) => setGovIdVerified(checked === true)}
-              disabled={checkinRecord?.checkInStatus === "passed"}
+              disabled={isLocked}
             />
             <Label className="text-sm cursor-pointer flex-1">
               Government Photo ID verified (in person)
@@ -545,7 +550,7 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
             <Checkbox
               checked={licenseNameMatches}
               onCheckedChange={(checked) => setLicenseNameMatches(checked === true)}
-              disabled={checkinRecord?.checkInStatus === "passed"}
+              disabled={isLocked}
             />
             <Label className="text-sm cursor-pointer flex-1">
               Name matches booking
@@ -562,7 +567,7 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
               type="date"
               value={licenseExpiryDate}
               onChange={(e) => setLicenseExpiryDate(e.target.value)}
-              disabled={checkinRecord?.checkInStatus === "passed"}
+              disabled={isLocked}
             />
             {licenseExpiryDate && (
               <div className="flex items-center gap-2 text-xs">
@@ -588,7 +593,7 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
               type="date"
               value={customerDob}
               onChange={(e) => setCustomerDob(e.target.value)}
-              disabled={checkinRecord?.checkInStatus === "passed"}
+              disabled={isLocked}
             />
             {customerDob && (
               <div className="flex items-center gap-2 text-xs">
@@ -614,10 +619,46 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
           <Separator />
 
           {/* Action Buttons */}
-          {checkinRecord?.checkInStatus === "passed" ? (
-            <div className="p-3 bg-emerald-500/10 rounded-lg text-center text-sm text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="h-4 w-4 inline mr-2" />
-              Check-in completed
+          {isCheckinPassed && !editingVerification ? (
+            <div className="space-y-2">
+              <div className="p-3 bg-emerald-500/10 rounded-lg text-center text-sm text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4 inline mr-2" />
+                Check-in completed
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setEditingVerification(true)}
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit Verification
+              </Button>
+            </div>
+          ) : editingVerification ? (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setEditingVerification(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  handleSaveCheckIn();
+                  setEditingVerification(false);
+                }}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save Changes
+              </Button>
             </div>
           ) : (
             <div className="flex gap-2">
