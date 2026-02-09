@@ -115,8 +115,8 @@ export function StepWalkaround({ bookingId, completion }: StepWalkaroundProps) {
   };
 
   // Require fuel + odometer before completing
-  const hasFuel = !!(fuelLevel || inspection.fuel_level != null);
-  const hasOdometer = !!(odometerReading || inspection.odometer_reading);
+  const hasFuel = !!(fuelLevel || (inspection && inspection.fuel_level != null));
+  const hasOdometer = !!(odometerReading || (inspection && inspection.odometer_reading));
   const canComplete = hasFuel && hasOdometer;
 
   // UPDATED: Staff-only completion - no customer signature needed

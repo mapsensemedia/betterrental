@@ -6,7 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
  * Create Payment Intent
  * 
  * Creates a standard Stripe PaymentIntent for authenticated users.
- * For the unified checkout hold (rental + deposit), use create-checkout-hold instead.
+ * Used for additional payment collection (e.g., via payment request links).
  */
 
 interface CreatePaymentIntentRequest {

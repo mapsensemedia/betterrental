@@ -111,14 +111,12 @@ async function autoReleaseDeposit(
     });
   }
 
-  // Send notification to customer
+  // Send notification to customer via general booking notification
   try {
-    await supabase.functions.invoke("send-deposit-notification", {
+    await supabase.functions.invoke("send-booking-notification", {
       body: {
         bookingId,
-        action: "released",
-        amount,
-        reason: "Your rental has been completed with no issues. Your deposit has been released.",
+        stage: "deposit_released",
       },
     });
   } catch (e) {
