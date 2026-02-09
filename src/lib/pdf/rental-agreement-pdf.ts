@@ -110,9 +110,9 @@ function fmt(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-function fmtDate(dateStr: string): string {
+function fmtDateFull(dateStr: string): string {
   try {
-    return format(new Date(dateStr), "MM-dd-yy HHmm");
+    return format(new Date(dateStr), "EEEE, MMMM d, yyyy 'at' h:mm a");
   } catch {
     return dateStr;
   }
@@ -126,15 +126,23 @@ function fmtDateLong(dateStr: string): string {
   }
 }
 
+function fmtDateShort(dateStr: string): string {
+  try {
+    return format(new Date(dateStr), "MMMM d, yyyy");
+  } catch {
+    return dateStr;
+  }
+}
+
 // ── PDF Config ──
 
-const MARGIN = 36;
-const PAGE_W = 612; // letter width in pt
-const PAGE_H = 792; // letter height in pt
-const CONTENT_W = PAGE_W - MARGIN * 2;
-const COL_LEFT = MARGIN;
-const COL_MID = MARGIN + CONTENT_W * 0.5;
-const COL_RIGHT_END = PAGE_W - MARGIN;
+const M = 28; // tight margin
+const PAGE_W = 612;
+const PAGE_H = 792;
+const CW = PAGE_W - M * 2; // content width
+const L = M; // left edge
+const R = PAGE_W - M; // right edge
+const MID = M + CW * 0.5; // midpoint
 
 // ── Main export ──
 
@@ -156,9 +164,9 @@ export async function generateRentalAgreementPdf(
   pdf.save(`C2C-Rental-${code}.pdf`);
 }
 
-// ══════════════════════════════════════════════════════
-// STRUCTURED RENDERER — Hertz-style dense single-page
-// ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// STRUCTURED RENDERER — Full agreement, single page, dense
+// ══════════════════════════════════════════════════════════════
 
 function renderStructuredPdf(
   pdf: jsPDF,
@@ -167,415 +175,547 @@ function renderStructuredPdf(
   bookingId: string,
   logoBase64: string | null
 ) {
-  let y = MARGIN;
+  let y = M;
   const bookingCode = bookingId.slice(0, 8).toUpperCase();
-  const LH = 9; // line height
 
-  // ── HEADER ──
+  // ─────────────────────────────────────────────
+  // HEADER
+  // ─────────────────────────────────────────────
   if (logoBase64) {
-    try {
-      pdf.addImage(logoBase64, "PNG", COL_LEFT, y - 4, 70, 26);
-    } catch { /* ignore */ }
+    try { pdf.addImage(logoBase64, "PNG", L, y - 2, 55, 20); } catch { /* skip */ }
   }
-
-  pdf.setFontSize(16);
+  pdf.setFontSize(13);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
-  pdf.text("RENTAL RECORD", PAGE_W / 2, y + 14, { align: "center" });
-
-  // Booking # right
+  pdf.text("C2C CAR RENTAL", PAGE_W / 2, y + 8, { align: "center" });
   pdf.setFontSize(8);
-  pdf.setFont("courier", "bold");
-  pdf.text(`RENTAL RECORD:  ${bookingCode}`, COL_RIGHT_END, y + 6, { align: "right" });
-  pdf.setFontSize(7);
-  pdf.setFont("courier", "normal");
-  pdf.text(`FORM#           ${bookingCode}-01`, COL_RIGHT_END, y + 16, { align: "right" });
+  pdf.text("VEHICLE LEGAL AGREEMENT", PAGE_W / 2, y + 18, { align: "center" });
+  y += 24;
 
-  y += 30;
-
-  // Thick line under header
-  pdf.setDrawColor(0, 0, 0);
-  pdf.setLineWidth(1.5);
-  pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
+  // Booking ref + date (right-aligned row)
+  pdf.setFontSize(6.5);
+  pdf.setFont("helvetica", "normal");
+  const refLine = `Booking Reference: ${bookingCode}`;
+  const dateLine = `Agreement Date: ${fmtDateShort(agreement.created_at)}`;
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Booking Reference:", L, y);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(bookingCode, L + 78, y);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Agreement Date:", MID, y);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(fmtDateShort(agreement.created_at), MID + 68, y);
   y += 6;
 
-  // ── CUSTOMER NAME (large, left) ──
-  const displayName = t.customer.name && !t.customer.name.includes("@")
-    ? t.customer.name
-    : "VALUED CUSTOMER";
-  pdf.setFontSize(11);
-  pdf.setFont("helvetica", "bold");
-  pdf.text(displayName.toUpperCase(), COL_LEFT, y + 10);
+  hLine(pdf, y);
+  y += 5;
 
-  // ── RENTAL / DUE dates (right side) ──
-  const pickupLoc = t.locations.pickup;
-  const locStr = (pickupLoc.name || pickupLoc.city || "").toUpperCase();
-
-  pdf.setFontSize(7);
-  pdf.setFont("courier", "bold");
-  const rentalLine = `RENTAL: ${fmtDate(t.rental.startAt)} ${locStr}`;
-  const dueLine = `DUE:    ${fmtDate(t.rental.endAt)} ${locStr}`;
-  pdf.text(rentalLine, COL_MID, y + 4);
-  pdf.text(dueLine, COL_MID, y + 13);
-
-  y += 20;
-
-  // Thin separator
-  pdf.setLineWidth(0.5);
-  pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
+  // ─────────────────────────────────────────────
+  // RENTER INFORMATION
+  // ─────────────────────────────────────────────
+  sectionTitle(pdf, "RENTER INFORMATION", L, y);
   y += 8;
 
-  // ── VEHICLE INFO GRID (monospaced dense) ──
-  pdf.setFontSize(7);
-  pdf.setFont("courier", "normal");
+  const displayName = t.customer.name && !t.customer.name.includes("@")
+    ? t.customer.name : "—";
+  const displayEmail = t.customer.email || "—";
 
-  // Row 1: Vehicle class & Make/Model
-  const vehClass = `VEH CLASS: ${(t.vehicle.category || "—").toUpperCase()}`;
-  monoLine(pdf, vehClass, COL_LEFT, y);
-  // Build make/model from available fields
-  const makeModelParts = [t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean);
-  if (makeModelParts.length > 0) {
-    monoLine(pdf, `MODEL: ${makeModelParts.join(" ").toUpperCase()}`, COL_MID, y);
-  }
-  const colorStr = t.vehicle.color ? `COLOR: ${t.vehicle.color.toUpperCase()}` : "";
-  if (colorStr) monoLine(pdf, colorStr, COL_MID + 180, y);
-  y += LH;
+  labelValue(pdf, "Name:", displayName, L, y);
+  labelValue(pdf, "Email:", displayEmail, MID, y);
+  y += 8;
 
-  // Row 2: VIN & Plate (only show when available)
-  const hasVin = t.vehicle.vin && t.vehicle.vin !== "N/A";
-  const hasPlate = t.vehicle.licensePlate && t.vehicle.licensePlate !== "N/A";
-  if (hasVin || hasPlate) {
-    if (hasVin) monoLine(pdf, `VIN#: ${t.vehicle.vin!.toUpperCase()}`, COL_LEFT, y);
-    if (hasPlate) monoLine(pdf, `PLATE: ${t.vehicle.licensePlate!.toUpperCase()}`, hasVin ? COL_MID : COL_LEFT, y);
-    y += LH;
-  }
+  hLine(pdf, y);
+  y += 5;
 
-  // Row 3: Fuel/Trans/Seats & KMs Out
-  const fuelTrans = `FUEL: ${(t.vehicle.fuelType || "—").toUpperCase()}  TRANS: ${(t.vehicle.transmission || "—").toUpperCase()}  SEATS: ${t.vehicle.seats || "—"}`;
-  monoLine(pdf, fuelTrans, COL_LEFT, y);
-  if (t.condition.odometerOut != null) {
-    monoLine(pdf, `KMS OUT: ${t.condition.odometerOut.toLocaleString()}`, COL_MID, y);
-  }
-  y += LH;
+  // ─────────────────────────────────────────────
+  // LOCATIONS (two columns)
+  // ─────────────────────────────────────────────
+  sectionTitle(pdf, "LOCATIONS", L, y);
+  y += 8;
 
-  // Row 4: Tank capacity & Fuel level (only show fuel level if recorded)
-  const tankStr = `TANK CAP: ${t.vehicle.tankCapacityLiters || 50}L`;
-  monoLine(pdf, tankStr, COL_LEFT, y);
-  if (t.condition.fuelLevelOut != null) {
-    monoLine(pdf, `FUEL LVL: ${t.condition.fuelLevelOut}%`, COL_MID, y);
-  }
-  y += LH + 2;
-
-  // Separator
-  pdf.setLineWidth(0.5);
-  pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
-  y += 6;
-
-  // ── LOCATION INFO ──
-  pdf.setFontSize(7);
-  pdf.setFont("courier", "normal");
-
+  const pickupLoc = t.locations.pickup;
+  const dropoffLoc = t.locations.dropoff;
   const pickupAddr = [pickupLoc.name, pickupLoc.address, pickupLoc.city].filter(Boolean).join(", ");
-  monoLine(pdf, `PICKUP:   ${pickupAddr.toUpperCase()}`, COL_LEFT, y);
-  y += LH;
+  const dropoffAddr = [dropoffLoc.name, dropoffLoc.address, dropoffLoc.city].filter(Boolean).join(", ");
+
+  pdf.setFontSize(6);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Pickup Location:", L, y);
+  pdf.text("Drop-off Location:", MID, y);
+  y += 7;
+  pdf.setFont("helvetica", "normal");
+  // Wrap pickup address
+  const pickupLines = pdf.splitTextToSize(pickupAddr || "—", CW * 0.48);
+  const dropoffLines = pdf.splitTextToSize(
+    dropoffAddr === pickupAddr ? `${dropoffAddr} (Same as pickup)` : (dropoffAddr || "—"),
+    CW * 0.48
+  );
+  const locLines = Math.max(pickupLines.length, dropoffLines.length);
+  for (let i = 0; i < locLines; i++) {
+    if (pickupLines[i]) pdf.text(pickupLines[i], L, y);
+    if (dropoffLines[i]) pdf.text(dropoffLines[i], MID, y);
+    y += 6;
+  }
 
   if (t.locations.deliveryAddress) {
-    monoLine(pdf, `DELIVERY: ${t.locations.deliveryAddress.toUpperCase()}`, COL_LEFT, y);
-    y += LH;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Delivery Address:", L, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(t.locations.deliveryAddress, L + 68, y);
+    y += 6;
   }
 
-  const dropoff = t.locations.dropoff;
-  const dropoffAddr = [dropoff.name, dropoff.address, dropoff.city].filter(Boolean).join(", ");
-  const dropoffText = dropoffAddr === pickupAddr ? "SAME AS PICKUP" : dropoffAddr.toUpperCase();
-  monoLine(pdf, `RETURN:   ${dropoffText}`, COL_LEFT, y);
-  y += LH;
+  y += 1;
+  hLine(pdf, y);
+  y += 5;
 
-  // Duration
-  monoLine(pdf, `DURATION: ${t.rental.totalDays} DAY(S)`, COL_LEFT, y);
-  y += LH + 2;
-
-  // Separator
-  pdf.setLineWidth(0.5);
-  pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
+  // ─────────────────────────────────────────────
+  // VEHICLE DETAILS + CONDITION (two columns)
+  // ─────────────────────────────────────────────
+  sectionTitle(pdf, "VEHICLE DETAILS", L, y);
   y += 8;
 
-  // ══════════════════════════════════════════════
-  // ── AGREEMENT SUMMARY — Protection + Add-ons ──
-  // ══════════════════════════════════════════════
-  pdf.setFontSize(7.5);
-  pdf.setFont("courier", "bold");
-  pdf.text("AGREEMENT SUMMARY", COL_LEFT, y);
-  y += LH + 2;
+  const makeModelParts = [t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean);
+  const vehicleDesc = t.vehicle.category || "—";
 
-  pdf.setFont("courier", "normal");
-  pdf.setFontSize(7);
+  labelValue(pdf, "Category:", vehicleDesc, L, y);
+  if (makeModelParts.length > 0) {
+    labelValue(pdf, "Vehicle:", makeModelParts.join(" "), MID, y);
+  }
+  y += 7;
+
+  labelValue(pdf, "Fuel Type:", t.vehicle.fuelType || "—", L, y);
+  labelValue(pdf, "Transmission:", t.vehicle.transmission || "—", MID, y);
+  y += 7;
+
+  labelValue(pdf, "Seats:", `${t.vehicle.seats || "—"} passengers`, L, y);
+  labelValue(pdf, "Tank Capacity:", `${t.vehicle.tankCapacityLiters || 50} litres`, MID, y);
+  y += 7;
+
+  // VIN / Plate / Color (only if present)
+  const hasVin = t.vehicle.vin && t.vehicle.vin !== "N/A";
+  const hasPlate = t.vehicle.licensePlate && t.vehicle.licensePlate !== "N/A";
+  const hasColor = !!t.vehicle.color;
+  if (hasVin || hasPlate || hasColor) {
+    if (hasVin) labelValue(pdf, "VIN:", t.vehicle.vin!, L, y);
+    if (hasPlate) labelValue(pdf, "Plate:", t.vehicle.licensePlate!, hasVin ? MID : L, y);
+    if (hasColor && !hasPlate) labelValue(pdf, "Color:", t.vehicle.color!, hasVin ? MID : L, y);
+    y += 7;
+    if (hasColor && hasPlate) {
+      labelValue(pdf, "Color:", t.vehicle.color!, L, y);
+      y += 7;
+    }
+  }
+
+  // Condition at pickup
+  pdf.setFontSize(6);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(60, 60, 60);
+  pdf.text("CONDITION AT PICKUP:", L, y);
+  pdf.setTextColor(0, 0, 0);
+  y += 7;
+
+  const odometerStr = t.condition.odometerOut != null
+    ? `${t.condition.odometerOut.toLocaleString()} km` : "N/A";
+  const fuelStr = t.condition.fuelLevelOut != null
+    ? `${t.condition.fuelLevelOut}%` : "N/A";
+
+  labelValue(pdf, "Kilometres Out:", odometerStr, L, y);
+  labelValue(pdf, "Fuel Level:", fuelStr, MID, y);
+  y += 6;
+
+  hLine(pdf, y);
+  y += 5;
+
+  // ─────────────────────────────────────────────
+  // RENTAL PERIOD
+  // ─────────────────────────────────────────────
+  sectionTitle(pdf, "RENTAL PERIOD", L, y);
+  y += 8;
+
+  labelValue(pdf, "Pick-up Date/Time:", fmtDateFull(t.rental.startAt), L, y);
+  y += 7;
+  labelValue(pdf, "Return Date/Time:", fmtDateFull(t.rental.endAt), L, y);
+  y += 7;
+  labelValue(pdf, "Duration:", `${t.rental.totalDays} day(s)`, L, y);
+  y += 6;
+
+  hLine(pdf, y);
+  y += 5;
+
+  // ─────────────────────────────────────────────
+  // FINANCIAL SUMMARY
+  // ─────────────────────────────────────────────
+  sectionTitle(pdf, "FINANCIAL SUMMARY", L, y);
+  y += 8;
+
+  const FS = 5.5; // financial font size
+  pdf.setFontSize(FS);
+
+  // Vehicle Rental
+  pdf.setFont("helvetica", "bold");
+  pdf.text("VEHICLE RENTAL:", L, y);
+  pdf.setFont("helvetica", "normal");
+  y += 7;
+  finRow(pdf, `Daily Rate: ${fmt(t.rental.dailyRate)} × ${t.rental.totalDays} days`, fmt(t.financial.vehicleSubtotal), y);
+  y += 6;
 
   // Protection plan
-  const protectionName = t.protection?.planName || "No Extra Protection";
-  const protectionTotal = t.protection?.total ?? t.financial.protectionTotal ?? 0;
-  const protectionDaily = t.protection?.dailyRate ?? 0;
-  const protectionDeductible = t.protection?.deductible || "—";
+  const protName = t.protection?.planName || "No Extra Protection";
+  const protTotal = t.protection?.total ?? t.financial.protectionTotal ?? 0;
+  const protDaily = t.protection?.dailyRate ?? 0;
 
-  monoLine(pdf, `PROTECTION: ${protectionName.toUpperCase()}`, COL_LEFT, y);
-  if (protectionDaily > 0) {
-    monoLine(pdf, `${fmt(protectionDaily)}/DAY x ${t.rental.totalDays} = ${fmt(protectionTotal)}`, COL_MID, y);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("PROTECTION PLAN:", L, y);
+  pdf.setFont("helvetica", "normal");
+  y += 7;
+  if (protDaily > 0) {
+    finRow(pdf, `${protName}: ${fmt(protDaily)}/day × ${t.rental.totalDays} days`, fmt(protTotal), y);
   } else {
-    monoLine(pdf, `$0.00`, COL_MID, y);
+    finRow(pdf, protName, "$0.00", y);
   }
-  y += LH;
-  monoLine(pdf, `DEDUCTIBLE: ${protectionDeductible.toUpperCase()}`, COL_LEFT, y);
-  y += LH + 2;
+  y += 6;
 
-  // Add-ons list
-  pdf.setFont("courier", "bold");
-  monoLine(pdf, `ADD-ONS:`, COL_LEFT, y);
-  pdf.setFont("courier", "normal");
+  // Add-ons
+  pdf.setFont("helvetica", "bold");
+  pdf.text("ADD-ONS & EXTRAS:", L, y);
+  pdf.setFont("helvetica", "normal");
+  y += 7;
 
   if (t.financial.addOns && t.financial.addOns.length > 0) {
-    monoLine(pdf, `${t.financial.addOns.length} ITEM(S)`, COL_LEFT + 60, y);
-    y += LH;
     for (const addon of t.financial.addOns) {
-      const addonName = (addon.name || "—").toUpperCase().substring(0, 24);
-      monoLine(pdf, `  ${addonName.padEnd(24)}${fmt(addon.price).padStart(8)}`, COL_LEFT, y);
-      y += LH;
+      finRow(pdf, addon.name || "—", fmt(addon.price), y);
+      y += 6;
     }
   } else {
-    monoLine(pdf, `NONE SELECTED`, COL_LEFT + 60, y);
-    y += LH;
+    pdf.text("No add-ons selected", L + 8, y);
+    y += 6;
   }
 
-  y += 4;
-
-  // Separator
-  pdf.setLineWidth(0.5);
-  pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
-  y += 8;
-
-  // ── CHARGES LEFT COLUMN ──
-  const chargesStartY = y;
-  pdf.setFontSize(7.5);
-  pdf.setFont("courier", "bold");
-  pdf.text("CHARGE DESCRIPTION", COL_LEFT, y);
-  y += LH + 2;
-
-  pdf.setFont("courier", "normal");
-  pdf.setFontSize(7);
-
-  // Daily rate
-  const rateDesc = `DAYS        ${fmt(t.rental.dailyRate).padStart(8)}  ${String(t.rental.totalDays).padStart(2)} DAY(S)`;
-  monoLine(pdf, rateDesc, COL_LEFT, y);
-  y += LH;
-
-  // Vehicle subtotal
-  monoLine(pdf, `VEHICLE     ${fmt(t.financial.vehicleSubtotal).padStart(8)}`, COL_LEFT, y);
-  y += LH;
-
-  // Protection
-  if (protectionTotal > 0) {
-    monoLine(pdf, `PROTECTION  ${fmt(protectionTotal).padStart(8)}`, COL_LEFT, y);
-    y += LH;
-  }
-
-  // Add-ons total
-  monoLine(pdf, `ADD-ONS     ${fmt(t.financial.addOnsTotal).padStart(8)}`, COL_LEFT, y);
-  y += LH;
+  // Regulatory fees
+  pdf.setFont("helvetica", "bold");
+  pdf.text("REGULATORY FEES:", L, y);
+  pdf.setFont("helvetica", "normal");
+  y += 7;
+  finRow(pdf, `PVRT (Passenger Vehicle Rental Tax): ${fmt(t.taxes.pvrtDailyFee)}/day × ${t.rental.totalDays}`, fmt(t.financial.pvrtTotal), y);
+  y += 6;
+  finRow(pdf, `ACSRCH (AC Surcharge): ${fmt(t.taxes.acsrchDailyFee)}/day × ${t.rental.totalDays}`, fmt(t.financial.acsrchTotal), y);
+  y += 6;
 
   // Young driver fee
   if (t.financial.youngDriverFee > 0) {
-    monoLine(pdf, `YOUNG DRV   ${fmt(t.financial.youngDriverFee).padStart(8)}`, COL_LEFT, y);
-    y += LH;
+    finRow(pdf, "Young Driver Fee", fmt(t.financial.youngDriverFee), y);
+    y += 6;
   }
 
-  // Subtotal before tax
-  y += 2;
-  pdf.setFont("courier", "bold");
-  monoLine(pdf, `SUBTOTAL    ${fmt(t.financial.subtotalBeforeTax).padStart(8)}`, COL_LEFT, y);
-  pdf.setFont("courier", "normal");
-  y += LH;
+  // Subtotal
+  pdf.setDrawColor(160, 160, 160);
+  pdf.setLineWidth(0.3);
+  pdf.line(L, y, R, y);
+  y += 5;
+  finRowBold(pdf, "SUBTOTAL:", fmt(t.financial.subtotalBeforeTax), y);
+  y += 7;
 
-  const chargesEndY = y;
-
-  // ── SERVICE CHARGES / TAXES — RIGHT COLUMN ──
-  let ry = chargesStartY;
-  pdf.setFontSize(7.5);
-  pdf.setFont("courier", "bold");
-  pdf.text("SERVICE CHARGES/TAXES", COL_MID, ry);
-  ry += LH + 2;
-
-  pdf.setFont("courier", "normal");
-  pdf.setFontSize(7);
-
-  monoLine(pdf, `PVRT     ${fmt(t.taxes.pvrtDailyFee).padStart(7)}/DAY         (G)`, COL_MID, ry);
-  ry += LH;
-  monoLine(pdf, `ACSRCH   ${fmt(t.taxes.acsrchDailyFee).padStart(7)}/DAY         (S)`, COL_MID, ry);
-  ry += LH;
-  monoLine(pdf, `GST      ${(t.taxes.gstRate * 100).toFixed(1).padStart(6)}%            (N)`, COL_MID, ry);
-  ry += LH;
-  monoLine(pdf, `PST      ${(t.taxes.pstRate * 100).toFixed(1).padStart(6)}%            (N)`, COL_MID, ry);
-  ry += LH + 4;
-
-  // Tax amounts
-  pdf.setFont("courier", "bold");
-  monoLine(pdf, `PVRT TOTAL   ${fmt(t.financial.pvrtTotal).padStart(8)}`, COL_MID, ry);
-  ry += LH;
-  monoLine(pdf, `ACSRCH TOTAL ${fmt(t.financial.acsrchTotal).padStart(8)}`, COL_MID, ry);
-  ry += LH;
-  monoLine(pdf, `GST AMOUNT   ${fmt(t.financial.gstAmount).padStart(8)}`, COL_MID, ry);
-  ry += LH;
-  monoLine(pdf, `PST AMOUNT   ${fmt(t.financial.pstAmount).padStart(8)}`, COL_MID, ry);
-  ry += LH;
-
-  y = Math.max(chargesEndY, ry) + 4;
-
-  // ── TOTAL BOX ──
-  pdf.setLineWidth(1);
-  pdf.setDrawColor(0, 0, 0);
-  pdf.rect(COL_LEFT, y, CONTENT_W, 18);
-  pdf.setFillColor(245, 245, 245);
-  pdf.rect(COL_LEFT, y, CONTENT_W, 18, "F");
-
-  pdf.setFontSize(9);
+  // Taxes
   pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("TOTAL:", COL_LEFT + 8, y + 12);
-  pdf.text(`${fmt(t.financial.grandTotal)} CAD`, COL_LEFT + 80, y + 12);
+  pdf.text("TAXES:", L, y);
+  pdf.setFont("helvetica", "normal");
+  y += 7;
+  finRow(pdf, `PST (${(t.taxes.pstRate * 100).toFixed(0)}%):`, fmt(t.financial.pstAmount), y);
+  finRow(pdf, `GST (${(t.taxes.gstRate * 100).toFixed(0)}%):`, fmt(t.financial.gstAmount), y, MID);
+  y += 7;
+
+  // Total box
+  pdf.setFillColor(240, 240, 240);
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(0.8);
+  pdf.rect(L, y - 1, CW, 12, "FD");
   pdf.setFontSize(7);
-  pdf.setFont("courier", "normal");
-  pdf.text(`DEPOSIT: ${fmt(t.financial.depositAmount)} (REFUNDABLE)`, COL_MID, y + 12);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("TOTAL AMOUNT DUE:", L + 4, y + 7);
+  pdf.text(`${fmt(t.financial.grandTotal)} CAD`, R - 4, y + 7, { align: "right" });
+  y += 14;
 
-  // Border on total box
-  pdf.setDrawColor(0);
-  pdf.setLineWidth(0.5);
-  pdf.rect(COL_LEFT, y, CONTENT_W, 18);
+  // Deposit
+  pdf.setFontSize(FS);
+  pdf.setFont("helvetica", "normal");
+  finRow(pdf, "Security Deposit:", `${fmt(t.financial.depositAmount)} (refundable)`, y);
+  y += 6;
 
-  y += 26;
+  hLine(pdf, y);
+  y += 4;
 
-  // ── TERMS & CONDITIONS (very compact) ──
-  pdf.setLineWidth(0.5);
-  pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
+  // ─────────────────────────────────────────────
+  // TERMS AND CONDITIONS (two-column, ultra-compact)
+  // ─────────────────────────────────────────────
+  sectionTitle(pdf, "TERMS AND CONDITIONS", L, y);
   y += 6;
 
   const p = t.policies;
-  const termsText =
-    `TERMS: Driver must be ${p.minAge}+ with valid license & govt ID. Additional drivers must be registered. ` +
-    `No smoking, pets (without approval), racing, towing, off-road use, or international travel without authorization. ` +
-    `Return vehicle with same fuel level as pickup (tank: ${t.vehicle.tankCapacityLiters || 50}L). Refueling charges apply if returned low. ` +
-    `Grace period: ${p.gracePeriodMinutes} min past scheduled return. Late fee: ${p.lateFeePercentOfDaily}% of daily rate/hr after grace. ` +
-    `Renter responsible for all damage during rental period; report immediately. Security deposit may cover damages. ` +
-    `Renter liable for traffic violations & tolls. Third party liability included. Optional coverage available at pickup. ` +
-    `Unlimited kilometres. Early return does not guarantee refund. ` +
-    `Taxes: PST ${(t.taxes.pstRate * 100).toFixed(0)}%, GST ${(t.taxes.gstRate * 100).toFixed(0)}%, ` +
-    `PVRT $${t.taxes.pvrtDailyFee.toFixed(2)}/day, ACSRCH $${t.taxes.acsrchDailyFee.toFixed(2)}/day.`;
+  const tankCap = t.vehicle.tankCapacityLiters || 50;
 
-  pdf.setFontSize(5);
-  pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(40, 40, 40);
+  // Build all T&C as compact numbered blocks
+  const tcBlocks = [
+    {
+      title: "1. DRIVER REQUIREMENTS",
+      items: [
+        `Renter must be at least ${p.minAge} years of age.`,
+        "Valid driver's license required at time of pickup.",
+        "Government-issued photo ID required for signature.",
+        "Additional drivers must be registered and approved.",
+      ]
+    },
+    {
+      title: "2. VEHICLE USE RESTRICTIONS",
+      items: [
+        "No smoking in the vehicle.",
+        "No pets without prior written approval.",
+        "No racing, towing, or off-road use.",
+        "No international travel without prior authorization.",
+      ]
+    },
+    {
+      title: "3. FUEL POLICY",
+      items: [
+        `Return vehicle with same fuel level as pickup (Tank: ${tankCap}L).`,
+        "Refueling charges apply if returned with less fuel.",
+      ]
+    },
+    {
+      title: "4. RETURN POLICY & LATE FEES",
+      items: [
+        `Grace period: ${p.gracePeriodMinutes} min past scheduled return.`,
+        `Late fee: ${p.lateFeePercentOfDaily}% of daily rate per hour after grace.`,
+        "Extended rentals require prior approval.",
+      ]
+    },
+    {
+      title: "5. DAMAGE & LIABILITY",
+      items: [
+        "Renter responsible for all damage during rental period; report immediately.",
+        "Security deposit may be applied to cover damages.",
+        "Renter liable for all traffic violations and tolls.",
+      ]
+    },
+    {
+      title: "6. INSURANCE & COVERAGE",
+      items: [
+        "Third party liability included with all rentals.",
+        "Optional rental coverage available at pickup.",
+      ]
+    },
+    {
+      title: "7. KILOMETRE ALLOWANCE",
+      items: ["Unlimited kilometres included."]
+    },
+    {
+      title: "8. TERMINATION",
+      items: [
+        "Rental company may terminate for violation of terms.",
+        "Early return does not guarantee refund.",
+      ]
+    },
+    {
+      title: "9. TAX INFORMATION",
+      items: [
+        `PST: ${(t.taxes.pstRate * 100).toFixed(0)}%, GST: ${(t.taxes.gstRate * 100).toFixed(0)}%, PVRT: ${fmt(t.taxes.pvrtDailyFee)}/day, ACSRCH: ${fmt(t.taxes.acsrchDailyFee)}/day`,
+      ]
+    },
+  ];
 
-  const termsLines = pdf.splitTextToSize(termsText, CONTENT_W);
-  for (const line of termsLines) {
-    pdf.text(line, COL_LEFT, y);
-    y += 5.5;
+  // Render in two columns
+  const TF = 4.5; // terms font size
+  const TLH = 5.2; // terms line height
+  const colW = CW * 0.48;
+  const col1X = L;
+  const col2X = MID + 4;
+  const tcStartY = y;
+
+  // Split blocks into two columns (left: 1-5, right: 6-9)
+  const leftBlocks = tcBlocks.slice(0, 5);
+  const rightBlocks = tcBlocks.slice(5);
+
+  let ly = tcStartY;
+  for (const block of leftBlocks) {
+    ly = renderTcBlock(pdf, block.title, block.items, col1X, ly, colW, TF, TLH);
   }
 
+  let ry = tcStartY;
+  for (const block of rightBlocks) {
+    ry = renderTcBlock(pdf, block.title, block.items, col2X, ry, colW, TF, TLH);
+  }
+
+  y = Math.max(ly, ry) + 2;
+
+  hLine(pdf, y);
   y += 4;
 
-  // ── ACKNOWLEDGMENT CLAUSE ──
-  pdf.setFontSize(5);
-  pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(40, 40, 40);
-  const ackText =
-    `BY SIGNING BELOW, I (1) ACKNOWLEDGE THAT I HAVE READ, UNDERSTAND, ACCEPT AND AGREE TO THE ABOVE AND THE RENTAL ` +
-    `AGREEMENT TERMS AND CONDITIONS. (2) I ACKNOWLEDGE RECEIPT OF THE RENTAL VEHICLE IN THE CONDITION DESCRIBED. ` +
-    `(3) I AGREE TO RETURN THE VEHICLE BY THE DUE DATE AND TIME SPECIFIED ABOVE. (4) I CERTIFY THAT I AM A VALID DRIVER'S ` +
-    `LICENSE HOLDER AND THAT ANY PERSON WHO OPERATES THE VEHICLE IS AUTHORIZED TO DO SO.`;
-  const ackLines = pdf.splitTextToSize(ackText, CONTENT_W);
-  for (const line of ackLines) {
-    pdf.text(line, COL_LEFT, y);
-    y += 5.5;
-  }
-
+  // ─────────────────────────────────────────────
+  // ACKNOWLEDGMENT AND SIGNATURE
+  // ─────────────────────────────────────────────
+  sectionTitle(pdf, "ACKNOWLEDGMENT AND SIGNATURE", L, y);
   y += 6;
 
-  // ── SIGNATURE BLOCK ──
-  // Ensure signature doesn't overflow - position at minimum Y
-  y = Math.max(y, 620);
-  // But also cap it to avoid going off page
-  if (y > 700) y = 700;
+  const ackFontSize = 4.5;
+  const ackLH = 5.2;
+  pdf.setFontSize(ackFontSize);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(30, 30, 30);
 
-  pdf.setLineWidth(0.5);
-  pdf.line(COL_LEFT, y, COL_RIGHT_END, y);
-  y += 10;
+  const ackPoints = [
+    "I confirm I have read and understood all terms and conditions outlined in this Vehicle Legal Agreement.",
+    `I confirm I am at least ${p.minAge} years of age.`,
+    "I acknowledge that my electronic signature has the same legal effect as a handwritten signature.",
+    "I understand that third party liability coverage is included and optional rental coverage is available at pickup.",
+    `I agree to return the vehicle with the same fuel level as at pickup.`,
+    `I understand late fees will be charged at ${p.lateFeePercentOfDaily}% of the daily rate per hour after the ${p.gracePeriodMinutes}-minute grace period.`,
+  ];
 
+  for (const point of ackPoints) {
+    const lines = pdf.splitTextToSize(`• ${point}`, CW);
+    for (const line of lines) {
+      pdf.text(line, L, y);
+      y += ackLH;
+    }
+  }
+
+  y += 3;
+
+  // Signature block
+  pdf.setTextColor(0, 0, 0);
   if (agreement.customer_signature) {
-    pdf.setFontSize(7);
-    pdf.setFont("courier", "bold");
-    pdf.text("SIGNED BY:", COL_LEFT, y);
-    pdf.setFont("courier", "normal");
-    pdf.text(agreement.customer_signature.toUpperCase(), COL_LEFT + 65, y);
+    pdf.setFontSize(6);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("RENTER SIGNATURE:", L, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(agreement.customer_signature, L + 80, y);
 
-    pdf.setFont("courier", "bold");
-    pdf.text("DATE:", COL_MID, y);
-    pdf.setFont("courier", "normal");
-    pdf.text(
-      fmtDateLong(agreement.customer_signed_at!),
-      COL_MID + 35,
-      y
-    );
-    y += 12;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("DATE:", MID + 20, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(fmtDateLong(agreement.customer_signed_at!), MID + 48, y);
+    y += 8;
 
     if (agreement.staff_confirmed_at) {
-      pdf.setFont("courier", "bold");
-      pdf.text("CONFIRMED:", COL_LEFT, y);
-      pdf.setFont("courier", "normal");
-      pdf.text(fmtDateLong(agreement.staff_confirmed_at), COL_LEFT + 65, y);
-      y += 12;
+      pdf.setFont("helvetica", "bold");
+      pdf.text("CONFIRMED BY STAFF:", L, y);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(fmtDateLong(agreement.staff_confirmed_at), L + 88, y);
+      y += 8;
     }
 
     if (agreement.signed_manually) {
-      pdf.setFontSize(6);
+      pdf.setFontSize(5);
       pdf.setFont("helvetica", "italic");
       pdf.setTextColor(100, 100, 100);
-      pdf.text("(Signed in person)", COL_LEFT, y);
-      y += 10;
+      pdf.text("(Signed in person)", L, y);
+      y += 6;
     }
   } else {
-    pdf.setFontSize(7);
-    pdf.setFont("courier", "normal");
-    pdf.setTextColor(0, 0, 0);
-
-    pdf.text("CUSTOMER SIGNATURE:", COL_LEFT, y);
+    pdf.setFontSize(6);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("RENTER SIGNATURE:", L, y);
     pdf.setDrawColor(0);
-    pdf.line(COL_LEFT + 110, y, COL_LEFT + 250, y);
+    pdf.setLineWidth(0.3);
+    pdf.line(L + 82, y, L + 220, y);
 
-    pdf.text("DATE:", COL_MID + 20, y);
-    pdf.line(COL_MID + 55, y, COL_MID + 170, y);
-    y += 16;
+    pdf.text("DATE:", MID + 30, y);
+    pdf.line(MID + 56, y, MID + 160, y);
+    y += 10;
   }
 
-  // ── FOOTER ──
-  const footerY = PAGE_H - 18;
+  // ─────────────────────────────────────────────
+  // FOOTER
+  // ─────────────────────────────────────────────
+  const footerY = PAGE_H - 14;
   pdf.setDrawColor(180, 180, 180);
   pdf.setLineWidth(0.3);
-  pdf.line(COL_LEFT, footerY - 6, COL_RIGHT_END, footerY - 6);
+  pdf.line(L, footerY - 6, R, footerY - 6);
 
-  pdf.setFontSize(5.5);
+  pdf.setFontSize(5);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(120, 120, 120);
   pdf.text(
-    `C2C Car Rental  |  Generated ${format(new Date(), "MMM d, yyyy")}  |  Record ${bookingCode}`,
+    `C2C Car Rental  |  Generated ${format(new Date(), "MMM d, yyyy")}  |  Record ${bookingCode}  |  Thank you for choosing us!`,
     PAGE_W / 2,
     footerY,
     { align: "center" }
   );
 }
 
-// ── Monospaced text helper ──
-
-function monoLine(pdf: jsPDF, text: string, x: number, y: number, size = 7) {
-  pdf.setFontSize(size);
-  pdf.setFont("courier", "normal");
+// ── Helper: Section title ──
+function sectionTitle(pdf: jsPDF, text: string, x: number, y: number) {
+  pdf.setFontSize(6.5);
+  pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(text, x, y);
+}
+
+// ── Helper: Label + value pair ──
+function labelValue(pdf: jsPDF, label: string, value: string, x: number, y: number) {
+  pdf.setFontSize(6);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(60, 60, 60);
+  pdf.text(label, x, y);
+  const labelW = pdf.getTextWidth(label);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(value, x + labelW + 3, y);
+}
+
+// ── Helper: Financial row (label left, amount right) ──
+function finRow(pdf: jsPDF, label: string, amount: string, y: number, startX?: number) {
+  const x = startX || L;
+  pdf.setFontSize(5.5);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(label, x + 8, y);
+  pdf.text(amount, R - 4, y, { align: "right" });
+}
+
+function finRowBold(pdf: jsPDF, label: string, amount: string, y: number) {
+  pdf.setFontSize(6);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(label, L, y);
+  pdf.text(amount, R - 4, y, { align: "right" });
+}
+
+// ── Helper: Horizontal line ──
+function hLine(pdf: jsPDF, y: number) {
+  pdf.setDrawColor(180, 180, 180);
+  pdf.setLineWidth(0.3);
+  pdf.line(L, y, R, y);
+}
+
+// ── Helper: Render a T&C block (title + bullet items) ──
+function renderTcBlock(
+  pdf: jsPDF,
+  title: string,
+  items: string[],
+  x: number,
+  y: number,
+  maxW: number,
+  fontSize: number,
+  lineH: number
+): number {
+  pdf.setFontSize(fontSize);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(title, x, y);
+  y += lineH;
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(30, 30, 30);
+  for (const item of items) {
+    const lines = pdf.splitTextToSize(`• ${item}`, maxW - 4);
+    for (const line of lines) {
+      pdf.text(line, x + 3, y);
+      y += lineH;
+    }
+  }
+  y += 1; // gap between blocks
+  return y;
 }
 
 // ══════════════════════════════════════════════════════
@@ -588,7 +728,7 @@ function renderLegacyPdf(
   bookingId: string,
   logoBase64: string | null
 ) {
-  let y = MARGIN;
+  let y = M;
   const centerX = PAGE_W / 2;
 
   // Header
@@ -616,7 +756,7 @@ function renderLegacyPdf(
 
   pdf.setDrawColor(120, 120, 120);
   pdf.setLineWidth(0.5);
-  pdf.line(MARGIN, y, COL_RIGHT_END, y);
+  pdf.line(M, y, R, y);
   y += 8;
 
   // Content
@@ -632,7 +772,7 @@ function renderLegacyPdf(
         pdf.setFontSize(7);
         pdf.setFont("helvetica", "bold");
         pdf.setTextColor(50, 50, 50);
-        pdf.text(headerText.toUpperCase(), MARGIN, y);
+        pdf.text(headerText.toUpperCase(), M, y);
         y += 8;
         pdf.setTextColor(0, 0, 0);
         continue;
@@ -642,10 +782,10 @@ function renderLegacyPdf(
     pdf.setFontSize(6);
     pdf.setFont("helvetica", "normal");
     pdf.setTextColor(0, 0, 0);
-    const wrapped = pdf.splitTextToSize(trimmed, CONTENT_W);
+    const wrapped = pdf.splitTextToSize(trimmed, CW);
     for (const w of wrapped) {
       if (y > PAGE_H - 40) break;
-      pdf.text(w, MARGIN, y);
+      pdf.text(w, M, y);
       y += 6.5;
     }
   }
@@ -654,30 +794,30 @@ function renderLegacyPdf(
   y = Math.max(y + 10, 700);
   pdf.setDrawColor(120, 120, 120);
   pdf.setLineWidth(0.3);
-  pdf.line(MARGIN, y, COL_RIGHT_END, y);
+  pdf.line(M, y, R, y);
   y += 10;
 
   if (agreement.customer_signature) {
     pdf.setFontSize(7);
     pdf.setFont("helvetica", "bold");
-    pdf.text("Signed By:", MARGIN, y);
+    pdf.text("Signed By:", M, y);
     pdf.setFont("helvetica", "normal");
-    pdf.text(agreement.customer_signature, MARGIN + 55, y);
+    pdf.text(agreement.customer_signature, M + 55, y);
     y += 9;
     if (agreement.customer_signed_at) {
       pdf.setFont("helvetica", "bold");
-      pdf.text("Date:", MARGIN, y);
+      pdf.text("Date:", M, y);
       pdf.setFont("helvetica", "normal");
-      pdf.text(fmtDateLong(agreement.customer_signed_at), MARGIN + 55, y);
+      pdf.text(fmtDateLong(agreement.customer_signed_at), M + 55, y);
     }
   } else {
     pdf.setFontSize(7);
     pdf.setFont("helvetica", "normal");
-    pdf.text("Customer Signature:", MARGIN, y);
-    pdf.line(MARGIN + 80, y, MARGIN + 230, y);
+    pdf.text("Customer Signature:", M, y);
+    pdf.line(M + 80, y, M + 230, y);
     y += 14;
-    pdf.text("Date:", MARGIN, y);
-    pdf.line(MARGIN + 80, y, MARGIN + 170, y);
+    pdf.text("Date:", M, y);
+    pdf.line(M + 80, y, M + 170, y);
   }
 
   // Footer
