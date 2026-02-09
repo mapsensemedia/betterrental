@@ -6,29 +6,14 @@ import {
   type StepCompletion,
   getStepStatus,
   checkStepComplete,
-  getBlockingIssues,
   getStepForDisplay,
 } from "@/lib/ops-steps";
 import { 
-  ClipboardCheck, 
-  Wrench, 
-  UserCheck, 
-  CreditCard, 
-  FileText, 
-  Eye,
-  Key,
   Check,
-  Circle,
   ChevronDown,
   ChevronUp,
-  AlertTriangle,
   Clock,
-  Truck,
-  Camera,
-  Car,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 
 interface OpsStepSidebarProps {
@@ -42,60 +27,26 @@ interface OpsStepSidebarProps {
   stepTimestamps?: Record<OpsStepId, Date | null>;
 }
 
-const stepIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  "clipboard-check": ClipboardCheck,
-  "wrench": Wrench,
-  "user-check": UserCheck,
-  "credit-card": CreditCard,
-  "file-text": FileText,
-  "eye": Eye,
-  "key": Key,
-  "camera": Camera,
-  "truck": Truck,
-  "car": Car,
-};
-
-// Map status to visual styling - simplified without locked/blocked
+// Map status to visual styling - clean, minimal indicators
 function getStatusStyling(status: string, isActive: boolean) {
   switch (status) {
     case "complete":
       return {
         bgClass: "bg-emerald-500 text-white",
         textClass: "text-emerald-600 dark:text-emerald-400",
-        chipBg: "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300",
       };
     case "needs_attention":
-      return {
-        bgClass: "bg-amber-500 text-white",
-        textClass: "text-amber-600 dark:text-amber-400",
-        chipBg: "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300",
-      };
     case "in_progress":
       return {
-        bgClass: isActive ? "bg-primary text-primary-foreground" : "bg-blue-500 text-white",
-        textClass: "text-primary",
-        chipBg: "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300",
+        bgClass: isActive ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground",
+        textClass: isActive ? "text-primary" : "",
       };
     case "ready":
     default:
       return {
         bgClass: isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
         textClass: "",
-        chipBg: "",
       };
-  }
-}
-
-function getStatusLabel(status: string): string | null {
-  switch (status) {
-    case "complete":
-      return "Complete";
-    case "needs_attention":
-      return "Needs Review";
-    case "in_progress":
-      return "In Progress";
-    default:
-      return null;
   }
 }
 
@@ -150,7 +101,7 @@ export function OpsStepSidebar({
         {mobileExpanded && (
           <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-1 animate-fade-in max-h-[50vh] overflow-y-auto">
             {steps.map((step) => {
-              const { status, missingCount } = getStepStatus(step.id, completion, currentStepIndex, isDelivery);
+              const { status } = getStepStatus(step.id, completion, currentStepIndex, isDelivery);
               const displayStatus = isRentalActive ? "complete" : status;
               const isComplete = isRentalActive || checkStepComplete(step.id, completion, isDelivery);
               const isActive = activeStep === step.id;
@@ -175,19 +126,12 @@ export function OpsStepSidebar({
                   )}>
                     {isComplete ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : step.number}
                   </div>
-                  <div className="flex-1 flex items-center justify-between min-w-0">
-                    <span className={cn(
-                      "text-xs sm:text-sm truncate",
-                      isActive && "font-medium text-primary"
-                    )}>
-                      {stepDisplay.title}
-                    </span>
-                    {!isComplete && missingCount && missingCount > 0 && (
-                      <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded shrink-0 ml-2">
-                        {missingCount}
-                      </span>
-                    )}
-                  </div>
+                  <span className={cn(
+                    "text-xs sm:text-sm truncate",
+                    isActive && "font-medium text-primary"
+                  )}>
+                    {stepDisplay.title}
+                  </span>
                 </button>
               );
             })}
@@ -205,9 +149,8 @@ export function OpsStepSidebar({
           </div>
           
           <div className="space-y-1">
-            {steps.map((step, index) => {
-              const Icon = stepIcons[step.icon] || Circle;
-              const { status, reason, missingCount } = getStepStatus(step.id, completion, currentStepIndex, isDelivery);
+            {steps.map((step) => {
+              const { status } = getStepStatus(step.id, completion, currentStepIndex, isDelivery);
               const isActive = activeStep === step.id;
               const isComplete = checkStepComplete(step.id, completion, isDelivery);
               const stepDisplay = getStepForDisplay(step, isDelivery);
@@ -216,7 +159,6 @@ export function OpsStepSidebar({
               const displayStatus = isRentalActive ? "complete" : status;
               const displayComplete = isRentalActive || isComplete;
               const styling = getStatusStyling(displayStatus, isActive);
-              const statusLabel = getStatusLabel(displayStatus);
               const timestamp = stepTimestamps?.[step.id];
               
               return (
@@ -244,34 +186,15 @@ export function OpsStepSidebar({
                     
                     {/* Step Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "text-sm font-medium truncate",
-                          isActive && "text-primary",
-                          styling.textClass
-                        )}>
-                          {stepDisplay.title}
-                        </span>
-                      </div>
+                      <span className={cn(
+                        "text-sm font-medium truncate block",
+                        isActive && "text-primary",
+                        displayComplete && styling.textClass
+                      )}>
+                        {stepDisplay.title}
+                      </span>
                       
-                      {/* Status chip and missing count */}
-                      <div className="flex items-center gap-2 mt-1">
-                        {statusLabel && (
-                          <span className={cn(
-                            "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                            styling.chipBg
-                          )}>
-                            {statusLabel}
-                          </span>
-                        )}
-                        {!displayComplete && missingCount && missingCount > 0 && (
-                          <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded">
-                            {missingCount} missing
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Timestamp */}
+                      {/* Timestamp only - no status chips or missing counts */}
                       {timestamp && (
                         <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
                           <Clock className="w-3 h-3" />

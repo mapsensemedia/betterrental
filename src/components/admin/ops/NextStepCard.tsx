@@ -67,9 +67,6 @@ export function NextStepCard({ step, isComplete, className }: NextStepCardProps)
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="font-semibold">{step.title}</p>
-              {step.missingCount && step.missingCount > 0 && (
-                <span className="text-xs text-muted-foreground">({step.missingCount} missing)</span>
-              )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">{step.description}</p>
           </div>
