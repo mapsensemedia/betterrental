@@ -49,7 +49,7 @@ import { PointsRedemption } from "@/components/checkout/PointsRedemption";
 import { CreditCardInput, CreditCardDisplay } from "@/components/checkout/CreditCardInput";
 import { StripeCheckoutWrapper } from "@/components/checkout/StripeCheckoutWrapper";
 import { validateCard, detectCardType, maskCardNumber, CardType, validateDriverCardholderMatch, isCardTypeAllowed } from "@/lib/card-validation";
-import { CREDIT_CARD_AUTHORIZATION_POLICY, CANCELLATION_POLICY } from "@/lib/checkout-policies";
+import { CANCELLATION_POLICY, DAMAGE_LIABILITY_POLICY } from "@/lib/checkout-policies";
 import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
 
 import { 
@@ -125,7 +125,7 @@ export default function NewCheckout() {
   const [showStripePayment, setShowStripePayment] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
-  const [holdAmounts, setHoldAmounts] = useState<{ deposit: number; rental: number } | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   
   // Force pay-now for delivery bookings
   useEffect(() => {
@@ -198,29 +198,26 @@ export default function NewCheckout() {
     setPointsUsed(points);
   };
 
-  // Handler for successful Stripe payment authorization
+  // Handler for successful Stripe payment
   const handlePaymentSuccess = async (paymentIntentId: string, paymentMethodId: string) => {
     if (!pendingBookingId) return;
     
     try {
-      // Promote booking from "draft" to "pending" now that payment is authorized
+      // Promote booking from "draft" to "pending" now that payment is complete
       await supabase.from("bookings").update({
         status: "pending",
-        deposit_status: "authorized",
-        deposit_authorized_at: new Date().toISOString(),
         stripe_deposit_pi_id: paymentIntentId,
         stripe_deposit_pm_id: paymentMethodId,
       }).eq("id", pendingBookingId);
 
       toast({
         title: "Booking confirmed!",
-        description: "Your card has been authorized. You'll only be charged when your rental is complete.",
+        description: "Payment received. Your reservation is confirmed.",
       });
 
       navigate(`/booking/${pendingBookingId}?payment=success`);
     } catch (error: any) {
       console.error("Failed to update booking status:", error);
-      // Still navigate - the payment was successful
       navigate(`/booking/${pendingBookingId}?payment=success`);
     }
   };
@@ -573,51 +570,43 @@ export default function NewCheckout() {
       markCartConverted.mutate(booking.id);
 
       if (paymentMethod === "pay-now") {
-        // Create authorization hold with inline Stripe Elements
+        // Create standard payment with inline Stripe Elements
         try {
-          let holdResponse;
+          let paymentResponse;
           try {
-            holdResponse = await supabase.functions.invoke("create-checkout-hold", {
+            paymentResponse = await supabase.functions.invoke("create-checkout-hold", {
               body: {
                 bookingId: booking.id,
-                depositAmount: DEFAULT_DEPOSIT_AMOUNT,
-                rentalAmount: pricing.total,
+                amount: pricing.total,
               },
             });
           } catch (networkError: any) {
-            console.error("Network error during checkout hold:", networkError);
+            console.error("Network error during payment creation:", networkError);
             throw new Error("Unable to connect to payment service. Please try again.");
           }
 
-          // Handle edge function errors
-          if (holdResponse.error) {
-            const errorMessage = holdResponse.error.message || "Failed to create payment authorization";
-            console.error("Checkout hold error:", holdResponse.error);
-            
+          if (paymentResponse.error) {
+            const errorMessage = paymentResponse.error.message || "Failed to create payment";
             if (errorMessage.includes("non-2xx")) {
               throw new Error("Payment service temporarily unavailable. Please try again in a moment.");
             }
             throw new Error(errorMessage);
           }
           
-          // Check for errors in data response
-          if (holdResponse.data?.error) {
-            console.error("Checkout hold validation error:", holdResponse.data);
-            throw new Error(holdResponse.data.error);
+          if (paymentResponse.data?.error) {
+            throw new Error(paymentResponse.data.error);
           }
 
-          const { clientSecret: secret, depositAmount, rentalAmount } = holdResponse.data || {};
+          const { clientSecret: secret, amount: payAmount } = paymentResponse.data || {};
 
           if (secret) {
-            // Show inline Stripe Elements form
             setClientSecret(secret);
             setPendingBookingId(booking.id);
-            setHoldAmounts({ deposit: depositAmount, rental: rentalAmount });
+            setPaymentAmount(payAmount || pricing.total);
             setShowStripePayment(true);
             setIsSubmitting(false);
-            return; // Stay on page to show payment form
+            return;
           } else {
-            console.error("No client secret in response:", holdResponse.data);
             throw new Error("Unable to initialize payment. Please try again.");
           }
         } catch (paymentError: any) {
@@ -854,7 +843,7 @@ export default function NewCheckout() {
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    {CREDIT_CARD_AUTHORIZATION_POLICY.shortVersion}
+                    {DAMAGE_LIABILITY_POLICY.shortVersion}
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {CANCELLATION_POLICY.content}
@@ -1193,7 +1182,7 @@ export default function NewCheckout() {
                     <li>Free cancellation anytime prior to the scheduled pickup time</li>
                     <li>No-show fee: ${CANCELLATION_POLICY.cancellationFee.toFixed(2)} CAD if cancelled after pickup time</li>
                     <li>A valid credit card (not debit) must be presented at pickup</li>
-                    <li>Authorization hold of up to ${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} CAD will be placed on your card</li>
+                    <li>You are legally responsible for any damages caused during the rental period</li>
                   </ul>
                 </div>
 
@@ -1207,27 +1196,25 @@ export default function NewCheckout() {
                     I have read and accept the{" "}
                     <Link to="/terms" className="text-primary underline">Rental Information</Link>, the{" "}
                     <Link to="/terms" className="text-primary underline">Terms and Conditions</Link>, and the{" "}
-                    <Link to="/privacy" className="text-primary underline">Privacy Policy</Link>{" "}
-                    and I acknowledge that I am booking a prepaid rate.
+                    <Link to="/privacy" className="text-primary underline">Privacy Policy</Link>.
+                    I acknowledge my liability for any damages caused during the rental period.
                   </Label>
                 </div>
 
                 {/* Show Stripe Elements form or Submit button */}
-                {showStripePayment && clientSecret && holdAmounts ? (
+                {showStripePayment && clientSecret && paymentAmount ? (
                   <div className="space-y-4">
                     <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
                       <p className="text-sm font-medium text-foreground mb-1">
-                        Complete your payment authorization
+                        Complete your payment
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        An authorization hold of ${(holdAmounts.deposit + holdAmounts.rental).toFixed(2)} CAD will be placed on your card.
-                        You will only be charged when your rental is complete.
+                        You will be charged ${paymentAmount.toFixed(2)} CAD for your rental.
                       </p>
                     </div>
                     <StripeCheckoutWrapper
                       clientSecret={clientSecret}
-                      depositAmount={holdAmounts.deposit}
-                      rentalAmount={holdAmounts.rental}
+                      amount={paymentAmount}
                       onSuccess={handlePaymentSuccess}
                       onError={handlePaymentError}
                     />
@@ -1237,7 +1224,7 @@ export default function NewCheckout() {
                         setShowStripePayment(false);
                         setClientSecret(null);
                         setPendingBookingId(null);
-                        setHoldAmounts(null);
+                        setPaymentAmount(null);
                       }}
                       className="w-full"
                     >

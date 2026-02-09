@@ -1,18 +1,16 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "npm:stripe@14.21.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateAuth, isAdminOrStaff } from "../_shared/auth.ts";
 
 /**
  * Close Account
  * 
- * Complete account closeout workflow:
+ * Simplified account closeout:
  * 1. Calculate all final charges
- * 2. Determine settlement (what's owed vs paid)
- * 3. Capture from deposit if needed (or release if not)
- * 4. Generate final invoice
- * 5. Send receipt to customer
+ * 2. Generate final invoice
+ * 3. Send receipt to customer
+ * 4. If balance > 0, admin sends payment link separately
  */
 
 interface CloseAccountRequest {
@@ -25,7 +23,7 @@ interface CloseAccountRequest {
   notes?: string;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -37,7 +35,6 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // Validate authentication
     const authResult = await validateAuth(req);
     if (!authResult.authenticated) {
       return new Response(
@@ -46,7 +43,6 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is admin/staff
     const hasAccess = await isAdminOrStaff(authResult.userId!);
     if (!hasAccess) {
       return new Response(
@@ -54,15 +50,6 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeSecretKey) {
-      throw new Error("Stripe not configured");
-    }
-
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2023-10-16",
-    });
 
     const { bookingId, additionalCharges, notes }: CloseAccountRequest = await req.json();
 
@@ -95,13 +82,9 @@ serve(async (req) => {
       );
     }
 
-    // Check if already closed
     if (booking.account_closed_at) {
       return new Response(
-        JSON.stringify({ 
-          error: "Account already closed",
-          closedAt: booking.account_closed_at,
-        }),
+        JSON.stringify({ error: "Account already closed", closedAt: booking.account_closed_at }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -116,13 +99,11 @@ serve(async (req) => {
     // Calculate totals
     const rentalSubtotal = Number(booking.subtotal) || 0;
     const addonsTotal = (booking.booking_add_ons || []).reduce(
-      (sum: number, addon: any) => sum + Number(addon.price) * (addon.quantity || 1), 
-      0
+      (sum: number, addon: any) => sum + Number(addon.price) * (addon.quantity || 1), 0
     );
     const taxAmount = Number(booking.tax_amount) || 0;
     const lateFees = Number(booking.late_return_fee) || 0;
 
-    // Additional charges from request
     const damageCharges = (additionalCharges || [])
       .filter(c => c.type === "damage")
       .reduce((sum, c) => sum + c.amount, 0);
@@ -132,119 +113,16 @@ serve(async (req) => {
 
     const totalCharges = rentalSubtotal + addonsTotal + taxAmount + lateFees + damageCharges + otherFees;
 
-    // Payments received (excluding deposits)
     const paymentsReceived = (payments || [])
-      .filter((p: any) => p.payment_type === "rental")
+      .filter((p: any) => p.payment_type === "rental" || p.payment_type === "additional")
       .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
     const amountDue = totalCharges - paymentsReceived;
-    const depositHeld = Number(booking.deposit_amount) || 0;
 
-    // Determine Stripe operations
-    const stripeOperations: Array<{ type: string; id: string; amount: number }> = [];
-    let depositCaptured = 0;
-    let depositReleased = 0;
-
-    if (booking.deposit_status === "authorized" && booking.stripe_deposit_pi_id) {
-      if (amountDue > 0 && depositHeld > 0) {
-        // Capture from deposit to cover remaining charges
-        const captureAmount = Math.min(amountDue, depositHeld);
-        const captureAmountCents = Math.round(captureAmount * 100);
-
-        try {
-          const capturedIntent = await stripe.paymentIntents.capture(
-            booking.stripe_deposit_pi_id,
-            { amount_to_capture: captureAmountCents }
-          );
-
-          depositCaptured = captureAmount;
-          depositReleased = depositHeld - captureAmount;
-
-          stripeOperations.push({
-            type: "capture",
-            id: capturedIntent.latest_charge as string,
-            amount: captureAmount,
-          });
-
-          // Update booking
-          await supabase.from("bookings").update({
-            deposit_status: "captured",
-            deposit_captured_at: new Date().toISOString(),
-            deposit_captured_amount: captureAmountCents,
-            deposit_capture_reason: "Final charges settlement",
-            stripe_deposit_charge_id: capturedIntent.latest_charge as string,
-          }).eq("id", bookingId);
-
-          // Add ledger entries
-          await supabase.from("deposit_ledger").insert([
-            {
-              booking_id: bookingId,
-              action: depositReleased > 0 ? "partial_capture" : "capture",
-              amount: captureAmount,
-              created_by: authResult.userId!,
-              reason: "Final charges settlement",
-              stripe_pi_id: booking.stripe_deposit_pi_id,
-              stripe_charge_id: capturedIntent.latest_charge as string,
-            },
-            ...(depositReleased > 0 ? [{
-              booking_id: bookingId,
-              action: "stripe_release" as const,
-              amount: depositReleased,
-              created_by: authResult.userId!,
-              reason: "Remaining authorization released",
-              stripe_pi_id: booking.stripe_deposit_pi_id,
-            }] : []),
-          ]);
-
-        } catch (stripeError: any) {
-          console.error("Failed to capture deposit:", stripeError);
-          throw new Error(`Failed to capture deposit: ${stripeError.message}`);
-        }
-      } else {
-        // No amount due - release full deposit
-        try {
-          await stripe.paymentIntents.cancel(booking.stripe_deposit_pi_id, {
-            cancellation_reason: "requested_by_customer",
-          });
-
-          depositReleased = depositHeld;
-
-          stripeOperations.push({
-            type: "release",
-            id: booking.stripe_deposit_pi_id,
-            amount: depositHeld,
-          });
-
-          // Update booking
-          await supabase.from("bookings").update({
-            deposit_status: "released",
-            deposit_released_at: new Date().toISOString(),
-          }).eq("id", bookingId);
-
-          // Add ledger entry
-          await supabase.from("deposit_ledger").insert({
-            booking_id: bookingId,
-            action: "stripe_release",
-            amount: depositHeld,
-            created_by: authResult.userId!,
-            reason: "Rental completed - full deposit released",
-            stripe_pi_id: booking.stripe_deposit_pi_id,
-          });
-
-        } catch (stripeError: any) {
-          console.error("Failed to release deposit:", stripeError);
-          throw new Error(`Failed to release deposit: ${stripeError.message}`);
-        }
-      }
-    }
-
-    // Collect all Stripe IDs
+    // Collect Stripe payment IDs
     const stripePaymentIds = (payments || [])
       .filter((p: any) => p.transaction_id?.startsWith("pi_"))
       .map((p: any) => p.transaction_id);
-    const stripeChargeIds = stripeOperations
-      .filter(op => op.type === "capture")
-      .map(op => op.id);
 
     // Build line items
     const lineItems = [
@@ -272,14 +150,14 @@ serve(async (req) => {
         fees_total: otherFees,
         late_fees: lateFees,
         damage_charges: damageCharges,
-        deposit_held: depositHeld,
-        deposit_captured: depositCaptured,
-        deposit_released: depositReleased,
+        deposit_held: 0,
+        deposit_captured: 0,
+        deposit_released: 0,
         payments_received: paymentsReceived,
         grand_total: totalCharges,
-        amount_due: Math.max(0, amountDue - depositCaptured),
+        amount_due: Math.max(0, amountDue),
         stripe_payment_ids: stripePaymentIds,
-        stripe_charge_ids: stripeChargeIds,
+        stripe_charge_ids: [],
         line_items_json: lineItems,
         notes: notes || null,
         status: "issued",
@@ -313,9 +191,7 @@ serve(async (req) => {
         invoice_number: invoice.invoice_number,
         total_charges: totalCharges,
         payments_received: paymentsReceived,
-        deposit_captured: depositCaptured,
-        deposit_released: depositReleased,
-        stripe_operations: stripeOperations,
+        amount_due: Math.max(0, amountDue),
       },
     });
 
@@ -324,9 +200,8 @@ serve(async (req) => {
       await supabase.functions.invoke("generate-return-receipt", {
         body: {
           bookingId,
-          depositReleased,
-          depositWithheld: depositCaptured,
-          withholdReason: depositCaptured > 0 ? "Final charges settlement" : undefined,
+          depositReleased: 0,
+          depositWithheld: 0,
         },
       });
     } catch (receiptErr) {
@@ -343,18 +218,14 @@ serve(async (req) => {
         settlement: {
           totalCharges,
           paymentsReceived,
-          amountDue,
-          depositCaptured,
-          depositReleased,
+          amountDue: Math.max(0, amountDue),
         },
-        stripeOperations,
         receiptSent: true,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Error closing account:", error);
-    
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

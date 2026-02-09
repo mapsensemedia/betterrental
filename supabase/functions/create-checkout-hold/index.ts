@@ -3,21 +3,15 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 /**
- * Create Checkout Deposit Hold
+ * Create Checkout Payment
  * 
- * Creates a UNIFIED authorization hold covering BOTH the rental total and deposit.
- * Uses PaymentIntent with manual capture for the combined amount.
- * 
- * At closeout:
- * - Rental amount is captured
- * - Deposit portion is either captured (for damages) or released
+ * Creates a standard Stripe PaymentIntent (auto-capture) for the rental amount.
+ * No manual capture / authorization hold - immediate charge on confirmation.
  */
 
-interface CreateCheckoutHoldRequest {
+interface CreateCheckoutPaymentRequest {
   bookingId: string;
-  depositAmount: number;
-  rentalAmount: number;
-  customerId?: string;
+  amount: number;
 }
 
 Deno.serve(async (req) => {
@@ -41,15 +35,11 @@ Deno.serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    const { 
-      bookingId, 
-      depositAmount,
-      rentalAmount,
-    }: CreateCheckoutHoldRequest = await req.json();
+    const { bookingId, amount }: CreateCheckoutPaymentRequest = await req.json();
 
-    if (!bookingId || depositAmount === undefined || rentalAmount === undefined) {
+    if (!bookingId || amount === undefined) {
       return new Response(
-        JSON.stringify({ error: "bookingId, depositAmount, and rentalAmount are required" }),
+        JSON.stringify({ error: "bookingId and amount are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -57,43 +47,36 @@ Deno.serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
-      .select(`
-        id, 
-        booking_code, 
-        user_id, 
-        deposit_status,
-        stripe_deposit_pi_id,
-        total_amount
-      `)
+      .select("id, booking_code, user_id, stripe_deposit_pi_id, total_amount")
       .eq("id", bookingId)
       .single();
 
     if (bookingError || !booking) {
-      console.error("Booking not found:", bookingError);
       return new Response(
         JSON.stringify({ error: "Booking not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Idempotency check - if already has a deposit PI, return it
-    if (booking.stripe_deposit_pi_id && booking.deposit_status !== "failed") {
-      console.log(`Deposit PI already exists for booking ${bookingId}`);
-      
-      const existingPI = await stripe.paymentIntents.retrieve(booking.stripe_deposit_pi_id);
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          alreadyExists: true,
-          paymentIntentId: existingPI.id,
-          clientSecret: existingPI.client_secret,
-          totalHoldAmount: existingPI.amount / 100,
-          depositAmount: depositAmount,
-          rentalAmount: rentalAmount,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Idempotency check - if already has a PI, return it
+    if (booking.stripe_deposit_pi_id) {
+      try {
+        const existingPI = await stripe.paymentIntents.retrieve(booking.stripe_deposit_pi_id);
+        if (existingPI.status !== "canceled") {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              alreadyExists: true,
+              paymentIntentId: existingPI.id,
+              clientSecret: existingPI.client_secret,
+              amount: existingPI.amount / 100,
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch {
+        // PI doesn't exist or is invalid, create new one
+      }
     }
 
     // Get user profile for customer details
@@ -128,32 +111,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    // UNIFIED HOLD: Rental + Deposit combined
-    const totalHoldAmount = rentalAmount + depositAmount;
-    const totalHoldAmountCents = Math.round(totalHoldAmount * 100);
-    const depositAmountCents = Math.round(depositAmount * 100);
-    const rentalAmountCents = Math.round(rentalAmount * 100);
-    
-    // Calculate expiration (7 days from now - Stripe's auth hold limit)
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const amountCents = Math.round(amount * 100);
 
-    // Create PaymentIntent with manual capture for the COMBINED amount
+    // Create standard PaymentIntent (auto-capture)
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalHoldAmountCents,
+      amount: amountCents,
       currency: "cad",
-      capture_method: "manual", // Authorization hold - not charged yet
       customer: stripeCustomerId || undefined,
       metadata: {
-        type: "unified_rental_hold",
+        type: "rental_payment",
         booking_id: bookingId,
         booking_code: booking.booking_code,
         user_id: booking.user_id,
-        rental_amount_cents: rentalAmountCents.toString(),
-        deposit_amount_cents: depositAmountCents.toString(),
       },
-      description: `Rental + Deposit - Booking ${booking.booking_code}`,
+      description: `Rental Payment - Booking ${booking.booking_code}`,
       statement_descriptor_suffix: `C2C ${booking.booking_code}`.substring(0, 22),
-      // Payment method types that support manual capture
       payment_method_types: ["card"],
     });
 
@@ -161,42 +133,25 @@ Deno.serve(async (req) => {
     await supabase
       .from("bookings")
       .update({
-        deposit_status: "requires_payment",
         stripe_deposit_pi_id: paymentIntent.id,
         stripe_deposit_client_secret: paymentIntent.client_secret,
-        deposit_amount: depositAmount,
-        deposit_expires_at: expiresAt,
-        total_amount: rentalAmount, // Ensure total_amount is set correctly
       })
       .eq("id", bookingId);
 
-    // Add ledger entry
-    await supabase.from("deposit_ledger").insert({
-      booking_id: bookingId,
-      action: "unified_hold_created",
-      amount: totalHoldAmount,
-      created_by: booking.user_id,
-      reason: `Unified authorization created at checkout (Rental: $${rentalAmount.toFixed(2)} + Deposit: $${depositAmount.toFixed(2)})`,
-      stripe_pi_id: paymentIntent.id,
-    });
-
-    console.log(`Created unified checkout hold ${paymentIntent.id} for booking ${bookingId}: $${totalHoldAmount} (Rental: $${rentalAmount}, Deposit: $${depositAmount})`);
+    console.log(`Created payment intent ${paymentIntent.id} for booking ${bookingId}: $${amount}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         paymentIntentId: paymentIntent.id,
         clientSecret: paymentIntent.client_secret,
-        totalHoldAmount,
-        depositAmount,
-        rentalAmount,
-        expiresAt,
+        amount,
         customerId: stripeCustomerId,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error creating checkout hold:", error);
+    console.error("Error creating checkout payment:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
