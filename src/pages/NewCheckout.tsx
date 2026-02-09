@@ -424,6 +424,7 @@ export default function NewCheckout() {
             card_last_four: cardLast4,
             card_type: cardTypeValue,
             card_holder_name: formData.cardName,
+            protection_plan: protection,
           })
           .select()
           .single();

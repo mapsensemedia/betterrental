@@ -405,6 +405,7 @@ export type Database = {
           pickup_lat: number | null
           pickup_lng: number | null
           pickup_place_id: string | null
+          protection_plan: string | null
           return_evidence_completed_at: string | null
           return_evidence_completed_by: string | null
           return_exception_reason: string | null
@@ -483,6 +484,7 @@ export type Database = {
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_place_id?: string | null
+          protection_plan?: string | null
           return_evidence_completed_at?: string | null
           return_evidence_completed_by?: string | null
           return_exception_reason?: string | null
@@ -561,6 +563,7 @@ export type Database = {
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_place_id?: string | null
+          protection_plan?: string | null
           return_evidence_completed_at?: string | null
           return_evidence_completed_by?: string | null
           return_exception_reason?: string | null
