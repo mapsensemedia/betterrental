@@ -319,14 +319,36 @@ serve(async (req) => {
             transaction_id: paymentIntent.id,
           });
 
-          // Keep booking as pending - customer needs to pay at pickup
-          await supabase
+          // Check current booking status
+          const { data: failedBooking } = await supabase
             .from("bookings")
-            .update({ 
-              status: "pending",
-              notes: "Online payment failed - customer to pay at pickup" 
-            })
-            .eq("id", piBookingId);
+            .select("status")
+            .eq("id", piBookingId)
+            .single();
+
+          if (failedBooking?.status === "draft") {
+            // IMPORTANT: Do NOT promote draft → pending on payment failure.
+            // Draft bookings are "Pay Now" - if payment fails, they should
+            // stay hidden from ops queues. Only add a note.
+            await supabase
+              .from("bookings")
+              .update({ 
+                deposit_status: "failed",
+                notes: "Online payment failed" 
+              })
+              .eq("id", piBookingId);
+            console.log(`Kept booking ${piBookingId} as draft after payment failure`);
+          } else {
+            // For already-pending bookings (e.g. pay-at-pickup where ops 
+            // later tried to create a hold), just update deposit status
+            await supabase
+              .from("bookings")
+              .update({ 
+                deposit_status: "failed",
+                notes: "Payment authorization failed - requires new payment attempt" 
+              })
+              .eq("id", piBookingId);
+          }
 
           result.bookingId = piBookingId;
           result.failed = true;
@@ -423,6 +445,13 @@ serve(async (req) => {
             }
           }
           
+          // Get current booking to check if we need to promote draft → pending
+          const { data: currentBooking } = await supabase
+            .from("bookings")
+            .select("status")
+            .eq("id", depositBookingId)
+            .single();
+
           // Update booking with authorization details
           const updateData: Record<string, unknown> = {
             deposit_status: "authorized",
@@ -430,6 +459,13 @@ serve(async (req) => {
             stripe_deposit_pm_id: pi.payment_method as string,
             deposit_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           };
+          
+          // Promote draft → pending when authorization succeeds
+          // This is a backup to the client-side promotion in handlePaymentSuccess
+          if (currentBooking?.status === "draft") {
+            updateData.status = "pending";
+            console.log(`Promoting booking ${depositBookingId} from draft → pending after authorization`);
+          }
           
           // Add card details if we have them
           if (cardLast4) updateData.card_last_four = cardLast4;
