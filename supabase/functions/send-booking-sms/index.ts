@@ -46,9 +46,8 @@ serve(async (req) => {
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
-        id, booking_code, start_at, end_at, status, total_amount, user_id,
-        locations!inner (name, address),
-        vehicles!inner (make, model, year)
+        id, booking_code, start_at, end_at, status, total_amount, user_id, vehicle_id,
+        locations!inner (name, address)
       `)
       .eq("id", bookingId)
       .single();
@@ -60,6 +59,13 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch vehicle category separately (no FK between bookings and vehicle_categories)
+    const { data: vehicleCategory } = await supabase
+      .from("vehicle_categories")
+      .select("name")
+      .eq("id", booking.vehicle_id)
+      .maybeSingle();
 
     // Fetch user profile for phone number (fallback to auth user metadata)
     const { data: profile } = await supabase
@@ -115,11 +121,10 @@ serve(async (req) => {
       minute: "2-digit",
     });
 
-    // Access related data - cast to any for flexibility
-    const vehicleData = booking.vehicles as any;
+    // Access related data
     const locationData = booking.locations as any;
 
-    const vehicleName = `${vehicleData?.year} ${vehicleData?.make} ${vehicleData?.model}`;
+    const vehicleName = vehicleCategory?.name || "Vehicle";
     const locationName = locationData?.name || "our location";
 
     // Build message based on template
