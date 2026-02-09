@@ -153,6 +153,35 @@ Deno.serve(async (req) => {
             break;
           }
 
+          // Extract card details from Stripe payment method
+          let cardLastFour: string | null = null;
+          let cardType: string | null = null;
+          let cardHolderName: string | null = null;
+
+          try {
+            if (session.payment_intent) {
+              const pi = await stripe.paymentIntents.retrieve(session.payment_intent as string, {
+                expand: ["payment_method"],
+              });
+              const pm = pi.payment_method as Stripe.PaymentMethod | null;
+              if (pm?.card) {
+                cardLastFour = pm.card.last4;
+                cardType = pm.card.brand;
+              }
+              if (pm?.billing_details?.name) {
+                cardHolderName = pm.billing_details.name;
+              }
+            }
+          } catch (cardErr) {
+            console.warn("Could not retrieve card details:", cardErr);
+          }
+
+          // Update booking with card details
+          const bookingUpdate: Record<string, unknown> = {};
+          if (cardLastFour) bookingUpdate.card_last_four = cardLastFour;
+          if (cardType) bookingUpdate.card_type = cardType;
+          if (cardHolderName) bookingUpdate.card_holder_name = cardHolderName;
+
           if (paymentType === "payment_request") {
             await supabase.from("payments").insert({
               booking_id: sessionBookingId,
@@ -163,6 +192,11 @@ Deno.serve(async (req) => {
               status: "completed",
               transaction_id: transactionId,
             });
+
+            // Update card details if available
+            if (Object.keys(bookingUpdate).length > 0) {
+              await supabase.from("bookings").update(bookingUpdate).eq("id", sessionBookingId);
+            }
 
             await supabase
               .from("admin_alerts")
@@ -181,7 +215,7 @@ Deno.serve(async (req) => {
           } else {
             await supabase
               .from("bookings")
-              .update({ status: "confirmed" })
+              .update({ status: "confirmed", ...bookingUpdate })
               .eq("id", sessionBookingId);
 
             await supabase.from("payments").insert({
@@ -208,6 +242,7 @@ Deno.serve(async (req) => {
 
           result.bookingId = sessionBookingId;
           result.amount = amount;
+          result.cardCaptured = !!cardLastFour;
         }
         break;
       }
@@ -240,10 +275,27 @@ Deno.serve(async (req) => {
           if (existingPayment) {
             result.paymentSkipped = true;
           } else {
-            // Promote draft → pending
+            // Extract card details
+            let cardUpdate: Record<string, unknown> = {};
+            try {
+              if (paymentIntent.payment_method) {
+                const pm = await stripe.paymentMethods.retrieve(paymentIntent.payment_method as string);
+                if (pm?.card) {
+                  cardUpdate.card_last_four = pm.card.last4;
+                  cardUpdate.card_type = pm.card.brand;
+                }
+                if (pm?.billing_details?.name) {
+                  cardUpdate.card_holder_name = pm.billing_details.name;
+                }
+              }
+            } catch (cardErr) {
+              console.warn("Could not retrieve card details:", cardErr);
+            }
+
+            // Promote draft → pending with card details
             await supabase
               .from("bookings")
-              .update({ status: "pending" })
+              .update({ status: "pending", ...cardUpdate })
               .eq("id", piBookingId);
 
             await supabase.from("payments").insert({
@@ -269,6 +321,7 @@ Deno.serve(async (req) => {
           }
 
           result.bookingId = piBookingId;
+          result.cardCaptured = !!cardUpdate.card_last_four;
         }
         break;
       }
