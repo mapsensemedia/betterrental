@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import {
 import { type ReturnCompletion, type ReturnState, isStateAtLeast } from "@/lib/return-steps";
 import { LateFeeApprovalCard } from "@/components/admin/return-ops/LateFeeApprovalCard";
 import { useCalculateLateFee, useOverrideLateFee } from "@/hooks/use-late-return";
+import { calculateLateFee } from "@/lib/pricing";
 import { toast } from "sonner";
 
 interface StepReturnCloseoutProps {
@@ -38,8 +39,15 @@ export function StepReturnCloseout({
   minutesLate = 0,
 }: StepReturnCloseoutProps) {
   const [lateFeeApproved, setLateFeeApproved] = useState(false);
-  const calculateLateFee = useCalculateLateFee();
+  const calculateLateFeeMutation = useCalculateLateFee();
   const overrideLateFee = useOverrideLateFee();
+
+  // If calculatedLateFee wasn't passed from Issues step, compute it from minutesLate
+  const effectiveCalculatedFee = useMemo(() => {
+    if (calculatedLateFee > 0) return calculatedLateFee;
+    if (minutesLate > 0) return calculateLateFee(minutesLate);
+    return 0;
+  }, [calculatedLateFee, minutesLate]);
 
   const isAlreadyCompleted = booking.status === "completed";
   const hasLateFee = minutesLate > 30; // Past grace period
@@ -112,7 +120,7 @@ export function StepReturnCloseout({
 
   const handleLateFeeApproval = async (approvedFee: number, reason?: string) => {
     try {
-      if (reason || approvedFee !== calculatedLateFee) {
+      if (reason || approvedFee !== effectiveCalculatedFee) {
         // Override: staff changed the amount
         await overrideLateFee.mutateAsync({
           bookingId: booking.id,
@@ -121,7 +129,7 @@ export function StepReturnCloseout({
         });
       } else {
         // Standard approval: save calculated fee
-        await calculateLateFee.mutateAsync({
+        await calculateLateFeeMutation.mutateAsync({
           bookingId: booking.id,
           scheduledEndAt: booking.end_at,
           dailyRate: Number(booking.daily_rate),
@@ -169,11 +177,11 @@ export function StepReturnCloseout({
       {/* Late Fee Approval Card */}
       {!isLocked && (
         <LateFeeApprovalCard
-          calculatedFee={calculatedLateFee}
+          calculatedFee={effectiveCalculatedFee}
           minutesLate={minutesLate}
           isApproved={lateFeeApproved || !!booking.late_return_fee || !!booking.late_return_fee_override}
           onApprove={handleLateFeeApproval}
-          isApproving={calculateLateFee.isPending || overrideLateFee.isPending}
+          isApproving={calculateLateFeeMutation.isPending || overrideLateFee.isPending}
           existingOverride={existingOverride}
           persistedFee={Number(booking.late_return_fee) || 0}
         />

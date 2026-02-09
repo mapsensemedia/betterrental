@@ -60,13 +60,7 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
           actual_return_at,
           vehicle_id,
           location_id,
-          vehicles:vehicle_id (
-            make,
-            model,
-            year,
-            category
-          ),
-          locations:location_id (
+          locations (
             name,
             city
           )
@@ -75,7 +69,20 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
         .maybeSingle();
 
       if (error) throw error;
-      return data;
+      if (!data) return null;
+
+      // vehicle_id points to vehicle_categories, not vehicles
+      let category = null;
+      if (data.vehicle_id) {
+        const { data: catData } = await supabase
+          .from("vehicle_categories")
+          .select("name, description, image_url")
+          .eq("id", data.vehicle_id)
+          .maybeSingle();
+        category = catData;
+      }
+
+      return { ...data, category };
     },
     enabled: !!bookingId,
     staleTime: 30000,
@@ -87,11 +94,9 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
 
   if (!booking) return null;
 
-  const vehicle = booking.vehicles as any;
+  const category = booking.category as any;
   const location = booking.locations as any;
-  const vehicleName = vehicle 
-    ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` 
-    : "No vehicle";
+  const vehicleName = category?.name || "No vehicle";
   
   const isActive = booking.status === "active";
   const endDate = new Date(booking.end_at);
@@ -146,9 +151,6 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
         <div className="flex items-center gap-2 text-sm">
           <Car className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span className="truncate">{vehicleName}</span>
-          {vehicle?.category && (
-            <Badge variant="outline" className="text-xs ml-auto shrink-0">{vehicle.category}</Badge>
-          )}
         </div>
 
         {/* Location */}
