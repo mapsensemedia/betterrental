@@ -11,9 +11,6 @@ import type { DeliveryBooking } from "../api/types";
 interface DeliveryGridProps {
   deliveries: DeliveryBooking[];
   isLoading?: boolean;
-  showClaimButton?: boolean;
-  onClaim?: (bookingId: string) => void;
-  claimLoadingId?: string | null;
   emptyMessage?: string;
   className?: string;
 }
@@ -21,9 +18,6 @@ interface DeliveryGridProps {
 export function DeliveryGrid({
   deliveries,
   isLoading,
-  showClaimButton,
-  onClaim,
-  claimLoadingId,
   emptyMessage = "No deliveries found",
   className,
 }: DeliveryGridProps) {
@@ -55,9 +49,6 @@ export function DeliveryGrid({
         <DeliveryCard
           key={delivery.id}
           delivery={delivery}
-          showClaimButton={showClaimButton}
-          onClaim={onClaim ? () => onClaim(delivery.id) : undefined}
-          claimLoading={claimLoadingId === delivery.id}
         />
       ))}
     </div>

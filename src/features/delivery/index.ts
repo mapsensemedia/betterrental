@@ -25,7 +25,6 @@ export { useDeliveryDetail, useHandoverChecklist } from "./hooks/use-delivery-de
 export { 
   useDeliveryActions, 
   useUpdateDeliveryStatus, 
-  useClaimDeliveryMutation,
   useCaptureHandover,
   useRecordOdometer,
   useQuickStatusUpdate 
@@ -36,7 +35,7 @@ export { useRealtimeDelivery, useRealtimeDeliveryDetail } from "./hooks/use-real
 export { StatusBadge, StatusDot } from "./components/StatusBadge";
 export { DeliverySteps, StepProgress } from "./components/DeliverySteps";
 export { DeliveryUnitInfo, CompactUnitInfo, VinDisplay } from "./components/DeliveryUnitInfo";
-export { DeliveryActions, ClaimButton } from "./components/DeliveryActions";
+export { DeliveryActions } from "./components/DeliveryActions";
 export { HandoverChecklist, InlineChecklist } from "./components/HandoverChecklist";
 export { DeliveryCard } from "./components/DeliveryCard";
 export { DeliveryGrid, DeliveryList } from "./components/DeliveryGrid";

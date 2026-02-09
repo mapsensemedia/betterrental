@@ -15,7 +15,6 @@ import {
   Navigation, 
   Building2,
   AlertTriangle,
-  Hand 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DeliveryBooking } from "../api/types";
@@ -26,22 +25,16 @@ import type { DeliveryBooking } from "../api/types";
 
 interface DeliveryCardProps {
   delivery: DeliveryBooking;
-  showClaimButton?: boolean;
-  onClaim?: () => void;
-  claimLoading?: boolean;
   className?: string;
 }
 
 export function DeliveryCard({
   delivery,
-  showClaimButton,
-  onClaim,
-  claimLoading,
   className,
 }: DeliveryCardProps) {
   const pickupTime = new Date(delivery.startAt);
   const isToday = new Date().toDateString() === pickupTime.toDateString();
-  const isUnassigned = delivery.deliveryStatus === 'unassigned';
+  const isUnassigned = false; // Drivers only see assigned deliveries
   
   const handleNavigate = () => {
     if (delivery.pickupLat && delivery.pickupLng) {
@@ -172,37 +165,21 @@ export function DeliveryCard({
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
-          {/* Claim Button */}
-          {showClaimButton && onClaim && (
-            <Button
-              variant="default"
-              size="sm"
-              className="flex-1"
-              onClick={onClaim}
-              disabled={claimLoading}
-            >
-              <Hand className="h-4 w-4 mr-1" />
-              {claimLoading ? "Claiming…" : "Claim"}
-            </Button>
-          )}
-          
-          {/* Navigate Button (only for assigned deliveries) */}
-          {!showClaimButton && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={handleNavigate}
-              disabled={!delivery.pickupAddress && !delivery.pickupLat}
-            >
-              <Navigation className="h-4 w-4 mr-1" />
-              Navigate
-            </Button>
-          )}
+          {/* Navigate Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={handleNavigate}
+            disabled={!delivery.pickupAddress && !delivery.pickupLat}
+          >
+            <Navigation className="h-4 w-4 mr-1" />
+            Navigate
+          </Button>
           
           {/* Details Button */}
           <Button 
-            variant={showClaimButton ? "outline" : "default"} 
+            variant="default" 
             size="sm" 
             className="flex-1" 
             asChild

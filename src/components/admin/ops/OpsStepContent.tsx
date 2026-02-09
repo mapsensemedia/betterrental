@@ -140,16 +140,7 @@ export function OpsStepContent({
         </Alert>
       )}
       
-      {/* Missing Items Alert - informational only, not blocking */}
-      {!isComplete && !isBlocked && missing.length > 0 && (
-        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-700 dark:text-amber-400">Pending Items</AlertTitle>
-          <AlertDescription className="text-amber-600 dark:text-amber-500">
-            Items to complete: {missing.join(", ")}
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Removed: "Pending Items" banner was noise - the step forms themselves show what's needed */}
       
         {/* Step-specific Content */}
         <div className="space-y-4">

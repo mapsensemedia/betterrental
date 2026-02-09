@@ -2,16 +2,12 @@
  * DeliveryModeBanner - Visual indicator for delivery bookings in BookingOps
  * Shows delivery address, assigned driver, and link to Delivery Portal
  */
-import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   Truck, 
   MapPin, 
   User, 
-  AlertTriangle,
-  ExternalLink,
   Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,7 +65,7 @@ export function DeliveryModeBanner({ booking, driverName, className }: DeliveryM
           </div>
         )}
         
-        {/* Driver Assignment */}
+        {/* Driver Assignment - informational only */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-2">
             <User className="h-3.5 w-3.5 text-muted-foreground" />
@@ -79,24 +75,11 @@ export function DeliveryModeBanner({ booking, driverName, className }: DeliveryM
                 <span className="font-medium">{driverName || "Assigned"}</span>
               </span>
             ) : (
-              <span className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                No driver assigned
+              <span className="text-sm text-muted-foreground">
+                No driver assigned yet
               </span>
             )}
           </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            asChild
-          >
-            <Link to={`/delivery/${booking.id}`} target="_blank">
-              <ExternalLink className="h-3 w-3" />
-              Delivery Portal
-            </Link>
-          </Button>
         </div>
       </AlertDescription>
     </Alert>
