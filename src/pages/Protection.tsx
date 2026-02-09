@@ -184,7 +184,7 @@ export default function Protection() {
                           </span>
                         ))}
                       </div>
-                      {pkg.discount && (
+                      {pkg.discount && pkg.originalRate && pkg.originalRate > pkg.dailyRate && (
                         <Badge 
                           variant="outline" 
                           className="text-[10px] px-1.5 py-0 h-5 border-emerald-600 text-emerald-600 whitespace-nowrap"
@@ -246,7 +246,7 @@ export default function Protection() {
                             {pkg.dailyRate.toFixed(2)}
                           </span>
                           <span className="text-xs text-muted-foreground">CAD / day</span>
-                          {pkg.originalRate && (
+                          {pkg.originalRate && pkg.originalRate > pkg.dailyRate && (
                             <span className="text-xs text-muted-foreground line-through ml-1">
                               ${pkg.originalRate.toFixed(2)} CAD/day
                             </span>
