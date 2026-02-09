@@ -1,9 +1,9 @@
 # C2C Rental — Business Logic Design Document
 
-> **Version:** 1.0  
+> **Version:** 2.0  
 > **Last Updated:** February 2026  
 > **Audience:** Business stakeholders, product managers, operations leads  
-> **Scope:** Business rules, workflows, calculations, and policies only — no engineering or implementation details.
+> **Scope:** Business rules, workflows, calculations, panel options, and policies only — no engineering or implementation details.
 
 ---
 
@@ -12,18 +12,19 @@
 1. [Goal & Scope](#1-goal--scope)
 2. [Core Entities & Definitions](#2-core-entities--definitions)
 3. [Roles & Permissions](#3-roles--permissions)
-4. [Booking Lifecycle & State Machine](#4-booking-lifecycle--state-machine)
-5. [Pricing & Calculation Rules](#5-pricing--calculation-rules)
-6. [Payments, Holds, Capture & Refunds](#6-payments-holds-capture--refunds)
-7. [Ops Panel Business Workflows](#7-ops-panel-business-workflows)
-8. [Delivery Panel Business Workflows](#8-delivery-panel-business-workflows)
-9. [Support & Disputes](#9-support--disputes)
-10. [Admin Settings & Governance](#10-admin-settings--governance)
-11. [Edge Cases & Exception Handling](#11-edge-cases--exception-handling)
-12. [KPIs & Operational Reporting](#12-kpis--operational-reporting)
-13. [Worked Pricing Examples](#13-worked-pricing-examples)
-14. [Assumptions](#14-assumptions)
-15. [Open Questions](#15-open-questions)
+4. [Platform Panels — Complete Option Reference](#4-platform-panels--complete-option-reference)
+5. [Booking Lifecycle & State Machine](#5-booking-lifecycle--state-machine)
+6. [Pricing & Calculation Rules](#6-pricing--calculation-rules)
+7. [Payments & Refunds](#7-payments--refunds)
+8. [Ops Panel — Pickup Workflow (Step-by-Step)](#8-ops-panel--pickup-workflow-step-by-step)
+9. [Ops Panel — Return Workflow (Step-by-Step)](#9-ops-panel--return-workflow-step-by-step)
+10. [Delivery Panel — Delivery Workflow (Step-by-Step)](#10-delivery-panel--delivery-workflow-step-by-step)
+11. [Support Panel — Ticket Workflow (Step-by-Step)](#11-support-panel--ticket-workflow-step-by-step)
+12. [Admin Settings & Governance](#12-admin-settings--governance)
+13. [Edge Cases & Exception Handling](#13-edge-cases--exception-handling)
+14. [KPIs & Operational Reporting](#14-kpis--operational-reporting)
+15. [Worked Pricing Examples](#15-worked-pricing-examples)
+16. [Assumptions](#16-assumptions)
 
 ---
 
@@ -37,6 +38,7 @@ C2C Rental (c4r.ca) is a **car rental platform** serving the Lower Mainland of B
 - **For operations staff:** A centralized Ops Panel to manage the full rental lifecycle — from customer check-in through vehicle handover to return and closeout.
 - **For delivery drivers:** A dedicated Delivery Portal to manage vehicle deliveries to customer locations.
 - **For administrators:** A strategic dashboard covering fleet management, billing, incident tracking, reporting, and platform configuration.
+- **For support agents:** A dedicated Support Panel for ticket-based customer communications and dispute resolution.
 
 ### Who Uses It
 
@@ -47,7 +49,7 @@ C2C Rental (c4r.ca) is a **car rental platform** serving the Lower Mainland of B
 | **Delivery Driver** | Delivery Portal | Execute vehicle deliveries: walkaround, agreement signing, handover at customer location |
 | **Admin** | Admin Dashboard | Strategic oversight: fleet, billing, incidents, reports, user management, settings |
 | **Finance** | Admin Dashboard (Billing module) | Payment tracking, deposit management, invoice generation, revenue reporting |
-| **Support** | Admin Dashboard (Support module) | Customer communications, ticket management, dispute resolution |
+| **Support** | Support Panel | Customer ticket management, communications, dispute resolution, macro-based replies |
 
 ---
 
@@ -66,16 +68,16 @@ A specific physical car identified by VIN and license plate, belonging to a cate
 A physical branch (Surrey, Langley, Abbotsford) with address, coordinates, contact details, and operating hours.
 
 ### Booking
-A reservation tying a customer to a vehicle category at a location for a date range. Key attributes: booking code, status, daily rate, total amount, protection plan, add-ons, driver age band, notes, and delivery address (if applicable).
+A reservation tying a customer to a vehicle category at a location for a date range. Key attributes: booking code (C2CXXXXXX), status, daily rate, total amount, protection plan, add-ons, driver age band, notes, and delivery address (if applicable).
 
 ### Reservation Hold
-A temporary lock (typically 10 minutes) placed on a vehicle during checkout to prevent double-booking. Expires automatically if not converted to a booking.
+A temporary lock (approximately 10 minutes) placed on a vehicle during checkout to prevent double-booking. Expires automatically if not converted to a booking.
 
-### Payment Authorization
-A Stripe-based payment hold placed at checkout. The amount is authorized but not captured until pickup/return.
+### Payment
+A Stripe-processed payment captured at checkout via Stripe-hosted Checkout redirect. The payment is **auto-captured** — there is no separate authorization/capture step. The booking is created in Draft status and promoted to Pending only upon successful payment.
 
 ### Security Deposit
-A mandatory hold of **$350 CAD** (minimum, admin-configurable) placed on the customer's credit card at checkout. Released upon successful return with no damages, or partially/fully captured with Ops approval if issues arise.
+A **separate charge** of **$350 CAD** (minimum, admin-configurable). Deposits are handled independently from the rental payment — staff may collect deposits via separate payment request links sent to the customer or in-person at the counter. Deposits are not authorization holds.
 
 ### Charges
 Any financial line item: rental fee, protection plan, add-ons, regulatory fees, young driver surcharge, late return fee, fuel shortage charge, damage charge.
@@ -99,7 +101,7 @@ A damage/liability coverage package selected at checkout. Four tiers:
 A booking flagged for vehicle delivery to the customer's address instead of branch pickup. Has a delivery fee based on distance tiers and follows a separate operational workflow.
 
 ### Support Ticket
-A customer service case (TKT-XXXXXX) with status tracking, category classification, and strict separation between public messages and private staff notes.
+A customer service case (TKT-XXXXXX) with status tracking, category classification, priority levels, and strict separation between public messages and private staff notes.
 
 ### Damage Report
 A documented record of vehicle damage with severity (Minor, Moderate, Severe), location on vehicle, description, photo evidence, and estimated cost.
@@ -122,59 +124,185 @@ A single-page legal document (8.5×11) signed at pickup or delivery, capturing r
 
 ### Permission Matrix
 
-| Object / Action | Customer | Ops Staff | Delivery Driver | Admin | Finance |
-|-----------------|----------|-----------|-----------------|-------|---------|
-| **Bookings** | | | | | |
-| View own bookings | ✅ | — | — | — | — |
-| View all bookings | — | ✅ | Own deliveries only | ✅ | ✅ (read-only) |
-| Create booking | ✅ (online) | — | — | ✅ (walk-in) | — |
-| Modify booking (dates/vehicle/protection) | — | ✅ (pre-active only) | — | ✅ | — |
-| Extend active rental | — | ✅ | — | ✅ | — |
-| Cancel booking | ✅ (pre-pickup) | ✅ | — | ✅ | — |
-| Void booking | — | — | — | ✅ (with reason + audit) | — |
-| Activate rental | — | ✅ | ✅ (at delivery) | ✅ | — |
-| Complete rental (return) | — | ✅ | — | ✅ | — |
-| **Payments** | | | | | |
-| View payment history | Own only | ✅ | — | ✅ | ✅ |
-| Send payment request | — | — | — | ✅ | ✅ |
-| **Deposits** | | | | | |
-| View deposit status | Own only | ✅ | — | ✅ | ✅ |
-| Release deposit | — | — | — | ✅ | ✅ |
-| Capture deposit (damage/fees) | — | — | — | ✅ (requires Ops evidence) | — |
-| Withhold deposit (partial) | — | ✅ (with category + reason) | — | ✅ | — |
-| **Damage Reports** | | | | | |
-| Create damage report | — | ✅ | ✅ | ✅ | — |
-| Review/approve damage | — | — | — | ✅ | — |
-| **Invoices** | | | | | |
-| View invoice | Own only | ✅ | — | ✅ | ✅ |
-| Generate final invoice | — | — | — | ✅ | ✅ |
-| **Vehicles** | | | | | |
-| View fleet | — | ✅ (own location) | — | ✅ | — |
-| Assign/unassign VIN | — | ✅ | — | ✅ | — |
-| Change vehicle status | — | ✅ | — | ✅ | — |
-| Create/edit categories | — | — | — | ✅ | — |
-| **Support Tickets** | | | | | |
-| Create ticket | ✅ | ✅ | — | ✅ | — |
-| Reply (public) | ✅ | ✅ | — | ✅ | — |
-| Add internal note | — | ✅ | — | ✅ | ✅ |
-| Close ticket | — | ✅ | — | ✅ | — |
-| **Settings** | | | | | |
-| Manage pricing/fees | — | — | — | ✅ | — |
-| Manage user roles | — | — | — | ✅ | — |
-| View audit logs | — | — | — | ✅ | ✅ (read-only) |
+| Object / Action | Customer | Ops Staff | Delivery Driver | Admin | Finance | Support |
+|-----------------|----------|-----------|-----------------|-------|---------|---------|
+| **Bookings** | | | | | | |
+| View own bookings | ✅ | — | — | — | — | — |
+| View all bookings | — | ✅ | Own deliveries only | ✅ | ✅ (read-only) | ✅ (via ticket context) |
+| Create booking | ✅ (online) | — | — | ✅ (walk-in) | — | — |
+| Modify booking (dates/vehicle/protection) | — | ✅ (pre-active only) | — | ✅ | — | — |
+| Extend active rental | — | ✅ | — | ✅ | — | — |
+| Cancel booking | ✅ (pre-pickup) | ✅ | — | ✅ | — | — |
+| Void booking | — | — | — | ✅ (with reason + audit) | — | — |
+| Activate rental | — | ✅ | ✅ (at delivery) | ✅ | — | — |
+| Complete rental (return) | — | ✅ | — | ✅ | — | — |
+| **Payments** | | | | | | |
+| View payment history | Own only | ✅ | — | ✅ | ✅ | — |
+| Send payment request link | — | — | — | ✅ | ✅ | — |
+| **Deposits** | | | | | | |
+| View deposit status | Own only | ✅ | — | ✅ | ✅ | — |
+| Release deposit | — | — | — | ✅ | ✅ | — |
+| Capture deposit (damage/fees) | — | — | — | ✅ (requires Ops evidence) | — | — |
+| Withhold deposit (partial) | — | ✅ (with category + reason) | — | ✅ | — | — |
+| **Damage Reports** | | | | | | |
+| Create damage report | — | ✅ | ✅ | ✅ | — | — |
+| Review/approve damage | — | — | — | ✅ | — | — |
+| **Invoices** | | | | | | |
+| View invoice | Own only | ✅ | — | ✅ | ✅ | — |
+| Generate final invoice | — | — | — | ✅ | ✅ | — |
+| **Vehicles** | | | | | | |
+| View fleet | — | ✅ (own location) | — | ✅ | — | — |
+| Assign/unassign VIN | — | ✅ | — | ✅ | — | — |
+| Change vehicle status | — | ✅ | — | ✅ | — | — |
+| Create/edit categories | — | — | — | ✅ | — | — |
+| **Support Tickets** | | | | | | |
+| Create ticket | ✅ | ✅ | — | ✅ | — | ✅ |
+| Reply (public to customer) | ✅ | — | — | ✅ | — | ✅ |
+| Add internal note | — | ✅ | — | ✅ | ✅ | ✅ |
+| Close ticket | — | — | — | ✅ | — | ✅ |
+| Escalate ticket | — | — | — | ✅ | — | ✅ |
+| **Settings** | | | | | | |
+| Manage pricing/fees | — | — | — | ✅ | — | — |
+| Manage user roles | — | — | — | ✅ | — | — |
+| View audit logs | — | — | — | ✅ | ✅ (read-only) | — |
 
 ### Role Definitions
 
 - **Admin:** Full strategic control across all modules. Access restricted to users with the `admin` role.
 - **Ops Staff (`staff` role):** Restricted to the Ops Panel and Delivery Panel. Handles day-to-day rental operations.
-- **Delivery Driver (`driver` role):** Access to the Delivery Portal only. Can claim deliveries, perform handovers, and activate rentals at customer locations.
+- **Delivery Driver (`driver` role):** Access to the Delivery Portal only. Can view assigned deliveries, perform handovers, and activate rentals at customer locations. **Cannot self-claim unassigned tasks** — assignment is done by Ops staff only.
 - **Finance (`finance` role):** Read access to billing, payments, deposits, and invoices. Can send payment requests and generate invoices.
-- **Support (`support` role):** Access to the support ticket system. Can manage tickets and communicate with customers.
+- **Support (`support` role):** Access to the Support Panel. Can manage tickets, communicate with customers, and escalate issues.
 - **Cleaner (`cleaner` role):** Limited role for vehicle preparation tasks (future use).
 
 ---
 
-## 4. Booking Lifecycle & State Machine
+## 4. Platform Panels — Complete Option Reference
+
+### 4.1 Admin Dashboard (`/admin`)
+
+The Admin Dashboard is the strategic management console. It contains the following sidebar navigation options:
+
+| Menu Item | Route | What It Does |
+|-----------|-------|--------------|
+| **Alerts** | `/admin/alerts` | Shows action-required notifications: pending verifications, new bookings, cancellations, damage reports, overdue returns. Badge shows unread count. |
+| **Dashboard** | `/admin` | Overview page with key stats (New bookings in 24h, Active rentals, Today's pickups, Today's returns, Pending alerts). Contains quick links, a "Walk-In Booking" button, and a "How to Use" guide tab. |
+| **Bookings** | `/admin/bookings` | Read-only list of all reservations with search and filter by status. Clicking a booking opens detail view with financial summary, timeline, and an "Open in Operations" button for actionable bookings. |
+| **Fleet** | `/admin/fleet` | Vehicle category management: create/edit categories, manage daily rates, images, specs. Sub-tabs: Overview, By Category, By Vehicle, Category Management, Utilization, Performance Comparison, Competitor Pricing, Cost Tracking. |
+| **Incidents** | `/admin/incidents` | High-level incident summary dashboard: open cases, major severity counts, linked support tickets. Each incident links to its ticket in the Support Panel for operational handling. |
+| **Fleet Costs** | `/admin/fleet-costs` | Vehicle-level cost tracking: maintenance costs, depreciation, cost-per-mile, lifecycle summaries. |
+| **Fleet Analytics** | `/admin/fleet-analytics` | Utilization rates, revenue-per-vehicle, profitability analysis across categories and time periods. |
+| **Analytics** | `/admin/reports` | Business metrics and reports: revenue analytics, conversion funnels, booking trends, financial dashboards. |
+| **Calendar** | `/admin/calendar` | Visual schedule view of all bookings on a timeline. Shows pickup/return dates across locations. |
+| **Billing** | `/admin/billing` | Financial records with tabs: **Receipts** (generate/view receipts), **Payments** (all transactions with status), **Deposits** (security deposit records and "Process Return" action). Badge shows pending items. |
+| **Support** | `/admin/tickets` | Quick access to the Support Panel from the Admin sidebar. Links to the ticket management interface. Badge shows open ticket count. |
+| **Offers** | `/admin/offers` | Points-based rewards and loyalty program management. |
+| **Settings** | `/admin/settings` | Platform configuration (see Section 12 for full details). |
+
+**Top Bar Features:**
+- **Search bar:** Search bookings by code (auto-uppercased)
+- **Date filter:** Today / Next 24h / This Week / All Time
+- **User menu:** Settings link, Sign Out
+- **Panel switch:** "Ops Panel" link (visible if user has ops access)
+
+**Dashboard "How to Use" Guide** contains 4 sections:
+1. Section 1 — Customer Booking Guide (how customers book)
+2. Section 2 — Admin/Ops Full Workflow (incoming booking → confirmation → operations → pickups → active rentals → returns → billing)
+3. Section 3 — Status Glossary (what each menu item represents)
+4. Section 4 — Important Notes (deposit amount, ID verification, agreement signing)
+
+### 4.2 Ops Panel (`/ops`)
+
+The Ops Panel is the day-to-day operational console for staff handling rentals. It contains:
+
+| Menu Item | Route | What It Does |
+|-----------|-------|--------------|
+| **Workboard** | `/ops` | Real-time operational dashboard: today's pickups, expected returns (including overdue), active rentals, and urgent alerts. Includes a universal search bar for finding bookings by code, customer name, email, or phone number. |
+| **All Bookings** | `/ops/bookings` | Searchable list of all reservations. Filter by status, location, date. Clicking a booking opens the full-screen operational workflow wizard. |
+| **Pickups** | `/ops/pickups` | Upcoming handovers. Defaults to "All" filter, includes both `pending` and `confirmed` bookings. Time buckets: Today / Tomorrow / This Week / Later. Cards show full dates, times, vehicle names, delivery vs. counter indicators. |
+| **Active Rentals** | `/ops/active` | Currently on-road vehicles. Shows remaining time, consumed time, rental details. Click to open detail panel where staff can flag issues, contact customer, SMS customer, initiate return. |
+| **Returns** | `/ops/returns` | Incoming returns. Opens the Return Console — a 5-step sequential workflow (see Section 9). |
+| **Fleet Status** | `/ops/fleet` | Vehicle availability overview by location. Shows unit statuses (Available, On Rent, Maintenance, Damage). |
+
+**Top Bar Features:**
+- **Quick Search:** Search by booking code (auto-navigates to handover), customer name, or phone
+- **Location Filter:** All queues support location filtering (Surrey, Langley, Abbotsford) via a shared OpsLocationFilter component
+- **User menu:** Sign Out
+
+**All Ops queues** support filtering by location via URL parameters, ensuring staff can scope operations to a single branch.
+
+### 4.3 Support Panel (`/support`)
+
+The Support Panel is a dedicated hub for customer communications and ticket management, separate from the Admin Dashboard.
+
+| Menu Item | Route | What It Does |
+|-----------|-------|--------------|
+| **Tickets** | `/support` | Main ticket management interface. List of all tickets with search, category filter, priority filter. Click a ticket to open detail sheet with conversation thread, customer info, booking context card, and action buttons. |
+| **Analytics** | `/support/analytics` | Support performance metrics: ticket volume, resolution times, agent performance, category breakdown. |
+
+**Sidebar Queue Filters:**
+- **New** — Unassigned/unworked tickets
+- **In Progress** — Actively being handled
+- **Waiting** — Waiting on customer response
+- **Escalated** — Elevated priority tickets
+- **Urgent** — Flagged as urgent across all statuses
+
+**Ticket Detail Sheet Actions:**
+- Assign to me (auto-moves from New → In Progress)
+- Reply as customer-visible message or internal note (defaults to internal note)
+- Change status (New, In Progress, Waiting Customer, Escalated, Closed)
+- Escalate (requires escalation note)
+- Close (requires mandatory resolution note)
+- Insert macro (templated response with variable substitution: `{customer_name}`, `{booking_code}`)
+- View linked booking summary card (status, dates, vehicle, location, late fee estimate)
+
+**Creating a New Ticket requires:**
+- Subject, description, category, priority
+- Optional: urgent flag, guest email/phone/name
+- Optional: link to booking or incident
+
+**Top Bar Features:**
+- Open ticket count badge
+- Admin Dashboard link (if user has admin access)
+- User menu with logout
+
+### 4.4 Delivery Portal (`/delivery`)
+
+The Delivery Portal is for drivers executing vehicle deliveries at customer locations.
+
+| Menu Item | Route | What It Does |
+|-----------|-------|--------------|
+| **Dashboard** | `/delivery` | Shows deliveries assigned to the logged-in driver, filtered by portal status tabs: Pending, Active, Completed, Issue. Admin/staff see all deliveries. |
+| **Delivery Detail** | `/delivery/:bookingId` | Full delivery execution workflow with step-by-step handover checklist. |
+
+**Dashboard Tabs:**
+- **Pending** — Assigned but not yet picked up/en route
+- **Active** — Currently being delivered (en route, arrived)
+- **Completed** — Successfully delivered and activated
+- **Issue** — Deliveries with problems
+
+**Key Restriction:** Drivers cannot self-claim tasks from a pool. All driver assignment is done exclusively by Ops staff in the Operations panel.
+
+### 4.5 Customer Portal (Public Website)
+
+The customer-facing website includes:
+
+| Page | Route | What It Does |
+|------|-------|--------------|
+| **Home** | `/` | Landing page with search widget, featured vehicles, value propositions |
+| **Search** | `/search` | Vehicle browsing with date/location filters, category cards, pricing display |
+| **Locations** | `/locations` | All branch locations with addresses, hours, maps |
+| **Location Detail** | `/location/:id` | Individual location page with details and available vehicles |
+| **Protection** | `/protection` | Protection plan comparison page |
+| **Add-Ons** | `/addons` | Add-on extras listing |
+| **Checkout** | `/checkout` | Booking checkout: driver info, add-on selection, protection selection, pricing breakdown, payment via Stripe redirect |
+| **My Bookings** | `/dashboard` | Customer booking management: view bookings, mark returns, view receipts |
+| **About / Contact** | `/about`, `/contact` | Company info and contact form |
+| **Auth** | `/auth` | Login/signup/forgot password |
+
+---
+
+## 5. Booking Lifecycle & State Machine
 
 ### Booking States
 
@@ -186,8 +314,8 @@ Draft → Pending → Confirmed → Active → Completed
 
 | State | Description | Who Triggers | What's Locked |
 |-------|-------------|-------------|---------------|
-| **Draft** | Created at checkout, invisible to Ops. Awaiting Stripe payment authorization. | System (on checkout) | Nothing visible yet |
-| **Pending** | Payment authorized. Visible to Ops. Awaiting staff review and prep. | System (on successful payment) | Vehicle category reserved |
+| **Draft** | Created at checkout, invisible to Ops. Awaiting Stripe payment. | System (on checkout) | Nothing visible yet |
+| **Pending** | Payment captured successfully. Visible to Ops. Awaiting staff review and prep. | System (on successful Stripe webhook) | Vehicle category reserved |
 | **Confirmed** | Staff has reviewed and accepted. Vehicle prep in progress. | Ops Staff | Pricing finalized (unless modified by Ops pre-active) |
 | **Active** | Vehicle handed over, rental in progress. | Ops Staff or Delivery Driver | Core booking parameters locked (dates, vehicle, pricing). Only extensions allowed. |
 | **Completed** | Vehicle returned, closeout done, deposit processed. | Ops Staff (after return workflow) | Everything locked. Read-only archive. |
@@ -198,10 +326,10 @@ Draft → Pending → Confirmed → Active → Completed
 
 | From | To | Triggered By | Conditions |
 |------|----|-------------|------------|
-| Draft | Pending | System | Stripe authorization succeeds |
+| Draft | Pending | System | Stripe payment succeeds (webhook confirmation) |
 | Pending | Confirmed | Ops Staff | Booking reviewed |
 | Confirmed | Active | Ops/Driver | All handover prerequisites met (payment, agreement, walkaround, VIN assigned) |
-| Active | Completed | Ops Staff | Return workflow completed (state = `closeout_done`). Admin bypass requires 50+ char justification. |
+| Active | Completed | Ops Staff | Return workflow completed (state = `closeout_done`). Admin bypass requires 50+ char justification + triggers alert. |
 | Pending/Confirmed | Cancelled | Customer/Admin | Cancellation reason required |
 | Any | Voided | Admin only | Reason selection + 20+ char notes + audit log |
 
@@ -218,7 +346,7 @@ Draft → Pending → Confirmed → Active → Completed
 
 ---
 
-## 5. Pricing & Calculation Rules
+## 6. Pricing & Calculation Rules
 
 ### Base Rental Rate
 
@@ -310,9 +438,8 @@ Rates are managed dynamically via admin settings. Default rates:
 ### Late Return Fees
 
 - **Grace period:** 30 minutes (no charge)
-- **After grace:** $25 CAD per hour (rounded up to nearest hour)
+- **After grace:** 25% of daily rate per hour (rounded up to nearest hour)
 - **Maximum:** 24 hours of late fees (then treated as additional rental day)
-- **Alternative calculation:** 25% of daily rate per hour (used in return workflow)
 
 ### Mystery Car
 
@@ -353,17 +480,18 @@ Total                     = Subtotal + Tax Amount
 
 ---
 
-## 6. Payments, Holds, Capture & Refunds
+## 7. Payments & Refunds
 
 ### Payment Model
 
-The platform uses a **Stripe-hosted Checkout redirect** for rental payments with **auto-capture**. Security deposits are handled separately.
+The platform uses a **Stripe-hosted Checkout redirect** for rental payments with **auto-capture**. There are **no authorization holds** — payments are captured immediately upon successful checkout.
 
 ### Payment Flow
 
-1. **Checkout:** Customer is redirected to Stripe Checkout. Payment is auto-captured on success.
-2. **Booking Promotion:** Successful payment promotes booking from `Draft` → `Pending`.
-3. **Unpaid bookings** (`Draft` status) are invisible to Ops staff.
+1. **Checkout:** Customer is redirected to Stripe Checkout. Payment is **auto-captured** on success.
+2. **Booking Promotion:** Successful payment promotes booking from `Draft` → `Pending` via Stripe webhook.
+3. **Unpaid bookings** (`Draft` status) are invisible to Ops staff and do not appear in any operational queue.
+4. If Stripe session initialization fails, the temporary booking and add-ons are automatically cleaned up to prevent ghost records.
 
 ### Security Deposit Rules
 
@@ -372,18 +500,20 @@ The platform uses a **Stripe-hosted Checkout redirect** for rental payments with
 | **Default amount** | $350 CAD |
 | **Minimum amount** | $350 CAD (business rule: deposit is ALWAYS required, never zero) |
 | **Configurable by** | Admin only |
-| **When placed** | At checkout (hold created on customer's card) |
+| **How collected** | Separately from rental payment — via payment request link sent to customer or collected in-person at counter |
 | **When released** | Upon successful closeout with no damages |
 | **Partial capture conditions** | Damage, late fees, fuel shortage, cleaning |
 | **Approval required** | Ops evidence required before admin can capture for damages |
 
+> **Important:** The platform does **NOT** use Stripe authorization holds for deposits. Deposits are collected as separate payments. Staff can send a payment request link via email for the customer to pay the deposit remotely.
+
 ### Deposit Lifecycle
 
 ```
-Hold Created → [Rental Active] → Closeout
-                                    ├─ No damages → Auto-release full deposit
-                                    ├─ Damages found → Admin alert for manual review
-                                    └─ Cancelled → Admin alert for manual review
+Deposit Requested → Deposit Collected → [Rental Active] → Closeout
+                                                            ├─ No damages → Release full deposit
+                                                            ├─ Damages found → Admin alert for manual review
+                                                            └─ Cancelled → Admin alert for manual review
 ```
 
 ### Deposit Withholding (Partial Capture)
@@ -402,17 +532,15 @@ Severity-based auto-withhold on damage report creation:
 - **Debit and prepaid cards are NOT accepted** — credit cards only
 - Primary driver's name must match the cardholder name
 - Only the last 4 digits of the card are stored (PCI compliance)
-- Card on file is used for subsequent charges (late fees, fuel, damage)
 
 ### Failure Handling
 
 | Scenario | Behavior |
 |----------|----------|
-| Authorization fails | Booking remains in Draft (invisible to Ops). Customer notified. |
-| Capture fails | Admin alert created. Staff must follow up manually. |
-| Expired authorization | Admin alert created. Staff sends new payment request via email link. |
-| Insufficient funds (post-rental) | Outstanding balance tracked. Separate payment request sent via email. |
-| Partial capture fails | Alert created with amount details. Manual resolution required. |
+| Stripe payment fails at checkout | Booking remains in Draft (invisible to Ops). Temporary booking auto-cleaned. Customer notified. |
+| Payment link fails | Staff re-sends payment request via email. |
+| Insufficient funds (post-rental) | Outstanding balance tracked. Separate payment request sent via email link. |
+| Customer card expired during rental | Staff sends new payment request link for updated card. |
 
 ### Refunds
 
@@ -422,184 +550,289 @@ Severity-based auto-withhold on damage report creation:
 
 ---
 
-## 7. Ops Panel Business Workflows
+## 8. Ops Panel — Pickup Workflow (Step-by-Step)
 
-### 7.1 Standard Pickup Flow (6 Steps)
+The pickup workflow is a **6-step process** accessed from the Ops Panel. Staff can navigate freely between steps (non-linear), but certain critical items block activation.
 
-#### Step 1: Customer Check-In
-- Verify government photo ID
-- Verify driver's license is on file and not expired
-- Confirm name matches booking
-- Verify age (minimum 21 for check-in; 20 allowed with young driver fee)
-- **Ops staff can modify booking parameters at this step:** dates, times, duration, vehicle category, protection plan
-- Modifications trigger automatic financial recalculation
+### Step 1: Customer Check-In
 
-#### Step 2: Payment & Deposit
-- Verify rental payment received (auto-syncs if paid online)
-- Collect or verify security deposit hold
-- Deposit is manual/offline if not already held
+**Purpose:** Verify customer identity and eligibility.
 
-#### Step 3: Rental Agreement
-- Generate rental agreement document
-- Customer signs agreement (in-person)
-- Agreement is a single 8.5×11 page with structured layout
-- Digital signatures embedded as PNG images
+**Actions:**
+- Verify government photo ID (checkbox: Gov ID Verified)
+- Verify driver's license is on file and not expired (checkbox with expiry date input)
+- Confirm name on ID matches the booking name (checkbox: Name Matches)
+- Verify age: minimum 21 for standard check-in; 20 allowed with young driver fee (auto-calculated from DOB)
+- **Staff can re-edit verification details after check-in is marked complete** (unlockable for corrections)
 
-#### Step 4: Vehicle Walkaround
+**Available at this step (counter operations):**
+- **Edit Booking Details:** Modify pickup/return dates, times, rental duration. Triggers automatic financial recalculation.
+- **Change Vehicle Category:** Select a different category with live price impact calculation. "Charge for this change" toggle allows staff discretion on whether to update pricing.
+- **Assign/Change VIN:** Two-step flow — (1) select category, (2) assign specific VIN from available units at the location.
+- **Change Protection Plan:** Switch between None, Basic, Smart, All Inclusive with automatic pricing update.
+- **Counter Upsell:** Offer add-ons available for the rental duration.
+
+**Completion criteria:** All 5 checkboxes verified (Gov ID, License on file, Name matches, License not expired, Age verified).
+
+### Step 2: Payment & Deposit
+
+**Purpose:** Confirm payment and deposit status.
+
+**Actions:**
+- Verify rental payment received (auto-syncs if paid online via Stripe)
+- Verify or collect security deposit
+- If deposit not yet collected: staff sends payment request link or collects in-person
+
+**Completion criteria:** Payment complete AND deposit collected.
+
+### Step 3: Rental Agreement
+
+**Purpose:** Formalize the rental contract.
+
+**Actions:**
+- Generate rental agreement document (single 8.5×11 page)
+- Customer signs agreement in-person
+- Digital signature captured and embedded as PNG image
+- Mark agreement as signed
+
+**Completion criteria:** Agreement marked as signed.
+
+### Step 4: Vehicle Walkaround
+
+**Purpose:** Record baseline vehicle condition for comparison at return.
+
+**Actions:**
 - **Staff-only** inspection (no customer signature required)
-- **Mandatory recordings:** Fuel level and odometer reading (blocks completion until recorded)
-- Inspection persisted as baseline for return comparison
-- Fuel levels recorded in 1/8 increments (Empty, 1/8, 1/4, 3/8, 1/2, 5/8, 3/4, 7/8, Full)
+- **Mandatory:** Record fuel level (1/8 increments: Empty, 1/8, 1/4, 3/8, 1/2, 5/8, 3/4, 7/8, Full)
+- **Mandatory:** Record odometer reading
+- Complete inspection checklist
+- **Blocks step completion until fuel AND odometer are recorded**
 
-#### Step 5: Handover Photos
-- Capture vehicle condition photos before handover
-- Minimum photo requirement for evidence
+**Completion criteria:** Inspection complete, fuel level recorded, odometer recorded.
 
-#### Step 6: Handover & Activation
-- **Prerequisites before activation:**
-  - Payment must be collected (hard block — cannot override)
-  - Vehicle unit (VIN) must be assigned
-  - Agreement signed
-  - Walkaround completed with fuel + odometer
+### Step 5: Handover Photos
+
+**Purpose:** Capture photographic evidence of vehicle condition before handover.
+
+**Actions:**
+- Upload vehicle condition photos (exterior and interior)
+- Tag photos by type (front, rear, left, right, interior, etc.)
+- Add optional notes per photo
+
+**Completion criteria:** Minimum photo count met.
+
+### Step 6: Handover & Activation
+
+**Purpose:** Complete the handover and start the rental.
+
+**Prerequisites (hard blocks — cannot proceed without these):**
+- ✅ Payment collected (hard block — cannot override)
+- ✅ Vehicle unit (VIN) assigned
+- ✅ Agreement signed
+- ✅ Walkaround completed with fuel + odometer
+
+**Actions:**
 - Hand over keys to customer
-- Send handover SMS to customer
-- Booking status transitions to **Active**
+- Send handover SMS to customer with booking details
+- Activate rental → booking status transitions to **Active**
 - Vehicle unit status transitions to **On Rent**
 
-### 7.2 Return & Closeout Flow (5-Step State Machine)
+**Also available at handover step (Quick Actions):**
+- Change vehicle (UnifiedVehicleManager)
+- Edit booking details
 
-The return process follows a **strict sequential state machine** — each step must be completed before the next can begin.
+---
+
+## 9. Ops Panel — Return Workflow (Step-by-Step)
+
+The return process follows a **strict sequential state machine** — each step MUST be completed before the next can begin. Steps are locked until their prerequisite is met.
+
+### State Machine
 
 ```
 not_started → initiated → intake_done → evidence_done → issues_reviewed → closeout_done → deposit_processed
 ```
 
-#### Step 1: Return Intake
+| Current State | Next State | What Must Happen |
+|---------------|------------|-----------------|
+| not_started | initiated | Return opened (auto-initiates) |
+| initiated | intake_done | Step 1 completed |
+| intake_done | evidence_done | Step 2 completed |
+| evidence_done | issues_reviewed | Step 3 completed |
+| issues_reviewed | closeout_done | Step 4 completed |
+| closeout_done | deposit_processed | Step 5 completed |
+
+### Step 1: Return Intake
+
+**Purpose:** Record the vehicle's return condition baseline.
+
+**Actions:**
 - Record actual return time
 - Record return odometer reading
-  - **Hard block:** Return odometer < pickup odometer (prevents entry errors)
-  - **Warning:** Jump > 5,000 km (flags for review but doesn't block)
+  - **Hard block:** Return odometer < pickup odometer → entry rejected (prevents data errors)
+  - **Warning (non-blocking):** Jump > 5,000 km → flagged for review
 - Record return fuel level (1/8 increments)
-  - If return fuel < pickup fuel: **fuel gauge photo required**
+  - If return fuel < pickup fuel → **fuel gauge photo required**
 
-#### Step 2: Evidence Capture
-- Capture return condition photos
+**Completion criteria:** Odometer reading recorded.
+
+**Unlocks:** Step 2 (Evidence Capture).
+
+### Step 2: Evidence Capture
+
+**Purpose:** Photograph the vehicle's return condition.
+
+**Actions:**
+- Capture return condition photos (minimum 4 for exception returns)
 - Document vehicle state upon return
 
-#### Step 3: Issues & Damages
+**For normal returns:** Photos are optional but recommended.
+**For exception returns (damage/incidents):** Minimum 4 photos required.
+
+**Completion criteria:** Photos complete (or marked as N/A for normal returns).
+
+**Unlocks:** Step 3 (Issues & Damages).
+
+### Step 3: Issues & Damages
+
+**Purpose:** Review issues and document any damages.
+
+**Actions:**
 - Review any flags or issues
-- Report damages (mandatory photo uploads)
-- Each damage report requires: severity, location on vehicle, description, photos
-- **Creating a damage report automatically:**
-  - Flags booking as exception (`return_is_exception = true`)
-  - Adds exception reason
-  - Inserts withhold entry in deposit ledger (severity-based amount)
-  - Suspends financial closeout until incident resolved
+- Report damages (each requires: severity, location on vehicle, description, mandatory photo uploads)
+- Report incidents (opens the Create Incident dialog: incident type, severity, description, vehicle info)
+- Approve/override/waive late fees (if applicable)
+  - Late fee override requires minimum 10-character reason
+  - Late fee displayed in real-time with calculated amount
+- Mark issues as reviewed
 
-#### Step 4: Closeout
-- Review all charges (rental, add-ons, late fees, fuel shortage)
+**Creating a damage report automatically:**
+- Flags booking as exception (`return_is_exception = true`)
+- Adds exception reason
+- Inserts withhold entry in deposit ledger (severity-based amount)
+- Suspends financial closeout until incident resolved
+- Generates a high-priority support ticket
+
+**Creating an incident from this step automatically:**
+- Links to booking and vehicle
+- Generates a high-priority support ticket
+
+**Completion criteria:** Issues reviewed and marked complete.
+
+**Unlocks:** Step 4 (Closeout).
+
+### Step 4: Closeout
+
+**Purpose:** Finalize charges and complete the rental.
+
+**Actions:**
+- Review all charges: rental, add-ons, late fees, fuel shortage
+- **Fuel shortage charge** calculated: `(shortage % × tank capacity in liters) × fuel rate per liter`
+  - Uses VIN-specific tank capacity when available, category default as fallback
+  - Fuel rate: admin-configured market rate minus $0.05 discount
 - Generate final invoice
-- **Fuel shortage charge:** Calculated by comparing return vs. pickup fuel level using VIN-specific tank capacity and admin-configured fuel market rate
-- **Late fee approval:** Staff must explicitly approve, override, or waive. Override requires minimum 10-character reason.
-- Booking status → **Completed**
-- Vehicle unit status → **Available**
+- Complete the return → booking status transitions to **Completed**
+- Vehicle unit status transitions to **Available**
 
-**Workflow enforcement:** Active → Completed transition is **blocked** unless `return_state = closeout_done`. Admin bypass requires 50+ character justification and triggers an alert.
+**Workflow enforcement:** Active → Completed is **blocked** unless return state = `closeout_done`. Admin bypass requires 50+ character justification and triggers an alert.
 
-#### Step 5: Deposit Release
-- **No open damages:** Auto-release full deposit + notify customer
+**Completion criteria:** Return completed.
+
+**Unlocks:** Step 5 (Deposit Release).
+
+### Step 5: Deposit Release
+
+**Purpose:** Process the security deposit.
+
+**Actions:**
+- **No open damages:** Release full deposit + notify customer
 - **Damages present:** Create admin alert for manual review
-- **Partial withhold:** Requires category + reason (20+ chars)
-- Consolidated email sent with receipt + deposit status after deposit decision finalized
+- **Partial withhold:** Requires category (Damage, Fuel, Late, Cleaning, Other) + reason (20+ chars)
+- Consolidated email sent to customer with receipt + deposit status after deposit decision finalized
 
-### 7.3 Late Return Handling
+**Completion criteria:** Deposit processed (released, withheld, or captured).
+
+**After completion:** Staff redirected to Returns queue.
+
+### Late Return Handling (within Return Workflow)
 
 1. System automatically flags bookings past their scheduled return time
 2. **Grace period:** 30 minutes — no fee applied
 3. **After grace:** Fee calculated at 25% of daily rate per hour (rounded up)
-4. Late fee displayed in real-time on Ops dashboard and in support tickets
-5. At closeout, staff must explicitly approve/override/waive the late fee
+4. Late fee displayed in real-time on the Ops dashboard and in linked support tickets
+5. At closeout (Step 3), staff must explicitly approve/override/waive the late fee
 6. Any adjustment requires a mandatory reason (minimum 10 characters)
-
-### 7.4 Vehicle Status Transitions
-
-| From | To | Triggered By | Condition |
-|------|----|-------------|-----------|
-| Available | On Rent | System | Booking activated (handover complete) |
-| On Rent | Available | System | Booking completed or cancelled |
-| Available | Maintenance | Ops/Admin | Manual status change |
-| Available | Damage | System | Damage report created |
-| Maintenance | Available | Ops/Admin | Maintenance completed |
-| Damage | Available | Admin | Damage case resolved |
-
-**Deletion rules:**
-- Vehicles with status "Available" or "Booked" **cannot** be deleted
-- Vehicles with status "Maintenance" or "Inactive" **can** be deleted
-
-### 7.5 Booking Modifications (Pre-Active)
-
-Ops staff can modify from the Customer Check-In step:
-- Pickup/return dates and times
-- Rental duration
-- Vehicle category (with live price impact calculation)
-- Protection plan
-- All modifications trigger automatic subtotal and tax recalculation
-
-### 7.6 Rental Extensions (Active Bookings)
-
-- Staff can extend the return date for active bookings
-- Uses a dedicated modification panel
-- Triggers automated pricing update and audit logging
-- Full parameter edits are restricted once active to preserve contract integrity
+7. This is a prerequisite for completing the return — late fee must be addressed
 
 ---
 
-## 8. Delivery Panel Business Workflows
+## 10. Delivery Panel — Delivery Workflow (Step-by-Step)
 
-### 8.1 Eligibility
+Delivery bookings follow a **two-phase workflow** split between the Ops Panel and Delivery Portal.
 
-- Maximum delivery distance: 50 km from branch
-- Delivery fee: Free ≤10 km, $49 for 11–50 km
-- Customer provides delivery address at checkout
-- Available during operational hours only
+### Phase 1: Pre-Dispatch (Ops Panel — 5 Steps)
 
-### 8.2 Delivery Booking Lifecycle
+Staff in the Ops Panel prepare and dispatch the vehicle.
 
-Delivery bookings follow a **two-phase workflow** split between Ops and Delivery:
+#### Step 1: Customer Verification (auto-completed for deliveries)
+- Intake is auto-completed upon opening a delivery booking
+- Staff start at customer verification
 
-#### Phase 1: Pre-Dispatch (Ops Panel)
+#### Step 2: Payment & Deposit
+- Collect full payment and deposit before vehicle leaves the depot
+- Verify payment received (auto-syncs if online)
+- Collect deposit via payment link or in-person
 
-| Step | Description |
-|------|-------------|
-| **1. Customer Verification** | Verify ID, license, and contact details remotely |
-| **2. Payment & Deposit** | Collect full payment and deposit hold before vehicle leaves depot |
-| **3. Ready Line** | Prep checklist, photos (min 4), fuel/odometer recording, maintenance check, **lock pricing snapshot** |
-| **4. Dispatch to Driver** | Assign driver, schedule delivery window, dispatch vehicle |
-| **5. Ops Backup Activation** | Available only if driver cannot activate; requires delivery evidence (photos + ID check) + mandatory audit reason |
+#### Step 3: Ready Line
+- Complete prep checklist (vehicle readiness, cleanliness)
+- Capture minimum 4 pre-delivery condition photos
+- Record fuel level
+- Record odometer reading
+- Maintenance check
+- **Lock pricing snapshot** — freezes protection, add-ons, and totals to prevent price drift during delivery
+- Assign VIN to booking
 
-**Intake is auto-completed** for delivery bookings upon opening.
+**Completion criteria:** Unit assigned, checklist complete, photos complete (min 4), fuel recorded, odometer recorded, pricing locked.
 
-**Ready Line pricing lock:** Moving to "Ready for Dispatch" captures a `pricing_snapshot` that freezes protection, add-ons, and totals, preventing price drift during remaining phases.
+#### Step 4: Dispatch to Driver
+- Assign driver from available delivery staff (**Ops-only — drivers cannot self-claim**)
+- Set delivery window (start/end times)
+- Dispatch vehicle
 
-#### Phase 2: On-Site (Delivery Portal)
+**Blocking rule:** Driver must be assigned before dispatch.
 
-| Step | Description |
-|------|-------------|
-| **1. Rental Agreement** | Customer signs agreement at delivery location |
-| **2. Vehicle Walkaround** | Complete vehicle inspection with customer |
-| **3. Handover Photos** | Capture final photos at delivery location |
-| **4. Complete Delivery** | Hand over keys and activate rental |
-
-### 8.3 Dispatch Readiness Validation
-
-Before a vehicle can be dispatched, ALL of the following must be true:
-1. ✅ Payment hold authorized (deposit status is authorized/hold_created/captured)
+**Dispatch readiness validation — ALL must be true:**
+1. ✅ Payment collected
 2. ✅ Vehicle unit (VIN) assigned
 3. ✅ Minimum 4 pre-delivery condition photos uploaded
 
-**Admin bypass** is available but creates an audit log and a `verification_pending` alert.
+#### Step 5: Ops Backup Activation
+- Available **only** if the delivery driver cannot activate the rental on-site
+- Requires: delivery evidence (photos + ID check) + mandatory audit reason
+- Creates audit log entry for backup activation
 
-### 8.4 Delivery Status Tracking
+### Phase 2: On-Site (Delivery Portal — 4 Steps)
+
+The delivery driver performs these steps at the customer's location.
+
+#### Step 1: Rental Agreement
+- Customer signs rental agreement at the delivery location
+- Digital signature captured
+
+#### Step 2: Vehicle Walkaround
+- Complete vehicle inspection with customer present
+- Record fuel level and odometer
+
+#### Step 3: Handover Photos
+- Capture handover photos at the delivery location
+- Document vehicle condition at time of delivery
+
+#### Step 4: Complete Delivery
+- Hand over keys to customer
+- Activate rental → booking status transitions to **Active**
+- Vehicle unit status transitions to **On Rent**
+
+### Delivery Status Tracking
 
 ```
 Unassigned → Assigned → Picked Up → En Route → Arrived → Delivered
@@ -607,90 +840,170 @@ Unassigned → Assigned → Picked Up → En Route → Arrived → Delivered
                                                           ↘ Cancelled
 ```
 
-- **Arrived:** Tracks driver arrival at customer location
+- **Arrived:** Tracks driver arrival at customer location (timestamps driver arrival)
 - Dispatching transitions booking context from Ops Panel to Delivery Portal
+- All status transitions are timestamped with GPS coordinates
 
-### 8.5 Proof Requirements
-
-- **ID Check:** Driver verifies customer identity at delivery
-- **Photos:** Handover photos captured at delivery location
-- **Timestamps:** All status transitions are timestamped
-- **GPS:** Driver location recorded at key transitions
-
-### 8.6 Missed Delivery / No-Show
-
-- If customer is not available at scheduled delivery time: booking flagged as issue
+### Missed Delivery / No-Show
+- If customer is not available at scheduled delivery time: booking flagged as "Issue"
 - Standard no-show cancellation fee ($19.99) may apply
 - Vehicle returned to depot; booking requires manual resolution
 
 ---
 
-## 9. Support & Disputes
+## 11. Support Panel — Ticket Workflow (Step-by-Step)
 
-### 9.1 Ticket System
+### 11.1 Ticket Lifecycle
 
-- Tickets identified by code: **TKT-XXXXXX**
-- **Statuses:** New → In Progress → Waiting Customer → Escalated → Closed
-- **Categories:** Billing, Booking, Operations, Damage, Incident, Website Bug
+```
+New → In Progress → Waiting Customer → Escalated → Closed
+                                ↗ (auto re-opens if customer replies)
+```
 
-### 9.2 Communication Rules
+| Status | Description | Who Can Set |
+|--------|-------------|-------------|
+| **New** | Ticket created, unassigned | System (auto) |
+| **In Progress** | Agent assigned and working | Support/Admin (auto on assign) |
+| **Waiting Customer** | Awaiting customer response | Support/Admin |
+| **Escalated** | Elevated for senior review | Support/Admin (requires escalation note) |
+| **Closed** | Resolved and archived | Support/Admin (requires resolution note) |
 
-- **Strict separation** between public customer messages and private staff notes
-- Staff replies default to **internal notes** (must explicitly choose to send to customer)
-- If a customer replies to a closed ticket, it **automatically re-opens**
-- Closing a ticket requires a **mandatory internal resolution note**
+### 11.2 Ticket Categories
 
-### 9.3 Auto-Generated Tickets
+| Category | Description |
+|----------|-------------|
+| Billing | Payment issues, refund requests, invoice questions |
+| Booking | Reservation changes, cancellation requests, date modifications |
+| Operations | Pickup/return issues, vehicle condition concerns |
+| Damage | Damage disputes, damage report questions |
+| Incident | Accident reports, theft, major incidents |
+| Website Bug | Technical issues with the platform |
+| General | Other inquiries |
 
-| Trigger | Ticket Type | Priority |
-|---------|-------------|----------|
-| Damage report created | Damage ticket | High |
-| Incident/accident reported | Incident ticket | High |
-| Customer dispute | Dispute ticket | Normal |
+### 11.3 Ticket Priority Levels
 
-### 9.4 Support Actions on Bookings
+| Priority | Label | Use Case |
+|----------|-------|----------|
+| Low | Low | General inquiries, non-urgent questions |
+| Medium | Medium | Standard requests (default) |
+| High | High | Time-sensitive issues, financial disputes |
 
-Support staff can:
+Additionally, any ticket can be flagged as **Urgent** (cross-cutting flag independent of priority).
+
+### 11.4 Ticket Creation
+
+**Staff-created tickets require:**
+- Subject (mandatory)
+- Description (mandatory)
+- Category (default: General)
+- Priority (default: Medium)
+- Optional: Urgent flag
+- Optional: Guest email, phone, name (for non-registered users)
+- Optional: Link to booking or incident
+
+**Auto-generated tickets are created when:**
+- A damage report is filed → category: Damage, priority: High
+- An incident/accident is reported → category: Incident, priority: High
+- Customer submits a dispute → category based on dispute type
+
+### 11.5 Communication Rules
+
+- **Strict separation** between public (customer-visible) messages and private (internal) staff notes
+- Staff replies **default to internal notes** — agent must explicitly toggle to send a customer-visible message
+- **Customer replies to a closed ticket automatically re-open it** (status reverts from Closed)
+- Closing a ticket **requires a mandatory internal resolution note** — cannot close without it
+
+### 11.6 Ticket Escalation
+
+**Manual Escalation:**
+- Any support agent or admin can escalate a ticket
+- Escalation requires a mandatory **escalation note** explaining why
+- Status changes to "Escalated"
+- Escalation timestamp and escalating agent are recorded
+
+**Automatic Escalation:**
+- **Normal → High priority:** Automatically escalated after **24 hours** unresolved
+- **High → Urgent:** Automatically escalated after **12 hours** unresolved
+- Escalation is tracked with: `escalated_at`, `escalated_from` (original priority), `escalation_count`
+- **Urgent unresolved tickets trigger admin alerts** for immediate visibility on the Admin dashboard
+
+**Escalation check runs periodically** to evaluate all open tickets against the time thresholds.
+
+### 11.7 Macro System
+
+- Pre-defined response templates available for common scenarios
+- Macros support variable substitution:
+  - `{customer_name}` → customer's full name
+  - `{booking_code}` → linked booking code
+- Macros are categorized (matching ticket categories)
+- Inserting a macro auto-switches the reply mode to customer-visible (not internal note)
+
+### 11.8 Booking Context in Tickets
+
+When a ticket is linked to a booking, the ticket detail view displays a **compact booking summary card** containing:
+- Booking status
+- Pickup and return dates
+- Vehicle category
+- Location
+- Daily rate
+- Real-time late fee estimate (if applicable)
+
+This provides agents with immediate operational context without navigating away from the support interface.
+
+### 11.9 Support Actions on Bookings
+
+**Support staff CAN:**
 - View booking details and late fee estimates in ticket context
 - Add notes to bookings
 - Request cancellation or refund (requires admin approval)
 - Escalate to admin
+- Link incidents/damage reports to tickets
 
-Support staff **cannot**:
-- Directly modify booking parameters
-- Process payments or refunds
+**Support staff CANNOT:**
+- Directly modify booking parameters (dates, vehicle, pricing)
+- Process payments or refunds directly
 - Override operational decisions
+- Access Ops or Admin panels (unless they also have those roles)
 
-### 9.5 Dispute Resolution Flow
+### 11.10 Dispute Resolution Flow
 
-1. Customer raises dispute (via ticket or phone)
-2. Support reviews evidence (photos, inspection records, audit logs)
-3. If damage dispute: Ops provides walkaround photos + return photos as evidence
-4. Escalation to admin if unresolved
-5. Admin makes final decision on deposit capture/release
-6. Customer notified of resolution
-7. Ticket closed with mandatory resolution note
-
-### 9.6 SLA Rules
-
-- **Assumption:** Target first response within 2 business hours
-- **Assumption:** Escalation threshold: 24 hours without response
-- Macro system available for templated responses
-- Dedicated analytics dashboard for ticket metrics
+1. Customer raises dispute (via ticket, phone, or email)
+2. Support agent reviews evidence: walkaround photos, return photos, inspection records, audit logs
+3. If damage dispute: compare pickup vs. return condition photos
+4. Agent adds internal notes with findings
+5. If unresolvable at support level: escalate to admin (with escalation note)
+6. Admin makes final decision on deposit capture/release
+7. Customer notified of resolution via customer-visible message
+8. Ticket closed with mandatory resolution note
 
 ---
 
-## 10. Admin Settings & Governance
+## 12. Admin Settings & Governance
 
-### 10.1 Configurable Settings
+### 12.1 Settings Page — Complete Options
+
+The Admin Settings page (`/admin/settings`) contains the following configuration sections:
+
+| Section | What It Configures |
+|---------|-------------------|
+| **Notification Preferences** | Toggle email alerts, SMS alerts (requires setup), overdue return alerts, damage report alerts |
+| **Protection Package Pricing** | Daily rates, deductibles, and discount labels for each protection tier (Basic, Smart, All Inclusive). Empty rates disable that tier. |
+| **Add-Ons & Pricing** | Toggle add-ons active/inactive, set daily rates and one-time fees for extras (Child Seat, GPS, Roadside, Fuel Service, etc.) |
+| **Loyalty Points Settings** | Configure points earn rates, redemption rules, point values |
+| **Membership Tiers Management** | Create/edit membership tiers with names, colors, icons, minimum point thresholds, benefits, sort order |
+| **User Roles Management** | Search users by email, assign/remove roles (admin, staff, cleaner, finance, support, driver) |
+| **Card View Password** | Set password protection for viewing sensitive card information |
+| **Cart Recovery Settings** | Enable/disable abandoned cart tracking, set abandonment threshold (minutes), auto follow-up toggle (coming soon) |
+
+### 12.2 Configurable Parameters
 
 | Setting | Default | Who Can Change |
 |---------|---------|---------------|
 | Security deposit amount | $350 CAD | Admin |
-| Protection plan pricing (daily rates, deductibles, discount labels) | See Section 5 | Admin |
+| Protection plan pricing (daily rates, deductibles, discount labels) | See Section 6 | Admin |
 | Add-on pricing (daily rates, one-time fees) | Per add-on | Admin |
 | Fuel market rate | $1.85/L | Admin |
-| Late return fee rate | $25/hr | Admin |
+| Late return fee rate | 25% of daily rate/hr | Admin |
 | Late return grace period | 30 minutes | Admin |
 | Cancellation fee | $19.99 | Admin |
 | Young driver fee | $15 | Admin |
@@ -700,24 +1013,24 @@ Support staff **cannot**:
 | ACSRCH daily fee | $1.00 | Admin |
 | Weekend surcharge rate | 15% | Admin |
 | Duration discount thresholds | 7 days (10%), 21 days (20%) | Admin |
+| Cart abandonment threshold | 30 minutes | Admin |
 
 **Validation:** Admin panel prevents saving zero or empty rates for active pricing items.
 
-### 10.2 Change Control
+### 12.3 Change Control
 
 - **Settings changes apply to new bookings only** — existing bookings retain their original pricing
 - Delivery bookings lock pricing via a `pricing_snapshot` at the Ready Line stage
 - Protection plan rate changes are reflected immediately in search results and checkout for new bookings
 
-### 10.3 User Role Management
+### 12.4 User Role Management
 
 - Admin Settings include a "User Roles" management panel
 - Search users by email
 - Assign/remove roles: admin, staff, cleaner, finance, support, driver
-- Role assignments persist to the `user_roles` table
-- Govern access across Admin, Ops, and Delivery portals
+- Role assignments govern access across Admin, Ops, Support, and Delivery portals
 
-### 10.4 Audit Log Requirements
+### 12.5 Audit Log Requirements
 
 The following actions **must** be recorded in the audit log:
 
@@ -737,94 +1050,108 @@ The following actions **must** be recorded in the audit log:
 | Role assigned/removed | Actor, target user, role |
 | Booking modification | Actor, fields changed, old/new values |
 | Ops backup activation | Actor, reason, evidence provided |
+| Ticket escalation | Actor, escalation note, timestamp |
+| Ticket closure | Actor, resolution note |
 
 ---
 
-## 11. Edge Cases & Exception Handling
+## 13. Edge Cases & Exception Handling
 
-### 11.1 Customer Cancels Before Pickup
+### 13.1 Customer Cancels Before Pickup
 - **Free cancellation** if before scheduled pickup time
-- Deposit hold released automatically
+- Deposit returned if already collected
 - Cancellation confirmation email sent
 - Vehicle status returns to Available
 
-### 11.2 Customer Cancels After Pickup Time (No-Show)
+### 13.2 Customer Cancels After Pickup Time (No-Show)
 - **$19.99 CAD** flat cancellation fee charged
 - Deposit requires manual admin review (alert created)
 - Admin decides on deposit release/capture
 
-### 11.3 Vehicle Unavailable Last Minute
+### 13.3 Vehicle Unavailable Last Minute
 - Ops staff can modify booking to different vehicle category
 - "Charge for this change" toggle allows staff discretion on price updates
 - If no alternative available: booking cancelled with full refund
 - Admin alert generated
 
-### 11.4 Customer Wants Extension While Active
+### 13.4 Customer Wants Extension While Active
 - Staff processes extension through dedicated modification panel
 - Return date extended, pricing recalculated automatically
 - Audit log captures old/new dates and price changes
 - Full parameter edits blocked (only return date can be extended)
 
-### 11.5 Early Return
+### 13.5 Early Return
 - Customer may return vehicle before scheduled end date
-- **No refund for unused days** (Assumption — see Open Questions)
+- **No refund for unused days** (Assumption)
 - Actual return time recorded; closeout proceeds normally
 
-### 11.6 Damage Reported During Rental (While Active)
+### 13.6 Damage Reported During Rental (While Active)
 - Customer or staff creates damage report
 - Booking flagged as exception automatically
 - Incident case opened if severe
 - Financial closeout suspended until incident reviewed
 - Deposit withhold entry created (severity-based amount)
 
-### 11.7 Damage Reported at Return
+### 13.7 Damage Reported at Return
 - Documented during return Evidence Capture and Issues & Damages steps
 - Photo evidence mandatory
 - Deposit auto-withheld based on severity
 - Final settlement suspended pending incident resolution
 - High-priority support ticket auto-generated
 
-### 11.8 Multiple Drivers
+### 13.8 Multiple Drivers
 - Additional drivers added as booking add-on (explicit selection required)
-- Each additional driver requires:
-  - Name
-  - Age band verification
-  - Young driver fee if aged 20–24
+- Each additional driver requires: name, age band verification, young driver fee if aged 20–24
 - **Driver removal:** Allowed pre-active only
 
-### 11.9 Add-On Selection Rules
+### 13.9 Add-On Selection Rules
 - **No add-on should ever be forced** without explicit customer consent
 - "Additional Driver" is never auto-added
 - All add-ons default to OFF during selection
 - All Inclusive protection disables Premium Roadside add-on automatically
 
-### 11.10 Price Mismatch Prevention
+### 13.10 Price Mismatch Prevention
 - Single pricing function is the source of truth for all calculations
 - Same formula used across search, checkout, booking details, and invoicing
 - Delivery bookings lock pricing at Ready Line stage via snapshot
 - Any modification triggers full recalculation using the central pricing engine
 - Itemized receipts show every line item transparently
 
-### 11.11 Customer Self-Return (Key Drop)
+### 13.11 Customer Self-Return (Key Drop)
 - Customer can mark vehicle as "returned" via their dashboard
 - Available starting 30 minutes before scheduled return time
 - Captures timestamp and GPS coordinates
 - Does NOT complete the booking — staff must still perform return workflow
 - Prevents location disputes
 
-### 11.12 Odometer Validation at Return
+### 13.12 Odometer Validation at Return
 - **Hard block:** Return reading < pickup reading (impossible, prevents data entry error)
 - **Warning:** Jump > 5,000 km (flags for review but allows proceeding)
 
-### 11.13 Fuel Shortage Charge
+### 13.13 Fuel Shortage Charge
 - Comparison: return fuel level vs. pickup fuel level
 - If return < pickup: charge calculated as `(shortage % × tank capacity in liters) × fuel rate per liter`
 - Fuel rate: admin-configured market rate with discount ($0.05 below market)
 - Uses VIN-specific tank capacity when available, category default as fallback
 
+### 13.14 Vehicle Status Transitions
+
+| From | To | Triggered By | Condition |
+|------|----|-------------|-----------|
+| Available | On Rent | System | Booking activated (handover complete) |
+| On Rent | Available | System | Booking completed or cancelled |
+| Available | Maintenance | Ops/Admin | Manual status change |
+| Available | Damage | System | Damage report created |
+| Maintenance | Available | Ops/Admin | Maintenance completed |
+| Damage | Available | Admin | Damage case resolved |
+
+**Deletion rules:**
+- Vehicles with status "Available" or "Booked" **cannot** be deleted
+- Vehicles with status "Maintenance" or "Inactive" **can** be deleted
+
 ---
 
-## 12. KPIs & Operational Reporting
+## 14. KPIs & Operational Reporting
 
 ### Fleet Metrics
 - **Utilization rate:** % of fleet on rent vs. available
@@ -860,7 +1187,7 @@ The following actions **must** be recorded in the audit log:
 
 ---
 
-## 13. Worked Pricing Examples
+## 15. Worked Pricing Examples
 
 ### Example 1: Normal 3-Day Booking (Weekday Pickup)
 
@@ -877,7 +1204,7 @@ The following actions **must** be recorded in the audit log:
 | PST (7%) | $320.25 × 0.07 | $22.42 |
 | GST (5%) | $320.25 × 0.05 | $16.01 |
 | **Total** | | **$358.68** |
-| Security deposit (hold) | | $350.00 |
+| Security deposit (separate) | | $350.00 |
 
 ### Example 2: 5-Day Booking with Late Return (2 Hours Late)
 
@@ -896,7 +1223,7 @@ The following actions **must** be recorded in the audit log:
 | PST (7%) | $716.20 × 0.07 | $50.13 |
 | GST (5%) | $716.20 × 0.05 | $35.81 |
 | **Total** | | **$802.14** |
-| Security deposit (hold) | | $350.00 |
+| Security deposit (separate) | | $350.00 |
 
 ### Example 3: Damage + Deposit Capture (Ops Approval Required)
 
@@ -912,58 +1239,41 @@ The following actions **must** be recorded in the audit log:
 | PST (7%) | $549.08 × 0.07 | $38.44 |
 | GST (5%) | $549.08 × 0.05 | $27.45 |
 | **Rental Total** | | **$614.97** |
-| Security deposit (hold) | | $350.00 |
+| Security deposit (separate) | | $350.00 |
 
 **At Return — Damage Discovery:**
 1. Staff creates damage report: **Moderate severity**, bumper dent, estimated cost $400
 2. System auto-withholds **$250** from deposit (moderate tier)
 3. Booking flagged as exception
 4. Admin alert created: "Deposit Requires Damage Review"
-5. Admin reviews evidence (photos, damage report)
-6. Admin approves capture of $250 from $350 deposit
-7. Remaining $100 released to customer
-8. Final invoice generated and emailed with deposit status
+5. High-priority support ticket auto-generated
+6. Admin reviews evidence (photos, damage report)
+7. Admin approves capture of $250 from $350 deposit
+8. Remaining $100 released to customer
+9. Final invoice generated and emailed with deposit status
 
 **Deposit Outcome:**
 | Action | Amount |
 |--------|--------|
-| Original hold | $350.00 |
+| Original deposit | $350.00 |
 | Captured for damage | −$250.00 |
 | Released to customer | $100.00 |
 
 ---
 
-## 14. Assumptions
+## 16. Assumptions
 
 1. **A-1:** Early returns do not receive refunds for unused rental days.
-2. **A-2:** SLA target for support first response is 2 business hours; escalation at 24 hours without response.
+2. **A-2:** SLA target for support first response is 2 business hours; auto-escalation at 24 hours (Normal→High) and 12 hours (High→Urgent).
 3. **A-3:** Cleaning buffer between rentals defaults to 2 hours per vehicle.
 4. **A-4:** Reservation holds expire after approximately 10 minutes if not converted.
 5. **A-5:** Fuel market rate ($1.85/L) and discount ($0.05 below market) are updated periodically by admin — no automated feed.
 6. **A-6:** Mystery Car assignment is random from available inventory at the location.
 7. **A-7:** The $19.99 no-show/cancellation fee is a flat fee regardless of booking value.
-8. **A-8:** Debit/prepaid card rejection is enforced at checkout. Server-side BIN lookup may be needed for full detection (currently client-side pattern matching only).
+8. **A-8:** Debit/prepaid card rejection is enforced at checkout.
 9. **A-9:** All financial amounts are in Canadian Dollars (CAD).
 10. **A-10:** Delivery is only available within the Lower Mainland service area.
-11. **A-11:** Loyalty points system exists but specific earn/burn rules are not yet defined.
+11. **A-11:** Loyalty points system exists but specific earn/burn rules are not yet fully defined.
 12. **A-12:** Blackout dates are not currently enforced but listed as configurable.
 13. **A-13:** The "Bring Car to Me" delivery feature operates during standard business hours only.
-
----
-
-## 15. Open Questions
-
-1. **OQ-1:** Should early returns receive a partial refund for unused days, or is the full rental amount non-refundable?
-2. **OQ-2:** What are the specific SLA targets for support response times? Are they different by ticket category or priority?
-3. **OQ-3:** Should the fuel market rate be updated via an external feed, or is manual admin update sufficient?
-4. **OQ-4:** What are the exact loyalty/points earn and redemption rules?
-5. **OQ-5:** Are there blackout dates or seasonal pricing adjustments planned?
-6. **OQ-6:** Should debit card detection use a server-side BIN database for more accurate rejection, or is client-side detection sufficient?
-7. **OQ-7:** What is the exact cancellation fee for delivery no-shows vs. standard no-shows? Is it the same $19.99?
-8. **OQ-8:** Is there a maximum number of rental extensions allowed for a single booking?
-9. **OQ-9:** Should there be a maximum total damage capture from deposits, or can the full $350 be captured?
-10. **OQ-10:** Are there specific insurance requirements or third-party integrations planned for incident/claims management?
-11. **OQ-11:** Should the 25% of daily rate per hour late fee calculation be used, or the flat $25/hr rate? Both exist in the system. Which takes precedence?
-12. **OQ-12:** What happens if a customer's card expires during an active rental? Is there a process to request updated card details?
-13. **OQ-13:** Are there plans for corporate/fleet accounts with negotiated rates?
-14. **OQ-14:** What is the process for handling vehicles that are totaled in an accident?
+14. **A-14:** The platform does NOT use Stripe authorization holds. Payments are auto-captured at checkout. Deposits are collected as separate charges.
