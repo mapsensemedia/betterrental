@@ -11,7 +11,10 @@ export type OpsStepId =
   | "walkaround" 
   | "photos"
   | "handover"
-  | "dispatch"; // For delivery bookings only
+  | "dispatch"
+  | "intake"      // Delivery: Ops reviews booking
+  | "ready_line"  // Delivery: enforce prep + photos + fuel/odo
+  | "ops_activate"; // Delivery: Ops backup activation
 
 // Enhanced status types - simplified without locked state
 export type OpsStepStatus = "ready" | "in_progress" | "complete" | "needs_attention";
@@ -72,43 +75,50 @@ export const OPS_STEPS: OpsStep[] = [
   },
 ];
 
-// DELIVERY PRE-DISPATCH STEPS (Ops Panel)
-// These steps are done at the office before vehicle leaves
+// DELIVERY PRE-DISPATCH STEPS (Ops Panel) - New pipeline:
+// Intake → Payment/Deposit → Ready Line → Dispatch → (Ops Backup Activation)
 export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
   {
-    id: "checkin",
+    id: "intake",
     number: 1,
+    title: "Intake Review",
+    description: "Review booking, verify customer details, confirm delivery window/address",
+    icon: "clipboard-check",
+  },
+  {
+    id: "checkin",
+    number: 2,
     title: "Customer Verification",
     description: "Verify ID, license, and contact details remotely",
     icon: "user-check",
   },
   {
     id: "payment",
-    number: 2,
+    number: 3,
     title: "Payment & Deposit",
-    description: "Collect full payment before vehicle leaves depot",
+    description: "Collect full payment and deposit hold before vehicle leaves depot",
     icon: "credit-card",
   },
   {
-    id: "prep",
-    number: 3,
-    title: "Vehicle Assignment",
-    description: "Assign specific VIN and prepare vehicle for dispatch",
-    icon: "car",
-  },
-  {
-    id: "photos",
+    id: "ready_line",
     number: 4,
-    title: "Pre-Delivery Photos",
-    description: "Capture vehicle condition before dispatch",
-    icon: "camera",
+    title: "Ready Line",
+    description: "Prep checklist, photos, fuel/odometer, maintenance check, lock pricing",
+    icon: "wrench",
   },
   {
     id: "dispatch",
     number: 5,
     title: "Dispatch to Driver",
-    description: "Assign driver and dispatch vehicle for delivery",
+    description: "Assign driver, schedule window, dispatch vehicle for delivery",
     icon: "truck",
+  },
+  {
+    id: "ops_activate",
+    number: 6,
+    title: "Ops Backup Activation",
+    description: "Activate rental from Ops if driver cannot (requires evidence + reason)",
+    icon: "shield",
   },
 ];
 
@@ -194,7 +204,22 @@ export interface StepCompletion {
   handover: {
     activated: boolean;
     smsSent: boolean;
-    unitAssigned: boolean; // VIN must be assigned before handover
+    unitAssigned: boolean;
+  };
+  // New delivery pipeline stages
+  intake?: {
+    reviewed: boolean;
+  };
+  readyLine?: {
+    unitAssigned: boolean;
+    checklistComplete: boolean;
+    photosComplete: boolean;
+    fuelRecorded: boolean;
+    odometerRecorded: boolean;
+    pricingLocked: boolean;
+  };
+  opsActivate?: {
+    activated: boolean;
   };
 }
 
@@ -270,9 +295,9 @@ export function getBlockingIssues(stepId: OpsStepId, completion: StepCompletion,
 
 export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion, isDelivery: boolean = false): boolean {
   switch (stepId) {
+    case "intake":
+      return completion.intake?.reviewed || false;
     case "checkin":
-      // For delivery, check-in is based on driver arrival (for on-site steps)
-      // For pre-dispatch, standard verification
       return (
         completion.checkin.govIdVerified &&
         completion.checkin.licenseOnFile &&
@@ -284,6 +309,13 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion,
       return completion.payment.paymentComplete && completion.payment.depositCollected;
     case "prep":
       return completion.prep?.unitAssigned && completion.prep?.vehiclePrepared || false;
+    case "ready_line":
+      return (
+        (completion.readyLine?.unitAssigned || false) &&
+        (completion.readyLine?.checklistComplete || false) &&
+        (completion.readyLine?.photosComplete || false) &&
+        (completion.readyLine?.pricingLocked || false)
+      );
     case "agreement":
       return completion.agreement.agreementSigned;
     case "walkaround":
@@ -294,6 +326,8 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion,
       return completion.dispatch?.driverAssigned && completion.dispatch?.dispatched || false;
     case "handover":
       return completion.handover.activated;
+    case "ops_activate":
+      return completion.opsActivate?.activated || false;
     default:
       return false;
   }
@@ -303,6 +337,9 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
   const missing: string[] = [];
   
   switch (stepId) {
+    case "intake":
+      if (!completion.intake?.reviewed) missing.push("Booking review");
+      break;
     case "checkin":
       if (!completion.checkin.govIdVerified) missing.push("Government Photo ID");
       if (!completion.checkin.licenseOnFile) missing.push("Driver's License on file");
@@ -317,6 +354,14 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
     case "prep":
       if (!completion.prep?.unitAssigned) missing.push("Unit assignment");
       if (!completion.prep?.vehiclePrepared) missing.push("Vehicle preparation");
+      break;
+    case "ready_line":
+      if (!completion.readyLine?.unitAssigned) missing.push("VIN assignment");
+      if (!completion.readyLine?.checklistComplete) missing.push("Prep checklist");
+      if (!completion.readyLine?.photosComplete) missing.push("Pre-delivery photos");
+      if (!completion.readyLine?.fuelRecorded) missing.push("Fuel level");
+      if (!completion.readyLine?.odometerRecorded) missing.push("Odometer reading");
+      if (!completion.readyLine?.pricingLocked) missing.push("Pricing locked");
       break;
     case "agreement":
       if (!completion.agreement.agreementSigned) missing.push("Agreement signed");
@@ -333,6 +378,9 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
       break;
     case "handover":
       if (!completion.handover.activated) missing.push("Rental activation");
+      break;
+    case "ops_activate":
+      if (!completion.opsActivate?.activated) missing.push("Ops backup activation");
       break;
   }
   

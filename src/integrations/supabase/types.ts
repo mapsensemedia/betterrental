@@ -361,6 +361,10 @@ export type Database = {
         Row: {
           account_closed_at: string | null
           account_closed_by: string | null
+          activated_at: string | null
+          activated_by: string | null
+          activation_reason: string | null
+          activation_source: string | null
           actual_return_at: string | null
           assigned_driver_id: string | null
           assigned_unit_id: string | null
@@ -405,6 +409,9 @@ export type Database = {
           pickup_lat: number | null
           pickup_lng: number | null
           pickup_place_id: string | null
+          pricing_locked_at: string | null
+          pricing_locked_by: string | null
+          pricing_snapshot: Json | null
           protection_plan: string | null
           return_evidence_completed_at: string | null
           return_evidence_completed_by: string | null
@@ -440,6 +447,10 @@ export type Database = {
         Insert: {
           account_closed_at?: string | null
           account_closed_by?: string | null
+          activated_at?: string | null
+          activated_by?: string | null
+          activation_reason?: string | null
+          activation_source?: string | null
           actual_return_at?: string | null
           assigned_driver_id?: string | null
           assigned_unit_id?: string | null
@@ -484,6 +495,9 @@ export type Database = {
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_place_id?: string | null
+          pricing_locked_at?: string | null
+          pricing_locked_by?: string | null
+          pricing_snapshot?: Json | null
           protection_plan?: string | null
           return_evidence_completed_at?: string | null
           return_evidence_completed_by?: string | null
@@ -519,6 +533,10 @@ export type Database = {
         Update: {
           account_closed_at?: string | null
           account_closed_by?: string | null
+          activated_at?: string | null
+          activated_by?: string | null
+          activation_reason?: string | null
+          activation_source?: string | null
           actual_return_at?: string | null
           assigned_driver_id?: string | null
           assigned_unit_id?: string | null
@@ -563,6 +581,9 @@ export type Database = {
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_place_id?: string | null
+          pricing_locked_at?: string | null
+          pricing_locked_by?: string | null
+          pricing_snapshot?: Json | null
           protection_plan?: string | null
           return_evidence_completed_at?: string | null
           return_evidence_completed_by?: string | null
@@ -943,6 +964,113 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "delivery_statuses_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_tasks: {
+        Row: {
+          activated_at: string | null
+          activated_by: string | null
+          activation_reason: string | null
+          activation_source: string | null
+          assigned_driver_id: string | null
+          booking_id: string
+          created_at: string
+          dispatch_window_end: string | null
+          dispatch_window_start: string | null
+          dispatched_at: string | null
+          dispatched_by: string | null
+          driver_arrived_at: string | null
+          driver_en_route_at: string | null
+          driver_picked_up_at: string | null
+          fuel_level_recorded: boolean | null
+          handover_completed_at: string | null
+          handover_completed_by: string | null
+          handover_photos_count: number | null
+          id: string
+          id_check_required: boolean | null
+          id_check_result: string | null
+          intake_completed_at: string | null
+          intake_completed_by: string | null
+          odometer_recorded: boolean | null
+          payment_verified_at: string | null
+          payment_verified_by: string | null
+          ready_line_completed_at: string | null
+          ready_line_completed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_by?: string | null
+          activation_reason?: string | null
+          activation_source?: string | null
+          assigned_driver_id?: string | null
+          booking_id: string
+          created_at?: string
+          dispatch_window_end?: string | null
+          dispatch_window_start?: string | null
+          dispatched_at?: string | null
+          dispatched_by?: string | null
+          driver_arrived_at?: string | null
+          driver_en_route_at?: string | null
+          driver_picked_up_at?: string | null
+          fuel_level_recorded?: boolean | null
+          handover_completed_at?: string | null
+          handover_completed_by?: string | null
+          handover_photos_count?: number | null
+          id?: string
+          id_check_required?: boolean | null
+          id_check_result?: string | null
+          intake_completed_at?: string | null
+          intake_completed_by?: string | null
+          odometer_recorded?: boolean | null
+          payment_verified_at?: string | null
+          payment_verified_by?: string | null
+          ready_line_completed_at?: string | null
+          ready_line_completed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          activated_by?: string | null
+          activation_reason?: string | null
+          activation_source?: string | null
+          assigned_driver_id?: string | null
+          booking_id?: string
+          created_at?: string
+          dispatch_window_end?: string | null
+          dispatch_window_start?: string | null
+          dispatched_at?: string | null
+          dispatched_by?: string | null
+          driver_arrived_at?: string | null
+          driver_en_route_at?: string | null
+          driver_picked_up_at?: string | null
+          fuel_level_recorded?: boolean | null
+          handover_completed_at?: string | null
+          handover_completed_by?: string | null
+          handover_photos_count?: number | null
+          id?: string
+          id_check_required?: boolean | null
+          id_check_result?: string | null
+          intake_completed_at?: string | null
+          intake_completed_by?: string | null
+          odometer_recorded?: boolean | null
+          payment_verified_at?: string | null
+          payment_verified_by?: string | null
+          ready_line_completed_at?: string | null
+          ready_line_completed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_tasks_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: true
             referencedRelation: "bookings"

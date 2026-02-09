@@ -35,6 +35,10 @@ import { StepWalkaround } from "./steps/StepWalkaround";
 import { StepPhotos } from "./steps/StepPhotos";
 import { StepHandover } from "./steps/StepHandover";
 import { StepEnRoute } from "./steps/StepEnRoute";
+import { StepIntake } from "./steps/StepIntake";
+import { StepReadyLine } from "./steps/StepReadyLine";
+import { StepDispatch } from "./steps/StepDispatch";
+import { OpsBackupActivation } from "./steps/OpsBackupActivation";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
@@ -144,12 +148,21 @@ export function OpsStepContent({
       
         {/* Step-specific Content */}
         <div className="space-y-4">
-        {stepId === "checkin" && (
+          {/* NEW: Intake step for delivery */}
+          {stepId === "intake" && isDelivery && (
+            <StepIntake 
+              booking={booking}
+              isComplete={completion.intake?.reviewed || false}
+              onStepComplete={onCompleteStep}
+            />
+          )}
+          {stepId === "checkin" && (
             isDelivery ? (
-              <StepEnRoute 
+              <StepCheckin 
                 booking={booking}
-                driverInfo={driverInfo}
                 completion={completion.checkin}
+                onStepComplete={onCompleteStep}
+                vehicleName={booking.vehicle_categories?.name || "Vehicle"}
               />
             ) : (
               <StepCheckin 
@@ -166,7 +179,23 @@ export function OpsStepContent({
               completion={completion.payment}
             />
           )}
-          {stepId === "prep" && (
+          {/* NEW: Ready Line step for delivery (replaces prep+photos) */}
+          {stepId === "ready_line" && isDelivery && (
+            <StepReadyLine
+              bookingId={booking.id}
+              vehicleId={booking.vehicle_id}
+              vehicleName={booking.vehicle_categories?.name || "Vehicle"}
+              completion={{
+                unitAssigned: !!booking.assigned_unit_id,
+                checklistComplete: completion.readyLine?.checklistComplete || false,
+                photosComplete: completion.readyLine?.photosComplete || false,
+                fuelRecorded: completion.readyLine?.fuelRecorded || false,
+                odometerRecorded: completion.readyLine?.odometerRecorded || false,
+                pricingLocked: completion.readyLine?.pricingLocked || false,
+              }}
+            />
+          )}
+          {stepId === "prep" && !isDelivery && (
             <StepPrep 
               bookingId={booking.id}
               vehicleId={booking.vehicle_id}
@@ -177,8 +206,34 @@ export function OpsStepContent({
                 driverAssigned: completion.dispatch?.driverAssigned,
                 unitAssigned: !!booking.assigned_unit_id,
               }}
-              isDelivery={isDelivery}
+              isDelivery={false}
               assignedDriverId={booking.assigned_driver_id}
+            />
+          )}
+          {/* NEW: Dispatch step for delivery */}
+          {stepId === "dispatch" && isDelivery && (
+            <StepDispatch
+              bookingId={booking.id}
+              booking={booking}
+              driverAssigned={completion.dispatch?.driverAssigned || false}
+              dispatched={completion.dispatch?.dispatched || false}
+              assignedDriverId={booking.assigned_driver_id}
+              prepPhotoCount={0}
+              readyLineComplete={completion.readyLine?.checklistComplete || false}
+            />
+          )}
+          {/* NEW: Ops Backup Activation for delivery */}
+          {stepId === "ops_activate" && isDelivery && (
+            <OpsBackupActivation
+              bookingId={booking.id}
+              deliveryTask={null}
+              deliveryStatus={booking.delivery_statuses?.status || null}
+              handoverPhotosCount={0}
+              fuelRecorded={false}
+              odometerRecorded={false}
+              idCheckResult={null}
+              idCheckRequired={true}
+              isAlreadyActive={booking.status === "active" || booking.status === "completed"}
             />
           )}
           {stepId === "agreement" && (
@@ -194,21 +249,13 @@ export function OpsStepContent({
               completion={completion.walkaround}
             />
           )}
-          {stepId === "photos" && (
+          {stepId === "photos" && !isDelivery && (
             <StepPhotos 
               bookingId={booking.id}
               completion={completion.photos}
             />
           )}
-          {stepId === "dispatch" && isDelivery && (
-            <StepHandover 
-              booking={booking}
-              completion={completion}
-              onActivate={onActivate}
-              isBookingCompleted={isBookingCompleted}
-            />
-          )}
-          {stepId === "handover" && (
+          {stepId === "handover" && !isDelivery && (
             <StepHandover 
               booking={booking}
               completion={completion}
