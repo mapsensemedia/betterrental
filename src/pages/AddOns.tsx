@@ -50,6 +50,11 @@ function isFuelAddon(name: string): boolean {
   return lowerName.includes("fuel") && lowerName.includes("tank");
 }
 
+function isPremiumRoadsideAddon(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return lowerName.includes("roadside") && (lowerName.includes("premium") || lowerName.includes("extended"));
+}
+
 export default function AddOns() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -69,6 +74,19 @@ export default function AddOns() {
   
   const [selectedAddOnIds, setLocalSelectedAddOns] = useState<string[]>(searchData.selectedAddOnIds || []);
   const [additionalDrivers, setLocalAdditionalDrivers] = useState<AdditionalDriver[]>(searchData.additionalDrivers || []);
+
+  // Auto-deselect Premium Roadside if All Inclusive protection is selected
+  useEffect(() => {
+    if (protection === "premium") {
+      setLocalSelectedAddOns((prev) => {
+        const filtered = prev.filter((id) => {
+          const addon = addOns.find((a) => a.id === id);
+          return addon ? !isPremiumRoadsideAddon(addon.name) : true;
+        });
+        return filtered.length !== prev.length ? filtered : prev;
+      });
+    }
+  }, [protection, addOns]);
 
   // Track page view on mount
   useEffect(() => {
@@ -204,7 +222,13 @@ export default function AddOns() {
             <div className="lg:col-span-2 space-y-4">
               <h2 className="text-lg font-semibold mb-2">Extras & Equipment</h2>
               {addOns.length > 0 ? (
-                addOns.map((addon) => {
+                addOns.filter((addon) => {
+                  // Hide Premium Roadside when All Inclusive protection is selected (already included)
+                  if (protection === "premium" && isPremiumRoadsideAddon(addon.name)) {
+                    return false;
+                  }
+                  return true;
+                }).map((addon) => {
                   const IconComponent = getAddonIcon(addon.name);
                   const isAdditionalDriver = isAdditionalDriverAddon(addon.name);
                   const isFuel = isFuelAddon(addon.name);
