@@ -196,21 +196,23 @@ export async function createAdditionalDrivers(
 }
 
 /**
- * Send booking notifications (fire-and-forget)
+ * Send booking notifications (awaitable)
+ * IMPORTANT: Must be awaited before returning the edge function response,
+ * otherwise Deno kills the process before fetch calls complete.
  */
-export function sendBookingNotifications(params: {
+export async function sendBookingNotifications(params: {
   bookingId: string;
   bookingCode: string;
   customerName?: string;
   vehicleName?: string;
   isGuest?: boolean;
-}): void {
+}): Promise<void> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   
   const sendNotification = async (endpoint: string, body: Record<string, unknown>) => {
     try {
-      await fetch(`${supabaseUrl}/functions/v1/${endpoint}`, {
+      const resp = await fetch(`${supabaseUrl}/functions/v1/${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -218,13 +220,14 @@ export function sendBookingNotifications(params: {
         },
         body: JSON.stringify(body),
       });
+      console.log(`Notification ${endpoint} response: ${resp.status}`);
     } catch (err) {
       console.error(`Notification ${endpoint} failed:`, err);
     }
   };
   
-  // Fire all notifications in parallel, don't wait
-  Promise.all([
+  // Send all notifications in parallel and wait for them to complete
+  await Promise.all([
     sendNotification("send-booking-email", {
       bookingId: params.bookingId,
       templateType: "confirmation",
@@ -241,5 +244,5 @@ export function sendBookingNotifications(params: {
       vehicleName: params.vehicleName || "",
       isGuest: params.isGuest || false,
     }),
-  ]).catch(console.error);
+  ]);
 }
