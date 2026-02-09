@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MapPin, Clock, ArrowLeft, Navigation, Car } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -21,6 +22,12 @@ export default function LocationDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: location, isLoading: locationLoading } = useLocation(id || null);
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehiclesByLocation(id || null);
+
+  useEffect(() => {
+    if (location) {
+      document.title = `Car Rental in ${location.city} | C2C Rental`;
+    }
+  }, [location]);
 
   if (locationLoading) {
     return (
