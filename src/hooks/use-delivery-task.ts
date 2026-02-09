@@ -122,9 +122,10 @@ export function useCreateDeliveryTask() {
           status: "pending",
         }, { onConflict: "booking_id" })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error("Failed to create delivery task");
 
       // Audit log
       await supabase.from("audit_logs").insert({
@@ -141,8 +142,8 @@ export function useCreateDeliveryTask() {
       queryClient.invalidateQueries({ queryKey: ["delivery-task", bookingId] });
       toast.success("Delivery task created");
     },
-    onError: (err) => {
-      toast.error("Failed to create delivery task", { description: (err as Error).message });
+    onError: () => {
+      toast.error("Failed to create delivery task. Please try again.");
     },
   });
 }
@@ -169,9 +170,10 @@ export function useUpdateDeliveryTask() {
         .update(updates)
         .eq("booking_id", bookingId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error("No delivery task found for this booking");
 
       // Audit log
       if (auditAction) {
@@ -190,8 +192,8 @@ export function useUpdateDeliveryTask() {
       queryClient.invalidateQueries({ queryKey: ["delivery-task", task.bookingId] });
       queryClient.invalidateQueries({ queryKey: ["booking-activity-timeline", task.bookingId] });
     },
-    onError: (err) => {
-      toast.error("Failed to update delivery task", { description: (err as Error).message });
+    onError: () => {
+      toast.error("Failed to update delivery task. Please try again.");
     },
   });
 }
@@ -253,7 +255,7 @@ export function useLockPricing() {
           booking_add_ons (add_on_id, price, quantity)
         `)
         .eq("id", bookingId)
-        .single();
+        .maybeSingle();
 
       if (fetchErr || !booking) throw fetchErr || new Error("Booking not found");
 
@@ -296,8 +298,8 @@ export function useLockPricing() {
       queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       toast.success("Pricing snapshot locked");
     },
-    onError: (err) => {
-      toast.error("Failed to lock pricing", { description: (err as Error).message });
+    onError: () => {
+      toast.error("Failed to lock pricing. Please try again.");
     },
   });
 }
@@ -326,7 +328,7 @@ export function useOpsBackupActivation() {
         .from("delivery_tasks")
         .select("*")
         .eq("booking_id", bookingId)
-        .single();
+        .maybeSingle();
 
       if (!task) throw new Error("No delivery task found");
 
@@ -388,7 +390,7 @@ export function useOpsBackupActivation() {
         .from("bookings")
         .select("assigned_unit_id")
         .eq("id", bookingId)
-        .single();
+        .maybeSingle();
 
       if (booking?.assigned_unit_id) {
         await supabase
@@ -419,8 +421,8 @@ export function useOpsBackupActivation() {
       queryClient.invalidateQueries({ queryKey: ["booking-activity-timeline", bookingId] });
       toast.success("Rental activated from Ops (backup)");
     },
-    onError: (err) => {
-      toast.error("Cannot activate", { description: (err as Error).message });
+    onError: () => {
+      toast.error("Activation failed. Please check all prerequisites and try again.");
     },
   });
 }

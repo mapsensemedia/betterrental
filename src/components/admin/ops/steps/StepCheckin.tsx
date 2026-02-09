@@ -238,10 +238,9 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
       refetchProfile();
       queryClient.invalidateQueries({ queryKey: ["booking", booking.id] });
     },
-    onError: (error: any) => {
+    onError: () => {
       toast({ 
-        title: "Failed to save", 
-        description: error.message, 
+        title: "Failed to save contact info. Please try again.", 
         variant: "destructive" 
       });
     },

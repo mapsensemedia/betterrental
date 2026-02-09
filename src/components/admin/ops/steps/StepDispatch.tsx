@@ -109,8 +109,8 @@ export function StepDispatch({
       queryClient.invalidateQueries({ queryKey: ["delivery-task", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["available-drivers"] });
     },
-    onError: (err) => {
-      toast.error("Failed to assign driver", { description: (err as Error).message });
+    onError: () => {
+      toast.error("Failed to assign driver. Please try again.");
     },
   });
 
