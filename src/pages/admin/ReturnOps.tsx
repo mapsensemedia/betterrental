@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
+import { differenceInMinutes } from "date-fns";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ export default function ReturnOps() {
   
   const [activeStep, setActiveStep] = useState<ReturnStepId>("intake");
   const [totalDamageCost, setTotalDamageCost] = useState(0);
+  const [calculatedLateFee, setCalculatedLateFee] = useState(0);
   const [isException, setIsException] = useState(false);
   const [showIncidentDialog, setShowIncidentDialog] = useState(false);
   const hasInitializedRef = useRef(false);
@@ -164,6 +166,15 @@ export default function ReturnOps() {
       setIsException(true);
     }
   }, []);
+
+  const handleLateFeeCalculated = useCallback((fee: number) => {
+    setCalculatedLateFee(fee);
+  }, []);
+
+  // Calculate minutes late for passing to closeout
+  const endDate = booking ? new Date(booking.end_at) : null;
+  const isLateReturn = booking?.status === "active" && endDate && new Date() > endDate;
+  const minutesLate = isLateReturn && endDate ? differenceInMinutes(new Date(), endDate) : 0;
 
   // Complete step handlers with STATE MACHINE
   const handleCompleteIntake = async () => {
@@ -418,6 +429,7 @@ export default function ReturnOps() {
                     completion={completion.issues}
                     onMarkReviewed={handleCompleteIssues}
                     onDamagesUpdated={handleDamagesUpdated}
+                    onLateFeeCalculated={handleLateFeeCalculated}
                     isMarking={completeStep.isPending}
                     isLocked={stepIsLocked}
                     isComplete={isStepComplete("issues", returnState)}
@@ -431,6 +443,8 @@ export default function ReturnOps() {
                     isCompleting={completeStep.isPending}
                     returnState={returnState}
                     isLocked={stepIsLocked}
+                    calculatedLateFee={calculatedLateFee}
+                    minutesLate={minutesLate}
                   />
                 )}
                 {activeStep === "deposit" && (

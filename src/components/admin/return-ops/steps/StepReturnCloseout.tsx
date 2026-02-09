@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,9 @@ import {
   Lock,
 } from "lucide-react";
 import { type ReturnCompletion, type ReturnState, isStateAtLeast } from "@/lib/return-steps";
+import { LateFeeApprovalCard } from "@/components/admin/return-ops/LateFeeApprovalCard";
+import { useCalculateLateFee, useOverrideLateFee } from "@/hooks/use-late-return";
+import { toast } from "sonner";
 
 interface StepReturnCloseoutProps {
   booking: any;
@@ -19,6 +23,8 @@ interface StepReturnCloseoutProps {
   isCompleting: boolean;
   returnState?: ReturnState;
   isLocked?: boolean;
+  calculatedLateFee?: number;
+  minutesLate?: number;
 }
 
 export function StepReturnCloseout({ 
@@ -28,8 +34,15 @@ export function StepReturnCloseout({
   isCompleting,
   returnState,
   isLocked,
+  calculatedLateFee = 0,
+  minutesLate = 0,
 }: StepReturnCloseoutProps) {
+  const [lateFeeApproved, setLateFeeApproved] = useState(false);
+  const calculateLateFee = useCalculateLateFee();
+  const overrideLateFee = useOverrideLateFee();
+
   const isAlreadyCompleted = booking.status === "completed";
+  const hasLateFee = minutesLate > 30; // Past grace period
   
   // Check prerequisites using state machine if available
   const intakeComplete = returnState 
@@ -44,10 +57,6 @@ export function StepReturnCloseout({
     ? isStateAtLeast(returnState, "issues_reviewed")
     : completion.issues.reviewed;
   
-  // Damage check is complete when:
-  // 1. Issues step is reviewed (which includes damage acknowledgment), OR
-  // 2. damagesRecorded flag is true (explicit damage reporting)
-  // The key insight: completing the issues step means damage was either reported or confirmed as "none"
   const damageCheckComplete = issuesComplete || completion.issues.damagesRecorded;
   
   const prerequisites = [
@@ -70,11 +79,19 @@ export function StepReturnCloseout({
       label: "Damage check completed", 
       complete: damageCheckComplete,
       required: true,
-      // Show helpful description based on state
       description: damageCheckComplete 
         ? "Damage status confirmed" 
         : "Review issues step to confirm damage status",
     },
+    // Late fee approval is required if there's a late fee
+    ...(hasLateFee ? [{
+      label: "Late fee approved",
+      complete: lateFeeApproved || !!booking.late_return_fee || !!booking.late_return_fee_override,
+      required: true,
+      description: lateFeeApproved 
+        ? "Late fee has been approved" 
+        : "Approve the late fee below before completing",
+    }] : []),
   ];
 
   const requiredComplete = prerequisites.filter(p => p.required).every(p => p.complete);
@@ -82,8 +99,41 @@ export function StepReturnCloseout({
   
   // GATING: Can only close out if ALL required items are complete
   const canCloseOut = returnState 
-    ? isStateAtLeast(returnState, "issues_reviewed")
+    ? isStateAtLeast(returnState, "issues_reviewed") && (!hasLateFee || lateFeeApproved || !!booking.late_return_fee || !!booking.late_return_fee_override)
     : requiredComplete;
+
+  // Existing override data
+  const existingOverride = booking.late_return_fee_override != null 
+    ? {
+        amount: Number(booking.late_return_fee_override),
+        reason: booking.late_return_override_reason,
+      }
+    : null;
+
+  const handleLateFeeApproval = async (approvedFee: number, reason?: string) => {
+    try {
+      if (reason || approvedFee !== calculatedLateFee) {
+        // Override: staff changed the amount
+        await overrideLateFee.mutateAsync({
+          bookingId: booking.id,
+          overrideAmount: approvedFee,
+          reason: reason || "Approved as calculated",
+        });
+      } else {
+        // Standard approval: save calculated fee
+        await calculateLateFee.mutateAsync({
+          bookingId: booking.id,
+          scheduledEndAt: booking.end_at,
+          dailyRate: Number(booking.daily_rate),
+          actualReturnAt: new Date().toISOString(),
+        });
+      }
+      setLateFeeApproved(true);
+      toast.success(`Late fee of $${approvedFee.toFixed(2)} approved`);
+    } catch (err) {
+      toast.error("Failed to save late fee");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -115,6 +165,19 @@ export function StepReturnCloseout({
           </AlertDescription>
         </Alert>
       ) : null}
+
+      {/* Late Fee Approval Card */}
+      {!isLocked && (
+        <LateFeeApprovalCard
+          calculatedFee={calculatedLateFee}
+          minutesLate={minutesLate}
+          isApproved={lateFeeApproved || !!booking.late_return_fee || !!booking.late_return_fee_override}
+          onApprove={handleLateFeeApproval}
+          isApproving={calculateLateFee.isPending || overrideLateFee.isPending}
+          existingOverride={existingOverride}
+          persistedFee={Number(booking.late_return_fee) || 0}
+        />
+      )}
 
       {/* Prerequisites Checklist */}
       <Card>

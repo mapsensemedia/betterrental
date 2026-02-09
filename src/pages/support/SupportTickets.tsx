@@ -6,6 +6,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { TicketBookingSummary } from "@/components/support/TicketBookingSummary";
 import { SupportShell } from "@/components/layout/SupportShell";
 import {
   useSupportTicketsV2,
@@ -503,6 +504,13 @@ export default function SupportTicketsPage() {
                   </Badge>
                 </div>
               </div>
+
+              {/* Booking Summary Card */}
+              {selectedTicket.booking_id && (
+                <div className="px-4 py-3 border-b">
+                  <TicketBookingSummary bookingId={selectedTicket.booking_id} />
+                </div>
+              )}
 
               {/* Messages */}
               <ScrollArea className="flex-1 p-4">

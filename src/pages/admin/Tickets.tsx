@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { TicketBookingSummary } from "@/components/support/TicketBookingSummary";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useTickets, useTicketById, useUpdateTicketStatus, useSendTicketMessage } from "@/hooks/use-tickets";
 import { Button } from "@/components/ui/button";
@@ -535,16 +536,10 @@ export default function AdminTickets() {
             </div>
           ) : selectedTicket ? (
             <>
-              {/* Booking Link */}
-              {selectedTicket.bookings && (
-                <div className="px-4 py-2 border-b bg-muted/50">
-                  <Link 
-                    to={`/admin/bookings/${selectedTicket.booking_id}/ops`}
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    View booking: {selectedTicket.bookings.booking_code}
-                  </Link>
+              {/* Booking Summary Card */}
+              {selectedTicket.booking_id && (
+                <div className="px-4 py-3 border-b">
+                  <TicketBookingSummary bookingId={selectedTicket.booking_id} />
                 </div>
               )}
 

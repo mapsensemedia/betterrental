@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { TicketBookingSummary } from "@/components/support/TicketBookingSummary";
 import { AdminShell } from "@/components/layout/AdminShell";
 import {
   useSupportTicketsV2,
@@ -536,7 +537,13 @@ export default function SupportV2Page() {
                 </div>
               </div>
 
-              {/* Quick Actions */}
+              {/* Booking Summary Card */}
+              {selectedTicket.booking_id && (
+                <div className="px-4 py-3 border-b">
+                  <TicketBookingSummary bookingId={selectedTicket.booking_id} />
+                </div>
+              )}
+
               <div className="px-4 py-2 border-b flex flex-wrap gap-2">
                 {!selectedTicket.assigned_to && (
                   <Button size="sm" variant="outline" onClick={handleAssignToMe}>
