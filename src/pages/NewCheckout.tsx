@@ -1199,7 +1199,9 @@ export default function NewCheckout() {
                     <div key={feature} className="flex items-start gap-2 text-sm">
                       <Check className="w-4 h-4 shrink-0 mt-0.5" />
                       <span>{feature}</span>
-                      <Info className="w-3 h-3 text-muted-foreground ml-auto shrink-0" />
+                      <span className="ml-auto shrink-0">
+                        <PriceTooltip content={getFeatureTooltip(feature)} />
+                      </span>
                     </div>
                   ))}
                 </div>
