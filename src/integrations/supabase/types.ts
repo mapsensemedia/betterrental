@@ -387,6 +387,7 @@ export type Database = {
           deposit_expires_at: string | null
           deposit_released_at: string | null
           deposit_status: string | null
+          different_dropoff_fee: number | null
           driver_age_band: string | null
           end_at: string
           final_invoice_generated: boolean | null
@@ -421,6 +422,7 @@ export type Database = {
           return_is_exception: boolean | null
           return_issues_reviewed_at: string | null
           return_issues_reviewed_by: string | null
+          return_location_id: string | null
           return_started_at: string | null
           return_state: string | null
           save_time_at_counter: boolean | null
@@ -473,6 +475,7 @@ export type Database = {
           deposit_expires_at?: string | null
           deposit_released_at?: string | null
           deposit_status?: string | null
+          different_dropoff_fee?: number | null
           driver_age_band?: string | null
           end_at: string
           final_invoice_generated?: boolean | null
@@ -507,6 +510,7 @@ export type Database = {
           return_is_exception?: boolean | null
           return_issues_reviewed_at?: string | null
           return_issues_reviewed_by?: string | null
+          return_location_id?: string | null
           return_started_at?: string | null
           return_state?: string | null
           save_time_at_counter?: boolean | null
@@ -559,6 +563,7 @@ export type Database = {
           deposit_expires_at?: string | null
           deposit_released_at?: string | null
           deposit_status?: string | null
+          different_dropoff_fee?: number | null
           driver_age_band?: string | null
           end_at?: string
           final_invoice_generated?: boolean | null
@@ -593,6 +598,7 @@ export type Database = {
           return_is_exception?: boolean | null
           return_issues_reviewed_at?: string | null
           return_issues_reviewed_by?: string | null
+          return_location_id?: string | null
           return_started_at?: string | null
           return_state?: string | null
           save_time_at_counter?: boolean | null
@@ -627,6 +633,13 @@ export type Database = {
           {
             foreignKeyName: "bookings_location_id_fkey"
             columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_return_location_id_fkey"
+            columns: ["return_location_id"]
             isOneToOne: false
             referencedRelation: "locations"
             referencedColumns: ["id"]
