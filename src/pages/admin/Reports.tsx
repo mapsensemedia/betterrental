@@ -64,6 +64,8 @@ import { useLocations } from "@/hooks/use-locations";
 import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
 import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth, parseISO, differenceInDays } from "date-fns";
 import { RevenueAnalyticsTab } from "@/components/admin/analytics/RevenueAnalyticsTab";
+import { QuarterlyReportGenerator } from "@/components/admin/QuarterlyReportGenerator";
+import { DemandForecastingTab } from "@/components/admin/DemandForecastingTab";
 
 const chartConfig = {
   views: { label: "Views", color: "hsl(var(--primary))" },
@@ -165,6 +167,7 @@ type DateFilter = "today" | "week" | "month" | "all";
 
 export default function AdminReports() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isQuarterlyOpen, setIsQuarterlyOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dateFilter, setDateFilter] = useState<DateFilter>("week");
   const [locationFilter, setLocationFilter] = useState<string>("all");
@@ -402,6 +405,10 @@ export default function AdminReports() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsQuarterlyOpen(true)}>
+              <FileText className="w-4 h-4 mr-2" />
+              Quarterly Report
+            </Button>
             <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue />
@@ -496,6 +503,10 @@ export default function AdminReports() {
             <TabsTrigger value="audit" className="gap-2">
               <History className="w-4 h-4" />
               Activity
+            </TabsTrigger>
+            <TabsTrigger value="demand" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Demand
             </TabsTrigger>
           </TabsList>
 
@@ -833,8 +844,14 @@ export default function AdminReports() {
               </p>
             )}
           </TabsContent>
+
+          <TabsContent value="demand">
+            <DemandForecastingTab />
+          </TabsContent>
         </Tabs>
       </div>
+
+      <QuarterlyReportGenerator open={isQuarterlyOpen} onClose={() => setIsQuarterlyOpen(false)} />
     </AdminShell>
   );
 }

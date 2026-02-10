@@ -17,6 +17,7 @@ import { useVehicleUnitCostTimeline, useFleetCostAnalysisByVehicle } from "@/hoo
 import { useMaintenanceLogsByUnit } from "@/hooks/use-maintenance-logs";
 import { MaintenanceLogDialog } from "@/components/admin/fleet/MaintenanceLogDialog";
 import { VehicleUnitEditDialog } from "@/components/admin/fleet/VehicleUnitEditDialog";
+import { useUnitRentalHistory } from "@/hooks/use-unit-rental-history";
 import { format } from "date-fns";
 import {
   ArrowLeft,
@@ -34,6 +35,7 @@ import {
   FileText,
   Lightbulb,
   Edit2,
+  ClipboardList,
 } from "lucide-react";
 
 export default function VehicleUnitDetail() {
@@ -46,6 +48,7 @@ export default function VehicleUnitDetail() {
   const { data: vehicleMetrics } = useFleetCostAnalysisByVehicle();
   const { data: timeline, isLoading: timelineLoading } = useVehicleUnitCostTimeline(unitId || null);
   const { data: maintenanceLogs } = useMaintenanceLogsByUnit(unitId || null);
+  const { data: rentalHistory, isLoading: rentalHistoryLoading } = useUnitRentalHistory(unitId || null);
 
   const metrics = vehicleMetrics?.find((v) => v.vehicleUnitId === unitId);
 
@@ -229,6 +232,10 @@ export default function VehicleUnitDetail() {
             <TabsTrigger value="maintenance" className="gap-1.5">
               <Wrench className="w-3.5 h-3.5" />
               Maintenance
+            </TabsTrigger>
+            <TabsTrigger value="rental-history" className="gap-1.5">
+              <ClipboardList className="w-3.5 h-3.5" />
+              Rental History
             </TabsTrigger>
           </TabsList>
 
@@ -446,6 +453,63 @@ export default function VehicleUnitDetail() {
                           <TableCell>{log.vendor_name || "—"}</TableCell>
                           <TableCell className="text-right font-medium">
                             {formatCurrency(log.cost)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="rental-history" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Rental History</CardTitle>
+                <CardDescription>All bookings assigned to this vehicle unit</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {rentalHistoryLoading ? (
+                  <div className="p-4"><Skeleton className="h-40" /></div>
+                ) : !rentalHistory?.length ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No rental history yet</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Dates</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rentalHistory.map((booking) => (
+                        <TableRow key={booking.id}>
+                          <TableCell className="font-mono text-xs">{booking.booking_code}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-sm font-medium">{booking.customer_name}</p>
+                              <p className="text-xs text-muted-foreground">{booking.customer_email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {format(new Date(booking.start_at), "MMM d")} — {format(new Date(booking.end_at), "MMM d, yyyy")}
+                          </TableCell>
+                          <TableCell>{booking.total_days} days</TableCell>
+                          <TableCell>
+                            <Badge variant={booking.status === "completed" ? "default" : booking.status === "active" ? "secondary" : "outline"}>
+                              {booking.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(booking.total_amount)}
                           </TableCell>
                         </TableRow>
                       ))}
