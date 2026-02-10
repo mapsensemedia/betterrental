@@ -127,6 +127,12 @@ const navItems: {
     description: "Points-based rewards",
   },
   {
+    href: "/admin/vendors",
+    label: "Vendors",
+    icon: ArrowRightLeft,
+    description: "Vendor directory",
+  },
+  {
     href: "/admin/settings",
     label: "Settings",
     icon: Settings,
