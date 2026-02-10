@@ -357,24 +357,37 @@ export function VehicleDetailsModal({
               )}>
                 Driver's Age <span className="text-destructive">*</span>
               </Label>
-              <RadioGroup
-                value={ageRange || ""}
-                onValueChange={(value) => setAgeRange(value as "20-24" | "25-70")}
-                className="flex flex-wrap gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="25-70" id="modal-age-25-70" />
-                  <Label htmlFor="modal-age-25-70" className="text-sm text-muted-foreground cursor-pointer">
-                    25-70 years old
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="20-24" id="modal-age-20-24" />
-                  <Label htmlFor="modal-age-20-24" className="text-sm text-muted-foreground cursor-pointer">
-                    20-24 years old <span className="text-xs text-amber-600">(Young driver fee applies)</span>
-                  </Label>
-                </div>
-              </RadioGroup>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAgeRange("25-70")}
+                  className={cn(
+                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all text-sm font-medium",
+                    ageRange === "25-70"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50",
+                    showErrors && !ageRange && "border-destructive"
+                  )}
+                >
+                  <span className="font-semibold">25–70</span>
+                  <span className="text-xs text-muted-foreground">years old</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAgeRange("20-24")}
+                  className={cn(
+                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all text-sm font-medium",
+                    ageRange === "20-24"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50",
+                    showErrors && !ageRange && "border-destructive"
+                  )}
+                >
+                  <span className="font-semibold">20–24</span>
+                  <span className="text-xs text-muted-foreground">years old</span>
+                  <span className="text-xs text-amber-600 mt-1">Young driver fee</span>
+                </button>
+              </div>
             </div>
           </div>
 
