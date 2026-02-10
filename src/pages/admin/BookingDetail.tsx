@@ -129,6 +129,21 @@ export default function BookingDetail() {
     enabled: !!bookingId,
   });
 
+  // Fetch final invoices
+  const { data: finalInvoices = [] } = useQuery({
+    queryKey: ["booking-final-invoices", bookingId],
+    queryFn: async () => {
+      if (!bookingId) return [];
+      const { data } = await supabase
+        .from("final_invoices")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!bookingId,
+  });
+
   // Fetch incident cases
   const { data: incidents = [] } = useQuery({
     queryKey: ["booking-incidents-detail", bookingId],
@@ -357,26 +372,26 @@ export default function BookingDetail() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Pickup:</span>
-                        <span>{format(parseISO(booking.start_at), "PPp")}</span>
+                      <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                        <span className="text-muted-foreground shrink-0">Pickup:</span>
+                        <span className="text-right">{format(parseISO(booking.start_at), "PPp")}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Scheduled Return:</span>
-                        <span>{format(parseISO(booking.end_at), "PPp")}</span>
+                      <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                        <span className="text-muted-foreground shrink-0">Scheduled Return:</span>
+                        <span className="text-right">{format(parseISO(booking.end_at), "PPp")}</span>
                       </div>
                       {booking.actual_return_at && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Actual Return:</span>
-                          <span>{format(parseISO(booking.actual_return_at), "PPp")}</span>
+                        <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                          <span className="text-muted-foreground shrink-0">Actual Return:</span>
+                          <span className="text-right">{format(parseISO(booking.actual_return_at), "PPp")}</span>
                         </div>
                       )}
-                      <div className="flex justify-between">
+                      <div className="flex justify-between gap-2">
                         <span className="text-muted-foreground">Duration:</span>
                         <span>{booking.total_days} day{booking.total_days !== 1 ? "s" : ""}</span>
                       </div>
                       {actualDuration !== null && (
-                        <div className="flex justify-between">
+                        <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">Actual Duration:</span>
                           <span>{Math.round(actualDuration / 24)} day{Math.round(actualDuration / 24) !== 1 ? "s" : ""}</span>
                         </div>
@@ -426,7 +441,7 @@ export default function BookingDetail() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         {pickupInspection && (
                           <div className="space-y-2">
                             <p className="text-sm font-medium text-muted-foreground">At Pickup</p>
@@ -502,35 +517,35 @@ export default function BookingDetail() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Daily Rate:</span>
-                        <span>${Number(booking.daily_rate).toFixed(2)}</span>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground shrink-0">Daily Rate:</span>
+                        <span className="text-right">${Number(booking.daily_rate).toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Duration:</span>
-                        <span>{booking.total_days} day{booking.total_days !== 1 ? "s" : ""}</span>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground shrink-0">Duration:</span>
+                        <span className="text-right">{booking.total_days} day{booking.total_days !== 1 ? "s" : ""}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subtotal:</span>
-                        <span>${Number(booking.subtotal).toFixed(2)}</span>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground shrink-0">Subtotal:</span>
+                        <span className="text-right">${Number(booking.subtotal).toFixed(2)}</span>
                       </div>
                       {booking.tax_amount && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Tax:</span>
-                          <span>${Number(booking.tax_amount).toFixed(2)}</span>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground shrink-0">Tax:</span>
+                          <span className="text-right">${Number(booking.tax_amount).toFixed(2)}</span>
                         </div>
                       )}
                     </div>
                     <Separator className="my-2" />
-                    <div className="flex justify-between font-semibold text-base">
+                    <div className="flex justify-between font-semibold text-base gap-2">
                       <span>Total:</span>
-                      <span>${Number(booking.total_amount).toFixed(2)} CAD</span>
+                      <span className="text-right">${Number(booking.total_amount).toFixed(2)} CAD</span>
                     </div>
                     {booking.deposit_amount && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Deposit:</span>
-                        <span>
+                      <div className="flex justify-between text-sm gap-2">
+                        <span className="text-muted-foreground shrink-0">Deposit:</span>
+                        <span className="text-right">
                           ${Number(booking.deposit_amount).toFixed(2)}
                           {booking.deposit_status && (
                             <Badge variant="outline" className="ml-2 text-[10px]">
@@ -541,9 +556,9 @@ export default function BookingDetail() {
                       </div>
                     )}
                     {booking.card_last_four && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Card on File:</span>
-                        <span className="font-mono">
+                      <div className="flex justify-between text-sm gap-2">
+                        <span className="text-muted-foreground shrink-0">Card on File:</span>
+                        <span className="font-mono text-right truncate">
                           {booking.card_type?.toUpperCase() || "Card"} •••• {booking.card_last_four}
                         </span>
                       </div>
@@ -847,22 +862,22 @@ export default function BookingDetail() {
                 </Card>
 
                 {/* Payments */}
-                {booking.payments && booking.payments.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <CreditCard className="h-4 w-4" />
-                        Payments
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {booking.payments.map((payment: any) => (
-                        <div key={payment.id} className="flex items-center justify-between text-sm">
-                          <div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      Payments
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {booking.payments && booking.payments.length > 0 ? (
+                      booking.payments.map((payment: any) => (
+                        <div key={payment.id} className="flex items-center justify-between text-sm gap-2">
+                          <div className="min-w-0">
                             <p className="font-medium">${Number(payment.amount).toFixed(2)}</p>
-                            <p className="text-xs text-muted-foreground">{payment.payment_type}</p>
+                            <p className="text-xs text-muted-foreground truncate">{payment.payment_type}</p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right shrink-0">
                             <Badge variant={payment.status === "completed" ? "default" : "secondary"}>
                               {payment.status}
                             </Badge>
@@ -871,25 +886,102 @@ export default function BookingDetail() {
                             </p>
                           </div>
                         </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">No payment records found</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Final Invoices */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Final Invoice
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {finalInvoices.length > 0 ? (
+                      finalInvoices.map((invoice: any) => (
+                        <div key={invoice.id} className="space-y-3">
+                          <div className="flex items-center justify-between text-sm gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{invoice.invoice_number}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {invoice.issued_at ? format(parseISO(invoice.issued_at), "PPp") : "Draft"}
+                              </p>
+                            </div>
+                            <Badge variant={invoice.status === "issued" ? "default" : "secondary"}>
+                              {invoice.status}
+                            </Badge>
+                          </div>
+                          <Separator />
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">Rental Subtotal</span>
+                              <span>${Number(invoice.rental_subtotal).toFixed(2)}</span>
+                            </div>
+                            {Number(invoice.addons_total) > 0 && (
+                              <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">Add-ons</span>
+                                <span>${Number(invoice.addons_total).toFixed(2)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">Taxes</span>
+                              <span>${Number(invoice.taxes_total).toFixed(2)}</span>
+                            </div>
+                            {Number(invoice.late_fees) > 0 && (
+                              <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">Late Fees</span>
+                                <span>${Number(invoice.late_fees).toFixed(2)}</span>
+                              </div>
+                            )}
+                            {Number(invoice.damage_charges) > 0 && (
+                              <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">Damage Charges</span>
+                                <span className="text-destructive">${Number(invoice.damage_charges).toFixed(2)}</span>
+                              </div>
+                            )}
+                            <Separator />
+                            <div className="flex justify-between gap-2 font-semibold">
+                              <span>Grand Total</span>
+                              <span>${Number(invoice.grand_total).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">Payments Received</span>
+                              <span>${Number(invoice.payments_received).toFixed(2)}</span>
+                            </div>
+                            {Number(invoice.amount_due) > 0 && (
+                              <div className="flex justify-between gap-2 font-medium text-destructive">
+                                <span>Amount Due</span>
+                                <span>${Number(invoice.amount_due).toFixed(2)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">No invoice generated</p>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Receipts */}
-                {receipts.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Receipt className="h-4 w-4" />
-                        Receipts
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {receipts.map((receipt: any) => (
-                        <div key={receipt.id} className="flex items-center justify-between text-sm">
-                          <div>
-                            <p className="font-medium">{receipt.receipt_number}</p>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Receipt className="h-4 w-4" />
+                      Receipts
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {receipts.length > 0 ? (
+                      receipts.map((receipt: any) => (
+                        <div key={receipt.id} className="flex items-center justify-between text-sm gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{receipt.receipt_number}</p>
                             <p className="text-xs text-muted-foreground">
                               {format(parseISO(receipt.created_at), "PP")}
                             </p>
@@ -898,10 +990,12 @@ export default function BookingDetail() {
                             {receipt.status}
                           </Badge>
                         </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">No receipts found</p>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Add-ons */}
                 {booking.addOns && booking.addOns.length > 0 && (
@@ -914,9 +1008,9 @@ export default function BookingDetail() {
                     </CardHeader>
                     <CardContent className="space-y-2">
                       {booking.addOns.map((addon: any) => (
-                        <div key={addon.id} className="flex justify-between text-sm">
-                          <span>{addon.add_ons?.name || "Add-on"}</span>
-                          <span>${Number(addon.price).toFixed(2)}</span>
+                        <div key={addon.id} className="flex justify-between text-sm gap-2">
+                          <span className="truncate">{addon.add_ons?.name || "Add-on"}</span>
+                          <span className="shrink-0">${Number(addon.price).toFixed(2)}</span>
                         </div>
                       ))}
                     </CardContent>
