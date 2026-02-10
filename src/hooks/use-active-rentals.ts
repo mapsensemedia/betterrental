@@ -52,7 +52,7 @@ export function useActiveRentals() {
         .from("bookings")
         .select(`
           *,
-          locations (id, name, city)
+          locations!location_id (id, name, city)
         `)
         .eq("status", "active")
         .order("end_at", { ascending: true });

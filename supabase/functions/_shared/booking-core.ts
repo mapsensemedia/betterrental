@@ -34,10 +34,11 @@ export interface BookingInput {
   pickupContactPhone?: string;
   specialInstructions?: string;
   saveTimeAtCounter?: boolean;
-  // Card info (last 4 digits only for display, never full card)
   cardLastFour?: string;
   cardType?: string;
   cardHolderName?: string;
+  returnLocationId?: string;
+  differentDropoffFee?: number;
 }
 
 export interface AddOnInput {
@@ -130,6 +131,8 @@ export async function createBookingRecord(input: BookingInput): Promise<BookingR
       card_last_four: input.cardLastFour?.slice(0, 4) || null,
       card_type: input.cardType?.slice(0, 20) || null,
       card_holder_name: input.cardHolderName?.slice(0, 255) || null,
+      return_location_id: input.returnLocationId || null,
+      different_dropoff_fee: input.differentDropoffFee || 0,
     })
     .select()
     .single();

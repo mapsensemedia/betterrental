@@ -321,7 +321,7 @@ export function useDeliveryById(bookingId: string | undefined) {
         .from("bookings")
         .select(`
           *,
-          locations (id, name, address, phone)
+          locations!location_id (id, name, address, phone)
         `)
         .eq("id", bookingId)
         .single();

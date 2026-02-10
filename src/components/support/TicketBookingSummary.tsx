@@ -60,7 +60,7 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
           actual_return_at,
           vehicle_id,
           location_id,
-          locations (
+          locations!location_id (
             name,
             city
           )

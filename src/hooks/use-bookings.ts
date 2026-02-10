@@ -74,7 +74,7 @@ export function useAdminBookings(filters: BookingFilters = {}) {
         .from("bookings")
         .select(`
           *,
-          locations (id, name, city, address)
+          locations!location_id (id, name, city, address)
         `)
         .order("created_at", { ascending: false });
 
@@ -193,7 +193,7 @@ export function useBookingById(id: string | null) {
         .from("bookings")
         .select(`
           *,
-          locations (id, name, city, address, phone),
+          locations!location_id (id, name, city, address, phone),
           vehicle_units (id, vin, license_plate, status),
           delivery_statuses (status, updated_at, location_lat, location_lng, notes, updated_by)
         `)

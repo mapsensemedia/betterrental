@@ -60,7 +60,7 @@ export default function BookingPickup() {
         .select(`
           *,
           vehicles (id, make, model, year),
-          locations (id, name, address, city)
+          locations!location_id (id, name, address, city)
         `)
         .eq("id", bookingId)
         .eq("user_id", user.id)

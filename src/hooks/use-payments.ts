@@ -21,7 +21,7 @@ export function useBookingByCode(code: string | null) {
           start_at,
           end_at,
           status,
-          locations (id, name, address, city)
+          locations!location_id (id, name, address, city)
         `)
         .eq("booking_code", searchCode.toUpperCase())
         .maybeSingle();

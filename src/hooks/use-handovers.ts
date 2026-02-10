@@ -77,7 +77,7 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
         .select(`
           *,
           vehicles (id, make, model, year, image_url, is_available, cleaning_buffer_hours),
-          locations (id, name, city, address)
+          locations!location_id (id, name, city, address)
         `)
         .in("status", ["pending", "confirmed"])
         // CRITICAL: Exclude already-activated bookings (handover completed in BookingOps)

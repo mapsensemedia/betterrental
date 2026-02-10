@@ -68,6 +68,10 @@ const baseBookingFields = {
   pickupContactName: z.string().max(100).optional(),
   pickupContactPhone: z.string().max(20).optional(),
   specialInstructions: z.string().max(500).optional(),
+  
+  // Drop-off location (different return location)
+  returnLocationId: z.string().uuid().nullable().optional(),
+  differentDropoffFee: z.number().nonnegative().optional(),
 };
 
 // Base booking input schema

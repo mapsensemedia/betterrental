@@ -92,6 +92,8 @@ export function BookingSummaryPanel({
       unitTankCapacity
     );
     const deliveryFee = searchData.deliveryFee || 0;
+    const isDifferentDropoff = !searchData.returnSameAsPickup && !!searchData.returnLocationId && searchData.returnLocationId !== searchData.pickupLocationId;
+    const differentDropoffFee = isDifferentDropoff ? 25 : 0;
     
     // Calculate additional drivers cost
     const additionalDriversCost = calculateAdditionalDriversCost(effectiveAdditionalDrivers, rentalDays);
@@ -102,6 +104,7 @@ export function BookingSummaryPanel({
       protectionDailyRate,
       addOnsTotal: addOnsTotal + additionalDriversCost.total,
       deliveryFee,
+      differentDropoffFee,
       driverAgeBand,
       pickupDate: searchData.pickupDate,
     });
@@ -114,6 +117,7 @@ export function BookingSummaryPanel({
       addOnsTotal, 
       additionalDriversCost,
       deliveryFee, 
+      differentDropoffFee: breakdown.differentDropoffFee,
       youngDriverFee: breakdown.youngDriverFee,
       dailyFeesTotal: breakdown.dailyFeesTotal,
       subtotal: breakdown.subtotal, 
@@ -123,6 +127,7 @@ export function BookingSummaryPanel({
       total: breakdown.total, 
       itemized,
       fuelPricing,
+      isDifferentDropoff,
     };
   })();
 
@@ -174,6 +179,14 @@ export function BookingSummaryPanel({
               <p className="text-xs text-muted-foreground/70 mt-1 italic">
                 {secondaryLocationDisplay}
               </p>
+            )}
+            {/* Drop-off location */}
+            {pricing?.isDifferentDropoff && searchData.returnLocationName && (
+              <div className="mt-2 pt-2 border-t border-border/30">
+                <p className="text-sm font-medium">Drop-off Location</p>
+                <p className="text-sm text-muted-foreground">{searchData.returnLocationName}</p>
+                <p className="text-xs text-amber-600 mt-0.5">$25.00 CAD different location fee</p>
+              </div>
             )}
           </div>
         </div>
@@ -362,6 +375,14 @@ export function BookingSummaryPanel({
                 </div>
               )}
               
+              
+              {pricing.differentDropoffFee > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Different drop-off location</span>
+                  <span>${pricing.differentDropoffFee.toFixed(2)} CAD</span>
+                </div>
+              )}
+
               {pricing.deliveryFee > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground flex items-center">

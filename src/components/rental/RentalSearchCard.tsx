@@ -14,6 +14,7 @@ import {
   Check,
   MapPin,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -44,6 +45,8 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
   const {
     searchData,
     setPickupLocation,
+    setReturnLocation,
+    setReturnSameAsPickup,
     setPickupDateTime,
     setReturnDateTime,
     setDeliveryMode,
@@ -73,6 +76,8 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
     searchData.deliveryAddress || ""
   );
   const [ageRange, setLocalAgeRange] = useState<"20-24" | "25-70" | null>(searchData.ageRange);
+  const [returnSameAsPickup, setLocalReturnSameAsPickup] = useState(searchData.returnSameAsPickup);
+  const [returnLocationId, setLocalReturnLocationId] = useState(searchData.returnLocationId || "");
 
   // Form validation state
   const [showAgeError, setShowAgeError] = useState(false);
@@ -713,7 +718,74 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
         </div>
       )}
 
-      {/* Delivery Pricing Display */}
+      {/* Drop-off Location (pickup mode only) */}
+      {deliveryMode === "pickup" && (
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="return-same-location"
+              checked={returnSameAsPickup}
+              onCheckedChange={(checked) => {
+                const same = checked === true;
+                setLocalReturnSameAsPickup(same);
+                setReturnSameAsPickup(same);
+                if (same) {
+                  setLocalReturnLocationId("");
+                  setReturnLocation(null);
+                }
+              }}
+            />
+            <label htmlFor="return-same-location" className="text-sm text-muted-foreground cursor-pointer">
+              Return to same location
+            </label>
+          </div>
+          
+          {!returnSameAsPickup && (
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Drop-off Location
+              </label>
+              <Select 
+                value={returnLocationId} 
+                onValueChange={(id) => {
+                  setLocalReturnLocationId(id);
+                  setReturnLocation(id);
+                }}
+              >
+                <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="truncate">
+                      <SelectValue placeholder="Select drop-off location" />
+                    </span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {pickupLocations
+                    .filter((loc) => loc.id !== locationId)
+                    .map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{loc.name}</span>
+                          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            {loc.address}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {returnLocationId && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  $25.00 CAD different location fee applies
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
         <div className="mt-4">
           <DeliveryPricingDisplay

@@ -81,7 +81,7 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
         .from("bookings")
         .select(`
           *,
-          locations (id, name, city, address)
+          locations!location_id (id, name, city, address)
         `)
         .eq("status", "active")
         .gte("end_at", startDate.toISOString())

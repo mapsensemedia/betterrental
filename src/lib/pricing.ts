@@ -73,6 +73,7 @@ export interface PricingInput {
   protectionDailyRate?: number;
   addOnsTotal?: number;
   deliveryFee?: number;
+  differentDropoffFee?: number;
   driverAgeBand?: DriverAgeBand | null;
   pickupDate?: Date | null; // For weekend pricing detection
   lateFeeAmount?: number; // For return calculations
@@ -87,6 +88,7 @@ export interface PricingBreakdown {
   protectionTotal: number;
   addOnsTotal: number;
   deliveryFee: number;
+  differentDropoffFee: number;
   youngDriverFee: number;
   dailyFeesTotal: number; // PVRT + ACSRCH
   pvrtTotal: number;
@@ -290,6 +292,7 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
     protectionDailyRate = 0,
     addOnsTotal = 0,
     deliveryFee = 0,
+    differentDropoffFee = 0,
     driverAgeBand,
     pickupDate,
     lateFeeAmount = 0,
@@ -327,7 +330,7 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
 
   // Subtotal before tax
   const subtotal = vehicleTotal + protectionTotal + addOnsTotal + deliveryFee + 
-                   youngDriverFee + dailyFeesTotal + lateFee;
+                   differentDropoffFee + youngDriverFee + dailyFeesTotal + lateFee;
   
   // Tax breakdown (PST + GST)
   const pstAmount = subtotal * PST_RATE;
@@ -345,6 +348,7 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
     protectionTotal,
     addOnsTotal,
     deliveryFee,
+    differentDropoffFee,
     youngDriverFee,
     dailyFeesTotal,
     pvrtTotal,
