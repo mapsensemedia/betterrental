@@ -56,9 +56,7 @@ serve(async (req) => {
       .select(`
         id, booking_code, user_id, daily_rate, total_days, subtotal, 
         tax_amount, total_amount, deposit_amount, start_at, end_at,
-        actual_return_at, young_driver_fee,
-        vehicles!inner (make, model, year),
-        locations!inner (name, address, city, phone)
+        actual_return_at, young_driver_fee, vehicle_id, location_id
       `)
       .eq("id", bookingId)
       .single();
@@ -70,6 +68,23 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Fetch vehicle category and location separately (no FK from bookings.vehicle_id to vehicles)
+    const { data: vehicleCategory } = await supabase
+      .from("vehicle_categories")
+      .select("name")
+      .eq("id", booking.vehicle_id)
+      .single();
+
+    const { data: locationData } = await supabase
+      .from("locations")
+      .select("name, address, city, phone")
+      .eq("id", booking.location_id)
+      .single();
+
+    // Attach to booking object for downstream use
+    (booking as any).vehicles = vehicleCategory ? { make: "", model: vehicleCategory.name, year: "" } : null;
+    (booking as any).locations = locationData;
 
     // Fetch add-ons
     const { data: addOns } = await supabase
