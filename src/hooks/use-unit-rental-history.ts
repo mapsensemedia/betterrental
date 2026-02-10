@@ -30,7 +30,7 @@ export function useUnitRentalHistory(unitId: string | null) {
         .select(`
           id, booking_code, status, start_at, end_at, actual_return_at,
           total_days, daily_rate, total_amount,
-          profiles:user_id(first_name, last_name, email)
+          profiles:user_id(full_name, email)
         `)
         .eq("assigned_unit_id", unitId)
         .order("start_at", { ascending: false });
@@ -47,9 +47,7 @@ export function useUnitRentalHistory(unitId: string | null) {
         total_days: b.total_days,
         daily_rate: b.daily_rate,
         total_amount: b.total_amount,
-        customer_name: b.profiles
-          ? `${b.profiles.first_name || ""} ${b.profiles.last_name || ""}`.trim() || "Unknown"
-          : "Unknown",
+        customer_name: b.profiles?.full_name || "Unknown",
         customer_email: b.profiles?.email || "",
       })) as UnitBookingRecord[];
     },
