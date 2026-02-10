@@ -24,6 +24,11 @@ export interface RentalSearchData {
   pickupLocationName: string | null;
   pickupLocationAddress: string | null;
   
+  // Drop-off location (different return location)
+  returnLocationId: string | null;
+  returnLocationName: string | null;
+  returnSameAsPickup: boolean;
+  
   // Legacy compatibility
   pickupLocation: string | null; // Old format - set to address
   
@@ -68,6 +73,8 @@ interface RentalBookingContextType {
   
   // Setters for individual fields
   setPickupLocation: (id: string) => void;
+  setReturnLocation: (id: string | null) => void;
+  setReturnSameAsPickup: (same: boolean) => void;
   setPickupDateTime: (date: Date | null, time: string) => void;
   setReturnDateTime: (date: Date | null, time: string) => void;
   setDeliveryMode: (mode: DeliveryMode) => void;
@@ -102,6 +109,9 @@ const defaultSearchData: RentalSearchData = {
   pickupLocationId: null,
   pickupLocationName: null,
   pickupLocationAddress: null,
+  returnLocationId: null,
+  returnLocationName: null,
+  returnSameAsPickup: true,
   pickupLocation: null,
   pickupDate: null,
   pickupTime: "10:00",
@@ -182,7 +192,41 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Set pickup date/time
+  // Set return (drop-off) location
+  const setReturnLocation = useCallback((id: string | null) => {
+    if (!id) {
+      setSearchData((prev) => ({
+        ...prev,
+        returnLocationId: null,
+        returnLocationName: null,
+      }));
+      return;
+    }
+    const location = getLocationById(id);
+    if (location) {
+      setSearchData((prev) => ({
+        ...prev,
+        returnLocationId: location.id,
+        returnLocationName: location.name,
+      }));
+    } else {
+      setSearchData((prev) => ({
+        ...prev,
+        returnLocationId: id,
+        returnLocationName: null,
+      }));
+    }
+  }, []);
+
+  // Set return same as pickup
+  const setReturnSameAsPickup = useCallback((same: boolean) => {
+    setSearchData((prev) => ({
+      ...prev,
+      returnSameAsPickup: same,
+      ...(same && { returnLocationId: null, returnLocationName: null }),
+    }));
+  }, []);
+
   const setPickupDateTime = useCallback((date: Date | null, time: string) => {
     setSearchData((prev) => ({
       ...prev,
@@ -368,6 +412,8 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
       value={{
         searchData,
         setPickupLocation,
+        setReturnLocation,
+        setReturnSameAsPickup,
         setPickupDateTime,
         setReturnDateTime,
         setDeliveryMode,

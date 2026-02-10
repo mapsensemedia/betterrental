@@ -87,7 +87,7 @@ export function useActiveRentalDetail(bookingId: string | null) {
         .from("bookings")
         .select(`
           *,
-          locations (id, name, city, address, phone)
+          locations!location_id (id, name, city, address, phone)
         `)
         .eq("id", bookingId)
         .eq("status", "active")

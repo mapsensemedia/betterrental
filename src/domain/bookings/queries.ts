@@ -20,7 +20,7 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
     .from("bookings")
     .select(`
       *,
-      locations (id, name, city, address)
+      locations!location_id (id, name, city, address)
     `)
     .order("created_at", { ascending: false });
 
@@ -111,6 +111,8 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
       userId: b.user_id,
       vehicleId: b.vehicle_id,
       locationId: b.location_id,
+      returnLocationId: b.return_location_id,
+      differentDropoffFee: Number(b.different_dropoff_fee || 0),
       vehicle: category ? {
         id: category.id,
         name: category.name,
@@ -120,12 +122,13 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
         fuelType: category.fuel_type,
         transmission: category.transmission,
       } : null,
-      location: b.locations ? {
-        id: b.locations.id,
-        name: b.locations.name,
-        city: b.locations.city,
-        address: b.locations.address,
+      location: (b as any).locations ? {
+        id: (b as any).locations.id,
+        name: (b as any).locations.name,
+        city: (b as any).locations.city,
+        address: (b as any).locations.address,
       } : null,
+      returnLocation: null, // Will be fetched separately if needed
       profile: profile ? {
         id: profile.id,
         fullName: profile.full_name,
@@ -144,7 +147,7 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
     .from("bookings")
     .select(`
       *,
-      locations (id, name, city, address, phone),
+      locations!location_id (id, name, city, address, phone),
       vehicle_units (id, vin, license_plate, status),
       delivery_statuses (status, updated_at, location_lat, location_lng, notes, updated_by)
     `)
@@ -198,6 +201,17 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
     } : null,
   }));
 
+  // Fetch return location if different
+  let returnLocationData = null;
+  if (data.return_location_id && data.return_location_id !== data.location_id) {
+    const { data: rlData } = await supabase
+      .from("locations")
+      .select("id, name, city, address, phone")
+      .eq("id", data.return_location_id)
+      .maybeSingle();
+    returnLocationData = rlData;
+  }
+
   return {
     id: data.id,
     bookingCode: data.booking_code,
@@ -218,6 +232,8 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
     userId: data.user_id,
     vehicleId: data.vehicle_id,
     locationId: data.location_id,
+    returnLocationId: data.return_location_id,
+    differentDropoffFee: Number(data.different_dropoff_fee || 0),
     assignedUnitId: data.assigned_unit_id,
     assignedDriverId: data.assigned_driver_id,
     handedOverAt: data.handed_over_at,
@@ -241,12 +257,19 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
       fuelType: categoryData.fuel_type,
       transmission: categoryData.transmission,
     } : null,
-    location: data.locations ? {
-      id: data.locations.id,
-      name: data.locations.name,
-      city: data.locations.city,
-      address: data.locations.address,
-      phone: data.locations.phone,
+    location: (data as any).locations ? {
+      id: (data as any).locations.id,
+      name: (data as any).locations.name,
+      city: (data as any).locations.city,
+      address: (data as any).locations.address,
+      phone: (data as any).locations.phone,
+    } : null,
+    returnLocation: returnLocationData ? {
+      id: returnLocationData.id,
+      name: returnLocationData.name,
+      city: returnLocationData.city,
+      address: returnLocationData.address,
+      phone: returnLocationData.phone,
     } : null,
     profile: profileData ? {
       id: profileData.id,
@@ -293,7 +316,7 @@ export async function getBookingByCode(code: string): Promise<BookingSummary | n
     .from("bookings")
     .select(`
       *,
-      locations (id, name, city, address)
+      locations!location_id (id, name, city, address)
     `)
     .eq("booking_code", code.toUpperCase())
     .maybeSingle();
@@ -337,18 +360,21 @@ export async function getBookingByCode(code: string): Promise<BookingSummary | n
     userId: data.user_id,
     vehicleId: data.vehicle_id,
     locationId: data.location_id,
+    returnLocationId: data.return_location_id,
+    differentDropoffFee: Number(data.different_dropoff_fee || 0),
     vehicle: categoryData ? {
       id: categoryData.id,
       name: categoryData.name,
       imageUrl: categoryData.image_url,
       category: categoryData.name,
     } : null,
-    location: data.locations ? {
-      id: data.locations.id,
-      name: data.locations.name,
-      city: data.locations.city,
-      address: data.locations.address,
+    location: (data as any).locations ? {
+      id: (data as any).locations.id,
+      name: (data as any).locations.name,
+      city: (data as any).locations.city,
+      address: (data as any).locations.address,
     } : null,
+    returnLocation: null,
     profile: profileData ? {
       id: profileData.id,
       fullName: profileData.full_name,

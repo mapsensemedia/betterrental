@@ -58,6 +58,8 @@ interface GuestBookingRequest {
   cardType?: string;
   cardHolderName?: string;
   paymentMethod?: "pay-now" | "pay-later";
+  returnLocationId?: string;
+  differentDropoffFee?: number;
 }
 
 Deno.serve(async (req) => {
@@ -256,6 +258,8 @@ Deno.serve(async (req) => {
       cardLastFour,
       cardType,
       cardHolderName,
+      returnLocationId: body.returnLocationId,
+      differentDropoffFee: body.differentDropoffFee,
     });
 
     if (!bookingResult.success || !bookingResult.booking) {

@@ -85,7 +85,7 @@ export default function Dashboard() {
         .from("bookings")
         .select(
           `id, booking_code, status, start_at, end_at, total_amount, customer_marked_returned_at, vehicle_id,
-           locations (name, city)`
+           locations!location_id (name, city)`
         )
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false })

@@ -69,9 +69,12 @@ export interface BookingSummary {
   userId: string;
   vehicleId: string;
   locationId: string;
+  returnLocationId: string | null;
+  differentDropoffFee: number;
   // Joined data
   vehicle: BookingVehicle | null;
   location: BookingLocation | null;
+  returnLocation: BookingLocation | null;
   profile: BookingProfile | null;
 }
 

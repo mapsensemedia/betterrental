@@ -314,7 +314,7 @@ export default function BookingDetail() {
             card_last_four,
             card_type,
             card_holder_name,
-            locations (id, name, address, city)
+            locations!location_id (id, name, address, city)
           `)
           .eq("id", id)
           .eq("user_id", user.id)

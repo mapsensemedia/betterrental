@@ -150,6 +150,8 @@ export default function NewCheckout() {
     const protectionInfo = PROTECTION_RATES[protection] || PROTECTION_RATES.none;
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays, vehicleCategory);
     const deliveryFee = searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0;
+    const isDifferentDropoff = !searchData.returnSameAsPickup && !!searchData.returnLocationId && searchData.returnLocationId !== searchData.pickupLocationId;
+    const differentDropoffFee = isDifferentDropoff ? 25 : 0;
     
     // Calculate additional drivers cost
     const additionalDriversCost = calculateAdditionalDriversCost(searchData.additionalDrivers || [], rentalDays);
@@ -160,6 +162,7 @@ export default function NewCheckout() {
       protectionDailyRate: protectionInfo.rate,
       addOnsTotal: addOnsTotal + additionalDriversCost.total,
       deliveryFee,
+      differentDropoffFee,
       driverAgeBand,
       pickupDate: searchData.pickupDate,
     });
@@ -172,6 +175,8 @@ export default function NewCheckout() {
       itemized,
       additionalDriversCost,
       addOnsRawTotal: addOnsTotal,
+      isDifferentDropoff,
+      differentDropoffFee,
     };
   }, [vehicle, vehicleCategory, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand]);
 
@@ -344,6 +349,8 @@ export default function NewCheckout() {
             card_type: null,
             card_holder_name: null,
             protection_plan: protection,
+            return_location_id: pricing.isDifferentDropoff ? searchData.returnLocationId : null,
+            different_dropoff_fee: pricing.differentDropoffFee || 0,
           })
           .select()
           .single();
@@ -428,7 +435,9 @@ export default function NewCheckout() {
               cardLastFour: null,
               cardType: null,
               cardHolderName: null,
-              paymentMethod: paymentMethod, // Pass payment method so edge function sets correct status
+              paymentMethod: paymentMethod,
+              returnLocationId: pricing.isDifferentDropoff ? searchData.returnLocationId : undefined,
+              differentDropoffFee: pricing.differentDropoffFee || 0,
             },
           });
         } catch (networkError: any) {
