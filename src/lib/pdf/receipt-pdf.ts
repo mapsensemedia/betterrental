@@ -19,6 +19,7 @@ interface ReceiptPdfData {
   tax: number;
   total: number;
   depositAmount: number | null;
+  differentDropoffFee: number;
   notes: string | null;
 }
 
@@ -149,6 +150,12 @@ export function generateReceiptPdf(data: ReceiptPdfData) {
   pdf.text("Subtotal", totalsX, y);
   pdf.text(`$${data.subtotal.toFixed(2)}`, R - 10, y, { align: "right" });
   y += 16;
+
+  if (data.differentDropoffFee > 0) {
+    pdf.text("Different Drop-off Fee", totalsX, y);
+    pdf.text(`$${data.differentDropoffFee.toFixed(2)}`, R - 10, y, { align: "right" });
+    y += 16;
+  }
 
   pdf.text("Tax (HST/GST)", totalsX, y);
   pdf.text(`$${data.tax.toFixed(2)}`, R - 10, y, { align: "right" });

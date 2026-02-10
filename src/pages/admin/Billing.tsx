@@ -414,6 +414,7 @@ export default function AdminBilling() {
       depositHeld: Number(inv.deposit_held || 0),
       depositReleased: Number(inv.deposit_released || 0),
       depositCaptured: Number(inv.deposit_captured || 0),
+      differentDropoffFee: Number((inv.booking as any)?.different_dropoff_fee || 0),
       notes: inv.notes,
     });
   };
@@ -1162,6 +1163,7 @@ export default function AdminBilling() {
                         tax: selectedReceipt.totals_json?.tax || 0,
                         total: selectedReceipt.totals_json?.total || 0,
                         depositAmount: selectedReceipt.booking?.deposit_amount || null,
+                        differentDropoffFee: Number((selectedReceipt.booking as any)?.different_dropoff_fee || 0),
                         notes: selectedReceipt.notes,
                       });
                     }}

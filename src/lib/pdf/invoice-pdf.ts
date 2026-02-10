@@ -14,6 +14,7 @@ export interface InvoicePdfData {
   totalDays: number;
   lineItems: { description: string; amount: number }[];
   rentalSubtotal: number;
+  differentDropoffFee: number;
   addonsTotal: number;
   feesTotal: number;
   taxesTotal: number;
@@ -158,6 +159,7 @@ export function generateInvoicePdf(data: InvoicePdfData) {
   };
 
   addRow("Rental Subtotal", data.rentalSubtotal);
+  if (data.differentDropoffFee > 0) addRow("Different Drop-off Location Fee", data.differentDropoffFee);
   if (data.addonsTotal > 0) addRow("Add-ons", data.addonsTotal);
   if (data.feesTotal > 0) addRow("Fees (PVRT, ACSRCH, Young Driver)", data.feesTotal);
   if (data.lateFees > 0) addRow("Late Fees", data.lateFees);
