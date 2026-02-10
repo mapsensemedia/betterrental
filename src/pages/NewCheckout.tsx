@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Check,
   Shield,
-  Info,
   MapPin,
   CreditCard,
   ChevronDown,
@@ -59,6 +58,17 @@ import {
 } from "@/lib/pricing";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
+
+const FEATURE_TOOLTIPS: Record<string, string> = {
+  "Third party insurance": "Mandatory third-party liability insurance is included with every rental at no extra cost.",
+  "24/7 Roadside Assistance Hotline": "Access our 24/7 emergency roadside assistance hotline for breakdowns, flat tires, or lockouts.",
+  "Unlimited kilometres": "Drive without worrying about mileage limits — all rentals include unlimited kilometres.",
+  "Extended Roadside Protection": "Enhanced roadside coverage included with your booking for added peace of mind.",
+};
+
+function getFeatureTooltip(feature: string): string {
+  return FEATURE_TOOLTIPS[feature] ?? feature;
+}
 
 export default function NewCheckout() {
   const navigate = useNavigate();
