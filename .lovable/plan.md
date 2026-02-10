@@ -1,83 +1,99 @@
 
 
-# SEO Overhaul: Improve Search Visibility and Remove Lovable Branding
+# Billing, Invoicing, and Receipt Cleanup Plan
 
-## Problem
-The site currently shows up in Google with a thin title ("C2C Rental") and description ("C2C car rental"), uses Lovable-branded OG images, and has no local SEO signals. This makes it nearly invisible for searches like "car rental near Surrey" or "car rental Vancouver."
+## Problem Summary
+
+The current billing system has several issues:
+
+1. **Duplicacy between Final Invoice and Receipt** -- Both are generated when closing a rental (`close-account` creates a `final_invoice`, then calls `generate-return-receipt` which creates a `receipt`). These contain overlapping data but serve unclear purposes.
+2. **Pricing Breakdown is incomplete** -- The booking detail Financial tab only shows daily rate, subtotal, and tax. It does not show add-ons, young driver fee, PVRT/ACSRCH fees, or protection plan costs.
+3. **Final Invoice is not downloadable** -- Only receipts have PDF download; final invoices don't.
+4. **Final Invoices are not searchable in Admin Billing** -- The Billing page only has tabs for Receipts, Payments, and Deposits. No Invoices tab exists.
+5. **Receipt detail dialog lacks full breakdown** -- Missing vehicle info, rental period, add-on itemization in some contexts.
+
+## Clarification: Invoice vs Receipt
+
+- **Final Invoice** = The authoritative billing document generated at account closeout. Contains the full financial summary (rental, add-ons, taxes, fees, damages, payments received, amount due). This is the primary billing record.
+- **Receipt** = A payment confirmation sent to the customer (via email). Generated automatically by `generate-return-receipt` as a notification artifact.
+
+The plan will make the Final Invoice the primary billing document and keep receipts as lightweight payment confirmations.
+
+---
 
 ## Changes
 
-### 1. Rewrite `index.html` Meta Tags
-- **Title**: "C2C Rental | Affordable Car Rental in Surrey, Langley & Abbotsford BC"
-- **Description**: "Rent quality vehicles at affordable rates in Surrey, Langley, and Abbotsford, BC. Flexible pickup, transparent pricing, and 24/7 support. Book online today."
-- **Remove** all Lovable references: `meta author`, `twitter:site @Lovable`, the TODO comment
-- **Replace OG image** URL from lovable.dev to `/c2c-og-image.png` (use existing logo or a new branded image)
-- Add `og:url`, `og:site_name`, and `og:locale` tags
-- Add geo meta tags for the primary service area
+### 1. Booking Detail - Complete Pricing Breakdown (BookingDetail.tsx)
 
-### 2. Add Structured Data (JSON-LD)
-Add a `LocalBusiness` + `AutoRental` schema script in `index.html` with:
-- Business name, description, URL
-- All 3 locations (Surrey, Langley, Abbotsford) as sub-locations
-- Service area covering the Lower Mainland
-- Price range indicator
+Update the "Pricing Breakdown" card in the Financial tab to show:
+- Daily rate and subtotal (existing)
+- All booking add-ons with individual prices (already partially done, ensure it always renders)
+- Young driver fee (existing)
+- PVRT and ACSRCH daily regulatory fees (calculated from `total_days`)
+- Protection plan cost if applicable
+- Tax breakdown (PST + GST)
+- Grand total
 
-This enables Google rich snippets (address, hours, rating stars in future).
+This uses data already fetched by `useBookingById` (which includes `addOns` array and booking fields like `young_driver_fee`).
 
-### 3. Create `public/sitemap.xml`
-A static sitemap listing all public customer-facing routes:
-- `/` , `/search`, `/locations`, `/about`, `/contact`
-- `/location/{surrey-id}`, `/location/{langley-id}`, `/location/{abbotsford-id}`
+### 2. Add "Invoices" Tab to Admin Billing Page (Billing.tsx)
 
-### 4. Update `public/robots.txt`
-- Add `Sitemap: https://c4r.ca/sitemap.xml` directive
-- Keep all Allow rules
+Add a new "Invoices" tab alongside Receipts, Payments, and Deposits:
+- Query `final_invoices` table with booking and profile data
+- Display in a searchable table: Invoice #, Customer, Booking Code, Grand Total, Amount Due, Status, Date
+- Search by invoice number, booking code, or customer name
+- Clicking "View" opens a detail dialog showing the full invoice breakdown
+- Include a "Download PDF" button that generates a professional invoice PDF
 
-### 5. Create OG Image
-- Copy the existing `public/c2c-logo.png` as the fallback OG image, or create a simple branded card
-- Update all `og:image` and `twitter:image` references to point to the project domain (`https://c4r.ca/c2c-og-image.png`)
+### 3. Invoice PDF Generation (new file: src/lib/pdf/invoice-pdf.ts)
 
-### 6. Add Page-Level SEO for Key Pages
-Update the `<title>` dynamically on key pages using `document.title` in useEffect:
-- **Search page**: "Browse Cars | C2C Rental - Surrey, Langley, Abbotsford"
-- **Locations page**: "Our Locations | C2C Rental"
-- **Individual location pages**: "Car Rental in {City} | C2C Rental"
+Create `generateInvoicePdf()` function similar to `receipt-pdf.ts` but with invoice-specific data:
+- Invoice number, issue date
+- Customer name, email
+- Vehicle name, booking code
+- Rental period
+- Full line items from `line_items_json`
+- Subtotals: Rental, Add-ons, Taxes, Late Fees, Damage Charges
+- Payments received, Amount due
+- Notes
+
+### 4. Make Final Invoice Viewable and Downloadable in Booking Detail (BookingDetail.tsx)
+
+In the Financial tab's "Final Invoice" card:
+- Add a "Download PDF" button that calls `generateInvoicePdf()`
+- Show the full line items breakdown (from `line_items_json` stored in the invoice)
+
+### 5. Remove Receipt Duplication and Clean Up
+
+- The `close-account` edge function already calls `generate-return-receipt`. This is fine -- the receipt serves as the customer email notification.
+- Remove the manual "Create Receipt" button from the Billing page since receipts are auto-generated. Keep the dialog for viewing existing receipts only.
+- Update the receipt detail dialog to pull line items from the receipt's own `line_items_json` and `totals_json` (already stored), not from re-fetching booking data.
+- Clean up unused imports and dead code.
+
+### 6. Update Stats Cards (Billing.tsx)
+
+Update the stats section to include invoice count alongside receipt count.
 
 ---
 
 ## Technical Details
 
-### Files to modify:
-| File | Change |
-|------|--------|
-| `index.html` | Rewrite all meta tags, add JSON-LD structured data, remove Lovable references |
-| `public/robots.txt` | Add Sitemap directive |
-| `public/sitemap.xml` | New file with all public routes |
-| `src/pages/Search.tsx` | Add `document.title` for page-specific SEO |
-| `src/pages/Locations.tsx` | Add `document.title` |
-| `src/pages/LocationDetail.tsx` | Add dynamic `document.title` with city name |
+### Files to Create
+- `src/lib/pdf/invoice-pdf.ts` -- Invoice PDF generator using jsPDF
 
-### JSON-LD Schema (added to index.html):
-```text
-{
-  "@context": "https://schema.org",
-  "@type": "AutoRental",
-  "name": "C2C Rental",
-  "url": "https://c4r.ca",
-  "description": "Affordable car rental...",
-  "areaServed": ["Surrey", "Langley", "Abbotsford", "Vancouver"],
-  "location": [
-    { "@type": "Place", "name": "Surrey Centre", "address": "6734 King George Blvd..." },
-    { "@type": "Place", "name": "Langley Centre", "address": "5933 200 St..." },
-    { "@type": "Place", "name": "Abbotsford Centre", "address": "32835 South Fraser Way..." }
-  ]
-}
+### Files to Modify
+- `src/pages/admin/Billing.tsx` -- Add Invoices tab, invoice detail dialog, invoice PDF download, remove "Create Receipt" button, clean up
+- `src/pages/admin/BookingDetail.tsx` -- Expand pricing breakdown with add-ons/fees, add invoice PDF download button
+- No edge function changes needed -- the existing `close-account` and `generate-return-receipt` flow is correct
+
+### Data Flow (no changes needed)
+```
+Return Closeout -> close-account edge function
+  -> Creates final_invoice record
+  -> Calls generate-return-receipt (creates receipt + sends email)
+  -> Updates booking status to completed
 ```
 
-### What this achieves:
-- Google shows a richer, branded snippet with proper title and description
-- No Lovable branding anywhere in search results or social previews
-- Local SEO signals help rank for "car rental near Surrey/Langley/Abbotsford"
-- Structured data enables future rich results (ratings, pricing, locations)
-- Sitemap ensures all pages are indexed
+### No Database Changes Required
+All needed tables (`final_invoices`, `receipts`, `booking_add_ons`) already exist with the right columns.
 
