@@ -3,7 +3,7 @@
  * Each additional driver in the 21-25 age range incurs a young driver fee
  */
 import { useState } from "react";
-import { Users, Plus, Trash2, AlertCircle } from "lucide-react";
+import { Users, Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { YOUNG_DRIVER_FEE, DriverAgeBand } from "@/lib/pricing";
+import { DriverAgeBand } from "@/lib/pricing";
 
 export interface AdditionalDriver {
   id: string;
@@ -59,12 +59,10 @@ export function AdditionalDriversCard({
     );
   };
 
-  // Calculate total additional driver fees
-  const youngDriverCount = drivers.filter((d) => d.ageBand === "20_24").length;
-  const totalYoungDriverFees = youngDriverCount * YOUNG_DRIVER_FEE * rentalDays;
+  // Calculate total additional driver fees (base fee only, no young driver surcharge)
   const baseDriverFee = 15.99; // Per day per additional driver
   const totalBaseFees = drivers.length * baseDriverFee * rentalDays;
-  const totalFees = totalBaseFees + totalYoungDriverFees;
+  const totalFees = totalBaseFees;
 
   return (
     <Card className={cn("p-4 transition-all", className)}>
@@ -150,23 +148,11 @@ export function AdditionalDriversCard({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="25_70">25-70 years</SelectItem>
-                      <SelectItem value="20_24">
-                        20-24 years (+${YOUNG_DRIVER_FEE} CAD/day fee)
-                      </SelectItem>
+                      <SelectItem value="20_24">20-24 years</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-
-              {driver.ageBand === "20_24" && (
-                <div className="flex items-start gap-2 p-2 bg-amber-500/10 rounded-md">
-                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-xs text-amber-700">
-                    A ${YOUNG_DRIVER_FEE} CAD/day young driver fee applies for drivers
-                    aged 20-24 ({rentalDays} day{rentalDays > 1 ? "s" : ""} = ${(YOUNG_DRIVER_FEE * rentalDays).toFixed(2)} CAD).
-                  </p>
-                </div>
-              )}
             </div>
           ))}
 
@@ -180,23 +166,6 @@ export function AdditionalDriversCard({
             Add Another Driver
           </Button>
 
-          {youngDriverCount > 0 && (
-            <div className="pt-2 border-t border-border">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  Base ({drivers.length} × ${baseDriverFee}/day × {rentalDays}{" "}
-                  days)
-                </span>
-                <span>${totalBaseFees.toFixed(2)} CAD</span>
-              </div>
-              <div className="flex justify-between text-sm text-amber-600">
-                <span>
-                  Young driver fees ({youngDriverCount} × ${YOUNG_DRIVER_FEE}/day × {rentalDays} days)
-                </span>
-                <span>${totalYoungDriverFees.toFixed(2)} CAD</span>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </Card>
@@ -211,12 +180,10 @@ export function calculateAdditionalDriversCost(
   rentalDays: number
 ): { baseFees: number; youngDriverFees: number; total: number } {
   const baseDriverFee = 15.99;
-  const youngDriverCount = drivers.filter((d) => d.ageBand === "20_24").length;
   const baseFees = drivers.length * baseDriverFee * rentalDays;
-  const youngDriverFees = youngDriverCount * YOUNG_DRIVER_FEE * rentalDays;
   return {
     baseFees,
-    youngDriverFees,
-    total: baseFees + youngDriverFees,
+    youngDriverFees: 0,
+    total: baseFees,
   };
 }
