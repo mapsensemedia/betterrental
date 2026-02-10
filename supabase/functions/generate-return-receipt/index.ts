@@ -110,12 +110,13 @@ serve(async (req) => {
       total: Number(booking.subtotal),
     });
 
-    // Young driver fee
+    // Young driver fee (daily)
     if (booking.young_driver_fee && Number(booking.young_driver_fee) > 0) {
+      const youngFeePerDay = Number(booking.young_driver_fee) / booking.total_days;
       lineItems.push({
-        description: "Young Driver Fee",
-        quantity: 1,
-        unitPrice: Number(booking.young_driver_fee),
+        description: `Young Driver Fee (${booking.total_days} days @ $${youngFeePerDay.toFixed(2)}/day)`,
+        quantity: booking.total_days,
+        unitPrice: youngFeePerDay,
         total: Number(booking.young_driver_fee),
       });
     }

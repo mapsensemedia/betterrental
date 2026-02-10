@@ -653,7 +653,7 @@ export default function BookingDetail() {
                   </div>
                   {booking.young_driver_fee && Number(booking.young_driver_fee) > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Young driver fee</span>
+                      <span className="text-muted-foreground">Young driver fee ($15/day × {booking.total_days} days)</span>
                       <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
                     </div>
                   )}
