@@ -339,7 +339,7 @@ Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_
 Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}
 Protection: ${protectionPkg.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
 Add-ons: $${addOnsTotal.toFixed(2)}
-${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)}` : ''}
+${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}
 PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)} | GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
 TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
 

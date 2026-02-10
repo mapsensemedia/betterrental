@@ -205,7 +205,7 @@ export function TripContextPrompt({
                   <RadioGroupItem value="20-24" id="age-20-24" />
                   <Label htmlFor="age-20-24" className="flex-1 cursor-pointer">
                     <span className="font-medium">20-24 years old</span>
-                    <p className="text-sm text-muted-foreground">Young driver fee applies (CAD $20)</p>
+                    <p className="text-sm text-muted-foreground">Young driver fee applies ($15 CAD/day)</p>
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3 p-4 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">

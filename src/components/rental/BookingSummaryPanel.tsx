@@ -375,7 +375,7 @@ export function BookingSummaryPanel({
               {pricing.youngDriverFee > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground flex items-center">
-                    Young driver fee (primary)
+                    Young driver fee (${YOUNG_DRIVER_FEE}/day × {rentalDays} days)
                     <PriceTooltip content={PRICE_TOOLTIPS.youngDriverFee} />
                   </span>
                   <span>${pricing.youngDriverFee.toFixed(2)} CAD</span>
