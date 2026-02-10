@@ -19,6 +19,8 @@ export interface ActiveRentalDetail {
   userId: string;
   vehicleId: string;
   locationId: string;
+  returnLocationId: string | null;
+  differentDropoffFee: number;
   // Calculated fields
   activatedAt: string; // Using start_at as activation time for active rentals
   isOverdue: boolean;
@@ -40,6 +42,12 @@ export interface ActiveRentalDetail {
     city: string;
     address: string;
     phone: string | null;
+  } | null;
+  returnLocation: {
+    id: string;
+    name: string;
+    city: string;
+    address: string;
   } | null;
   customer: {
     id: string;
@@ -87,7 +95,8 @@ export function useActiveRentalDetail(bookingId: string | null) {
         .from("bookings")
         .select(`
           *,
-          locations!location_id (id, name, city, address, phone)
+          locations!location_id (id, name, city, address, phone),
+          return_locations:locations!return_location_id (id, name, city, address)
         `)
         .eq("id", bookingId)
         .eq("status", "active")
@@ -188,6 +197,8 @@ export function useActiveRentalDetail(bookingId: string | null) {
         userId: booking.user_id,
         vehicleId: booking.vehicle_id,
         locationId: booking.location_id,
+        returnLocationId: booking.return_location_id,
+        differentDropoffFee: Number(booking.different_dropoff_fee || 0),
         activatedAt: booking.start_at, // For active rentals, start_at is activation time
         isOverdue,
         overdueHours,
@@ -210,6 +221,14 @@ export function useActiveRentalDetail(bookingId: string | null) {
               city: booking.locations.city,
               address: booking.locations.address,
               phone: booking.locations.phone,
+            }
+          : null,
+        returnLocation: booking.return_locations
+          ? {
+              id: booking.return_locations.id,
+              name: booking.return_locations.name,
+              city: booking.return_locations.city,
+              address: booking.return_locations.address,
             }
           : null,
         customer: profile

@@ -437,6 +437,16 @@ export default function BookingDetail() {
                         <p className="text-muted-foreground">{booking.pickup_address}</p>
                       </div>
                     )}
+                    {/* Drop-off Location */}
+                    {booking.return_location_id && booking.return_location_id !== booking.location_id && (
+                      <div className="mt-3 pt-3 border-t">
+                        <p className="text-xs text-muted-foreground mb-1">Drop-off Location</p>
+                        <p className="font-medium">{(booking as any).return_locations?.name || "Different location"}</p>
+                        {(booking as any).return_locations?.address && (
+                          <p className="text-muted-foreground text-sm">{(booking as any).return_locations.address}</p>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -824,6 +834,14 @@ export default function BookingDetail() {
                       </div>
                     </div>
 
+                    {/* Different Drop-off Fee */}
+                    {booking.different_dropoff_fee && Number(booking.different_dropoff_fee) > 0 && (
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="text-muted-foreground">Different Drop-off Fee:</span>
+                        <span>${Number(booking.different_dropoff_fee).toFixed(2)}</span>
+                      </div>
+                    )}
+
                     {/* Late Return Fee */}
                     {booking.late_return_fee && Number(booking.late_return_fee) > 0 && (
                       <div className="flex justify-between text-sm items-center">
@@ -1049,6 +1067,7 @@ export default function BookingDetail() {
                                 depositHeld: Number(invoice.deposit_held || 0),
                                 depositReleased: Number(invoice.deposit_released || 0),
                                 depositCaptured: Number(invoice.deposit_captured || 0),
+                                differentDropoffFee: Number(booking.different_dropoff_fee || 0),
                                 notes: invoice.notes,
                               });
                             }}

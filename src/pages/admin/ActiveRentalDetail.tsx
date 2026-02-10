@@ -427,6 +427,20 @@ export default function ActiveRentalDetail() {
                 </div>
               )}
 
+              {/* Drop-off Location */}
+              {rental.returnLocation && rental.returnLocation.id !== rental.locationId && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Drop-off Location</p>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">{rental.returnLocation.name}</p>
+                      <p className="text-sm text-muted-foreground">{rental.returnLocation.address}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Notes */}
               {rental.notes && (
                 <div>

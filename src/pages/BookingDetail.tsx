@@ -1144,6 +1144,7 @@ export default function BookingDetail() {
                       tax: totals?.tax || 0,
                       total: totals?.total || 0,
                       depositAmount: booking?.deposit_amount ? Number(booking.deposit_amount) : null,
+                      differentDropoffFee: Number((booking as any)?.different_dropoff_fee || 0),
                       notes: selectedReceipt.notes,
                     });
                   }}

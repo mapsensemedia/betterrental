@@ -144,11 +144,27 @@ export function ReturnBookingSummary({ booking, isException }: ReturnBookingSumm
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            <p className="font-medium">{booking.locations?.name || "Unknown"}</p>
-            {booking.locations?.address && (
-              <p className="text-muted-foreground text-xs mt-1">
-                {booking.locations.address}
-              </p>
+            {booking.return_locations && booking.return_location_id !== booking.location_id ? (
+              <>
+                <p className="font-medium">{booking.return_locations.name}</p>
+                {booking.return_locations.address && (
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {booking.return_locations.address}
+                  </p>
+                )}
+                <Badge variant="outline" className="mt-2 text-xs">
+                  Different from pickup
+                </Badge>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">{booking.locations?.name || "Unknown"}</p>
+                {booking.locations?.address && (
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {booking.locations.address}
+                  </p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -167,6 +183,12 @@ export function ReturnBookingSummary({ booking, isException }: ReturnBookingSumm
             <span className="text-muted-foreground">Total</span>
             <span>${Number(booking.total_amount).toFixed(2)}</span>
           </div>
+          {booking.different_dropoff_fee && Number(booking.different_dropoff_fee) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Drop-off Fee</span>
+              <span>${Number(booking.different_dropoff_fee).toFixed(2)}</span>
+            </div>
+          )}
           {booking.deposit_amount && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Deposit Held</span>
