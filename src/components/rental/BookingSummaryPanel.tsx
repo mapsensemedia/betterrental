@@ -120,6 +120,8 @@ export function BookingSummaryPanel({
       differentDropoffFee: breakdown.differentDropoffFee,
       youngDriverFee: breakdown.youngDriverFee,
       dailyFeesTotal: breakdown.dailyFeesTotal,
+      pvrtTotal: breakdown.pvrtTotal,
+      acsrchTotal: breakdown.acsrchTotal,
       subtotal: breakdown.subtotal, 
       pstAmount: breakdown.pstAmount,
       gstAmount: breakdown.gstAmount,
@@ -403,13 +405,22 @@ export function BookingSummaryPanel({
                 </div>
               )}
               
-              {pricing.dailyFeesTotal > 0 && (
+              {pricing.pvrtTotal > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground flex items-center">
-                    Daily fees (PVRT + ACSRCH)
-                    <PriceTooltip content={PRICE_TOOLTIPS.dailyFees} />
+                    PVRT
+                    <PriceTooltip content={PRICE_TOOLTIPS.pvrt} />
                   </span>
-                  <span>${pricing.dailyFeesTotal.toFixed(2)} CAD</span>
+                  <span>${pricing.pvrtTotal.toFixed(2)} CAD</span>
+                </div>
+              )}
+              {pricing.acsrchTotal > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center">
+                    ACSRCH
+                    <PriceTooltip content={PRICE_TOOLTIPS.acsrch} />
+                  </span>
+                  <span>${pricing.acsrchTotal.toFixed(2)} CAD</span>
                 </div>
               )}
               
