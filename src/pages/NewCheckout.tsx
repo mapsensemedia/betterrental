@@ -372,7 +372,7 @@ export default function NewCheckout() {
             booking_id: booking!.id,
             driver_name: driver.name || null,
             driver_age_band: driver.ageBand,
-            young_driver_fee: driver.ageBand === "20_24" ? YOUNG_DRIVER_FEE * rentalDays : 0,
+            young_driver_fee: 0,
           }));
 
           await supabase.from("booking_additional_drivers").insert(driverInserts);
@@ -392,7 +392,7 @@ export default function NewCheckout() {
         const additionalDriversData = (searchData.additionalDrivers || []).map((driver) => ({
           driverName: driver.name || null,
           driverAgeBand: driver.ageBand,
-          youngDriverFee: driver.ageBand === "20_24" ? YOUNG_DRIVER_FEE * rentalDays : 0,
+          youngDriverFee: 0,
         }));
 
         let guestResponse;
