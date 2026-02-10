@@ -43,8 +43,10 @@ import {
   Bell,
   CheckCircle,
   XCircle,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
+import { generateReceiptPdf } from "@/lib/pdf/receipt-pdf";
 import { useBookingReceipts } from "@/hooks/use-receipts";
 import { 
   useCustomerTicketsV2, 
@@ -1032,7 +1034,7 @@ export default function BookingDetail() {
 
       {/* Receipt Detail Dialog */}
       <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
@@ -1051,10 +1053,46 @@ export default function BookingDetail() {
 
               <Separator />
 
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Customer</p>
+                  <p className="font-medium">{user?.user_metadata?.full_name || user?.email || "N/A"}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Booking</p>
+                  <Badge variant="outline" className="font-mono">{booking?.booking_code}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Vehicle</p>
+                  <p className="font-medium">{booking?.vehicles ? `${booking.vehicles.make} ${booking.vehicles.model}` : "N/A"}</p>
+                </div>
+              </div>
+
+              {booking?.start_at && (
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Pickup: </span>
+                    <span className="font-medium">{format(new Date(booking.start_at), "MMM d, yyyy")}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Return: </span>
+                    <span className="font-medium">{format(new Date(booking.end_at), "MMM d, yyyy")}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Duration: </span>
+                    <span className="font-medium">{booking.total_days} day{booking.total_days !== 1 ? "s" : ""}</span>
+                  </div>
+                </div>
+              )}
+
+              <Separator />
+
+              {/* Line Items */}
               <div className="space-y-2">
                 {(selectedReceipt.line_items_json as any[])?.map((item: any, i: number) => (
                   <div key={i} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{item.description}</span>
+                    <span className="text-muted-foreground">{item.description} {item.quantity > 1 ? `×${item.quantity}` : ""}</span>
                     <span>${Number(item.total).toFixed(2)}</span>
                   </div>
                 ))}
@@ -1082,6 +1120,38 @@ export default function BookingDetail() {
                   <p className="text-sm">{selectedReceipt.notes}</p>
                 </div>
               )}
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const totals = selectedReceipt.totals_json as any;
+                    generateReceiptPdf({
+                      receiptNumber: selectedReceipt.receipt_number,
+                      status: "issued",
+                      issuedAt: selectedReceipt.issued_at,
+                      createdAt: selectedReceipt.created_at,
+                      customerName: user?.user_metadata?.full_name || user?.email || "N/A",
+                      customerEmail: user?.email || "",
+                      bookingCode: booking?.booking_code || "",
+                      vehicleName: booking?.vehicles ? `${booking.vehicles.make} ${booking.vehicles.model}` : "N/A",
+                      startDate: booking?.start_at || "",
+                      endDate: booking?.end_at || "",
+                      totalDays: booking?.total_days || 0,
+                      dailyRate: Number(booking?.daily_rate) || 0,
+                      lineItems: (selectedReceipt.line_items_json as any[]) || [],
+                      subtotal: totals?.subtotal || 0,
+                      tax: totals?.tax || 0,
+                      total: totals?.total || 0,
+                      depositAmount: booking?.deposit_amount ? Number(booking.deposit_amount) : null,
+                      notes: selectedReceipt.notes,
+                    });
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download PDF
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
