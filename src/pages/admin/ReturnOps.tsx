@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
+import { useCloseAccount } from "@/hooks/use-deposit-hold";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,6 +48,7 @@ export default function ReturnOps() {
   
   const completeStep = useCompleteReturnStep();
   const initiateReturn = useInitiateReturn();
+  const closeAccount = useCloseAccount();
   
   const [activeStep, setActiveStep] = useState<ReturnStepId>("intake");
   const [totalDamageCost, setTotalDamageCost] = useState(0);
@@ -240,6 +242,14 @@ export default function ReturnOps() {
       stepId: "closeout",
       currentState: returnState,
     });
+    
+    // Generate final invoice and receipt via close-account
+    try {
+      await closeAccount.mutateAsync({ bookingId });
+    } catch (err) {
+      console.error("Close account failed (invoice may not have been generated):", err);
+      toast.error("Return completed but invoice generation failed. You can retry from the deposit step.");
+    }
     
     queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
     queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
