@@ -10,6 +10,14 @@ import { useBookingById } from "@/hooks/use-bookings";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
+import {
+  PVRT_DAILY_FEE,
+  ACSRCH_DAILY_FEE,
+  PST_RATE,
+  GST_RATE,
+  PROTECTION_RATES,
+} from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +51,7 @@ import {
   AlertTriangle,
   Clock,
   Gauge,
+  Download,
   Fuel,
   DollarSign,
   CheckCircle2,
@@ -733,6 +742,7 @@ export default function BookingDetail() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    {/* Base rental */}
                     <div className="flex justify-between text-sm items-center">
                       <span className="text-muted-foreground flex items-center">
                         Daily Rate:
@@ -742,26 +752,30 @@ export default function BookingDetail() {
                     </div>
                     <div className="flex justify-between text-sm items-center">
                       <span className="text-muted-foreground flex items-center">
-                        Subtotal ({booking.total_days} days):
+                        Rental Subtotal ({booking.total_days} days):
                         <PriceTooltip content={PRICE_TOOLTIPS.subtotal} />
                       </span>
                       <span>${Number(booking.subtotal).toFixed(2)}</span>
                     </div>
 
-                    {/* Protection plan */}
-                    <div className="flex justify-between text-sm items-center">
-                      <span className="text-muted-foreground flex items-center">
-                        Protection:
-                        <PriceTooltip content={booking.protection_plan && booking.protection_plan !== "none" 
-                          ? PRICE_TOOLTIPS.protection(booking.protection_plan) 
-                          : PRICE_TOOLTIPS.protectionNone} />
-                      </span>
-                      <span className="capitalize">
-                        {booking.protection_plan && booking.protection_plan !== "none" 
-                          ? booking.protection_plan 
-                          : "None"}
-                      </span>
-                    </div>
+                    {/* Protection plan with cost */}
+                    {(() => {
+                      const plan = booking.protection_plan && booking.protection_plan !== "none"
+                        ? PROTECTION_RATES[booking.protection_plan]
+                        : null;
+                      const protectionTotal = plan ? plan.rate * booking.total_days : 0;
+                      return (
+                        <div className="flex justify-between text-sm items-center">
+                          <span className="text-muted-foreground flex items-center">
+                            Protection ({plan?.name || "None"}):
+                            <PriceTooltip content={booking.protection_plan && booking.protection_plan !== "none" 
+                              ? PRICE_TOOLTIPS.protection(booking.protection_plan) 
+                              : PRICE_TOOLTIPS.protectionNone} />
+                          </span>
+                          <span>{protectionTotal > 0 ? `$${protectionTotal.toFixed(2)}` : "—"}</span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Add-ons list */}
                     {(booking as any).addOns && (booking as any).addOns.length > 0 && (
@@ -783,16 +797,8 @@ export default function BookingDetail() {
                       </div>
                     )}
 
-                    {booking.tax_amount && (
-                      <div className="flex justify-between text-sm items-center">
-                        <span className="text-muted-foreground flex items-center">
-                          Tax:
-                          <PriceTooltip content={PRICE_TOOLTIPS.totalTax} />
-                        </span>
-                        <span>${Number(booking.tax_amount).toFixed(2)}</span>
-                      </div>
-                    )}
-                    {booking.young_driver_fee && (
+                    {/* Young Driver Fee */}
+                    {booking.young_driver_fee && Number(booking.young_driver_fee) > 0 && (
                       <div className="flex justify-between text-sm items-center">
                         <span className="text-muted-foreground flex items-center">
                           Young Driver Fee:
@@ -801,10 +807,58 @@ export default function BookingDetail() {
                         <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
                       </div>
                     )}
+
+                    {/* Regulatory Fees */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="text-muted-foreground">
+                          PVRT (${PVRT_DAILY_FEE.toFixed(2)}/day × {booking.total_days}):
+                        </span>
+                        <span>${(PVRT_DAILY_FEE * booking.total_days).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="text-muted-foreground">
+                          ACSRCH (${ACSRCH_DAILY_FEE.toFixed(2)}/day × {booking.total_days}):
+                        </span>
+                        <span>${(ACSRCH_DAILY_FEE * booking.total_days).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    {/* Late Return Fee */}
+                    {booking.late_return_fee && Number(booking.late_return_fee) > 0 && (
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="text-muted-foreground">Late Return Fee:</span>
+                        <span>${Number(booking.late_return_fee).toFixed(2)}</span>
+                      </div>
+                    )}
+
                     <Separator />
-                    <div className="flex justify-between font-medium">
-                      <span>Total:</span>
-                      <span>${Number(booking.total_amount).toFixed(2)}</span>
+
+                    {/* Tax breakdown */}
+                    {booking.tax_amount && Number(booking.tax_amount) > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm items-center">
+                          <span className="text-muted-foreground">PST ({(PST_RATE * 100).toFixed(0)}%):</span>
+                          <span>${(Number(booking.subtotal) * PST_RATE).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm items-center">
+                          <span className="text-muted-foreground">GST ({(GST_RATE * 100).toFixed(0)}%):</span>
+                          <span>${(Number(booking.subtotal) * GST_RATE).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm items-center">
+                          <span className="text-muted-foreground flex items-center">
+                            Total Tax:
+                            <PriceTooltip content={PRICE_TOOLTIPS.totalTax} />
+                          </span>
+                          <span>${Number(booking.tax_amount).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <Separator />
+                    <div className="flex justify-between font-semibold text-base">
+                      <span>Grand Total:</span>
+                      <span>${Number(booking.total_amount).toFixed(2)} CAD</span>
                     </div>
                     
                     {/* Card on File */}
@@ -960,6 +1014,48 @@ export default function BookingDetail() {
                               </div>
                             )}
                           </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-2"
+                            onClick={() => {
+                              const lineItems = Array.isArray(invoice.line_items_json)
+                                ? invoice.line_items_json.map((item: any) => ({
+                                    description: item.description || item.label || "Item",
+                                    amount: Number(item.amount || item.total || 0),
+                                  }))
+                                : [];
+                              generateInvoicePdf({
+                                invoiceNumber: invoice.invoice_number,
+                                status: invoice.status || "draft",
+                                issuedAt: invoice.issued_at,
+                                customerName: booking.profiles?.full_name || "N/A",
+                                customerEmail: booking.profiles?.email || "",
+                                bookingCode: booking.booking_code,
+                                vehicleName: vehicleName,
+                                startDate: booking.start_at,
+                                endDate: booking.end_at,
+                                totalDays: booking.total_days,
+                                lineItems,
+                                rentalSubtotal: Number(invoice.rental_subtotal),
+                                addonsTotal: Number(invoice.addons_total || 0),
+                                feesTotal: Number(invoice.fees_total || 0),
+                                taxesTotal: Number(invoice.taxes_total),
+                                lateFees: Number(invoice.late_fees || 0),
+                                damageCharges: Number(invoice.damage_charges || 0),
+                                grandTotal: Number(invoice.grand_total),
+                                paymentsReceived: Number(invoice.payments_received || 0),
+                                amountDue: Number(invoice.amount_due || 0),
+                                depositHeld: Number(invoice.deposit_held || 0),
+                                depositReleased: Number(invoice.deposit_released || 0),
+                                depositCaptured: Number(invoice.deposit_captured || 0),
+                                notes: invoice.notes,
+                              });
+                            }}
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Invoice PDF
+                          </Button>
                         </div>
                       ))
                     ) : (
