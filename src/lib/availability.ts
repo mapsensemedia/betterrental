@@ -237,37 +237,3 @@ export async function isVehicleAvailable(
   return true;
 }
 
-/**
- * Get all vehicles for a location (without availability check)
- */
-export async function getVehiclesByLocation(
-  locationId: string
-): Promise<AvailableVehicle[]> {
-  const { data: vehicles, error } = await supabase
-    .from("vehicles")
-    .select("*")
-    .or(`location_id.eq.${locationId},location_id.is.null`)
-    .eq("is_available", true);
-
-  if (error) {
-    console.error("Error fetching vehicles:", error);
-    return [];
-  }
-
-  return (vehicles || []).map((v) => ({
-    id: v.id,
-    make: v.make,
-    model: v.model,
-    year: v.year,
-    category: v.category,
-    dailyRate: Number(v.daily_rate),
-    imageUrl: v.image_url,
-    seats: v.seats,
-    fuelType: v.fuel_type,
-    transmission: v.transmission,
-    isFeatured: v.is_featured,
-    featuresJson: v.features_json,
-    specsJson: v.specs_json,
-    cleaningBufferHours: v.cleaning_buffer_hours,
-  }));
-}

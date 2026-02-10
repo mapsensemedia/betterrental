@@ -6,7 +6,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   getAvailableVehicles,
-  getVehiclesByLocation,
   isVehicleAvailable,
   type AvailabilityQuery,
   type AvailableVehicle,
@@ -19,16 +18,6 @@ export function useAvailableVehicles(query: AvailabilityQuery | null) {
     queryFn: () => (query ? getAvailableVehicles(query) : Promise.resolve([])),
     enabled: !!query,
     staleTime: QUERY_STALE_TIMES.availability,
-  });
-}
-
-export function useVehiclesByLocation(locationId: string | null) {
-  return useQuery<AvailableVehicle[]>({
-    queryKey: ["location-vehicles", locationId],
-    queryFn: () =>
-      locationId ? getVehiclesByLocation(locationId) : Promise.resolve([]),
-    enabled: !!locationId,
-    staleTime: QUERY_STALE_TIMES.categories, // Locations don't change often
   });
 }
 

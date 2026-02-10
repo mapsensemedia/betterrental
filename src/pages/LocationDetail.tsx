@@ -4,11 +4,11 @@ import { MapPin, Clock, ArrowLeft, Navigation, Car } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { SectionHeader } from "@/components/landing/SectionHeader";
-import { VehicleCard } from "@/components/landing/VehicleCard";
+import { CategoryCard } from "@/components/landing/CategoryCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "@/hooks/use-locations";
-import { useVehiclesByLocation } from "@/hooks/use-availability";
+import { useBrowseCategories } from "@/hooks/use-browse-categories";
 import { LocationsMap } from "@/components/shared/LocationsMap";
 
 // Specific Google Maps links for each location
@@ -21,7 +21,7 @@ const LOCATION_MAPS_LINKS: Record<string, string> = {
 export default function LocationDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: location, isLoading: locationLoading } = useLocation(id || null);
-  const { data: vehicles = [], isLoading: vehiclesLoading } = useVehiclesByLocation(id || null);
+  const { data: categories = [], isLoading: categoriesLoading } = useBrowseCategories();
 
   useEffect(() => {
     if (location) {
@@ -159,11 +159,11 @@ export default function LocationDetail() {
           </div>
         </div>
 
-        {/* Available Vehicles */}
+        {/* Available Cars */}
         <SectionHeader
-          title="Available Vehicles"
+          title="Available Cars"
           action={
-            vehicles.length > 0 ? (
+            categories.length > 0 ? (
               <Button variant="outline" asChild>
                 <Link to={`/search?locationId=${id}`}>View All</Link>
               </Button>
@@ -172,7 +172,7 @@ export default function LocationDetail() {
           className="mb-6"
         />
 
-        {vehiclesLoading ? (
+        {categoriesLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="rounded-2xl border border-border overflow-hidden">
@@ -184,27 +184,20 @@ export default function LocationDetail() {
               </div>
             ))}
           </div>
-        ) : vehicles.length === 0 ? (
+        ) : categories.length === 0 ? (
           <div className="text-center py-12 bg-card rounded-2xl border border-border">
             <Car className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No vehicles available at this location.</p>
+            <p className="text-muted-foreground">No cars available at this location right now.</p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {vehicles.slice(0, 8).map((vehicle) => (
-              <VehicleCard
-                key={vehicle.id}
-                id={vehicle.id}
-                make={vehicle.make}
-                model={vehicle.model}
-                year={vehicle.year}
-                category={vehicle.category}
-                dailyRate={vehicle.dailyRate}
-                imageUrl={vehicle.imageUrl || ""}
-                seats={vehicle.seats || 5}
-                fuelType={vehicle.fuelType}
-                transmission={vehicle.transmission}
-                isFeatured={vehicle.isFeatured || false}
+            {categories.slice(0, 8).map((category) => (
+              <CategoryCard
+                key={category.id}
+                name={category.name}
+                slug={category.id}
+                imageUrl={category.imageUrl || undefined}
+                vehicleCount={category.availableCount}
               />
             ))}
           </div>
