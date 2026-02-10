@@ -14,7 +14,7 @@ interface LocationsSectionProps {
 const LOCATION_MAPS_LINKS: Record<string, string> = {
   "Abbotsford Centre": "https://maps.app.goo.gl/LC1Ua6q2XxcMw2TA9",
   "Langley Centre": "https://maps.app.goo.gl/ToULonCLvQ8Me9Yi7",
-  "Surrey Centre": "https://maps.app.goo.gl/LhWcpkRffqz335hH8",
+  "Surrey Newton": "https://maps.app.goo.gl/LhWcpkRffqz335hH8",
 };
 
 function formatHours(hoursJson: Record<string, string> | null): string {
