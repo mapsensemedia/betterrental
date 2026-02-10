@@ -224,23 +224,37 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
         {/* Driver Age */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Driver's Age
+            Driver's Age <span className="text-destructive">*</span>
           </label>
-          <Select value={ageRange} onValueChange={handleAgeChange}>
-            <SelectTrigger className={cn(
-              "h-12 rounded-xl border-border bg-background",
-              showAgeError && "border-destructive ring-1 ring-destructive"
-            )}>
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-muted-foreground" />
-                <SelectValue placeholder="Select age range" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="20-24">20–24 years</SelectItem>
-              <SelectItem value="25-70">25–70 years</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleAgeChange("25-70")}
+              className={cn(
+                "h-12 rounded-xl border-2 transition-all text-sm font-medium flex items-center justify-center gap-1.5",
+                ageRange === "25-70"
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/50",
+                showAgeError && !ageRange && "border-destructive ring-1 ring-destructive"
+              )}
+            >
+              25–70 yrs
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAgeChange("20-24")}
+              className={cn(
+                "h-12 rounded-xl border-2 transition-all text-sm font-medium flex flex-col items-center justify-center",
+                ageRange === "20-24"
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/50",
+                showAgeError && !ageRange && "border-destructive ring-1 ring-destructive"
+              )}
+            >
+              <span>20–24 yrs</span>
+              <span className="text-[10px] text-amber-600 leading-tight">Young driver fee</span>
+            </button>
+          </div>
           {showAgeError && (
             <p className="text-xs text-destructive">Please select your age range</p>
           )}
