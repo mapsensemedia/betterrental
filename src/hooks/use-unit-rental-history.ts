@@ -29,27 +29,41 @@ export function useUnitRentalHistory(unitId: string | null) {
         .from("bookings")
         .select(`
           id, booking_code, status, start_at, end_at, actual_return_at,
-          total_days, daily_rate, total_amount,
-          profiles:user_id(full_name, email)
+          total_days, daily_rate, total_amount, user_id
         `)
         .eq("assigned_unit_id", unitId)
         .order("start_at", { ascending: false });
 
       if (error) throw error;
+      if (!data || data.length === 0) return [];
 
-      return (data || []).map((b: any) => ({
-        id: b.id,
-        booking_code: b.booking_code,
-        status: b.status,
-        start_at: b.start_at,
-        end_at: b.end_at,
-        actual_return_at: b.actual_return_at,
-        total_days: b.total_days,
-        daily_rate: b.daily_rate,
-        total_amount: b.total_amount,
-        customer_name: b.profiles?.full_name || "Unknown",
-        customer_email: b.profiles?.email || "",
-      })) as UnitBookingRecord[];
+      // Fetch customer profiles separately (no FK between bookings and profiles)
+      const userIds = [...new Set(data.map((b) => b.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      const profileMap = new Map(
+        (profiles || []).map((p: any) => [p.id, p])
+      );
+
+      return data.map((b: any) => {
+        const profile = profileMap.get(b.user_id);
+        return {
+          id: b.id,
+          booking_code: b.booking_code,
+          status: b.status,
+          start_at: b.start_at,
+          end_at: b.end_at,
+          actual_return_at: b.actual_return_at,
+          total_days: b.total_days,
+          daily_rate: b.daily_rate,
+          total_amount: b.total_amount,
+          customer_name: profile?.full_name || "Unknown",
+          customer_email: profile?.email || "",
+        };
+      }) as UnitBookingRecord[];
     },
     enabled: !!unitId,
   });
