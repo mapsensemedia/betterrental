@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
+import { generateReceiptPdf } from "@/lib/pdf/receipt-pdf";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,14 +86,17 @@ interface ReceiptData {
   booking?: {
     booking_code: string;
     total_amount: number;
+    daily_rate: number;
+    total_days: number;
+    start_at: string;
+    end_at: string;
+    deposit_amount: number | null;
     profile?: {
       full_name: string | null;
       email: string | null;
     };
-    vehicle?: {
-      make: string;
-      model: string;
-    };
+    vehicleName?: string;
+    addOns?: { name: string; price: number }[];
   };
 }
 
@@ -151,6 +155,11 @@ export default function AdminBilling() {
           booking:bookings(
             booking_code,
             total_amount,
+            daily_rate,
+            total_days,
+            start_at,
+            end_at,
+            deposit_amount,
             user_id,
             vehicle_id
           )
@@ -181,20 +190,43 @@ export default function AdminBilling() {
         .in("id", categoryIds);
       
       const categoryMap = new Map(categories?.map(c => [c.id, c]) || []);
+
+      // Fetch add-ons for all bookings
+      const bookingIds = data.map(r => r.booking_id).filter(Boolean);
+      const { data: bookingAddOns } = bookingIds.length > 0
+        ? await supabase
+            .from("booking_add_ons")
+            .select("booking_id, price, add_on:add_ons(name)")
+            .in("booking_id", bookingIds)
+        : { data: [] };
+
+      const addOnsMap = new Map<string, { name: string; price: number }[]>();
+      (bookingAddOns || []).forEach((ba: any) => {
+        const list = addOnsMap.get(ba.booking_id) || [];
+        list.push({ name: ba.add_on?.name || "Add-on", price: ba.price });
+        addOnsMap.set(ba.booking_id, list);
+      });
       
-      return data.map(receipt => ({
-        ...receipt,
-        totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number },
-        line_items_json: receipt.line_items_json as any[],
-        booking: receipt.booking ? {
-          booking_code: (receipt.booking as any).booking_code,
-          total_amount: (receipt.booking as any).total_amount,
-          profile: profileMap.get((receipt.booking as any).user_id) || null,
-          vehicle: categoryMap.get((receipt.booking as any).vehicle_id)
-            ? { make: categoryMap.get((receipt.booking as any).vehicle_id)!.name, model: "" }
-            : null,
-        } : null,
-      })) as ReceiptData[];
+      return data.map(receipt => {
+        const b = receipt.booking as any;
+        return {
+          ...receipt,
+          totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number },
+          line_items_json: receipt.line_items_json as any[],
+          booking: b ? {
+            booking_code: b.booking_code,
+            total_amount: b.total_amount,
+            daily_rate: b.daily_rate,
+            total_days: b.total_days,
+            start_at: b.start_at,
+            end_at: b.end_at,
+            deposit_amount: b.deposit_amount,
+            profile: profileMap.get(b.user_id) || null,
+            vehicleName: categoryMap.get(b.vehicle_id)?.name || null,
+            addOns: addOnsMap.get(receipt.booking_id) || [],
+          } : null,
+        };
+      }) as ReceiptData[];
     },
   });
 
@@ -764,7 +796,7 @@ export default function AdminBilling() {
 
         {/* Receipt Detail Dialog */}
         <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Receipt className="w-5 h-5" />
@@ -783,11 +815,11 @@ export default function AdminBilling() {
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Customer</p>
-                    <p className="font-medium">{selectedReceipt.booking?.profile?.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{selectedReceipt.booking?.profile?.email}</p>
+                    <p className="font-medium">{selectedReceipt.booking?.profile?.full_name || "N/A"}</p>
+                    <p className="text-xs text-muted-foreground">{selectedReceipt.booking?.profile?.email}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Booking</p>
@@ -795,8 +827,62 @@ export default function AdminBilling() {
                       {selectedReceipt.booking?.booking_code}
                     </Badge>
                   </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Vehicle</p>
+                    <p className="font-medium">{selectedReceipt.booking?.vehicleName || "N/A"}</p>
+                  </div>
                 </div>
 
+                {/* Rental Period */}
+                {selectedReceipt.booking?.start_at && (
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Pickup: </span>
+                      <span className="font-medium">{format(new Date(selectedReceipt.booking.start_at), "MMM d, yyyy")}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Return: </span>
+                      <span className="font-medium">{format(new Date(selectedReceipt.booking.end_at), "MMM d, yyyy")}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Duration: </span>
+                      <span className="font-medium">{selectedReceipt.booking.total_days} day{selectedReceipt.booking.total_days !== 1 ? "s" : ""}</span>
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                {/* Line Items */}
+                {selectedReceipt.line_items_json && selectedReceipt.line_items_json.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-2">Line Items</p>
+                    <div className="rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead className="text-xs">Description</TableHead>
+                            <TableHead className="text-xs text-center">Qty</TableHead>
+                            <TableHead className="text-xs text-right">Unit Price</TableHead>
+                            <TableHead className="text-xs text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedReceipt.line_items_json.map((item: any, i: number) => (
+                            <TableRow key={i}>
+                              <TableCell className="text-sm">{item.description}</TableCell>
+                              <TableCell className="text-sm text-center">{item.quantity}</TableCell>
+                              <TableCell className="text-sm text-right">${item.unitPrice?.toFixed(2)}</TableCell>
+                              <TableCell className="text-sm text-right font-medium">${item.total?.toFixed(2)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Totals */}
                 <div className="p-4 bg-muted rounded-xl space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
@@ -811,6 +897,12 @@ export default function AdminBilling() {
                     <span>Total</span>
                     <span>${selectedReceipt.totals_json?.total?.toFixed(2) || "0.00"}</span>
                   </div>
+                  {selectedReceipt.booking?.deposit_amount && selectedReceipt.booking.deposit_amount > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground pt-1">
+                      <span>Security Deposit</span>
+                      <span>${selectedReceipt.booking.deposit_amount.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {selectedReceipt.notes && (
@@ -834,7 +926,31 @@ export default function AdminBilling() {
                       Issue Receipt
                     </Button>
                   )}
-                  <Button variant="outline">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      generateReceiptPdf({
+                        receiptNumber: selectedReceipt.receipt_number,
+                        status: selectedReceipt.status,
+                        issuedAt: selectedReceipt.issued_at,
+                        createdAt: selectedReceipt.created_at,
+                        customerName: selectedReceipt.booking?.profile?.full_name || "N/A",
+                        customerEmail: selectedReceipt.booking?.profile?.email || "",
+                        bookingCode: selectedReceipt.booking?.booking_code || "",
+                        vehicleName: selectedReceipt.booking?.vehicleName || "N/A",
+                        startDate: selectedReceipt.booking?.start_at || "",
+                        endDate: selectedReceipt.booking?.end_at || "",
+                        totalDays: selectedReceipt.booking?.total_days || 0,
+                        dailyRate: selectedReceipt.booking?.daily_rate || 0,
+                        lineItems: selectedReceipt.line_items_json || [],
+                        subtotal: selectedReceipt.totals_json?.subtotal || 0,
+                        tax: selectedReceipt.totals_json?.tax || 0,
+                        total: selectedReceipt.totals_json?.total || 0,
+                        depositAmount: selectedReceipt.booking?.deposit_amount || null,
+                        notes: selectedReceipt.notes,
+                      });
+                    }}
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                   </Button>
