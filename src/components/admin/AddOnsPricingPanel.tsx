@@ -163,14 +163,23 @@ export function AddOnsPricingPanel() {
   const handleEditSubmit = async () => {
     if (!editDialog.addon) return;
 
+    const newRate = parseFloat(editForm.daily_rate) || 0;
+
     await updateAddOn.mutateAsync({
       id: editDialog.addon.id,
       name: editForm.name,
       description: editForm.description || null,
-      daily_rate: parseFloat(editForm.daily_rate) || 0,
+      daily_rate: newRate,
       one_time_fee: editForm.one_time_fee ? parseFloat(editForm.one_time_fee) : null,
       is_active: editForm.is_active,
     });
+
+    // Sync additional driver rate to system_settings when editing the "Additional Driver" add-on
+    if (editDialog.addon.name.toLowerCase().includes("additional driver")) {
+      await supabase
+        .from("system_settings" as any)
+        .upsert({ key: "additional_driver_daily_rate", value: String(newRate) } as any, { onConflict: "key" });
+    }
 
     setEditDialog({ open: false, addon: null });
   };
