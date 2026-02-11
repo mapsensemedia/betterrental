@@ -417,7 +417,7 @@ export function AddOnsPricingPanel() {
                     />
                   </div>
                   <div className="text-xs text-muted-foreground pb-2">
-                    Ages 20–24 pay: <span className="font-medium">${(parseFloat(driverFeeForm.additionalDriverRate || "0") + parseFloat(driverFeeForm.youngAdditionalDriverRate || "0")).toFixed(2)}/day</span>
+                    Young driver surcharge: <span className="font-medium">${parseFloat(driverFeeForm.youngAdditionalDriverRate || "0").toFixed(2)}/day extra</span>
                   </div>
                   {driverFeeDirty && (
                     <Button
