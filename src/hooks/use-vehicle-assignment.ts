@@ -145,14 +145,10 @@ export function useAssignVehicle() {
 
       if (updateError) throw updateError;
 
-      // Send notification to customer
-      try {
-        await supabase.functions.invoke('send-booking-notification', {
-          body: { bookingId, stage: 'vehicle_assigned' },
-        });
-      } catch (e) {
-        console.error('Failed to send vehicle assignment notification:', e);
-      }
+      // Fire-and-forget notification (don't block UI)
+      supabase.functions.invoke('send-booking-notification', {
+        body: { bookingId, stage: 'vehicle_assigned' },
+      }).catch(e => console.error('Failed to send vehicle assignment notification:', e));
 
       return { bookingId, vehicleId };
     },
