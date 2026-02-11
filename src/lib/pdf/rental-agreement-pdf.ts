@@ -193,11 +193,11 @@ function renderStructuredPdf(
   const bookingCode = (t as any).bookingCode || bookingId.slice(0, 8).toUpperCase();
 
   // ── Spacing constants ──
-  const SEC_GAP = 6;     // gap after horizontal lines (before next section)
-  const TITLE_GAP = 9;   // gap after section title
-  const ROW_H = 9.5;     // height between label-value rows
-  const FIN_ROW_H = 9;   // height between financial rows
-  const FIN_HEAD_H = 10;  // gap after financial sub-headers
+  const SEC_GAP = 8;     // gap after horizontal lines (before next section)
+  const TITLE_GAP = 11;  // gap after section title
+  const ROW_H = 11;      // height between label-value rows
+  const FIN_ROW_H = 10;  // height between financial rows
+  const FIN_HEAD_H = 11;  // gap after financial sub-headers
 
   // ─────────────────────────────────────────────
   // HEADER
@@ -389,7 +389,7 @@ function renderStructuredPdf(
   sectionTitle(pdf, "FINANCIAL SUMMARY", L, y);
   y += TITLE_GAP;
 
-  const FS = 7;
+  const FS = 7.5;
   pdf.setFontSize(FS);
 
   // Vehicle Rental
@@ -526,8 +526,8 @@ function renderStructuredPdf(
       title: "4. RETURN POLICY & LATE FEES",
       items: [
         `Grace period: ${p.gracePeriodMinutes} minutes past the scheduled return time.`,
-        "A twenty-five percent surcharge of the daily rate will be applied for each additional hour, up to two hours beyond the grace period.",
-        "After exceeding two hours, an extra full day charge will be applied for each subsequent day.",
+        "A 25% surcharge of the daily rate will be applied for each additional hour, up to 2 hours beyond the grace period.",
+        "After exceeding 2 hours, an extra full day charge will be applied for each subsequent day.",
         "Extended rentals require prior approval.",
       ]
     },
@@ -566,8 +566,8 @@ function renderStructuredPdf(
   ];
 
   // Render in two columns
-  const TF = 5.5;
-  const TLH = 6.5; // line height for T&C items
+  const TF = 6.5;
+  const TLH = 7.5; // line height for T&C items
   const colW = CW * 0.48;
   const col1X = L;
   const col2X = MID + 4;
@@ -760,7 +760,7 @@ function renderTcBlock(
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(title, x, y);
-  y += lineH + 0.5;
+  y += lineH + 1.5;
 
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(30, 30, 30);
@@ -770,8 +770,9 @@ function renderTcBlock(
       pdf.text(line, x + 3, y);
       y += lineH;
     }
+    y += 1; // extra gap between items
   }
-  y += 2; // gap between blocks
+  y += 3; // gap between blocks
   return y;
 }
 
