@@ -9,6 +9,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -75,6 +84,7 @@ export function CheckInSection({
   const [ageVerified, setAgeVerified] = useState(false);
   const [customerDob, setCustomerDob] = useState("");
   const [ageNotes, setAgeNotes] = useState("");
+  const [showLicenseAlert, setShowLicenseAlert] = useState(false);
 
   // Sync from record when loaded
   useEffect(() => {
@@ -410,7 +420,18 @@ export function CheckInSection({
                 <Input
                   type="date"
                   value={licenseExpiryDate}
-                  onChange={(e) => setLicenseExpiryDate(e.target.value)}
+                  onChange={(e) => {
+                    setLicenseExpiryDate(e.target.value);
+                    if (e.target.value) {
+                      const expiry = new Date(e.target.value);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const endDate = bookingEndAt ? new Date(bookingEndAt) : null;
+                      if (expiry < today || (endDate && expiry < endDate)) {
+                        setShowLicenseAlert(true);
+                      }
+                    }
+                  }}
                   className="text-sm"
                 />
               </div>
@@ -540,6 +561,25 @@ export function CheckInSection({
           </p>
         )}
       </CardContent>
+
+      <AlertDialog open={showLicenseAlert} onOpenChange={setShowLicenseAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-5 w-5" />
+              License is Invalid
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {licenseIsExpired
+                ? "The driver's license has already expired. The booking cannot proceed until a valid license is provided."
+                : "The driver's license expires before the rental return date. The booking cannot proceed until a license valid for the full rental period is provided."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Understood</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
