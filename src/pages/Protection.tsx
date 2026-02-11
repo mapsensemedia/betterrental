@@ -38,7 +38,9 @@ export default function Protection() {
   const vehicle = category || legacyVehicle;
   
   const [selectedPackage, setSelectedPackage] = useState<string>("none");
-  const { packages: PROTECTION_PACKAGES } = useProtectionPackages();
+  // Get category name for group-based protection pricing
+  const categoryName = vehicle?.category || (vehicle as any)?.categoryName || "";
+  const { packages: PROTECTION_PACKAGES } = useProtectionPackages(categoryName);
 
   // Track page view on mount
   useEffect(() => {

@@ -7,6 +7,7 @@ import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { useCategory } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
+import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { cn } from "@/lib/utils";
 
 interface TotalBarProps {
@@ -35,8 +36,11 @@ export function TotalBar({
   // Use override add-on IDs if provided, otherwise fall back to context
   const effectiveAddOnIds = overrideAddOnIds ?? searchData.selectedAddOnIds;
   
-  // Get vehicle category for fuel add-on calculation  
+  // Get vehicle category for fuel add-on calculation and group-based protection pricing
   const vehicleCategory = vehicle?.category || (vehicle as any)?.categoryName || "default";
+  
+  // Get group-aware protection rates
+  const { rates: protectionRates } = useProtectionPackages(vehicleCategory);
 
   // Calculate pricing using central utility
   const driverAgeBand = ageRangeToAgeBand(searchData.ageRange);

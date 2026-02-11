@@ -61,7 +61,6 @@ export default function AddOns() {
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays, setSelectedAddOns, setAdditionalDrivers } = useRentalBooking();
   const { data: addOns = [] } = useAddOns();
-  const { rates: PROTECTION_RATES } = useProtectionPackages();
 
   // Support both legacy vehicleId and new categoryId
   const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
@@ -73,6 +72,10 @@ export default function AddOns() {
   
   // Use category if available, otherwise legacy vehicle
   const vehicle = category || legacyVehicle;
+
+  // Group-aware protection pricing based on vehicle category
+  const vehicleCategoryName = vehicle?.category || (vehicle as any)?.categoryName || "";
+  const { rates: PROTECTION_RATES } = useProtectionPackages(vehicleCategoryName);
   
   // Initialize local state but filter out any stale "Additional Driver" add-on IDs
   const [selectedAddOnIds, setLocalSelectedAddOns] = useState<string[]>(() => {

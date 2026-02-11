@@ -1,21 +1,23 @@
 /**
  * Hook to fetch and update protection package pricing from system_settings.
+ * Supports dynamic pricing by vehicle category group.
  * Falls back to hardcoded defaults if settings are not found.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ProtectionPackage } from "@/lib/pricing";
+import { getProtectionGroup, getGroupProtectionPackages } from "@/lib/protection-groups";
 
 // Default values matching the hardcoded constants
 const DEFAULTS = {
-  protection_basic_rate: "33.99",
+  protection_basic_rate: "32.99",
   protection_basic_deductible: "Up to $800.00",
-  protection_smart_rate: "39.25",
+  protection_smart_rate: "37.99",
   protection_smart_original_rate: "",
   protection_smart_discount: "",
   protection_smart_deductible: "No deductible",
-  protection_premium_rate: "49.77",
+  protection_premium_rate: "49.99",
   protection_premium_original_rate: "",
   protection_premium_discount: "",
   protection_premium_deductible: "No deductible",
@@ -37,7 +39,7 @@ function parseSettings(
   return result;
 }
 
-/** Build dynamic PROTECTION_PACKAGES from settings */
+/** Build dynamic PROTECTION_PACKAGES from settings (Group 1 only - admin-editable) */
 export function buildProtectionPackages(
   settings: ProtectionSettings
 ): ProtectionPackage[] {
@@ -57,7 +59,7 @@ export function buildProtectionPackages(
     {
       id: "basic",
       name: "Basic Protection",
-      dailyRate: parseFloat(settings.protection_basic_rate) || 33.99,
+      dailyRate: parseFloat(settings.protection_basic_rate) || 32.99,
       deductible: settings.protection_basic_deductible,
       rating: 1,
       features: [
@@ -73,10 +75,10 @@ export function buildProtectionPackages(
     {
       id: "smart",
       name: "Smart Protection",
-      dailyRate: parseFloat(settings.protection_smart_rate) || 39.25,
+      dailyRate: parseFloat(settings.protection_smart_rate) || 37.99,
       originalRate: (() => {
         const orig = parseFloat(settings.protection_smart_original_rate);
-        const daily = parseFloat(settings.protection_smart_rate) || 39.25;
+        const daily = parseFloat(settings.protection_smart_rate) || 37.99;
         return !isNaN(orig) && orig > daily ? orig : undefined;
       })(),
       discount: settings.protection_smart_discount || undefined,
@@ -100,10 +102,10 @@ export function buildProtectionPackages(
     {
       id: "premium",
       name: "All Inclusive Protection",
-      dailyRate: parseFloat(settings.protection_premium_rate) || 49.77,
+      dailyRate: parseFloat(settings.protection_premium_rate) || 49.99,
       originalRate: (() => {
         const orig = parseFloat(settings.protection_premium_original_rate);
-        const daily = parseFloat(settings.protection_premium_rate) || 49.77;
+        const daily = parseFloat(settings.protection_premium_rate) || 49.99;
         return !isNaN(orig) && orig > daily ? orig : undefined;
       })(),
       discount: settings.protection_premium_discount || undefined,
@@ -130,8 +132,12 @@ export function buildProtectionPackages(
   ];
 }
 
-/** Fetch protection settings and return dynamic packages */
-export function useProtectionPackages() {
+/**
+ * Fetch protection settings and return dynamic packages.
+ * When categoryName is provided, returns group-specific pricing.
+ * Without categoryName, returns Group 1 (system_settings) pricing.
+ */
+export function useProtectionPackages(categoryName?: string | null) {
   const query = useQuery({
     queryKey: ["protection-settings"],
     queryFn: async () => {
@@ -152,7 +158,13 @@ export function useProtectionPackages() {
     staleTime: 30_000,
   });
 
-  const packages = buildProtectionPackages(query.data ?? parseSettings([]));
+  // Determine which group this category belongs to
+  const group = getProtectionGroup(categoryName);
+
+  // For Group 1, use system_settings (admin-editable); for Groups 2 & 3, use code-defined rates
+  const packages = group === 1
+    ? buildProtectionPackages(query.data ?? parseSettings([]))
+    : getGroupProtectionPackages(group);
 
   const rates: Record<string, { name: string; rate: number }> =
     Object.fromEntries(
@@ -164,10 +176,11 @@ export function useProtectionPackages() {
     rates,
     settings: query.data ?? parseSettings([]),
     isLoading: query.isLoading,
+    group,
   };
 }
 
-/** Admin hook: update protection settings */
+/** Admin hook: update protection settings (Group 1 only) */
 export function useUpdateProtectionSettings() {
   const queryClient = useQueryClient();
 

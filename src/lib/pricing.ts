@@ -134,7 +134,7 @@ export const PROTECTION_PACKAGES: ProtectionPackage[] = [
   {
     id: "basic",
     name: "Basic Protection",
-    dailyRate: 33.99,
+    dailyRate: 32.99,
     deductible: "Up to $800.00",
     rating: 1,
     features: [
@@ -146,7 +146,7 @@ export const PROTECTION_PACKAGES: ProtectionPackage[] = [
   {
     id: "smart",
     name: "Smart Protection",
-    dailyRate: 39.25,
+    dailyRate: 37.99,
     deductible: "No deductible",
     rating: 2,
     isRecommended: true,
@@ -159,7 +159,7 @@ export const PROTECTION_PACKAGES: ProtectionPackage[] = [
   {
     id: "premium",
     name: "All Inclusive Protection",
-    dailyRate: 49.77,
+    dailyRate: 49.99,
     deductible: "No deductible",
     rating: 3,
     features: [
@@ -170,7 +170,7 @@ export const PROTECTION_PACKAGES: ProtectionPackage[] = [
   },
 ];
 
-// Quick lookup map for protection rates
+// Quick lookup map for protection rates (Group 1 defaults)
 export const PROTECTION_RATES: Record<string, { name: string; rate: number }> = Object.fromEntries(
   PROTECTION_PACKAGES.map(pkg => [pkg.id, { name: pkg.name, rate: pkg.dailyRate }])
 );

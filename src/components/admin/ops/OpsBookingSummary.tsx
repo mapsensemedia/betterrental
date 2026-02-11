@@ -37,7 +37,8 @@ import { toast } from "sonner";
 import type { StepCompletion } from "@/lib/ops-steps";
 import { DELIVERY_STATUS_MAP } from "@/lib/ops-steps";
 import { UnifiedVehicleManager } from "@/components/admin/UnifiedVehicleManager";
-import { PROTECTION_RATES, PVRT_DAILY_FEE, ACSRCH_DAILY_FEE, PST_RATE, GST_RATE } from "@/lib/pricing";
+import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE, PST_RATE, GST_RATE } from "@/lib/pricing";
+import { getProtectionRateForCategory } from "@/lib/protection-groups";
 import { CollapsibleSection } from "./sections/CollapsibleSection";
 import { CardInfoSection } from "./sections/CardInfoSection";
 import { OpsActivityTimeline } from "./OpsActivityTimeline";
@@ -494,12 +495,13 @@ export function OpsBookingSummary({
 
                 {/* Protection Plan */}
                 {booking.protection_plan && booking.protection_plan !== "none" && (() => {
-                  const plan = PROTECTION_RATES[booking.protection_plan];
-                  const protectionTotal = plan ? plan.rate * booking.total_days : 0;
+                  const vehicleCat = booking.vehicles?.category || "";
+                  const plan = getProtectionRateForCategory(booking.protection_plan, vehicleCat);
+                  const protectionTotal = plan.rate * booking.total_days;
                   return protectionTotal > 0 ? (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">
-                        Protection ({plan?.name}) × {booking.total_days}d
+                        Protection ({plan.name}) × {booking.total_days}d
                       </span>
                       <span>${protectionTotal.toFixed(2)}</span>
                     </div>
