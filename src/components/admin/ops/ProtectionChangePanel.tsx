@@ -30,6 +30,8 @@ interface ProtectionChangePanelProps {
     start_at: string;
     young_driver_fee: number | null;
   };
+  /** Vehicle category name for group-based protection pricing */
+  categoryName?: string | null;
 }
 
 function useChangeProtection() {
@@ -108,12 +110,12 @@ function useChangeProtection() {
   });
 }
 
-export function ProtectionChangePanel({ bookingId, booking }: ProtectionChangePanelProps) {
+export function ProtectionChangePanel({ bookingId, booking, categoryName }: ProtectionChangePanelProps) {
   const currentPlan = booking.protection_plan || "none";
   const [selectedPlan, setSelectedPlan] = useState(currentPlan);
   const [showPicker, setShowPicker] = useState(false);
 
-  const { packages, rates, isLoading: packagesLoading } = useProtectionPackages();
+  const { packages, rates, isLoading: packagesLoading } = useProtectionPackages(categoryName);
   const changeMutation = useChangeProtection();
 
   const currentPkg = packages.find(p => p.id === currentPlan);

@@ -197,7 +197,7 @@ export function OpsStepContent({
               )}
               {/* Protection Plan Change */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
-                <ProtectionChangePanel bookingId={booking.id} booking={booking} />
+                <ProtectionChangePanel bookingId={booking.id} booking={booking} categoryName={booking.vehicles?.category} />
               )}
                {/* Counter Upsell */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (

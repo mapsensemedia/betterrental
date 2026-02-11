@@ -1,9 +1,9 @@
 /**
- * ProtectionPricingPanel — Admin panel for editing protection package pricing.
- * Reads from and writes to system_settings via the protection settings hook.
+ * ProtectionPricingPanel — Admin panel for viewing protection package pricing
+ * across all 3 vehicle groups. Group 1 rates are editable via system_settings;
+ * Groups 2 & 3 are code-defined and shown read-only.
  */
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -17,11 +17,16 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Save, Loader2, Star } from "lucide-react";
+import { Shield, Save, Loader2, Star, Lock } from "lucide-react";
 import {
   useProtectionPackages,
   useUpdateProtectionSettings,
 } from "@/hooks/use-protection-settings";
+import {
+  GROUP_RATES,
+  GROUP_LABELS,
+  type ProtectionGroup,
+} from "@/lib/protection-groups";
 
 interface PackageFormState {
   rate: string;
@@ -129,7 +134,7 @@ export function ProtectionPricingPanel() {
               Protection Package Pricing
             </CardTitle>
             <CardDescription>
-              Update daily rates and deductibles — changes apply instantly
+              Pricing varies by vehicle group. Group 1 rates are editable; Groups 2 & 3 are code-defined.
             </CardDescription>
           </div>
           {dirty && (
@@ -149,56 +154,136 @@ export function ProtectionPricingPanel() {
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Basic */}
-        <PackageRow
-          name="Basic Protection"
-          rating={1}
-          form={basicForm}
-          showOriginalRate={false}
-          showDiscount={false}
-          onChange={(f) => {
-            setBasicForm(f);
-            setDirty(true);
-          }}
+      <CardContent className="space-y-6">
+        {/* Group 1 — Editable */}
+        <GroupSection
+          group={1}
+          editable
+          basicForm={basicForm}
+          smartForm={smartForm}
+          premiumForm={premiumForm}
+          onBasicChange={(f) => { setBasicForm(f); setDirty(true); }}
+          onSmartChange={(f) => { setSmartForm(f); setDirty(true); }}
+          onPremiumChange={(f) => { setPremiumForm(f); setDirty(true); }}
         />
 
         <Separator />
 
-        {/* Smart */}
-        <PackageRow
-          name="Smart Protection"
-          rating={2}
-          recommended
-          form={smartForm}
-          showOriginalRate
-          showDiscount
-          onChange={(f) => {
-            setSmartForm(f);
-            setDirty(true);
-          }}
-        />
+        {/* Group 2 — Read-only */}
+        <GroupSection group={2} />
 
         <Separator />
 
-        {/* Premium */}
-        <PackageRow
-          name="All Inclusive Protection"
-          rating={3}
-          form={premiumForm}
-          showOriginalRate
-          showDiscount
-          onChange={(f) => {
-            setPremiumForm(f);
-            setDirty(true);
-          }}
-        />
+        {/* Group 3 — Read-only */}
+        <GroupSection group={3} />
       </CardContent>
     </Card>
   );
 }
 
-/* ─── Sub-component: single package row ─── */
+/* ─── Group Section ─── */
+interface GroupSectionProps {
+  group: ProtectionGroup;
+  editable?: boolean;
+  basicForm?: PackageFormState;
+  smartForm?: PackageFormState;
+  premiumForm?: PackageFormState;
+  onBasicChange?: (f: PackageFormState) => void;
+  onSmartChange?: (f: PackageFormState) => void;
+  onPremiumChange?: (f: PackageFormState) => void;
+}
+
+function GroupSection({
+  group,
+  editable = false,
+  basicForm,
+  smartForm,
+  premiumForm,
+  onBasicChange,
+  onSmartChange,
+  onPremiumChange,
+}: GroupSectionProps) {
+  const info = GROUP_LABELS[group];
+  const rates = GROUP_RATES[group];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h4 className="text-sm font-semibold">{info.name}</h4>
+        {!editable && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
+            <Lock className="w-2.5 h-2.5" />
+            Code-defined
+          </Badge>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {info.categories.join(", ")}
+      </p>
+
+      {editable && basicForm && smartForm && premiumForm && onBasicChange && onSmartChange && onPremiumChange ? (
+        <div className="space-y-4">
+          <PackageRow
+            name="Basic Protection"
+            rating={1}
+            form={basicForm}
+            showOriginalRate={false}
+            showDiscount={false}
+            onChange={onBasicChange}
+          />
+          <PackageRow
+            name="Smart Protection"
+            rating={2}
+            recommended
+            form={smartForm}
+            showOriginalRate
+            showDiscount
+            onChange={onSmartChange}
+          />
+          <PackageRow
+            name="All Inclusive Protection"
+            rating={3}
+            form={premiumForm}
+            showOriginalRate
+            showDiscount
+            onChange={onPremiumChange}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          <ReadOnlyRate label="Basic" rate={rates.basic} deductible="$800" />
+          <ReadOnlyRate label="Smart" rate={rates.smart} deductible="$0" recommended />
+          <ReadOnlyRate label="All Inclusive" rate={rates.premium} deductible="$0" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Read-only rate card for Groups 2 & 3 ─── */
+function ReadOnlyRate({ label, rate, deductible, recommended }: {
+  label: string;
+  rate: number;
+  deductible: string;
+  recommended?: boolean;
+}) {
+  return (
+    <div className="p-3 rounded-lg border bg-muted/30 space-y-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs font-medium">{label}</span>
+        {recommended && (
+          <Badge variant="secondary" className="text-[9px] h-4 px-1">
+            Recommended
+          </Badge>
+        )}
+      </div>
+      <p className="text-sm font-bold">${rate.toFixed(2)}<span className="text-xs font-normal text-muted-foreground">/day</span></p>
+      <p className="text-[10px] text-muted-foreground">Deductible: {deductible}</p>
+    </div>
+  );
+}
+
+/* ─── Sub-component: single editable package row ─── */
 interface PackageRowProps {
   name: string;
   rating: number;

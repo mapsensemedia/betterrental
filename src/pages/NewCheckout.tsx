@@ -76,7 +76,6 @@ export default function NewCheckout() {
   const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
   const { searchData, rentalDays } = useRentalBooking();
-  const { rates: PROTECTION_RATES } = useProtectionPackages();
   const { data: addOns = [] } = useAddOns();
   const saveAbandonedCart = useSaveAbandonedCart();
   const markCartConverted = useMarkCartConverted();
@@ -91,6 +90,10 @@ export default function NewCheckout() {
 
   // Fetch category data (which is what we're actually booking)
   const { data: category, isLoading: categoryLoading } = useCategory(categoryId);
+
+  // Group-aware protection pricing based on vehicle category
+  const vehicleCategoryName = category?.category || (category as any)?.categoryName || "";
+  const { rates: PROTECTION_RATES } = useProtectionPackages(vehicleCategoryName);
 
   // Form state - ageConfirmed is derived from context, not form input
   const [formData, setFormData] = useState({
