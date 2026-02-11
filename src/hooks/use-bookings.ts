@@ -220,13 +220,14 @@ export function useBookingById(id: string | null) {
         .maybeSingle();
 
       // Fetch related data
-      const [paymentsRes, addOnsRes, verificationsRes, inspectionsRes, photosRes, auditRes] = await Promise.all([
+      const [paymentsRes, addOnsRes, verificationsRes, inspectionsRes, photosRes, auditRes, notificationsRes] = await Promise.all([
         supabase.from("payments").select("*").eq("booking_id", id),
         supabase.from("booking_add_ons").select("*, add_ons(name, description)").eq("booking_id", id),
         supabase.from("verification_requests").select("*").eq("booking_id", id),
         supabase.from("inspection_metrics").select("*").eq("booking_id", id),
         supabase.from("condition_photos").select("*").eq("booking_id", id),
         supabase.from("audit_logs").select("*").eq("entity_type", "booking").eq("entity_id", id).order("created_at", { ascending: false }),
+        supabase.from("notification_logs").select("*").eq("booking_id", id).order("created_at", { ascending: false }),
       ]);
 
       // Build vehicles field for backward compatibility with components
@@ -252,6 +253,7 @@ export function useBookingById(id: string | null) {
         inspections: inspectionsRes.data || [],
         photos: photosRes.data || [],
         auditLogs: auditRes.data || [],
+        notifications: notificationsRes.data || [],
       };
     },
     enabled: !!id,

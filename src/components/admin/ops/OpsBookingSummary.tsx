@@ -28,6 +28,7 @@ import {
   ChevronsUpDown,
   ArrowUpCircle,
   Info,
+  Bell,
   Truck,
   ExternalLink,
 } from "lucide-react";
@@ -69,7 +70,8 @@ export function OpsBookingSummary({
     location: true,
     payment: true,
     status: true,
-    delivery: true, // NEW: delivery section
+    delivery: true,
+    notifications: true,
   });
   
   const vehicleName = booking.vehicles
@@ -120,6 +122,7 @@ export function OpsBookingSummary({
       payment: newState,
       status: newState,
       delivery: newState,
+      notifications: newState,
     });
   }, [allExpanded]);
   
@@ -284,6 +287,33 @@ export function OpsBookingSummary({
                   <span className="text-xs">{formatPhone(booking.profiles.phone)}</span>
                 </div>
               )}
+              {booking.driver_age_band && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Driver Age</span>
+                  <Badge variant="outline" className="text-[10px]">{booking.driver_age_band}</Badge>
+                </div>
+              )}
+              {booking.profiles?.driver_license_status && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">License</span>
+                  <Badge 
+                    variant="outline" 
+                    className={cn("text-[10px]",
+                      booking.profiles.driver_license_status === "verified" && "border-emerald-500 text-emerald-600",
+                      booking.profiles.driver_license_status === "pending" && "border-amber-500 text-amber-600",
+                      booking.profiles.driver_license_status === "rejected" && "border-destructive text-destructive",
+                    )}
+                  >
+                    {booking.profiles.driver_license_status}
+                  </Badge>
+                </div>
+              )}
+              {booking.booking_source && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Source</span>
+                  <span className="capitalize">{booking.booking_source}</span>
+                </div>
+              )}
             </div>
           </CollapsibleSection>
           
@@ -362,18 +392,34 @@ export function OpsBookingSummary({
             onOpenChange={(open) => updateSectionState('rental', open)}
           >
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Pickup</span>
-                <span>{format(new Date(booking.start_at), "PP p")}</span>
+              <div className="p-2 rounded-md bg-muted/50 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">Pickup</span>
+                  <span className="font-semibold">{format(new Date(booking.start_at), "EEE, MMM d, yyyy")}</span>
+                </div>
+                <div className="flex justify-end text-[10px] text-muted-foreground">
+                  {format(new Date(booking.start_at), "h:mm a")}
+                </div>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Return</span>
-                <span>{format(new Date(booking.end_at), "PP p")}</span>
+              <div className="p-2 rounded-md bg-muted/50 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">Return</span>
+                  <span className="font-semibold">{format(new Date(booking.end_at), "EEE, MMM d, yyyy")}</span>
+                </div>
+                <div className="flex justify-end text-[10px] text-muted-foreground">
+                  {format(new Date(booking.end_at), "h:mm a")}
+                </div>
               </div>
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-xs pt-1">
                 <span className="text-muted-foreground">Duration</span>
-                <span className="font-medium">{booking.total_days} days</span>
+                <Badge variant="outline" className="text-[10px]">{booking.total_days} days</Badge>
               </div>
+              {booking.protection_plan && booking.protection_plan !== "none" && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Protection</span>
+                  <span className="capitalize">{booking.protection_plan.replace(/_/g, " ")}</span>
+                </div>
+              )}
             </div>
           </CollapsibleSection>
           
@@ -609,6 +655,24 @@ export function OpsBookingSummary({
             </div>
           </CollapsibleSection>
           
+          {/* Notifications Section */}
+          <Separator />
+          <CollapsibleSection
+            title="Notifications"
+            icon={<Bell className="h-4 w-4 text-muted-foreground" />}
+            isOpen={sectionStates.notifications}
+            onOpenChange={(open) => updateSectionState('notifications', open)}
+            badge={
+              booking.notifications?.length > 0 ? (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                  {booking.notifications.length} sent
+                </Badge>
+              ) : null
+            }
+          >
+            <NotificationStatusList notifications={booking.notifications || []} />
+          </CollapsibleSection>
+          
           {/* Quick Links */}
           <Separator />
           <div className="p-3 space-y-2">
@@ -665,6 +729,88 @@ function StatusIndicator({ label, done }: { label: string; done?: boolean }) {
         done ? "bg-emerald-500" : "bg-muted-foreground/30"
       )} />
       <span className={done ? "text-foreground" : ""}>{label}</span>
+    </div>
+  );
+}
+
+// Notification type labels for human-readable display
+const NOTIFICATION_LABELS: Record<string, string> = {
+  payment_received: "Payment Received",
+  license_approved: "License Approved",
+  license_rejected: "License Rejected",
+  vehicle_assigned: "Vehicle Assigned",
+  agreement_generated: "Agreement Generated",
+  agreement_signed: "Agreement Signed",
+  checkin_complete: "Check-in Complete",
+  prep_complete: "Prep Complete",
+  walkaround_complete: "Walkaround Complete",
+  rental_activated: "Rental Activated",
+  return_initiated: "Return Initiated",
+  rental_completed: "Rental Completed",
+  deposit_released: "Deposit Released",
+};
+
+// All expected notification stages in order
+const NOTIFICATION_STAGES = [
+  "payment_received",
+  "license_approved",
+  "vehicle_assigned",
+  "agreement_generated",
+  "agreement_signed",
+  "checkin_complete",
+  "prep_complete",
+  "walkaround_complete",
+  "rental_activated",
+  "return_initiated",
+  "rental_completed",
+  "deposit_released",
+];
+
+function NotificationStatusList({ notifications }: { notifications: any[] }) {
+  const sentTypes = new Set(
+    notifications
+      .filter((n) => n.status === "sent" || n.status === "delivered")
+      .map((n) => n.notification_type)
+  );
+  const failedTypes = new Set(
+    notifications.filter((n) => n.status === "failed").map((n) => n.notification_type)
+  );
+
+  if (notifications.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground py-1">No notifications sent yet</p>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {NOTIFICATION_STAGES.map((stage) => {
+        const isSent = sentTypes.has(stage);
+        const isFailed = failedTypes.has(stage);
+        const log = notifications.find((n) => n.notification_type === stage);
+
+        if (!isSent && !isFailed) return null;
+
+        return (
+          <div key={stage} className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5">
+              <div
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  isSent ? "bg-emerald-500" : "bg-destructive"
+                )}
+              />
+              <span className={isSent ? "text-foreground" : "text-destructive"}>
+                {NOTIFICATION_LABELS[stage] || stage}
+              </span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              {log?.channel === "sms" ? "SMS" : log?.channel === "email" ? "Email" : log?.channel || ""}
+              {log?.sent_at ? ` · ${format(new Date(log.sent_at), "MMM d, h:mm a")}` : ""}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
