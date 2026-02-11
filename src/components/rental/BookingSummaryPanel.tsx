@@ -370,7 +370,7 @@ export function BookingSummaryPanel({
               {pricing.additionalDriversCost.total > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground flex items-center">
-                    Additional drivers ({effectiveAdditionalDrivers.length})
+                    Additional drivers ({effectiveAdditionalDrivers.length}) — $15.99/day × {rentalDays} days
                     <PriceTooltip content={PRICE_TOOLTIPS.additionalDrivers} />
                   </span>
                   <span>${pricing.additionalDriversCost.total.toFixed(2)} CAD</span>
