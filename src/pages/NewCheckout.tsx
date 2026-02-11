@@ -80,6 +80,7 @@ export default function NewCheckout() {
   const { data: addOns = [] } = useAddOns();
   const { data: driverFeeSettings } = useDriverFeeSettings();
   const additionalDriverRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
+  const youngAdditionalDriverRate = driverFeeSettings?.youngAdditionalDriverDailyRate ?? 15.00;
   const saveAbandonedCart = useSaveAbandonedCart();
   const markCartConverted = useMarkCartConverted();
   const hasCompletedBooking = useRef(false);
@@ -170,7 +171,7 @@ export default function NewCheckout() {
     const differentDropoffFee = isDifferentDropoff ? 25 : 0;
     
     // Calculate additional drivers cost
-    const additionalDriversCost = calculateAdditionalDriversCost(searchData.additionalDrivers || [], rentalDays, additionalDriverRate);
+    const additionalDriversCost = calculateAdditionalDriversCost(searchData.additionalDrivers || [], rentalDays, additionalDriverRate, youngAdditionalDriverRate);
     
     const breakdown = calculateBookingPricing({
       vehicleDailyRate: vehicle?.dailyRate || 0,

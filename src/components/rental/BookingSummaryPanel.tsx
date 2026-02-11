@@ -47,6 +47,7 @@ export function BookingSummaryPanel({
   const { searchData, rentalDays } = useRentalBooking();
   const { data: driverFeeSettings } = useDriverFeeSettings();
   const additionalDriverRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
+  const youngAdditionalDriverRate = driverFeeSettings?.youngAdditionalDriverDailyRate ?? 15.00;
   
   // Support both legacy vehicleId and new categoryId - check URL first, then context
   const urlCategoryId = searchParams.get("categoryId");
@@ -99,7 +100,7 @@ export function BookingSummaryPanel({
     const differentDropoffFee = isDifferentDropoff ? 25 : 0;
     
     // Calculate additional drivers cost
-    const additionalDriversCost = calculateAdditionalDriversCost(effectiveAdditionalDrivers, rentalDays, additionalDriverRate);
+    const additionalDriversCost = calculateAdditionalDriversCost(effectiveAdditionalDrivers, rentalDays, additionalDriverRate, youngAdditionalDriverRate);
     
     const breakdown = calculateBookingPricing({
       vehicleDailyRate: vehicle.dailyRate,

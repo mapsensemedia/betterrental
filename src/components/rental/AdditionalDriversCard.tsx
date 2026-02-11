@@ -34,6 +34,7 @@ export function AdditionalDriversCard({
   const [isExpanded, setIsExpanded] = useState(drivers.length > 0);
   const { data: feeSettings } = useDriverFeeSettings();
   const baseDriverFee = feeSettings?.additionalDriverDailyRate ?? 15.99;
+  const youngDriverFee = feeSettings?.youngAdditionalDriverDailyRate ?? 15.00;
 
   const addDriver = () => {
     const newDriver: AdditionalDriver = {
@@ -55,7 +56,10 @@ export function AdditionalDriversCard({
     );
   };
 
+  const youngDriverCount = drivers.filter((d) => d.ageBand === "20_24").length;
   const totalBaseFees = drivers.length * baseDriverFee * rentalDays;
+  const totalYoungFees = youngDriverCount * youngDriverFee * rentalDays;
+  const totalFees = totalBaseFees + totalYoungFees;
 
   return (
     <Card className={cn("p-4 transition-all", className)}>
@@ -79,9 +83,10 @@ export function AdditionalDriversCard({
           </Button>
         ) : (
           <div className="text-right">
-            <p className="font-semibold">${totalBaseFees.toFixed(2)} CAD</p>
+            <p className="font-semibold">${totalFees.toFixed(2)} CAD</p>
             <p className="text-xs text-muted-foreground">
               {drivers.length} driver{drivers.length > 1 ? "s" : ""}
+              {youngDriverCount > 0 && ` (${youngDriverCount} young)`}
             </p>
           </div>
         )}
@@ -108,11 +113,16 @@ export function AdditionalDriversCard({
                     <SelectTrigger id={`driver-age-${driver.id}`}>
                       <SelectValue placeholder="Select age range" />
                     </SelectTrigger>
-                    <SelectContent>
+                  <SelectContent>
                       <SelectItem value="25_70">25-70 years</SelectItem>
                       <SelectItem value="20_24">20-24 years</SelectItem>
                     </SelectContent>
                   </Select>
+                  {driver.ageBand === "20_24" && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      + ${youngDriverFee.toFixed(2)}/day young driver surcharge
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -133,12 +143,15 @@ export function AdditionalDriversCard({
 export function calculateAdditionalDriversCost(
   drivers: AdditionalDriver[],
   rentalDays: number,
-  baseDriverFee: number = 15.99
+  baseDriverFee: number = 15.99,
+  youngDriverFee: number = 15.00
 ): { baseFees: number; youngDriverFees: number; total: number } {
   const baseFees = drivers.length * baseDriverFee * rentalDays;
+  const youngDriverCount = drivers.filter((d) => d.ageBand === "20_24").length;
+  const youngDriverFees = youngDriverCount * youngDriverFee * rentalDays;
   return {
     baseFees,
-    youngDriverFees: 0,
-    total: baseFees,
+    youngDriverFees,
+    total: baseFees + youngDriverFees,
   };
 }
