@@ -192,7 +192,8 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
           <li>No smoking in the vehicle at any time.</li>
           <li>No pets without prior written approval.</li>
           <li>No international travel without prior authorization.</li>
-          <li>Third-party liability coverage is included with all rentals.</li>
+          <li>Third-party liability comes standard with all rentals.</li>
+          <li>Optional rental coverages available at pickup.</li>
           <li>No racing, towing, or off-road use permitted.</li>
           <li>Renter is responsible for all traffic violations and tolls during the rental period.</li>
           <li>Unlimited kilometres included.</li>
@@ -201,11 +202,14 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
 
       {/* ═══ SIGNATURE ═══ */}
       <Section title="Acknowledgment & Signature">
-        <p className="text-[11px] text-gray-600 mb-4 leading-relaxed">
-          By signing below, I confirm that I have read and agree to all terms and conditions outlined in this
-          Vehicle Rental Agreement. I acknowledge that my electronic signature has the same legal effect as
-          a handwritten signature.
-        </p>
+        <div className="space-y-3 mb-6">
+          <p className="text-[13px] text-gray-700 leading-relaxed">
+            • I confirm I have read and understood all terms and conditions outlined in this Vehicle Rental Agreement.
+          </p>
+          <p className="text-[13px] text-gray-700 leading-relaxed">
+            • I acknowledge that my electronic signature has the same legal effect as a handwritten signature.
+          </p>
+        </div>
 
         {isSigned ? (
           <div className="grid grid-cols-2 gap-8">

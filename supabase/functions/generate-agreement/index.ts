@@ -349,7 +349,7 @@ ${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.to
 PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)} | GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
 TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
 
-Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (without approval), racing, off-road, or international travel. Return with same fuel level. Late fee: 25% daily rate/hr after 30-min grace. Renter liable for damage & traffic violations. Third party liability included. Optional coverage available. Unlimited km.`.trim();
+Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (without approval), racing, off-road, or international travel. Return with same fuel level. Late fee: 25% surcharge of daily rate per extra hour up to 2 hrs after 30-min grace; after 2 hrs, full day charge per day. Renter liable for damage & traffic violations. Third-party liability comes standard. Optional rental coverages available at pickup. Unlimited km.`.trim();
 
     // Build add-ons list including upgrades
     const addOnsList = (bookingAddOns || []).map(addon => ({

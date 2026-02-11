@@ -542,8 +542,8 @@ function renderStructuredPdf(
     {
       title: "6. INSURANCE & COVERAGE",
       items: [
-        "Third party liability included with all rentals.",
-        "Optional rental coverage available at pickup.",
+        "Third-party liability comes standard with all rentals.",
+        "Optional rental coverages available at pickup.",
       ]
     },
     {
@@ -597,19 +597,15 @@ function renderStructuredPdf(
   sectionTitle(pdf, "ACKNOWLEDGMENT AND SIGNATURE", L, y);
   y += 7;
 
-  const ackFontSize = 5.5;
-  const ackLH = 6.5;
+  const ackFontSize = 6.5;
+  const ackLH = 8;
   pdf.setFontSize(ackFontSize);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(30, 30, 30);
 
   const ackPoints = [
-    "I confirm I have read and understood all terms and conditions outlined in this Vehicle Legal Agreement.",
-    `I confirm I am at least ${p.minAge} years of age.`,
+    "I confirm I have read and understood all terms and conditions outlined in this Vehicle Rental Agreement.",
     "I acknowledge that my electronic signature has the same legal effect as a handwritten signature.",
-    "I understand that third party liability coverage is included and optional rental coverage is available at pickup.",
-    `I agree to return the vehicle with the same fuel level as at pickup.`,
-    `I understand late fees will be charged at ${p.lateFeePercentOfDaily}% of the daily rate per hour for the first 2 hours after the ${p.gracePeriodMinutes}-minute grace period, then a full day charge from the 3rd hour onward.`,
   ];
 
   for (const point of ackPoints) {
@@ -618,6 +614,7 @@ function renderStructuredPdf(
       pdf.text(line, L, y);
       y += ackLH;
     }
+    y += 2;
   }
 
   y += 4;
