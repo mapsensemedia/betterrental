@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate driver age band
-    if (!driverAgeBand || !["21_25", "25_70"].includes(driverAgeBand)) {
+    if (!driverAgeBand || !["20_24", "25_70"].includes(driverAgeBand)) {
       return new Response(
         JSON.stringify({ 
           error: "age_validation_failed",

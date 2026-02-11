@@ -60,6 +60,7 @@ interface GuestBookingRequest {
   paymentMethod?: "pay-now" | "pay-later";
   returnLocationId?: string;
   differentDropoffFee?: number;
+  isWalkIn?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -106,7 +107,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!isValidPhone(phone)) {
+    // Phone is optional for walk-in bookings
+    if (phone && !isValidPhone(phone)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid phone number format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!body.isWalkIn && !phone) {
       return new Response(
         JSON.stringify({ error: "Valid phone number is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -183,11 +191,18 @@ Deno.serve(async (req) => {
     // Create or find guest user
     // SECURITY: Guest accounts are created with email_confirm = false
     // They must verify email before accessing account features
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    // Use efficient email lookup instead of listing all users
     let userId: string | null = null;
     let isNewUser = false;
     
-    const existingUser = existingUsers?.users?.find(u => u.email === email);
+    // Check profiles table first (fast indexed lookup)
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+    
+    const existingUser = existingProfile;
     
     if (existingUser) {
       userId = existingUser.id;
