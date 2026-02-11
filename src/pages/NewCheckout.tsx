@@ -165,7 +165,7 @@ export default function NewCheckout() {
   
   const pricing = useMemo(() => {
     const protectionInfo = PROTECTION_RATES[protection] || PROTECTION_RATES.none;
-    const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays, vehicleCategory);
+    const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays, vehicleCategory, undefined, searchData.addOnQuantities);
     const deliveryFee = searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0;
     const isDifferentDropoff = !searchData.returnSameAsPickup && !!searchData.returnLocationId && searchData.returnLocationId !== searchData.pickupLocationId;
     const differentDropoffFee = isDifferentDropoff ? 25 : 0;
@@ -381,11 +381,12 @@ export default function NewCheckout() {
             ? supabase.from("booking_add_ons").insert(
                 addOnIds.map((id) => {
                   const addon = addOns.find((a) => a.id === id);
+                  const qty = searchData.addOnQuantities?.[id] || 1;
                   return {
                     booking_id: booking!.id,
                     add_on_id: id,
-                    price: addon ? addon.dailyRate * rentalDays + (addon.oneTimeFee || 0) : 0,
-                    quantity: 1,
+                    price: addon ? (addon.dailyRate * rentalDays + (addon.oneTimeFee || 0)) * qty : 0,
+                    quantity: qty,
                   };
                 })
               )
@@ -405,10 +406,11 @@ export default function NewCheckout() {
         // Guest checkout flow - use edge function
         const addOnData = addOnIds.map((id) => {
           const addon = addOns.find((a) => a.id === id);
+          const qty = searchData.addOnQuantities?.[id] || 1;
           return {
             addOnId: id,
-            price: addon ? addon.dailyRate * rentalDays + (addon.oneTimeFee || 0) : 0,
-            quantity: 1,
+            price: addon ? (addon.dailyRate * rentalDays + (addon.oneTimeFee || 0)) * qty : 0,
+            quantity: qty,
           };
         });
         

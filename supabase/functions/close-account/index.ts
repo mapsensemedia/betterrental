@@ -97,10 +97,11 @@ Deno.serve(async (req) => {
       .eq("status", "completed");
 
     // Calculate totals
-    const rentalSubtotal = Number(booking.subtotal) || 0;
-    const addonsTotal = (booking.booking_add_ons || []).reduce(
-      (sum: number, addon: any) => sum + Number(addon.price) * (addon.quantity || 1), 0
-    );
+    // booking.subtotal is the pre-tax subtotal (includes vehicle, protection, add-ons, fees)
+    // booking.tax_amount is the tax on that subtotal
+    // booking.total_amount = subtotal + tax_amount (the amount the customer was quoted)
+    // Add-ons are already included in booking.subtotal — do NOT add them again
+    const bookingTotal = Number(booking.total_amount) || 0;
     const taxAmount = Number(booking.tax_amount) || 0;
     const lateFees = Number(booking.late_return_fee) || 0;
 
@@ -111,7 +112,8 @@ Deno.serve(async (req) => {
       .filter(c => c.type !== "damage")
       .reduce((sum, c) => sum + c.amount, 0);
 
-    const totalCharges = rentalSubtotal + addonsTotal + taxAmount + lateFees + damageCharges + otherFees;
+    // Total charges = original booking total + any post-booking charges
+    const totalCharges = bookingTotal + lateFees + damageCharges + otherFees;
 
     const paymentsReceived = (payments || [])
       .filter((p: any) => p.payment_type === "rental" || p.payment_type === "additional")
@@ -124,13 +126,16 @@ Deno.serve(async (req) => {
       .filter((p: any) => p.transaction_id?.startsWith("pi_"))
       .map((p: any) => p.transaction_id);
 
-    // Build line items
+    // Build line items from the booking's stored values
+    const rentalSubtotal = Number(booking.subtotal) || 0;
+    const addonsFromBooking = (booking.booking_add_ons || []).map((addon: any) => ({
+      description: addon.add_on?.name || "Add-on",
+      amount: Number(addon.price) * (addon.quantity || 1),
+    }));
+    
     const lineItems = [
       { description: `Rental (${booking.total_days} days)`, amount: rentalSubtotal },
-      ...(booking.booking_add_ons || []).map((addon: any) => ({
-        description: addon.add_on?.name || "Add-on",
-        amount: Number(addon.price) * (addon.quantity || 1),
-      })),
+      ...addonsFromBooking,
       { description: "Taxes", amount: taxAmount },
       ...(lateFees > 0 ? [{ description: "Late Return Fee", amount: lateFees }] : []),
       ...(additionalCharges || []).map(c => ({
@@ -139,6 +144,8 @@ Deno.serve(async (req) => {
       })),
     ];
 
+    const addonsTotal = addonsFromBooking.reduce((sum: number, a: any) => sum + a.amount, 0);
+    
     // Create final invoice
     const { data: invoice, error: invoiceError } = await supabase
       .from("final_invoices")

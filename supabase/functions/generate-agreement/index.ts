@@ -243,12 +243,28 @@ serve(async (req) => {
 
     console.log(`Found booking: ${booking.booking_code}`);
 
-    // Fetch profile
+    // Fetch profile including license info
     const { data: profile } = await supabase
       .from("profiles")
-      .select("id, full_name, email, phone")
+      .select("id, full_name, email, phone, driver_license_expiry")
       .eq("id", booking.user_id)
       .maybeSingle();
+
+    // Validate driver's license expiry against rental return date
+    if (profile?.driver_license_expiry) {
+      const licenseExpiry = new Date(profile.driver_license_expiry);
+      const rentalEnd = new Date(booking.end_at);
+      if (licenseExpiry < rentalEnd) {
+        console.warn(`License expires ${profile.driver_license_expiry} before rental end ${booking.end_at}`);
+        return new Response(
+          JSON.stringify({ 
+            error: "license_expired",
+            message: "Driver's license expires before the rental return date. Please update your license before proceeding."
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // Handle customer name: avoid displaying raw email as name
     let customerName = profile?.full_name || null;
@@ -318,15 +334,17 @@ serve(async (req) => {
     const pvrtTotal = PVRT_DAILY_FEE * rentalDays;
     const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
     
-    // Calculate subtotal before tax
-    const subtotalBeforeTax = vehicleSubtotal + protectionTotal + addOnsTotal + youngDriverFee + pvrtTotal + acsrchTotal;
+    // Calculate subtotal before tax (rounded to avoid floating point drift)
+    const subtotalBeforeTax = Math.round(
+      (vehicleSubtotal + protectionTotal + addOnsTotal + youngDriverFee + pvrtTotal + acsrchTotal) * 100
+    ) / 100;
     
-    // Calculate taxes
-    const pstAmount = subtotalBeforeTax * PST_RATE;
-    const gstAmount = subtotalBeforeTax * GST_RATE;
-    const totalTax = pstAmount + gstAmount;
+    // Calculate taxes (round each individually)
+    const pstAmount = Math.round(subtotalBeforeTax * PST_RATE * 100) / 100;
+    const gstAmount = Math.round(subtotalBeforeTax * GST_RATE * 100) / 100;
+    const totalTax = Math.round((pstAmount + gstAmount) * 100) / 100;
     
-    const grandTotal = subtotalBeforeTax + totalTax;
+    const grandTotal = Math.round((subtotalBeforeTax + totalTax) * 100) / 100;
 
     // Format dates
     const startDate = new Date(booking.start_at).toLocaleDateString('en-US', { 

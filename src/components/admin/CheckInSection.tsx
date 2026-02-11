@@ -28,6 +28,7 @@ import {
   calculateTimingStatus,
   calculateAge,
   isLicenseExpired,
+  isLicenseExpiredForRental,
   type CheckInValidation,
   type TimingStatus,
   type CheckInStatus,
@@ -36,6 +37,7 @@ import {
 interface CheckInSectionProps {
   bookingId: string;
   bookingStartAt: string;
+  bookingEndAt?: string;
   customerName: string | null;
   // NEW: Profile-level license status
   licenseOnFile: boolean;
@@ -52,6 +54,7 @@ const YOUNG_DRIVER_MAX_AGE = 26;
 export function CheckInSection({
   bookingId,
   bookingStartAt,
+  bookingEndAt,
   customerName,
   licenseOnFile,
   licenseExpiryFromProfile,
@@ -94,9 +97,12 @@ export function CheckInSection({
   const age = customerDob ? calculateAge(customerDob) : null;
   const ageIsValid = age !== null && age >= MIN_DRIVER_AGE;
 
-  // License expiry check
+  // License expiry check - against today AND against rental end date
   const licenseIsExpired = licenseExpiryDate ? isLicenseExpired(licenseExpiryDate) : false;
-  const licenseNotExpired = licenseExpiryDate ? !licenseIsExpired : false;
+  const licenseExpiresBeforeReturn = licenseExpiryDate && bookingEndAt 
+    ? isLicenseExpiredForRental(licenseExpiryDate, bookingEndAt) 
+    : false;
+  const licenseNotExpired = licenseExpiryDate ? (!licenseIsExpired && !licenseExpiresBeforeReturn) : false;
 
   // Build validations - UPDATED per requirements
   const validations: CheckInValidation[] = useMemo(() => [
@@ -412,6 +418,8 @@ export function CheckInSection({
                 {licenseExpiryDate && (
                   licenseIsExpired ? (
                     <Badge variant="destructive">Expired</Badge>
+                  ) : licenseExpiresBeforeReturn ? (
+                    <Badge variant="destructive">Expires before return</Badge>
                   ) : (
                     <Badge className="bg-green-500">Valid</Badge>
                   )
