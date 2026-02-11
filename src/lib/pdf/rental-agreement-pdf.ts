@@ -209,9 +209,26 @@ function renderStructuredPdf(
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text("C2C CAR RENTAL", PAGE_W / 2, y + 8, { align: "center" });
-  pdf.setFontSize(9.5);
-  pdf.text("VEHICLE LEGAL AGREEMENT", PAGE_W / 2, y + 20, { align: "center" });
-  y += 28;
+  pdf.setFontSize(8.5);
+  pdf.text("LEGAL VEHICLE RENTAL AGREEMENT", PAGE_W / 2, y + 20, { align: "center" });
+  y += 26;
+
+  // Contact info bar
+  pdf.setFillColor(245, 245, 245);
+  pdf.setDrawColor(200, 200, 200);
+  pdf.setLineWidth(0.3);
+  pdf.rect(L, y - 3, CW, 11, "FD");
+  pdf.setFontSize(5.5);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(60, 60, 60);
+  pdf.text(
+    "Surrey, BC  |  Contact: (604) 771-3995  |  24/7 Support: (778) 580-0498  |  Roadside: (604) 771-3995",
+    PAGE_W / 2,
+    y + 4,
+    { align: "center" }
+  );
+  pdf.setTextColor(0, 0, 0);
+  y += 13;
 
   // Booking ref + date
   pdf.setFontSize(7.5);
@@ -253,8 +270,15 @@ function renderStructuredPdf(
 
   const pickupLoc = t.locations.pickup;
   const dropoffLoc = t.locations.dropoff;
-  const pickupAddr = [pickupLoc.name, pickupLoc.address, pickupLoc.city].filter(Boolean).join(", ");
-  const dropoffAddr = [dropoffLoc.name, dropoffLoc.address, dropoffLoc.city].filter(Boolean).join(", ");
+  // Format addresses as multi-line: Street / City, BC / Postal Code
+  const pickupAddrLines = formatAddressLines(pickupLoc.address, pickupLoc.city);
+  const dropoffAddrLines = formatAddressLines(dropoffLoc.address, dropoffLoc.city);
+  const pickupLabel = pickupLoc.name || "";
+  const dropoffLabel = dropoffLoc.name || "";
+  const pickupFull = pickupLabel ? [pickupLabel, ...pickupAddrLines] : pickupAddrLines;
+  const dropoffRaw = dropoffLabel ? [dropoffLabel, ...dropoffAddrLines] : dropoffAddrLines;
+  const isSameLoc = pickupFull.join("|") === dropoffRaw.join("|");
+  const dropoffFull = isSameLoc ? [...dropoffRaw, "(Same as pickup)"] : dropoffRaw;
 
   pdf.setFontSize(7);
   pdf.setFont("helvetica", "bold");
@@ -262,15 +286,10 @@ function renderStructuredPdf(
   pdf.text("Drop-off Location:", MID, y);
   y += 8;
   pdf.setFont("helvetica", "normal");
-  const pickupLines = pdf.splitTextToSize(pickupAddr || "—", CW * 0.48);
-  const dropoffLines = pdf.splitTextToSize(
-    dropoffAddr === pickupAddr ? `${dropoffAddr} (Same as pickup)` : (dropoffAddr || "—"),
-    CW * 0.48
-  );
-  const locLines = Math.max(pickupLines.length, dropoffLines.length);
+  const locLines = Math.max(pickupFull.length, dropoffFull.length);
   for (let i = 0; i < locLines; i++) {
-    if (pickupLines[i]) pdf.text(pickupLines[i], L, y);
-    if (dropoffLines[i]) pdf.text(dropoffLines[i], MID, y);
+    if (pickupFull[i]) pdf.text(pickupFull[i], L, y);
+    if (dropoffFull[i]) pdf.text(dropoffFull[i], MID, y);
     y += 7;
   }
 
@@ -279,8 +298,11 @@ function renderStructuredPdf(
     pdf.setFont("helvetica", "bold");
     pdf.text("Delivery Address:", L, y);
     pdf.setFont("helvetica", "normal");
-    pdf.text(t.locations.deliveryAddress, L + 68, y);
-    y += 7;
+    const delAddrLines = pdf.splitTextToSize(t.locations.deliveryAddress, CW * 0.7);
+    for (const dl of delAddrLines) {
+      pdf.text(dl, L + 68, y);
+      y += 7;
+    }
   }
 
   y += 2;
@@ -710,6 +732,15 @@ function finRowBold(pdf: jsPDF, label: string, amount: string, y: number) {
   pdf.text(amount, R - 4, y, { align: "right" });
 }
 
+// ── Helper: Format address into multi-line: Street / City, BC / Postal ──
+function formatAddressLines(address?: string, city?: string): string[] {
+  const lines: string[] = [];
+  if (address) lines.push(address);
+  if (city) lines.push(`${city}, BC`);
+  if (lines.length === 0) lines.push("—");
+  return lines;
+}
+
 // ── Helper: Horizontal line ──
 function hLine(pdf: jsPDF, y: number) {
   pdf.setDrawColor(180, 180, 180);
@@ -781,7 +812,7 @@ function renderLegacyPdf(
 
   pdf.setFontSize(9);
   pdf.setFont("helvetica", "bold");
-  pdf.text("VEHICLE RENTAL AGREEMENT", centerX, y, { align: "center" });
+  pdf.text("LEGAL VEHICLE RENTAL AGREEMENT", centerX, y, { align: "center" });
   y += 14;
 
   pdf.setDrawColor(120, 120, 120);

@@ -43,8 +43,10 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
   const p = t.policies;
   const tankCap = t.vehicle.tankCapacityLiters || 50;
   const displayName = t.customer.name && !t.customer.name.includes("@") ? t.customer.name : "—";
-  const pickupAddr = [t.locations.pickup.name, t.locations.pickup.address, t.locations.pickup.city].filter(Boolean).join(", ");
-  const dropoffAddr = [t.locations.dropoff.name, t.locations.dropoff.address, t.locations.dropoff.city].filter(Boolean).join(", ");
+  const pickupAddrParts = [t.locations.pickup.name, t.locations.pickup.address, t.locations.pickup.city ? `${t.locations.pickup.city}, BC` : null].filter(Boolean);
+  const dropoffAddrParts = [t.locations.dropoff.name, t.locations.dropoff.address, t.locations.dropoff.city ? `${t.locations.dropoff.city}, BC` : null].filter(Boolean);
+  const pickupAddr = pickupAddrParts.join("\n");
+  const dropoffAddr = dropoffAddrParts.join("\n");
   const makeModelParts = [t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean);
   const protName = t.protection?.planName || "No Extra Protection";
   const protTotal = t.protection?.total ?? (t.financial as any).protectionTotal ?? 0;
@@ -55,7 +57,12 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
       {/* Header */}
       <div className="text-center space-y-0.5">
         <h2 className="text-sm font-bold tracking-wide">C2C CAR RENTAL</h2>
-        <p className="text-[10px] font-bold text-muted-foreground">VEHICLE LEGAL AGREEMENT</p>
+        <p className="text-[10px] font-bold text-muted-foreground">LEGAL VEHICLE RENTAL AGREEMENT</p>
+      </div>
+
+      {/* Contact info bar */}
+      <div className="bg-muted/50 border rounded px-3 py-1 text-[9px] text-center text-muted-foreground">
+        Surrey, BC &nbsp;|&nbsp; Contact: (604) 771-3995 &nbsp;|&nbsp; 24/7 Support: (778) 580-0498 &nbsp;|&nbsp; Roadside: (604) 771-3995
       </div>
 
       <div className="flex justify-between text-[10px]">
@@ -76,11 +83,11 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="font-bold text-muted-foreground">Pickup Location:</span>
-            <p className="mt-0.5">{pickupAddr || "—"}</p>
+            <p className="mt-0.5 whitespace-pre-line">{pickupAddr || "—"}</p>
           </div>
           <div>
             <span className="font-bold text-muted-foreground">Drop-off Location:</span>
-            <p className="mt-0.5">{dropoffAddr === pickupAddr ? `${dropoffAddr} (Same as pickup)` : (dropoffAddr || "—")}</p>
+            <p className="mt-0.5 whitespace-pre-line">{dropoffAddr === pickupAddr ? `${dropoffAddr}\n(Same as pickup)` : (dropoffAddr || "—")}</p>
           </div>
         </div>
         {t.locations.deliveryAddress && (
