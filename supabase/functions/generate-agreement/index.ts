@@ -23,13 +23,36 @@ const GST_RATE = 0.05;
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
 
-// Protection packages (mirrors src/lib/pricing.ts)
-const PROTECTION_PACKAGES: Record<string, { name: string; dailyRate: number; deductible: string }> = {
-  none: { name: "No Extra Protection", dailyRate: 0, deductible: "Up to full vehicle value" },
-  basic: { name: "Basic Protection", dailyRate: 33.99, deductible: "Up to $800.00" },
-  smart: { name: "Smart Protection", dailyRate: 39.25, deductible: "$0.00" },
-  premium: { name: "All Inclusive Protection", dailyRate: 49.77, deductible: "$0.00" },
+// Protection plan metadata (rates come from booking's pricing_snapshot or group logic)
+const PROTECTION_PLAN_META: Record<string, { name: string; deductible: string }> = {
+  none: { name: "No Extra Protection", deductible: "Up to full vehicle value" },
+  basic: { name: "Basic Protection", deductible: "Up to $800.00" },
+  smart: { name: "Smart Protection", deductible: "$0.00" },
+  premium: { name: "All Inclusive Protection", deductible: "$0.00" },
 };
+
+// Group-based protection daily rates (mirrors src/lib/protection-groups.ts)
+type ProtectionGroup = 1 | 2 | 3;
+const GROUP_RATES: Record<ProtectionGroup, Record<string, number>> = {
+  1: { basic: 32.99, smart: 37.99, premium: 49.99 },
+  2: { basic: 52.99, smart: 57.99, premium: 69.99 },
+  3: { basic: 64.99, smart: 69.99, premium: 82.99 },
+};
+
+function getProtectionGroup(categoryName: string | null | undefined): ProtectionGroup {
+  if (!categoryName) return 1;
+  const name = categoryName.toUpperCase();
+  if (name.includes("LARGE") && name.includes("SUV")) return 3;
+  if (name.includes("MINIVAN")) return 2;
+  if (name.includes("STANDARD") && name.includes("SUV")) return 2;
+  return 1;
+}
+
+function getProtectionRate(planId: string, categoryName: string | null | undefined): number {
+  if (planId === "none") return 0;
+  const group = getProtectionGroup(categoryName);
+  return GROUP_RATES[group]?.[planId] ?? 0;
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -270,15 +293,17 @@ serve(async (req) => {
 
     // Resolve protection plan from booking
     const protectionPlanId = (booking as any).protection_plan || "none";
-    const protectionPkg = PROTECTION_PACKAGES[protectionPlanId] || PROTECTION_PACKAGES.none;
+    const planMeta = PROTECTION_PLAN_META[protectionPlanId] || PROTECTION_PLAN_META.none;
     
     // Calculate financial breakdown
     const rentalDays = booking.total_days || 1;
     const dailyRate = Number(booking.daily_rate) || 0;
     const vehicleSubtotal = dailyRate * rentalDays;
     
-    // Protection total
-    const protectionDailyRate = protectionPkg.dailyRate;
+    // Protection rate: use pricing_snapshot if available, otherwise derive from vehicle group
+    const pricingSnapshot = booking.pricing_snapshot as any;
+    const protectionDailyRate = pricingSnapshot?.protectionDailyRate
+      ?? getProtectionRate(protectionPlanId, categoryInfo.name);
     const protectionTotal = protectionDailyRate * rentalDays;
     
     // Add-ons total (includes upgrade fee)
@@ -343,7 +368,7 @@ Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(
 Location: ${booking.locations?.name || '—'}, ${booking.locations?.address || '—'}, ${booking.locations?.city || '—'}
 Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
 Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}
-Protection: ${protectionPkg.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
+Protection: ${planMeta.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
 Add-ons: $${addOnsTotal.toFixed(2)}
 ${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}
 PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)} | GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
@@ -408,10 +433,10 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
       },
       protection: {
         planId: protectionPlanId,
-        planName: protectionPkg.name,
+        planName: planMeta.name,
         dailyRate: protectionDailyRate,
         total: protectionTotal,
-        deductible: protectionPkg.deductible,
+        deductible: planMeta.deductible,
       },
       financial: {
         vehicleSubtotal,

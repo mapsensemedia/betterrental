@@ -182,7 +182,28 @@ function loadFromStorage(): RentalSearchData {
 }
 
 export function RentalBookingProvider({ children }: { children: ReactNode }) {
-  const [searchData, setSearchData] = useState<RentalSearchData>(loadFromStorage);
+  const [searchData, setSearchData] = useState<RentalSearchData>(() => {
+    const stored = loadFromStorage();
+    // Hydrate dates from URL query params (deep-link support for /protection etc.)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const startAt = params.get("startAt");
+      const endAt = params.get("endAt");
+      if (startAt) {
+        const d = new Date(startAt);
+        if (!isNaN(d.getTime())) {
+          stored.pickupDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        }
+      }
+      if (endAt) {
+        const d = new Date(endAt);
+        if (!isNaN(d.getTime())) {
+          stored.returnDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        }
+      }
+    }
+    return stored;
+  });
 
   // Persist to localStorage
   useEffect(() => {
