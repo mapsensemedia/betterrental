@@ -36,10 +36,12 @@ import {
   Loader2,
   Package,
   Save,
+  Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 
 interface EditDialogState {
   open: boolean;
@@ -109,10 +111,45 @@ function useFuelPricingSettings() {
 export function AddOnsPricingPanel() {
   const { data: addOns, isLoading } = useManageAddOns();
   const { data: fuelSettings, isLoading: fuelLoading, updateFuelPricing } = useFuelPricingSettings();
+  const { data: driverFees } = useDriverFeeSettings();
+  const queryClient = useQueryClient();
   const updateAddOn = useUpdateAddOn();
   const createAddOn = useCreateAddOn();
   const deleteAddOn = useDeleteAddOn();
 
+  // Driver fee form state
+  const [driverFeeForm, setDriverFeeForm] = useState({
+    additionalDriverRate: "15.99",
+    youngAdditionalDriverRate: "15.00",
+  });
+  const [driverFeeDirty, setDriverFeeDirty] = useState(false);
+
+  // Sync driver fees when data loads
+  useEffect(() => {
+    if (driverFees && !driverFeeDirty) {
+      setDriverFeeForm({
+        additionalDriverRate: String(driverFees.additionalDriverDailyRate),
+        youngAdditionalDriverRate: String(driverFees.youngAdditionalDriverDailyRate),
+      });
+    }
+  }, [driverFees, driverFeeDirty]);
+
+  const updateDriverFees = useMutation({
+    mutationFn: async (values: { additionalDriverRate: number; youngAdditionalDriverRate: number }) => {
+      const { error: err1 } = await supabase
+        .from("system_settings" as any)
+        .upsert({ key: "additional_driver_daily_rate", value: String(values.additionalDriverRate) } as any, { onConflict: "key" });
+      const { error: err2 } = await supabase
+        .from("system_settings" as any)
+        .upsert({ key: "young_additional_driver_daily_rate", value: String(values.youngAdditionalDriverRate) } as any, { onConflict: "key" });
+      if (err1 || err2) throw new Error(err1?.message || err2?.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["driver-fee-settings"] });
+      toast.success("Driver fees updated");
+    },
+    onError: (error: Error) => toast.error("Failed: " + error.message),
+  });
   const [editDialog, setEditDialog] = useState<EditDialogState>({ open: false, addon: null });
   const [createDialog, setCreateDialog] = useState<CreateDialogState>({ open: false });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -339,7 +376,77 @@ export function AddOnsPricingPanel() {
 
           <Separator />
 
-          {/* Add-Ons List */}
+          {/* Additional Driver Fees Section */}
+          <div className="bg-accent/50 border border-border rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Users className="w-5 h-5 text-primary mt-0.5" />
+              <div className="flex-1 space-y-3">
+                <div>
+                  <p className="text-sm font-medium">Additional Driver Fees</p>
+                  <p className="text-xs text-muted-foreground">
+                    Set the daily rate for additional drivers and the young driver surcharge (20–24 age band).
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Driver Fee ($/day)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={driverFeeForm.additionalDriverRate}
+                      onChange={(e) => {
+                        setDriverFeeForm((p) => ({ ...p, additionalDriverRate: e.target.value }));
+                        setDriverFeeDirty(true);
+                      }}
+                      className="w-24 h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Young Surcharge ($/day)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={driverFeeForm.youngAdditionalDriverRate}
+                      onChange={(e) => {
+                        setDriverFeeForm((p) => ({ ...p, youngAdditionalDriverRate: e.target.value }));
+                        setDriverFeeDirty(true);
+                      }}
+                      className="w-24 h-9"
+                    />
+                  </div>
+                  <div className="text-xs text-muted-foreground pb-2">
+                    Ages 20–24 pay: <span className="font-medium">${(parseFloat(driverFeeForm.additionalDriverRate || "0") + parseFloat(driverFeeForm.youngAdditionalDriverRate || "0")).toFixed(2)}/day</span>
+                  </div>
+                  {driverFeeDirty && (
+                    <Button
+                      size="sm"
+                      className="h-9 gap-1"
+                      onClick={async () => {
+                        await updateDriverFees.mutateAsync({
+                          additionalDriverRate: parseFloat(driverFeeForm.additionalDriverRate) || 15.99,
+                          youngAdditionalDriverRate: parseFloat(driverFeeForm.youngAdditionalDriverRate) || 15.00,
+                        });
+                        setDriverFeeDirty(false);
+                      }}
+                      disabled={updateDriverFees.isPending}
+                    >
+                      {updateDriverFees.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      Save
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
           <div className="space-y-3">
             {addOns?.map((addon) => (
               <div

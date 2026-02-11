@@ -12,18 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Save, Loader2, Star, Users } from "lucide-react";
+import { Shield, Save, Loader2, Star } from "lucide-react";
 import {
   useProtectionPackages,
   useUpdateProtectionSettings,
   getGroupSettingsFromRows,
   type GroupSettings,
 } from "@/hooks/use-protection-settings";
-import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 import { GROUP_LABELS, type ProtectionGroup } from "@/lib/protection-groups";
-import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 interface PackageFormState {
   rate: string;
@@ -62,8 +59,6 @@ function settingsToForms(s: GroupSettings): {
 export function ProtectionPricingPanel() {
   const { allRows, isLoading } = useProtectionPackages();
   const updateSettings = useUpdateProtectionSettings();
-  const { data: driverFees } = useDriverFeeSettings();
-  const queryClient = useQueryClient();
 
   // Per-group form state
   const [groupForms, setGroupForms] = useState<Record<ProtectionGroup, {
@@ -75,51 +70,7 @@ export function ProtectionPricingPanel() {
   });
   const [dirtyGroups, setDirtyGroups] = useState<Set<ProtectionGroup>>(new Set());
 
-  // Driver fee form
-  const [driverFeeForm, setDriverFeeForm] = useState({
-    additionalDriverRate: "15.99",
-    youngAdditionalDriverRate: "15.00",
-  });
-  const [driverFeeDirty, setDriverFeeDirty] = useState(false);
-
   // Sync forms when data loads
-  useEffect(() => {
-    if (allRows && allRows.length > 0) {
-      const newForms = { ...groupForms };
-      for (const g of [1, 2, 3] as ProtectionGroup[]) {
-        if (!dirtyGroups.has(g)) {
-          newForms[g] = settingsToForms(getGroupSettingsFromRows(allRows, g));
-        }
-      }
-      setGroupForms(newForms);
-    }
-  }, [allRows]);
-
-  useEffect(() => {
-    if (driverFees && !driverFeeDirty) {
-      setDriverFeeForm({
-        additionalDriverRate: String(driverFees.additionalDriverDailyRate),
-        youngAdditionalDriverRate: String(driverFees.youngAdditionalDriverDailyRate),
-      });
-    }
-  }, [driverFees, driverFeeDirty]);
-
-  const updateDriverFees = useMutation({
-    mutationFn: async (values: { additionalDriverRate: number; youngAdditionalDriverRate: number }) => {
-      const { error: err1 } = await supabase
-        .from("system_settings" as any)
-        .upsert({ key: "additional_driver_daily_rate", value: String(values.additionalDriverRate) } as any, { onConflict: "key" });
-      const { error: err2 } = await supabase
-        .from("system_settings" as any)
-        .upsert({ key: "young_additional_driver_daily_rate", value: String(values.youngAdditionalDriverRate) } as any, { onConflict: "key" });
-      if (err1 || err2) throw new Error(err1?.message || err2?.message);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["driver-fee-settings"] });
-      toast.success("Driver fees updated");
-    },
-    onError: (error: Error) => toast.error("Failed: " + error.message),
-  });
 
   const handleGroupSave = async (group: ProtectionGroup) => {
     const forms = groupForms[group];
@@ -251,76 +202,6 @@ export function ProtectionPricingPanel() {
               </div>
             );
           })}
-        </CardContent>
-      </Card>
-
-      {/* Driver Fees Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Additional Driver Fees
-          </CardTitle>
-          <CardDescription>
-            Set the daily rate for additional drivers and the young driver surcharge (20-24 age band).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="text-xs">Additional Driver Fee ($/day)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={driverFeeForm.additionalDriverRate}
-                onChange={(e) => {
-                  setDriverFeeForm((p) => ({ ...p, additionalDriverRate: e.target.value }));
-                  setDriverFeeDirty(true);
-                }}
-                className="h-9"
-              />
-              <p className="text-[10px] text-muted-foreground">Flat rate per additional driver per day</p>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Young Additional Driver Surcharge ($/day)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={driverFeeForm.youngAdditionalDriverRate}
-                onChange={(e) => {
-                  setDriverFeeForm((p) => ({ ...p, youngAdditionalDriverRate: e.target.value }));
-                  setDriverFeeDirty(true);
-                }}
-                className="h-9"
-              />
-              <p className="text-[10px] text-muted-foreground">Extra daily charge for drivers aged 20-24</p>
-            </div>
-          </div>
-          {driverFeeDirty && (
-            <div className="flex justify-end mt-4">
-              <Button
-                size="sm"
-                className="gap-1"
-                onClick={async () => {
-                  await updateDriverFees.mutateAsync({
-                    additionalDriverRate: parseFloat(driverFeeForm.additionalDriverRate) || 15.99,
-                    youngAdditionalDriverRate: parseFloat(driverFeeForm.youngAdditionalDriverRate) || 15.00,
-                  });
-                  setDriverFeeDirty(false);
-                }}
-                disabled={updateDriverFees.isPending}
-              >
-                {updateDriverFees.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                Save Driver Fees
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
