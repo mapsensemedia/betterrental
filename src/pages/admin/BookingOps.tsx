@@ -520,10 +520,6 @@ export default function BookingOps() {
                 driverName={driverInfo?.fullName}
               />
             </div>
-            {/* Activity Timeline in right panel */}
-            <div className="border-t shrink-0">
-              <OpsActivityTimeline bookingId={booking.id} />
-            </div>
           </div>
         </div>
       </div>

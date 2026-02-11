@@ -37,6 +37,7 @@ import { DELIVERY_STATUS_MAP } from "@/lib/ops-steps";
 import { CategoryUpgradeDialog } from "@/components/admin/CategoryUpgradeDialog";
 import { CollapsibleSection } from "./sections/CollapsibleSection";
 import { CardInfoSection } from "./sections/CardInfoSection";
+import { OpsActivityTimeline } from "./OpsActivityTimeline";
 
 interface OpsBookingSummaryProps {
   booking: any;
@@ -550,6 +551,12 @@ export function OpsBookingSummary({
                 </Button>
               )}
             </div>
+          </div>
+          
+          {/* Activity Timeline */}
+          <Separator />
+          <div className="p-2">
+            <OpsActivityTimeline bookingId={booking.id} />
           </div>
         </div>
       </ScrollArea>
