@@ -319,9 +319,18 @@ export function calculateAge(dob: string): number {
 }
 
 /**
- * Check if license is expired
+ * Check if license is expired (against today)
  */
 export function isLicenseExpired(expiryDate: string): boolean {
   const expiry = parseISO(expiryDate);
   return expiry < new Date();
+}
+
+/**
+ * Check if license expires before a given rental end date
+ */
+export function isLicenseExpiredForRental(expiryDate: string, rentalEndDate: string): boolean {
+  const expiry = parseISO(expiryDate);
+  const rentalEnd = parseISO(rentalEndDate);
+  return expiry < rentalEnd;
 }

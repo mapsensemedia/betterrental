@@ -474,6 +474,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                           <CheckInSection
                             bookingId={booking.id}
                             bookingStartAt={booking.start_at}
+                            bookingEndAt={booking.end_at}
                             customerName={displayName(booking.profiles?.full_name, null)}
                             licenseOnFile={booking.profiles?.driver_license_status === 'on_file'}
                             licenseExpiryFromProfile={booking.profiles?.driver_license_expiry || null}

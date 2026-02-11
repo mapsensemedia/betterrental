@@ -337,16 +337,19 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
   // Late fee (passed in from return calculations)
   const lateFee = lateFeeAmount;
 
-  // Subtotal before tax
-  const subtotal = vehicleTotal + protectionTotal + addOnsTotal + deliveryFee + 
-                   differentDropoffFee + youngDriverFee + dailyFeesTotal + lateFee;
+  // Subtotal before tax (rounded to avoid floating point drift)
+  const subtotal = Math.round(
+    (vehicleTotal + protectionTotal + addOnsTotal + deliveryFee + 
+     differentDropoffFee + youngDriverFee + dailyFeesTotal + lateFee) * 100
+  ) / 100;
   
-  // Tax breakdown (PST + GST)
-  const pstAmount = subtotal * PST_RATE;
-  const gstAmount = subtotal * GST_RATE;
-  const taxAmount = pstAmount + gstAmount;
+  // Tax breakdown (PST + GST) - round each individually, then derive combined
+  const pstAmount = Math.round(subtotal * PST_RATE * 100) / 100;
+  const gstAmount = Math.round(subtotal * GST_RATE * 100) / 100;
+  const taxAmount = Math.round((pstAmount + gstAmount) * 100) / 100;
   
-  const total = subtotal + taxAmount;
+  // Total = subtotal + tax (exact, no further rounding needed)
+  const total = Math.round((subtotal + taxAmount) * 100) / 100;
 
   return {
     vehicleTotal,

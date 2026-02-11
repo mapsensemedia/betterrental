@@ -83,7 +83,6 @@ Deno.serve(async (req) => {
     }
 
     // Verify booking exists and get details
-    // For security, we verify the booking's user_id matches if we have one
     const bookingQuery = supabase
       .from("bookings")
       .select(`
@@ -112,6 +111,29 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Booking not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate driver's license expiry against rental return date
+    if (userId) {
+      const { data: profileForLicense } = await supabase
+        .from("profiles")
+        .select("driver_license_expiry")
+        .eq("id", userId)
+        .single();
+      
+      if (profileForLicense?.driver_license_expiry) {
+        const licenseExpiry = new Date(profileForLicense.driver_license_expiry);
+        const rentalEnd = new Date(booking.end_at);
+        if (licenseExpiry < rentalEnd) {
+          return new Response(
+            JSON.stringify({ 
+              error: "license_expired",
+              message: "Driver's license expires before the rental return date. Please update your license before proceeding."
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
     }
 
     // Use booking's user_id if we don't have one
