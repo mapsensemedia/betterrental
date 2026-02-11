@@ -46,18 +46,18 @@ export const OPS_STEPS: OpsStep[] = [
     icon: "credit-card",
   },
   {
-    id: "agreement",
-    number: 3,
-    title: "Rental Agreement",
-    description: "Manual in-person agreement signing",
-    icon: "file-text",
-  },
-  {
     id: "walkaround",
-    number: 4,
+    number: 3,
     title: "Vehicle Walkaround",
     description: "Staff-only inspection checklist (no customer signature)",
     icon: "eye",
+  },
+  {
+    id: "agreement",
+    number: 4,
+    title: "Rental Agreement",
+    description: "Manual in-person agreement signing",
+    icon: "file-text",
   },
   {
     id: "photos",
