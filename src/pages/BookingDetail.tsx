@@ -111,6 +111,10 @@ interface BookingData {
   card_last_four: string | null;
   card_type: string | null;
   card_holder_name: string | null;
+  // Upgrade fields
+  upgrade_daily_fee: number | null;
+  upgrade_category_label: string | null;
+  upgrade_visible_to_customer: boolean | null;
   vehicles: {
     id: string;
     make: string;
@@ -314,6 +318,9 @@ export default function BookingDetail() {
             card_last_four,
             card_type,
             card_holder_name,
+            upgrade_daily_fee,
+            upgrade_category_label,
+            upgrade_visible_to_customer,
             locations!location_id (id, name, address, city)
           `)
           .eq("id", id)
@@ -657,6 +664,14 @@ export default function BookingDetail() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Young driver fee ($15/day × {booking.total_days} days)</span>
                       <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {booking.upgrade_visible_to_customer && Number(booking.upgrade_daily_fee) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Vehicle Upgrade{booking.upgrade_category_label ? ` (${booking.upgrade_category_label})` : ''} — ${Number(booking.upgrade_daily_fee).toFixed(2)}/day × {booking.total_days} days
+                      </span>
+                      <span>${(Number(booking.upgrade_daily_fee) * booking.total_days).toFixed(2)}</span>
                     </div>
                   )}
                   {booking.tax_amount && (
