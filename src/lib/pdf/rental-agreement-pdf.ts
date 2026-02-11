@@ -504,7 +504,8 @@ function renderStructuredPdf(
       title: "4. RETURN POLICY & LATE FEES",
       items: [
         `Grace period: ${p.gracePeriodMinutes} min past scheduled return.`,
-        `Late fee: ${p.lateFeePercentOfDaily}% of daily rate per hour after grace.`,
+        `Late fee: ${p.lateFeePercentOfDaily}% of daily rate per hour for the first 2 hours after grace period.`,
+        `From the 3rd hour onward: a full day charge (1x daily rate) replaces the hourly fee.`,
         "Extended rentals require prior approval.",
       ]
     },
@@ -586,7 +587,7 @@ function renderStructuredPdf(
     "I acknowledge that my electronic signature has the same legal effect as a handwritten signature.",
     "I understand that third party liability coverage is included and optional rental coverage is available at pickup.",
     `I agree to return the vehicle with the same fuel level as at pickup.`,
-    `I understand late fees will be charged at ${p.lateFeePercentOfDaily}% of the daily rate per hour after the ${p.gracePeriodMinutes}-minute grace period.`,
+    `I understand late fees will be charged at ${p.lateFeePercentOfDaily}% of the daily rate per hour for the first 2 hours after the ${p.gracePeriodMinutes}-minute grace period, then a full day charge from the 3rd hour onward.`,
   ];
 
   for (const point of ackPoints) {

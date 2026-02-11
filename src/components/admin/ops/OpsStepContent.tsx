@@ -45,6 +45,7 @@ import { CounterUpsellPanel } from "./CounterUpsellPanel";
 import { BookingEditPanel } from "./BookingEditPanel";
 import { ProtectionChangePanel } from "./ProtectionChangePanel";
 import { UnifiedVehicleManager } from "../UnifiedVehicleManager";
+import { VehicleUpgradePanel } from "./VehicleUpgradePanel";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
@@ -198,9 +199,13 @@ export function OpsStepContent({
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
                 <ProtectionChangePanel bookingId={booking.id} booking={booking} />
               )}
-              {/* Counter Upsell */}
+               {/* Counter Upsell */}
               {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
                 <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
+              )}
+              {/* Vehicle Upgrade Fee */}
+              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+                <VehicleUpgradePanel booking={booking} />
               )}
             </>
           )}
@@ -299,6 +304,7 @@ export function OpsStepContent({
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-sm font-medium text-muted-foreground">Quick Actions</h3>
                   <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
+                  <VehicleUpgradePanel booking={booking} />
                   <BookingEditPanel booking={booking} />
                 </div>
               )}
