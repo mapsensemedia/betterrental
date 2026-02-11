@@ -1,6 +1,6 @@
 /**
  * AdditionalDriversCard - Component to add/remove additional drivers with age selection
- * Each additional driver in the 21-25 age range incurs a young driver fee
+ * Reads base driver fee from system_settings via useDriverFeeSettings hook.
  */
 import { useState } from "react";
 import { Users, Plus, Trash2 } from "lucide-react";
@@ -9,14 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { DriverAgeBand } from "@/lib/pricing";
+import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 
 export interface AdditionalDriver {
   id: string;
@@ -32,18 +29,17 @@ interface AdditionalDriversCardProps {
 }
 
 export function AdditionalDriversCard({
-  drivers,
-  onDriversChange,
-  rentalDays,
-  className,
+  drivers, onDriversChange, rentalDays, className,
 }: AdditionalDriversCardProps) {
   const [isExpanded, setIsExpanded] = useState(drivers.length > 0);
+  const { data: feeSettings } = useDriverFeeSettings();
+  const baseDriverFee = feeSettings?.additionalDriverDailyRate ?? 15.99;
 
   const addDriver = () => {
     const newDriver: AdditionalDriver = {
       id: crypto.randomUUID(),
       name: "",
-      ageBand: "25_70", // Default to 25-70 (no young driver fee)
+      ageBand: "25_70",
     };
     onDriversChange([...drivers, newDriver]);
     setIsExpanded(true);
@@ -59,10 +55,7 @@ export function AdditionalDriversCard({
     );
   };
 
-  // Calculate total additional driver fees (base fee only, no young driver surcharge)
-  const baseDriverFee = 15.99; // Per day per additional driver
   const totalBaseFees = drivers.length * baseDriverFee * rentalDays;
-  const totalFees = totalBaseFees;
 
   return (
     <Card className={cn("p-4 transition-all", className)}>
@@ -80,18 +73,13 @@ export function AdditionalDriversCard({
         </div>
 
         {drivers.length === 0 ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={addDriver}
-            className="gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={addDriver} className="gap-2">
             <Plus className="w-4 h-4" />
             Add Driver
           </Button>
         ) : (
           <div className="text-right">
-            <p className="font-semibold">${totalFees.toFixed(2)} CAD</p>
+            <p className="font-semibold">${totalBaseFees.toFixed(2)} CAD</p>
             <p className="text-xs text-muted-foreground">
               {drivers.length} driver{drivers.length > 1 ? "s" : ""}
             </p>
@@ -102,47 +90,21 @@ export function AdditionalDriversCard({
       {drivers.length > 0 && (
         <div className="space-y-4 mt-4">
           {drivers.map((driver, index) => (
-            <div
-              key={driver.id}
-              className="p-4 border border-border rounded-lg bg-muted/30 space-y-3"
-            >
+            <div key={driver.id} className="p-4 border border-border rounded-lg bg-muted/30 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  Additional Driver {index + 1}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => removeDriver(driver.id)}
-                >
+                <span className="text-sm font-medium">Additional Driver {index + 1}</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => removeDriver(driver.id)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
-
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor={`driver-name-${driver.id}`}>
-                    Driver Name (optional)
-                  </Label>
-                  <Input
-                    id={`driver-name-${driver.id}`}
-                    placeholder="Enter name"
-                    value={driver.name}
-                    onChange={(e) =>
-                      updateDriver(driver.id, { name: e.target.value })
-                    }
-                  />
+                  <Label htmlFor={`driver-name-${driver.id}`}>Driver Name (optional)</Label>
+                  <Input id={`driver-name-${driver.id}`} placeholder="Enter name" value={driver.name} onChange={(e) => updateDriver(driver.id, { name: e.target.value })} />
                 </div>
-
                 <div className="space-y-1.5">
                   <Label htmlFor={`driver-age-${driver.id}`}>Age Range *</Label>
-                  <Select
-                    value={driver.ageBand}
-                    onValueChange={(value: DriverAgeBand) =>
-                      updateDriver(driver.id, { ageBand: value })
-                    }
-                  >
+                  <Select value={driver.ageBand} onValueChange={(value: DriverAgeBand) => updateDriver(driver.id, { ageBand: value })}>
                     <SelectTrigger id={`driver-age-${driver.id}`}>
                       <SelectValue placeholder="Select age range" />
                     </SelectTrigger>
@@ -155,17 +117,10 @@ export function AdditionalDriversCard({
               </div>
             </div>
           ))}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={addDriver}
-            className="w-full gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={addDriver} className="w-full gap-2">
             <Plus className="w-4 h-4" />
             Add Another Driver
           </Button>
-
         </div>
       )}
     </Card>
@@ -173,13 +128,13 @@ export function AdditionalDriversCard({
 }
 
 /**
- * Calculate total additional drivers cost
+ * Calculate total additional drivers cost using provided fee rate
  */
 export function calculateAdditionalDriversCost(
   drivers: AdditionalDriver[],
-  rentalDays: number
+  rentalDays: number,
+  baseDriverFee: number = 15.99
 ): { baseFees: number; youngDriverFees: number; total: number } {
-  const baseDriverFee = 15.99;
   const baseFees = drivers.length * baseDriverFee * rentalDays;
   return {
     baseFees,

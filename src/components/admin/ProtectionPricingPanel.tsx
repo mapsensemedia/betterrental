@@ -1,15 +1,10 @@
 /**
- * ProtectionPricingPanel — Admin panel for viewing protection package pricing
- * across all 3 vehicle groups. Group 1 rates are editable via system_settings;
- * Groups 2 & 3 are code-defined and shown read-only.
+ * ProtectionPricingPanel — Admin panel for managing protection package pricing
+ * across all 3 vehicle groups. All groups are now editable via system_settings.
  */
 import { useState, useEffect } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,16 +12,18 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Save, Loader2, Star, Lock } from "lucide-react";
+import { Shield, Save, Loader2, Star, Users } from "lucide-react";
 import {
   useProtectionPackages,
   useUpdateProtectionSettings,
+  getGroupSettingsFromRows,
+  type GroupSettings,
 } from "@/hooks/use-protection-settings";
-import {
-  GROUP_RATES,
-  GROUP_LABELS,
-  type ProtectionGroup,
-} from "@/lib/protection-groups";
+import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
+import { GROUP_LABELS, type ProtectionGroup } from "@/lib/protection-groups";
+import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface PackageFormState {
   rate: string;
@@ -35,77 +32,133 @@ interface PackageFormState {
   deductible: string;
 }
 
+function settingsToForms(s: GroupSettings): {
+  basic: PackageFormState;
+  smart: PackageFormState;
+  premium: PackageFormState;
+} {
+  return {
+    basic: {
+      rate: s.basic_rate,
+      originalRate: "",
+      discount: "",
+      deductible: s.basic_deductible,
+    },
+    smart: {
+      rate: s.smart_rate,
+      originalRate: s.smart_original_rate,
+      discount: s.smart_discount,
+      deductible: s.smart_deductible,
+    },
+    premium: {
+      rate: s.premium_rate,
+      originalRate: s.premium_original_rate,
+      discount: s.premium_discount,
+      deductible: s.premium_deductible,
+    },
+  };
+}
+
 export function ProtectionPricingPanel() {
-  const { settings, isLoading } = useProtectionPackages();
+  const { allRows, isLoading } = useProtectionPackages();
   const updateSettings = useUpdateProtectionSettings();
+  const { data: driverFees } = useDriverFeeSettings();
+  const queryClient = useQueryClient();
 
-  const [basicForm, setBasicForm] = useState<PackageFormState>({
-    rate: "",
-    originalRate: "",
-    discount: "",
-    deductible: "",
+  // Per-group form state
+  const [groupForms, setGroupForms] = useState<Record<ProtectionGroup, {
+    basic: PackageFormState; smart: PackageFormState; premium: PackageFormState;
+  }>>({
+    1: settingsToForms(getGroupSettingsFromRows([], 1)),
+    2: settingsToForms(getGroupSettingsFromRows([], 2)),
+    3: settingsToForms(getGroupSettingsFromRows([], 3)),
   });
-  const [smartForm, setSmartForm] = useState<PackageFormState>({
-    rate: "",
-    originalRate: "",
-    discount: "",
-    deductible: "",
-  });
-  const [premiumForm, setPremiumForm] = useState<PackageFormState>({
-    rate: "",
-    originalRate: "",
-    discount: "",
-    deductible: "",
-  });
-  const [dirty, setDirty] = useState(false);
+  const [dirtyGroups, setDirtyGroups] = useState<Set<ProtectionGroup>>(new Set());
 
-  // Sync form when settings load
+  // Driver fee form
+  const [driverFeeForm, setDriverFeeForm] = useState({
+    additionalDriverRate: "15.99",
+    youngAdditionalDriverRate: "15.00",
+  });
+  const [driverFeeDirty, setDriverFeeDirty] = useState(false);
+
+  // Sync forms when data loads
   useEffect(() => {
-    if (settings && !dirty) {
-      setBasicForm({
-        rate: settings.protection_basic_rate,
-        originalRate: "",
-        discount: "",
-        deductible: settings.protection_basic_deductible,
-      });
-      setSmartForm({
-        rate: settings.protection_smart_rate,
-        originalRate: settings.protection_smart_original_rate,
-        discount: settings.protection_smart_discount,
-        deductible: settings.protection_smart_deductible,
-      });
-      setPremiumForm({
-        rate: settings.protection_premium_rate,
-        originalRate: settings.protection_premium_original_rate,
-        discount: settings.protection_premium_discount,
-        deductible: settings.protection_premium_deductible,
+    if (allRows && allRows.length > 0) {
+      const newForms = { ...groupForms };
+      for (const g of [1, 2, 3] as ProtectionGroup[]) {
+        if (!dirtyGroups.has(g)) {
+          newForms[g] = settingsToForms(getGroupSettingsFromRows(allRows, g));
+        }
+      }
+      setGroupForms(newForms);
+    }
+  }, [allRows]);
+
+  useEffect(() => {
+    if (driverFees && !driverFeeDirty) {
+      setDriverFeeForm({
+        additionalDriverRate: String(driverFees.additionalDriverDailyRate),
+        youngAdditionalDriverRate: String(driverFees.youngAdditionalDriverDailyRate),
       });
     }
-  }, [settings, dirty]);
+  }, [driverFees, driverFeeDirty]);
 
-  const handleSave = async () => {
-    const basicRate = parseFloat(basicForm.rate);
-    const smartRate = parseFloat(smartForm.rate);
-    const premiumRate = parseFloat(premiumForm.rate);
+  const updateDriverFees = useMutation({
+    mutationFn: async (values: { additionalDriverRate: number; youngAdditionalDriverRate: number }) => {
+      const { error: err1 } = await supabase
+        .from("system_settings" as any)
+        .upsert({ key: "additional_driver_daily_rate", value: String(values.additionalDriverRate) } as any, { onConflict: "key" });
+      const { error: err2 } = await supabase
+        .from("system_settings" as any)
+        .upsert({ key: "young_additional_driver_daily_rate", value: String(values.youngAdditionalDriverRate) } as any, { onConflict: "key" });
+      if (err1 || err2) throw new Error(err1?.message || err2?.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["driver-fee-settings"] });
+      toast.success("Driver fees updated");
+    },
+    onError: (error: Error) => toast.error("Failed: " + error.message),
+  });
 
-    const smartOriginal = parseFloat(smartForm.originalRate);
-    const premiumOriginal = parseFloat(premiumForm.originalRate);
+  const handleGroupSave = async (group: ProtectionGroup) => {
+    const forms = groupForms[group];
+    const basicRate = parseFloat(forms.basic.rate);
+    const smartRate = parseFloat(forms.smart.rate);
+    const premiumRate = parseFloat(forms.premium.rate);
+    const smartOriginal = parseFloat(forms.smart.originalRate);
+    const premiumOriginal = parseFloat(forms.premium.originalRate);
     const hasSmartDiscount = !isNaN(smartOriginal) && !isNaN(smartRate) && smartOriginal > smartRate;
     const hasPremiumDiscount = !isNaN(premiumOriginal) && !isNaN(premiumRate) && premiumOriginal > premiumRate;
 
     await updateSettings.mutateAsync({
-      protection_basic_rate: !isNaN(basicRate) && basicRate > 0 ? basicRate.toFixed(2) : "",
-      protection_basic_deductible: basicForm.deductible,
-      protection_smart_rate: !isNaN(smartRate) && smartRate > 0 ? smartRate.toFixed(2) : "",
-      protection_smart_original_rate: hasSmartDiscount ? smartOriginal.toFixed(2) : "",
-      protection_smart_discount: hasSmartDiscount ? smartForm.discount : "",
-      protection_smart_deductible: smartForm.deductible,
-      protection_premium_rate: !isNaN(premiumRate) && premiumRate > 0 ? premiumRate.toFixed(2) : "",
-      protection_premium_original_rate: hasPremiumDiscount ? premiumOriginal.toFixed(2) : "",
-      protection_premium_discount: hasPremiumDiscount ? premiumForm.discount : "",
-      protection_premium_deductible: premiumForm.deductible,
+      group,
+      settings: {
+        basic_rate: !isNaN(basicRate) && basicRate > 0 ? basicRate.toFixed(2) : "",
+        basic_deductible: forms.basic.deductible,
+        smart_rate: !isNaN(smartRate) && smartRate > 0 ? smartRate.toFixed(2) : "",
+        smart_original_rate: hasSmartDiscount ? smartOriginal.toFixed(2) : "",
+        smart_discount: hasSmartDiscount ? forms.smart.discount : "",
+        smart_deductible: forms.smart.deductible,
+        premium_rate: !isNaN(premiumRate) && premiumRate > 0 ? premiumRate.toFixed(2) : "",
+        premium_original_rate: hasPremiumDiscount ? premiumOriginal.toFixed(2) : "",
+        premium_discount: hasPremiumDiscount ? forms.premium.discount : "",
+        premium_deductible: forms.premium.deductible,
+      },
     });
-    setDirty(false);
+    setDirtyGroups((prev) => {
+      const next = new Set(prev);
+      next.delete(group);
+      return next;
+    });
+  };
+
+  const updateGroupForm = (group: ProtectionGroup, pkg: "basic" | "smart" | "premium", form: PackageFormState) => {
+    setGroupForms((prev) => ({
+      ...prev,
+      [group]: { ...prev[group], [pkg]: form },
+    }));
+    setDirtyGroups((prev) => new Set(prev).add(group));
   };
 
   if (isLoading) {
@@ -125,165 +178,156 @@ export function ProtectionPricingPanel() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Protection Package Pricing
-            </CardTitle>
-            <CardDescription>
-              Pricing varies by vehicle group. Group 1 rates are editable; Groups 2 & 3 are code-defined.
-            </CardDescription>
+    <div className="space-y-6">
+      {/* Protection Pricing Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Protection Package Pricing
+          </CardTitle>
+          <CardDescription>
+            Set daily rates, deductibles, and discount labels for each vehicle group.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-8">
+          {([1, 2, 3] as ProtectionGroup[]).map((group, idx) => {
+            const info = GROUP_LABELS[group];
+            const forms = groupForms[group];
+            const isDirty = dirtyGroups.has(group);
+
+            return (
+              <div key={group}>
+                {idx > 0 && <Separator className="mb-6" />}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold">{info.name}</h4>
+                      <p className="text-xs text-muted-foreground">{info.categories.join(", ")}</p>
+                    </div>
+                    {isDirty && (
+                      <Button
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => handleGroupSave(group)}
+                        disabled={updateSettings.isPending}
+                      >
+                        {updateSettings.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        Save Group {group}
+                      </Button>
+                    )}
+                  </div>
+
+                  <PackageRow
+                    name="Basic Protection"
+                    rating={1}
+                    form={forms.basic}
+                    showOriginalRate={false}
+                    showDiscount={false}
+                    onChange={(f) => updateGroupForm(group, "basic", f)}
+                  />
+                  <PackageRow
+                    name="Smart Protection"
+                    rating={2}
+                    recommended
+                    form={forms.smart}
+                    showOriginalRate
+                    showDiscount
+                    onChange={(f) => updateGroupForm(group, "smart", f)}
+                  />
+                  <PackageRow
+                    name="All Inclusive Protection"
+                    rating={3}
+                    form={forms.premium}
+                    showOriginalRate
+                    showDiscount
+                    onChange={(f) => updateGroupForm(group, "premium", f)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Driver Fees Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Additional Driver Fees
+          </CardTitle>
+          <CardDescription>
+            Set the daily rate for additional drivers and the young driver surcharge (20-24 age band).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs">Additional Driver Fee ($/day)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={driverFeeForm.additionalDriverRate}
+                onChange={(e) => {
+                  setDriverFeeForm((p) => ({ ...p, additionalDriverRate: e.target.value }));
+                  setDriverFeeDirty(true);
+                }}
+                className="h-9"
+              />
+              <p className="text-[10px] text-muted-foreground">Flat rate per additional driver per day</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Young Additional Driver Surcharge ($/day)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={driverFeeForm.youngAdditionalDriverRate}
+                onChange={(e) => {
+                  setDriverFeeForm((p) => ({ ...p, youngAdditionalDriverRate: e.target.value }));
+                  setDriverFeeDirty(true);
+                }}
+                className="h-9"
+              />
+              <p className="text-[10px] text-muted-foreground">Extra daily charge for drivers aged 20-24</p>
+            </div>
           </div>
-          {dirty && (
-            <Button
-              size="sm"
-              className="gap-1"
-              onClick={handleSave}
-              disabled={updateSettings.isPending}
-            >
-              {updateSettings.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              Save Changes
-            </Button>
+          {driverFeeDirty && (
+            <div className="flex justify-end mt-4">
+              <Button
+                size="sm"
+                className="gap-1"
+                onClick={async () => {
+                  await updateDriverFees.mutateAsync({
+                    additionalDriverRate: parseFloat(driverFeeForm.additionalDriverRate) || 15.99,
+                    youngAdditionalDriverRate: parseFloat(driverFeeForm.youngAdditionalDriverRate) || 15.00,
+                  });
+                  setDriverFeeDirty(false);
+                }}
+                disabled={updateDriverFees.isPending}
+              >
+                {updateDriverFees.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Save Driver Fees
+              </Button>
+            </div>
           )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Group 1 — Editable */}
-        <GroupSection
-          group={1}
-          editable
-          basicForm={basicForm}
-          smartForm={smartForm}
-          premiumForm={premiumForm}
-          onBasicChange={(f) => { setBasicForm(f); setDirty(true); }}
-          onSmartChange={(f) => { setSmartForm(f); setDirty(true); }}
-          onPremiumChange={(f) => { setPremiumForm(f); setDirty(true); }}
-        />
-
-        <Separator />
-
-        {/* Group 2 — Read-only */}
-        <GroupSection group={2} />
-
-        <Separator />
-
-        {/* Group 3 — Read-only */}
-        <GroupSection group={3} />
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ─── Group Section ─── */
-interface GroupSectionProps {
-  group: ProtectionGroup;
-  editable?: boolean;
-  basicForm?: PackageFormState;
-  smartForm?: PackageFormState;
-  premiumForm?: PackageFormState;
-  onBasicChange?: (f: PackageFormState) => void;
-  onSmartChange?: (f: PackageFormState) => void;
-  onPremiumChange?: (f: PackageFormState) => void;
-}
-
-function GroupSection({
-  group,
-  editable = false,
-  basicForm,
-  smartForm,
-  premiumForm,
-  onBasicChange,
-  onSmartChange,
-  onPremiumChange,
-}: GroupSectionProps) {
-  const info = GROUP_LABELS[group];
-  const rates = GROUP_RATES[group];
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <h4 className="text-sm font-semibold">{info.name}</h4>
-        {!editable && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
-            <Lock className="w-2.5 h-2.5" />
-            Code-defined
-          </Badge>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {info.categories.join(", ")}
-      </p>
-
-      {editable && basicForm && smartForm && premiumForm && onBasicChange && onSmartChange && onPremiumChange ? (
-        <div className="space-y-4">
-          <PackageRow
-            name="Basic Protection"
-            rating={1}
-            form={basicForm}
-            showOriginalRate={false}
-            showDiscount={false}
-            onChange={onBasicChange}
-          />
-          <PackageRow
-            name="Smart Protection"
-            rating={2}
-            recommended
-            form={smartForm}
-            showOriginalRate
-            showDiscount
-            onChange={onSmartChange}
-          />
-          <PackageRow
-            name="All Inclusive Protection"
-            rating={3}
-            form={premiumForm}
-            showOriginalRate
-            showDiscount
-            onChange={onPremiumChange}
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-3">
-          <ReadOnlyRate label="Basic" rate={rates.basic} deductible="$800" />
-          <ReadOnlyRate label="Smart" rate={rates.smart} deductible="$0" recommended />
-          <ReadOnlyRate label="All Inclusive" rate={rates.premium} deductible="$0" />
-        </div>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-/* ─── Read-only rate card for Groups 2 & 3 ─── */
-function ReadOnlyRate({ label, rate, deductible, recommended }: {
-  label: string;
-  rate: number;
-  deductible: string;
-  recommended?: boolean;
-}) {
-  return (
-    <div className="p-3 rounded-lg border bg-muted/30 space-y-1">
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs font-medium">{label}</span>
-        {recommended && (
-          <Badge variant="secondary" className="text-[9px] h-4 px-1">
-            Recommended
-          </Badge>
-        )}
-      </div>
-      <p className="text-sm font-bold">${rate.toFixed(2)}<span className="text-xs font-normal text-muted-foreground">/day</span></p>
-      <p className="text-[10px] text-muted-foreground">Deductible: {deductible}</p>
-    </div>
-  );
-}
-
-/* ─── Sub-component: single editable package row ─── */
+/* ─── Editable package row ─── */
 interface PackageRowProps {
   name: string;
   rating: number;
@@ -295,13 +339,7 @@ interface PackageRowProps {
 }
 
 function PackageRow({
-  name,
-  rating,
-  recommended,
-  form,
-  showOriginalRate,
-  showDiscount,
-  onChange,
+  name, rating, recommended, form, showOriginalRate, showDiscount, onChange,
 }: PackageRowProps) {
   const update = (field: keyof PackageFormState, value: string) =>
     onChange({ ...form, [field]: value });
@@ -314,68 +352,37 @@ function PackageRow({
             <Star
               key={i}
               className={`w-3.5 h-3.5 ${
-                i < rating
-                  ? "text-amber-500 fill-amber-500"
-                  : "text-muted-foreground/30"
+                i < rating ? "text-amber-500 fill-amber-500" : "text-muted-foreground/30"
               }`}
             />
           ))}
         </div>
         <span className="text-sm font-medium">{name}</span>
         {recommended && (
-          <Badge variant="secondary" className="text-[10px] h-5">
-            Recommended
-          </Badge>
+          <Badge variant="secondary" className="text-[10px] h-5">Recommended</Badge>
         )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Daily Rate ($)</Label>
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.rate}
-            onChange={(e) => update("rate", e.target.value)}
-            className="h-9"
-          />
+          <Input type="number" min="0" step="0.01" value={form.rate} onChange={(e) => update("rate", e.target.value)} className="h-9" />
         </div>
-
         {showOriginalRate && (
           <div className="space-y-1">
             <Label className="text-xs">Original Rate ($)</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.originalRate}
-              onChange={(e) => update("originalRate", e.target.value)}
-              className="h-9"
-            />
+            <Input type="number" min="0" step="0.01" value={form.originalRate} onChange={(e) => update("originalRate", e.target.value)} className="h-9" />
           </div>
         )}
-
         {showDiscount && (
           <div className="space-y-1">
             <Label className="text-xs">Discount Label</Label>
-            <Input
-              value={form.discount}
-              onChange={(e) => update("discount", e.target.value)}
-              placeholder="e.g. 23% online discount"
-              className="h-9"
-            />
+            <Input value={form.discount} onChange={(e) => update("discount", e.target.value)} placeholder="e.g. 23% online discount" className="h-9" />
           </div>
         )}
-
         <div className="space-y-1">
           <Label className="text-xs">Deductible Text</Label>
-          <Input
-            value={form.deductible}
-            onChange={(e) => update("deductible", e.target.value)}
-            placeholder="e.g. Up to $800.00"
-            className="h-9"
-          />
+          <Input value={form.deductible} onChange={(e) => update("deductible", e.target.value)} placeholder="e.g. Up to $800.00" className="h-9" />
         </div>
       </div>
     </div>

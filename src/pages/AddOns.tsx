@@ -18,6 +18,7 @@ import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
 import { calculateFuelCostForUnit, FUEL_DISCOUNT_CENTS } from "@/lib/fuel-pricing";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
+import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 
 const ADDON_ICONS: Record<string, typeof Users> = {
   "roadside": Shield,
@@ -61,6 +62,8 @@ export default function AddOns() {
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays, setSelectedAddOns, setAdditionalDrivers } = useRentalBooking();
   const { data: addOns = [] } = useAddOns();
+  const { data: driverFeeSettings } = useDriverFeeSettings();
+  const additionalDriverRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
 
   // Support both legacy vehicleId and new categoryId
   const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
@@ -118,7 +121,7 @@ export default function AddOns() {
   }, 0);
 
   // Calculate additional drivers cost
-  const additionalDriversCost = calculateAdditionalDriversCost(additionalDrivers, rentalDays);
+  const additionalDriversCost = calculateAdditionalDriversCost(additionalDrivers, rentalDays, additionalDriverRate);
 
   const pricing = calculateBookingPricing({
     vehicleDailyRate: vehicle?.dailyRate || 0,

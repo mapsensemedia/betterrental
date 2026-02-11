@@ -1,48 +1,111 @@
 /**
  * Hook to fetch and update protection package pricing from system_settings.
- * Supports dynamic pricing by vehicle category group.
+ * All 3 groups are now admin-editable via system_settings.
  * Falls back to hardcoded defaults if settings are not found.
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ProtectionPackage } from "@/lib/pricing";
-import { getProtectionGroup, getGroupProtectionPackages } from "@/lib/protection-groups";
+import { getProtectionGroup } from "@/lib/protection-groups";
+import type { ProtectionGroup } from "@/lib/protection-groups";
 
-// Default values matching the hardcoded constants
-const DEFAULTS = {
-  protection_basic_rate: "32.99",
-  protection_basic_deductible: "Up to $800.00",
-  protection_smart_rate: "37.99",
-  protection_smart_original_rate: "",
-  protection_smart_discount: "",
-  protection_smart_deductible: "No deductible",
-  protection_premium_rate: "49.99",
-  protection_premium_original_rate: "",
-  protection_premium_discount: "",
-  protection_premium_deductible: "No deductible",
+// Settings keys per group prefix
+const GROUP_PREFIXES: Record<ProtectionGroup, string> = {
+  1: "protection",
+  2: "protection_g2",
+  3: "protection_g3",
 };
 
-const PROTECTION_KEYS = Object.keys(DEFAULTS);
+// Default values per group
+const GROUP_DEFAULTS: Record<ProtectionGroup, GroupSettings> = {
+  1: {
+    basic_rate: "32.99",
+    basic_deductible: "Up to $800.00",
+    smart_rate: "37.99",
+    smart_original_rate: "",
+    smart_discount: "",
+    smart_deductible: "No deductible",
+    premium_rate: "49.99",
+    premium_original_rate: "",
+    premium_discount: "",
+    premium_deductible: "No deductible",
+  },
+  2: {
+    basic_rate: "52.99",
+    basic_deductible: "Up to $800.00",
+    smart_rate: "57.99",
+    smart_original_rate: "",
+    smart_discount: "",
+    smart_deductible: "No deductible",
+    premium_rate: "69.99",
+    premium_original_rate: "",
+    premium_discount: "",
+    premium_deductible: "No deductible",
+  },
+  3: {
+    basic_rate: "64.99",
+    basic_deductible: "Up to $800.00",
+    smart_rate: "69.99",
+    smart_original_rate: "",
+    smart_discount: "",
+    smart_deductible: "No deductible",
+    premium_rate: "82.99",
+    premium_original_rate: "",
+    premium_discount: "",
+    premium_deductible: "No deductible",
+  },
+};
 
-type ProtectionSettings = typeof DEFAULTS;
+export interface GroupSettings {
+  basic_rate: string;
+  basic_deductible: string;
+  smart_rate: string;
+  smart_original_rate: string;
+  smart_discount: string;
+  smart_deductible: string;
+  premium_rate: string;
+  premium_original_rate: string;
+  premium_discount: string;
+  premium_deductible: string;
+}
 
-function parseSettings(
-  rows: { key: string; value: string }[]
-): ProtectionSettings {
-  const result = { ...DEFAULTS };
+const SETTING_SUFFIXES = [
+  "basic_rate", "basic_deductible",
+  "smart_rate", "smart_original_rate", "smart_discount", "smart_deductible",
+  "premium_rate", "premium_original_rate", "premium_discount", "premium_deductible",
+] as const;
+
+function getAllSettingKeys(): string[] {
+  const keys: string[] = [];
+  for (const [, prefix] of Object.entries(GROUP_PREFIXES)) {
+    for (const suffix of SETTING_SUFFIXES) {
+      keys.push(`${prefix}_${suffix}`);
+    }
+  }
+  return keys;
+}
+
+function parseGroupSettings(
+  rows: { key: string; value: string }[],
+  group: ProtectionGroup
+): GroupSettings {
+  const defaults = GROUP_DEFAULTS[group];
+  const result = { ...defaults };
+  const prefix = GROUP_PREFIXES[group];
+  
   for (const row of rows) {
-    if (row.key in result) {
-      (result as any)[row.key] = row.value;
+    for (const suffix of SETTING_SUFFIXES) {
+      if (row.key === `${prefix}_${suffix}`) {
+        (result as any)[suffix] = row.value;
+      }
     }
   }
   return result;
 }
 
-/** Build dynamic PROTECTION_PACKAGES from settings (Group 1 only - admin-editable) */
-export function buildProtectionPackages(
-  settings: ProtectionSettings
-): ProtectionPackage[] {
+/** Build ProtectionPackage[] from group settings */
+export function buildProtectionPackages(settings: GroupSettings): ProtectionPackage[] {
   return [
     {
       id: "none",
@@ -59,15 +122,11 @@ export function buildProtectionPackages(
     {
       id: "basic",
       name: "Basic Protection",
-      dailyRate: parseFloat(settings.protection_basic_rate) || 32.99,
-      deductible: settings.protection_basic_deductible,
+      dailyRate: parseFloat(settings.basic_rate) || 32.99,
+      deductible: settings.basic_deductible,
       rating: 1,
       features: [
-        {
-          name: "Loss Damage Waiver",
-          included: true,
-          tooltip: "Covers vehicle damage and theft with reduced deductible",
-        },
+        { name: "Loss Damage Waiver", included: true, tooltip: "Covers vehicle damage and theft with reduced deductible" },
         { name: "Tire and Glass Protection", included: false },
         { name: "Extended Roadside Protection", included: false },
       ],
@@ -75,96 +134,71 @@ export function buildProtectionPackages(
     {
       id: "smart",
       name: "Smart Protection",
-      dailyRate: parseFloat(settings.protection_smart_rate) || 37.99,
+      dailyRate: parseFloat(settings.smart_rate) || 37.99,
       originalRate: (() => {
-        const orig = parseFloat(settings.protection_smart_original_rate);
-        const daily = parseFloat(settings.protection_smart_rate) || 37.99;
+        const orig = parseFloat(settings.smart_original_rate);
+        const daily = parseFloat(settings.smart_rate) || 37.99;
         return !isNaN(orig) && orig > daily ? orig : undefined;
       })(),
-      discount: settings.protection_smart_discount || undefined,
-      deductible: settings.protection_smart_deductible,
+      discount: settings.smart_discount || undefined,
+      deductible: settings.smart_deductible,
       rating: 2,
       isRecommended: true,
       features: [
-        {
-          name: "Loss Damage Waiver",
-          included: true,
-          tooltip: "Full coverage with zero deductible",
-        },
-        {
-          name: "Tire and Glass Protection",
-          included: true,
-          tooltip: "Covers tire and windshield damage",
-        },
+        { name: "Loss Damage Waiver", included: true, tooltip: "Full coverage with zero deductible" },
+        { name: "Tire and Glass Protection", included: true, tooltip: "Covers tire and windshield damage" },
         { name: "Extended Roadside Protection", included: false },
       ],
     },
     {
       id: "premium",
       name: "All Inclusive Protection",
-      dailyRate: parseFloat(settings.protection_premium_rate) || 49.99,
+      dailyRate: parseFloat(settings.premium_rate) || 49.99,
       originalRate: (() => {
-        const orig = parseFloat(settings.protection_premium_original_rate);
-        const daily = parseFloat(settings.protection_premium_rate) || 49.99;
+        const orig = parseFloat(settings.premium_original_rate);
+        const daily = parseFloat(settings.premium_rate) || 49.99;
         return !isNaN(orig) && orig > daily ? orig : undefined;
       })(),
-      discount: settings.protection_premium_discount || undefined,
-      deductible: settings.protection_premium_deductible,
+      discount: settings.premium_discount || undefined,
+      deductible: settings.premium_deductible,
       rating: 3,
       features: [
-        {
-          name: "Loss Damage Waiver",
-          included: true,
-          tooltip: "Complete peace of mind",
-        },
-        {
-          name: "Tire and Glass Protection",
-          included: true,
-          tooltip: "Full tire and glass coverage",
-        },
-        {
-          name: "Extended Roadside Protection",
-          included: true,
-          tooltip: "24/7 roadside assistance anywhere",
-        },
+        { name: "Loss Damage Waiver", included: true, tooltip: "Complete peace of mind" },
+        { name: "Tire and Glass Protection", included: true, tooltip: "Full tire and glass coverage" },
+        { name: "Extended Roadside Protection", included: true, tooltip: "24/7 roadside assistance anywhere" },
       ],
     },
   ];
 }
 
 /**
- * Fetch protection settings and return dynamic packages.
- * When categoryName is provided, returns group-specific pricing.
- * Without categoryName, returns Group 1 (system_settings) pricing.
+ * Fetch protection settings for all groups and return packages for the requested group.
  */
 export function useProtectionPackages(categoryName?: string | null) {
+  const allKeys = getAllSettingKeys();
+  
   const query = useQuery({
     queryKey: ["protection-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("system_settings" as any)
         .select("key, value")
-        .in("key", PROTECTION_KEYS);
+        .in("key", allKeys);
 
       if (error) {
         console.warn("Protection settings fetch failed, using defaults:", error.message);
-        return parseSettings([]);
+        return [] as { key: string; value: string }[];
       }
 
-      return parseSettings(
-        (data ?? []) as unknown as { key: string; value: string }[]
-      );
+      return (data ?? []) as unknown as { key: string; value: string }[];
     },
     staleTime: 30_000,
   });
 
-  // Determine which group this category belongs to
+  const rows = query.data ?? [];
   const group = getProtectionGroup(categoryName);
-
-  // For Group 1, use system_settings (admin-editable); for Groups 2 & 3, use code-defined rates
-  const packages = group === 1
-    ? buildProtectionPackages(query.data ?? parseSettings([]))
-    : getGroupProtectionPackages(group);
+  const groupSettings = parseGroupSettings(rows, group);
+  const packages = buildProtectionPackages(groupSettings);
 
   const rates: Record<string, { name: string; rate: number }> =
     Object.fromEntries(
@@ -174,24 +208,30 @@ export function useProtectionPackages(categoryName?: string | null) {
   return {
     packages,
     rates,
-    settings: query.data ?? parseSettings([]),
+    settings: groupSettings,
+    allRows: rows,
     isLoading: query.isLoading,
     group,
   };
 }
 
-/** Admin hook: update protection settings (Group 1 only) */
+/** Get settings for a specific group from raw rows */
+export function getGroupSettingsFromRows(rows: { key: string; value: string }[], group: ProtectionGroup): GroupSettings {
+  return parseGroupSettings(rows, group);
+}
+
+/** Admin hook: update protection settings for any group */
 export function useUpdateProtectionSettings() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (updates: Partial<ProtectionSettings>) => {
-      for (const [key, value] of Object.entries(updates)) {
+    mutationFn: async (updates: { group: ProtectionGroup; settings: Partial<GroupSettings> }) => {
+      const prefix = GROUP_PREFIXES[updates.group];
+      for (const [suffix, value] of Object.entries(updates.settings)) {
+        const key = `${prefix}_${suffix}`;
         const { error } = await supabase
           .from("system_settings" as any)
-          .upsert({ key, value: String(value) } as any, {
-            onConflict: "key",
-          });
+          .upsert({ key, value: String(value) } as any, { onConflict: "key" });
         if (error) throw new Error(`Failed to update ${key}: ${error.message}`);
       }
     },

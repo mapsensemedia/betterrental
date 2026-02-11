@@ -264,6 +264,7 @@ export function useGlobalRealtime() {
           invalidate([
             ["protection-settings"],
             ["fuel-pricing-settings"],
+            ["driver-fee-settings"],
           ])
       )
 
