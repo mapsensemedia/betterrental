@@ -52,7 +52,7 @@ import { IntakeChecklist } from "./IntakeChecklist";
 import { VehiclePrepChecklist } from "./VehiclePrepChecklist";
 import { PreInspectionPhotos } from "./PreInspectionPhotos";
 import { VehicleReadyGate } from "./VehicleReadyGate";
-import { VehicleAssignment } from "./VehicleAssignment";
+import { UnifiedVehicleManager } from "./UnifiedVehicleManager";
 import { CheckInSection } from "./CheckInSection";
 import { PaymentDepositPanel } from "./PaymentDepositPanel";
 import { RentalAgreementPanel } from "./RentalAgreementPanel";
@@ -408,14 +408,12 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                           />
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-4">
-                          <VehicleAssignment
-                            bookingId={booking.id}
-                            currentVehicleId={booking.vehicle_id}
-                            currentVehicle={booking.vehicles}
-                            locationId={booking.location_id}
-                            startAt={booking.start_at}
-                            endAt={booking.end_at}
-                          />
+                          {booking && (
+                            <UnifiedVehicleManager
+                              bookingId={booking.id}
+                              booking={booking}
+                            />
+                          )}
                         </AccordionContent>
                       </div>
                     </AccordionItem>

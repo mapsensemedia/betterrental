@@ -4,13 +4,14 @@
  *
  * Replaces the old VehicleAssignment + CategoryUpgradeDialog in the ops flow.
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
@@ -36,6 +37,7 @@ import {
   Loader2,
   RefreshCw,
   ArrowRightLeft,
+  Search,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { calculateBookingPricing, type DriverAgeBand } from "@/lib/pricing";
@@ -110,6 +112,7 @@ export function UnifiedVehicleManager({
   );
   const [reason, setReason] = useState("");
   const [chargeCustomer, setChargeCustomer] = useState(true);
+  const [unitSearch, setUnitSearch] = useState("");
 
   // Reset form when dialog opens
   const handleOpenChange = (open: boolean) => {
@@ -118,9 +121,38 @@ export function UnifiedVehicleManager({
       setSelectedUnitId(booking.assigned_unit_id ?? null);
       setReason("");
       setChargeCustomer(true);
+      setUnitSearch("");
     }
     setDialogOpen(open);
   };
+
+  // ── Global unit search query ────────────────────────────────────────
+  const searchTerm = unitSearch.trim();
+  const { data: searchResults = [], isLoading: loadingSearch } = useQuery({
+    queryKey: ["global-unit-search", searchTerm],
+    queryFn: async () => {
+      if (!searchTerm || searchTerm.length < 2) return [];
+      const normalised = searchTerm.replace(/[-\s]/g, "").toLowerCase();
+      const { data, error } = await supabase
+        .from("vehicle_units")
+        .select("id, vin, license_plate, color, current_mileage, status, category_id, vehicle_categories(id, name, daily_rate)")
+        .or(`license_plate.ilike.%${normalised}%,vin.ilike.%${normalised}%`)
+        .limit(10);
+      if (error) throw error;
+      return (data ?? []) as Array<VehicleUnit & { category_id: string; vehicle_categories: { id: string; name: string; daily_rate: number } | null }>;
+    },
+    enabled: dialogOpen && searchTerm.length >= 2,
+    staleTime: 5000,
+  });
+
+  const handleSelectSearchResult = useCallback((unit: typeof searchResults[0]) => {
+    // Auto-switch category and select unit
+    if (unit.category_id && unit.category_id !== selectedCategoryId) {
+      setSelectedCategoryId(unit.category_id);
+    }
+    setSelectedUnitId(unit.id);
+    setUnitSearch(""); // Clear search after selection
+  }, [selectedCategoryId]);
 
   // ── Queries ──────────────────────────────────────────────────────────
   const { data: categories = [], isLoading: loadingCategories } = useQuery({
@@ -432,6 +464,62 @@ export function UnifiedVehicleManager({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
+          {/* ── Quick Search by License Plate / VIN ── */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Search className="h-3.5 w-3.5" />
+              Search by License Plate or VIN
+            </Label>
+            <Input
+              placeholder="e.g. MSU-403, 112233…"
+              value={unitSearch}
+              onChange={(e) => setUnitSearch(e.target.value)}
+              className="h-9"
+            />
+            {loadingSearch && searchTerm.length >= 2 && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Searching…
+              </div>
+            )}
+            {searchTerm.length >= 2 && !loadingSearch && searchResults.length > 0 && (
+              <div className="border rounded-lg divide-y max-h-40 overflow-y-auto">
+                {searchResults.map((unit) => (
+                  <button
+                    key={unit.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors flex items-center justify-between gap-2"
+                    onClick={() => handleSelectSearchResult(unit)}
+                  >
+                    <div>
+                      <span className="font-medium text-sm">{unit.license_plate}</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        VIN: …{unit.vin?.slice(-6)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {unit.vehicle_categories && (
+                        <Badge variant="outline" className="text-[10px] py-0">
+                          {unit.vehicle_categories.name}
+                        </Badge>
+                      )}
+                      <Badge
+                        variant={unit.status === "available" ? "default" : "secondary"}
+                        className="text-[10px] py-0"
+                      >
+                        {unit.status}
+                      </Badge>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {searchTerm.length >= 2 && !loadingSearch && searchResults.length === 0 && (
+              <p className="text-xs text-muted-foreground py-1">No units found matching "{searchTerm}"</p>
+            )}
+          </div>
+
+          <Separator />
+
           {/* ── Category Selector ── */}
           <div className="space-y-2">
             <Label>Vehicle Category</Label>
