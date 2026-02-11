@@ -372,12 +372,26 @@ export function BookingSummaryPanel({
               </div>
               
               {pricing.additionalDriversCost.total > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground flex items-center">
-                    Additional drivers ({effectiveAdditionalDrivers.length}) — ${additionalDriverRate.toFixed(2)}/day × {rentalDays} days
-                    <PriceTooltip content={PRICE_TOOLTIPS.additionalDrivers} />
-                  </span>
-                  <span>${pricing.additionalDriversCost.total.toFixed(2)} CAD</span>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground flex items-center">
+                      Additional drivers ({effectiveAdditionalDrivers.length})
+                      <PriceTooltip content={PRICE_TOOLTIPS.additionalDrivers} />
+                    </span>
+                    <span>${pricing.additionalDriversCost.total.toFixed(2)} CAD</span>
+                  </div>
+                  {pricing.additionalDriversCost.baseFees > 0 && (
+                    <div className="flex justify-between pl-3 text-xs text-muted-foreground">
+                      <span>{effectiveAdditionalDrivers.length} × ${additionalDriverRate.toFixed(2)}/day × {rentalDays} days</span>
+                      <span>${pricing.additionalDriversCost.baseFees.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {pricing.additionalDriversCost.youngDriverFees > 0 && (
+                    <div className="flex justify-between pl-3 text-xs text-amber-600">
+                      <span>Young surcharge ({effectiveAdditionalDrivers.filter(d => d.ageBand === "20_24").length} × ${youngAdditionalDriverRate.toFixed(2)}/day × {rentalDays} days)</span>
+                      <span>${pricing.additionalDriversCost.youngDriverFees.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               )}
               
