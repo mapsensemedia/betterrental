@@ -1,58 +1,57 @@
 
 
-## Fix: Young Additional Driver Fee - Admin to Customer Flow
+## Fix: Young Additional Driver Double-Charging
 
 ### Problem
-The admin panel already has a field to set the young additional driver rate (in the Protection Pricing panel under "Driver Fees"), but this fee is never applied on the customer-facing Add-Ons page. When a user selects an additional driver with age band 20-24, no young driver surcharge is added -- the `calculateAdditionalDriversCost` function hardcodes `youngDriverFees: 0`.
+When a young (20-24) additional driver is added, the system charges them the base driver fee AND the young driver fee. The young rate should be the TOTAL daily rate for that driver, not an extra surcharge on top of the base fee.
 
-### Changes Required
+**Current (wrong):**
+- 1 young driver = ($14.99 base + $19.99 young) x 4 days = $139.92
 
-#### 1. Update `AdditionalDriversCard` (`src/components/rental/AdditionalDriversCard.tsx`)
-- Fetch `youngAdditionalDriverDailyRate` from the `useDriverFeeSettings` hook (already imported but unused for young fee)
-- Display the young driver surcharge note next to the 20-24 age option
-- Show per-driver cost breakdown when a young driver is selected (base fee + young surcharge)
-- Update the total display to include young driver fees
+**Expected (correct):**
+- 1 young driver = $19.99/day x 4 days = $79.96
 
-#### 2. Update `calculateAdditionalDriversCost` function (same file)
-- Accept `youngDriverDailyRate` as a parameter
-- Count drivers with `ageBand === "20_24"` and multiply by the young rate and rental days
-- Return the correct `youngDriverFees` and updated `total`
+### Root Cause
+In `calculateAdditionalDriversCost`, `baseFees` counts ALL drivers (including young ones), then `youngDriverFees` adds more on top. Young drivers should be excluded from the base count.
 
-#### 3. Update all callers of `calculateAdditionalDriversCost`
-- **`BookingSummaryPanel.tsx`**: Pass `youngAdditionalDriverDailyRate` from the existing `useDriverFeeSettings` hook
-- **`AddOns.tsx`**: Pass the young driver rate so the extras page total is correct
-- **`NewCheckout.tsx`**: Pass the young driver rate so the checkout total is correct
+### Changes
 
-### Technical Details
+#### 1. `src/components/rental/AdditionalDriversCard.tsx`
 
-**`calculateAdditionalDriversCost` updated signature:**
+**`calculateAdditionalDriversCost` function** -- fix the logic so young drivers are only charged the young rate:
 ```
-function calculateAdditionalDriversCost(
-  drivers: AdditionalDriver[],
-  rentalDays: number,
-  baseDriverFee: number,
-  youngDriverFee: number
-): { baseFees: number; youngDriverFees: number; total: number }
+baseFees = standardDriverCount * baseDriverFee * rentalDays
+youngDriverFees = youngDriverCount * youngDriverFee * rentalDays
+total = baseFees + youngDriverFees
 ```
 
-**Calculation logic:**
-- `baseFees = drivers.length * baseDriverFee * rentalDays`
-- `youngDriverFees = youngDriverCount * youngDriverFee * rentalDays`
-- `total = baseFees + youngDriverFees`
+**Card UI** -- update the local totals to match:
+```
+totalBaseFees = standardDrivers.length * baseDriverFee * rentalDays
+totalYoungFees = youngDriverCount * youngDriverFee * rentalDays
+```
 
-**UI enhancement in AdditionalDriversCard:**
-- When a driver selects 20-24, show a small note: "+ $X.XX/day young driver surcharge"
-- The card header total updates to reflect both base + young fees
+#### 2. `src/components/rental/BookingSummaryPanel.tsx`
+
+Update the breakdown labels:
+- Base fees line: show only standard driver count (not total)
+- Young surcharge line: label as "Young drivers" (not "Young surcharge") since it's their full rate
+
+**Before:**
+```
+1 x $14.99/day x 4 days        $59.96
+Young surcharge (1 x $19.99)    $79.96
+```
+
+**After:**
+```
+[only shown if standard drivers exist]
+1 x $14.99/day x 4 days        $59.96
+
+[only shown if young drivers exist]  
+Young drivers (1 x $19.99/day x 4 days)  $79.96
+```
 
 ### Files Modified
-1. `src/components/rental/AdditionalDriversCard.tsx` -- core fix
-2. `src/components/rental/BookingSummaryPanel.tsx` -- pass young rate
-3. `src/pages/AddOns.tsx` -- pass young rate
-4. `src/pages/NewCheckout.tsx` -- pass young rate
-
-### No Impact On
-- Admin settings panel (already works correctly)
-- Protection pricing logic
-- Primary renter young driver fee (separate system)
-- Edge functions / booking creation logic
-
+1. `src/components/rental/AdditionalDriversCard.tsx` -- fix calculation + card display
+2. `src/components/rental/BookingSummaryPanel.tsx` -- fix breakdown labels
