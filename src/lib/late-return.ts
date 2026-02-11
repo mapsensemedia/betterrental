@@ -75,7 +75,8 @@ export function calculateLateReturnFee(
 }
 
 /**
- * Calculate late return fee with daily rate (25% of daily rate per hour after grace period)
+ * Calculate late return fee with daily rate
+ * Tiered: 25% of daily rate per hour for first 2 hours after grace, then full day charge
  */
 export function calculateLateReturnFeeWithRate(
   scheduledEndAt: Date | string,
@@ -88,14 +89,24 @@ export function calculateLateReturnFeeWithRate(
     return baseInfo;
   }
   
-  // 25% of daily rate per hour
-  const hourlyFee = dailyRate * LATE_RETURN_FEE_PERCENTAGE;
-  const fee = Math.round(baseInfo.hoursLate * hourlyFee * 100) / 100;
+  let fee: number;
+  let message: string;
+  
+  if (baseInfo.hoursLate <= 2) {
+    // 25% of daily rate per hour for first 2 hours
+    const hourlyFee = dailyRate * LATE_RETURN_FEE_PERCENTAGE;
+    fee = Math.round(baseInfo.hoursLate * hourlyFee * 100) / 100;
+    message = `${baseInfo.hoursLate} hour${baseInfo.hoursLate !== 1 ? "s" : ""} late - CA$${fee.toFixed(2)} fee`;
+  } else {
+    // From 3rd hour onward: full day charge
+    fee = Math.round(dailyRate * 100) / 100;
+    message = `${baseInfo.hoursLate} hour${baseInfo.hoursLate !== 1 ? "s" : ""} late - Full day charge CA$${fee.toFixed(2)}`;
+  }
   
   return {
     ...baseInfo,
     fee,
-    message: `${baseInfo.hoursLate} hour${baseInfo.hoursLate !== 1 ? "s" : ""} late - CA$${fee.toFixed(2)} fee`,
+    message,
   };
 }
 
@@ -105,9 +116,9 @@ export function calculateLateReturnFeeWithRate(
 export function getLateReturnSummary(dailyRate?: number): string {
   if (dailyRate) {
     const hourlyFee = dailyRate * LATE_RETURN_FEE_PERCENTAGE;
-    return `${LATE_RETURN_GRACE_PERIOD_MINUTES}-minute grace period, then CA$${hourlyFee.toFixed(2)}/hour (25% of daily rate)`;
+    return `${LATE_RETURN_GRACE_PERIOD_MINUTES}-min grace, then CA$${hourlyFee.toFixed(2)}/hr (25% of daily rate) for first 2 hours, then full day charge CA$${dailyRate.toFixed(2)}`;
   }
-  return `${LATE_RETURN_GRACE_PERIOD_MINUTES}-minute grace period, then 25% of daily rate per hour`;
+  return `${LATE_RETURN_GRACE_PERIOD_MINUTES}-min grace period, then 25% of daily rate per hour for first 2 hours, then full day charge`;
 }
 
 /**

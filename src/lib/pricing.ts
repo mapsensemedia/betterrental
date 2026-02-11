@@ -270,13 +270,22 @@ export function getDurationDiscount(rentalDays: number): { rate: number; type: "
 /**
  * Calculate late return fee based on minutes late
  */
-export function calculateLateFee(minutesLate: number): number {
+export function calculateLateFee(minutesLate: number, dailyRate?: number): number {
   if (minutesLate <= LATE_RETURN_GRACE_MINUTES) return 0;
   
   const billableMinutes = minutesLate - LATE_RETURN_GRACE_MINUTES;
   const hoursLate = Math.ceil(billableMinutes / 60);
-  const cappedHours = Math.min(hoursLate, LATE_RETURN_MAX_HOURS);
   
+  // If dailyRate provided, use tiered structure
+  if (dailyRate) {
+    if (hoursLate <= 2) {
+      return hoursLate * (dailyRate * 0.25);
+    }
+    return dailyRate; // Full day charge from 3rd hour
+  }
+  
+  // Legacy fallback
+  const cappedHours = Math.min(hoursLate, LATE_RETURN_MAX_HOURS);
   return cappedHours * LATE_RETURN_HOURLY_RATE;
 }
 

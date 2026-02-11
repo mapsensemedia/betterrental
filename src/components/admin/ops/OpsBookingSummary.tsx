@@ -449,6 +449,12 @@ export function OpsBookingSummary({
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>${Number(booking.subtotal).toFixed(2)}</span>
                 </div>
+                {Number(booking.upgrade_daily_fee) > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Upgrade (${Number(booking.upgrade_daily_fee).toFixed(2)}/day × {booking.total_days}d)</span>
+                    <span>${(Number(booking.upgrade_daily_fee) * booking.total_days).toFixed(2)}</span>
+                  </div>
+                )}
                 {booking.tax_amount > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Tax</span>

@@ -396,6 +396,7 @@ export type Database = {
           handed_over_by: string | null
           handover_sms_sent_at: string | null
           id: string
+          internal_unit_category_id: string | null
           late_return_fee: number | null
           late_return_fee_override: number | null
           late_return_override_at: string | null
@@ -439,7 +440,10 @@ export type Database = {
           total_amount: number
           total_days: number
           updated_at: string
+          upgrade_category_label: string | null
+          upgrade_daily_fee: number | null
           upgrade_reason: string | null
+          upgrade_visible_to_customer: boolean | null
           upgraded_at: string | null
           upgraded_by: string | null
           user_id: string
@@ -484,6 +488,7 @@ export type Database = {
           handed_over_by?: string | null
           handover_sms_sent_at?: string | null
           id?: string
+          internal_unit_category_id?: string | null
           late_return_fee?: number | null
           late_return_fee_override?: number | null
           late_return_override_at?: string | null
@@ -527,7 +532,10 @@ export type Database = {
           total_amount: number
           total_days: number
           updated_at?: string
+          upgrade_category_label?: string | null
+          upgrade_daily_fee?: number | null
           upgrade_reason?: string | null
+          upgrade_visible_to_customer?: boolean | null
           upgraded_at?: string | null
           upgraded_by?: string | null
           user_id: string
@@ -572,6 +580,7 @@ export type Database = {
           handed_over_by?: string | null
           handover_sms_sent_at?: string | null
           id?: string
+          internal_unit_category_id?: string | null
           late_return_fee?: number | null
           late_return_fee_override?: number | null
           late_return_override_at?: string | null
@@ -615,7 +624,10 @@ export type Database = {
           total_amount?: number
           total_days?: number
           updated_at?: string
+          upgrade_category_label?: string | null
+          upgrade_daily_fee?: number | null
           upgrade_reason?: string | null
+          upgrade_visible_to_customer?: boolean | null
           upgraded_at?: string | null
           upgraded_by?: string | null
           user_id?: string
@@ -628,6 +640,13 @@ export type Database = {
             columns: ["assigned_unit_id"]
             isOneToOne: false
             referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_internal_unit_category_id_fkey"
+            columns: ["internal_unit_category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
             referencedColumns: ["id"]
           },
           {
