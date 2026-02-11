@@ -47,6 +47,7 @@ import { SaveTimeAtCounter } from "@/components/checkout/SaveTimeAtCounter";
 import { PointsRedemption } from "@/components/checkout/PointsRedemption";
 import { CANCELLATION_POLICY, DAMAGE_LIABILITY_POLICY } from "@/lib/checkout-policies";
 import { calculateAdditionalDriversCost } from "@/components/rental/AdditionalDriversCard";
+import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 
 import { 
   calculateBookingPricing, 
@@ -77,6 +78,8 @@ export default function NewCheckout() {
   const { user, isLoading: authLoading } = useAuth();
   const { searchData, rentalDays } = useRentalBooking();
   const { data: addOns = [] } = useAddOns();
+  const { data: driverFeeSettings } = useDriverFeeSettings();
+  const additionalDriverRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
   const saveAbandonedCart = useSaveAbandonedCart();
   const markCartConverted = useMarkCartConverted();
   const hasCompletedBooking = useRef(false);
@@ -167,7 +170,7 @@ export default function NewCheckout() {
     const differentDropoffFee = isDifferentDropoff ? 25 : 0;
     
     // Calculate additional drivers cost
-    const additionalDriversCost = calculateAdditionalDriversCost(searchData.additionalDrivers || [], rentalDays);
+    const additionalDriversCost = calculateAdditionalDriversCost(searchData.additionalDrivers || [], rentalDays, additionalDriverRate);
     
     const breakdown = calculateBookingPricing({
       vehicleDailyRate: vehicle?.dailyRate || 0,

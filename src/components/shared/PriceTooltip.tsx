@@ -45,7 +45,7 @@ export const PRICE_TOOLTIPS = {
     `${name} protection plan. Covers damage to the rental vehicle with varying deductible levels.`,
   protectionNone: "No additional protection selected. You are responsible for all damage during the rental period.",
   addOns: "Optional extras and equipment added to your rental. Each add-on is charged per day or as a one-time fee.",
-  additionalDrivers: "Fee for registering additional drivers on the rental. Each additional driver is $15.99/day.",
+  additionalDrivers: "Fee for registering additional drivers on the rental. Rate is set by the rental company.",
   youngDriverFee: "A $15 CAD/day fee applies for primary drivers aged 20–24, charged for every day of the rental.",
   youngDriverAdditional: "A $15 CAD/day fee applies for each additional driver aged 20–24, charged for every day of the rental.",
   deliveryFee: "Fee for delivering the vehicle to your specified address instead of pickup at a branch location.",

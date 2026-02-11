@@ -15,6 +15,7 @@ import { formatTimeDisplay } from "@/lib/rental-rules";
 import { useSearchParams } from "react-router-dom";
 import { calculateAdditionalDriversCost } from "./AdditionalDriversCard";
 import { PriceTooltip, PRICE_TOOLTIPS } from "@/components/shared/PriceTooltip";
+import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 
 /** Check if an add-on is the "Additional Driver" type (handled separately) */
 function isAdditionalDriverAddon(name: string): boolean {
@@ -44,6 +45,8 @@ export function BookingSummaryPanel({
 }: BookingSummaryPanelProps) {
   const [searchParams] = useSearchParams();
   const { searchData, rentalDays } = useRentalBooking();
+  const { data: driverFeeSettings } = useDriverFeeSettings();
+  const additionalDriverRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
   
   // Support both legacy vehicleId and new categoryId - check URL first, then context
   const urlCategoryId = searchParams.get("categoryId");
@@ -96,7 +99,7 @@ export function BookingSummaryPanel({
     const differentDropoffFee = isDifferentDropoff ? 25 : 0;
     
     // Calculate additional drivers cost
-    const additionalDriversCost = calculateAdditionalDriversCost(effectiveAdditionalDrivers, rentalDays);
+    const additionalDriversCost = calculateAdditionalDriversCost(effectiveAdditionalDrivers, rentalDays, additionalDriverRate);
     
     const breakdown = calculateBookingPricing({
       vehicleDailyRate: vehicle.dailyRate,
@@ -370,7 +373,7 @@ export function BookingSummaryPanel({
               {pricing.additionalDriversCost.total > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground flex items-center">
-                    Additional drivers ({effectiveAdditionalDrivers.length}) — $15.99/day × {rentalDays} days
+                    Additional drivers ({effectiveAdditionalDrivers.length}) — ${additionalDriverRate.toFixed(2)}/day × {rentalDays} days
                     <PriceTooltip content={PRICE_TOOLTIPS.additionalDrivers} />
                   </span>
                   <span>${pricing.additionalDriversCost.total.toFixed(2)} CAD</span>
