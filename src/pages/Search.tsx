@@ -339,6 +339,11 @@ export default function Search() {
                         <div>
                           <span className="text-xl sm:text-2xl font-bold text-primary">${category.daily_rate}</span>
                           <span className="text-xs sm:text-sm text-muted-foreground">/day</span>
+                          {rentalDays > 1 && (
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                              ${(category.daily_rate * rentalDays).toFixed(2)} CAD total
+                            </p>
+                          )}
                           <p className="text-[10px] sm:text-xs text-muted-foreground">*Excludes taxes & fees</p>
                         </div>
                         <Button size="sm" className="shrink-0">
