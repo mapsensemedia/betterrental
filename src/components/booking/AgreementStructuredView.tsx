@@ -10,8 +10,9 @@ interface AgreementStructuredViewProps {
   bookingId: string;
 }
 
-function fmt(n: number | null | undefined): string {
-  return `$${(n ?? 0).toFixed(2)}`;
+function fmt(n: number | string | null | undefined): string {
+  const num = Number(n ?? 0);
+  return `$${(isNaN(num) ? 0 : num).toFixed(2)}`;
 }
 
 function fmtDate(dateStr: string, pattern = "MMMM d, yyyy"): string {
