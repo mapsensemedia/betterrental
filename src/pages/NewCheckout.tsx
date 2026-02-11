@@ -374,32 +374,32 @@ export default function NewCheckout() {
         if (error) throw error;
         booking = bookingData;
 
-        // Add selected add-ons to booking
-        if (addOnIds.length > 0) {
-          const addOnInserts = addOnIds.map((id) => {
-            const addon = addOns.find((a) => a.id === id);
-            return {
-              booking_id: booking!.id,
-              add_on_id: id,
-              price: addon ? addon.dailyRate * rentalDays + (addon.oneTimeFee || 0) : 0,
-              quantity: 1,
-            };
-          });
-
-          await supabase.from("booking_add_ons").insert(addOnInserts);
-        }
-        
-        // Add additional drivers to booking
-        if (searchData.additionalDrivers && searchData.additionalDrivers.length > 0) {
-          const driverInserts = searchData.additionalDrivers.map((driver) => ({
-            booking_id: booking!.id,
-            driver_name: driver.name || null,
-            driver_age_band: driver.ageBand,
-            young_driver_fee: 0,
-          }));
-
-          await supabase.from("booking_additional_drivers").insert(driverInserts);
-        }
+        // Add add-ons and additional drivers in parallel
+        await Promise.all([
+          addOnIds.length > 0
+            ? supabase.from("booking_add_ons").insert(
+                addOnIds.map((id) => {
+                  const addon = addOns.find((a) => a.id === id);
+                  return {
+                    booking_id: booking!.id,
+                    add_on_id: id,
+                    price: addon ? addon.dailyRate * rentalDays + (addon.oneTimeFee || 0) : 0,
+                    quantity: 1,
+                  };
+                })
+              )
+            : null,
+          searchData.additionalDrivers && searchData.additionalDrivers.length > 0
+            ? supabase.from("booking_additional_drivers").insert(
+                searchData.additionalDrivers.map((driver) => ({
+                  booking_id: booking!.id,
+                  driver_name: driver.name || null,
+                  driver_age_band: driver.ageBand,
+                  young_driver_fee: 0,
+                }))
+              )
+            : null,
+        ]);
       } else {
         // Guest checkout flow - use edge function
         const addOnData = addOnIds.map((id) => {
@@ -1122,6 +1122,8 @@ export default function NewCheckout() {
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                         Processing...
                       </>
+                    ) : paymentMethod === "pay-later" ? (
+                      "Confirm Booking"
                     ) : (
                       "Pay and Book"
                     )}
