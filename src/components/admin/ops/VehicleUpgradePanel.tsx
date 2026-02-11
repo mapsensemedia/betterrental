@@ -1,13 +1,14 @@
 /**
- * VehicleUpgradePanel — Button that opens a full upgrade dialog with:
- * - Category selection with price recalculation
- * - VIN search & assignment
- * - Current vs new total comparison
- * - Per-day upgrade charge
- * - Customer visibility toggle
- * - Reason & confirmation
+ * VehicleUpgradePanel — Upgrade dialog with single-source-of-truth pricing.
+ *
+ * Pricing rule:
+ *   New Total = Current Total + (Per-Day Upgrade Charge × Rental Days)
+ *
+ * Category selection only changes the booking's vehicle_id for tracking.
+ * When the category changes, the rate difference is auto-suggested as the
+ * per-day fee, but ops can override it freely (including $0 for free upgrades).
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -44,7 +45,7 @@ import {
   X,
   RefreshCw,
 } from "lucide-react";
-import { calculateBookingPricing, DriverAgeBand } from "@/lib/pricing";
+import { TOTAL_TAX_RATE } from "@/lib/pricing";
 
 interface VehicleUpgradePanelProps {
   booking: {
@@ -107,22 +108,13 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const categoryChanged = selectedCategoryId !== booking.vehicle_id;
 
-  // Calculate new pricing when category changes
-  const newPricing = useMemo(() => {
-    if (!selectedCategory) return null;
-    const driverAgeBand = booking.driver_age_band as DriverAgeBand | null;
-    const pickupDate = booking.start_at ? new Date(booking.start_at) : new Date();
-    return calculateBookingPricing({
-      vehicleDailyRate: Number(selectedCategory.daily_rate),
-      rentalDays: booking.total_days,
-      driverAgeBand,
-      pickupDate,
-    });
-  }, [selectedCategory, booking]);
-
-  const currentTotal = booking.total_amount;
-  const newCategoryTotal = newPricing?.total ?? currentTotal;
-  const priceDifference = newCategoryTotal - currentTotal;
+  // Auto-suggest per-day fee when category changes
+  useEffect(() => {
+    if (!categoryChanged || !selectedCategory || !currentCategory) return;
+    const rateDiff = Number(selectedCategory.daily_rate) - Number(currentCategory.daily_rate);
+    // Only auto-suggest if positive (upgrade). For downgrades, suggest 0.
+    setDailyFee(rateDiff > 0 ? String(rateDiff) : "0");
+  }, [selectedCategoryId, categoryChanged, selectedCategory, currentCategory]);
 
   // Reset form when dialog opens
   const handleOpenChange = (nextOpen: boolean) => {
@@ -140,6 +132,7 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
 
   const feeNum = parseFloat(dailyFee) || 0;
   const totalUpgradeCharge = feeNum * booking.total_days;
+  const newTotal = booking.total_amount + totalUpgradeCharge;
 
   // Search for units by VIN or license plate
   const { data: searchResults = [], isLoading: searching } = useQuery({
@@ -184,14 +177,15 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
         updated_at: new Date().toISOString(),
       };
 
-      // If category changed, update vehicle_id and recalculate pricing
-      if (categoryChanged && selectedCategory && newPricing) {
+      // Category change only updates vehicle_id — NO price recalculation
+      if (categoryChanged) {
         updatePayload.original_vehicle_id = booking.vehicle_id;
         updatePayload.vehicle_id = selectedCategoryId;
-        updatePayload.daily_rate = Number(selectedCategory.daily_rate);
-        updatePayload.subtotal = newPricing.subtotal;
-        updatePayload.tax_amount = newPricing.taxAmount;
-        updatePayload.total_amount = newPricing.total;
+      }
+
+      // Add upgrade charge to booking total
+      if (feeNum > 0) {
+        updatePayload.total_amount = newTotal;
       }
 
       // If a specific unit was selected, assign it
@@ -215,13 +209,12 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
         user_id: userId,
         old_data: {
           vehicle_id: booking.vehicle_id,
-          daily_rate: booking.daily_rate,
           total_amount: booking.total_amount,
+          upgrade_daily_fee: booking.upgrade_daily_fee,
         },
         new_data: {
           vehicle_id: categoryChanged ? selectedCategoryId : booking.vehicle_id,
-          daily_rate: categoryChanged ? Number(selectedCategory?.daily_rate) : booking.daily_rate,
-          total_amount: categoryChanged ? newPricing?.total : booking.total_amount,
+          total_amount: feeNum > 0 ? newTotal : booking.total_amount,
           upgrade_daily_fee: feeNum,
           visible_to_customer: showToCustomer,
           reason: upgradeReason,
@@ -230,13 +223,11 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
         },
       });
 
-      return { newTotal: categoryChanged ? newPricing?.total : currentTotal };
+      return { newTotal: feeNum > 0 ? newTotal : booking.total_amount };
     },
     onSuccess: (data) => {
       toast.success(
-        categoryChanged
-          ? `Category upgraded! New total: $${data.newTotal?.toFixed(2)} CAD`
-          : `Upgrade fee of CA$${feeNum.toFixed(2)}/day applied${selectedUnit ? ` — Unit ${selectedUnit.license_plate} assigned` : ""}`
+        `Upgrade applied! Total: $${data.newTotal.toFixed(2)} CAD${selectedUnit ? ` — Unit ${selectedUnit.license_plate} assigned` : ""}`
       );
       ["booking", "bookings", "category-available-units", "current-assigned-unit"].forEach((k) =>
         queryClient.invalidateQueries({ queryKey: [k] })
@@ -250,12 +241,17 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
     mutationFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
+
+      // Remove the upgrade charge from total
+      const restoredTotal = booking.total_amount - (Number(booking.upgrade_daily_fee) * booking.total_days);
+
       const { error } = await supabase
         .from("bookings")
         .update({
           upgrade_daily_fee: 0,
           upgrade_category_label: null,
           upgrade_visible_to_customer: false,
+          total_amount: restoredTotal > 0 ? restoredTotal : booking.total_amount,
           updated_at: new Date().toISOString(),
         })
         .eq("id", booking.id);
@@ -265,7 +261,8 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
         entity_type: "booking",
         entity_id: booking.id,
         user_id: userId,
-        old_data: { upgrade_daily_fee: booking.upgrade_daily_fee },
+        old_data: { upgrade_daily_fee: booking.upgrade_daily_fee, total_amount: booking.total_amount },
+        new_data: { upgrade_daily_fee: 0, total_amount: restoredTotal > 0 ? restoredTotal : booking.total_amount },
       });
     },
     onSuccess: () => {
@@ -336,36 +333,16 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
 
-            {/* Price Comparison */}
-            {categoryChanged && newPricing && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Current Total</span>
-                  <span>${currentTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">New Category Rate Total</span>
-                  <span className="font-semibold">${newCategoryTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Difference</span>
-                  <Badge
-                    variant={priceDifference > 0 ? "default" : "secondary"}
-                    className={
-                      priceDifference > 0
-                        ? "bg-emerald-500"
-                        : priceDifference < 0
-                        ? "bg-amber-500"
-                        : ""
-                    }
-                  >
-                    {priceDifference >= 0 ? "+" : ""}${priceDifference.toFixed(2)}
-                  </Badge>
-                </div>
-              </div>
-            )}
+              {/* Rate difference hint when category changes */}
+              {categoryChanged && selectedCategory && currentCategory && (
+                <p className="text-xs text-muted-foreground">
+                  Rate difference: {Number(selectedCategory.daily_rate) >= Number(currentCategory.daily_rate) ? "+" : ""}
+                  ${(Number(selectedCategory.daily_rate) - Number(currentCategory.daily_rate)).toFixed(2)}/day
+                  {" "}(auto-suggested below, editable)
+                </p>
+              )}
+            </div>
 
             <Separator />
 
@@ -443,9 +420,12 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
 
             <Separator />
 
-            {/* Per-day upgrade charge */}
+            {/* Per-day upgrade charge — SINGLE SOURCE OF TRUTH for pricing */}
             <div className="space-y-2">
               <Label htmlFor="upgrade-fee">Per-Day Upgrade Charge (CA$)</Label>
+              <p className="text-xs text-muted-foreground">
+                This is the only charge applied. Set to $0 for a free upgrade.
+              </p>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -453,7 +433,7 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
                   type="number"
                   min={0}
                   step={5}
-                  placeholder="e.g. 25"
+                  placeholder="0"
                   value={dailyFee}
                   onChange={(e) => setDailyFee(e.target.value)}
                   className="pl-9"
@@ -461,19 +441,33 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
               </div>
             </div>
 
-            {/* Total calculation */}
-            {feeNum > 0 && (
-              <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Daily fee</span>
-                  <span>CA${feeNum.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">× {booking.total_days} days</span>
-                  <span className="font-semibold">CA${totalUpgradeCharge.toFixed(2)}</span>
-                </div>
+            {/* Price summary — always visible */}
+            <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-2 border">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Current Total</span>
+                <span>${booking.total_amount.toFixed(2)}</span>
               </div>
-            )}
+              {feeNum > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    + Upgrade fee CA${feeNum.toFixed(2)}/day × {booking.total_days} days
+                  </span>
+                  <span>CA${totalUpgradeCharge.toFixed(2)}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between font-semibold">
+                <span>New Total</span>
+                <span>${newTotal.toFixed(2)} CAD</span>
+              </div>
+              {feeNum > 0 && (
+                <div className="flex justify-end">
+                  <Badge className="bg-emerald-500 text-[10px]">
+                    +${totalUpgradeCharge.toFixed(2)}
+                  </Badge>
+                </div>
+              )}
+            </div>
 
             <Separator />
 
@@ -511,7 +505,7 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
 
             {/* Reason */}
             <div className="space-y-2">
-              <Label htmlFor="upgrade-reason">Reason (optional)</Label>
+              <Label htmlFor="upgrade-reason">Reason for Upgrade</Label>
               <Textarea
                 id="upgrade-reason"
                 value={upgradeReason}
