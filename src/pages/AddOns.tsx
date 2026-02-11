@@ -64,6 +64,7 @@ export default function AddOns() {
   const { data: addOns = [] } = useAddOns();
   const { data: driverFeeSettings } = useDriverFeeSettings();
   const additionalDriverRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
+  const youngAdditionalDriverRate = driverFeeSettings?.youngAdditionalDriverDailyRate ?? 15.00;
 
   // Support both legacy vehicleId and new categoryId
   const categoryId = searchParams.get("categoryId") || searchData.selectedVehicleId;
@@ -121,7 +122,7 @@ export default function AddOns() {
   }, 0);
 
   // Calculate additional drivers cost
-  const additionalDriversCost = calculateAdditionalDriversCost(additionalDrivers, rentalDays, additionalDriverRate);
+  const additionalDriversCost = calculateAdditionalDriversCost(additionalDrivers, rentalDays, additionalDriverRate, youngAdditionalDriverRate);
 
   const pricing = calculateBookingPricing({
     vehicleDailyRate: vehicle?.dailyRate || 0,
