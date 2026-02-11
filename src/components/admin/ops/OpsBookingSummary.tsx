@@ -518,6 +518,25 @@ export function OpsBookingSummary({
                   </div>
                 ))}
 
+                {/* Additional Drivers */}
+                {booking.additionalDrivers && booking.additionalDrivers.length > 0 && (() => {
+                  const drivers = booking.additionalDrivers;
+                  const driverDailyRate = 15.99;
+                  const youngDriverDailyRate = 15.00;
+                  const totalDriversCost = drivers.reduce((sum: number, d: any) => {
+                    const rate = d.driver_age_band === "20_24" ? youngDriverDailyRate : driverDailyRate;
+                    return sum + rate * booking.total_days;
+                  }, 0);
+                  return totalDriversCost > 0 ? (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Additional Drivers ({drivers.length}) × {booking.total_days}d
+                      </span>
+                      <span>${totalDriversCost.toFixed(2)}</span>
+                    </div>
+                  ) : null;
+                })()}
+
                 {/* Young Driver Fee */}
                 {Number(booking.young_driver_fee) > 0 && (
                   <div className="flex justify-between">
