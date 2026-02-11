@@ -39,7 +39,7 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
     );
   }
 
-  const bookingCode = bookingId.slice(0, 8).toUpperCase();
+  const bookingCode = (t as any).bookingCode || bookingId.slice(0, 8).toUpperCase();
   const p = t.policies;
   const tankCap = t.vehicle.tankCapacityLiters || 50;
   const displayName = t.customer.name && !t.customer.name.includes("@") ? t.customer.name : "—";

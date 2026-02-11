@@ -190,7 +190,7 @@ function renderStructuredPdf(
   signatureBase64: string | null
 ) {
   let y = M;
-  const bookingCode = bookingId.slice(0, 8).toUpperCase();
+  const bookingCode = (t as any).bookingCode || bookingId.slice(0, 8).toUpperCase();
 
   // ── Spacing constants ──
   const SEC_GAP = 6;     // gap after horizontal lines (before next section)

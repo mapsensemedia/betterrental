@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export interface AgreementTermsJson {
+  bookingCode?: string;
   vehicle: {
     category?: string;
     make?: string | null;
