@@ -518,16 +518,16 @@ function renderStructuredPdf(
     {
       title: "3. FUEL POLICY",
       items: [
-        `Return vehicle with same fuel level as pickup (Tank: ${tankCap}L).`,
+        "Return vehicle with same fuel level as pickup.",
         "Refueling charges apply if returned with less fuel.",
       ]
     },
     {
       title: "4. RETURN POLICY & LATE FEES",
       items: [
-        `Grace period: ${p.gracePeriodMinutes} min past scheduled return.`,
-        `Late fee: ${p.lateFeePercentOfDaily}% of daily rate per hour for the first 2 hours after grace period.`,
-        `From the 3rd hour onward: a full day charge (1x daily rate) replaces the hourly fee.`,
+        `Grace period: ${p.gracePeriodMinutes} minutes past the scheduled return time.`,
+        "A twenty-five percent surcharge of the daily rate will be applied for each additional hour, up to two hours beyond the grace period.",
+        "After exceeding two hours, an extra full day charge will be applied for each subsequent day.",
         "Extended rentals require prior approval.",
       ]
     },
