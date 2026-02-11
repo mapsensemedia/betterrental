@@ -257,23 +257,19 @@ export function useCompleteCheckIn() {
         validations: validations.map(v => ({ field: v.field, passed: v.passed })),
       });
 
-      // Send notification to customer about check-in complete
+      // Fire-and-forget notification (don't block UI)
       if (status === "passed") {
-        try {
-          await supabase.functions.invoke("send-booking-notification", {
-            body: { bookingId, stage: "checkin_complete" },
-          });
-        } catch (e) {
-          console.error("Failed to send check-in notification:", e);
-        }
+        supabase.functions.invoke("send-booking-notification", {
+          body: { bookingId, stage: "checkin_complete" },
+        }).catch(e => console.error("Failed to send check-in notification:", e));
       }
 
       return { status, blockedReason };
     },
     onSuccess: (result, { bookingId }) => {
-      queryClient.invalidateQueries({ queryKey: ["checkin-record", bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["checkin-record", bookingId], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["admin-alerts"], refetchType: "active" });
 
       if (result.status === "passed") {
         toast.success("Check-in completed - customer notified");

@@ -112,7 +112,7 @@ export function useStartWalkaround() {
       return { id: data.id, alreadyExists: false };
     },
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection", variables.bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection", variables.bookingId], refetchType: "active" });
       if (!data.alreadyExists) {
         toast.success("Walkaround inspection started");
       }
@@ -163,7 +163,7 @@ export function useUpdateWalkaround() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
+      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"], refetchType: "active" });
     },
     onError: (error: Error) => {
       toast.error(`Failed to update walkaround: ${error.message}`);
@@ -195,7 +195,7 @@ export function useCustomerAcknowledge() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
+      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"], refetchType: "active" });
       toast.success("Customer acknowledged vehicle condition");
     },
     onError: (error: Error) => {
@@ -276,22 +276,18 @@ export function useCompleteWalkaround() {
         new_data: { booking_id: inspection.booking_id, staff_verified: true },
       });
 
-      // Send notification to customer
+      // Fire-and-forget notification (don't block UI)
       if (inspection.booking_id) {
-        try {
-          await supabase.functions.invoke("send-booking-notification", {
-            body: { bookingId: inspection.booking_id, stage: "walkaround_complete" },
-          });
-        } catch (e) {
-          console.error("Failed to send walkaround notification:", e);
-        }
+        supabase.functions.invoke("send-booking-notification", {
+          body: { bookingId: inspection.booking_id, stage: "walkaround_complete" },
+        }).catch(e => console.error("Failed to send walkaround notification:", e));
       }
 
       return { bookingId: inspection.booking_id };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
-      queryClient.invalidateQueries({ queryKey: ["booking"] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["booking"], refetchType: "active" });
       toast.success("Walkaround completed");
     },
     onError: (error: Error) => {
@@ -343,8 +339,8 @@ export function useAdminCompleteWalkaround() {
       return { bookingId: inspection.booking_id };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
-      queryClient.invalidateQueries({ queryKey: ["booking"] });
+      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["booking"], refetchType: "active" });
       toast.success("Walkaround completed (admin override)");
     },
     onError: (error: Error) => {
@@ -393,8 +389,8 @@ export function useReopenWalkaround() {
       return { bookingId: inspection.booking_id };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"] });
-      queryClient.invalidateQueries({ queryKey: ["booking"] });
+      queryClient.invalidateQueries({ queryKey: ["walkaround-inspection"], refetchType: "active" });
+      queryClient.invalidateQueries({ queryKey: ["booking"], refetchType: "active" });
       toast.success("Walkaround reopened for editing");
     },
     onError: (error: Error) => {

@@ -148,7 +148,7 @@ export function useUploadConditionPhoto() {
     },
     onSuccess: (data) => {
       // Invalidate immediately for faster UI update
-      queryClient.invalidateQueries({ queryKey: ['condition-photos'] });
+      queryClient.invalidateQueries({ queryKey: ['condition-photos'], refetchType: "active" });
     },
     onError: (error: Error) => {
       toast({
