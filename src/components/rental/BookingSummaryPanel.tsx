@@ -243,7 +243,7 @@ export function BookingSummaryPanel({
                 <img
                   src={vehicle.imageUrl}
                   alt={(vehicle as any).isCategory ? (vehicle as any).categoryName : `${vehicle.make} ${vehicle.model}`}
-                  className="w-full h-24 object-cover rounded-lg mt-2"
+                  className="w-full h-auto max-h-40 object-contain rounded-lg mt-2"
                 />
               )}
             </div>
