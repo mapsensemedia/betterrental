@@ -186,8 +186,8 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
         <ul className="space-y-1.5 list-disc pl-5 text-[12px] text-gray-700">
           <li>Minimum age: {p.minAge} years with valid driver's license and government-issued photo ID.</li>
           <li>Grace period: {p.gracePeriodMinutes} minutes past the scheduled return time.</li>
-          <li>A twenty-five percent surcharge of the daily rate will be applied for each additional hour, up to two hours beyond the grace period.</li>
-          <li>After exceeding two hours, an extra full day charge will be applied for each subsequent day.</li>
+          <li>A 25% surcharge of the daily rate will be applied for each additional hour, up to 2 hours beyond the grace period.</li>
+          <li>After exceeding 2 hours, an extra full day charge will be applied for each subsequent day.</li>
           <li>Fuel return: Vehicle must be returned with the same fuel level as at pickup.</li>
           <li>No smoking in the vehicle at any time.</li>
           <li>No pets without prior written approval.</li>
