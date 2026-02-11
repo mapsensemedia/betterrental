@@ -159,6 +159,10 @@ export function useGenerateAgreement() {
           });
 
           if (error) {
+            // Try to extract a descriptive message from the response body
+            if (data?.error) {
+              throw new Error(data.error);
+            }
             // Check if it's a network error that should be retried
             if (error.message?.includes("fetch") || error.message?.includes("network")) {
               throw new Error(`Network error: ${error.message}`);
