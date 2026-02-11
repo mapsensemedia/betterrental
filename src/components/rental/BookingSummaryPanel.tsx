@@ -351,10 +351,10 @@ export function BookingSummaryPanel({
 
               {/* Add-ons — itemized */}
               <div className="pt-1">
-                <p className="text-xs text-muted-foreground tracking-wide font-medium flex items-center">
+                <div className="text-xs text-muted-foreground tracking-wide font-medium flex items-center">
                   Add-ons & Extras
                   <PriceTooltip content={PRICE_TOOLTIPS.addOns} />
-                </p>
+                </div>
                 {pricing.itemized && pricing.itemized.length > 0 ? (
                   pricing.itemized.map((item, idx) => (
                     <div key={idx} className="flex justify-between pl-3 text-sm">
@@ -363,7 +363,7 @@ export function BookingSummaryPanel({
                     </div>
                   ))
                 ) : (
-                  <p className="pl-3 text-sm text-muted-foreground italic">No add-ons selected</p>
+                  <div className="pl-3 text-sm text-muted-foreground italic">No add-ons selected</div>
                 )}
               </div>
               
