@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StepCompletion } from "@/lib/ops-steps";
 import { DELIVERY_STATUS_MAP } from "@/lib/ops-steps";
-import { CategoryUpgradeDialog } from "@/components/admin/CategoryUpgradeDialog";
+import { UnifiedVehicleManager } from "@/components/admin/UnifiedVehicleManager";
 import { PROTECTION_RATES, PVRT_DAILY_FEE, ACSRCH_DAILY_FEE, PST_RATE, GST_RATE } from "@/lib/pricing";
 import { CollapsibleSection } from "./sections/CollapsibleSection";
 import { CardInfoSection } from "./sections/CardInfoSection";
@@ -711,11 +711,13 @@ export function OpsBookingSummary({
         </div>
       </ScrollArea>
       
-      {/* Category Upgrade Dialog */}
-      <CategoryUpgradeDialog
+      {/* Vehicle Change Dialog */}
+      <UnifiedVehicleManager
+        bookingId={booking.id}
+        booking={booking}
+        dialogOnly
         open={showUpgradeDialog}
         onOpenChange={setShowUpgradeDialog}
-        booking={booking}
       />
     </div>
   );
