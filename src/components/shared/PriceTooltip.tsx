@@ -23,7 +23,7 @@ export function PriceTooltip({ content }: PriceTooltipProps) {
         </TooltipTrigger>
         <TooltipContent
           side="top"
-          className="max-w-[260px] text-xs leading-relaxed bg-popover text-popover-foreground border border-border shadow-md z-50"
+          className="max-w-[260px] text-xs leading-relaxed normal-case bg-popover text-popover-foreground border border-border shadow-md z-50"
         >
           {content}
         </TooltipContent>

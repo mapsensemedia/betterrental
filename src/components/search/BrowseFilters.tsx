@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sheet";
 
 /** Derive vehicle type labels from category names */
-const VEHICLE_TYPES = ["SUV", "Sedan", "Minivan", "Economy", "Compact"] as const;
+const VEHICLE_TYPES = ["SUV", "Sedan", "Minivan", "Economy", "Compact", "Full Size", "Mystery"] as const;
 const PASSENGER_OPTIONS = [2, 4, 5, 7] as const;
 
 export interface BrowseFilterState {
