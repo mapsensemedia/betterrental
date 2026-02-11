@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listBookings, type BookingSummary } from "@/domain/bookings";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isToday, isTomorrow, isBefore, startOfDay } from "date-fns";
 
 type TabValue = "all" | "pending" | "confirmed" | "active" | "completed";
 
@@ -37,15 +37,34 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "completed", label: "Completed" },
 ];
 
+function getBookingUrgency(booking: BookingSummary) {
+  // For pending/confirmed: urgency based on pickup date
+  // For active: urgency based on return date
+  const dateStr = (booking.status === "active") ? booking.endAt : booking.startAt;
+  const d = parseISO(dateStr);
+  const now = new Date();
+  if (isBefore(d, startOfDay(now)) && booking.status !== "completed") {
+    return { border: "border-destructive/60 bg-destructive/5", badge: "Overdue", badgeClass: "bg-destructive text-destructive-foreground" };
+  }
+  if (isToday(d)) {
+    return { border: "border-amber-500/60 bg-amber-500/5", badge: "Today", badgeClass: "bg-amber-500 text-white" };
+  }
+  if (isTomorrow(d)) {
+    return { border: "border-blue-500/40 bg-blue-500/5", badge: "Tomorrow", badgeClass: "bg-blue-500 text-white" };
+  }
+  return { border: "", badge: "", badgeClass: "" };
+}
+
 function BookingCard({ booking, onClick }: { booking: BookingSummary; onClick: () => void }) {
   const vehicleName = booking.vehicle 
     ? booking.vehicle.name
     : "No vehicle";
   const isDelivery = !!booking.pickupAddress;
+  const urgency = getBookingUrgency(booking);
 
   return (
     <Card 
-      className="cursor-pointer hover:shadow-md transition-all"
+      className={`cursor-pointer hover:shadow-md transition-all ${urgency.border}`}
       onClick={onClick}
     >
       <CardContent className="p-4">
@@ -54,6 +73,11 @@ function BookingCard({ booking, onClick }: { booking: BookingSummary; onClick: (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-sm font-medium">{booking.bookingCode}</span>
               <StatusBadge status={booking.status} />
+              {urgency.badge && (
+                <Badge className={`text-xs ${urgency.badgeClass}`}>
+                  {urgency.badge}
+                </Badge>
+              )}
               {isDelivery && (
                 <Badge variant="outline" className="text-xs gap-1">
                   <Truck className="w-3 h-3" />
