@@ -3,7 +3,7 @@
  * Includes Mapbox-powered address autocomplete and route map
  */
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Calendar,
   Clock,
@@ -71,7 +71,9 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
       : ""
   );
   const [returnTime, setReturnTime] = useState(searchData.returnTime);
-  const [deliveryMode, setLocalDeliveryMode] = useState(searchData.deliveryMode);
+  const [urlSearchParams] = useSearchParams();
+  const initialMode = urlSearchParams.get("mode") === "delivery" ? "delivery" : searchData.deliveryMode;
+  const [deliveryMode, setLocalDeliveryMode] = useState(initialMode);
   const [deliveryAddress, setLocalDeliveryAddress] = useState(
     searchData.deliveryAddress || ""
   );
@@ -103,6 +105,14 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
 
+  // Auto-select delivery mode from URL param
+  useEffect(() => {
+    if (urlSearchParams.get("mode") === "delivery") {
+      setLocalDeliveryMode("delivery");
+      setDeliveryMode("delivery");
+    }
+  }, [urlSearchParams]);
+
   // Sync from context on mount
   useEffect(() => {
     if (searchData.pickupLocationId) {
@@ -116,7 +126,9 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
     }
     setPickupTime(searchData.pickupTime);
     setReturnTime(searchData.returnTime);
-    setLocalDeliveryMode(searchData.deliveryMode);
+    if (urlSearchParams.get("mode") !== "delivery") {
+      setLocalDeliveryMode(searchData.deliveryMode);
+    }
     setLocalDeliveryAddress(searchData.deliveryAddress || "");
     setLocalAgeRange(searchData.ageRange);
 

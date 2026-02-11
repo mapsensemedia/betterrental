@@ -119,7 +119,7 @@ export default function About() {
                   </p>
                 </div>
                 <Button asChild size="lg">
-                  <Link to="/search">
+                  <Link to="/search?mode=delivery">
                     Try It Now
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Link>

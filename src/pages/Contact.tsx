@@ -126,7 +126,7 @@ export default function Contact() {
               </div>
             </div>
             <Button asChild>
-              <Link to="/search">
+              <Link to="/search?mode=delivery">
                 Book with Delivery
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
