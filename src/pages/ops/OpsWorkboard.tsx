@@ -2,6 +2,7 @@
  * OpsWorkboard - Daily task overview for operations staff
  */
 
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OpsShell } from "@/components/ops/OpsShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,11 +15,13 @@ import {
   AlertTriangle,
   ChevronRight,
   CheckCircle2,
+  UserPlus,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import { OpsLocationFilter, useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
+import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
 
 interface TaskCount {
   pickupsToday: number;
@@ -149,6 +152,7 @@ export default function OpsWorkboard() {
   const locationFilter = useOpsLocationFilter();
   const { data: counts, isLoading } = useWorkboardCounts(locationFilter);
   const navigate = useNavigate();
+  const [walkInOpen, setWalkInOpen] = useState(false);
 
   // Build URLs that preserve location filter
   const buildHref = (basePath: string) => {
@@ -261,9 +265,22 @@ export default function OpsWorkboard() {
               </span>
               <ChevronRight className="w-4 h-4" />
             </Button>
+            <Button
+              variant="default"
+              className="justify-between"
+              onClick={() => setWalkInOpen(true)}
+            >
+              <span className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                Walk-in Booking
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </CardContent>
         </Card>
       </div>
+
+      <WalkInBookingDialog open={walkInOpen} onOpenChange={setWalkInOpen} />
     </OpsShell>
   );
 }

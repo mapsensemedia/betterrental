@@ -1,6 +1,7 @@
 /**
  * OpsPickups - Pickup/Handover list view for ops staff
  * Uses shared BookingOps page for individual bookings
+ * Color-codes cards by urgency: overdue (red), today (amber), tomorrow (blue)
  */
 
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -21,19 +22,35 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listBookings, BookingSummary } from "@/domain/bookings";
-import { format, parseISO, isToday, isTomorrow } from "date-fns";
+import { format, parseISO, isToday, isTomorrow, isBefore, startOfDay } from "date-fns";
 import { useState } from "react";
 import { OpsLocationFilter, useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
+
+function getUrgencyStyle(dateStr: string) {
+  const d = parseISO(dateStr);
+  const now = new Date();
+  if (isBefore(d, startOfDay(now))) {
+    return { border: "border-destructive/60 bg-destructive/5", badge: "Overdue", badgeClass: "bg-destructive text-destructive-foreground" };
+  }
+  if (isToday(d)) {
+    return { border: "border-amber-500/60 bg-amber-500/5", badge: "Today", badgeClass: "bg-amber-500 text-white" };
+  }
+  if (isTomorrow(d)) {
+    return { border: "border-blue-500/40 bg-blue-500/5", badge: "Tomorrow", badgeClass: "bg-blue-500 text-white" };
+  }
+  return { border: "", badge: "", badgeClass: "" };
+}
 
 function PickupCard({ booking }: { booking: BookingSummary }) {
   const navigate = useNavigate();
   const pickupTime = parseISO(booking.startAt);
   const returnTime = parseISO(booking.endAt);
   const isDelivery = !!booking.pickupAddress;
+  const urgency = getUrgencyStyle(booking.startAt);
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-all"
+      className={`cursor-pointer hover:shadow-md transition-all ${urgency.border}`}
       onClick={() => navigate(`/ops/booking/${booking.id}/handover`)}
     >
       <CardContent className="p-4">
@@ -47,6 +64,11 @@ function PickupCard({ booking }: { booking: BookingSummary }) {
               <Badge variant="outline" className="text-xs shrink-0">
                 {booking.bookingCode}
               </Badge>
+              {urgency.badge && (
+                <Badge className={`text-xs shrink-0 ${urgency.badgeClass}`}>
+                  {urgency.badge}
+                </Badge>
+              )}
             </div>
 
             {/* Vehicle */}
