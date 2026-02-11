@@ -1,8 +1,13 @@
 /**
- * VehicleUpgradePanel — Button that opens a dialog for applying per-day
- * upgrade fees and optionally assigning a vehicle unit by VIN/plate.
+ * VehicleUpgradePanel — Button that opens a full upgrade dialog with:
+ * - Category selection with price recalculation
+ * - VIN search & assignment
+ * - Current vs new total comparison
+ * - Per-day upgrade charge
+ * - Customer visibility toggle
+ * - Reason & confirmation
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -12,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +26,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowUpCircle, DollarSign, Eye, EyeOff, Hash, Loader2, Search, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ArrowUpCircle,
+  DollarSign,
+  Eye,
+  EyeOff,
+  Hash,
+  Loader2,
+  Search,
+  X,
+  RefreshCw,
+} from "lucide-react";
+import { calculateBookingPricing, DriverAgeBand } from "@/lib/pricing";
 
 interface VehicleUpgradePanelProps {
   booking: {
@@ -36,6 +60,8 @@ interface VehicleUpgradePanelProps {
     upgrade_daily_fee?: number | null;
     upgrade_category_label?: string | null;
     upgrade_visible_to_customer?: boolean | null;
+    driver_age_band?: string | null;
+    start_at?: string;
   };
 }
 
@@ -54,20 +80,60 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
   const hasExistingUpgrade = Number(booking.upgrade_daily_fee) > 0;
 
   const [open, setOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(booking.vehicle_id);
   const [dailyFee, setDailyFee] = useState("");
   const [showToCustomer, setShowToCustomer] = useState(false);
   const [categoryLabel, setCategoryLabel] = useState("");
   const [unitSearch, setUnitSearch] = useState("");
   const [selectedUnit, setSelectedUnit] = useState<FoundUnit | null>(null);
+  const [upgradeReason, setUpgradeReason] = useState("");
+
+  // Fetch all active categories
+  const { data: categories = [], isLoading: loadingCategories } = useQuery({
+    queryKey: ["vehicle-categories-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vehicle_categories")
+        .select("*")
+        .eq("is_active", true)
+        .order("daily_rate", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open,
+  });
+
+  const currentCategory = categories.find((c) => c.id === booking.vehicle_id);
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const categoryChanged = selectedCategoryId !== booking.vehicle_id;
+
+  // Calculate new pricing when category changes
+  const newPricing = useMemo(() => {
+    if (!selectedCategory) return null;
+    const driverAgeBand = booking.driver_age_band as DriverAgeBand | null;
+    const pickupDate = booking.start_at ? new Date(booking.start_at) : new Date();
+    return calculateBookingPricing({
+      vehicleDailyRate: Number(selectedCategory.daily_rate),
+      rentalDays: booking.total_days,
+      driverAgeBand,
+      pickupDate,
+    });
+  }, [selectedCategory, booking]);
+
+  const currentTotal = booking.total_amount;
+  const newCategoryTotal = newPricing?.total ?? currentTotal;
+  const priceDifference = newCategoryTotal - currentTotal;
 
   // Reset form when dialog opens
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
+      setSelectedCategoryId(booking.vehicle_id);
       setDailyFee(hasExistingUpgrade ? String(booking.upgrade_daily_fee) : "");
       setShowToCustomer(booking.upgrade_visible_to_customer ?? false);
       setCategoryLabel(booking.upgrade_category_label ?? "");
       setUnitSearch("");
       setSelectedUnit(null);
+      setUpgradeReason("");
     }
     setOpen(nextOpen);
   };
@@ -75,7 +141,7 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
   const feeNum = parseFloat(dailyFee) || 0;
   const totalUpgradeCharge = feeNum * booking.total_days;
 
-  // Search for units across all categories by VIN or license plate
+  // Search for units by VIN or license plate
   const { data: searchResults = [], isLoading: searching } = useQuery({
     queryKey: ["upgrade-unit-search", unitSearch],
     queryFn: async () => {
@@ -102,6 +168,7 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
     staleTime: 5000,
   });
 
+  // Apply upgrade mutation
   const applyMutation = useMutation({
     mutationFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
@@ -111,9 +178,23 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
         upgrade_daily_fee: feeNum,
         upgrade_category_label: showToCustomer ? categoryLabel || null : null,
         upgrade_visible_to_customer: showToCustomer,
+        upgrade_reason: upgradeReason || null,
+        upgraded_at: new Date().toISOString(),
+        upgraded_by: userId,
         updated_at: new Date().toISOString(),
       };
 
+      // If category changed, update vehicle_id and recalculate pricing
+      if (categoryChanged && selectedCategory && newPricing) {
+        updatePayload.original_vehicle_id = booking.vehicle_id;
+        updatePayload.vehicle_id = selectedCategoryId;
+        updatePayload.daily_rate = Number(selectedCategory.daily_rate);
+        updatePayload.subtotal = newPricing.subtotal;
+        updatePayload.tax_amount = newPricing.taxAmount;
+        updatePayload.total_amount = newPricing.total;
+      }
+
+      // If a specific unit was selected, assign it
       if (selectedUnit) {
         if (booking.assigned_unit_id) {
           await supabase.rpc("release_vin_from_booking", { p_booking_id: booking.id });
@@ -126,32 +207,43 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
       const { error } = await supabase.from("bookings").update(updatePayload).eq("id", booking.id);
       if (error) throw error;
 
+      // Audit log
       await supabase.from("audit_logs").insert({
-        action: "upgrade_fee_applied",
+        action: categoryChanged ? "category_upgrade" : "upgrade_fee_applied",
         entity_type: "booking",
         entity_id: booking.id,
         user_id: userId,
+        old_data: {
+          vehicle_id: booking.vehicle_id,
+          daily_rate: booking.daily_rate,
+          total_amount: booking.total_amount,
+        },
         new_data: {
+          vehicle_id: categoryChanged ? selectedCategoryId : booking.vehicle_id,
+          daily_rate: categoryChanged ? Number(selectedCategory?.daily_rate) : booking.daily_rate,
+          total_amount: categoryChanged ? newPricing?.total : booking.total_amount,
           upgrade_daily_fee: feeNum,
-          total_charge: totalUpgradeCharge,
           visible_to_customer: showToCustomer,
-          category_label: categoryLabel || null,
+          reason: upgradeReason,
           assigned_unit_id: selectedUnit?.id || null,
           assigned_unit_vin: selectedUnit?.vin || null,
-          assigned_unit_category: selectedUnit?.category_name || null,
         },
       });
+
+      return { newTotal: categoryChanged ? newPricing?.total : currentTotal };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success(
-        `Upgrade fee of CA$${feeNum.toFixed(2)}/day applied${selectedUnit ? ` — Unit ${selectedUnit.license_plate} assigned` : ""}`
+        categoryChanged
+          ? `Category upgraded! New total: $${data.newTotal?.toFixed(2)} CAD`
+          : `Upgrade fee of CA$${feeNum.toFixed(2)}/day applied${selectedUnit ? ` — Unit ${selectedUnit.license_plate} assigned` : ""}`
       );
       ["booking", "bookings", "category-available-units", "current-assigned-unit"].forEach((k) =>
         queryClient.invalidateQueries({ queryKey: [k] })
       );
       handleOpenChange(false);
     },
-    onError: () => toast.error("Failed to apply upgrade fee"),
+    onError: () => toast.error("Failed to apply upgrade"),
   });
 
   const removeMutation = useMutation({
@@ -185,6 +277,8 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
     onError: () => toast.error("Failed to remove upgrade fee"),
   });
 
+  const canApply = categoryChanged || feeNum > 0 || selectedUnit;
+
   return (
     <>
       {/* Trigger Button */}
@@ -204,16 +298,77 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ArrowUpCircle className="h-5 w-5" />
-              Vehicle Upgrade
+              <RefreshCw className="h-5 w-5" />
+              Change Vehicle / Category
             </DialogTitle>
             <DialogDescription>
-              Apply an upgrade fee and optionally assign a different unit for booking{" "}
+              Select a category and optionally pick a specific unit for booking{" "}
               <span className="font-mono">{booking.booking_code}</span>.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 py-2">
+            {/* Vehicle Category Selection */}
+            <div className="space-y-2">
+              <Label>Vehicle Category</Label>
+              <Select
+                value={selectedCategoryId}
+                onValueChange={(val) => {
+                  setSelectedCategoryId(val);
+                  setSelectedUnit(null);
+                  setUnitSearch("");
+                }}
+                disabled={loadingCategories}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      <div className="flex items-center justify-between gap-4 w-full">
+                        <span>{cat.name}</span>
+                        <span className="text-muted-foreground">
+                          ${Number(cat.daily_rate).toFixed(2)}/day
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Price Comparison */}
+            {categoryChanged && newPricing && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Current Total</span>
+                  <span>${currentTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">New Category Rate Total</span>
+                  <span className="font-semibold">${newCategoryTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Difference</span>
+                  <Badge
+                    variant={priceDifference > 0 ? "default" : "secondary"}
+                    className={
+                      priceDifference > 0
+                        ? "bg-emerald-500"
+                        : priceDifference < 0
+                        ? "bg-amber-500"
+                        : ""
+                    }
+                  >
+                    {priceDifference >= 0 ? "+" : ""}${priceDifference.toFixed(2)}
+                  </Badge>
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
             {/* Find vehicle by VIN / plate */}
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
@@ -351,6 +506,20 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
                 />
               </div>
             )}
+
+            <Separator />
+
+            {/* Reason */}
+            <div className="space-y-2">
+              <Label htmlFor="upgrade-reason">Reason (optional)</Label>
+              <Textarea
+                id="upgrade-reason"
+                value={upgradeReason}
+                onChange={(e) => setUpgradeReason(e.target.value)}
+                placeholder="e.g., Customer requested upgrade, original unavailable..."
+                rows={2}
+              />
+            </div>
           </div>
 
           <DialogFooter className="flex gap-2">
@@ -368,11 +537,11 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
               Cancel
             </Button>
             <Button
-              disabled={feeNum <= 0 || applyMutation.isPending}
+              disabled={!canApply || applyMutation.isPending}
               onClick={() => applyMutation.mutate()}
             >
               {applyMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {hasExistingUpgrade ? "Update Upgrade" : "Apply Upgrade"}
+              Confirm & Apply
             </Button>
           </DialogFooter>
         </DialogContent>

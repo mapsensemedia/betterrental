@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { UnifiedVehicleManager } from "@/components/admin/UnifiedVehicleManager";
+
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { Button } from "@/components/ui/button";
@@ -109,7 +109,7 @@ export default function BookingOps() {
   });
   const [showIncidentDialog, setShowIncidentDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
+  
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   // Prevent the auto-advance effect from overriding manual navigation
   const hasInitializedStepRef = useRef(false);
@@ -423,9 +423,6 @@ export default function BookingOps() {
                       <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
                         Edit Booking Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setVehicleDialogOpen(true)}>
-                        Change / Upgrade Vehicle
-                      </DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuItem 
@@ -576,16 +573,6 @@ export default function BookingOps() {
         </>
       )}
 
-      {/* Vehicle & Category Dialog (unified) */}
-      {booking && (
-        <UnifiedVehicleManager
-          bookingId={booking.id}
-          booking={booking}
-          dialogOnly
-          open={vehicleDialogOpen}
-          onOpenChange={setVehicleDialogOpen}
-        />
-      )}
 
       {/* Edit Booking Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
