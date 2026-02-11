@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Mail, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import c2cLogo from "@/assets/c2c-logo.png";
+import c2cLogo from "@/assets/c2c-logo-footer.png";
 
 const footerLinks = {
   explore: [
