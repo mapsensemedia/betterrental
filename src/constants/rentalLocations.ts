@@ -15,9 +15,9 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
   {
     id: "a1b2c3d4-1111-4000-8000-000000000001",
     name: "Surrey Newton",
-    address: "6734 King George Blvd, Surrey, BC",
+    address: "6786 King George Blvd, Surrey, BC V3W 4Z5",
     city: "Surrey",
-    lat: 49.1913,
+    lat: 49.1920,
     lng: -122.8490,
   },
   {
