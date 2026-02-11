@@ -293,7 +293,7 @@ function SignatureBlock({ title, name, date, imageUrl }: { title: string; name?:
     <div>
       <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{title}</span>
       {imageUrl && (
-        <img src={imageUrl} alt="Signature" className="max-h-10 w-auto bg-white rounded border border-gray-200 p-1 mt-1.5" />
+        <img src={imageUrl} alt="Signature" className="max-h-20 w-auto bg-white rounded border border-gray-200 p-1 mt-1.5" />
       )}
       <div className="mt-2 border-b border-gray-400 w-full" />
       <div className="mt-1.5 text-[11px] space-y-0.5">
