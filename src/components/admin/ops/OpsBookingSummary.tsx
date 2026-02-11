@@ -484,149 +484,7 @@ export function OpsBookingSummary({
               />
               
               {/* Full Itemized Financial Breakdown */}
-              <div className="space-y-1.5 text-xs">
-                {/* Vehicle Rental */}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Vehicle ({booking.total_days} days × ${Number(booking.daily_rate).toFixed(2)}/day)
-                  </span>
-                  <span>${(Number(booking.daily_rate) * booking.total_days).toFixed(2)}</span>
-                </div>
-
-                {/* Protection Plan */}
-                {booking.protection_plan && booking.protection_plan !== "none" && (() => {
-                  const vehicleCat = booking.vehicles?.category || "";
-                  const plan = getProtectionRateForCategory(booking.protection_plan, vehicleCat);
-                  const protectionTotal = plan.rate * booking.total_days;
-                  return protectionTotal > 0 ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Protection ({plan.name}) × {booking.total_days}d
-                      </span>
-                      <span>${protectionTotal.toFixed(2)}</span>
-                    </div>
-                  ) : null;
-                })()}
-
-                {/* Add-ons */}
-                {booking.addOns && booking.addOns.length > 0 && booking.addOns.map((addon: any) => (
-                  <div key={addon.id} className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      {addon.add_ons?.name || "Add-on"}{addon.quantity > 1 ? ` ×${addon.quantity}` : ""}
-                    </span>
-                    <span>${Number(addon.price).toFixed(2)}</span>
-                  </div>
-                ))}
-
-                {/* Additional Drivers */}
-                {booking.additionalDrivers && booking.additionalDrivers.length > 0 && (() => {
-                  const drivers = booking.additionalDrivers;
-                  const driverDailyRate = 15.99;
-                  const youngDriverDailyRate = 15.00;
-                  const totalDriversCost = drivers.reduce((sum: number, d: any) => {
-                    const rate = d.driver_age_band === "20_24" ? youngDriverDailyRate : driverDailyRate;
-                    return sum + rate * booking.total_days;
-                  }, 0);
-                  return totalDriversCost > 0 ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Additional Drivers ({drivers.length}) × {booking.total_days}d
-                      </span>
-                      <span>${totalDriversCost.toFixed(2)}</span>
-                    </div>
-                  ) : null;
-                })()}
-
-                {/* Young Driver Fee */}
-                {Number(booking.young_driver_fee) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Young Driver ($15.00/day × {booking.total_days}d)
-                    </span>
-                    <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
-                  </div>
-                )}
-
-                {/* Different Drop-off Fee */}
-                {Number(booking.different_dropoff_fee) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Different Drop-off Fee</span>
-                    <span>${Number(booking.different_dropoff_fee).toFixed(2)}</span>
-                  </div>
-                )}
-
-                {/* Upgrade Fee */}
-                {Number(booking.upgrade_daily_fee) > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <span>
-                      Upgrade (${Number(booking.upgrade_daily_fee).toFixed(2)}/day × {booking.total_days}d)
-                    </span>
-                    <span>${(Number(booking.upgrade_daily_fee) * booking.total_days).toFixed(2)}</span>
-                  </div>
-                )}
-
-                {/* Regulatory Fees */}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    PVRT
-                    <span className="text-[10px]">(${PVRT_DAILY_FEE.toFixed(2)}/day)</span>
-                  </span>
-                  <span>${(PVRT_DAILY_FEE * booking.total_days).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    ACSRCH
-                    <span className="text-[10px]">(${ACSRCH_DAILY_FEE.toFixed(2)}/day)</span>
-                  </span>
-                  <span>${(ACSRCH_DAILY_FEE * booking.total_days).toFixed(2)}</span>
-                </div>
-
-                <Separator className="my-1" />
-
-                {/* Subtotal */}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>${Number(booking.subtotal).toFixed(2)}</span>
-                </div>
-
-                {/* Tax breakdown */}
-                {Number(booking.tax_amount) > 0 && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">PST (7%)</span>
-                      <span>${(Number(booking.subtotal) * PST_RATE).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">GST (5%)</span>
-                      <span>${(Number(booking.subtotal) * GST_RATE).toFixed(2)}</span>
-                    </div>
-                  </>
-                )}
-
-                <Separator className="my-1" />
-                
-                {/* Total */}
-                <div className="flex justify-between font-semibold text-sm">
-                  <span>Total</span>
-                  <span>${Number(booking.total_amount).toFixed(2)}</span>
-                </div>
-
-                {/* Deposit */}
-                {booking.deposit_amount && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Deposit</span>
-                    <span>${Number(booking.deposit_amount).toFixed(2)}</span>
-                  </div>
-                )}
-
-                {/* Late Return Fee */}
-                {Number(booking.late_return_fee) > 0 && (
-                  <div className="flex justify-between text-destructive">
-                    <span>Late Return Fee</span>
-                    <span>${Number(booking.late_return_fee).toFixed(2)}</span>
-                  </div>
-                )}
-              </div>
+              <FinancialBreakdown booking={booking} />
             </div>
           </CollapsibleSection>
           
@@ -740,6 +598,165 @@ export function OpsBookingSummary({
         open={showUpgradeDialog}
         onOpenChange={setShowUpgradeDialog}
       />
+    </div>
+  );
+}
+
+function FinancialBreakdown({ booking }: { booking: any }) {
+  const vehicleTotal = Number(booking.daily_rate) * booking.total_days;
+  
+  const vehicleCat = booking.vehicles?.category || "";
+  const plan = booking.protection_plan && booking.protection_plan !== "none"
+    ? getProtectionRateForCategory(booking.protection_plan, vehicleCat)
+    : null;
+  const protectionTotal = plan ? plan.rate * booking.total_days : 0;
+
+  const addOnsTotal = (booking.addOns || []).reduce((sum: number, a: any) => sum + Number(a.price), 0);
+
+  const drivers = booking.additionalDrivers || [];
+  const driverDailyRate = 15.99;
+  const youngDriverDailyRate = 15.00;
+  const additionalDriversTotal = drivers.reduce((sum: number, d: any) => {
+    const rate = d.driver_age_band === "20_24" ? youngDriverDailyRate : driverDailyRate;
+    return sum + rate * booking.total_days;
+  }, 0);
+
+  const youngDriverFee = Number(booking.young_driver_fee) || 0;
+  const differentDropoffFee = Number(booking.different_dropoff_fee) || 0;
+  const upgradeFee = Number(booking.upgrade_daily_fee) > 0 ? Number(booking.upgrade_daily_fee) * booking.total_days : 0;
+  const pvrt = PVRT_DAILY_FEE * booking.total_days;
+  const acsrch = ACSRCH_DAILY_FEE * booking.total_days;
+
+  const calculatedSubtotal = vehicleTotal + protectionTotal + addOnsTotal + additionalDriversTotal + youngDriverFee + differentDropoffFee + upgradeFee + pvrt + acsrch;
+  const dbSubtotal = Number(booking.subtotal);
+  const unitemized = Math.round((dbSubtotal - calculatedSubtotal) * 100) / 100;
+
+  return (
+    <div className="space-y-1.5 text-xs">
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">
+          Vehicle ({booking.total_days} days × ${Number(booking.daily_rate).toFixed(2)}/day)
+        </span>
+        <span>${vehicleTotal.toFixed(2)}</span>
+      </div>
+
+      {plan && protectionTotal > 0 && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            Protection ({plan.name}) × {booking.total_days}d
+          </span>
+          <span>${protectionTotal.toFixed(2)}</span>
+        </div>
+      )}
+
+      {booking.addOns && booking.addOns.length > 0 && booking.addOns.map((addon: any) => (
+        <div key={addon.id} className="flex justify-between">
+          <span className="text-muted-foreground">
+            {addon.add_ons?.name || "Add-on"}{addon.quantity > 1 ? ` ×${addon.quantity}` : ""}
+          </span>
+          <span>${Number(addon.price).toFixed(2)}</span>
+        </div>
+      ))}
+
+      {additionalDriversTotal > 0 && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            Additional Drivers ({drivers.length}) × {booking.total_days}d
+          </span>
+          <span>${additionalDriversTotal.toFixed(2)}</span>
+        </div>
+      )}
+
+      {youngDriverFee > 0 && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            Young Driver ($15.00/day × {booking.total_days}d)
+          </span>
+          <span>${youngDriverFee.toFixed(2)}</span>
+        </div>
+      )}
+
+      {differentDropoffFee > 0 && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Different Drop-off Fee</span>
+          <span>${differentDropoffFee.toFixed(2)}</span>
+        </div>
+      )}
+
+      {upgradeFee > 0 && (
+        <div className="flex justify-between text-emerald-600">
+          <span>
+            Upgrade (${Number(booking.upgrade_daily_fee).toFixed(2)}/day × {booking.total_days}d)
+          </span>
+          <span>${upgradeFee.toFixed(2)}</span>
+        </div>
+      )}
+
+      <div className="flex justify-between">
+        <span className="text-muted-foreground flex items-center gap-1">
+          PVRT
+          <span className="text-[10px]">(${PVRT_DAILY_FEE.toFixed(2)}/day)</span>
+        </span>
+        <span>${pvrt.toFixed(2)}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground flex items-center gap-1">
+          ACSRCH
+          <span className="text-[10px]">(${ACSRCH_DAILY_FEE.toFixed(2)}/day)</span>
+        </span>
+        <span>${acsrch.toFixed(2)}</span>
+      </div>
+
+      {unitemized > 0.01 && (
+        <div className="flex justify-between text-amber-600">
+          <span className="flex items-center gap-1">
+            Other charges
+            <Info className="h-3 w-3" />
+          </span>
+          <span>${unitemized.toFixed(2)}</span>
+        </div>
+      )}
+
+      <Separator className="my-1" />
+
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">Subtotal</span>
+        <span>${dbSubtotal.toFixed(2)}</span>
+      </div>
+
+      {Number(booking.tax_amount) > 0 && (
+        <>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">PST (7%)</span>
+            <span>${(dbSubtotal * PST_RATE).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">GST (5%)</span>
+            <span>${(dbSubtotal * GST_RATE).toFixed(2)}</span>
+          </div>
+        </>
+      )}
+
+      <Separator className="my-1" />
+
+      <div className="flex justify-between font-semibold text-sm">
+        <span>Total</span>
+        <span>${Number(booking.total_amount).toFixed(2)}</span>
+      </div>
+
+      {booking.deposit_amount && (
+        <div className="flex justify-between text-muted-foreground">
+          <span>Deposit</span>
+          <span>${Number(booking.deposit_amount).toFixed(2)}</span>
+        </div>
+      )}
+
+      {Number(booking.late_return_fee) > 0 && (
+        <div className="flex justify-between text-destructive">
+          <span>Late Return Fee</span>
+          <span>${Number(booking.late_return_fee).toFixed(2)}</span>
+        </div>
+      )}
     </div>
   );
 }
