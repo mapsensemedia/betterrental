@@ -135,16 +135,42 @@ const defaultSearchData: RentalSearchData = {
   additionalDrivers: [],
 };
 
+/** Format a Date to YYYY-MM-DD using local components (avoids UTC shift) */
+function formatLocalDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Parse a YYYY-MM-DD string into a local Date (no UTC interpretation) */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function loadFromStorage(): RentalSearchData {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
+      // Support both legacy ISO strings and new YYYY-MM-DD format
+      const parseDateField = (val: string | null): Date | null => {
+        if (!val) return null;
+        // If it's a YYYY-MM-DD format (10 chars, no T), parse as local
+        if (val.length === 10 && !val.includes("T")) {
+          return parseLocalDate(val);
+        }
+        // Legacy ISO string — extract local date components to avoid UTC shift
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      };
       return {
         ...defaultSearchData,
         ...parsed,
-        pickupDate: parsed.pickupDate ? new Date(parsed.pickupDate) : null,
-        returnDate: parsed.returnDate ? new Date(parsed.returnDate) : null,
+        pickupDate: parseDateField(parsed.pickupDate),
+        returnDate: parseDateField(parsed.returnDate),
         // Clear session-specific data that should not persist
         additionalDrivers: [],
       };
@@ -162,8 +188,9 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const toStore = {
       ...searchData,
-      pickupDate: searchData.pickupDate?.toISOString() || null,
-      returnDate: searchData.returnDate?.toISOString() || null,
+      // Store dates as local YYYY-MM-DD to prevent timezone drift
+      pickupDate: searchData.pickupDate ? formatLocalDate(searchData.pickupDate) : null,
+      returnDate: searchData.returnDate ? formatLocalDate(searchData.returnDate) : null,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
     console.log("[RentalContext] Persisted:", toStore);
