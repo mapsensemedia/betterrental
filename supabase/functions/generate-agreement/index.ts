@@ -129,7 +129,8 @@ serve(async (req) => {
       .select(`
         *,
         vehicle_id,
-        locations (id, name, address, city, phone),
+        locations!bookings_location_id_fkey (id, name, address, city, phone),
+        return_location:locations!bookings_return_location_id_fkey (id, name, address, city, phone),
         assigned_unit_id
       `)
       .eq("id", bookingId)
