@@ -1,61 +1,106 @@
 
 
-## Overhaul Booking Notifications: Rich, Stage-Specific SMS and Email
+## Vehicle Upgrade Panel, Cross-Category VIN Assignment, and Late Return Fee Overhaul
 
-### Problem
-1. The `send-booking-notification` edge function has **missing stages** -- `payment_received` and `deposit_released` are invoked by callers but have no templates, causing silent failures.
-2. The **email templates are minimal** -- they don't include booking code, vehicle name, pickup/return dates, location address, or total amount in a consistent, information-rich format.
-3. The **SMS messages are generic** -- they lack booking codes, dates, and specific details.
-4. The **`locations` join is ambiguous** due to the new `return_location_id` FK, which may cause query failures.
-5. The **vehicle info displays as "0 Vehicle"** because the template uses `year`, `make`, `model` fields that are always empty.
+### Overview
 
-### Solution
+Three interconnected changes to the Ops handover workflow:
 
-Rewrite the `send-booking-notification` edge function with:
-- All lifecycle stages with rich, detail-packed templates
-- Every notification includes: booking code, vehicle name, pickup/return dates and times, location name and address, total amount
-- Fix the ambiguous `locations` join to use `locations!location_id(...)`
-- Fix vehicle name display to use category name directly
+1. A new **Upgrade Panel** visible as a full card on the handover step (not hidden in a menu), where staff can apply a flexible per-day upgrade charge
+2. **Cross-category VIN assignment** allowing ops to assign any unit from any category by entering its VIN/plate or unique code, while the customer-facing view shows the originally booked category
+3. **Revised late return fee structure**: 25% of daily rate per hour for the first 2 hours after the 30-minute grace period, then a full day charge from the 3rd hour onward then updated every day and customer must be notified about that.
 
 ---
 
-### Stages Covered (13 total)
+### 1. Database Changes
 
-| Stage | Trigger | Key Info in Notification |
-|---|---|---|
-| `payment_received` | Stripe webhook after successful payment | Amount paid, booking code, pickup date |
-| `license_approved` | Admin verifies license | Next steps, pickup date reminder |
-| `license_rejected` | Admin rejects license | What to do, re-upload instructions |
-| `vehicle_assigned` | Ops assigns a unit | Vehicle name, pickup date/location |
-| `agreement_generated` | Agreement created | Link to sign, deadline reminder |
-| `agreement_signed` | Customer signs | Confirmation, next steps |
-| `checkin_complete` | Customer checks in | Status update, what happens next |
-| `prep_complete` | Vehicle cleaned/ready | "Your car is ready!", pickup location |
-| `walkaround_complete` | Inspection done | Ready for handover |
-| `rental_activated` | Keys handed over | Return date, return location, emergency line |
-| `return_initiated` | Return process started | Inspection in progress |
-| `rental_completed` | Rental closed out | Deposit release info, thank you |
-| `deposit_released` | Deposit released | Amount released, timeline |
+**New columns on `bookings` table:**
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `upgrade_daily_fee` | numeric, nullable, default 0 | Per-day upgrade charge set by ops staff |
+| `upgrade_category_label` | text, nullable | The upgraded category name to optionally show to customer |
+| `upgrade_visible_to_customer` | boolean, default false | Whether the upgrade is disclosed to the customer |
+| `internal_unit_category_id` | uuid, nullable | Actual category of the assigned VIN (may differ from `vehicle_id`) |
+
+No new tables needed. These columns extend the existing booking record.
 
 ---
 
-### Technical Changes
+### 2. Vehicle Upgrade Panel (New Component)
 
-**File: `supabase/functions/send-booking-notification/index.ts`**
+**File: `src/components/admin/ops/VehicleUpgradePanel.tsx`**
 
-1. **Fix the `locations` join** -- change `locations (name, address, city)` to `locations!location_id (name, address, city)` and add `return_locations:locations!return_location_id (name, address, city)`.
+A new Card component placed alongside the CounterUpsellPanel on the handover step. Features:
 
-2. **Add missing stages** to the `NotificationRequest` type: `payment_received`, `deposit_released`.
+- **Free-form daily fee input**: Number input field where ops staff enters any amount ($5 to $800+)
+- **Total calculation display**: Shows `daily fee x rental days = total upgrade charge`
+- **"Show to customer" toggle**: Checkbox to optionally reveal the upgraded category to the customer
+- **Category label field**: If showing to customer, a text field or dropdown for the category name they see
+- **Apply/Remove buttons**: Adds the upgrade fee to the booking subtotal (recalculates taxes), or removes it
+- Audit log entry on apply/remove
 
-3. **Rewrite all stage templates** with rich content:
-   - **SMS**: Every message includes booking code, vehicle, key date, and location in a concise format.
-   - **Email**: Every email uses the existing branded HTML wrapper but with a detailed booking summary table (code, vehicle, dates, location, amount) embedded in every stage email.
+**Placement in `OpsStepContent.tsx`:**
+- Added at the `handover` step, in the "Quick Actions" section, alongside UnifiedVehicleManager and BookingEditPanel
+- Also available at the `checkin` step near the CounterUpsellPanel
 
-4. **Fix vehicle info** -- replace the broken `year/make/model` concatenation with just the category name.
+---
 
-5. **Add return location** to the `rental_activated` email when it differs from pickup.
+### 3. Cross-Category VIN Assignment
 
-6. **Update the sign link** to use the correct app URL (use `APP_URL` env var or fallback to `https://c2crental.ca`).
+**Changes to `UnifiedVehicleManager.tsx`:**
 
-No database changes required. No new secrets needed -- Resend and Twilio are already configured.
+- Add a "Manual VIN Entry" section: a text input where staff can type a VIN or license plate
+- Search across ALL categories and locations for matching units (not just the selected category)
+- When a cross-category unit is selected, store `internal_unit_category_id` on the booking to track the actual category
+- The booking's `vehicle_id` (customer-facing category) remains unchanged
+- Display a warning badge when assigned VIN belongs to a different category than booked
+
+---
+
+### 4. Late Return Fee Restructure
+
+**Changes to `src/lib/late-return.ts`:**
+
+Current logic: 25% of daily rate per hour (flat rate for all hours after grace period)
+
+New logic:
+- 0-30 minutes: Grace period, no charge
+- 31 min to 2 hours after grace: 25% of daily rate per hour (unchanged rate, but capped at 2 billable hours)
+- From 3rd hour onward: Full day charge (1x daily rate) -- replaces hourly billing entirely
+
+Update `calculateLateReturnFeeWithRate()`:
+```
+if hoursLate <= 2:
+  fee = hoursLate * (dailyRate * 0.25)
+else:
+  fee = dailyRate  // full day charge
+```
+
+**Changes to `src/lib/pricing.ts`:**
+
+Update `calculateLateFee()` to match the same tiered logic (this is the legacy function using flat $25/hr -- update to use daily-rate-based calculation or deprecate in favor of `late-return.ts`).
+
+**Changes to `src/lib/pdf/rental-agreement-pdf.ts`:**
+
+Update the late fee policy text to reflect the new structure: "25% of daily rate per hour for the first 2 hours, then a full day charge thereafter."
+
+**Changes to `getLateReturnSummary()`:**
+
+Update the display string to describe the two-tier structure.
+
+---
+
+### 5. Files Modified Summary
+
+| File | Change |
+|------|--------|
+| `src/components/admin/ops/VehicleUpgradePanel.tsx` | **New** -- Dedicated upgrade panel component |
+| `src/components/admin/ops/OpsStepContent.tsx` | Add VehicleUpgradePanel to handover and checkin steps |
+| `src/components/admin/UnifiedVehicleManager.tsx` | Add manual VIN/plate search input for cross-category assignment |
+| `src/lib/late-return.ts` | Rewrite fee calculation: 2-hour threshold then full day |
+| `src/lib/pricing.ts` | Update `calculateLateFee` to match new tiered structure |
+| `src/lib/pdf/rental-agreement-pdf.ts` | Update late fee policy wording |
+| `src/components/admin/ops/OpsBookingSummary.tsx` | Show upgrade fee line item if present |
+| Database migration | Add `upgrade_daily_fee`, `upgrade_category_label`, `upgrade_visible_to_customer`, `internal_unit_category_id` columns |
 
