@@ -299,7 +299,8 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion,
         completion.checkin.licenseOnFile &&
         completion.checkin.nameMatches &&
         completion.checkin.licenseNotExpired &&
-        completion.checkin.ageVerified
+        completion.checkin.ageVerified &&
+        completion.handover.unitAssigned
       );
     case "payment":
       return completion.payment.paymentComplete && completion.payment.depositCollected;
@@ -344,6 +345,7 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
       if (!completion.checkin.nameMatches) missing.push("Name matches booking");
       if (!completion.checkin.licenseNotExpired) missing.push("License expiry date");
       if (!completion.checkin.ageVerified) missing.push("Age verification (21+)");
+      if (!completion.handover.unitAssigned) missing.push("Vehicle unit (VIN) assignment");
       break;
     case "payment":
       if (!completion.payment.paymentComplete) missing.push("Payment");
