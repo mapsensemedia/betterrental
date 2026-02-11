@@ -337,12 +337,21 @@ export default function Search() {
                       {/* Price and CTA */}
                       <div className="flex items-center justify-between gap-2">
                         <div>
-                          <span className="text-xl sm:text-2xl font-bold text-primary">${category.daily_rate}</span>
-                          <span className="text-xs sm:text-sm text-muted-foreground">/day</span>
-                          {rentalDays > 1 && (
-                            <p className="text-xs sm:text-sm text-muted-foreground">
-                              ${(category.daily_rate * rentalDays).toFixed(2)} CAD total
-                            </p>
+                          {rentalDays > 1 ? (
+                            <>
+                              <span className="text-xl sm:text-2xl font-bold text-primary">
+                                ${(category.daily_rate * rentalDays).toFixed(2)}
+                              </span>
+                              <span className="text-xs sm:text-sm text-muted-foreground ml-1">CAD total</span>
+                              <p className="text-xs sm:text-sm text-muted-foreground">
+                                ${category.daily_rate}/day
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-xl sm:text-2xl font-bold text-primary">${category.daily_rate}</span>
+                              <span className="text-xs sm:text-sm text-muted-foreground">/day</span>
+                            </>
                           )}
                           <p className="text-[10px] sm:text-xs text-muted-foreground">*Excludes taxes & fees</p>
                         </div>

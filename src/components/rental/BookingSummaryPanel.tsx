@@ -351,7 +351,7 @@ export function BookingSummaryPanel({
 
               {/* Add-ons — itemized */}
               <div className="pt-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium flex items-center">
+                <p className="text-xs text-muted-foreground tracking-wide font-medium flex items-center">
                   Add-ons & Extras
                   <PriceTooltip content={PRICE_TOOLTIPS.addOns} />
                 </p>
