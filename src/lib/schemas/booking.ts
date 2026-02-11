@@ -6,11 +6,11 @@
 import { z } from "zod";
 
 // Driver age bands supported by the system
-export const driverAgeBandSchema = z.enum(["21_25", "25_70"]);
+export const driverAgeBandSchema = z.enum(["20_24", "25_70"]);
 export type DriverAgeBandSchema = z.infer<typeof driverAgeBandSchema>;
 
 // Age range as displayed to users
-export const ageRangeSchema = z.enum(["21-25", "25-70"]);
+export const ageRangeSchema = z.enum(["20-24", "25-70"]);
 export type AgeRangeSchema = z.infer<typeof ageRangeSchema>;
 
 // Booking status enum

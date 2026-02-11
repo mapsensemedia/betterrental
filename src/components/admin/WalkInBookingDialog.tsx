@@ -172,7 +172,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
               email: formData.email.toLowerCase().trim(),
               firstName: formData.firstName,
               lastName: formData.lastName,
-              phone: formData.phone,
+              phone: formData.phone || undefined,
               vehicleId: formData.vehicleId,
               locationId: formData.locationId,
               startAt: formData.startDate.toISOString(),
@@ -183,7 +183,9 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
               taxAmount,
               depositAmount: formData.depositAmount,
               totalAmount,
+              driverAgeBand: "25_70",
               notes: formData.notes ? `Walk-in booking: ${formData.notes}` : "Walk-in booking",
+              isWalkIn: true,
             },
           }
         );
