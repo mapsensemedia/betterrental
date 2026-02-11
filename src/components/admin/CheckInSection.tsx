@@ -421,13 +421,12 @@ export function CheckInSection({
                   type="date"
                   value={licenseExpiryDate}
                   onChange={(e) => {
-                    setLicenseExpiryDate(e.target.value);
-                    if (e.target.value) {
-                      const expiry = new Date(e.target.value);
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      const endDate = bookingEndAt ? new Date(bookingEndAt) : null;
-                      if (expiry < today || (endDate && expiry < endDate)) {
+                    const val = e.target.value;
+                    setLicenseExpiryDate(val);
+                    if (val) {
+                      const todayStr = new Date().toISOString().split("T")[0];
+                      const endStr = bookingEndAt ? bookingEndAt.split("T")[0] : null;
+                      if (val <= todayStr || (endStr && val < endStr)) {
                         setShowLicenseAlert(true);
                       }
                     }
