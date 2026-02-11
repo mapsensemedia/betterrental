@@ -64,11 +64,6 @@ export function WhyChooseSection({ className }: WhyChooseSectionProps) {
                     className="w-16 h-16 text-background/50" 
                     strokeWidth={1.5}
                   />
-                  
-                  {/* Arrow Button */}
-                  <div className="w-10 h-10 rounded-full bg-background/20 flex items-center justify-center transition-all duration-300 group-hover:bg-background/30 group-hover:scale-110">
-                    <ArrowUpRight className="w-5 h-5 text-background" />
-                  </div>
                 </div>
               </div>
             </div>
