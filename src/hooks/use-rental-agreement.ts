@@ -94,25 +94,51 @@ export interface RentalAgreement {
   updated_at: string;
 }
 
-// Fetch agreement for a booking
+// Fetch agreement for a booking, enriched with live inspection metrics
 export function useRentalAgreement(bookingId: string | null) {
   return useQuery({
     queryKey: ["rental-agreement", bookingId],
     queryFn: async () => {
       if (!bookingId) return null;
 
-      const { data, error } = await supabase
-        .from("rental_agreements")
-        .select("*")
-        .eq("booking_id", bookingId)
-        .maybeSingle();
+      // Fetch agreement and live inspection metrics in parallel
+      const [agreementRes, inspectionRes] = await Promise.all([
+        supabase
+          .from("rental_agreements")
+          .select("*")
+          .eq("booking_id", bookingId)
+          .maybeSingle(),
+        supabase
+          .from("inspection_metrics")
+          .select("odometer, fuel_level")
+          .eq("booking_id", bookingId)
+          .eq("phase", "pickup")
+          .maybeSingle(),
+      ]);
 
-      if (error) throw error;
-      return data as RentalAgreement | null;
+      if (agreementRes.error) throw agreementRes.error;
+      if (!agreementRes.data) return null;
+
+      const agreement = agreementRes.data as RentalAgreement;
+
+      // Merge live inspection data into terms_json condition if available
+      if (inspectionRes.data && agreement.terms_json) {
+        const terms = agreement.terms_json as Record<string, any>;
+        if (terms.condition) {
+          if (inspectionRes.data.odometer != null && terms.condition.odometerOut == null) {
+            terms.condition.odometerOut = inspectionRes.data.odometer;
+          }
+          if (inspectionRes.data.fuel_level != null && terms.condition.fuelLevelOut == null) {
+            terms.condition.fuelLevelOut = inspectionRes.data.fuel_level;
+          }
+        }
+      }
+
+      return agreement;
     },
     enabled: !!bookingId,
-    staleTime: 15000, // 15 seconds - operational data tier
-    gcTime: 60000,    // Keep cached for 1 minute
+    staleTime: 15000,
+    gcTime: 60000,
   });
 }
 
