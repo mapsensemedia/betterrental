@@ -248,6 +248,11 @@ serve(async (req) => {
       `)
       .eq("booking_id", bookingId);
 
+    // Check for vehicle upgrade on the booking
+    const hasUpgrade = booking.upgraded_at && booking.upgrade_daily_fee != null && Number(booking.upgrade_daily_fee) > 0;
+    const upgradeName = booking.upgrade_category_label || "Vehicle Upgrade";
+    const upgradeFee = hasUpgrade ? Number(booking.upgrade_daily_fee) * (booking.total_days || 1) : 0;
+
     // Check if agreement already exists
     const { data: existingAgreement } = await supabase
       .from("rental_agreements")
@@ -276,10 +281,10 @@ serve(async (req) => {
     const protectionDailyRate = protectionPkg.dailyRate;
     const protectionTotal = protectionDailyRate * rentalDays;
     
-    // Add-ons total
+    // Add-ons total (includes upgrade fee)
     const addOnsTotal = (bookingAddOns || []).reduce((sum, addon) => {
       return sum + (Number(addon.price) || 0);
-    }, 0);
+    }, 0) + upgradeFee;
     
     // Young driver fee
     const youngDriverFee = Number(booking.young_driver_fee) || 0;
@@ -346,8 +351,21 @@ TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount
 
 Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (without approval), racing, off-road, or international travel. Return with same fuel level. Late fee: 25% daily rate/hr after 30-min grace. Renter liable for damage & traffic violations. Third party liability included. Optional coverage available. Unlimited km.`.trim();
 
+    // Build add-ons list including upgrades
+    const addOnsList = (bookingAddOns || []).map(addon => ({
+      name: (addon.add_ons as any)?.name || "—",
+      price: Number(addon.price),
+    }));
+    if (hasUpgrade) {
+      addOnsList.push({
+        name: `Upgrade – ${upgradeName}`,
+        price: upgradeFee,
+      });
+    }
+
     // Build comprehensive terms JSON for database storage
     const terms = {
+      bookingCode: booking.booking_code,
       vehicle: {
         category: categoryInfo.name,
         make: unitInfo.make,
@@ -408,10 +426,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         totalTax,
         grandTotal,
         depositAmount: Number(booking.deposit_amount || 350),
-        addOns: (bookingAddOns || []).map(addon => ({
-          name: (addon.add_ons as any)?.name || "—",
-          price: Number(addon.price),
-        })),
+        addOns: addOnsList,
       },
       policies: {
         minAge: 20,
