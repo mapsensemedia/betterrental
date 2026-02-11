@@ -28,7 +28,7 @@
 
 | Location Name | Address | City |
 |---------------|---------|------|
-| Surrey Centre | 6734 King George Blvd, Surrey, BC | Surrey |
+| Surrey Newton | 6786 King George Blvd, Surrey, BC V3W 4Z5 | Surrey |
 | Langley Centre | 5933 200 St, Langley, BC V3A 1N2 | Langley |
 | Abbotsford Centre | 32835 South Fraser Way, Abbotsford, BC | Abbotsford |
 
