@@ -62,6 +62,7 @@ export interface RentalSearchData {
   
   // Selected extras
   selectedAddOnIds: string[];
+  addOnQuantities: Record<string, number>;
   
   // Additional drivers
   additionalDrivers: AdditionalDriver[];
@@ -84,6 +85,7 @@ interface RentalBookingContextType {
   setAgeConfirmed: (confirmed: boolean, range?: "20-24" | "25-70" | null) => void;
   setSelectedVehicle: (vehicleId: string | null) => void;
   setSelectedAddOns: (addOnIds: string[]) => void;
+  setAddOnQuantities: (quantities: Record<string, number>) => void;
   toggleAddOn: (addOnId: string) => void;
   setAdditionalDrivers: (drivers: AdditionalDriver[]) => void;
   
@@ -132,6 +134,7 @@ const defaultSearchData: RentalSearchData = {
   ageRange: null,
   selectedVehicleId: null,
   selectedAddOnIds: [],
+  addOnQuantities: {},
   additionalDrivers: [],
 };
 
@@ -378,6 +381,14 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  // Set add-on quantities
+  const setAddOnQuantities = useCallback((quantities: Record<string, number>) => {
+    setSearchData((prev) => ({
+      ...prev,
+      addOnQuantities: quantities,
+    }));
+  }, []);
+
   // Toggle add-on
   const toggleAddOn = useCallback((addOnId: string) => {
     setSearchData((prev) => ({
@@ -471,6 +482,7 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
         setAgeConfirmed,
         setSelectedVehicle,
         setSelectedAddOns,
+        setAddOnQuantities,
         toggleAddOn,
         setAdditionalDrivers,
         rentalDays,

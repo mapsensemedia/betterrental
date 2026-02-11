@@ -29,6 +29,8 @@ interface BookingSummaryPanelProps {
   protectionDailyRate?: number;
   /** Override add-on IDs (for pages that manage selection locally) */
   selectedAddOnIds?: string[];
+  /** Override add-on quantities (for pages that manage selection locally) */
+  addOnQuantities?: Record<string, number>;
   /** Override additional drivers (for pages that manage selection locally) */
   additionalDrivers?: AdditionalDriver[];
   /** VIN-specific tank capacity for fuel add-on calculation */
@@ -40,6 +42,7 @@ export function BookingSummaryPanel({
   showPricing = true,
   protectionDailyRate = 0,
   selectedAddOnIds: overrideAddOnIds,
+  addOnQuantities: overrideAddOnQuantities,
   additionalDrivers: overrideAdditionalDrivers,
   unitTankCapacity,
 }: BookingSummaryPanelProps) {
@@ -88,12 +91,14 @@ export function BookingSummaryPanel({
   const pricing = (() => {
     if (!vehicle) return null;
 
+    const effectiveQuantities = overrideAddOnQuantities ?? searchData.addOnQuantities;
     const { total: addOnsTotal, itemized, fuelPricing } = calculateAddOnsCost(
       addOns,
       effectiveAddOnIds,
       rentalDays,
       vehicleCategory,
-      unitTankCapacity
+      unitTankCapacity,
+      effectiveQuantities
     );
     const deliveryFee = searchData.deliveryFee || 0;
     const isDifferentDropoff = !searchData.returnSameAsPickup && !!searchData.returnLocationId && searchData.returnLocationId !== searchData.pickupLocationId;
@@ -362,7 +367,9 @@ export function BookingSummaryPanel({
                 {pricing.itemized && pricing.itemized.length > 0 ? (
                   pricing.itemized.map((item, idx) => (
                     <div key={idx} className="flex justify-between pl-3 text-sm">
-                      <span className="text-muted-foreground">{item.name}</span>
+                      <span className="text-muted-foreground">
+                        {item.quantity && item.quantity > 1 ? `${item.quantity}× ` : ""}{item.name}
+                      </span>
                       <span>${item.total.toFixed(2)} CAD</span>
                     </div>
                   ))

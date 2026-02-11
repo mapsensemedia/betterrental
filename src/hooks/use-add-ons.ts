@@ -28,6 +28,14 @@ export function isAdditionalDriverAddOn(name: string): boolean {
 }
 
 /**
+ * Check if an add-on is a seat type (supports quantity selection)
+ */
+export function isSeatAddOn(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.includes("seat") || lower.includes("booster") || lower.includes("infant") || lower.includes("child seat");
+}
+
+/**
  * Fetch all active add-ons
  */
 export function useAddOns() {
@@ -78,9 +86,10 @@ export function calculateAddOnsCost(
   selectedIds: string[],
   rentalDays: number,
   vehicleCategory?: string,
-  unitTankCapacity?: number | null
+  unitTankCapacity?: number | null,
+  quantities?: Record<string, number>
 ): { 
-  itemized: Array<{ id: string; name: string; total: number }>; 
+  itemized: Array<{ id: string; name: string; total: number; quantity?: number }>; 
   total: number;
   fuelPricing?: FuelPricingInfo;
 } {
@@ -101,8 +110,9 @@ export function calculateAddOnsCost(
         return { id: addon.id, name: addon.name, total: fuelCost.ourPrice };
       }
       
-      const total = addon.dailyRate * rentalDays + (addon.oneTimeFee || 0);
-      return { id: addon.id, name: addon.name, total };
+      const qty = quantities?.[addon.id] || 1;
+      const total = (addon.dailyRate * rentalDays + (addon.oneTimeFee || 0)) * qty;
+      return { id: addon.id, name: addon.name, total, quantity: qty };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
 
