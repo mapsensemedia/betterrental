@@ -1,36 +1,34 @@
 /**
- * AgreementStructuredView - Renders rental agreement from terms_json
- * to match the PDF layout exactly.
+ * AgreementStructuredView - Professional legal document layout
+ * for displaying rental agreement data. Presentation only.
  */
 import { format } from "date-fns";
 import type { RentalAgreement, AgreementTermsJson } from "@/hooks/use-rental-agreement";
-import { Separator } from "@/components/ui/separator";
 
 interface AgreementStructuredViewProps {
   agreement: RentalAgreement;
   bookingId: string;
 }
 
-function fmt(n: number): string {
-  return `$${n.toFixed(2)}`;
+function fmt(n: number | null | undefined): string {
+  return `$${(n ?? 0).toFixed(2)}`;
 }
 
-function fmtDateFull(dateStr: string): string {
+function fmtDate(dateStr: string, pattern = "MMMM d, yyyy"): string {
+  try { return format(new Date(dateStr), pattern); } catch { return dateStr; }
+}
+
+function fmtDateTime(dateStr: string): string {
   try { return format(new Date(dateStr), "EEEE, MMMM d, yyyy 'at' h:mm a"); } catch { return dateStr; }
 }
 
-function fmtDateShort(dateStr: string): string {
-  try { return format(new Date(dateStr), "MMMM d, yyyy"); } catch { return dateStr; }
-}
-
-function fmtDateLong(dateStr: string): string {
+function fmtDateTimeLong(dateStr: string): string {
   try { return format(new Date(dateStr), "MMM d, yyyy 'at' h:mm a"); } catch { return dateStr; }
 }
 
 export function AgreementStructuredView({ agreement, bookingId }: AgreementStructuredViewProps) {
   const t = agreement.terms_json as unknown as AgreementTermsJson | null;
 
-  // Fallback to raw text if no structured data
   if (!t || !t.rental || !t.financial) {
     return (
       <pre className="text-xs font-mono whitespace-pre-wrap text-foreground/80">
@@ -43,267 +41,259 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
   const p = t.policies;
   const tankCap = t.vehicle.tankCapacityLiters || 50;
   const displayName = t.customer.name && !t.customer.name.includes("@") ? t.customer.name : "—";
-  const pickupAddrParts = [t.locations.pickup.name, t.locations.pickup.address, t.locations.pickup.city ? `${t.locations.pickup.city}, BC` : null].filter(Boolean);
-  const dropoffAddrParts = [t.locations.dropoff.name, t.locations.dropoff.address, t.locations.dropoff.city ? `${t.locations.dropoff.city}, BC` : null].filter(Boolean);
-  const pickupAddr = pickupAddrParts.join("\n");
-  const dropoffAddr = dropoffAddrParts.join("\n");
-  const makeModelParts = [t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean);
   const protName = t.protection?.planName || "No Extra Protection";
   const protTotal = t.protection?.total ?? (t.financial as any).protectionTotal ?? 0;
   const protDaily = t.protection?.dailyRate ?? 0;
+  const protDeductible = (t.protection as any)?.deductible ?? null;
+
+  const pickupLines = [t.locations.pickup.name, t.locations.pickup.address, t.locations.pickup.city ? `${t.locations.pickup.city}, BC` : null].filter(Boolean);
+  const dropoffLines = [t.locations.dropoff.name, t.locations.dropoff.address, t.locations.dropoff.city ? `${t.locations.dropoff.city}, BC` : null].filter(Boolean);
+  const makeModel = [t.vehicle.year, t.vehicle.make, t.vehicle.model].filter(Boolean).join(" ");
+
+  const isSigned = !!agreement.customer_signature;
 
   return (
-    <div className="text-xs space-y-3 font-mono">
-      {/* Header */}
-      <div className="text-center space-y-0.5">
-        <h2 className="text-sm font-bold tracking-wide">C2C CAR RENTAL</h2>
-        <p className="text-[10px] font-bold text-muted-foreground">LEGAL VEHICLE RENTAL AGREEMENT</p>
+    <article className="bg-white text-gray-900 max-w-[816px] mx-auto font-['Georgia',_'Times_New_Roman',_serif] text-[13px] leading-relaxed">
+
+      {/* ═══ HEADER ═══ */}
+      <header className="text-center border-b-2 border-gray-900 pb-4 mb-1">
+        <h1 className="text-xl font-bold tracking-widest uppercase mb-0.5">C2C Car Rental</h1>
+        <h2 className="text-sm font-bold tracking-wide uppercase text-gray-700">Vehicle Rental Agreement</h2>
+        <div className="mt-3 bg-gray-100 border border-gray-300 rounded px-3 py-1.5 text-[10px] text-gray-500 tracking-wide">
+          Surrey, BC &nbsp;·&nbsp; Contact: (604) 771-3995 &nbsp;·&nbsp; 24/7 Support: (778) 580-0498 &nbsp;·&nbsp; Roadside: (604) 771-3995
+        </div>
+      </header>
+
+      <div className="flex justify-between text-[11px] text-gray-600 py-2 border-b border-gray-200 mb-4">
+        <span><strong className="text-gray-900">Booking Reference:</strong> {bookingCode}</span>
+        <span><strong className="text-gray-900">Date:</strong> {fmtDate(agreement.created_at)}</span>
       </div>
 
-      {/* Contact info bar */}
-      <div className="bg-muted/50 border rounded px-3 py-1 text-[9px] text-center text-muted-foreground">
-        Surrey, BC &nbsp;|&nbsp; Contact: (604) 771-3995 &nbsp;|&nbsp; 24/7 Support: (778) 580-0498 &nbsp;|&nbsp; Roadside: (604) 771-3995
-      </div>
-
-      <div className="flex justify-between text-[10px]">
-        <span><strong>Booking Reference:</strong> {bookingCode}</span>
-        <span><strong>Agreement Date:</strong> {fmtDateShort(agreement.created_at)}</span>
-      </div>
-
-      <Separator />
-
-      {/* Renter Information */}
-      <Section title="RENTER INFORMATION">
-        <Row label="Name" value={displayName} />
-        <Row label="Email" value={t.customer.email || "—"} />
+      {/* ═══ RENTER INFORMATION ═══ */}
+      <Section title="Renter Information">
+        <FieldGrid>
+          <Field label="Full Name" value={displayName} />
+          <Field label="Email" value={t.customer.email || "—"} />
+        </FieldGrid>
       </Section>
 
-      {/* Locations */}
-      <Section title="LOCATIONS">
-        <div className="grid grid-cols-2 gap-4">
+      {/* ═══ RENTAL DETAILS ═══ */}
+      <Section title="Rental Details">
+        <FieldGrid>
+          <Field label="Pickup Date & Time" value={fmtDateTime(t.rental.startAt)} />
+          <Field label="Return Date & Time" value={fmtDateTime(t.rental.endAt)} />
+          <Field label="Total Days" value={`${t.rental.totalDays}`} />
+        </FieldGrid>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 mt-3">
           <div>
-            <span className="font-bold text-muted-foreground">Pickup Location:</span>
-            <p className="mt-0.5 whitespace-pre-line">{pickupAddr || "—"}</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Pickup Location</span>
+            <p className="mt-1 whitespace-pre-line leading-snug">{pickupLines.join("\n") || "—"}</p>
           </div>
           <div>
-            <span className="font-bold text-muted-foreground">Drop-off Location:</span>
-            <p className="mt-0.5 whitespace-pre-line">{dropoffAddr === pickupAddr ? `${dropoffAddr}\n(Same as pickup)` : (dropoffAddr || "—")}</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Drop-off Location</span>
+            <p className="mt-1 whitespace-pre-line leading-snug">
+              {dropoffLines.join("\n") === pickupLines.join("\n")
+                ? `${dropoffLines.join("\n")}\n(Same as pickup)`
+                : (dropoffLines.join("\n") || "—")}
+            </p>
           </div>
         </div>
         {t.locations.deliveryAddress && (
-          <Row label="Delivery Address" value={t.locations.deliveryAddress} />
+          <div className="mt-3">
+            <Field label="Delivery Address" value={t.locations.deliveryAddress} />
+          </div>
         )}
       </Section>
 
-      {/* Vehicle Details */}
-      <Section title="VEHICLE DETAILS">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-          <Row label="Category" value={t.vehicle.category || "—"} />
-          {makeModelParts.length > 0 && <Row label="Vehicle" value={makeModelParts.join(" ")} />}
-          <Row label="Fuel Type" value={t.vehicle.fuelType || "—"} />
-          <Row label="Transmission" value={t.vehicle.transmission || "—"} />
-          <Row label="Seats" value={`${t.vehicle.seats || "—"} passengers`} />
-          <Row label="Tank Capacity" value={`${tankCap} litres`} />
-          {t.vehicle.vin && t.vehicle.vin !== "N/A" && <Row label="VIN" value={t.vehicle.vin} />}
-          {t.vehicle.licensePlate && t.vehicle.licensePlate !== "N/A" && <Row label="Plate" value={t.vehicle.licensePlate} />}
-          {t.vehicle.color && <Row label="Color" value={t.vehicle.color} />}
-        </div>
-        <div className="mt-2">
-          <p className="font-bold text-muted-foreground text-[10px]">CONDITION AT PICKUP:</p>
-          <div className="grid grid-cols-2 gap-x-4 mt-0.5">
-            <Row label="Kilometres Out" value={t.condition.odometerOut != null ? `${t.condition.odometerOut.toLocaleString()} km` : "N/A"} />
-            <Row label="Fuel Level" value={t.condition.fuelLevelOut != null ? `${t.condition.fuelLevelOut}%` : "N/A"} />
-          </div>
-        </div>
-      </Section>
+      {/* ═══ VEHICLE INFORMATION ═══ */}
+      <Section title="Vehicle Information">
+        <FieldGrid cols={2}>
+          <Field label="Category" value={t.vehicle.category || "—"} />
+          {makeModel && <Field label="Year / Make / Model" value={makeModel} />}
+          {t.vehicle.color && <Field label="Color" value={t.vehicle.color} />}
+          {t.vehicle.licensePlate && t.vehicle.licensePlate !== "N/A" && <Field label="License Plate" value={t.vehicle.licensePlate} />}
+          {t.vehicle.vin && t.vehicle.vin !== "N/A" && <Field label="VIN" value={t.vehicle.vin} />}
+          <Field label="Fuel Type" value={t.vehicle.fuelType || "—"} />
+          <Field label="Transmission" value={t.vehicle.transmission || "—"} />
+          <Field label="Seats" value={`${t.vehicle.seats || "—"} passengers`} />
+          <Field label="Tank Capacity" value={`${tankCap} litres`} />
+        </FieldGrid>
 
-      {/* Rental Period */}
-      <Section title="RENTAL PERIOD">
-        <Row label="Pick-up Date/Time" value={fmtDateFull(t.rental.startAt)} />
-        <Row label="Return Date/Time" value={fmtDateFull(t.rental.endAt)} />
-        <Row label="Duration" value={`${t.rental.totalDays} day(s)`} />
-      </Section>
-
-      {/* Financial Summary */}
-      <Section title="FINANCIAL SUMMARY">
-        <FinSubSection title="VEHICLE RENTAL:">
-          <FinRow label={`Daily Rate: ${fmt(t.rental.dailyRate)} × ${t.rental.totalDays} days`} amount={fmt(t.financial.vehicleSubtotal)} />
-        </FinSubSection>
-
-        <FinSubSection title="PROTECTION PLAN:">
-          {protDaily > 0
-            ? <FinRow label={`${protName}: ${fmt(protDaily)}/day × ${t.rental.totalDays} days`} amount={fmt(protTotal)} />
-            : <FinRow label={protName} amount="$0.00" />
-          }
-        </FinSubSection>
-
-        <FinSubSection title="ADD-ONS & EXTRAS:">
-          {t.financial.addOns && t.financial.addOns.length > 0
-            ? t.financial.addOns.map((addon, i) => (
-                <FinRow key={i} label={addon.name || "—"} amount={fmt(addon.price)} />
-              ))
-            : <p className="pl-2 text-muted-foreground">No add-ons selected</p>
-          }
-        </FinSubSection>
-
-        <FinSubSection title="REGULATORY FEES:">
-          <FinRow label={`PVRT: ${fmt(t.taxes.pvrtDailyFee)}/day × ${t.rental.totalDays}`} amount={fmt(t.financial.pvrtTotal)} />
-          <FinRow label={`ACSRCH: ${fmt(t.taxes.acsrchDailyFee)}/day × ${t.rental.totalDays}`} amount={fmt(t.financial.acsrchTotal)} />
-          {t.financial.youngDriverFee > 0 && (
-            <FinRow label="Young Driver Fee" amount={fmt(t.financial.youngDriverFee)} />
-          )}
-        </FinSubSection>
-
-        <Separator className="my-1" />
-        <div className="flex justify-between font-bold">
-          <span>SUBTOTAL:</span>
-          <span>{fmt(t.financial.subtotalBeforeTax)}</span>
-        </div>
-
-        <FinSubSection title="TAXES:">
-          <div className="flex gap-6 pl-2">
-            <span>PST ({(t.taxes.pstRate * 100).toFixed(0)}%): {fmt(t.financial.pstAmount)}</span>
-            <span>GST ({(t.taxes.gstRate * 100).toFixed(0)}%): {fmt(t.financial.gstAmount)}</span>
-          </div>
-        </FinSubSection>
-
-        <div className="flex justify-between font-bold text-sm bg-muted/60 rounded px-2 py-1.5 border mt-1">
-          <span>TOTAL AMOUNT DUE:</span>
-          <span>{fmt(t.financial.grandTotal)} CAD</span>
-        </div>
-
-        <FinRow label="Security Deposit:" amount={`${fmt(t.financial.depositAmount)} (refundable)`} />
-      </Section>
-
-      {/* Terms and Conditions */}
-      <Section title="TERMS AND CONDITIONS">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[10px]">
-          <TcBlock title="1. DRIVER REQUIREMENTS" items={[
-            `Renter must be at least ${p.minAge} years of age.`,
-            "Valid driver's license required at time of pickup.",
-            "Government-issued photo ID required for signature.",
-            "Additional drivers must be registered and approved.",
-          ]} />
-          <TcBlock title="2. VEHICLE USE RESTRICTIONS" items={[
-            "No smoking in the vehicle.",
-            "No pets without prior written approval.",
-            "No racing, towing, or off-road use.",
-            "No international travel without prior authorization.",
-          ]} />
-          <TcBlock title="3. FUEL POLICY" items={[
-            `Return vehicle with same fuel level as pickup (Tank: ${tankCap}L).`,
-            "Refueling charges apply if returned with less fuel.",
-          ]} />
-          <TcBlock title="4. RETURN POLICY & LATE FEES" items={[
-            `Grace period: ${p.gracePeriodMinutes} min past scheduled return.`,
-            `Late fee: ${p.lateFeePercentOfDaily}% of daily rate per hour after grace.`,
-            "Extended rentals require prior approval.",
-          ]} />
-          <TcBlock title="5. DAMAGE & LIABILITY" items={[
-            "Renter responsible for all damage during rental period; report immediately.",
-            "Security deposit may be applied to cover damages.",
-            "Renter liable for all traffic violations and tolls.",
-          ]} />
-          <TcBlock title="6. INSURANCE & COVERAGE" items={[
-            "Third party liability included with all rentals.",
-            "Optional rental coverage available at pickup.",
-          ]} />
-          <TcBlock title="7. KILOMETRE ALLOWANCE" items={["Unlimited kilometres included."]} />
-          <TcBlock title="8. TERMINATION" items={[
-            "Rental company may terminate for violation of terms.",
-            "Early return does not guarantee refund.",
-          ]} />
-          <TcBlock title="9. TAX INFORMATION" items={[
-            `PST: ${(t.taxes.pstRate * 100).toFixed(0)}%, GST: ${(t.taxes.gstRate * 100).toFixed(0)}%, PVRT: ${fmt(t.taxes.pvrtDailyFee)}/day, ACSRCH: ${fmt(t.taxes.acsrchDailyFee)}/day`,
-          ]} />
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Condition at Pickup</span>
+          <FieldGrid cols={2} className="mt-1.5">
+            <Field label="Odometer (KM Out)" value={t.condition.odometerOut != null ? `${t.condition.odometerOut.toLocaleString()} km` : "N/A"} />
+            <Field label="Fuel Level Out" value={t.condition.fuelLevelOut != null ? `${t.condition.fuelLevelOut}%` : "N/A"} />
+          </FieldGrid>
         </div>
       </Section>
 
-      {/* Acknowledgment */}
-      <Section title="ACKNOWLEDGMENT AND SIGNATURE">
-        <ul className="space-y-0.5 text-[10px] list-disc pl-4">
-          <li>I confirm I have read and understood all terms and conditions outlined in this Vehicle Legal Agreement.</li>
-          <li>I confirm I am at least {p.minAge} years of age.</li>
-          <li>I acknowledge that my electronic signature has the same legal effect as a handwritten signature.</li>
-          <li>I understand that third party liability coverage is included and optional rental coverage is available at pickup.</li>
-          <li>I agree to return the vehicle with the same fuel level as at pickup.</li>
-          <li>I understand late fees will be charged at {p.lateFeePercentOfDaily}% of the daily rate per hour after the {p.gracePeriodMinutes}-minute grace period.</li>
+      {/* ═══ PROTECTION PLAN ═══ */}
+      <Section title="Protection Plan">
+        <FieldGrid cols={2}>
+          <Field label="Plan Name" value={protName} />
+          <Field label="Daily Rate" value={protDaily > 0 ? fmt(protDaily) : "—"} />
+          <Field label="Total" value={fmt(protTotal)} />
+          {protDeductible != null && <Field label="Deductible" value={fmt(protDeductible)} />}
+        </FieldGrid>
+      </Section>
+
+      {/* ═══ FINANCIAL SUMMARY ═══ */}
+      <Section title="Financial Summary">
+        <table className="w-full text-[12px]">
+          <tbody>
+            <FinRow label="Vehicle Subtotal" value={fmt(t.financial.vehicleSubtotal)} />
+            <FinRow label="Protection Total" value={fmt(protTotal)} />
+            <FinRow label="Add-ons Total" value={fmt(t.financial.addOns?.reduce((s, a) => s + a.price, 0) ?? 0)} />
+            {t.financial.youngDriverFee > 0 && <FinRow label="Young Driver Fee" value={fmt(t.financial.youngDriverFee)} />}
+            <FinRow label={`PVRT (${fmt(t.taxes.pvrtDailyFee)}/day × ${t.rental.totalDays})`} value={fmt(t.financial.pvrtTotal)} />
+            <FinRow label={`ACSRCH (${fmt(t.taxes.acsrchDailyFee)}/day × ${t.rental.totalDays})`} value={fmt(t.financial.acsrchTotal)} />
+            <tr><td colSpan={2} className="py-1"><div className="border-t border-gray-200" /></td></tr>
+            <FinRow label="Subtotal Before Tax" value={fmt(t.financial.subtotalBeforeTax)} bold />
+            <FinRow label={`GST (${(t.taxes.gstRate * 100).toFixed(0)}%)`} value={fmt(t.financial.gstAmount)} />
+            <FinRow label={`PST (${(t.taxes.pstRate * 100).toFixed(0)}%)`} value={fmt(t.financial.pstAmount)} />
+            <FinRow label="Total Tax" value={fmt(t.financial.gstAmount + t.financial.pstAmount)} />
+            <tr><td colSpan={2} className="py-1"><div className="border-t-2 border-gray-900" /></td></tr>
+            <tr className="text-[14px] font-bold">
+              <td className="py-1.5">Grand Total</td>
+              <td className="py-1.5 text-right">{fmt(t.financial.grandTotal)} CAD</td>
+            </tr>
+            <tr><td colSpan={2} className="py-0.5"><div className="border-t border-gray-200" /></td></tr>
+            <FinRow label="Security Deposit (refundable)" value={fmt(t.financial.depositAmount)} />
+          </tbody>
+        </table>
+      </Section>
+
+      {/* ═══ ADD-ONS ═══ */}
+      <Section title="Add-ons">
+        {t.financial.addOns && t.financial.addOns.length > 0 ? (
+          <ul className="space-y-1.5">
+            {t.financial.addOns.map((addon, i) => (
+              <li key={i} className="flex justify-between">
+                <span>• {addon.name || "—"}</span>
+                <span className="font-medium">{fmt(addon.price)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-400 italic">No add-ons selected</p>
+        )}
+      </Section>
+
+      {/* ═══ POLICIES ═══ */}
+      <Section title="Policies">
+        <ul className="space-y-1.5 list-disc pl-5 text-[12px] text-gray-700">
+          <li>Minimum age: {p.minAge} years with valid driver's license and government-issued photo ID.</li>
+          <li>Late fee: {p.lateFeePercentOfDaily}% of daily rate per hour after the {p.gracePeriodMinutes}-minute grace period.</li>
+          <li>Grace period: {p.gracePeriodMinutes} minutes past scheduled return time.</li>
+          <li>Fuel return: Vehicle must be returned with the same fuel level as at pickup (Tank: {tankCap}L).</li>
+          <li>No smoking in the vehicle at any time.</li>
+          <li>No pets without prior written approval.</li>
+          <li>No international travel without prior authorization.</li>
+          <li>Third-party liability coverage is included with all rentals.</li>
+          <li>No racing, towing, or off-road use permitted.</li>
+          <li>Renter is responsible for all traffic violations and tolls during the rental period.</li>
+          <li>Unlimited kilometres included.</li>
         </ul>
+      </Section>
 
-        {/* Signature display */}
-        {agreement.customer_signature && (
-          <div className="mt-3 pt-3 border-t space-y-1">
-            <div className="flex gap-8">
-              <span><strong>RENTER SIGNATURE:</strong> {agreement.customer_signature}</span>
-              <span><strong>DATE:</strong> {fmtDateLong(agreement.customer_signed_at!)}</span>
-            </div>
-            {/* Show signature image */}
-            {(agreement as any)?.signature_png_url && (
-              <img
-                src={(agreement as any).signature_png_url}
-                alt="Customer signature"
-                className="max-h-12 w-auto bg-white rounded border p-1 mt-1"
-              />
-            )}
-            {agreement.staff_confirmed_at && (
-              <p><strong>CONFIRMED BY STAFF:</strong> {fmtDateLong(agreement.staff_confirmed_at)}</p>
-            )}
-            {agreement.signed_manually && (
-              <p className="text-muted-foreground italic">(Signed in person)</p>
-            )}
+      {/* ═══ SIGNATURE ═══ */}
+      <Section title="Acknowledgment & Signature">
+        <p className="text-[11px] text-gray-600 mb-4 leading-relaxed">
+          By signing below, I confirm that I have read and agree to all terms and conditions outlined in this
+          Vehicle Rental Agreement. I acknowledge that my electronic signature has the same legal effect as
+          a handwritten signature.
+        </p>
+
+        {isSigned ? (
+          <div className="grid grid-cols-2 gap-8">
+            <SignatureBlock
+              title="Customer Signature"
+              name={agreement.customer_signature!}
+              date={fmtDateTimeLong(agreement.customer_signed_at!)}
+              imageUrl={(agreement as any)?.signature_png_url}
+            />
+            <SignatureBlock
+              title="Staff Confirmation"
+              name={agreement.staff_confirmed_at ? "Confirmed" : "Pending"}
+              date={agreement.staff_confirmed_at ? fmtDateTimeLong(agreement.staff_confirmed_at) : "—"}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-8">
+            <SignatureBlock title="Customer Signature" />
+            <SignatureBlock title="Staff Confirmation" />
           </div>
         )}
+
+        {agreement.signed_manually && (
+          <p className="text-[10px] text-gray-400 italic mt-2">(Signed in person)</p>
+        )}
       </Section>
-    </div>
+
+      {/* ═══ FOOTER ═══ */}
+      <footer className="mt-6 pt-3 border-t border-gray-300 text-center text-[9px] text-gray-400 leading-relaxed">
+        <p>
+          This document constitutes a legally binding agreement between the renter and C2C Car Rental.
+          All disputes shall be governed by the laws of British Columbia, Canada.
+          For questions, contact support at (778) 580-0498.
+        </p>
+      </footer>
+    </article>
   );
 }
 
-// ── Sub-components ──
+/* ─── Sub-components ─── */
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <Separator />
-      <h3 className="font-bold text-[11px] tracking-wide">{title}</h3>
-      <div className="space-y-1">{children}</div>
-    </div>
+    <section className="mb-5">
+      <h3 className="text-[13px] font-bold uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1.5 mb-3">
+        {title}
+      </h3>
+      <div>{children}</div>
+    </section>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function FieldGrid({ children, cols = 2, className = "" }: { children: React.ReactNode; cols?: number; className?: string }) {
   return (
-    <div className="flex gap-1.5">
-      <span className="font-bold text-muted-foreground shrink-0">{label}:</span>
-      <span>{value}</span>
-    </div>
-  );
-}
-
-function FinRow({ label, amount }: { label: string; amount: string }) {
-  return (
-    <div className="flex justify-between pl-2">
-      <span>{label}</span>
-      <span className="font-medium">{amount}</span>
-    </div>
-  );
-}
-
-function FinSubSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="font-bold text-[10px]">{title}</p>
+    <div className={`grid gap-x-8 gap-y-2.5 ${cols === 2 ? "grid-cols-2" : "grid-cols-1"} ${className}`}>
       {children}
     </div>
   );
 }
 
-function TcBlock({ title, items }: { title: string; items: string[] }) {
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</span>
+      <span className="text-[12px] text-gray-900 mt-0.5">{value}</span>
+    </div>
+  );
+}
+
+function FinRow({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <tr className={bold ? "font-bold" : ""}>
+      <td className="py-0.5 pr-4">{label}</td>
+      <td className="py-0.5 text-right">{value}</td>
+    </tr>
+  );
+}
+
+function SignatureBlock({ title, name, date, imageUrl }: { title: string; name?: string; date?: string; imageUrl?: string }) {
   return (
     <div>
-      <p className="font-bold">{title}</p>
-      <ul className="list-disc pl-4 space-y-0.5">
-        {items.map((item, i) => <li key={i}>{item}</li>)}
-      </ul>
+      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{title}</span>
+      {imageUrl && (
+        <img src={imageUrl} alt="Signature" className="max-h-10 w-auto bg-white rounded border border-gray-200 p-1 mt-1.5" />
+      )}
+      <div className="mt-2 border-b border-gray-400 w-full" />
+      <div className="mt-1.5 text-[11px] space-y-0.5">
+        <p><strong>Name:</strong> {name || "____________________"}</p>
+        <p><strong>Date:</strong> {date || "____________________"}</p>
+      </div>
     </div>
   );
 }
