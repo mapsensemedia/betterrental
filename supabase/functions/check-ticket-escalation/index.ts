@@ -11,7 +11,7 @@
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2.89.0";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const ESCALATION_RULES = {
   normal: {
@@ -29,6 +29,8 @@ const ESCALATION_RULES = {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
