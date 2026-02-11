@@ -382,13 +382,13 @@ export function BookingSummaryPanel({
                   </div>
                   {pricing.additionalDriversCost.baseFees > 0 && (
                     <div className="flex justify-between pl-3 text-xs text-muted-foreground">
-                      <span>{effectiveAdditionalDrivers.length} × ${additionalDriverRate.toFixed(2)}/day × {rentalDays} days</span>
+                      <span>{effectiveAdditionalDrivers.filter(d => d.ageBand !== "20_24").length} × ${additionalDriverRate.toFixed(2)}/day × {rentalDays} days</span>
                       <span>${pricing.additionalDriversCost.baseFees.toFixed(2)}</span>
                     </div>
                   )}
                   {pricing.additionalDriversCost.youngDriverFees > 0 && (
                     <div className="flex justify-between pl-3 text-xs text-amber-600">
-                      <span>Young surcharge ({effectiveAdditionalDrivers.filter(d => d.ageBand === "20_24").length} × ${youngAdditionalDriverRate.toFixed(2)}/day × {rentalDays} days)</span>
+                      <span>Young drivers ({effectiveAdditionalDrivers.filter(d => d.ageBand === "20_24").length} × ${youngAdditionalDriverRate.toFixed(2)}/day × {rentalDays} days)</span>
                       <span>${pricing.additionalDriversCost.youngDriverFees.toFixed(2)}</span>
                     </div>
                   )}

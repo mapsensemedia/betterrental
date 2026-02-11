@@ -57,7 +57,8 @@ export function AdditionalDriversCard({
   };
 
   const youngDriverCount = drivers.filter((d) => d.ageBand === "20_24").length;
-  const totalBaseFees = drivers.length * baseDriverFee * rentalDays;
+  const standardDriverCount = drivers.length - youngDriverCount;
+  const totalBaseFees = standardDriverCount * baseDriverFee * rentalDays;
   const totalYoungFees = youngDriverCount * youngDriverFee * rentalDays;
   const totalFees = totalBaseFees + totalYoungFees;
 
@@ -146,8 +147,9 @@ export function calculateAdditionalDriversCost(
   baseDriverFee: number = 15.99,
   youngDriverFee: number = 15.00
 ): { baseFees: number; youngDriverFees: number; total: number } {
-  const baseFees = drivers.length * baseDriverFee * rentalDays;
   const youngDriverCount = drivers.filter((d) => d.ageBand === "20_24").length;
+  const standardDriverCount = drivers.length - youngDriverCount;
+  const baseFees = standardDriverCount * baseDriverFee * rentalDays;
   const youngDriverFees = youngDriverCount * youngDriverFee * rentalDays;
   return {
     baseFees,
