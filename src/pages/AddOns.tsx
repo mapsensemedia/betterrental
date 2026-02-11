@@ -186,7 +186,7 @@ export default function AddOns() {
     if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     params.set("protection", protection);
-    params.set("addOns", selectedAddOnIds.join(","));
+    params.set("addOns", cleanedAddOnIds.join(","));
     // Pass quantities as JSON for seat add-ons
     const qtyEntries = Object.entries(addOnQuantities).filter(([_, v]) => v > 1);
     if (qtyEntries.length > 0) {

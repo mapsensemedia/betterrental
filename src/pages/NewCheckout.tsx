@@ -90,7 +90,12 @@ export default function NewCheckout() {
   const legacyVehicleId = searchParams.get("vehicleId");
   const vehicleId = categoryId || legacyVehicleId; // Use categoryId as the primary ID
   const protection = searchParams.get("protection") || "none";
-  const addOnIds = searchParams.get("addOns")?.split(",").filter(Boolean) || searchData.selectedAddOnIds;
+  const addOnIdsRaw = searchParams.get("addOns")?.split(",").filter(Boolean) || searchData.selectedAddOnIds;
+  // Filter out "Additional Driver" add-on to prevent double-counting (handled separately)
+  const addOnIds = addOnIdsRaw.filter((id) => {
+    const addon = addOns.find((a) => a.id === id);
+    return !addon || !(addon.name.toLowerCase().includes("additional") && addon.name.toLowerCase().includes("driver"));
+  });
 
   // Fetch category data (which is what we're actually booking)
   const { data: category, isLoading: categoryLoading } = useCategory(categoryId);

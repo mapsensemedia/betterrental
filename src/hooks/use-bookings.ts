@@ -220,7 +220,7 @@ export function useBookingById(id: string | null) {
         .maybeSingle();
 
       // Fetch related data
-      const [paymentsRes, addOnsRes, verificationsRes, inspectionsRes, photosRes, auditRes, notificationsRes] = await Promise.all([
+      const [paymentsRes, addOnsRes, verificationsRes, inspectionsRes, photosRes, auditRes, notificationsRes, additionalDriversRes] = await Promise.all([
         supabase.from("payments").select("*").eq("booking_id", id),
         supabase.from("booking_add_ons").select("*, add_ons(name, description)").eq("booking_id", id),
         supabase.from("verification_requests").select("*").eq("booking_id", id),
@@ -228,6 +228,7 @@ export function useBookingById(id: string | null) {
         supabase.from("condition_photos").select("*").eq("booking_id", id),
         supabase.from("audit_logs").select("*").eq("entity_type", "booking").eq("entity_id", id).order("created_at", { ascending: false }),
         supabase.from("notification_logs").select("*").eq("booking_id", id).order("created_at", { ascending: false }),
+        supabase.from("booking_additional_drivers").select("*").eq("booking_id", id),
       ]);
 
       // Build vehicles field for backward compatibility with components
@@ -249,6 +250,7 @@ export function useBookingById(id: string | null) {
         profiles: profileData,
         payments: paymentsRes.data || [],
         addOns: addOnsRes.data || [],
+        additionalDrivers: additionalDriversRes.data || [],
         verifications: verificationsRes.data || [],
         inspections: inspectionsRes.data || [],
         photos: photosRes.data || [],
