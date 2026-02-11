@@ -554,8 +554,14 @@ export default function BookingDetail() {
                           <span className="text-muted-foreground shrink-0">Tax:</span>
                           <span className="text-right">${Number(booking.tax_amount).toFixed(2)}</span>
                         </div>
-                      )}
+                       )}
                     </div>
+                    {Number(booking.upgrade_daily_fee) > 0 && (
+                      <div className="flex justify-between gap-2 text-emerald-600">
+                        <span className="shrink-0">Upgrade (${Number(booking.upgrade_daily_fee).toFixed(2)}/day × {booking.total_days}d):</span>
+                        <span className="text-right">${(Number(booking.upgrade_daily_fee) * booking.total_days).toFixed(2)}</span>
+                      </div>
+                    )}
                     <Separator className="my-2" />
                     <div className="flex justify-between font-semibold text-base gap-2">
                       <span>Total:</span>
@@ -847,6 +853,16 @@ export default function BookingDetail() {
                       <div className="flex justify-between text-sm items-center">
                         <span className="text-muted-foreground">Late Return Fee:</span>
                         <span>${Number(booking.late_return_fee).toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {/* Upgrade Fee */}
+                    {Number(booking.upgrade_daily_fee) > 0 && (
+                      <div className="flex justify-between text-sm items-center text-emerald-600">
+                        <span>
+                          Upgrade{booking.upgrade_category_label ? ` (${booking.upgrade_category_label})` : ''} — ${Number(booking.upgrade_daily_fee).toFixed(2)}/day × {booking.total_days}d
+                        </span>
+                        <span>${(Number(booking.upgrade_daily_fee) * booking.total_days).toFixed(2)}</span>
                       </div>
                     )}
 
