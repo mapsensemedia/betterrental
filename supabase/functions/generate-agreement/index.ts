@@ -218,17 +218,6 @@ serve(async (req) => {
       pickupMetrics = inspectionData;
     }
 
-    // Require odometer and fuel level before generating agreement
-    if (pickupMetrics.odometer == null || pickupMetrics.fuel_level == null) {
-      return new Response(
-        JSON.stringify({
-          error: "Kilometres and fuel level must be recorded before generating the rental agreement. Please complete the vehicle walkaround first.",
-          code: "INSPECTION_REQUIRED",
-        }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     console.log(`Found booking: ${booking.booking_code}`);
 
     // Fetch profile
