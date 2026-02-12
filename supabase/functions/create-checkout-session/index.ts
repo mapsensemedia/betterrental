@@ -1,24 +1,16 @@
 /**
  * create-checkout-session - Create Stripe Checkout Session for payment
  * 
- * SECURITY (PR6): No longer accepts userId from body.
- * Auth paths:
- *   1. Authenticated user → booking.user_id must match
- *   2. Guest → must provide bookingCode as proof of knowledge
+ * SECURITY (PR7):
+ * - Auth user: booking.user_id must match
+ * - Guest: must provide valid otpCode (hashed, one-time, expires)
+ * - booking_code is NOT authorization
+ * - Amount from DB only
  */
-import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@14.21.0";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, AuthError, authErrorResponse } from "../_shared/auth.ts";
-import { requireBookingOwnerOrCode } from "../_shared/booking-core.ts";
-
-interface CreateCheckoutSessionRequest {
-  bookingId: string;
-  bookingCode?: string; // Guest proof-of-knowledge (replaces userId from body)
-  currency?: string;
-  successUrl: string;
-  cancelUrl: string;
-}
+import { requireBookingOwnerOrOtp } from "../_shared/booking-core.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -30,20 +22,13 @@ Deno.serve(async (req) => {
   try {
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeSecretKey) {
-      console.error("Stripe secret key not configured");
       return new Response(
         JSON.stringify({ error: "Payment service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { 
-      bookingId, 
-      bookingCode,
-      currency = "cad", 
-      successUrl, 
-      cancelUrl,
-    }: CreateCheckoutSessionRequest = await req.json();
+    const { bookingId, otpCode, currency = "cad", successUrl, cancelUrl } = await req.json();
 
     if (!bookingId || !successUrl || !cancelUrl) {
       return new Response(
@@ -56,8 +41,8 @@ Deno.serve(async (req) => {
     const auth = await validateAuth(req);
     const authUserId = auth.authenticated ? auth.userId ?? null : null;
 
-    // SECURITY: Verify ownership via auth OR booking_code
-    const booking = await requireBookingOwnerOrCode(bookingId, authUserId, bookingCode);
+    // SECURITY: Verify ownership via auth OR OTP (not booking_code)
+    const booking = await requireBookingOwnerOrOtp(bookingId, authUserId, otpCode);
 
     const supabase = getAdminClient();
     const userId = booking.user_id;
@@ -73,7 +58,6 @@ Deno.serve(async (req) => {
         .eq("id", authUserId)
         .single();
       
-      // Get booking end date
       const { data: bookingDates } = await supabase
         .from("bookings")
         .select("end_at")
@@ -107,7 +91,7 @@ Deno.serve(async (req) => {
       userEmail = profile.email;
     }
 
-    // Fetch category info
+    // Fetch booking details for description
     const { data: bookingFull } = await supabase
       .from("bookings")
       .select("vehicle_id, booking_code, total_days")
@@ -116,29 +100,22 @@ Deno.serve(async (req) => {
 
     let vehicleDescription = "Vehicle Rental";
     if (bookingFull?.vehicle_id) {
-      const { data: category } = await supabase
-        .from("vehicle_categories")
-        .select("name")
+      const { data: vehicle } = await supabase
+        .from("vehicles")
+        .select("make, model, year")
         .eq("id", bookingFull.vehicle_id)
         .single();
-      if (category) {
-        vehicleDescription = category.name;
+      if (vehicle) {
+        vehicleDescription = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
       }
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2023-10-16",
-    });
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
 
     // Get or create Stripe customer
     let customerId: string | undefined;
-    
     if (userEmail) {
-      const customers = await stripe.customers.list({
-        email: userEmail,
-        limit: 1,
-      });
-
+      const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
       if (customers.data.length > 0) {
         customerId = customers.data[0].id;
       } else {
@@ -151,23 +128,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Create Stripe Checkout Session with server-computed amount
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency,
-            product_data: {
-              name: `Car Rental - ${vehicleDescription}`,
-              description: `Booking ${booking.booking_code} | ${bookingFull?.total_days || 1} day(s)`,
-            },
-            unit_amount: Math.round(amount * 100),
+      line_items: [{
+        price_data: {
+          currency,
+          product_data: {
+            name: `Car Rental - ${vehicleDescription}`,
+            description: `Booking ${booking.booking_code} | ${bookingFull?.total_days || 1} day(s)`,
           },
-          quantity: 1,
+          unit_amount: Math.round(amount * 100),
         },
-      ],
+        quantity: 1,
+      }],
       mode: "payment",
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
@@ -188,10 +162,7 @@ Deno.serve(async (req) => {
     console.log("Created checkout session:", session.id, "for booking:", bookingId, "amount:", amount);
 
     return new Response(
-      JSON.stringify({
-        sessionId: session.id,
-        url: session.url,
-      }),
+      JSON.stringify({ sessionId: session.id, url: session.url }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
