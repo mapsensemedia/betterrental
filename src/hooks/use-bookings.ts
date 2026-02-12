@@ -222,7 +222,7 @@ export function useBookingById(id: string | null) {
       // Fetch related data
       const [paymentsRes, addOnsRes, verificationsRes, inspectionsRes, photosRes, auditRes, notificationsRes, additionalDriversRes] = await Promise.all([
         supabase.from("payments").select("*").eq("booking_id", id),
-        supabase.from("booking_add_ons").select("*, add_ons(name, description)").eq("booking_id", id),
+        supabase.from("booking_add_ons").select("*, add_ons(name, description, daily_rate, one_time_fee)").eq("booking_id", id),
         supabase.from("verification_requests").select("*").eq("booking_id", id),
         supabase.from("inspection_metrics").select("*").eq("booking_id", id),
         supabase.from("condition_photos").select("*").eq("booking_id", id),
