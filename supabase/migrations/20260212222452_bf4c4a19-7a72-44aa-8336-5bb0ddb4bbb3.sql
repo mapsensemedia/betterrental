@@ -1,0 +1,1 @@
+ALTER TABLE public.payments ADD COLUMN location_id TEXT;
