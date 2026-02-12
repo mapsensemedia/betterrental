@@ -183,8 +183,12 @@ export function authErrorResponse(
   corsHeaders: Record<string, string>,
 ): Response {
   if (err instanceof AuthError) {
+    const body: Record<string, unknown> = { error: err.message };
+    const anyErr = err as any;
+    if (anyErr.errorCode) body.errorCode = anyErr.errorCode;
+    if (anyErr.remainingAttempts !== undefined) body.remainingAttempts = anyErr.remainingAttempts;
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify(body),
       { status: err.status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
