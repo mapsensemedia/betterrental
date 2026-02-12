@@ -45,9 +45,9 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
     : null;
   const protectionCents = plan ? toCents(plan.rate) * totalDays : 0;
 
+  // booking_add_ons.price is the SERVER-COMPUTED LINE TOTAL (already includes qty, days, one-time fee)
   const addOnsCents = bookingAddOns.reduce((sum: number, a: any) => {
-    const qty = Number(a.quantity) || 1;
-    return sum + toCents(a.price) * qty;
+    return sum + toCents(a.price);
   }, 0);
 
   const driversCents = additionalDrivers.reduce((sum: number, d: any) => {
@@ -137,13 +137,17 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
       {/* Add-ons from DB rows */}
       {bookingAddOns.map((addon: any) => {
         const qty = Number(addon.quantity) || 1;
-        const total = toCents(addon.price) * qty;
+        const lineTotalCents = toCents(addon.price);
+        const unitCents = qty > 1 ? Math.round(lineTotalCents / qty) : 0;
         return (
           <div key={addon.id} className="flex justify-between">
             <span className="text-muted-foreground">
               {addon.add_ons?.name || "Add-on"}{qty > 1 ? ` ×${qty}` : ""}
+              {qty > 1 && unitCents > 0 && (
+                <span className="text-[10px] ml-1">(~${fromCents(unitCents)} each)</span>
+              )}
             </span>
-            <span>${fromCents(total)}</span>
+            <span>${fromCents(lineTotalCents)}</span>
           </div>
         );
       })}
