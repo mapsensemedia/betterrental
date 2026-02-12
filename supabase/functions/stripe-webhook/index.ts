@@ -308,10 +308,11 @@ Deno.serve(async (req) => {
             const isDeposit = depositAmt > 0 && Math.abs(piAmount - depositAmt) < 1.00 && piAmount < bookingTotal;
             const piPaymentType = isDeposit ? "deposit" : "rental";
 
-            // Promote draft → pending (deposit only covers hold, not full confirmation)
+            // Deposit → pending; full payment → confirmed
+            const piNewStatus = isDeposit ? "pending" : "confirmed";
             await supabase
               .from("bookings")
-              .update({ status: "pending", ...cardUpdate })
+              .update({ status: piNewStatus, ...cardUpdate })
               .eq("id", piBookingId);
 
             await supabase.from("payments").insert({
