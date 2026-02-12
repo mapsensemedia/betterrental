@@ -143,14 +143,14 @@ export async function verifyOtpAndMintToken(
   // Validate presence
   if (!otpCode || typeof otpCode !== "string") {
     const err = new AuthError("OTP is required", 401);
-    err.errorCode = "OTP_REQUIRED";
+    (err as any).errorCode = "OTP_REQUIRED";
     throw err;
   }
 
   // Validate format
   if (!OTP_FORMAT.test(otpCode)) {
     const err = new AuthError("Invalid OTP format", 401);
-    err.errorCode = "OTP_INVALID_FORMAT";
+    (err as any).errorCode = "OTP_INVALID_FORMAT";
     throw err;
   }
 
@@ -177,7 +177,7 @@ export async function verifyOtpAndMintToken(
 
   if (otpErr || !otpRecord) {
     const err = new AuthError("OTP expired or not found. Request a new one.", 401);
-    err.errorCode = "OTP_EXPIRED";
+    (err as any).errorCode = "OTP_EXPIRED";
     throw err;
   }
 
@@ -186,7 +186,7 @@ export async function verifyOtpAndMintToken(
   // Check if already locked out
   if (currentAttempts >= MAX_OTP_ATTEMPTS) {
     const err = new AuthError("Too many attempts. Request a new code.", 401);
-    err.errorCode = "OTP_LOCKED";
+    (err as any).errorCode = "OTP_LOCKED";
     throw err;
   }
 
@@ -205,13 +205,13 @@ export async function verifyOtpAndMintToken(
 
     if (newAttempts >= MAX_OTP_ATTEMPTS) {
       const err = new AuthError("Too many attempts. Request a new code.", 401);
-      err.errorCode = "OTP_LOCKED";
+      (err as any).errorCode = "OTP_LOCKED";
       throw err;
     }
     const remaining = MAX_OTP_ATTEMPTS - newAttempts;
     const err = new AuthError("Incorrect code. Please try again.", 401);
-    err.errorCode = "OTP_INVALID";
-    err.remainingAttempts = remaining;
+    (err as any).errorCode = "OTP_INVALID";
+    (err as any).remainingAttempts = remaining;
     throw err;
   }
 
