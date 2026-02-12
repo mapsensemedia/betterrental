@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { bookingId, accessToken, currency = "cad", successUrl, cancelUrl } = await req.json();
+    const { bookingId, accessToken, successUrl, cancelUrl } = await req.json();
 
     if (!bookingId || !successUrl || !cancelUrl) {
       return new Response(
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       payment_method_types: ["card"],
       line_items: [{
         price_data: {
-          currency,
+          currency: "cad",
           product_data: {
             name: `Car Rental - ${vehicleDescription}`,
             description: `Booking ${booking.booking_code} | ${bookingFull?.total_days || 1} day(s)`,
