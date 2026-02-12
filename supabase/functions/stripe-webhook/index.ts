@@ -221,10 +221,24 @@ Deno.serve(async (req) => {
           } else {
             // Only mark confirmed if full payment received (not just deposit)
             const newStatus = isDepositPayment ? "pending" : "confirmed";
-            await supabase
-              .from("bookings")
-              .update({ status: newStatus, ...bookingUpdate })
-              .eq("id", sessionBookingId);
+
+            // MONOTONIC GUARD: never downgrade status
+            const STATUS_RANK: Record<string, number> = { draft: 0, pending: 1, confirmed: 2, active: 3, completed: 4 };
+            const currentRank = STATUS_RANK[booking?.status ?? "draft"] ?? 0;
+            const newRank = STATUS_RANK[newStatus] ?? 0;
+
+            if (newRank >= currentRank) {
+              await supabase
+                .from("bookings")
+                .update({ status: newStatus, ...bookingUpdate })
+                .eq("id", sessionBookingId);
+            } else {
+              console.log(`[stripe-webhook] Skipping status downgrade ${booking?.status} → ${newStatus} for ${sessionBookingId}`);
+              // Still update card details
+              if (Object.keys(bookingUpdate).length > 0) {
+                await supabase.from("bookings").update(bookingUpdate).eq("id", sessionBookingId);
+              }
+            }
 
             await supabase.from("payments").insert({
               booking_id: sessionBookingId,
@@ -310,10 +324,23 @@ Deno.serve(async (req) => {
 
             // Deposit → pending; full payment → confirmed
             const piNewStatus = isDeposit ? "pending" : "confirmed";
-            await supabase
-              .from("bookings")
-              .update({ status: piNewStatus, ...cardUpdate })
-              .eq("id", piBookingId);
+
+            // MONOTONIC GUARD: never downgrade status
+            const PI_STATUS_RANK: Record<string, number> = { draft: 0, pending: 1, confirmed: 2, active: 3, completed: 4 };
+            const piCurrentRank = PI_STATUS_RANK[booking?.status ?? "draft"] ?? 0;
+            const piNewRank = PI_STATUS_RANK[piNewStatus] ?? 0;
+
+            if (piNewRank >= piCurrentRank) {
+              await supabase
+                .from("bookings")
+                .update({ status: piNewStatus, ...cardUpdate })
+                .eq("id", piBookingId);
+            } else {
+              console.log(`[stripe-webhook] Skipping PI status downgrade ${booking?.status} → ${piNewStatus} for ${piBookingId}`);
+              if (Object.keys(cardUpdate).length > 0) {
+                await supabase.from("bookings").update(cardUpdate).eq("id", piBookingId);
+              }
+            }
 
             await supabase.from("payments").insert({
               booking_id: piBookingId,
