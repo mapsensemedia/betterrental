@@ -161,10 +161,35 @@ Deno.serve(async (req) => {
 
     for (const b of bookings) {
       const days = b.total_days || 0;
-      if (days <= 0) { skipped++; continue; }
+      const base = {
+        bookingCode: b.booking_code,
+        bookingId: b.id,
+        createdAt: b.created_at,
+        days,
+      };
 
+      if (days <= 0) {
+        report.push({ ...base, status: "skipped", skipReason: "no_days" });
+        skipped++;
+        continue;
+      }
+
+      // Bulk pre-check said no rows, but re-verify per-booking for idempotency
       if (hasDrivers.has(b.id)) {
-        report.push({ bookingCode: b.booking_code, status: "skipped", reason: "already_has_drivers" });
+        report.push({ ...base, status: "skipped", skipReason: "already_has_drivers" });
+        skipped++;
+        continue;
+      }
+
+      // Idempotency: re-check right before insert (guards against concurrent runs)
+      const { data: existCheck } = await supabase
+        .from("booking_additional_drivers")
+        .select("id, driver_name")
+        .eq("booking_id", b.id)
+        .limit(5);
+
+      if (existCheck && existCheck.length > 0) {
+        report.push({ ...base, status: "skipped", skipReason: "already_has_rows" });
         skipped++;
         continue;
       }
@@ -181,37 +206,31 @@ Deno.serve(async (req) => {
       const pvrtCents = toCents(PVRT_DAILY_FEE) * days;
       const acsrchCents = toCents(ACSRCH_DAILY_FEE) * days;
 
-      // Vehicle remainder absorbs surcharges/discounts
       const nonVehicleNonDriverCents = protectionCents + addOnsCents + youngRenterCents
         + dropoffCents + deliveryCents + upgradeCents + pvrtCents + acsrchCents;
 
-      // We don't know the exact vehicle total, but we know:
-      // subtotal = vehicle + nonVehicleNonDriver + additionalDrivers
-      // So delta = subtotal - vehicle - nonVehicleNonDriver
-      // But we don't have vehicle stored independently.
-      // Use daily_rate * days as vehicle base, then delta = subtotal - vehicleBase - nonVehicleNonDriver
       const vehicleBaseCents = toCents(b.daily_rate) * days;
       const deltaCents = dbSubtotalCents - vehicleBaseCents - nonVehicleNonDriverCents;
 
       if (deltaCents <= 0) {
-        report.push({ bookingCode: b.booking_code, status: "skipped", reason: "no_positive_delta", deltaCents });
+        report.push({ ...base, status: "skipped", skipReason: "no_positive_delta", deltaCents });
         skipped++;
         continue;
       }
 
       // Try to match delta to n drivers at standard or young rate
-      let matchResult: { n: number; band: string; rateCents: number; totalCents: number } | null = null;
+      let matchResult: { n: number; band: string; matchType: string; perDriverCents: number; totalCents: number } | null = null;
 
-      for (const { rate, band } of [
-        { rate: standardRate, band: "25_70" },
-        { rate: youngRate, band: "20_24" },
+      for (const { rate, band, matchType } of [
+        { rate: standardRate, band: "25_70", matchType: "standard" },
+        { rate: youngRate, band: "20_24", matchType: "young" },
       ]) {
         const perDriverCents = toCents(rate) * days;
         if (perDriverCents <= 0) continue;
         for (let n = 1; n <= 4; n++) {
           const expected = perDriverCents * n;
           if (Math.abs(deltaCents - expected) <= 1) {
-            matchResult = { n, band, rateCents: perDriverCents, totalCents: expected };
+            matchResult = { n, band, matchType, perDriverCents, totalCents: expected };
             break;
           }
         }
@@ -219,60 +238,41 @@ Deno.serve(async (req) => {
       }
 
       if (!matchResult) {
-        report.push({ bookingCode: b.booking_code, status: "skipped", reason: "no_rate_match", deltaCents });
+        report.push({ ...base, status: "skipped", skipReason: "no_rate_match", deltaCents });
         skipped++;
         continue;
       }
 
       matched++;
+      const perDriverTotalCents = matchResult.perDriverCents; // total for one driver for the rental
 
       const rows = Array.from({ length: matchResult.n }, (_, i) => ({
         booking_id: b.id,
         driver_name: `Additional Driver ${i + 1}`,
         driver_age_band: matchResult!.band,
-        young_driver_fee: matchResult!.rateCents * days / 100 / matchResult!.n,
-        // Actually per-driver total for the rental
+        young_driver_fee: perDriverTotalCents / 100,
       }));
 
-      // Fix: young_driver_fee should be the per-driver total for the rental
-      const perDriverTotal = matchResult.totalCents / matchResult.n / 100;
-      for (const r of rows) {
-        r.young_driver_fee = perDriverTotal;
-      }
+      const detail = {
+        ...base,
+        deltaCents,
+        matchType: matchResult.matchType,
+        n: matchResult.n,
+        perDriverTotalCents,
+      };
 
       if (dryRun) {
-        report.push({
-          bookingCode: b.booking_code,
-          status: "matched",
-          dryRun: true,
-          match: {
-            driverCount: matchResult.n,
-            ageBand: matchResult.band,
-            perDriverTotal: perDriverTotal.toFixed(2),
-            totalCents: matchResult.totalCents,
-          },
-          wouldInsert: matchResult.n,
-        });
+        report.push({ ...detail, status: "matched", wouldInsert: matchResult.n, inserted: 0 });
       } else {
         const { error: insertError } = await supabase
           .from("booking_additional_drivers")
           .insert(rows);
 
         if (insertError) {
-          report.push({
-            bookingCode: b.booking_code,
-            status: "error",
-            error: insertError.message,
-          });
+          report.push({ ...detail, status: "error", error: insertError.message, inserted: 0 });
         } else {
           inserted += matchResult.n;
-          report.push({
-            bookingCode: b.booking_code,
-            status: "inserted",
-            driverCount: matchResult.n,
-            ageBand: matchResult.band,
-            perDriverTotal: perDriverTotal.toFixed(2),
-          });
+          report.push({ ...detail, status: "inserted", inserted: matchResult.n });
         }
       }
     }
