@@ -283,10 +283,7 @@ Deno.serve(async (req) => {
             .eq("id", piBookingId)
             .single();
 
-          if (booking?.status === "confirmed" || booking?.status === "pending" || booking?.status === "cancelled") {
-            if (booking?.status === "cancelled") {
-              console.log(`[stripe-webhook] Booking ${piBookingId} is cancelled, skipping status update`);
-            }
+          if (booking?.status === "confirmed" || booking?.status === "pending") {
             result.alreadyProcessed = true;
             break;
           }
