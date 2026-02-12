@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import type { StepCompletion } from "@/lib/ops-steps";
 import { DELIVERY_STATUS_MAP } from "@/lib/ops-steps";
 import { UnifiedVehicleManager } from "@/components/admin/UnifiedVehicleManager";
-import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE, PST_RATE, GST_RATE } from "@/lib/pricing";
+import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE } from "@/lib/pricing";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
 import { CollapsibleSection } from "./sections/CollapsibleSection";
 import { CardInfoSection } from "./sections/CardInfoSection";
@@ -673,6 +673,8 @@ function FinancialBreakdown({ booking }: { booking: any }) {
   let inferredRow: { label: string; cents: number } | null = null;
   let manualAdjustmentCents = 0;
 
+  const isPostFix = booking.created_at && new Date(booking.created_at).getTime() >= new Date(FIX_DEPLOY_DATE).getTime();
+
   if (deltaCents > 0 && additionalDrivers.length === 0) {
     // Try standard rate then young rate, for N in [1..4]
     let matched = false;
@@ -696,23 +698,24 @@ function FinancialBreakdown({ booking }: { booking: any }) {
       if (matched) break;
     }
     if (!matched) {
-      manualAdjustmentCents = deltaCents;
+      if (isPostFix) {
+        // Post-fix: log error, never show Manual Adjustment
+        console.error(`[OPS_BREAKDOWN_ERROR] Post-fix booking ${booking.booking_code} has unresolved delta: ${deltaCents} cents`);
+      } else {
+        manualAdjustmentCents = deltaCents;
+      }
     }
   } else if (deltaCents > 0) {
-    manualAdjustmentCents = deltaCents;
-  }
-
-  // Post-fix bookings should never have unresolved deltas
-  const isPostFix = booking.created_at && new Date(booking.created_at).getTime() >= new Date(FIX_DEPLOY_DATE).getTime();
-  if (isPostFix && (manualAdjustmentCents > 0)) {
-    console.error(`[OPS_BREAKDOWN_ERROR] Post-fix booking ${booking.booking_code} has unresolved delta: ${manualAdjustmentCents} cents`);
+    if (isPostFix) {
+      console.error(`[OPS_BREAKDOWN_ERROR] Post-fix booking ${booking.booking_code} has unresolved delta: ${deltaCents} cents`);
+    } else {
+      manualAdjustmentCents = deltaCents;
+    }
   }
 
   // Tax from DB
   const dbTaxCents = toCents(booking.tax_amount);
   const dbTotalCents = toCents(booking.total_amount);
-  const pstCents = Math.round(dbSubtotalCents * PST_RATE);
-  const gstCents = Math.round(dbSubtotalCents * GST_RATE);
 
   if (DEBUG_BOOKING_SUMMARY) {
     console.log("OPS_BREAKDOWN", {
@@ -844,18 +847,12 @@ function FinancialBreakdown({ booking }: { booking: any }) {
         <span>${fromCents(dbSubtotalCents)}</span>
       </div>
 
-      {/* Taxes from DB subtotal */}
+      {/* Tax — single DB-driven line */}
       {dbTaxCents > 0 && (
-        <>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">PST (7%)</span>
-            <span>${fromCents(pstCents)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">GST (5%)</span>
-            <span>${fromCents(gstCents)}</span>
-          </div>
-        </>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Tax (PST+GST)</span>
+          <span>${fromCents(dbTaxCents)}</span>
+        </div>
       )}
 
       <Separator className="my-1" />
