@@ -28,7 +28,6 @@ import {
   MessageSquare,
   ChevronsUpDown,
   ArrowUpCircle,
-  Info,
   Bell,
   Truck,
   ExternalLink,
@@ -41,6 +40,7 @@ import { UnifiedVehicleManager } from "@/components/admin/UnifiedVehicleManager"
 import { CollapsibleSection } from "./sections/CollapsibleSection";
 import { CardInfoSection } from "./sections/CardInfoSection";
 import { OpsActivityTimeline } from "./OpsActivityTimeline";
+import { FinancialBreakdown } from "./FinancialBreakdown";
 
 interface OpsBookingSummaryProps {
   booking: any;
@@ -601,10 +601,7 @@ export function OpsBookingSummary({
   );
 }
 
-// Re-export shared FinancialBreakdown for use in this file
-import { FinancialBreakdown } from "./FinancialBreakdown";
-
-// Protection plan display labels (kept for inline usage above)
+// Protection plan display labels
 const PROTECTION_PLAN_LABELS: Record<string, string> = {
   premium: "All Inclusive Coverage",
   smart: "Smart Coverage",
