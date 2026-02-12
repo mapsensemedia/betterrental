@@ -703,7 +703,7 @@ function FinancialBreakdown({ booking }: { booking: any }) {
   }
 
   // Post-fix bookings should never have unresolved deltas
-  const isPostFix = booking.created_at && booking.created_at >= FIX_DEPLOY_DATE;
+  const isPostFix = booking.created_at && new Date(booking.created_at).getTime() >= new Date(FIX_DEPLOY_DATE).getTime();
   if (isPostFix && (manualAdjustmentCents > 0)) {
     console.error(`[OPS_BREAKDOWN_ERROR] Post-fix booking ${booking.booking_code} has unresolved delta: ${manualAdjustmentCents} cents`);
   }
