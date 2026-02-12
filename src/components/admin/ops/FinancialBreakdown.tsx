@@ -59,6 +59,7 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
 
   const youngRenterCents = toCents(booking.young_driver_fee);
   const dropoffCents = toCents(booking.different_dropoff_fee);
+  const deliveryCents = toCents(booking.delivery_fee ?? booking.deliveryFee ?? 0);
   const upgradeDailyCents = toCents(booking.upgrade_daily_fee);
   const upgradeCents = upgradeDailyCents > 0 ? upgradeDailyCents * totalDays : 0;
   const pvrtCents = toCents(PVRT_DAILY_FEE) * totalDays;
@@ -68,7 +69,7 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
   // This absorbs weekend surcharges and duration discounts without needing stored columns.
   const dbSubtotalCents = toCents(booking.subtotal);
   const nonVehicleCents = protectionCents + addOnsCents + driversCents
-    + youngRenterCents + dropoffCents + upgradeCents + pvrtCents + acsrchCents;
+    + youngRenterCents + dropoffCents + deliveryCents + upgradeCents + pvrtCents + acsrchCents;
   const vehicleRemainderCents = dbSubtotalCents - nonVehicleCents;
 
   // Sanity: use remainder if positive and within 10x of base (guards against corrupt legacy data)
@@ -199,6 +200,14 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">Different Drop-off Fee</span>
           <span>${fromCents(dropoffCents)}</span>
+        </div>
+      )}
+
+      {/* Delivery Fee */}
+      {deliveryCents > 0 && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Delivery Fee</span>
+          <span>${fromCents(deliveryCents)}</span>
         </div>
       )}
 
