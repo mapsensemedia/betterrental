@@ -1,19 +1,25 @@
 import Stripe from "npm:stripe@14.21.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { validateAuth, isAdminOrStaff } from "../_shared/auth.ts";
 
 /**
  * Create Payment Intent
  * 
  * Creates a standard Stripe PaymentIntent for authenticated users.
- * Used for additional payment collection (e.g., via payment request links).
+ * Amount is server-derived: booking.total_amount − sum of successful payments.
+ * Staff/admin may pass overrideAmount, capped to amountDue.
  */
+
+const NON_PAYABLE_STATUSES = ["cancelled", "completed"];
 
 interface CreatePaymentIntentRequest {
   bookingId: string;
-  amount: number;
-  currency?: string;
+  overrideAmount?: number; // staff only, capped to amountDue
 }
+
+const jsonResp = (body: Record<string, unknown>, status: number, corsHeaders: Record<string, string>) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -26,122 +32,123 @@ Deno.serve(async (req) => {
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeSecretKey) {
       console.error("Stripe secret key not configured");
-      return new Response(
-        JSON.stringify({ error: "Payment service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResp({ error: "Payment service not configured" }, 500, corsHeaders);
+    }
+
+    // --- Auth ---
+    const auth = await validateAuth(req);
+    if (!auth.authenticated || !auth.userId) {
+      return jsonResp({ error: "Unauthorized", errorCode: "UNAUTHORIZED" }, 401, corsHeaders);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "No authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get the user from the auth header
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { bookingId, overrideAmount }: CreatePaymentIntentRequest = await req.json();
 
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid authentication" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!bookingId) {
+      return jsonResp({ error: "Missing bookingId" }, 400, corsHeaders);
     }
 
-    const { bookingId, amount, currency = "cad" }: CreatePaymentIntentRequest = await req.json();
-
-    if (!bookingId || !amount) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Verify booking belongs to user
+    // --- Fetch booking (no user_id filter yet — staff may act on others' bookings) ---
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
-      .select("id, user_id, booking_code, total_amount, vehicle_id")
+      .select("id, user_id, booking_code, total_amount, status, vehicle_id")
       .eq("id", bookingId)
-      .eq("user_id", user.id)
       .single();
 
     if (bookingError || !booking) {
-      return new Response(
-        JSON.stringify({ error: "Booking not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonResp({ error: "Booking not found" }, 404, corsHeaders);
+    }
+
+    // --- Ownership or staff check ---
+    const isStaff = await isAdminOrStaff(auth.userId);
+    if (booking.user_id !== auth.userId && !isStaff) {
+      return jsonResp({ error: "Unauthorized", errorCode: "UNAUTHORIZED" }, 403, corsHeaders);
+    }
+
+    // --- Block non-payable statuses ---
+    if (NON_PAYABLE_STATUSES.includes(booking.status)) {
+      return jsonResp(
+        { error: `Booking is ${booking.status} and cannot accept payments`, errorCode: "BOOKING_NOT_PAYABLE" },
+        409, corsHeaders,
       );
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2023-10-16",
-    });
+    // --- Compute amountDue from DB ---
+    const { data: payments } = await supabase
+      .from("payments")
+      .select("amount")
+      .eq("booking_id", bookingId)
+      .eq("status", "completed")
+      .eq("payment_type", "rental");
 
-    // Check if user has a Stripe customer ID
-    let customerId: string | undefined;
+    const paidTotal = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+    const amountDue = Math.round((booking.total_amount - paidTotal) * 100) / 100; // dollars, 2dp
+
+    if (amountDue <= 0) {
+      return jsonResp(
+        { error: "No amount due on this booking", errorCode: "AMOUNT_DUE_ZERO", amountDue: 0 },
+        409, corsHeaders,
+      );
+    }
+
+    // --- Determine PI amount (staff may override, capped) ---
+    let piAmountDollars = amountDue;
+    if (overrideAmount !== undefined && isStaff) {
+      piAmountDollars = Math.min(Math.max(overrideAmount, 0.50), amountDue); // min $0.50 Stripe floor
+    }
+    const piAmountCents = Math.round(piAmountDollars * 100);
+
+    // --- Stripe customer upsert ---
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("email, full_name")
-      .eq("id", user.id)
+      .eq("id", booking.user_id)
       .single();
 
-    // Search for existing customer
-    const customers = await stripe.customers.list({
-      email: user.email,
-      limit: 1,
-    });
+    const customerEmail = profile?.email || auth.email;
+    let customerId: string | undefined;
 
+    const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
     } else {
-      // Create new customer
       const customer = await stripe.customers.create({
-        email: user.email,
+        email: customerEmail,
         name: profile?.full_name || undefined,
-        metadata: {
-          supabase_user_id: user.id,
-        },
+        metadata: { supabase_user_id: booking.user_id },
       });
       customerId = customer.id;
     }
 
-    // Create payment intent
+    // --- Create payment intent ---
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency,
+      amount: piAmountCents,
+      currency: "cad",
       customer: customerId,
       metadata: {
         booking_id: bookingId,
         booking_code: booking.booking_code,
-        user_id: user.id,
+        user_id: booking.user_id,
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      automatic_payment_methods: { enabled: true },
     });
 
-    console.log("Created payment intent:", paymentIntent.id);
+    console.log(`[create-payment-intent] PI ${paymentIntent.id} for booking ${bookingId}: $${piAmountDollars} of $${amountDue} due`);
 
-    return new Response(
-      JSON.stringify({
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResp({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amountDue,
+      amountCharged: piAmountDollars,
+    }, 200, corsHeaders);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in create-payment-intent:", message);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResp({ error: message }, 500, corsHeaders);
   }
 });
