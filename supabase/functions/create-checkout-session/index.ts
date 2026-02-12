@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     // Fetch booking details for description
     const { data: bookingFull } = await supabase
       .from("bookings")
-      .select("vehicle_id, booking_code, total_days")
+      .select("vehicle_id, booking_code, total_days, location_id")
       .eq("id", bookingId)
       .single();
 
@@ -149,12 +149,16 @@ Deno.serve(async (req) => {
         booking_id: bookingId,
         booking_code: booking.booking_code,
         user_id: userId,
+        payment_type: "rental",
+        location_id: bookingFull?.location_id || "",
       },
       payment_intent_data: {
         metadata: {
           booking_id: bookingId,
           booking_code: booking.booking_code,
           user_id: userId,
+          payment_type: "rental",
+          location_id: bookingFull?.location_id || "",
         },
       },
     });

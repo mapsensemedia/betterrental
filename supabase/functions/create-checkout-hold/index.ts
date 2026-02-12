@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     // Idempotency check
     const { data: bookingFull } = await supabase
       .from("bookings")
-      .select("booking_code, user_id, stripe_deposit_pi_id")
+      .select("booking_code, user_id, stripe_deposit_pi_id, location_id")
       .eq("id", bookingId)
       .single();
 
@@ -105,10 +105,12 @@ Deno.serve(async (req) => {
       currency: "cad",
       customer: stripeCustomerId || undefined,
       metadata: {
-        type: "rental_payment",
+        type: "deposit",
+        payment_type: "deposit",
         booking_id: bookingId,
         booking_code: booking.booking_code,
         user_id: booking.user_id,
+        location_id: bookingFull?.location_id || "",
       },
       description: `Rental Payment - Booking ${booking.booking_code}`,
       payment_method_types: ["card"],
