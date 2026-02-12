@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
             const newStatus = isDepositPayment ? "pending" : "confirmed";
 
             // MONOTONIC GUARD: never downgrade status
-            const STATUS_RANK: Record<string, number> = { draft: 0, pending: 1, confirmed: 2, active: 3, completed: 4 };
+            const STATUS_RANK: Record<string, number> = { draft: 0, pending: 1, confirmed: 2, active: 3, completed: 4, cancelled: 5 };
             const currentRank = STATUS_RANK[booking?.status ?? "draft"] ?? 0;
             const newRank = STATUS_RANK[newStatus] ?? 0;
 
@@ -283,7 +283,10 @@ Deno.serve(async (req) => {
             .eq("id", piBookingId)
             .single();
 
-          if (booking?.status === "confirmed" || booking?.status === "pending") {
+          if (booking?.status === "confirmed" || booking?.status === "pending" || booking?.status === "cancelled") {
+            if (booking?.status === "cancelled") {
+              console.log(`[stripe-webhook] Booking ${piBookingId} is cancelled, skipping status update`);
+            }
             result.alreadyProcessed = true;
             break;
           }
@@ -326,7 +329,7 @@ Deno.serve(async (req) => {
             const piNewStatus = isDeposit ? "pending" : "confirmed";
 
             // MONOTONIC GUARD: never downgrade status
-            const PI_STATUS_RANK: Record<string, number> = { draft: 0, pending: 1, confirmed: 2, active: 3, completed: 4 };
+            const PI_STATUS_RANK: Record<string, number> = { draft: 0, pending: 1, confirmed: 2, active: 3, completed: 4, cancelled: 5 };
             const piCurrentRank = PI_STATUS_RANK[booking?.status ?? "draft"] ?? 0;
             const piNewRank = PI_STATUS_RANK[piNewStatus] ?? 0;
 
