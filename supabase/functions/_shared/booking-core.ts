@@ -455,15 +455,22 @@ export async function computeBookingTotals(input: {
   const additionalDriverRecords: { driverName: string | null; driverAgeBand: string; youngDriverFee: number }[] = [];
 
   if (input.additionalDrivers && input.additionalDrivers.length > 0) {
-    // Fetch rates from system_settings
+    // Fetch rates from system_settings (new spec keys → old keys → defaults)
     const { data: rateSettings } = await supabase
       .from("system_settings")
       .select("key, value")
-      .in("key", ["additional_driver_daily_rate", "young_additional_driver_daily_rate"]);
+      .in("key", [
+        "additional_driver_daily_rate_standard",
+        "additional_driver_daily_rate_young",
+        "additional_driver_daily_rate",
+        "young_additional_driver_daily_rate",
+      ]);
 
     const rateMap = new Map((rateSettings || []).map((r: any) => [r.key, Number(r.value)]));
-    const stdRate = rateMap.get("additional_driver_daily_rate") ?? 14.99;
-    const youngRate = rateMap.get("young_additional_driver_daily_rate") ?? 19.99;
+    const stdRate = rateMap.get("additional_driver_daily_rate_standard")
+      ?? rateMap.get("additional_driver_daily_rate") ?? 14.99;
+    const youngRate = rateMap.get("additional_driver_daily_rate_young")
+      ?? rateMap.get("young_additional_driver_daily_rate") ?? 19.99;
 
     for (const d of input.additionalDrivers.slice(0, 5)) {
       const rate = d.driverAgeBand === "20_24" ? youngRate : stdRate;

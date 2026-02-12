@@ -1,6 +1,8 @@
 /**
  * Hook to fetch additional driver and young driver fee settings from system_settings.
  * These fees are admin-configurable and used across the customer booking funnel.
+ * 
+ * Key priority: new spec keys → old keys → hardcoded defaults.
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +17,13 @@ const DEFAULTS: DriverFeeSettings = {
   youngAdditionalDriverDailyRate: 19.99,
 };
 
+const ALL_KEYS = [
+  "additional_driver_daily_rate_standard",
+  "additional_driver_daily_rate_young",
+  "additional_driver_daily_rate",
+  "young_additional_driver_daily_rate",
+];
+
 export function useDriverFeeSettings() {
   return useQuery({
     queryKey: ["driver-fee-settings"],
@@ -22,7 +31,7 @@ export function useDriverFeeSettings() {
       const { data, error } = await supabase
         .from("system_settings" as any)
         .select("key, value")
-        .in("key", ["additional_driver_daily_rate", "young_additional_driver_daily_rate"]);
+        .in("key", ALL_KEYS);
 
       if (error) {
         console.warn("Driver fee settings fetch failed, using defaults:", error.message);
@@ -30,12 +39,20 @@ export function useDriverFeeSettings() {
       }
 
       const rows = (data ?? []) as unknown as { key: string; value: string }[];
-      const adRate = rows.find((r) => r.key === "additional_driver_daily_rate");
-      const yadRate = rows.find((r) => r.key === "young_additional_driver_daily_rate");
+      const get = (key: string) => {
+        const r = rows.find((r) => r.key === key);
+        return r ? parseFloat(r.value) || undefined : undefined;
+      };
 
       return {
-        additionalDriverDailyRate: adRate ? parseFloat(adRate.value) || DEFAULTS.additionalDriverDailyRate : DEFAULTS.additionalDriverDailyRate,
-        youngAdditionalDriverDailyRate: yadRate ? parseFloat(yadRate.value) || DEFAULTS.youngAdditionalDriverDailyRate : DEFAULTS.youngAdditionalDriverDailyRate,
+        additionalDriverDailyRate:
+          get("additional_driver_daily_rate_standard")
+          ?? get("additional_driver_daily_rate")
+          ?? DEFAULTS.additionalDriverDailyRate,
+        youngAdditionalDriverDailyRate:
+          get("additional_driver_daily_rate_young")
+          ?? get("young_additional_driver_daily_rate")
+          ?? DEFAULTS.youngAdditionalDriverDailyRate,
       };
     },
     staleTime: 30_000,

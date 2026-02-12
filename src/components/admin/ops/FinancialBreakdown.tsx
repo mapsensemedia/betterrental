@@ -154,10 +154,11 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
         const fee = Number(d.young_driver_fee);
         const rate = isYoung ? youngDriverDailyRate : driverDailyRate;
         const displayCents = fee > 0 ? toCents(fee) : toCents(rate) * totalDays;
+        const rateLabel = isYoung ? `Young $${youngDriverDailyRate.toFixed(2)}` : `Standard $${driverDailyRate.toFixed(2)}`;
         return (
           <div key={d.id || i} className="flex justify-between">
             <span className="text-muted-foreground">
-              {d.driver_name || `Driver ${i + 1}`} ({isYoung ? "Young" : "Standard"}, ${rate.toFixed(2)}/day × {totalDays}d)
+              {d.driver_name || `Driver ${i + 1}`} ({rateLabel}/day × {totalDays}d)
             </span>
             <span>${fromCents(displayCents)}</span>
           </div>
