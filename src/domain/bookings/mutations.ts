@@ -48,6 +48,19 @@ export async function updateBookingStatus(input: UpdateBookingStatusInput): Prom
   if (fetchError) throw fetchError;
 
   const oldStatus = booking.status;
+
+  // MONOTONIC GUARD: prevent status downgrades
+  const STATUS_RANK: Record<string, number> = { draft: 0, pending: 1, confirmed: 2, active: 3, completed: 4, cancelled: 5 };
+  const currentRank = STATUS_RANK[oldStatus] ?? 0;
+  const newRank = STATUS_RANK[newStatus] ?? 0;
+
+  // Never downgrade status; cancelled is terminal
+  if (newRank < currentRank) {
+    throw new Error(`Cannot transition from ${oldStatus} to ${newStatus} (status downgrade not allowed)`);
+  }
+  if (oldStatus === "cancelled") {
+    throw new Error("Cannot change status of a cancelled booking");
+  }
   
   // Build update payload
   const updateData: Record<string, unknown> = { status: newStatus };

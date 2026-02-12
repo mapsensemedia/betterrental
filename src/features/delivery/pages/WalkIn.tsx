@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { calculateBookingPricing } from "@/lib/pricing";
 import { DeliveryShell } from "@/components/delivery/DeliveryShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,9 +81,14 @@ export default function DeliveryWalkIn() {
       const endAt = new Date(formData.endDate);
       const days = Math.ceil((endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60 * 24)) || 1;
       const dailyRate = selectedCategory.dailyRate || 50;
-      const subtotal = dailyRate * days;
-      const taxAmount = subtotal * 0.1; // 10% tax
-      const totalAmount = subtotal + taxAmount;
+      const pricing = calculateBookingPricing({
+        vehicleDailyRate: dailyRate,
+        rentalDays: days,
+        pickupDate: startAt,
+      });
+      const subtotal = pricing.subtotal;
+      const taxAmount = pricing.taxAmount;
+      const totalAmount = pricing.total;
 
       // Create the booking (DON'T auto-assign current user as driver)
       const { data: booking, error } = await supabase

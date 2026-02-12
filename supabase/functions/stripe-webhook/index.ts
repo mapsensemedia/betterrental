@@ -286,12 +286,8 @@ Deno.serve(async (req) => {
             .eq("id", piBookingId)
             .single();
 
-          if (booking?.status === "confirmed" || booking?.status === "pending") {
-            result.alreadyProcessed = true;
-            break;
-          }
-
-          // Check duplicate
+          // Check duplicate (removed early-exit — payment rows must always insert;
+          // monotonic guard below protects status from downgrade)
           const { data: existingPayment } = await supabase
             .from("payments")
             .select("id")

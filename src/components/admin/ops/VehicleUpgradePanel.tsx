@@ -123,66 +123,26 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
     staleTime: 5000,
   });
 
-  // Apply upgrade mutation
+  // Apply upgrade mutation — via server-side repricing edge function
   const applyMutation = useMutation({
     mutationFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-
-      const updatePayload: Record<string, any> = {
-        upgrade_daily_fee: feeNum,
-        upgrade_category_label: showToCustomer ? categoryLabel || null : null,
-        upgrade_visible_to_customer: showToCustomer,
-        upgrade_reason: upgradeReason || null,
-        upgraded_at: new Date().toISOString(),
-        upgraded_by: userId,
-        updated_at: new Date().toISOString(),
-      };
-
-      // Add upgrade charge to booking total
-      if (feeNum > 0) {
-        updatePayload.total_amount = newTotal;
-      }
-
-      // If a specific unit was selected, assign it and update category
-      if (selectedUnit) {
-        if (booking.assigned_unit_id) {
-          await supabase.rpc("release_vin_from_booking", { p_booking_id: booking.id });
-        }
-        await supabase.from("vehicle_units").update({ status: "on_rent" }).eq("id", selectedUnit.id);
-        updatePayload.assigned_unit_id = selectedUnit.id;
-        updatePayload.internal_unit_category_id = selectedUnit.category_id;
-        // Update vehicle_id to match the unit's category
-        updatePayload.original_vehicle_id = booking.vehicle_id;
-        updatePayload.vehicle_id = selectedUnit.category_id;
-      }
-
-      const { error } = await supabase.from("bookings").update(updatePayload).eq("id", booking.id);
-      if (error) throw error;
-
-      // Audit log
-      await supabase.from("audit_logs").insert({
-        action: selectedUnit ? "vehicle_upgrade_with_unit" : "upgrade_fee_applied",
-        entity_type: "booking",
-        entity_id: booking.id,
-        user_id: userId,
-        old_data: {
-          vehicle_id: booking.vehicle_id,
-          total_amount: booking.total_amount,
-          upgrade_daily_fee: booking.upgrade_daily_fee,
-        },
-        new_data: {
-          vehicle_id: selectedUnit ? selectedUnit.category_id : booking.vehicle_id,
-          total_amount: feeNum > 0 ? newTotal : booking.total_amount,
-          upgrade_daily_fee: feeNum,
-          visible_to_customer: showToCustomer,
-          reason: upgradeReason,
-          assigned_unit_id: selectedUnit?.id || null,
-          assigned_unit_vin: selectedUnit?.vin || null,
+      const { data, error } = await supabase.functions.invoke("reprice-booking", {
+        body: {
+          bookingId: booking.id,
+          operation: "upgrade",
+          upgradeDailyFee: feeNum,
+          showToCustomer,
+          categoryLabel: categoryLabel || null,
+          upgradeReason: upgradeReason || null,
+          assignUnitId: selectedUnit?.id || null,
+          assignUnitCategoryId: selectedUnit?.category_id || null,
         },
       });
 
-      return { newTotal: feeNum > 0 ? newTotal : booking.total_amount };
+      if (error) throw new Error(error.message || "Failed to apply upgrade");
+      if (data?.error) throw new Error(data.error);
+
+      return { newTotal: data.total };
     },
     onSuccess: (data) => {
       toast.success(
@@ -193,35 +153,20 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
       );
       handleOpenChange(false);
     },
-    onError: () => toast.error("Failed to apply upgrade"),
+    onError: (err: Error) => toast.error(err.message || "Failed to apply upgrade"),
   });
 
   const removeMutation = useMutation({
     mutationFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-
-      const restoredTotal = booking.total_amount - (Number(booking.upgrade_daily_fee) * booking.total_days);
-
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          upgrade_daily_fee: 0,
-          upgrade_category_label: null,
-          upgrade_visible_to_customer: false,
-          total_amount: restoredTotal > 0 ? restoredTotal : booking.total_amount,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", booking.id);
-      if (error) throw error;
-      await supabase.from("audit_logs").insert({
-        action: "upgrade_fee_removed",
-        entity_type: "booking",
-        entity_id: booking.id,
-        user_id: userId,
-        old_data: { upgrade_daily_fee: booking.upgrade_daily_fee, total_amount: booking.total_amount },
-        new_data: { upgrade_daily_fee: 0, total_amount: restoredTotal > 0 ? restoredTotal : booking.total_amount },
+      const { data, error } = await supabase.functions.invoke("reprice-booking", {
+        body: {
+          bookingId: booking.id,
+          operation: "remove_upgrade",
+        },
       });
+
+      if (error) throw new Error(error.message || "Failed to remove upgrade");
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       toast.success("Upgrade fee removed");
@@ -229,7 +174,7 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       handleOpenChange(false);
     },
-    onError: () => toast.error("Failed to remove upgrade fee"),
+    onError: (err: Error) => toast.error(err.message || "Failed to remove upgrade fee"),
   });
 
   const canApply = feeNum > 0 || selectedUnit;
