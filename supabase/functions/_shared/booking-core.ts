@@ -142,14 +142,14 @@ export async function verifyOtpAndMintToken(
 
   // Validate presence
   if (!otpCode || typeof otpCode !== "string") {
-    const err = new AuthError("OTP is required", 401);
+    const err = new AuthError("OTP is required", 400);
     (err as any).errorCode = "OTP_REQUIRED";
     throw err;
   }
 
   // Validate format
   if (!OTP_FORMAT.test(otpCode)) {
-    const err = new AuthError("Invalid OTP format", 401);
+    const err = new AuthError("Invalid code", 400);
     (err as any).errorCode = "OTP_INVALID_FORMAT";
     throw err;
   }
@@ -176,7 +176,7 @@ export async function verifyOtpAndMintToken(
     .maybeSingle();
 
   if (otpErr || !otpRecord) {
-    const err = new AuthError("OTP expired or not found. Request a new one.", 401);
+    const err = new AuthError("Invalid or expired code", 401);
     (err as any).errorCode = "OTP_EXPIRED";
     throw err;
   }
@@ -185,7 +185,7 @@ export async function verifyOtpAndMintToken(
 
   // Check if already locked out
   if (currentAttempts >= MAX_OTP_ATTEMPTS) {
-    const err = new AuthError("Too many attempts. Request a new code.", 401);
+    const err = new AuthError("Invalid or expired code", 401);
     (err as any).errorCode = "OTP_LOCKED";
     throw err;
   }
@@ -204,12 +204,12 @@ export async function verifyOtpAndMintToken(
     await supabase.from("booking_otps").update(updatePayload).eq("id", otpRecord.id);
 
     if (newAttempts >= MAX_OTP_ATTEMPTS) {
-      const err = new AuthError("Too many attempts. Request a new code.", 401);
+      const err = new AuthError("Invalid or expired code", 401);
       (err as any).errorCode = "OTP_LOCKED";
       throw err;
     }
     const remaining = MAX_OTP_ATTEMPTS - newAttempts;
-    const err = new AuthError("Incorrect code. Please try again.", 401);
+    const err = new AuthError("Invalid or expired code", 401);
     (err as any).errorCode = "OTP_INVALID";
     (err as any).remainingAttempts = remaining;
     throw err;
