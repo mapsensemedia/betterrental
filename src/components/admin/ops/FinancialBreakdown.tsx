@@ -2,9 +2,10 @@
  * Shared FinancialBreakdown component
  * Deterministic, DB-driven itemized breakdown used across all booking summary surfaces.
  */
+import { useState } from "react";
 import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 import { Separator } from "@/components/ui/separator";
-import { Info } from "lucide-react";
+import { Info, ChevronDown, ChevronRight } from "lucide-react";
 import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE } from "@/lib/pricing";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
 
@@ -27,6 +28,7 @@ function fromCents(c: number): string {
 }
 
 export function FinancialBreakdown({ booking }: { booking: any }) {
+  const [showAdjustmentDetails, setShowAdjustmentDetails] = useState(false);
   const { data: driverFeeSettings } = useDriverFeeSettings();
   const driverDailyRate = driverFeeSettings?.additionalDriverDailyRate ?? 14.99;
   const youngDriverDailyRate = driverFeeSettings?.youngAdditionalDriverDailyRate ?? 19.99;
@@ -213,20 +215,34 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
       {/* Manual Adjustment (legacy-only fallback) */}
       {manualAdjustmentCents > 0 && (
         <div className="space-y-0.5">
-          <div className="flex justify-between text-amber-600">
+          <div
+            className="flex justify-between text-amber-600 cursor-pointer select-none"
+            onClick={() => setShowAdjustmentDetails(!showAdjustmentDetails)}
+          >
             <span className="flex items-center gap-1">
+              {showAdjustmentDetails ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               <Info className="h-3 w-3" />
               Manual Adjustment (Legacy)
             </span>
             <span>${fromCents(manualAdjustmentCents)}</span>
           </div>
-          <p className="text-[10px] text-muted-foreground pl-4">
-            Unattributed delta: Subtotal ${fromCents(dbSubtotalCents)} − Itemized ${fromCents(itemizedCents)}
-          </p>
-          {!isPostFix && (
-            <p className="text-[10px] text-muted-foreground/70 pl-4">
-              Reason: booking created before itemized line-items were persisted in DB.
-            </p>
+          {showAdjustmentDetails && (
+            <div className="pl-5 space-y-0.5">
+              <p className="text-[10px] text-muted-foreground">
+                Itemized total: ${fromCents(itemizedCents)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Subtotal: ${fromCents(dbSubtotalCents)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Delta: ${fromCents(manualAdjustmentCents)}
+              </p>
+              {!isPostFix && (
+                <p className="text-[10px] text-muted-foreground/70">
+                  Reason: booking created before itemized line-items were persisted in DB.
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
