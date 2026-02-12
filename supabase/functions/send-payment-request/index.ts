@@ -1,11 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.21.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { getUserOrThrow, requireRoleOrThrow, AuthError, authErrorResponse } from "../_shared/auth.ts";
 
 interface PaymentRequestParams {
   bookingId: string;
@@ -14,8 +11,18 @@ interface PaymentRequestParams {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // SECURITY: Only admin/staff can send payment requests
+    const user = await getUserOrThrow(req, corsHeaders);
+    await requireRoleOrThrow(user.userId, ["admin", "staff"], corsHeaders);
+  } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
+    throw err;
   }
 
   try {

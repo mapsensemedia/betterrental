@@ -157,17 +157,51 @@ export async function createBookingRecord(input: BookingInput): Promise<BookingR
 }
 
 /**
+ * Check if an add-on name matches "Premium Roadside" / "Extended Roadside"
+ */
+function isPremiumRoadsideAddOn(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.includes("roadside") && (lower.includes("premium") || lower.includes("extended"));
+}
+
+/**
  * Create booking add-ons
+ * BUSINESS RULE: If protection plan is "premium" (All Inclusive), 
+ * Premium Roadside add-on is automatically excluded (it's already included).
  */
 export async function createBookingAddOns(
   bookingId: string,
-  addOns: AddOnInput[]
+  addOns: AddOnInput[],
+  protectionPlan?: string,
 ): Promise<void> {
   if (!addOns || addOns.length === 0) return;
   
   const supabase = getAdminClient();
   
-  const addOnRecords = addOns.slice(0, 10).map((addon) => ({
+  // If All Inclusive protection, look up and filter out Premium Roadside add-ons
+  let filteredAddOns = addOns.slice(0, 10);
+  
+  if (protectionPlan === "premium" && filteredAddOns.length > 0) {
+    const addOnIds = filteredAddOns.map(a => a.addOnId);
+    const { data: addOnDetails } = await supabase
+      .from("add_ons")
+      .select("id, name")
+      .in("id", addOnIds);
+    
+    if (addOnDetails) {
+      const roadsideIds = new Set(
+        addOnDetails.filter(a => isPremiumRoadsideAddOn(a.name)).map(a => a.id)
+      );
+      if (roadsideIds.size > 0) {
+        console.log(`[booking-core] Filtering out Premium Roadside add-ons (All Inclusive protection): ${[...roadsideIds].join(", ")}`);
+        filteredAddOns = filteredAddOns.filter(a => !roadsideIds.has(a.addOnId));
+      }
+    }
+  }
+  
+  if (filteredAddOns.length === 0) return;
+  
+  const addOnRecords = filteredAddOns.map((addon) => ({
     booking_id: bookingId,
     add_on_id: addon.addOnId,
     price: addon.price,

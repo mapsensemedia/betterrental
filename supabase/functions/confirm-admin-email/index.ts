@@ -1,21 +1,23 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { getUserOrThrow, requireRoleOrThrow, AuthError, authErrorResponse } from "../_shared/auth.ts";
 
 interface ConfirmAdminEmailRequest {
   userId: string;
 }
 
 serve(async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // SECURITY: Only admins can confirm other admin emails
+    const caller = await getUserOrThrow(req, corsHeaders);
+    await requireRoleOrThrow(caller.userId, ["admin"], corsHeaders);
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -73,7 +75,6 @@ serve(async (req: Request): Promise<Response> => {
 
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
-      // Supabase auth admin API supports confirming email via this attribute.
       { email_confirm: true } as unknown as Record<string, unknown>
     );
 
@@ -90,6 +91,7 @@ serve(async (req: Request): Promise<Response> => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    if (error instanceof AuthError) return authErrorResponse(error, corsHeaders);
     console.error("[confirm-admin-email] Unexpected error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,

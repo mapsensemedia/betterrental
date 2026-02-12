@@ -1,15 +1,28 @@
 /**
  * Fleet Cost Calculator Edge Function
  * Background job for calculating fleet cost metrics
+ * SECURITY: Requires admin/staff role
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getUserOrThrow, requireRoleOrThrow, AuthError, authErrorResponse } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // SECURITY: Only admin/staff can access fleet cost data
+    const user = await getUserOrThrow(req, corsHeaders);
+    await requireRoleOrThrow(user.userId, ["admin", "staff", "finance"], corsHeaders);
+  } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
