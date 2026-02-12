@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
 
           const { data: booking } = await supabase
             .from("bookings")
-            .select("user_id, status, total_amount, deposit_amount")
+            .select("user_id, status, total_amount, deposit_amount, location_id")
             .eq("id", sessionBookingId)
             .single();
 
@@ -198,6 +198,7 @@ Deno.serve(async (req) => {
               payment_method: "card",
               status: "completed",
               transaction_id: transactionId,
+              location_id: locationId || booking?.location_id || null,
             });
 
             // Update card details if available
@@ -249,6 +250,7 @@ Deno.serve(async (req) => {
               payment_method: "card",
               status: "completed",
               transaction_id: transactionId,
+              location_id: locationId || booking?.location_id || null,
             });
 
             try {
@@ -280,7 +282,7 @@ Deno.serve(async (req) => {
 
           const { data: booking } = await supabase
             .from("bookings")
-            .select("status, total_amount, deposit_amount")
+            .select("status, total_amount, deposit_amount, location_id")
             .eq("id", piBookingId)
             .single();
 
@@ -351,6 +353,7 @@ Deno.serve(async (req) => {
               payment_method: paymentIntent.payment_method_types?.[0] || "card",
               status: "completed",
               transaction_id: paymentIntent.id,
+              location_id: paymentIntent.metadata?.location_id || booking?.location_id || null,
             });
 
             try {
@@ -386,6 +389,7 @@ Deno.serve(async (req) => {
             payment_method: "card",
             status: "failed",
             transaction_id: paymentIntent.id,
+            location_id: paymentIntent.metadata?.location_id || "",
           });
 
           const { data: failedBooking } = await supabase

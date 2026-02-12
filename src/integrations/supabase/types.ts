@@ -1958,6 +1958,7 @@ export type Database = {
           booking_id: string
           created_at: string
           id: string
+          location_id: string | null
           payment_method: string | null
           payment_type: string
           status: string
@@ -1969,6 +1970,7 @@ export type Database = {
           booking_id: string
           created_at?: string
           id?: string
+          location_id?: string | null
           payment_method?: string | null
           payment_type: string
           status?: string
@@ -1980,6 +1982,7 @@ export type Database = {
           booking_id?: string
           created_at?: string
           id?: string
+          location_id?: string | null
           payment_method?: string | null
           payment_type?: string
           status?: string
