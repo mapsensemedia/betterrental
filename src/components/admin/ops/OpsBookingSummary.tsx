@@ -631,6 +631,10 @@ function FinancialBreakdown({ booking }: { booking: any }) {
   const dbSubtotal = Number(booking.subtotal);
   const unitemized = Math.round((dbSubtotal - calculatedSubtotal) * 100) / 100;
 
+  // Infer what the unitemized charges are (legacy bookings without stored records)
+  const inferredDriverCount = unitemized > 0 ? Math.round(unitemized / (driverDailyRate * booking.total_days)) : 0;
+  const isLikelyAdditionalDrivers = inferredDriverCount > 0 && Math.abs(unitemized - (inferredDriverCount * driverDailyRate * booking.total_days)) < 0.02;
+
   return (
     <div className="space-y-1.5 text-xs">
       <div className="flex justify-between">
@@ -708,10 +712,11 @@ function FinancialBreakdown({ booking }: { booking: any }) {
       </div>
 
       {unitemized > 0.01 && (
-        <div className="flex justify-between text-amber-600">
-          <span className="flex items-center gap-1">
-            Other charges
-            <Info className="h-3 w-3" />
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            {isLikelyAdditionalDrivers
+              ? `Additional Drivers (${inferredDriverCount}) × ${booking.total_days}d`
+              : `Additional charges`}
           </span>
           <span>${unitemized.toFixed(2)}</span>
         </div>
