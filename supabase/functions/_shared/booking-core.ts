@@ -101,14 +101,16 @@ export interface ServerPricingResult {
 // ========== HASHING HELPERS ==========
 
 async function hashWithKey(value: string): Promise<string> {
+  const normalized = value.trim();
   const encoder = new TextEncoder();
-  const data = encoder.encode(value + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+  const data = encoder.encode(`${normalized}|${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 const MAX_OTP_ATTEMPTS = 5;
+const OTP_FORMAT = /^\d{4,8}$/;
 const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 // ========== GUEST AUTH: OTP → ACCESS TOKEN FLOW ==========
@@ -128,8 +130,9 @@ export async function verifyOtpAndMintToken(
 ): Promise<{ booking: BookingRow; accessToken: string }> {
   const supabase = getAdminClient();
 
-  if (!otpCode || typeof otpCode !== "string" || otpCode.length < 4) {
-    throw new AuthError("OTP required", 401);
+  // Enforce OTP format
+  if (!otpCode || typeof otpCode !== "string" || !OTP_FORMAT.test(otpCode)) {
+    throw new AuthError("OTP required (4-8 digits)", 401);
   }
 
   // Fetch booking
@@ -161,7 +164,7 @@ export async function verifyOtpAndMintToken(
 
   // Check if already locked out
   if (currentAttempts >= MAX_OTP_ATTEMPTS) {
-    throw new AuthError("OTP locked due to too many attempts. Request a new one.", 401);
+    throw new AuthError("OTP_LOCKED", 401);
   }
 
   // Hash and compare
@@ -177,22 +180,28 @@ export async function verifyOtpAndMintToken(
     }
     await supabase.from("booking_otps").update(updatePayload).eq("id", otpRecord.id);
 
+    if (newAttempts >= MAX_OTP_ATTEMPTS) {
+      throw new AuthError("OTP_LOCKED", 401);
+    }
     const remaining = MAX_OTP_ATTEMPTS - newAttempts;
     throw new AuthError(
-      remaining > 0
-        ? `Invalid OTP. ${remaining} attempt(s) remaining.`
-        : "OTP locked due to too many attempts. Request a new one.",
+      `Invalid OTP. ${remaining} attempt(s) remaining.`,
       401,
     );
   }
 
-  // Correct OTP: mark verified_at (informational, does not consume)
-  if (!otpRecord.verified_at) {
-    await supabase
-      .from("booking_otps")
-      .update({ verified_at: new Date().toISOString() })
-      .eq("id", otpRecord.id);
-  }
+  // Correct OTP: reset attempts to 0, set verified_at
+  await supabase
+    .from("booking_otps")
+    .update({ verified_at: new Date().toISOString(), attempts: 0 })
+    .eq("id", otpRecord.id);
+
+  // Revoke all existing tokens for this booking before minting new one
+  await supabase
+    .from("booking_access_tokens")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("booking_id", bookingId)
+    .is("revoked_at", null);
 
   // Mint access token
   const rawToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
@@ -228,10 +237,11 @@ export async function validateAccessToken(
 
   const { data: tokenRow, error: tokenErr } = await supabase
     .from("booking_access_tokens")
-    .select("id, booking_id, expires_at")
+    .select("id, booking_id, expires_at, revoked_at, used_at")
     .eq("booking_id", bookingId)
     .eq("token_hash", tokenHash)
     .gt("expires_at", new Date().toISOString())
+    .is("revoked_at", null)
     .limit(1)
     .maybeSingle();
 
