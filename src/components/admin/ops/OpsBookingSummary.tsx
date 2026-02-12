@@ -4,6 +4,7 @@
  * Updated: Now includes delivery status section for delivery bookings
  */
 import { useState, useCallback, useMemo } from "react";
+import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 import { displayName, formatPhone } from "@/lib/format-customer";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
@@ -603,6 +604,10 @@ export function OpsBookingSummary({
 }
 
 function FinancialBreakdown({ booking }: { booking: any }) {
+  const { data: driverFeeSettings } = useDriverFeeSettings();
+  const driverDailyRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
+  const youngDriverDailyRate = driverFeeSettings?.youngAdditionalDriverDailyRate ?? 19.99;
+
   const vehicleTotal = Number(booking.daily_rate) * booking.total_days;
   
   const vehicleCat = booking.vehicles?.category || "";
@@ -614,8 +619,6 @@ function FinancialBreakdown({ booking }: { booking: any }) {
   const addOnsTotal = (booking.addOns || []).reduce((sum: number, a: any) => sum + Number(a.price), 0);
 
   const drivers = booking.additionalDrivers || [];
-  const driverDailyRate = 15.99;
-  const youngDriverDailyRate = 15.00;
   const additionalDriversTotal = drivers.reduce((sum: number, d: any) => {
     const rate = d.driver_age_band === "20_24" ? youngDriverDailyRate : driverDailyRate;
     return sum + rate * booking.total_days;
@@ -632,8 +635,18 @@ function FinancialBreakdown({ booking }: { booking: any }) {
   const unitemized = Math.round((dbSubtotal - calculatedSubtotal) * 100) / 100;
 
   // Infer what the unitemized charges are (legacy bookings without stored records)
-  const inferredDriverCount = unitemized > 0 ? Math.round(unitemized / (driverDailyRate * booking.total_days)) : 0;
-  const isLikelyAdditionalDrivers = inferredDriverCount > 0 && Math.abs(unitemized - (inferredDriverCount * driverDailyRate * booking.total_days)) < 0.02;
+  // Try standard rate, young rate, and mixed combinations
+  const inferDrivers = (rate: number) => {
+    if (rate <= 0 || booking.total_days <= 0) return { count: 0, matches: false };
+    const perDriver = rate * booking.total_days;
+    const count = Math.round(unitemized / perDriver);
+    return { count, matches: count > 0 && Math.abs(unitemized - (count * perDriver)) < 0.02 };
+  };
+  const standardInfer = inferDrivers(driverDailyRate);
+  const youngInfer = inferDrivers(youngDriverDailyRate);
+  const isLikelyAdditionalDrivers = standardInfer.matches || youngInfer.matches;
+  const inferredDriverCount = standardInfer.matches ? standardInfer.count : youngInfer.count;
+  const inferredRate = standardInfer.matches ? driverDailyRate : youngDriverDailyRate;
 
   return (
     <div className="space-y-1.5 text-xs">
@@ -715,7 +728,7 @@ function FinancialBreakdown({ booking }: { booking: any }) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">
             {isLikelyAdditionalDrivers
-              ? `Additional Drivers (${inferredDriverCount}) × ${booking.total_days}d`
+              ? `Additional Drivers (${inferredDriverCount} × $${inferredRate.toFixed(2)}/day × ${booking.total_days}d)`
               : `Additional charges`}
           </span>
           <span>${unitemized.toFixed(2)}</span>
