@@ -1,18 +1,20 @@
 import Stripe from "npm:stripe@14.21.0";
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, AuthError, authErrorResponse } from "../_shared/auth.ts";
+import { requireBookingOwnerOrCode } from "../_shared/booking-core.ts";
 
 /**
- * Create Checkout Payment
+ * Create Checkout Payment (Hold/PaymentIntent)
  * 
- * Creates a standard Stripe PaymentIntent (auto-capture) for the rental amount.
- * SECURITY: Requires authentication. Validates booking ownership.
+ * SECURITY (PR6):
+ * - Never accepts amount from client — uses booking.total_amount from DB
+ * - Requires auth OR booking_code for guest proof-of-knowledge
+ * - No userId from request body
  */
 
 interface CreateCheckoutPaymentRequest {
   bookingId: string;
-  amount: number;
+  bookingCode?: string; // Guest proof-of-knowledge
 }
 
 Deno.serve(async (req) => {
@@ -23,61 +25,47 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth: require logged-in user OR guest flow (booking ownership check below)
-    const auth = await validateAuth(req);
-    // Note: guest checkout may not have auth - we verify booking ownership via userId match
-    
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeSecretKey) {
       throw new Error("Stripe not configured");
     }
+
+    const { bookingId, bookingCode }: CreateCheckoutPaymentRequest = await req.json();
+
+    if (!bookingId) {
+      return new Response(
+        JSON.stringify({ error: "bookingId is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY: Determine auth identity
+    const auth = await validateAuth(req);
+    const authUserId = auth.authenticated ? auth.userId ?? null : null;
+
+    // SECURITY: Verify ownership via auth OR booking_code
+    const booking = await requireBookingOwnerOrCode(bookingId, authUserId, bookingCode);
+
+    // Use server-side amount — NEVER from client
+    const amount = booking.total_amount;
 
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: "2023-10-16",
     });
 
     const supabase = getAdminClient();
-    const { bookingId, amount }: CreateCheckoutPaymentRequest = await req.json();
 
-    if (!bookingId || amount === undefined) {
-      return new Response(
-        JSON.stringify({ error: "bookingId and amount are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Get booking details
-    const bookingQuery = supabase
+    // Get full booking details for PI metadata
+    const { data: bookingFull } = await supabase
       .from("bookings")
-      .select("id, booking_code, user_id, stripe_deposit_pi_id, total_amount")
-      .eq("id", bookingId);
-
-    // If authenticated, enforce ownership
-    if (auth.authenticated && auth.userId) {
-      bookingQuery.eq("user_id", auth.userId);
-    }
-
-    const { data: booking, error: bookingError } = await bookingQuery.single();
-
-    if (bookingError || !booking) {
-      return new Response(
-        JSON.stringify({ error: "Booking not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate amount doesn't exceed booking total (prevent amount injection)
-    if (amount > booking.total_amount * 1.5) {
-      return new Response(
-        JSON.stringify({ error: "Amount exceeds allowed limit" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      .select("booking_code, user_id, stripe_deposit_pi_id")
+      .eq("id", bookingId)
+      .single();
 
     // Idempotency check - if already has a PI, return it
-    if (booking.stripe_deposit_pi_id) {
+    if (bookingFull?.stripe_deposit_pi_id) {
       try {
-        const existingPI = await stripe.paymentIntents.retrieve(booking.stripe_deposit_pi_id);
+        const existingPI = await stripe.paymentIntents.retrieve(bookingFull.stripe_deposit_pi_id);
         if (existingPI.status !== "canceled") {
           return new Response(
             JSON.stringify({
@@ -141,7 +129,6 @@ Deno.serve(async (req) => {
         user_id: booking.user_id,
       },
       description: `Rental Payment - Booking ${booking.booking_code}`,
-      statement_descriptor_suffix: `C2C ${booking.booking_code}`.substring(0, 22),
       payment_method_types: ["card"],
     });
 

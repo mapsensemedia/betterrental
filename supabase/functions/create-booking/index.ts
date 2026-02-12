@@ -11,6 +11,7 @@ import {
   isValidPhone,
 } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient } from "../_shared/auth.ts";
+import { validateClientPricing } from "../_shared/booking-core.ts";
 
 interface CreateBookingRequest {
   holdId: string;
@@ -27,18 +28,20 @@ interface CreateBookingRequest {
   userPhone: string;
   driverAgeBand?: string;
   youngDriverFee?: number;
+  protectionPlan?: string;
   addOns: Array<{
     addOnId: string;
     price: number;
     quantity: number;
   }>;
   notes?: string;
+  deliveryFee?: number;
+  differentDropoffFee?: number;
 }
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return handleCorsPreflightRequest(req);
   }
@@ -86,8 +89,11 @@ Deno.serve(async (req) => {
       userPhone,
       driverAgeBand,
       youngDriverFee,
+      protectionPlan,
       addOns,
       notes,
+      deliveryFee,
+      differentDropoffFee,
     } = body;
 
     // Input validation
@@ -104,6 +110,31 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           error: "age_validation_failed",
           message: "Driver age confirmation is required." 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY (PR6): Server-side price validation
+    const priceCheck = await validateClientPricing({
+      vehicleId,
+      startAt,
+      endAt,
+      protectionPlan,
+      addOns: addOns?.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })),
+      driverAgeBand,
+      deliveryFee,
+      differentDropoffFee,
+      clientTotal: totalAmount,
+    });
+
+    if (!priceCheck.valid) {
+      console.warn(`[create-booking] Price mismatch for user ${auth.userId}: ${priceCheck.error}`);
+      return new Response(
+        JSON.stringify({ 
+          error: "PRICE_MISMATCH",
+          message: priceCheck.error,
+          serverTotal: priceCheck.serverTotal,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -183,7 +214,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 3: Create the booking
+    // Step 3: Create the booking (use server-validated totals)
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")
       .insert({
@@ -203,6 +234,7 @@ Deno.serve(async (req) => {
         notes: notes?.slice(0, 1000) || null,
         driver_age_band: driverAgeBand,
         young_driver_fee: youngDriverFee || 0,
+        protection_plan: protectionPlan || null,
       })
       .select()
       .single();
@@ -217,16 +249,10 @@ Deno.serve(async (req) => {
 
     console.log("Booking created:", booking.id);
 
-    // Step 4: Create booking add-ons
+    // Step 4: Create booking add-ons (with roadside filter if premium protection)
     if (addOns && addOns.length > 0) {
-      const addOnRecords = addOns.slice(0, 10).map((addon) => ({
-        booking_id: booking.id,
-        add_on_id: addon.addOnId,
-        price: addon.price,
-        quantity: Math.min(addon.quantity, 10),
-      }));
-
-      await supabaseAdmin.from("booking_add_ons").insert(addOnRecords);
+      const { createBookingAddOns } = await import("../_shared/booking-core.ts");
+      await createBookingAddOns(booking.id, addOns, protectionPlan);
     }
 
     // Step 5: Mark hold as converted
@@ -260,7 +286,7 @@ Deno.serve(async (req) => {
       console.log("Failed to fetch names for notification:", e);
     }
 
-    // Send notifications — must await before returning response
+    // Send notifications
     const notificationPromises = [
       fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
         method: "POST",

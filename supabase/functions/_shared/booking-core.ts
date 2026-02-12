@@ -3,13 +3,29 @@
  * 
  * Core functions used by both authenticated and guest booking flows.
  * PR5: Edge Function Deduplication - Consolidates duplicated logic
+ * PR6: Server-side price validation + ownership helpers
  */
 
-import { getAdminClient } from "./auth.ts";
+import { getAdminClient, AuthError } from "./auth.ts";
 import { sanitizePhone } from "./cors.ts";
+
+// ========== PRICING CONSTANTS (mirrors src/lib/pricing.ts) ==========
+const PST_RATE = 0.07;
+const GST_RATE = 0.05;
+const PVRT_DAILY_FEE = 1.50;
+const ACSRCH_DAILY_FEE = 1.00;
+const YOUNG_DRIVER_FEE = 15;
+const WEEKEND_SURCHARGE_RATE = 0.15;
+const WEEKLY_DISCOUNT_THRESHOLD = 7;
+const WEEKLY_DISCOUNT_RATE = 0.10;
+const MONTHLY_DISCOUNT_THRESHOLD = 21;
+const MONTHLY_DISCOUNT_RATE = 0.20;
 
 // BUSINESS RULE: Deposit is ALWAYS required - minimum $350 CAD
 const MINIMUM_DEPOSIT_AMOUNT = 350;
+
+// ========== PRICE VALIDATION TOLERANCE ==========
+const PRICE_MISMATCH_TOLERANCE = 2.00; // $2 tolerance for rounding differences
 
 export interface BookingInput {
   userId: string;
@@ -64,6 +80,256 @@ export interface BookingResult {
   errorCode?: string;
 }
 
+export interface ServerPricingResult {
+  days: number;
+  dailyRate: number;
+  vehicleBaseTotal: number;
+  weekendSurcharge: number;
+  durationDiscount: number;
+  vehicleTotal: number;
+  protectionDailyRate: number;
+  protectionTotal: number;
+  addOnsTotal: number;
+  youngDriverFee: number;
+  dailyFeesTotal: number;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+}
+
+// ========== SERVER-SIDE PRICING ==========
+
+function isWeekendPickup(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const day = d.getUTCDay();
+  return day === 5 || day === 6 || day === 0;
+}
+
+function getDurationDiscount(days: number): number {
+  if (days >= MONTHLY_DISCOUNT_THRESHOLD) return MONTHLY_DISCOUNT_RATE;
+  if (days >= WEEKLY_DISCOUNT_THRESHOLD) return WEEKLY_DISCOUNT_RATE;
+  return 0;
+}
+
+/**
+ * Compute canonical booking totals from DB prices.
+ * This is the server-side source of truth for price validation.
+ */
+export async function computeBookingTotals(input: {
+  vehicleId: string;
+  startAt: string;
+  endAt: string;
+  protectionPlan?: string;
+  addOns?: { addOnId: string; quantity: number }[];
+  driverAgeBand?: string;
+  deliveryFee?: number;
+  differentDropoffFee?: number;
+}): Promise<ServerPricingResult> {
+  const supabase = getAdminClient();
+
+  // 1) Compute days
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const ms = new Date(input.endAt).getTime() - new Date(input.startAt).getTime();
+  const days = Math.max(1, Math.ceil(ms / msPerDay));
+
+  // 2) Fetch canonical daily rate from vehicle_categories
+  const { data: category, error: catErr } = await supabase
+    .from("vehicle_categories")
+    .select("id, daily_rate, name")
+    .eq("id", input.vehicleId)
+    .single();
+
+  if (catErr || !category) {
+    throw new Error(`Invalid vehicle category: ${input.vehicleId}`);
+  }
+
+  const dailyRate = Number(category.daily_rate);
+
+  // 3) Vehicle total with weekend surcharge + duration discount
+  const vehicleBaseTotal = dailyRate * days;
+  const weekendSurcharge = isWeekendPickup(input.startAt)
+    ? vehicleBaseTotal * WEEKEND_SURCHARGE_RATE
+    : 0;
+  const afterSurcharge = vehicleBaseTotal + weekendSurcharge;
+  const discountRate = getDurationDiscount(days);
+  const durationDiscount = afterSurcharge * discountRate;
+  const vehicleTotal = afterSurcharge - durationDiscount;
+
+  // 4) Protection pricing (from system_settings or hardcoded fallback)
+  let protectionDailyRate = 0;
+  if (input.protectionPlan && input.protectionPlan !== "none") {
+    // Try system_settings first
+    const settingsKey = `protection_${input.protectionPlan}_daily_rate`;
+    const { data: setting } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", settingsKey)
+      .maybeSingle();
+
+    if (setting?.value) {
+      protectionDailyRate = Number(setting.value);
+    } else {
+      // Fallback to Group 1 defaults (matches pricing.ts)
+      const defaults: Record<string, number> = {
+        basic: 32.99,
+        smart: 37.99,
+        premium: 49.99,
+      };
+      protectionDailyRate = defaults[input.protectionPlan] ?? 0;
+    }
+  }
+  const protectionTotal = protectionDailyRate * days;
+
+  // 5) Add-ons (canonical prices from DB)
+  let addOnsTotal = 0;
+  if (input.addOns && input.addOns.length > 0) {
+    const addOnIds = input.addOns.map(a => a.addOnId);
+    const { data: addOnRows } = await supabase
+      .from("add_ons")
+      .select("id, daily_rate, one_time_fee")
+      .in("id", addOnIds);
+
+    if (addOnRows) {
+      const priceMap = new Map(addOnRows.map(a => [a.id, a]));
+      for (const a of input.addOns) {
+        const row = priceMap.get(a.addOnId);
+        if (!row) throw new Error(`Invalid add-on: ${a.addOnId}`);
+        const qty = Math.min(10, Math.max(1, a.quantity));
+        const dailyCost = Number(row.daily_rate) * days * qty;
+        const oneTimeCost = Number(row.one_time_fee ?? 0) * qty;
+        addOnsTotal += dailyCost + oneTimeCost;
+      }
+    }
+  }
+
+  // 6) Young driver fee
+  const youngDriverFee = input.driverAgeBand === "20_24" ? YOUNG_DRIVER_FEE * days : 0;
+
+  // 7) Daily regulatory fees
+  const dailyFeesTotal = (PVRT_DAILY_FEE + ACSRCH_DAILY_FEE) * days;
+
+  // 8) Delivery + dropoff fees
+  const deliveryFee = Number(input.deliveryFee ?? 0);
+  const differentDropoffFee = Number(input.differentDropoffFee ?? 0);
+
+  // 9) Subtotal (rounded to avoid float drift)
+  const subtotal = Math.round(
+    (vehicleTotal + protectionTotal + addOnsTotal + youngDriverFee +
+     dailyFeesTotal + deliveryFee + differentDropoffFee) * 100
+  ) / 100;
+
+  // 10) Taxes
+  const pst = Math.round(subtotal * PST_RATE * 100) / 100;
+  const gst = Math.round(subtotal * GST_RATE * 100) / 100;
+  const taxAmount = Math.round((pst + gst) * 100) / 100;
+
+  // 11) Total
+  const total = Math.round((subtotal + taxAmount) * 100) / 100;
+
+  return {
+    days,
+    dailyRate,
+    vehicleBaseTotal,
+    weekendSurcharge,
+    durationDiscount,
+    vehicleTotal,
+    protectionDailyRate,
+    protectionTotal,
+    addOnsTotal,
+    youngDriverFee,
+    dailyFeesTotal,
+    subtotal,
+    taxAmount,
+    total,
+  };
+}
+
+/**
+ * Validate client-sent totals against server-computed totals.
+ * Returns null if valid, or an error message string.
+ */
+export async function validateClientPricing(params: {
+  vehicleId: string;
+  startAt: string;
+  endAt: string;
+  protectionPlan?: string;
+  addOns?: { addOnId: string; quantity: number }[];
+  driverAgeBand?: string;
+  deliveryFee?: number;
+  differentDropoffFee?: number;
+  clientTotal: number;
+}): Promise<{ valid: boolean; serverTotal: number; error?: string }> {
+  try {
+    const server = await computeBookingTotals({
+      vehicleId: params.vehicleId,
+      startAt: params.startAt,
+      endAt: params.endAt,
+      protectionPlan: params.protectionPlan,
+      addOns: params.addOns,
+      driverAgeBand: params.driverAgeBand,
+      deliveryFee: params.deliveryFee,
+      differentDropoffFee: params.differentDropoffFee,
+    });
+
+    const diff = Math.abs(server.total - params.clientTotal);
+    if (diff > PRICE_MISMATCH_TOLERANCE) {
+      console.warn(
+        `[price-validation] MISMATCH: client=$${params.clientTotal}, server=$${server.total}, diff=$${diff.toFixed(2)}`
+      );
+      return {
+        valid: false,
+        serverTotal: server.total,
+        error: `Price mismatch: expected $${server.total.toFixed(2)}, received $${params.clientTotal.toFixed(2)}`,
+      };
+    }
+
+    return { valid: true, serverTotal: server.total };
+  } catch (err) {
+    console.error("[price-validation] Error computing server totals:", err);
+    // If we can't validate, allow but log — don't block checkout entirely
+    return { valid: true, serverTotal: params.clientTotal };
+  }
+}
+
+// ========== BOOKING OWNERSHIP HELPERS ==========
+
+/**
+ * Verify booking ownership via authenticated user OR booking_code (guest proof-of-knowledge).
+ * Returns the booking row if authorized.
+ */
+export async function requireBookingOwnerOrCode(
+  bookingId: string,
+  authUserId: string | null,
+  bookingCode: string | undefined,
+): Promise<{ id: string; user_id: string; booking_code: string; total_amount: number }> {
+  const supabase = getAdminClient();
+
+  const { data: booking, error } = await supabase
+    .from("bookings")
+    .select("id, user_id, booking_code, total_amount, deposit_amount, status")
+    .eq("id", bookingId)
+    .single();
+
+  if (error || !booking) {
+    throw new AuthError("Booking not found", 404);
+  }
+
+  // Path 1: Authenticated user owns booking
+  if (authUserId && booking.user_id === authUserId) {
+    return booking;
+  }
+
+  // Path 2: Guest provides booking_code as proof of knowledge
+  if (bookingCode && booking.booking_code === bookingCode) {
+    return booking;
+  }
+
+  // Neither path succeeded
+  throw new AuthError("Forbidden: not booking owner", 403);
+}
+
+// ========== EXISTING FUNCTIONS ==========
+
 /**
  * Check for conflicting bookings
  */
@@ -87,7 +353,6 @@ export async function checkBookingConflicts(
 
 /**
  * Validate driver age band
- * Matches the frontend values from src/lib/pricing.ts: "20_24" | "25_70"
  */
 export function isValidAgeBand(ageBand: string | undefined): boolean {
   return !!ageBand && ["20_24", "25_70"].includes(ageBand);
@@ -99,7 +364,7 @@ export function isValidAgeBand(ageBand: string | undefined): boolean {
 export async function createBookingRecord(input: BookingInput): Promise<BookingResult> {
   const supabase = getAdminClient();
   
-  // BUSINESS RULE: Enforce minimum deposit - deposit can NEVER be zero
+  // BUSINESS RULE: Enforce minimum deposit
   const enforcedDepositAmount = Math.max(input.depositAmount, MINIMUM_DEPOSIT_AMOUNT);
   
   const { data: booking, error } = await supabase
@@ -234,8 +499,6 @@ export async function createAdditionalDrivers(
 
 /**
  * Send booking notifications (awaitable)
- * IMPORTANT: Must be awaited before returning the edge function response,
- * otherwise Deno kills the process before fetch calls complete.
  */
 export async function sendBookingNotifications(params: {
   bookingId: string;
@@ -263,7 +526,6 @@ export async function sendBookingNotifications(params: {
     }
   };
   
-  // Send all notifications in parallel and wait for them to complete
   await Promise.all([
     sendNotification("send-booking-email", {
       bookingId: params.bookingId,

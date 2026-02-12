@@ -1,7 +1,8 @@
 /**
  * create-guest-booking - Create booking for unauthenticated users
  * 
- * PR5: Now uses shared booking-core for reduced duplication
+ * PR5: Uses shared booking-core for reduced duplication
+ * PR6: Server-side price validation + protectionPlan passthrough
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { 
@@ -23,6 +24,7 @@ import {
   createBookingAddOns,
   createAdditionalDrivers,
   sendBookingNotifications,
+  validateClientPricing,
   type AddOnInput,
   type AdditionalDriverInput,
 } from "../_shared/booking-core.ts";
@@ -44,6 +46,7 @@ interface GuestBookingRequest {
   totalAmount: number;
   driverAgeBand: string;
   youngDriverFee?: number;
+  protectionPlan?: string;
   addOns?: AddOnInput[];
   additionalDrivers?: AdditionalDriverInput[];
   notes?: string;
@@ -60,6 +63,7 @@ interface GuestBookingRequest {
   paymentMethod?: "pay-now" | "pay-later";
   returnLocationId?: string;
   differentDropoffFee?: number;
+  deliveryFee?: number;
   isWalkIn?: boolean;
 }
 
@@ -107,7 +111,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Phone is optional for walk-in bookings
     if (phone && !isValidPhone(phone)) {
       return new Response(
         JSON.stringify({ error: "Invalid phone number format" }),
@@ -121,7 +124,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Additional rate limiting by email: 5 bookings per email per day
+    // Additional rate limiting by email
     const emailRateLimit = checkRateLimit(email, {
       windowMs: 24 * 60 * 60 * 1000,
       maxRequests: 5,
@@ -149,6 +152,7 @@ Deno.serve(async (req) => {
       totalAmount,
       driverAgeBand,
       youngDriverFee,
+      protectionPlan,
       addOns,
       notes,
       pickupAddress,
@@ -161,6 +165,8 @@ Deno.serve(async (req) => {
       cardLastFour,
       cardType,
       cardHolderName,
+      deliveryFee,
+      differentDropoffFee,
     } = body;
 
     // Validate required fields
@@ -171,7 +177,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate driver age band using shared function
+    // Validate driver age band
     if (!isValidAgeBand(driverAgeBand)) {
       return new Response(
         JSON.stringify({ error: "age_validation_failed", message: "Driver age confirmation is required." }),
@@ -179,7 +185,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check for conflicting bookings using shared function
+    // SECURITY (PR6): Server-side price validation
+    const priceCheck = await validateClientPricing({
+      vehicleId,
+      startAt,
+      endAt,
+      protectionPlan,
+      addOns: addOns?.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })),
+      driverAgeBand,
+      deliveryFee,
+      differentDropoffFee,
+      clientTotal: totalAmount,
+    });
+
+    if (!priceCheck.valid) {
+      console.warn(`[create-guest-booking] Price mismatch: ${priceCheck.error}`);
+      return new Response(
+        JSON.stringify({ 
+          error: "PRICE_MISMATCH",
+          message: priceCheck.error,
+          serverTotal: priceCheck.serverTotal,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check for conflicting bookings
     const hasConflict = await checkBookingConflicts(vehicleId, startAt, endAt);
     if (hasConflict) {
       return new Response(
@@ -189,32 +220,24 @@ Deno.serve(async (req) => {
     }
 
     // Create or find guest user
-    // SECURITY: Guest accounts are created with email_confirm = false
-    // They must verify email before accessing account features
-    // Use efficient email lookup instead of listing all users
     let userId: string | null = null;
     let isNewUser = false;
     
-    // Check profiles table first (fast indexed lookup)
     const { data: existingProfile } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("email", email)
       .maybeSingle();
     
-    const existingUser = existingProfile;
-    
-    if (existingUser) {
-      userId = existingUser.id;
+    if (existingProfile) {
+      userId = existingProfile.id;
       console.log("Found existing user:", userId);
     } else {
-      // Create guest user - email NOT auto-confirmed for security
-      // User must verify email to access their account
       const randomPassword = crypto.randomUUID() + crypto.randomUUID().slice(0, 8) + "Aa1!";
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: randomPassword,
-        email_confirm: false, // SECURITY: Require email verification
+        email_confirm: false,
         user_metadata: {
           full_name: `${firstName} ${lastName}`,
           phone,
@@ -235,7 +258,6 @@ Deno.serve(async (req) => {
       isNewUser = true;
       console.log("Created new guest user:", userId);
 
-      // Create profile
       await supabaseAdmin.from("profiles").upsert({
         id: userId,
         email,
@@ -262,7 +284,7 @@ Deno.serve(async (req) => {
       driverAgeBand,
       youngDriverFee,
       notes,
-      status: body.paymentMethod === "pay-now" ? "draft" : "pending", // Draft until payment confirmed
+      status: body.paymentMethod === "pay-now" ? "draft" : "pending",
       pickupAddress,
       pickupLat,
       pickupLng,
@@ -287,11 +309,11 @@ Deno.serve(async (req) => {
     const booking = bookingResult.booking;
     console.log("Booking created:", booking.id, booking.bookingCode);
 
-    // Add add-ons and additional drivers using shared functions
-    await createBookingAddOns(booking.id, addOns || []);
+    // SECURITY (PR6): Pass protectionPlan so roadside filter runs for guests too
+    await createBookingAddOns(booking.id, addOns || [], protectionPlan);
     await createAdditionalDrivers(booking.id, body.additionalDrivers || []);
 
-    // Send notifications — must await before returning response
+    // Send notifications
     await sendBookingNotifications({
       bookingId: booking.id,
       bookingCode: booking.bookingCode,
@@ -309,7 +331,6 @@ Deno.serve(async (req) => {
         },
         userId,
         isNewUser,
-        // Inform user they need to verify email to access account
         requiresEmailVerification: isNewUser,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
