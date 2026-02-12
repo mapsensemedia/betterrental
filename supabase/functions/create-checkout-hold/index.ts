@@ -1,21 +1,16 @@
 import Stripe from "npm:stripe@14.21.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, AuthError, authErrorResponse } from "../_shared/auth.ts";
-import { requireBookingOwnerOrCode } from "../_shared/booking-core.ts";
+import { requireBookingOwnerOrOtp } from "../_shared/booking-core.ts";
 
 /**
  * Create Checkout Payment (Hold/PaymentIntent)
  * 
- * SECURITY (PR6):
- * - Never accepts amount from client — uses booking.total_amount from DB
- * - Requires auth OR booking_code for guest proof-of-knowledge
- * - No userId from request body
+ * SECURITY (PR7):
+ * - Auth user: booking.user_id must match
+ * - Guest: must provide valid otpCode (not booking_code)
+ * - Amount from DB only — never from client
  */
-
-interface CreateCheckoutPaymentRequest {
-  bookingId: string;
-  bookingCode?: string; // Guest proof-of-knowledge
-}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -30,7 +25,7 @@ Deno.serve(async (req) => {
       throw new Error("Stripe not configured");
     }
 
-    const { bookingId, bookingCode }: CreateCheckoutPaymentRequest = await req.json();
+    const { bookingId, otpCode } = await req.json();
 
     if (!bookingId) {
       return new Response(
@@ -43,26 +38,22 @@ Deno.serve(async (req) => {
     const auth = await validateAuth(req);
     const authUserId = auth.authenticated ? auth.userId ?? null : null;
 
-    // SECURITY: Verify ownership via auth OR booking_code
-    const booking = await requireBookingOwnerOrCode(bookingId, authUserId, bookingCode);
+    // SECURITY: Verify ownership via auth OR OTP (not booking_code)
+    const booking = await requireBookingOwnerOrOtp(bookingId, authUserId, otpCode);
 
     // Use server-side amount — NEVER from client
     const amount = booking.total_amount;
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2023-10-16",
-    });
-
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
     const supabase = getAdminClient();
 
-    // Get full booking details for PI metadata
+    // Idempotency check
     const { data: bookingFull } = await supabase
       .from("bookings")
       .select("booking_code, user_id, stripe_deposit_pi_id")
       .eq("id", bookingId)
       .single();
 
-    // Idempotency check - if already has a PI, return it
     if (bookingFull?.stripe_deposit_pi_id) {
       try {
         const existingPI = await stripe.paymentIntents.retrieve(bookingFull.stripe_deposit_pi_id);
@@ -92,13 +83,8 @@ Deno.serve(async (req) => {
 
     // Get or create Stripe customer
     let stripeCustomerId: string | undefined;
-    
     if (profile?.email) {
-      const existingCustomers = await stripe.customers.list({
-        email: profile.email,
-        limit: 1,
-      });
-
+      const existingCustomers = await stripe.customers.list({ email: profile.email, limit: 1 });
       if (existingCustomers.data.length > 0) {
         stripeCustomerId = existingCustomers.data[0].id;
       } else {
@@ -106,10 +92,7 @@ Deno.serve(async (req) => {
           email: profile.email,
           name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || undefined,
           phone: profile.phone || undefined,
-          metadata: {
-            user_id: booking.user_id,
-            source: "c2c_rental_checkout",
-          },
+          metadata: { user_id: booking.user_id, source: "c2c_rental_checkout" },
         });
         stripeCustomerId = newCustomer.id;
       }
@@ -117,7 +100,6 @@ Deno.serve(async (req) => {
 
     const amountCents = Math.round(amount * 100);
 
-    // Create standard PaymentIntent (auto-capture)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "cad",

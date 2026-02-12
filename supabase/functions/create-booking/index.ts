@@ -1,43 +1,27 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * create-booking - Create booking for authenticated users
+ * 
+ * SECURITY (PR7):
+ * - Requires authentication
+ * - Server-side price computation — all client pricing fields ignored
+ * - Fail-closed: if pricing computation throws, return 400
+ * - Add-on prices computed server-side from DB
+ */
 import { 
   getCorsHeaders, 
   handleCorsPreflightRequest,
   getClientIp,
   checkRateLimit,
   rateLimitResponse,
-  sanitizeEmail,
   sanitizePhone,
-  isValidEmail,
   isValidPhone,
 } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient } from "../_shared/auth.ts";
-import { validateClientPricing } from "../_shared/booking-core.ts";
-
-interface CreateBookingRequest {
-  holdId: string;
-  vehicleId: string;
-  locationId: string;
-  startAt: string;
-  endAt: string;
-  dailyRate: number;
-  totalDays: number;
-  subtotal: number;
-  taxAmount: number;
-  depositAmount: number;
-  totalAmount: number;
-  userPhone: string;
-  driverAgeBand?: string;
-  youngDriverFee?: number;
-  protectionPlan?: string;
-  addOns: Array<{
-    addOnId: string;
-    price: number;
-    quantity: number;
-  }>;
-  notes?: string;
-  deliveryFee?: number;
-  differentDropoffFee?: number;
-}
+import {
+  validateClientPricing,
+  createBookingAddOns,
+  type BookingInput,
+} from "../_shared/booking-core.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -47,7 +31,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Rate limiting: 5 booking attempts per IP per minute
+    // Rate limiting
     const clientIp = getClientIp(req);
     const rateLimit = checkRateLimit(clientIp, {
       windowMs: 60 * 1000,
@@ -56,7 +40,6 @@ Deno.serve(async (req) => {
     });
     
     if (!rateLimit.allowed) {
-      console.log(`[create-booking] Rate limit exceeded for IP: ${clientIp}`);
       return rateLimitResponse(rateLimit.resetAt, corsHeaders);
     }
 
@@ -70,7 +53,7 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = getAdminClient();
-    const body: CreateBookingRequest = await req.json();
+    const body = await req.json();
     
     console.log("Creating booking for user:", auth.userId);
 
@@ -80,20 +63,14 @@ Deno.serve(async (req) => {
       locationId,
       startAt,
       endAt,
-      dailyRate,
-      totalDays,
-      subtotal,
-      taxAmount,
-      depositAmount,
-      totalAmount,
       userPhone,
       driverAgeBand,
-      youngDriverFee,
       protectionPlan,
-      addOns,
+      addOns,      // Only { addOnId, quantity }[] accepted — price ignored
       notes,
       deliveryFee,
       differentDropoffFee,
+      totalAmount,  // Client total — used only for mismatch check, never stored
     } = body;
 
     // Input validation
@@ -104,7 +81,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate driver age band
     if (!driverAgeBand || !["20_24", "25_70"].includes(driverAgeBand)) {
       return new Response(
         JSON.stringify({ 
@@ -115,18 +91,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // SECURITY (PR6): Server-side price validation
-    const priceCheck = await validateClientPricing({
-      vehicleId,
-      startAt,
-      endAt,
-      protectionPlan,
-      addOns: addOns?.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })),
-      driverAgeBand,
-      deliveryFee,
-      differentDropoffFee,
-      clientTotal: totalAmount,
-    });
+    // SECURITY (PR7): Server-side price validation — FAIL CLOSED
+    let priceCheck;
+    try {
+      priceCheck = await validateClientPricing({
+        vehicleId,
+        startAt,
+        endAt,
+        protectionPlan,
+        addOns: addOns?.map((a: { addOnId: string; quantity: number }) => ({ addOnId: a.addOnId, quantity: a.quantity })),
+        driverAgeBand,
+        deliveryFee,
+        differentDropoffFee,
+        clientTotal: Number(totalAmount),
+      });
+    } catch (err) {
+      console.error("[create-booking] PRICE_VALIDATION_FAILED:", err);
+      return new Response(
+        JSON.stringify({ error: "PRICE_VALIDATION_FAILED", message: "Server-side pricing computation failed." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!priceCheck.valid) {
       console.warn(`[create-booking] Price mismatch for user ${auth.userId}: ${priceCheck.error}`);
@@ -134,11 +119,13 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           error: "PRICE_MISMATCH",
           message: priceCheck.error,
-          serverTotal: priceCheck.serverTotal,
+          serverTotal: priceCheck.serverTotals.total,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const serverTotals = priceCheck.serverTotals;
 
     // Validate and sanitize phone
     if (userPhone) {
@@ -154,7 +141,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 1: Verify hold is still active and belongs to user
+    // Verify hold is still active and belongs to user
     const { data: hold, error: holdError } = await supabaseAdmin
       .from("reservation_holds")
       .select("*")
@@ -164,7 +151,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (holdError || !hold) {
-      console.log("Hold validation failed:", holdError);
       return new Response(
         JSON.stringify({ 
           error: "reservation_expired",
@@ -174,7 +160,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if hold has expired
     if (new Date(hold.expires_at) < new Date()) {
       await supabaseAdmin
         .from("reservation_holds")
@@ -190,7 +175,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 2: Double-check no conflicting bookings
+    // Double-check no conflicting bookings
     const { data: conflicts } = await supabaseAdmin
       .from("bookings")
       .select("id")
@@ -214,7 +199,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 3: Create the booking (use server-validated totals)
+    // Create the booking with SERVER-COMPUTED totals
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")
       .insert({
@@ -223,17 +208,19 @@ Deno.serve(async (req) => {
         location_id: locationId,
         start_at: startAt,
         end_at: endAt,
-        daily_rate: dailyRate,
-        total_days: totalDays,
-        subtotal: subtotal,
-        tax_amount: taxAmount,
-        deposit_amount: depositAmount,
-        total_amount: totalAmount,
+        // ALL financial fields from server computation
+        daily_rate: serverTotals.dailyRate,
+        total_days: serverTotals.days,
+        subtotal: serverTotals.subtotal,
+        tax_amount: serverTotals.taxAmount,
+        deposit_amount: serverTotals.depositAmount,
+        total_amount: serverTotals.total,
+        young_driver_fee: serverTotals.youngDriverFee,
+        different_dropoff_fee: serverTotals.differentDropoffFee,
         booking_code: "",
         status: "confirmed",
         notes: notes?.slice(0, 1000) || null,
         driver_age_band: driverAgeBand,
-        young_driver_fee: youngDriverFee || 0,
         protection_plan: protectionPlan || null,
       })
       .select()
@@ -249,19 +236,18 @@ Deno.serve(async (req) => {
 
     console.log("Booking created:", booking.id);
 
-    // Step 4: Create booking add-ons (with roadside filter if premium protection)
-    if (addOns && addOns.length > 0) {
-      const { createBookingAddOns } = await import("../_shared/booking-core.ts");
-      await createBookingAddOns(booking.id, addOns, protectionPlan);
+    // Create add-ons with SERVER-COMPUTED prices
+    if (serverTotals.addOnPrices.length > 0) {
+      await createBookingAddOns(booking.id, serverTotals.addOnPrices);
     }
 
-    // Step 5: Mark hold as converted
+    // Mark hold as converted
     await supabaseAdmin
       .from("reservation_holds")
       .update({ status: "converted" })
       .eq("id", holdId);
 
-    // Fetch details for notifications
+    // Notifications
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -286,32 +272,20 @@ Deno.serve(async (req) => {
       console.log("Failed to fetch names for notification:", e);
     }
 
-    // Send notifications
     const notificationPromises = [
       fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
         body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
       }).catch(err => console.error("SMS notification failed:", err)),
-
       fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
         body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
       }).catch(err => console.error("Email notification failed:", err)),
-
       fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
         body: JSON.stringify({
           eventType: "new_booking",
           bookingId: booking.id,

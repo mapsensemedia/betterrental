@@ -1,10 +1,12 @@
 /**
  * create-guest-booking - Create booking for unauthenticated users
  * 
- * PR5: Uses shared booking-core for reduced duplication
- * PR6: Server-side price validation + protectionPlan passthrough
+ * SECURITY (PR7):
+ * - Server-side price computation — all client pricing fields ignored
+ * - Fail-closed: if pricing computation throws, return 400
+ * - Add-on prices computed server-side from DB
+ * - protectionPlan passed through for roadside filter
  */
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { 
   getCorsHeaders, 
   handleCorsPreflightRequest,
@@ -25,47 +27,8 @@ import {
   createAdditionalDrivers,
   sendBookingNotifications,
   validateClientPricing,
-  type AddOnInput,
   type AdditionalDriverInput,
 } from "../_shared/booking-core.ts";
-
-interface GuestBookingRequest {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  vehicleId: string;
-  locationId: string;
-  startAt: string;
-  endAt: string;
-  dailyRate: number;
-  totalDays: number;
-  subtotal: number;
-  taxAmount: number;
-  depositAmount: number;
-  totalAmount: number;
-  driverAgeBand: string;
-  youngDriverFee?: number;
-  protectionPlan?: string;
-  addOns?: AddOnInput[];
-  additionalDrivers?: AdditionalDriverInput[];
-  notes?: string;
-  pickupAddress?: string;
-  pickupLat?: number;
-  pickupLng?: number;
-  saveTimeAtCounter?: boolean;
-  pickupContactName?: string;
-  pickupContactPhone?: string;
-  specialInstructions?: string;
-  cardLastFour?: string;
-  cardType?: string;
-  cardHolderName?: string;
-  paymentMethod?: "pay-now" | "pay-later";
-  returnLocationId?: string;
-  differentDropoffFee?: number;
-  deliveryFee?: number;
-  isWalkIn?: boolean;
-}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -75,7 +38,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Strict rate limiting for guest bookings: 3 per IP per 5 minutes
+    // Strict rate limiting for guest bookings
     const clientIp = getClientIp(req);
     const ipRateLimit = checkRateLimit(clientIp, {
       windowMs: 5 * 60 * 1000,
@@ -84,12 +47,11 @@ Deno.serve(async (req) => {
     });
     
     if (!ipRateLimit.allowed) {
-      console.log(`[create-guest-booking] IP rate limit exceeded: ${clientIp}`);
       return rateLimitResponse(ipRateLimit.resetAt, corsHeaders);
     }
 
     const supabaseAdmin = getAdminClient();
-    const body: GuestBookingRequest = await req.json();
+    const body = await req.json();
 
     // Sanitize and validate inputs
     const firstName = body.firstName?.trim().slice(0, 100);
@@ -124,7 +86,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Additional rate limiting by email
+    // Rate limiting by email
     const emailRateLimit = checkRateLimit(email, {
       windowMs: 24 * 60 * 60 * 1000,
       maxRequests: 5,
@@ -132,7 +94,6 @@ Deno.serve(async (req) => {
     });
     
     if (!emailRateLimit.allowed) {
-      console.log(`[create-guest-booking] Email rate limit exceeded: ${email}`);
       return new Response(
         JSON.stringify({ error: "Too many booking attempts. Please try again later." }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -144,16 +105,9 @@ Deno.serve(async (req) => {
       locationId,
       startAt,
       endAt,
-      dailyRate,
-      totalDays,
-      subtotal,
-      taxAmount,
-      depositAmount,
-      totalAmount,
       driverAgeBand,
-      youngDriverFee,
       protectionPlan,
-      addOns,
+      addOns,        // Only { addOnId, quantity }[] — price ignored
       notes,
       pickupAddress,
       pickupLat,
@@ -167,6 +121,7 @@ Deno.serve(async (req) => {
       cardHolderName,
       deliveryFee,
       differentDropoffFee,
+      totalAmount,    // Client total — used only for mismatch check
     } = body;
 
     // Validate required fields
@@ -177,7 +132,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate driver age band
     if (!isValidAgeBand(driverAgeBand)) {
       return new Response(
         JSON.stringify({ error: "age_validation_failed", message: "Driver age confirmation is required." }),
@@ -185,18 +139,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // SECURITY (PR6): Server-side price validation
-    const priceCheck = await validateClientPricing({
-      vehicleId,
-      startAt,
-      endAt,
-      protectionPlan,
-      addOns: addOns?.map(a => ({ addOnId: a.addOnId, quantity: a.quantity })),
-      driverAgeBand,
-      deliveryFee,
-      differentDropoffFee,
-      clientTotal: totalAmount,
-    });
+    // SECURITY (PR7): Server-side price validation — FAIL CLOSED
+    let priceCheck;
+    try {
+      priceCheck = await validateClientPricing({
+        vehicleId,
+        startAt,
+        endAt,
+        protectionPlan,
+        addOns: addOns?.map((a: { addOnId: string; quantity: number }) => ({ addOnId: a.addOnId, quantity: a.quantity })),
+        driverAgeBand,
+        deliveryFee,
+        differentDropoffFee,
+        clientTotal: Number(totalAmount),
+      });
+    } catch (err) {
+      console.error("[create-guest-booking] PRICE_VALIDATION_FAILED:", err);
+      return new Response(
+        JSON.stringify({ error: "PRICE_VALIDATION_FAILED", message: "Server-side pricing computation failed." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!priceCheck.valid) {
       console.warn(`[create-guest-booking] Price mismatch: ${priceCheck.error}`);
@@ -204,11 +167,13 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           error: "PRICE_MISMATCH",
           message: priceCheck.error,
-          serverTotal: priceCheck.serverTotal,
+          serverTotal: priceCheck.serverTotals.total,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const serverTotals = priceCheck.serverTotals;
 
     // Check for conflicting bookings
     const hasConflict = await checkBookingConflicts(vehicleId, startAt, endAt);
@@ -231,7 +196,6 @@ Deno.serve(async (req) => {
     
     if (existingProfile) {
       userId = existingProfile.id;
-      console.log("Found existing user:", userId);
     } else {
       const randomPassword = crypto.randomUUID() + crypto.randomUUID().slice(0, 8) + "Aa1!";
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -256,7 +220,6 @@ Deno.serve(async (req) => {
 
       userId = newUser.user.id;
       isNewUser = true;
-      console.log("Created new guest user:", userId);
 
       await supabaseAdmin.from("profiles").upsert({
         id: userId,
@@ -268,21 +231,15 @@ Deno.serve(async (req) => {
       }, { onConflict: "id" });
     }
 
-    // Create booking using shared function
+    // Create booking with SERVER-COMPUTED totals
     const bookingResult = await createBookingRecord({
       userId: userId!,
       vehicleId,
       locationId,
       startAt,
       endAt,
-      dailyRate,
-      totalDays,
-      subtotal,
-      taxAmount,
-      depositAmount,
-      totalAmount,
       driverAgeBand,
-      youngDriverFee,
+      protectionPlan,
       notes,
       status: body.paymentMethod === "pay-now" ? "draft" : "pending",
       pickupAddress,
@@ -296,8 +253,9 @@ Deno.serve(async (req) => {
       cardType,
       cardHolderName,
       returnLocationId: body.returnLocationId,
-      differentDropoffFee: body.differentDropoffFee,
-    });
+      deliveryFee,
+      differentDropoffFee,
+    }, serverTotals);
 
     if (!bookingResult.success || !bookingResult.booking) {
       return new Response(
@@ -309,8 +267,8 @@ Deno.serve(async (req) => {
     const booking = bookingResult.booking;
     console.log("Booking created:", booking.id, booking.bookingCode);
 
-    // SECURITY (PR6): Pass protectionPlan so roadside filter runs for guests too
-    await createBookingAddOns(booking.id, addOns || [], protectionPlan);
+    // Create add-ons with SERVER-COMPUTED prices
+    await createBookingAddOns(booking.id, serverTotals.addOnPrices);
     await createAdditionalDrivers(booking.id, body.additionalDrivers || []);
 
     // Send notifications
