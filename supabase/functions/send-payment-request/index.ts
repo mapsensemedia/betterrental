@@ -6,7 +6,7 @@ import { getUserOrThrow, requireRoleOrThrow, AuthError, authErrorResponse } from
 
 interface PaymentRequestParams {
   bookingId: string;
-  amount: number;
+  amount?: number; // Optional override — validated against booking total
   channel: "email" | "sms" | "both";
 }
 
@@ -16,10 +16,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let callerUserId: string;
   try {
     // SECURITY: Only admin/staff can send payment requests
     const user = await getUserOrThrow(req, corsHeaders);
     await requireRoleOrThrow(user.userId, ["admin", "staff"], corsHeaders);
+    callerUserId = user.userId;
   } catch (err) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
     throw err;
@@ -34,11 +36,11 @@ serve(async (req) => {
     const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
     const twilioFrom = Deno.env.get("TWILIO_PHONE_NUMBER");
 
-    const { bookingId, amount, channel }: PaymentRequestParams = await req.json();
+    const { bookingId, amount: requestedAmount, channel }: PaymentRequestParams = await req.json();
 
-    if (!bookingId || !amount) {
+    if (!bookingId) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Missing bookingId" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -53,11 +55,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
 
-    // Fetch booking details
+    // SECURITY (PR6): Validate booking exists and is in payable state
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
-        id, booking_code, total_amount, user_id,
+        id, booking_code, total_amount, user_id, status,
         locations!inner (name),
         vehicles!inner (make, model, year)
       `)
@@ -72,6 +74,40 @@ serve(async (req) => {
       );
     }
 
+    // SECURITY: Only allow payment requests for bookings in valid states
+    const payableStatuses = ["pending", "confirmed", "active"];
+    if (!payableStatuses.includes(booking.status)) {
+      return new Response(
+        JSON.stringify({ error: `Cannot send payment request for ${booking.status} booking` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY (PR6): Calculate actual amount due from DB
+    // Get total payments already received
+    const { data: existingPayments } = await supabase
+      .from("payments")
+      .select("amount")
+      .eq("booking_id", bookingId)
+      .eq("status", "completed");
+
+    const totalPaid = (existingPayments || []).reduce(
+      (sum: number, p: { amount: number }) => sum + Number(p.amount), 0
+    );
+    const amountDue = Math.max(0, booking.total_amount - totalPaid);
+
+    // Use requested amount if provided (staff override), but cap at amount due
+    let amount = requestedAmount && requestedAmount > 0
+      ? Math.min(requestedAmount, amountDue)
+      : amountDue;
+
+    if (amount <= 0) {
+      return new Response(
+        JSON.stringify({ error: "No amount due for this booking" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Fetch user profile
     const { data: profile } = await supabase
       .from("profiles")
@@ -83,7 +119,6 @@ serve(async (req) => {
     let userPhone = profile?.phone;
     let userName = profile?.full_name || "Customer";
 
-    // Fallback to auth.users if needed
     if (!userEmail || !userPhone) {
       const { data: authUser } = await supabase.auth.admin.getUserById(booking.user_id);
       if (authUser?.user) {
@@ -97,10 +132,7 @@ serve(async (req) => {
     const vehicleName = `${vehicleData?.year} ${vehicleData?.make} ${vehicleData?.model}`;
     const locationData = booking.locations as any;
 
-    // Create Stripe Checkout Session for payment request
-    console.log("Creating Stripe Checkout Session for payment request...");
-
-    // Find or create Stripe customer
+    // Create Stripe Checkout Session
     let customerId: string | undefined;
     if (userEmail) {
       const existingCustomers = await stripe.customers.list({ email: userEmail, limit: 1 });
@@ -117,7 +149,6 @@ serve(async (req) => {
       }
     }
 
-    // Determine success and cancel URLs
     const baseUrl = supabaseUrl.replace(".supabase.co", ".lovable.app");
 
     const session = await stripe.checkout.sessions.create({
@@ -126,7 +157,7 @@ serve(async (req) => {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: "cad",
             product_data: {
               name: `Payment Request - ${booking.booking_code}`,
               description: `${vehicleName} rental at ${locationData?.name || "our location"}`,
@@ -148,7 +179,7 @@ serve(async (req) => {
     });
 
     const paymentLink = session.url;
-    console.log("Stripe Checkout Session created:", session.id);
+    console.log("Stripe Checkout Session created:", session.id, "amount:", amount);
 
     const results: { email?: boolean; sms?: boolean } = {};
 
@@ -159,9 +190,7 @@ serve(async (req) => {
       const emailHtml = `
         <!DOCTYPE html>
         <html>
-        <head>
-          <meta charset="utf-8">
-        </head>
+        <head><meta charset="utf-8"></head>
         <body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f4f4f5;">
           <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden;">
             <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 40px 30px; text-align: center; color: white;">
@@ -169,27 +198,17 @@ serve(async (req) => {
             </div>
             <div style="padding: 40px 30px;">
               <p style="color: #52525b; line-height: 1.6;">Hello ${userName},</p>
-              <p style="color: #52525b; line-height: 1.6;">
-                We have a payment request for your booking <strong>${booking.booking_code}</strong>.
-              </p>
+              <p style="color: #52525b; line-height: 1.6;">We have a payment request for your booking <strong>${booking.booking_code}</strong>.</p>
               <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin: 30px 0; text-align: center;">
                 <p style="margin: 0 0 10px; color: #71717a; font-size: 14px;">Amount Due</p>
                 <p style="margin: 0; color: #18181b; font-size: 32px; font-weight: 700;">$${amount.toFixed(2)}</p>
               </div>
-              <p style="color: #52525b; line-height: 1.6;">
-                <strong>Vehicle:</strong> ${vehicleName}
-              </p>
-              <p style="color: #52525b; line-height: 1.6;">
-                <strong>Location:</strong> ${locationData?.name || "Our rental center"}
-              </p>
+              <p style="color: #52525b; line-height: 1.6;"><strong>Vehicle:</strong> ${vehicleName}</p>
+              <p style="color: #52525b; line-height: 1.6;"><strong>Location:</strong> ${locationData?.name || "Our rental center"}</p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${paymentLink}" style="display: inline-block; background: #3b82f6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600;">
-                  Pay Now Securely
-                </a>
+                <a href="${paymentLink}" style="display: inline-block; background: #3b82f6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600;">Pay Now Securely</a>
               </div>
-              <p style="color: #71717a; font-size: 12px; text-align: center;">
-                This is a secure payment powered by Stripe. If you've already made this payment, please disregard this message.
-              </p>
+              <p style="color: #71717a; font-size: 12px; text-align: center;">This is a secure payment powered by Stripe.</p>
             </div>
           </div>
         </body>
@@ -226,7 +245,6 @@ serve(async (req) => {
         });
 
         results.email = emailRes.ok;
-        console.log("Email sent:", emailRes.ok);
       } catch (emailError) {
         console.error("Email error:", emailError);
         results.email = false;
@@ -236,7 +254,6 @@ serve(async (req) => {
     // Send SMS if requested
     if ((channel === "sms" || channel === "both") && twilioSid && twilioToken && twilioFrom && userPhone) {
       const idempotencyKey = `payment_request_sms_${bookingId}_${Date.now()}`;
-
       const smsMessage = `C2C Rental: Payment of $${amount.toFixed(2)} is due for booking ${booking.booking_code}. Pay securely: ${paymentLink}`;
 
       try {
@@ -271,34 +288,28 @@ serve(async (req) => {
         });
 
         results.sms = smsRes.ok;
-        console.log("SMS sent:", smsRes.ok);
       } catch (smsError) {
         console.error("SMS error:", smsError);
         results.sms = false;
       }
     }
 
-    // Log to audit
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader) {
-      const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-      if (user) {
-        await supabase.from("audit_logs").insert({
-          action: "payment_request_sent",
-          entity_type: "booking",
-          entity_id: bookingId,
-          user_id: user.id,
-          new_data: { amount, channel, results, stripe_session_id: session.id },
-        });
-      }
-    }
+    // Audit log
+    await supabase.from("audit_logs").insert({
+      action: "payment_request_sent",
+      entity_type: "booking",
+      entity_id: bookingId,
+      user_id: callerUserId,
+      new_data: { amount, channel, results, stripe_session_id: session.id },
+    });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         results, 
         paymentLink,
-        sessionId: session.id 
+        sessionId: session.id,
+        amount,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
