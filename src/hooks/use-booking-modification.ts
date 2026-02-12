@@ -1,12 +1,12 @@
 /**
  * Hook for modifying active/confirmed bookings — extend duration, update dates,
- * and recalculate pricing automatically.
+ * and recalculate pricing automatically via server-side edge function.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { calculateBookingPricing, DriverAgeBand, TOTAL_TAX_RATE } from "@/lib/pricing";
-import { differenceInDays, differenceInHours } from "date-fns";
+import { calculateBookingPricing, DriverAgeBand } from "@/lib/pricing";
+import { differenceInHours } from "date-fns";
 
 export interface BookingModification {
   bookingId: string;
@@ -28,6 +28,7 @@ export interface ModificationPreview {
 
 /**
  * Preview the pricing impact of a booking modification before confirming
+ * (client-side preview only — actual write goes through edge function)
  */
 export function previewModification(
   booking: {
@@ -50,7 +51,6 @@ export function previewModification(
   const start = new Date(booking.start_at);
   const newEnd = new Date(newEndAt);
 
-  // Calculate new days (minimum 1)
   const hoursDiff = differenceInHours(newEnd, start);
   const newDays = Math.max(1, Math.ceil(hoursDiff / 24));
 
@@ -80,122 +80,32 @@ export function previewModification(
 }
 
 /**
- * Mutation to apply a booking modification with full recalculation
+ * Mutation to apply a booking modification via server-side repricing
  */
 export function useModifyBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ bookingId, newEndAt, reason }: BookingModification) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Fetch current booking
-      const { data: booking, error: fetchErr } = await supabase
-        .from("bookings")
-        .select(`
-          id, start_at, end_at, daily_rate, total_days, subtotal,
-          tax_amount, total_amount, vehicle_id, user_id, status,
-          driver_age_band, protection_plan, young_driver_fee,
-          deposit_amount, location_id
-        `)
-        .eq("id", bookingId)
-        .maybeSingle();
-
-      if (fetchErr || !booking) throw new Error("Booking not found");
-
-      if (!["pending", "confirmed", "active"].includes(booking.status)) {
-        throw new Error("Only pending, confirmed, or active bookings can be modified");
-      }
-
-      // Get add-ons total
-      const { data: addOns } = await supabase
-        .from("booking_add_ons")
-        .select("price, quantity")
-        .eq("booking_id", bookingId);
-
-      const addOnsTotal = (addOns || []).reduce((sum, a) => sum + Number(a.price), 0);
-
-      // Get protection daily rate from system settings or categories
-      let protectionDailyRate = 0;
-      if (booking.protection_plan && booking.protection_plan !== "none") {
-        const { data: settings } = await supabase
-          .from("system_settings")
-          .select("value")
-          .eq("key", `protection_${booking.protection_plan}_rate`)
-          .maybeSingle();
-        
-        if (settings?.value) {
-          protectionDailyRate = Number(settings.value);
-        }
-      }
-
-      // Calculate new days
-      const start = new Date(booking.start_at);
-      const newEnd = new Date(newEndAt);
-      const hoursDiff = differenceInHours(newEnd, start);
-      const newDays = Math.max(1, Math.ceil(hoursDiff / 24));
-
-      const ageBand = booking.driver_age_band === "20_24" ? "20_24" as DriverAgeBand : null;
-
-      // Recalculate pricing
-      const newPricing = calculateBookingPricing({
-        vehicleDailyRate: booking.daily_rate,
-        rentalDays: newDays,
-        protectionDailyRate,
-        addOnsTotal,
-        driverAgeBand: ageBand,
-        pickupDate: start,
-      });
-
-      // Prepare old data for audit
-      const oldData = {
-        end_at: booking.end_at,
-        total_days: booking.total_days,
-        subtotal: booking.subtotal,
-        tax_amount: booking.tax_amount,
-        total_amount: booking.total_amount,
-      };
-
-      // Update booking
-      const { error: updateErr } = await supabase
-        .from("bookings")
-        .update({
-          end_at: newEndAt,
-          total_days: newDays,
-          subtotal: Number(newPricing.subtotal.toFixed(2)),
-          tax_amount: Number(newPricing.taxAmount.toFixed(2)),
-          total_amount: Number(newPricing.total.toFixed(2)),
-        })
-        .eq("id", bookingId);
-
-      if (updateErr) throw updateErr;
-
-      // Audit log
-      await supabase.from("audit_logs").insert({
-        action: "booking_modified",
-        entity_type: "booking",
-        entity_id: bookingId,
-        user_id: user.id,
-        old_data: oldData,
-        new_data: {
-          end_at: newEndAt,
-          total_days: newDays,
-          subtotal: newPricing.subtotal,
-          tax_amount: newPricing.taxAmount,
-          total_amount: newPricing.total,
+      const { data, error } = await supabase.functions.invoke("reprice-booking", {
+        body: {
+          bookingId,
+          operation: "modify",
+          newEndAt,
           reason,
-          modified_by: user.id,
         },
       });
 
+      if (error) throw new Error(error.message || "Failed to modify booking");
+      if (data?.error) throw new Error(data.error);
+
       return {
         bookingId,
-        oldDays: booking.total_days,
-        newDays,
-        oldTotal: booking.total_amount,
-        newTotal: newPricing.total,
-        priceDifference: newPricing.total - booking.total_amount,
+        oldTotal: data.oldTotal,
+        newTotal: data.total,
+        priceDifference: data.total - data.oldTotal,
+        newDays: 0, // Will be refreshed from query invalidation
+        oldDays: 0,
       };
     },
     onSuccess: (result) => {
@@ -204,12 +114,12 @@ export function useModifyBooking() {
       queryClient.invalidateQueries({ queryKey: ["booking-activity-timeline", result.bookingId] });
       const diff = result.priceDifference;
       toast.success(
-        `Booking updated: ${result.oldDays} → ${result.newDays} days`,
+        "Booking duration updated",
         { description: diff > 0 ? `Additional charge: $${diff.toFixed(2)} CAD` : diff < 0 ? `Refund: $${Math.abs(diff).toFixed(2)} CAD` : "No price change" }
       );
     },
-    onError: () => {
-      toast.error("Failed to modify booking. Please try again.");
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to modify booking. Please try again.");
     },
   });
 }
