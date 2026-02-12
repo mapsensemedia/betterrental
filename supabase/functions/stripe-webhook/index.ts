@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
         const paymentType = session.metadata?.payment_type || "rental";
 
         if (sessionBookingId && session.payment_status === "paid") {
-          console.log(`Checkout completed for booking ${sessionBookingId}, type: ${paymentType}`);
+          console.log(`Checkout completed for booking ${sessionBookingId}, type: ${paymentType}, location: ${session.metadata?.location_id || "n/a"}`);
 
           const { data: booking } = await supabase
             .from("bookings")
@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
           const userId = booking?.user_id || session.metadata?.user_id || "";
           const amount = (session.amount_total || 0) / 100;
           const transactionId = (session.payment_intent as string) || session.id;
+          const locationId = session.metadata?.location_id || "";
 
           // Check duplicate
           const { data: existingPayment } = await supabase
