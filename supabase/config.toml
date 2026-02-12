@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.get-stripe-config]
 verify_jwt = false
+
+[functions.backfill-additional-drivers]
+verify_jwt = false
