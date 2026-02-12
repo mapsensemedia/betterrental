@@ -37,7 +37,7 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
   const bookingAddOns: any[] = booking.addOns ?? booking.booking_add_ons ?? [];
   const additionalDrivers: any[] = booking.additionalDrivers ?? booking.booking_additional_drivers ?? [];
 
-  const vehicleCents = toCents(booking.daily_rate) * totalDays;
+  const vehicleBaseCents = toCents(booking.daily_rate) * totalDays;
 
   const vehicleCat = booking.vehicles?.category || "";
   const plan = booking.protection_plan && booking.protection_plan !== "none"
@@ -64,10 +64,20 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
   const pvrtCents = toCents(PVRT_DAILY_FEE) * totalDays;
   const acsrchCents = toCents(ACSRCH_DAILY_FEE) * totalDays;
 
-  const itemizedCents = vehicleCents + protectionCents + addOnsCents + driversCents
-    + youngRenterCents + dropoffCents + upgradeCents + pvrtCents + acsrchCents;
-
+  // Derive effective vehicle total as remainder from DB subtotal minus all other known line items.
+  // This absorbs weekend surcharges and duration discounts without needing stored columns.
   const dbSubtotalCents = toCents(booking.subtotal);
+  const nonVehicleCents = protectionCents + addOnsCents + driversCents
+    + youngRenterCents + dropoffCents + upgradeCents + pvrtCents + acsrchCents;
+  const vehicleRemainderCents = dbSubtotalCents - nonVehicleCents;
+
+  // Sanity: use remainder if positive and within 10x of base (guards against corrupt legacy data)
+  const useRemainder = vehicleRemainderCents > 0 && vehicleRemainderCents <= vehicleBaseCents * 10;
+  const vehicleCents = useRemainder ? vehicleRemainderCents : vehicleBaseCents;
+  const vehicleHasAdjustments = useRemainder && vehicleRemainderCents !== vehicleBaseCents;
+
+  const itemizedCents = vehicleCents + nonVehicleCents;
+
   const deltaCents = dbSubtotalCents - itemizedCents;
 
   let inferredRow: { label: string; cents: number } | null = null;
@@ -116,13 +126,18 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
 
   return (
     <div className="space-y-1.5 text-xs">
-      {/* Vehicle */}
+      {/* Vehicle (uses remainder to absorb surcharges/discounts) */}
       <div className="flex justify-between">
         <span className="text-muted-foreground">
-          Vehicle ({totalDays}d × ${Number(booking.daily_rate).toFixed(2)}/day)
+          Vehicle{vehicleHasAdjustments ? " (incl. surcharges/discounts)" : ` (${totalDays}d × $${Number(booking.daily_rate).toFixed(2)}/day)`}
         </span>
         <span>${fromCents(vehicleCents)}</span>
       </div>
+      {vehicleHasAdjustments && (
+        <p className="text-[10px] text-muted-foreground pl-2">
+          Base: {totalDays}d × ${Number(booking.daily_rate).toFixed(2)}/day = ${fromCents(vehicleBaseCents)}
+        </p>
+      )}
 
       {/* Protection */}
       {plan && protectionCents > 0 && (
