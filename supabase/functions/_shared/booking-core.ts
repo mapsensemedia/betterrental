@@ -251,6 +251,20 @@ export async function validateAccessToken(
     throw new AuthError("Invalid or expired access token", 401);
   }
 
+  // Defensive: ensure token's booking_id matches the requested bookingId
+  if (tokenRow.booking_id !== bookingId) {
+    throw new AuthError("Token/booking mismatch", 401);
+  }
+
+  // Audit: mark first usage timestamp (don't overwrite)
+  if (!tokenRow.used_at) {
+    await supabase
+      .from("booking_access_tokens")
+      .update({ used_at: new Date().toISOString() })
+      .eq("id", tokenRow.id)
+      .is("used_at", null);
+  }
+
   // Fetch booking
   const { data: booking, error: bookErr } = await supabase
     .from("bookings")
