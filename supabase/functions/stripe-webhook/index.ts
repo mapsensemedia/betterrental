@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
 
           const { data: booking } = await supabase
             .from("bookings")
-            .select("user_id, status")
+            .select("user_id, status, total_amount, deposit_amount")
             .eq("id", sessionBookingId)
             .single();
 
@@ -182,6 +182,12 @@ Deno.serve(async (req) => {
           if (cardType) bookingUpdate.card_type = cardType;
           if (cardHolderName) bookingUpdate.card_holder_name = cardHolderName;
 
+          // Determine if this is a deposit or full payment
+          const bookingTotal = Number(booking?.total_amount ?? 0);
+          const depositAmount = Number(booking?.deposit_amount ?? 0);
+          const isDepositPayment = depositAmount > 0 && Math.abs(amount - depositAmount) < 1.00 && amount < bookingTotal;
+          const recordedPaymentType = isDepositPayment ? "deposit" : "rental";
+
           if (paymentType === "payment_request") {
             await supabase.from("payments").insert({
               booking_id: sessionBookingId,
@@ -213,16 +219,18 @@ Deno.serve(async (req) => {
               console.warn("Failed to send payment notification:", notifyErr);
             }
           } else {
+            // Only mark confirmed if full payment received (not just deposit)
+            const newStatus = isDepositPayment ? "pending" : "confirmed";
             await supabase
               .from("bookings")
-              .update({ status: "confirmed", ...bookingUpdate })
+              .update({ status: newStatus, ...bookingUpdate })
               .eq("id", sessionBookingId);
 
             await supabase.from("payments").insert({
               booking_id: sessionBookingId,
               user_id: userId,
               amount,
-              payment_type: "rental",
+              payment_type: recordedPaymentType,
               payment_method: "card",
               status: "completed",
               transaction_id: transactionId,
@@ -243,6 +251,7 @@ Deno.serve(async (req) => {
           result.bookingId = sessionBookingId;
           result.amount = amount;
           result.cardCaptured = !!cardLastFour;
+          result.paymentType = recordedPaymentType;
         }
         break;
       }
@@ -256,7 +265,7 @@ Deno.serve(async (req) => {
 
           const { data: booking } = await supabase
             .from("bookings")
-            .select("status")
+            .select("status, total_amount, deposit_amount")
             .eq("id", piBookingId)
             .single();
 
@@ -292,7 +301,14 @@ Deno.serve(async (req) => {
               console.warn("Could not retrieve card details:", cardErr);
             }
 
-            // Promote draft → pending with card details
+            // Determine deposit vs full payment
+            const piAmount = paymentIntent.amount / 100;
+            const bookingTotal = Number(booking?.total_amount ?? 0);
+            const depositAmt = Number(booking?.deposit_amount ?? 0);
+            const isDeposit = depositAmt > 0 && Math.abs(piAmount - depositAmt) < 1.00 && piAmount < bookingTotal;
+            const piPaymentType = isDeposit ? "deposit" : "rental";
+
+            // Promote draft → pending (deposit only covers hold, not full confirmation)
             await supabase
               .from("bookings")
               .update({ status: "pending", ...cardUpdate })
@@ -301,8 +317,8 @@ Deno.serve(async (req) => {
             await supabase.from("payments").insert({
               booking_id: piBookingId,
               user_id: paymentIntent.metadata?.user_id || "",
-              amount: paymentIntent.amount / 100,
-              payment_type: "rental",
+              amount: piAmount,
+              payment_type: piPaymentType,
               payment_method: paymentIntent.payment_method_types?.[0] || "card",
               status: "completed",
               transaction_id: paymentIntent.id,

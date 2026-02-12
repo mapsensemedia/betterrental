@@ -242,21 +242,27 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          revoked_at: string | null
           token_hash: string
+          used_at: string | null
         }
         Insert: {
           booking_id: string
           created_at?: string
           expires_at: string
           id?: string
+          revoked_at?: string | null
           token_hash: string
+          used_at?: string | null
         }
         Update: {
           booking_id?: string
           created_at?: string
           expires_at?: string
           id?: string
+          revoked_at?: string | null
           token_hash?: string
+          used_at?: string | null
         }
         Relationships: [
           {
