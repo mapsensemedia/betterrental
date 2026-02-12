@@ -98,32 +98,41 @@ export interface ServerPricingResult {
   addOnPrices: { addOnId: string; quantity: number; price: number }[];
 }
 
-// ========== OTP HASHING (mirrors verify-booking-otp) ==========
+// ========== HASHING HELPERS ==========
 
-async function hashOtp(otp: string): Promise<string> {
+async function hashWithKey(value: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(otp + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+  const data = encoder.encode(value + Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// ========== GUEST AUTH: OTP-BASED ==========
+const MAX_OTP_ATTEMPTS = 5;
+const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+// ========== GUEST AUTH: OTP → ACCESS TOKEN FLOW ==========
+
+type BookingRow = { id: string; user_id: string; booking_code: string; total_amount: number; deposit_amount: number };
 
 /**
- * Verify booking ownership:
- *   - Authenticated user: booking.user_id must match authUserId
- *   - Guest: must provide valid OTP code (hashed, not expired, not used)
+ * Verify OTP for a booking. Does NOT consume the OTP.
+ * Instead, mints a short-lived access token and returns it.
  * 
- * booking_code is NOT authorization — only OTP is.
+ * On wrong OTP: increments attempts. At MAX_OTP_ATTEMPTS, invalidates OTP.
+ * On correct OTP: sets verified_at (informational) and mints token.
  */
-export async function requireBookingOwnerOrOtp(
+export async function verifyOtpAndMintToken(
   bookingId: string,
-  authUserId: string | null,
-  otpCode: string | undefined,
-): Promise<{ id: string; user_id: string; booking_code: string; total_amount: number }> {
+  otpCode: string,
+): Promise<{ booking: BookingRow; accessToken: string }> {
   const supabase = getAdminClient();
 
+  if (!otpCode || typeof otpCode !== "string" || otpCode.length < 4) {
+    throw new AuthError("OTP required", 401);
+  }
+
+  // Fetch booking
   const { data: booking, error } = await supabase
     .from("bookings")
     .select("id, user_id, booking_code, total_amount, deposit_amount, status")
@@ -134,45 +143,153 @@ export async function requireBookingOwnerOrOtp(
     throw new AuthError("Booking not found", 404);
   }
 
-  // Path 1: Authenticated user owns booking
-  if (authUserId && booking.user_id === authUserId) {
-    return booking;
-  }
-
-  // Path 2: Guest must provide valid OTP
-  if (!otpCode || typeof otpCode !== "string" || otpCode.length < 4) {
-    throw new AuthError("OTP required for guest access", 401);
-  }
-
-  const otpHash = await hashOtp(otpCode);
-
-  // Find matching, unused, unexpired OTP for this booking
+  // Find latest non-expired OTP for this booking
   const { data: otpRecord, error: otpErr } = await supabase
     .from("booking_otps")
-    .select("id, otp_hash, expires_at, verified_at")
+    .select("id, otp_hash, expires_at, verified_at, attempts")
     .eq("booking_id", bookingId)
-    .eq("otp_hash", otpHash)
-    .is("verified_at", null)
+    .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (otpErr || !otpRecord) {
-    throw new AuthError("Invalid or already-used OTP", 401);
+    throw new AuthError("No valid OTP found. Request a new one.", 401);
   }
 
-  // Check expiry
-  if (new Date(otpRecord.expires_at).getTime() < Date.now()) {
-    throw new AuthError("OTP expired", 401);
+  const currentAttempts = otpRecord.attempts ?? 0;
+
+  // Check if already locked out
+  if (currentAttempts >= MAX_OTP_ATTEMPTS) {
+    throw new AuthError("OTP locked due to too many attempts. Request a new one.", 401);
   }
 
-  // Consume the OTP (one-time use)
-  await supabase
-    .from("booking_otps")
-    .update({ verified_at: new Date().toISOString() })
-    .eq("id", otpRecord.id);
+  // Hash and compare
+  const providedHash = await hashWithKey(otpCode);
+
+  if (providedHash !== otpRecord.otp_hash) {
+    // Wrong OTP: increment attempts
+    const newAttempts = currentAttempts + 1;
+    const updatePayload: Record<string, unknown> = { attempts: newAttempts };
+    // If max reached, invalidate by expiring
+    if (newAttempts >= MAX_OTP_ATTEMPTS) {
+      updatePayload.expires_at = new Date().toISOString();
+    }
+    await supabase.from("booking_otps").update(updatePayload).eq("id", otpRecord.id);
+
+    const remaining = MAX_OTP_ATTEMPTS - newAttempts;
+    throw new AuthError(
+      remaining > 0
+        ? `Invalid OTP. ${remaining} attempt(s) remaining.`
+        : "OTP locked due to too many attempts. Request a new one.",
+      401,
+    );
+  }
+
+  // Correct OTP: mark verified_at (informational, does not consume)
+  if (!otpRecord.verified_at) {
+    await supabase
+      .from("booking_otps")
+      .update({ verified_at: new Date().toISOString() })
+      .eq("id", otpRecord.id);
+  }
+
+  // Mint access token
+  const rawToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  const tokenHash = await hashWithKey(rawToken);
+  const expiresAt = new Date(Date.now() + ACCESS_TOKEN_TTL_MS).toISOString();
+
+  await supabase.from("booking_access_tokens").insert({
+    booking_id: bookingId,
+    token_hash: tokenHash,
+    expires_at: expiresAt,
+  });
+
+  return { booking, accessToken: rawToken };
+}
+
+/**
+ * Validate a previously-minted access token for a booking.
+ */
+export async function validateAccessToken(
+  bookingId: string,
+  rawToken: string,
+): Promise<BookingRow> {
+  if (!rawToken || typeof rawToken !== "string" || rawToken.length < 32) {
+    throw new AuthError("Invalid access token", 401);
+  }
+
+  const supabase = getAdminClient();
+
+  const tokenHash = await hashWithKey(rawToken);
+
+  const { data: tokenRow, error: tokenErr } = await supabase
+    .from("booking_access_tokens")
+    .select("id, booking_id, expires_at")
+    .eq("booking_id", bookingId)
+    .eq("token_hash", tokenHash)
+    .gt("expires_at", new Date().toISOString())
+    .limit(1)
+    .maybeSingle();
+
+  if (tokenErr || !tokenRow) {
+    throw new AuthError("Invalid or expired access token", 401);
+  }
+
+  // Fetch booking
+  const { data: booking, error: bookErr } = await supabase
+    .from("bookings")
+    .select("id, user_id, booking_code, total_amount, deposit_amount, status")
+    .eq("id", bookingId)
+    .single();
+
+  if (bookErr || !booking) {
+    throw new AuthError("Booking not found", 404);
+  }
 
   return booking;
+}
+
+/**
+ * Verify booking ownership for checkout/hold flows:
+ *   - Authenticated user: booking.user_id must match
+ *   - Guest: must provide valid accessToken (minted via OTP flow)
+ */
+export async function requireBookingOwnerOrToken(
+  bookingId: string,
+  authUserId: string | null,
+  accessToken: string | undefined,
+): Promise<BookingRow> {
+  const supabase = getAdminClient();
+
+  // Path 1: Authenticated user
+  if (authUserId) {
+    const { data: booking, error } = await supabase
+      .from("bookings")
+      .select("id, user_id, booking_code, total_amount, deposit_amount, status")
+      .eq("id", bookingId)
+      .single();
+
+    if (error || !booking) {
+      throw new AuthError("Booking not found", 404);
+    }
+
+    if (booking.user_id !== authUserId) {
+      throw new AuthError("Forbidden: not booking owner", 403);
+    }
+
+    return booking;
+  }
+
+  // Path 2: Guest with access token
+  if (accessToken) {
+    return validateAccessToken(bookingId, accessToken);
+  }
+
+  throw new AuthError("Authentication or access token required", 401);
 }
 
 // ========== SERVER-SIDE PRICING ==========
@@ -341,8 +458,8 @@ export async function computeBookingTotals(input: {
   // 11) Total
   const total = roundCents(subtotal + taxAmount);
 
-  // 12) Deposit
-  const depositAmount = Math.max(MINIMUM_DEPOSIT_AMOUNT, roundCents(total));
+  // 12) Deposit — fixed minimum, NOT equal to total
+  const depositAmount = MINIMUM_DEPOSIT_AMOUNT;
 
   return {
     days,
