@@ -649,6 +649,7 @@ export async function createBookingRecord(
       card_holder_name: input.cardHolderName?.slice(0, 255) || null,
       return_location_id: input.returnLocationId || null,
       different_dropoff_fee: serverTotals.differentDropoffFee,
+      delivery_fee: serverTotals.deliveryFee || 0,
     })
     .select()
     .single();

@@ -417,6 +417,7 @@ export type Database = {
           customer_return_lat: number | null
           customer_return_lng: number | null
           daily_rate: number
+          delivery_fee: number | null
           deposit_amount: number | null
           deposit_authorized_at: string | null
           deposit_capture_reason: string | null
@@ -509,6 +510,7 @@ export type Database = {
           customer_return_lat?: number | null
           customer_return_lng?: number | null
           daily_rate: number
+          delivery_fee?: number | null
           deposit_amount?: number | null
           deposit_authorized_at?: string | null
           deposit_capture_reason?: string | null
@@ -601,6 +603,7 @@ export type Database = {
           customer_return_lat?: number | null
           customer_return_lng?: number | null
           daily_rate?: number
+          delivery_fee?: number | null
           deposit_amount?: number | null
           deposit_authorized_at?: string | null
           deposit_capture_reason?: string | null
