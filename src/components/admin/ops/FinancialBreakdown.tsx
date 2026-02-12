@@ -212,12 +212,22 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
 
       {/* Manual Adjustment (legacy-only fallback) */}
       {manualAdjustmentCents > 0 && (
-        <div className="flex justify-between text-amber-600">
-          <span className="flex items-center gap-1">
-            <Info className="h-3 w-3" />
-            Manual Adjustment
-          </span>
-          <span>${fromCents(manualAdjustmentCents)}</span>
+        <div className="space-y-0.5">
+          <div className="flex justify-between text-amber-600">
+            <span className="flex items-center gap-1">
+              <Info className="h-3 w-3" />
+              Manual Adjustment (Legacy)
+            </span>
+            <span>${fromCents(manualAdjustmentCents)}</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground pl-4">
+            Unattributed delta: Subtotal ${fromCents(dbSubtotalCents)} − Itemized ${fromCents(itemizedCents)}
+          </p>
+          {!isPostFix && (
+            <p className="text-[10px] text-muted-foreground/70 pl-4">
+              Reason: booking created before itemized line-items were persisted in DB.
+            </p>
+          )}
         </div>
       )}
 
