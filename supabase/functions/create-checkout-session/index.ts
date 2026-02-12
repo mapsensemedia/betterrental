@@ -1,16 +1,16 @@
 /**
  * create-checkout-session - Create Stripe Checkout Session for payment
  * 
- * SECURITY (PR7):
+ * SECURITY (PR8):
  * - Auth user: booking.user_id must match
- * - Guest: must provide valid otpCode (hashed, one-time, expires)
- * - booking_code is NOT authorization
+ * - Guest: must provide valid accessToken (minted via OTP flow)
  * - Amount from DB only
+ * - pay-now → total_amount; hold/deposit → deposit_amount
  */
 import Stripe from "npm:stripe@14.21.0";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, AuthError, authErrorResponse } from "../_shared/auth.ts";
-import { requireBookingOwnerOrOtp } from "../_shared/booking-core.ts";
+import { requireBookingOwnerOrToken } from "../_shared/booking-core.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { bookingId, otpCode, currency = "cad", successUrl, cancelUrl } = await req.json();
+    const { bookingId, accessToken, currency = "cad", successUrl, cancelUrl } = await req.json();
 
     if (!bookingId || !successUrl || !cancelUrl) {
       return new Response(
@@ -41,8 +41,8 @@ Deno.serve(async (req) => {
     const auth = await validateAuth(req);
     const authUserId = auth.authenticated ? auth.userId ?? null : null;
 
-    // SECURITY: Verify ownership via auth OR OTP (not booking_code)
-    const booking = await requireBookingOwnerOrOtp(bookingId, authUserId, otpCode);
+    // SECURITY: Verify ownership via auth OR access token
+    const booking = await requireBookingOwnerOrToken(bookingId, authUserId, accessToken);
 
     const supabase = getAdminClient();
     const userId = booking.user_id;

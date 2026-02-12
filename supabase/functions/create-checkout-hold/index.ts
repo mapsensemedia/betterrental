@@ -1,15 +1,15 @@
 import Stripe from "npm:stripe@14.21.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, AuthError, authErrorResponse } from "../_shared/auth.ts";
-import { requireBookingOwnerOrOtp } from "../_shared/booking-core.ts";
+import { requireBookingOwnerOrToken } from "../_shared/booking-core.ts";
 
 /**
  * Create Checkout Payment (Hold/PaymentIntent)
  * 
- * SECURITY (PR7):
+ * SECURITY (PR8):
  * - Auth user: booking.user_id must match
- * - Guest: must provide valid otpCode (not booking_code)
- * - Amount from DB only — never from client
+ * - Guest: must provide valid accessToken (minted via OTP flow)
+ * - Amount from DB only — deposit_amount for holds
  */
 
 Deno.serve(async (req) => {
@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       throw new Error("Stripe not configured");
     }
 
-    const { bookingId, otpCode } = await req.json();
+    const { bookingId, accessToken } = await req.json();
 
     if (!bookingId) {
       return new Response(
@@ -38,11 +38,11 @@ Deno.serve(async (req) => {
     const auth = await validateAuth(req);
     const authUserId = auth.authenticated ? auth.userId ?? null : null;
 
-    // SECURITY: Verify ownership via auth OR OTP (not booking_code)
-    const booking = await requireBookingOwnerOrOtp(bookingId, authUserId, otpCode);
+    // SECURITY: Verify ownership via auth OR access token
+    const booking = await requireBookingOwnerOrToken(bookingId, authUserId, accessToken);
 
-    // Use server-side amount — NEVER from client
-    const amount = booking.total_amount;
+    // Use deposit_amount for holds (not total_amount)
+    const amount = booking.deposit_amount ?? booking.total_amount;
 
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
     const supabase = getAdminClient();
