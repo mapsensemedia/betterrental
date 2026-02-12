@@ -142,12 +142,16 @@ export async function verifyOtpAndMintToken(
 
   // Validate presence
   if (!otpCode || typeof otpCode !== "string") {
-    throw new AuthError("OTP is required", 401, "OTP_REQUIRED");
+    const err = new AuthError("OTP is required", 401);
+    err.errorCode = "OTP_REQUIRED";
+    throw err;
   }
 
   // Validate format
   if (!OTP_FORMAT.test(otpCode)) {
-    throw new AuthError("Invalid OTP format", 401, "OTP_INVALID_FORMAT");
+    const err = new AuthError("Invalid OTP format", 401);
+    err.errorCode = "OTP_INVALID_FORMAT";
+    throw err;
   }
 
   // Fetch booking
@@ -172,14 +176,18 @@ export async function verifyOtpAndMintToken(
     .maybeSingle();
 
   if (otpErr || !otpRecord) {
-    throw new AuthError("OTP expired or not found. Request a new one.", 401, "OTP_EXPIRED");
+    const err = new AuthError("OTP expired or not found. Request a new one.", 401);
+    err.errorCode = "OTP_EXPIRED";
+    throw err;
   }
 
   const currentAttempts = otpRecord.attempts ?? 0;
 
   // Check if already locked out
   if (currentAttempts >= MAX_OTP_ATTEMPTS) {
-    throw new AuthError("Too many attempts. Request a new code.", 401, "OTP_LOCKED");
+    const err = new AuthError("Too many attempts. Request a new code.", 401);
+    err.errorCode = "OTP_LOCKED";
+    throw err;
   }
 
   // Hash and compare
@@ -196,10 +204,13 @@ export async function verifyOtpAndMintToken(
     await supabase.from("booking_otps").update(updatePayload).eq("id", otpRecord.id);
 
     if (newAttempts >= MAX_OTP_ATTEMPTS) {
-      throw new AuthError("Too many attempts. Request a new code.", 401, "OTP_LOCKED");
+      const err = new AuthError("Too many attempts. Request a new code.", 401);
+      err.errorCode = "OTP_LOCKED";
+      throw err;
     }
     const remaining = MAX_OTP_ATTEMPTS - newAttempts;
-    const err = new AuthError("Incorrect code. Please try again.", 401, "OTP_INVALID");
+    const err = new AuthError("Incorrect code. Please try again.", 401);
+    err.errorCode = "OTP_INVALID";
     err.remainingAttempts = remaining;
     throw err;
   }

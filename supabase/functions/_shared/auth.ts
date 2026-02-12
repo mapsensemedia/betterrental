@@ -100,10 +100,9 @@ class AuthError extends Error {
   status: number;
   errorCode?: string;
   remainingAttempts?: number;
-  constructor(message: string, status: number, errorCode?: string) {
+  constructor(message: string, status: number) {
     super(message);
     this.status = status;
-    this.errorCode = errorCode;
   }
 }
 
