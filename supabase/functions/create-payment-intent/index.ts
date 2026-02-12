@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // --- Compute amountDue from DB ---
+    // --- Compute amountDue in integer cents to eliminate float drift ---
     const { data: payments } = await supabase
       .from("payments")
       .select("amount")
@@ -84,22 +84,23 @@ Deno.serve(async (req) => {
       .eq("status", "completed")
       .eq("payment_type", "rental");
 
-    const paidTotal = (payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
-    const amountDue = Math.round((booking.total_amount - paidTotal) * 100) / 100; // dollars, 2dp
+    const paidTotalCents = (payments || []).reduce((sum, p) => sum + Math.round((p.amount || 0) * 100), 0);
+    const bookingTotalCents = Math.round(booking.total_amount * 100);
+    const amountDueCents = bookingTotalCents - paidTotalCents;
 
-    if (amountDue <= 0) {
+    if (amountDueCents <= 0) {
       return jsonResp(
         { error: "No amount due on this booking", errorCode: "AMOUNT_DUE_ZERO", amountDue: 0 },
         409, corsHeaders,
       );
     }
 
-    // --- Determine PI amount (staff may override, capped) ---
-    let piAmountDollars = amountDue;
+    // --- Determine PI amount in cents (staff may override, capped) ---
+    let piAmountCents = amountDueCents;
     if (overrideAmount !== undefined && isStaff) {
-      piAmountDollars = Math.min(Math.max(overrideAmount, 0.50), amountDue); // min $0.50 Stripe floor
+      const overrideCents = Math.round(overrideAmount * 100);
+      piAmountCents = Math.min(Math.max(overrideCents, 50), amountDueCents); // min 50¢ Stripe floor
     }
-    const piAmountCents = Math.round(piAmountDollars * 100);
 
     // --- Stripe customer upsert ---
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
@@ -138,13 +139,16 @@ Deno.serve(async (req) => {
       automatic_payment_methods: { enabled: true },
     });
 
-    console.log(`[create-payment-intent] PI ${paymentIntent.id} for booking ${bookingId}: $${piAmountDollars} of $${amountDue} due`);
+    const amountDueDollars = amountDueCents / 100;
+    const amountChargedDollars = piAmountCents / 100;
+
+    console.log(`[create-payment-intent] PI ${paymentIntent.id} for booking ${bookingId}: $${amountChargedDollars} of $${amountDueDollars} due`);
 
     return jsonResp({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
-      amountDue,
-      amountCharged: piAmountDollars,
+      amountDue: amountDueDollars,
+      amountCharged: amountChargedDollars,
     }, 200, corsHeaders);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
