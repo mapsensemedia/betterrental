@@ -87,6 +87,8 @@ export interface ServerPricingResult {
   protectionTotal: number;
   addOnsTotal: number;
   youngDriverFee: number;
+  additionalDriversTotal: number;
+  additionalDriverRecords: { driverName: string | null; driverAgeBand: string; youngDriverFee: number }[];
   dailyFeesTotal: number;
   deliveryFee: number;
   differentDropoffFee: number;
@@ -333,6 +335,7 @@ export async function computeBookingTotals(input: {
   endAt: string;
   protectionPlan?: string;
   addOns?: { addOnId: string; quantity: number }[];
+  additionalDrivers?: AdditionalDriverInput[];
   driverAgeBand?: string;
   deliveryFee?: number;
   differentDropoffFee?: number;
@@ -447,6 +450,33 @@ export async function computeBookingTotals(input: {
   // 6) Young driver fee
   const youngDriverFee = input.driverAgeBand === "20_24" ? roundCents(YOUNG_DRIVER_FEE * days) : 0;
 
+  // 6b) Additional drivers — compute server-side from system_settings rates
+  let additionalDriversTotal = 0;
+  const additionalDriverRecords: { driverName: string | null; driverAgeBand: string; youngDriverFee: number }[] = [];
+
+  if (input.additionalDrivers && input.additionalDrivers.length > 0) {
+    // Fetch rates from system_settings
+    const { data: rateSettings } = await supabase
+      .from("system_settings")
+      .select("key, value")
+      .in("key", ["additional_driver_daily_rate", "young_additional_driver_daily_rate"]);
+
+    const rateMap = new Map((rateSettings || []).map((r: any) => [r.key, Number(r.value)]));
+    const stdRate = rateMap.get("additional_driver_daily_rate") ?? 14.99;
+    const youngRate = rateMap.get("young_additional_driver_daily_rate") ?? 19.99;
+
+    for (const d of input.additionalDrivers.slice(0, 5)) {
+      const rate = d.driverAgeBand === "20_24" ? youngRate : stdRate;
+      const fee = roundCents(rate * days);
+      additionalDriversTotal = roundCents(additionalDriversTotal + fee);
+      additionalDriverRecords.push({
+        driverName: d.driverName?.slice(0, 100) || null,
+        driverAgeBand: d.driverAgeBand,
+        youngDriverFee: fee,
+      });
+    }
+  }
+
   // 7) Daily regulatory fees
   const dailyFeesTotal = roundCents((PVRT_DAILY_FEE + ACSRCH_DAILY_FEE) * days);
 
@@ -454,10 +484,10 @@ export async function computeBookingTotals(input: {
   const deliveryFee = roundCents(Number(input.deliveryFee ?? 0));
   const differentDropoffFee = roundCents(Number(input.differentDropoffFee ?? 0));
 
-  // 9) Subtotal
+  // 9) Subtotal (now includes additional drivers)
   const subtotal = roundCents(
     vehicleTotal + protectionTotal + addOnsTotal + youngDriverFee +
-    dailyFeesTotal + deliveryFee + differentDropoffFee
+    additionalDriversTotal + dailyFeesTotal + deliveryFee + differentDropoffFee
   );
 
   // 10) Taxes
@@ -482,6 +512,8 @@ export async function computeBookingTotals(input: {
     protectionTotal,
     addOnsTotal,
     youngDriverFee,
+    additionalDriversTotal,
+    additionalDriverRecords,
     dailyFeesTotal,
     deliveryFee,
     differentDropoffFee,
@@ -503,6 +535,7 @@ export async function validateClientPricing(params: {
   endAt: string;
   protectionPlan?: string;
   addOns?: { addOnId: string; quantity: number }[];
+  additionalDrivers?: AdditionalDriverInput[];
   driverAgeBand?: string;
   deliveryFee?: number;
   differentDropoffFee?: number;
@@ -515,6 +548,7 @@ export async function validateClientPricing(params: {
     endAt: params.endAt,
     protectionPlan: params.protectionPlan,
     addOns: params.addOns,
+    additionalDrivers: params.additionalDrivers,
     driverAgeBand: params.driverAgeBand,
     deliveryFee: params.deliveryFee,
     differentDropoffFee: params.differentDropoffFee,

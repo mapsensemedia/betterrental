@@ -612,6 +612,10 @@ const PROTECTION_PLAN_LABELS: Record<string, string> = {
   none: "No Coverage",
 };
 
+// Bookings created after this date MUST have all charges as explicit DB rows.
+// Any remaining delta for post-fix bookings is logged as an error.
+const FIX_DEPLOY_DATE = "2026-02-12T00:00:00Z";
+
 // ========== Cents-based helpers ==========
 function toCents(n: number | string | null | undefined): number {
   return Math.round(Number(n || 0) * 100);
@@ -622,8 +626,8 @@ function fromCents(c: number): string {
 
 function FinancialBreakdown({ booking }: { booking: any }) {
   const { data: driverFeeSettings } = useDriverFeeSettings();
-  const driverDailyRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
-  const youngDriverDailyRate = driverFeeSettings?.youngAdditionalDriverDailyRate ?? 15.00;
+  const driverDailyRate = driverFeeSettings?.additionalDriverDailyRate ?? 14.99;
+  const youngDriverDailyRate = driverFeeSettings?.youngAdditionalDriverDailyRate ?? 19.99;
   const totalDays = booking.total_days ?? 0;
 
   // --- Normalize data (snake_case from DB) ---
@@ -696,6 +700,12 @@ function FinancialBreakdown({ booking }: { booking: any }) {
     }
   } else if (deltaCents > 0) {
     manualAdjustmentCents = deltaCents;
+  }
+
+  // Post-fix bookings should never have unresolved deltas
+  const isPostFix = booking.created_at && booking.created_at >= FIX_DEPLOY_DATE;
+  if (isPostFix && (manualAdjustmentCents > 0)) {
+    console.error(`[OPS_BREAKDOWN_ERROR] Post-fix booking ${booking.booking_code} has unresolved delta: ${manualAdjustmentCents} cents`);
   }
 
   // Tax from DB

@@ -20,6 +20,7 @@ import { validateAuth, getAdminClient } from "../_shared/auth.ts";
 import {
   validateClientPricing,
   createBookingAddOns,
+  createAdditionalDrivers,
   type BookingInput,
 } from "../_shared/booking-core.ts";
 
@@ -67,6 +68,7 @@ Deno.serve(async (req) => {
       driverAgeBand,
       protectionPlan,
       addOns,      // Only { addOnId, quantity }[] accepted — price ignored
+      additionalDrivers, // { driverName, driverAgeBand }[] — fees computed server-side
       notes,
       deliveryFee,
       differentDropoffFee,
@@ -100,6 +102,11 @@ Deno.serve(async (req) => {
         endAt,
         protectionPlan,
         addOns: addOns?.map((a: { addOnId: string; quantity: number }) => ({ addOnId: a.addOnId, quantity: a.quantity })),
+        additionalDrivers: (additionalDrivers || []).map((d: any) => ({
+          driverName: d.driverName || null,
+          driverAgeBand: d.driverAgeBand || "25_70",
+          youngDriverFee: 0, // computed server-side
+        })),
         driverAgeBand,
         deliveryFee,
         differentDropoffFee,
@@ -239,6 +246,11 @@ Deno.serve(async (req) => {
     // Create add-ons with SERVER-COMPUTED prices
     if (serverTotals.addOnPrices.length > 0) {
       await createBookingAddOns(booking.id, serverTotals.addOnPrices);
+    }
+
+    // Create additional drivers with SERVER-COMPUTED fees
+    if (serverTotals.additionalDriverRecords.length > 0) {
+      await createAdditionalDrivers(booking.id, serverTotals.additionalDriverRecords);
     }
 
     // Mark hold as converted

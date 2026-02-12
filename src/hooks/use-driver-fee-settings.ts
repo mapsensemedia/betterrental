@@ -11,8 +11,8 @@ export interface DriverFeeSettings {
 }
 
 const DEFAULTS: DriverFeeSettings = {
-  additionalDriverDailyRate: 15.99,
-  youngAdditionalDriverDailyRate: 15.00,
+  additionalDriverDailyRate: 14.99,
+  youngAdditionalDriverDailyRate: 19.99,
 };
 
 export function useDriverFeeSettings() {
