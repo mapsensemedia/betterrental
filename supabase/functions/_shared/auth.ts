@@ -98,8 +98,6 @@ export async function isAdminOrStaff(userId: string): Promise<boolean> {
 
 class AuthError extends Error {
   status: number;
-  errorCode?: string;
-  remainingAttempts?: number;
   constructor(message: string, status: number) {
     super(message);
     this.status = status;
