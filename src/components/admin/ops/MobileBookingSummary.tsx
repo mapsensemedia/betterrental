@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StepCompletion } from "@/lib/ops-steps";
 import { OpsActivityTimeline } from "./OpsActivityTimeline";
+import { FinancialBreakdown } from "./FinancialBreakdown";
 import { useState } from "react";
 
 interface MobileBookingSummaryProps {
@@ -236,7 +237,7 @@ export function MobileBookingSummary({
               </div>
             </div>
             
-            {/* Payment */}
+            {/* Payment — Full Itemized Breakdown */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -247,17 +248,8 @@ export function MobileBookingSummary({
                   </Badge>
                 )}
               </div>
-              <div className="pl-6 text-sm space-y-1">
-                <div className="flex justify-between text-xs font-medium">
-                  <span>Total</span>
-                  <span>${Number(booking.total_amount).toFixed(2)}</span>
-                </div>
-                {booking.deposit_amount && (
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Deposit</span>
-                    <span>${Number(booking.deposit_amount).toFixed(2)}</span>
-                  </div>
-                )}
+              <div className="pl-6">
+                <FinancialBreakdown booking={booking} />
               </div>
             </div>
             
