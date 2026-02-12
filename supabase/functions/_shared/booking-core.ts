@@ -117,7 +117,13 @@ const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 // ========== GUEST AUTH: OTP → ACCESS TOKEN FLOW ==========
 
-type BookingRow = { id: string; user_id: string; booking_code: string; total_amount: number; deposit_amount: number };
+type BookingRow = { id: string; user_id: string; booking_code: string; total_amount: number; deposit_amount: number; status: string };
+
+interface OtpResult {
+  booking: { id: string; booking_code: string; total_amount: number; deposit_amount: number; status: string };
+  accessToken: string;
+  remainingAttempts?: number;
+}
 
 /**
  * Verify OTP for a booking. Does NOT consume the OTP.
@@ -125,16 +131,23 @@ type BookingRow = { id: string; user_id: string; booking_code: string; total_amo
  * 
  * On wrong OTP: increments attempts. At MAX_OTP_ATTEMPTS, invalidates OTP.
  * On correct OTP: sets verified_at (informational) and mints token.
+ * 
+ * Error codes: OTP_REQUIRED, OTP_INVALID_FORMAT, OTP_EXPIRED, OTP_INVALID, OTP_LOCKED
  */
 export async function verifyOtpAndMintToken(
   bookingId: string,
   otpCode: string,
-): Promise<{ booking: BookingRow; accessToken: string }> {
+): Promise<OtpResult> {
   const supabase = getAdminClient();
 
-  // Enforce OTP format
-  if (!otpCode || typeof otpCode !== "string" || !OTP_FORMAT.test(otpCode)) {
-    throw new AuthError("OTP required (4-8 digits)", 401);
+  // Validate presence
+  if (!otpCode || typeof otpCode !== "string") {
+    throw new AuthError("OTP is required", 401, "OTP_REQUIRED");
+  }
+
+  // Validate format
+  if (!OTP_FORMAT.test(otpCode)) {
+    throw new AuthError("Invalid OTP format", 401, "OTP_INVALID_FORMAT");
   }
 
   // Fetch booking
@@ -159,14 +172,14 @@ export async function verifyOtpAndMintToken(
     .maybeSingle();
 
   if (otpErr || !otpRecord) {
-    throw new AuthError("No valid OTP found. Request a new one.", 401);
+    throw new AuthError("OTP expired or not found. Request a new one.", 401, "OTP_EXPIRED");
   }
 
   const currentAttempts = otpRecord.attempts ?? 0;
 
   // Check if already locked out
   if (currentAttempts >= MAX_OTP_ATTEMPTS) {
-    throw new AuthError("OTP_LOCKED", 401);
+    throw new AuthError("Too many attempts. Request a new code.", 401, "OTP_LOCKED");
   }
 
   // Hash and compare
@@ -183,13 +196,12 @@ export async function verifyOtpAndMintToken(
     await supabase.from("booking_otps").update(updatePayload).eq("id", otpRecord.id);
 
     if (newAttempts >= MAX_OTP_ATTEMPTS) {
-      throw new AuthError("OTP_LOCKED", 401);
+      throw new AuthError("Too many attempts. Request a new code.", 401, "OTP_LOCKED");
     }
     const remaining = MAX_OTP_ATTEMPTS - newAttempts;
-    throw new AuthError(
-      `Invalid OTP. ${remaining} attempt(s) remaining.`,
-      401,
-    );
+    const err = new AuthError("Incorrect code. Please try again.", 401, "OTP_INVALID");
+    err.remainingAttempts = remaining;
+    throw err;
   }
 
   // Correct OTP: reset attempts to 0, set verified_at
@@ -219,7 +231,16 @@ export async function verifyOtpAndMintToken(
     expires_at: expiresAt,
   });
 
-  return { booking, accessToken: rawToken };
+  return {
+    booking: {
+      id: booking.id,
+      booking_code: booking.booking_code,
+      total_amount: booking.total_amount,
+      deposit_amount: booking.deposit_amount,
+      status: booking.status,
+    },
+    accessToken: rawToken,
+  };
 }
 
 /**
