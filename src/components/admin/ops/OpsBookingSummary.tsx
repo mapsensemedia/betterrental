@@ -3,6 +3,7 @@
  * Shows customer, vehicle, payment, and status information
  * Updated: Now includes delivery status section for delivery bookings
  */
+const DEBUG_BOOKING_SUMMARY = false;
 import { useState, useCallback, useMemo } from "react";
 import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 import { displayName, formatPhone } from "@/lib/format-customer";
@@ -419,7 +420,7 @@ export function OpsBookingSummary({
               {booking.protection_plan && booking.protection_plan !== "none" && (
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Protection</span>
-                  <span className="capitalize">{booking.protection_plan.replace(/_/g, " ")}</span>
+                  <span>{PROTECTION_PLAN_LABELS[booking.protection_plan] || booking.protection_plan}</span>
                 </div>
               )}
             </div>
@@ -603,42 +604,50 @@ export function OpsBookingSummary({
   );
 }
 
+// Protection plan display labels
+const PROTECTION_PLAN_LABELS: Record<string, string> = {
+  premium: "All Inclusive Coverage",
+  smart: "Smart Coverage",
+  basic: "Basic Coverage",
+  none: "No Coverage",
+};
+
 function FinancialBreakdown({ booking }: { booking: any }) {
   const { data: driverFeeSettings } = useDriverFeeSettings();
   const driverDailyRate = driverFeeSettings?.additionalDriverDailyRate ?? 15.99;
   const youngDriverDailyRate = driverFeeSettings?.youngAdditionalDriverDailyRate ?? 19.99;
 
-  const vehicleTotal = Number(booking.daily_rate) * booking.total_days;
+  const vehicleTotal = Math.round(Number(booking.daily_rate) * booking.total_days * 100) / 100;
   
   const vehicleCat = booking.vehicles?.category || "";
   const plan = booking.protection_plan && booking.protection_plan !== "none"
     ? getProtectionRateForCategory(booking.protection_plan, vehicleCat)
     : null;
-  const protectionTotal = plan ? plan.rate * booking.total_days : 0;
+  const protectionTotal = plan ? Math.round(plan.rate * booking.total_days * 100) / 100 : 0;
 
   const addOnsTotal = (booking.addOns || []).reduce((sum: number, a: any) => sum + Number(a.price), 0);
 
   const drivers = booking.additionalDrivers || [];
   const additionalDriversTotal = drivers.reduce((sum: number, d: any) => {
     const rate = d.driver_age_band === "20_24" ? youngDriverDailyRate : driverDailyRate;
-    return sum + rate * booking.total_days;
+    return sum + Math.round(rate * booking.total_days * 100) / 100;
   }, 0);
 
   const youngDriverFee = Number(booking.young_driver_fee) || 0;
+  const youngDriverDailyFee = booking.total_days > 0 ? Math.round(youngDriverFee / booking.total_days * 100) / 100 : 0;
   const differentDropoffFee = Number(booking.different_dropoff_fee) || 0;
-  const upgradeFee = Number(booking.upgrade_daily_fee) > 0 ? Number(booking.upgrade_daily_fee) * booking.total_days : 0;
-  const pvrt = PVRT_DAILY_FEE * booking.total_days;
-  const acsrch = ACSRCH_DAILY_FEE * booking.total_days;
+  const upgradeFee = Number(booking.upgrade_daily_fee) > 0 ? Math.round(Number(booking.upgrade_daily_fee) * booking.total_days * 100) / 100 : 0;
+  const pvrt = Math.round(PVRT_DAILY_FEE * booking.total_days * 100) / 100;
+  const acsrch = Math.round(ACSRCH_DAILY_FEE * booking.total_days * 100) / 100;
 
-  const calculatedSubtotal = vehicleTotal + protectionTotal + addOnsTotal + additionalDriversTotal + youngDriverFee + differentDropoffFee + upgradeFee + pvrt + acsrch;
+  const calculatedSubtotal = Math.round((vehicleTotal + protectionTotal + addOnsTotal + additionalDriversTotal + youngDriverFee + differentDropoffFee + upgradeFee + pvrt + acsrch) * 100) / 100;
   const dbSubtotal = Number(booking.subtotal);
   const unitemized = Math.round((dbSubtotal - calculatedSubtotal) * 100) / 100;
 
   // Infer what the unitemized charges are (legacy bookings without stored records)
-  // Try standard rate, young rate, and mixed combinations
   const inferDrivers = (rate: number) => {
     if (rate <= 0 || booking.total_days <= 0) return { count: 0, matches: false };
-    const perDriver = rate * booking.total_days;
+    const perDriver = Math.round(rate * booking.total_days * 100) / 100;
     const count = Math.round(unitemized / perDriver);
     return { count, matches: count > 0 && Math.abs(unitemized - (count * perDriver)) < 0.02 };
   };
@@ -647,6 +656,35 @@ function FinancialBreakdown({ booking }: { booking: any }) {
   const isLikelyAdditionalDrivers = standardInfer.matches || youngInfer.matches;
   const inferredDriverCount = standardInfer.matches ? standardInfer.count : youngInfer.count;
   const inferredRate = standardInfer.matches ? driverDailyRate : youngDriverDailyRate;
+  const inferredLabel = standardInfer.matches ? "Standard" : "Young";
+
+  if (DEBUG_BOOKING_SUMMARY) {
+    console.log("OPS_BOOKING_DETAIL_RAW", {
+      bookingCode: booking.booking_code,
+      dailyRate: booking.daily_rate,
+      totalDays: booking.total_days,
+      vehicleTotal,
+      protectionPlan: booking.protection_plan,
+      protectionRate: plan?.rate,
+      protectionTotal,
+      youngDriverFee,
+      youngDriverDailyFee,
+      addOns: booking.addOns,
+      addOnsTotal,
+      additionalDrivers: booking.additionalDrivers,
+      additionalDriversTotal,
+      differentDropoffFee,
+      upgradeFee,
+      pvrt,
+      acsrch,
+      calculatedSubtotal,
+      dbSubtotal,
+      unitemized,
+      taxAmount: booking.tax_amount,
+      totalAmount: booking.total_amount,
+      inference: { standardInfer, youngInfer, inferredLabel },
+    });
+  }
 
   return (
     <div className="space-y-1.5 text-xs">
@@ -660,7 +698,7 @@ function FinancialBreakdown({ booking }: { booking: any }) {
       {plan && protectionTotal > 0 && (
         <div className="flex justify-between">
           <span className="text-muted-foreground">
-            Protection ({plan.name}) × {booking.total_days}d
+            {PROTECTION_PLAN_LABELS[booking.protection_plan] || plan.name} (${plan.rate.toFixed(2)}/day × {booking.total_days}d)
           </span>
           <span>${protectionTotal.toFixed(2)}</span>
         </div>
@@ -687,7 +725,7 @@ function FinancialBreakdown({ booking }: { booking: any }) {
       {youngDriverFee > 0 && (
         <div className="flex justify-between">
           <span className="text-muted-foreground">
-            Young Driver ($15.00/day × {booking.total_days}d)
+            Young Renter Fee (${youngDriverDailyFee.toFixed(2)}/day × {booking.total_days}d)
           </span>
           <span>${youngDriverFee.toFixed(2)}</span>
         </div>
@@ -728,8 +766,8 @@ function FinancialBreakdown({ booking }: { booking: any }) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">
             {isLikelyAdditionalDrivers
-              ? `Additional Drivers (${inferredDriverCount} × $${inferredRate.toFixed(2)}/day × ${booking.total_days}d)`
-              : `Additional charges`}
+              ? `Additional Drivers – ${inferredLabel} (${inferredDriverCount} × $${inferredRate.toFixed(2)}/day × ${booking.total_days}d)`
+              : `Unitemized charges`}
           </span>
           <span>${unitemized.toFixed(2)}</span>
         </div>
