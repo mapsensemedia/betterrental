@@ -78,12 +78,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({ 
-        success: true,
         bookingId: result.booking.id,
         bookingCode: result.booking.booking_code,
         accessToken: result.accessToken,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-        ...(result.remainingAttempts !== undefined && { remainingAttempts: result.remainingAttempts }),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
