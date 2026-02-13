@@ -485,10 +485,20 @@ export async function computeBookingTotals(input: {
   const durationDiscount = roundCents(afterSurcharge * discountRate);
   const vehicleTotal = roundCents(afterSurcharge - durationDiscount);
 
-  // 4) Protection pricing (from system_settings or hardcoded fallback)
+  // 4) Protection pricing (group-aware from system_settings)
   let protectionDailyRate = 0;
   if (input.protectionPlan && input.protectionPlan !== "none") {
-    const settingsKey = `protection_${input.protectionPlan}_daily_rate`;
+    // Determine protection group from vehicle category name
+    const catUpper = (vehicleCategory || "").toUpperCase();
+    let groupPrefix = "protection"; // Group 1 default
+    if (catUpper.includes("LARGE") && catUpper.includes("SUV")) {
+      groupPrefix = "protection_g3";
+    } else if (catUpper.includes("MINIVAN") || (catUpper.includes("STANDARD") && catUpper.includes("SUV"))) {
+      groupPrefix = "protection_g2";
+    }
+
+    // DB key format: protection_premium_rate (not _daily_rate)
+    const settingsKey = `${groupPrefix}_${input.protectionPlan}_rate`;
     const { data: setting } = await supabase
       .from("system_settings")
       .select("value")
@@ -498,12 +508,13 @@ export async function computeBookingTotals(input: {
     if (setting?.value) {
       protectionDailyRate = Number(setting.value);
     } else {
-      const defaults: Record<string, number> = {
-        basic: 32.99,
-        smart: 37.99,
-        premium: 49.99,
+      // Hardcoded fallbacks per group
+      const groupDefaults: Record<string, Record<string, number>> = {
+        protection: { basic: 32.99, smart: 37.99, premium: 49.99 },
+        protection_g2: { basic: 52.99, smart: 57.99, premium: 69.99 },
+        protection_g3: { basic: 64.99, smart: 69.99, premium: 82.99 },
       };
-      protectionDailyRate = defaults[input.protectionPlan] ?? 0;
+      protectionDailyRate = (groupDefaults[groupPrefix] ?? groupDefaults.protection)[input.protectionPlan] ?? 0;
     }
   }
   const protectionTotal = roundCents(protectionDailyRate * days);
