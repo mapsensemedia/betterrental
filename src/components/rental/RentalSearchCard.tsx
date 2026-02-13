@@ -34,6 +34,7 @@ import { DeliveryAddressAutocomplete } from "./DeliveryAddressAutocomplete";
 import { DeliveryMap } from "./DeliveryMap";
 import { DeliveryPricingDisplay } from "./DeliveryPricingDisplay";
 import { PICKUP_TIME_SLOTS, MAX_RENTAL_DAYS } from "@/lib/rental-rules";
+import { computeDropoffFeeFromGroups } from "@/lib/pricing";
 
 interface RentalSearchCardProps {
   className?: string;
@@ -787,12 +788,19 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                     ))}
                 </SelectContent>
               </Select>
-              {returnLocationId && (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  $25.00 CAD different location fee applies
-                </p>
-              )}
+              {returnLocationId && (() => {
+                const pickupLoc = pickupLocations.find(l => l.id === locationId);
+                const returnLoc = pickupLocations.find(l => l.id === returnLocationId);
+                const fee = pickupLoc && returnLoc
+                  ? computeDropoffFeeFromGroups(pickupLoc.city.toLowerCase(), returnLoc.city.toLowerCase())
+                  : 0;
+                return fee > 0 ? (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    ${fee.toFixed(2)} CAD + tax different location fee applies
+                  </p>
+                ) : null;
+              })()}
             </div>
           )}
         </div>

@@ -200,7 +200,9 @@ export function BookingSummaryPanel({
               <div className="mt-2 pt-2 border-t border-border/30">
                 <p className="text-sm font-medium">Drop-off Location</p>
                 <p className="text-sm text-muted-foreground">{searchData.returnLocationName}</p>
-                <p className="text-xs text-amber-600 mt-0.5">$25.00 CAD different location fee</p>
+                {pricing.differentDropoffFee > 0 && (
+                  <p className="text-xs text-amber-600 mt-0.5">${pricing.differentDropoffFee.toFixed(2)} CAD + tax different location fee</p>
+                )}
               </div>
             )}
           </div>
