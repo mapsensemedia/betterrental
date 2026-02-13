@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     console.log("Creating booking for user:", auth.userId);
 
     const {
-      holdId,
+      holdId,        // Optional — not used for direct checkout
       vehicleId,
       locationId,
       startAt,
@@ -73,10 +73,18 @@ Deno.serve(async (req) => {
       deliveryFee,
       returnLocationId,
       totalAmount,  // Client total — used only for mismatch check, never stored
+      paymentMethod, // "pay-now" | "pay-later"
+      pickupAddress,
+      pickupLat,
+      pickupLng,
+      saveTimeAtCounter,
+      pickupContactName,
+      pickupContactPhone,
+      specialInstructions,
     } = body;
 
     // Input validation
-    if (!holdId || !vehicleId || !locationId || !startAt || !endAt) {
+    if (!vehicleId || !locationId || !startAt || !endAt) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -149,38 +157,40 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Verify hold is still active and belongs to user
-    const { data: hold, error: holdError } = await supabaseAdmin
-      .from("reservation_holds")
-      .select("*")
-      .eq("id", holdId)
-      .eq("user_id", auth.userId)
-      .eq("status", "active")
-      .single();
-
-    if (holdError || !hold) {
-      return new Response(
-        JSON.stringify({ 
-          error: "reservation_expired",
-          message: "Your reservation has expired. Please start over." 
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (new Date(hold.expires_at) < new Date()) {
-      await supabaseAdmin
+    // If holdId provided, verify hold is still active and belongs to user
+    if (holdId) {
+      const { data: hold, error: holdError } = await supabaseAdmin
         .from("reservation_holds")
-        .update({ status: "expired" })
-        .eq("id", holdId);
+        .select("*")
+        .eq("id", holdId)
+        .eq("user_id", auth.userId)
+        .eq("status", "active")
+        .single();
 
-      return new Response(
-        JSON.stringify({ 
-          error: "reservation_expired",
-          message: "Your reservation timer expired. Please start over." 
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (holdError || !hold) {
+        return new Response(
+          JSON.stringify({ 
+            error: "reservation_expired",
+            message: "Your reservation has expired. Please start over." 
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (new Date(hold.expires_at) < new Date()) {
+        await supabaseAdmin
+          .from("reservation_holds")
+          .update({ status: "expired" })
+          .eq("id", holdId);
+
+        return new Response(
+          JSON.stringify({ 
+            error: "reservation_expired",
+            message: "Your reservation timer expired. Please start over." 
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Double-check no conflicting bookings
@@ -193,10 +203,12 @@ Deno.serve(async (req) => {
       .limit(1);
 
     if (conflicts && conflicts.length > 0) {
-      await supabaseAdmin
-        .from("reservation_holds")
-        .update({ status: "expired" })
-        .eq("id", holdId);
+      if (holdId) {
+        await supabaseAdmin
+          .from("reservation_holds")
+          .update({ status: "expired" })
+          .eq("id", holdId);
+      }
 
       return new Response(
         JSON.stringify({ 
@@ -206,6 +218,9 @@ Deno.serve(async (req) => {
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Determine initial status
+    const initialStatus = paymentMethod === "pay-now" ? "draft" : (paymentMethod === "pay-later" ? "pending" : "confirmed");
 
     // Create the booking with SERVER-COMPUTED totals
     const { data: booking, error: bookingError } = await supabaseAdmin
@@ -225,12 +240,20 @@ Deno.serve(async (req) => {
         total_amount: serverTotals.total,
         young_driver_fee: serverTotals.youngDriverFee,
         different_dropoff_fee: serverTotals.differentDropoffFee,
+        delivery_fee: serverTotals.deliveryFee ?? 0,
         booking_code: "",
-        status: "confirmed",
+        status: initialStatus,
         notes: notes?.slice(0, 1000) || null,
         driver_age_band: driverAgeBand,
         protection_plan: protectionPlan || null,
         return_location_id: returnLocationId || null,
+        pickup_address: pickupAddress || null,
+        pickup_lat: pickupLat || null,
+        pickup_lng: pickupLng || null,
+        save_time_at_counter: saveTimeAtCounter || false,
+        pickup_contact_name: saveTimeAtCounter ? pickupContactName || null : null,
+        pickup_contact_phone: saveTimeAtCounter ? pickupContactPhone || null : null,
+        special_instructions: saveTimeAtCounter ? specialInstructions || null : null,
       })
       .select()
       .single();
@@ -255,11 +278,13 @@ Deno.serve(async (req) => {
       await createAdditionalDrivers(booking.id, serverTotals.additionalDriverRecords);
     }
 
-    // Mark hold as converted
-    await supabaseAdmin
-      .from("reservation_holds")
-      .update({ status: "converted" })
-      .eq("id", holdId);
+    // Mark hold as converted (if hold was used)
+    if (holdId) {
+      await supabaseAdmin
+        .from("reservation_holds")
+        .update({ status: "converted" })
+        .eq("id", holdId);
+    }
 
     // Notifications
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
