@@ -1,7 +1,7 @@
 /**
  * DB-backed rate limiting for edge functions.
+ * Uses atomic RPC (check_rate_limit) to prevent race conditions.
  * Persists counters in public.rate_limits table (service-role only).
- * Survives cold starts and works across distributed instances.
  */
 
 import { getAdminClient } from "./auth.ts";
@@ -22,77 +22,32 @@ interface RateLimitResult {
 }
 
 /**
- * Check and increment a DB-backed rate limit counter.
- * Uses UPSERT for atomicity.
+ * Atomic DB-backed rate limit check using RPC.
+ * Single upsert statement prevents race conditions under concurrency.
  */
 export async function checkDbRateLimit(opts: RateLimitOptions): Promise<RateLimitResult> {
   const supabase = getAdminClient();
-  const now = new Date();
 
-  // Try to get existing record
-  const { data: existing } = await supabase
-    .from("rate_limits")
-    .select("*")
-    .eq("key", opts.key)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("check_rate_limit", {
+    p_key: opts.key,
+    p_window_seconds: opts.windowSeconds,
+    p_max_requests: opts.maxRequests,
+  });
 
-  if (existing) {
-    const windowStart = new Date(existing.window_start);
-    const windowEnd = new Date(windowStart.getTime() + existing.window_seconds * 1000);
-
-    if (now < windowEnd) {
-      // Window still active
-      if (existing.request_count >= existing.max_requests) {
-        return {
-          allowed: false,
-          remaining: 0,
-          resetAt: windowEnd.getTime(),
-        };
-      }
-
-      // Increment
-      await supabase
-        .from("rate_limits")
-        .update({ request_count: existing.request_count + 1 })
-        .eq("id", existing.id);
-
-      return {
-        allowed: true,
-        remaining: existing.max_requests - existing.request_count - 1,
-        resetAt: windowEnd.getTime(),
-      };
-    }
-
-    // Window expired — reset
-    await supabase
-      .from("rate_limits")
-      .update({
-        window_start: now.toISOString(),
-        request_count: 1,
-        window_seconds: opts.windowSeconds,
-        max_requests: opts.maxRequests,
-      })
-      .eq("id", existing.id);
-
+  if (error || !data || data.length === 0) {
+    console.error("[rate-limit-db] RPC error, failing open:", error);
+    // Fail open: allow the request but log the error
     return {
       allowed: true,
       remaining: opts.maxRequests - 1,
-      resetAt: now.getTime() + opts.windowSeconds * 1000,
+      resetAt: Date.now() + opts.windowSeconds * 1000,
     };
   }
 
-  // No record — create new
-  await supabase.from("rate_limits").insert({
-    key: opts.key,
-    window_start: now.toISOString(),
-    request_count: 1,
-    window_seconds: opts.windowSeconds,
-    max_requests: opts.maxRequests,
-  });
-
+  const row = data[0];
   return {
-    allowed: true,
-    remaining: opts.maxRequests - 1,
-    resetAt: now.getTime() + opts.windowSeconds * 1000,
+    allowed: row.allowed,
+    remaining: row.remaining,
+    resetAt: new Date(row.reset_at).getTime(),
   };
 }
