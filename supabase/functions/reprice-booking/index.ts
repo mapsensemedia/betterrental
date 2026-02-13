@@ -153,8 +153,8 @@ Deno.serve(async (req) => {
     }
 
     const deliveryFee = Number(booking.delivery_fee) || 0;
-    // Always recompute drop-off fee from location IDs (canonical)
-    const differentDropoffFee = computeDropoffFee(booking.location_id, booking.return_location_id);
+    // Always recompute drop-off fee from location IDs (canonical, DB-driven)
+    const differentDropoffFee = await computeDropoffFee(booking.location_id, booking.return_location_id);
 
     let updateData: Record<string, unknown> = {};
     let oldData: Record<string, unknown> = {};

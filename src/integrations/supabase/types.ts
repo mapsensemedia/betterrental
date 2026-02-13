@@ -1714,6 +1714,7 @@ export type Database = {
           city: string
           created_at: string
           email: string | null
+          fee_group: string | null
           hours_json: Json | null
           id: string
           is_active: boolean | null
@@ -1729,6 +1730,7 @@ export type Database = {
           city: string
           created_at?: string
           email?: string | null
+          fee_group?: string | null
           hours_json?: Json | null
           id?: string
           is_active?: boolean | null
@@ -1744,6 +1746,7 @@ export type Database = {
           city?: string
           created_at?: string
           email?: string | null
+          fee_group?: string | null
           hours_json?: Json | null
           id?: string
           is_active?: boolean | null

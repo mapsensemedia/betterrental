@@ -13,6 +13,7 @@ export interface Location {
   placeId: string | null;
   hoursJson: Record<string, string> | null;
   isActive: boolean | null;
+  feeGroup: string | null;
 }
 
 export function useLocations() {
@@ -30,7 +31,7 @@ export function useLocations() {
         return [];
       }
 
-      return (data || []).map((loc) => ({
+      return (data || []).map((loc: any) => ({
         id: loc.id,
         name: loc.name,
         address: loc.address,
@@ -42,6 +43,7 @@ export function useLocations() {
         placeId: loc.place_id,
         hoursJson: loc.hours_json as Record<string, string> | null,
         isActive: loc.is_active,
+        feeGroup: loc.fee_group || null,
       }));
     },
     staleTime: 300000, // 5 minutes
@@ -77,6 +79,7 @@ export function useLocation(id: string | null) {
         placeId: data.place_id,
         hoursJson: data.hours_json as Record<string, string> | null,
         isActive: data.is_active,
+        feeGroup: (data as any).fee_group || null,
       };
     },
     enabled: !!id,
