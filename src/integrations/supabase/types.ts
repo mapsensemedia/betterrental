@@ -3414,6 +3414,18 @@ export type Database = {
         }
         Returns: string
       }
+      check_rate_limit: {
+        Args: {
+          p_key: string
+          p_max_requests: number
+          p_window_seconds: number
+        }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          reset_at: string
+        }[]
+      }
       check_ticket_escalation: { Args: never; Returns: undefined }
       cleanup_expired_rate_limits: { Args: never; Returns: undefined }
       generate_booking_code: { Args: never; Returns: string }
