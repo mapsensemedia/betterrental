@@ -56,8 +56,9 @@ import {
   BOOKING_INCLUDED_FEATURES,
   DEFAULT_DEPOSIT_AMOUNT,
   DriverAgeBand,
-  computeDropoffFeeClient,
+  computeDropoffFeeFromGroups,
 } from "@/lib/pricing";
+import { useLocations } from "@/hooks/use-locations";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
 
@@ -168,14 +169,19 @@ export default function NewCheckout() {
   
   // Get vehicle category for fuel add-on calculation
   const vehicleCategory = vehicle?.category || (vehicle as any)?.categoryName || "default";
+
+  // Load locations for fee_group-based drop-off fee preview
+  const { data: allLocations = [] } = useLocations();
   
   const pricing = useMemo(() => {
     const protectionInfo = PROTECTION_RATES[protection] || PROTECTION_RATES.none;
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays, vehicleCategory, undefined, searchData.addOnQuantities);
     const deliveryFee = searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0;
     const isDifferentDropoff = !searchData.returnSameAsPickup && !!searchData.returnLocationId && searchData.returnLocationId !== searchData.pickupLocationId;
+    const pickupLoc = allLocations.find(l => l.id === searchData.pickupLocationId);
+    const returnLoc = allLocations.find(l => l.id === searchData.returnLocationId);
     const differentDropoffFee = isDifferentDropoff
-      ? computeDropoffFeeClient(searchData.pickupLocationId, searchData.returnLocationId)
+      ? computeDropoffFeeFromGroups(pickupLoc?.feeGroup, returnLoc?.feeGroup)
       : 0;
     
     // Calculate additional drivers cost
@@ -203,7 +209,7 @@ export default function NewCheckout() {
       isDifferentDropoff,
       differentDropoffFee,
     };
-  }, [vehicle, vehicleCategory, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand]);
+  }, [vehicle, vehicleCategory, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand, allLocations]);
 
   // Final total after points discount
   const finalTotal = Math.max(0, pricing.total - pointsDiscount);

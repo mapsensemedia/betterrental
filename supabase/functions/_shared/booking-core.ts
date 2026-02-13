@@ -350,38 +350,18 @@ export async function requireBookingOwnerOrToken(
   throw new AuthError("Authentication or access token required", 401);
 }
 
-// ========== DROP-OFF FEE COMPUTATION ==========
-
-// Location IDs → city group mapping
-const LOCATION_CITY_GROUPS: Record<string, string> = {
-  "a1b2c3d4-1111-4000-8000-000000000001": "surrey",
-  "a1b2c3d4-2222-4000-8000-000000000002": "langley",
-  "a1b2c3d4-3333-4000-8000-000000000003": "abbotsford",
-};
+// ========== DROP-OFF FEE COMPUTATION (DB-driven) ==========
 
 /**
- * Compute drop-off fee based on pickup and return location IDs.
- * Returns 0 if same location or unknown locations.
- * 
- * Business rules:
- *   Surrey <-> Langley: $50
- *   (Surrey or Langley) <-> Abbotsford: $75
+ * Compute fee tier from two fee_group strings.
+ * Pure logic — no DB access.
  */
-export function computeDropoffFee(
-  pickupLocationId: string | null | undefined,
-  returnLocationId: string | null | undefined,
+function feeFromGroups(
+  pickupGroup: string | null | undefined,
+  returnGroup: string | null | undefined,
 ): number {
-  if (!pickupLocationId || !returnLocationId) return 0;
-  if (pickupLocationId === returnLocationId) return 0;
-
-  const pickupGroup = LOCATION_CITY_GROUPS[pickupLocationId];
-  const returnGroup = LOCATION_CITY_GROUPS[returnLocationId];
-
-  if (!pickupGroup || !returnGroup) return 0;
-  if (pickupGroup === returnGroup) return 0;
-
+  if (!pickupGroup || !returnGroup || pickupGroup === returnGroup) return 0;
   const pair = [pickupGroup, returnGroup].sort().join("|");
-
   switch (pair) {
     case "langley|surrey":
       return 50;
@@ -391,6 +371,31 @@ export function computeDropoffFee(
     default:
       return 0;
   }
+}
+
+/**
+ * Compute drop-off fee by looking up fee_group from the locations table.
+ * Returns 0 if same location, unknown locations, or null fee_group.
+ */
+export async function computeDropoffFee(
+  pickupLocationId: string | null | undefined,
+  returnLocationId: string | null | undefined,
+): Promise<number> {
+  if (!pickupLocationId || !returnLocationId) return 0;
+  if (pickupLocationId === returnLocationId) return 0;
+
+  const supabase = getAdminClient();
+  const { data: rows } = await supabase
+    .from("locations")
+    .select("id, fee_group")
+    .in("id", [pickupLocationId, returnLocationId]);
+
+  if (!rows || rows.length < 2) return 0;
+
+  const pickupGroup = rows.find((r: any) => r.id === pickupLocationId)?.fee_group;
+  const returnGroup = rows.find((r: any) => r.id === returnLocationId)?.fee_group;
+
+  return feeFromGroups(pickupGroup, returnGroup);
 }
 
 // ========== SERVER-SIDE PRICING ==========
@@ -581,9 +586,9 @@ export async function computeBookingTotals(input: {
 
   // 8) Delivery + dropoff fees
   const deliveryFee = roundCents(Number(input.deliveryFee ?? 0));
-  // Prefer server-computed drop-off fee from location IDs; fall back to explicit input
+  // Always compute drop-off fee from DB via location IDs; fall back to explicit input only if no IDs
   const differentDropoffFee = (input.locationId && input.returnLocationId)
-    ? computeDropoffFee(input.locationId, input.returnLocationId)
+    ? await computeDropoffFee(input.locationId, input.returnLocationId)
     : roundCents(Number(input.differentDropoffFee ?? 0));
 
   // 9) Subtotal (now includes additional drivers)

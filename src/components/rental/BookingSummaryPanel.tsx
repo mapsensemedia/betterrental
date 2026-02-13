@@ -10,7 +10,8 @@ import { useVehicle, useCategory } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE, YOUNG_DRIVER_FEE } from "@/lib/pricing";
+import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE, YOUNG_DRIVER_FEE, computeDropoffFeeFromGroups } from "@/lib/pricing";
+import { useLocations } from "@/hooks/use-locations";
 import { formatTimeDisplay } from "@/lib/rental-rules";
 import { useSearchParams } from "react-router-dom";
 import { calculateAdditionalDriversCost } from "./AdditionalDriversCard";
@@ -68,6 +69,7 @@ export function BookingSummaryPanel({
   const vehicle = category || legacyVehicle;
   
   const { data: addOns = [] } = useAddOns();
+  const { data: allLocations = [] } = useLocations();
 
   // Filter out "Additional Driver" add-on ID from regular add-ons
   // since additional drivers are managed separately via additionalDrivers[]
@@ -102,7 +104,9 @@ export function BookingSummaryPanel({
     );
     const deliveryFee = searchData.deliveryFee || 0;
     const isDifferentDropoff = !searchData.returnSameAsPickup && !!searchData.returnLocationId && searchData.returnLocationId !== searchData.pickupLocationId;
-    const differentDropoffFee = isDifferentDropoff ? 25 : 0;
+    const pickupLoc = allLocations.find(l => l.id === searchData.pickupLocationId);
+    const returnLoc = allLocations.find(l => l.id === searchData.returnLocationId);
+    const differentDropoffFee = isDifferentDropoff ? computeDropoffFeeFromGroups(pickupLoc?.feeGroup, returnLoc?.feeGroup) : 0;
     
     // Calculate additional drivers cost
     const additionalDriversCost = calculateAdditionalDriversCost(effectiveAdditionalDrivers, rentalDays, additionalDriverRate, youngAdditionalDriverRate);
