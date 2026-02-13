@@ -439,9 +439,10 @@ export async function computeBookingTotals(input: {
 }): Promise<ServerPricingResult> {
   const supabase = getAdminClient();
 
-  // 1) Compute days from date-only portions (strip time to avoid timezone drift)
-  const startDate = input.startAt.substring(0, 10); // "YYYY-MM-DD"
-  const endDate = input.endAt.substring(0, 10);
+  // 1) Compute days from date-only portions
+  // If input is "YYYY-MM-DD" (10 chars, no T), use directly; otherwise extract date from ISO timestamp
+  const startDate = input.startAt.length === 10 ? input.startAt : input.startAt.substring(0, 10);
+  const endDate = input.endAt.length === 10 ? input.endAt : input.endAt.substring(0, 10);
   const startMs = Date.UTC(+startDate.slice(0,4), +startDate.slice(5,7)-1, +startDate.slice(8,10));
   const endMs = Date.UTC(+endDate.slice(0,4), +endDate.slice(5,7)-1, +endDate.slice(8,10));
   const days = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)));

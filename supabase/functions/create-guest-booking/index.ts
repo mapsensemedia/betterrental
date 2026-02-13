@@ -105,6 +105,8 @@ Deno.serve(async (req) => {
       locationId,
       startAt,
       endAt,
+      pickupDate,    // "YYYY-MM-DD" date-only string for pricing
+      dropoffDate,   // "YYYY-MM-DD" date-only string for pricing
       driverAgeBand,
       protectionPlan,
       addOns,        // Only { addOnId, quantity }[] — price ignored
@@ -143,8 +145,8 @@ Deno.serve(async (req) => {
     try {
       priceCheck = await validateClientPricing({
         vehicleId,
-        startAt,
-        endAt,
+        startAt: pickupDate || startAt,
+        endAt: dropoffDate || endAt,
         protectionPlan,
         addOns: addOns?.map((a: { addOnId: string; quantity: number }) => ({ addOnId: a.addOnId, quantity: a.quantity })),
         additionalDrivers: (body.additionalDrivers || []).map((d: any) => ({
