@@ -380,33 +380,31 @@ export default function NewCheckout() {
         if (error) throw error;
         booking = bookingData;
 
-        // Add add-ons and additional drivers in parallel
-        await Promise.all([
-          addOnIds.length > 0
-            ? supabase.from("booking_add_ons").insert(
-                addOnIds.map((id) => {
-                  const addon = addOns.find((a) => a.id === id);
-                  const qty = searchData.addOnQuantities?.[id] || 1;
-                  return {
-                    booking_id: booking!.id,
-                    add_on_id: id,
-                    price: addon ? (addon.dailyRate * rentalDays + (addon.oneTimeFee || 0)) * qty : 0,
-                    quantity: qty,
-                  };
-                })
-              )
-            : null,
-          searchData.additionalDrivers && searchData.additionalDrivers.length > 0
-            ? supabase.from("booking_additional_drivers").insert(
-                searchData.additionalDrivers.map((driver) => ({
-                  booking_id: booking!.id,
-                  driver_name: driver.name || null,
-                  driver_age_band: driver.ageBand,
-                  young_driver_fee: 0,
-                }))
-              )
-            : null,
-        ]);
+        // Persist add-ons and additional drivers via service-role edge function
+        // (required by fail-closed price triggers that block anon inserts with price != 0)
+        const hasExtras = addOnIds.length > 0 || (searchData.additionalDrivers && searchData.additionalDrivers.length > 0);
+        if (hasExtras) {
+          const extrasPayload: Record<string, unknown> = { bookingId: booking!.id };
+          if (addOnIds.length > 0) {
+            extrasPayload.addOns = addOnIds.map((id) => ({
+              addOnId: id,
+              quantity: searchData.addOnQuantities?.[id] || 1,
+            }));
+          }
+          if (searchData.additionalDrivers && searchData.additionalDrivers.length > 0) {
+            extrasPayload.additionalDrivers = searchData.additionalDrivers.map((driver) => ({
+              driverName: driver.name || null,
+              driverAgeBand: driver.ageBand,
+            }));
+          }
+          const { error: extrasError } = await supabase.functions.invoke("persist-booking-extras", {
+            body: extrasPayload,
+          });
+          if (extrasError) {
+            console.error("Failed to persist booking extras:", extrasError);
+            throw new Error("Failed to save booking add-ons. Please contact support.");
+          }
+        }
       } else {
         // Guest checkout flow - use edge function
         const addOnData = addOnIds.map((id) => {
