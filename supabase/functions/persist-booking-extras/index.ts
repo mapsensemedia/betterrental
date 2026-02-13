@@ -74,9 +74,9 @@ Deno.serve(async (req) => {
       }
 
       if (action === "upsell-add") {
-        return await handleUpsellAdd(supabaseAdmin, booking, body, corsHeaders, auth.userId);
+        return await handleUpsellAdd(supabaseAdmin, booking, body, corsHeaders, auth.userId, req);
       } else {
-        return await handleUpsellRemove(supabaseAdmin, booking, body, corsHeaders, auth.userId);
+        return await handleUpsellRemove(supabaseAdmin, booking, body, corsHeaders, auth.userId, req);
       }
     }
 
@@ -163,6 +163,7 @@ async function handleUpsellAdd(
   body: any,
   corsHeaders: Record<string, string>,
   userId: string,
+  req: Request,
 ): Promise<Response> {
   const { bookingId, addOnId, quantity } = body;
   if (!addOnId) {
@@ -298,8 +299,8 @@ async function handleUpsellAdd(
     new_data: { addOnId, addOnName: addOnRow.name, quantity: computedEntry.quantity, computedPrice: computedEntry.price },
   });
 
-  // Reprice booking totals using canonical computeBookingTotals result
-  await repriceFromServerTotals(supabaseAdmin, bookingId, serverTotals);
+  // Reprice booking totals via canonical reprice-booking edge function
+  await invokeRepriceBooking(bookingId, booking.end_at, req);
 
   return new Response(
     JSON.stringify({ ok: true }),
@@ -315,6 +316,7 @@ async function handleUpsellRemove(
   body: any,
   corsHeaders: Record<string, string>,
   userId: string,
+  req: Request,
 ): Promise<Response> {
   const { bookingId, bookingAddOnId, addOnId } = body;
   // Support both bookingAddOnId (row id) and addOnId (add_on_id)
@@ -379,41 +381,8 @@ async function handleUpsellRemove(
     new_data: null,
   });
 
-  // Reprice: rebuild totals with remaining add-ons
-  const { data: remainingAddOns } = await supabaseAdmin
-    .from("booking_add_ons")
-    .select("add_on_id, quantity")
-    .eq("booking_id", bookingId);
-
-  const { data: remainingDrivers } = await supabaseAdmin
-    .from("booking_additional_drivers")
-    .select("driver_name, driver_age_band, young_driver_fee")
-    .eq("booking_id", bookingId);
-
-  const addOnInputs = (remainingAddOns || []).map((r: any) => ({
-    addOnId: r.add_on_id,
-    quantity: Number(r.quantity) || 1,
-  }));
-
-  const driverInputs = (remainingDrivers || []).map((d: any) => ({
-    driverName: d.driver_name || null,
-    driverAgeBand: d.driver_age_band || "25_70",
-    youngDriverFee: 0,
-  }));
-
-  const serverTotals = await computeBookingTotals({
-    vehicleId: booking.vehicle_id,
-    startAt: booking.start_at,
-    endAt: booking.end_at,
-    protectionPlan: booking.protection_plan || undefined,
-    addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
-    additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
-    driverAgeBand: booking.driver_age_band || undefined,
-    deliveryFee: Number(booking.delivery_fee) || 0,
-    differentDropoffFee: Number(booking.different_dropoff_fee) || 0,
-  });
-
-  await repriceFromServerTotals(supabaseAdmin, bookingId, serverTotals);
+  // Reprice booking totals via canonical reprice-booking edge function
+  await invokeRepriceBooking(bookingId, booking.end_at, req);
 
   return new Response(
     JSON.stringify({ ok: true }),
@@ -422,20 +391,36 @@ async function handleUpsellRemove(
 }
 
 
-// ── Update booking totals from canonical ServerPricingResult ──────
-async function repriceFromServerTotals(
-  supabaseAdmin: any,
+// ── Invoke reprice-booking edge function (canonical totals writer) ──
+async function invokeRepriceBooking(
   bookingId: string,
-  totals: { subtotal: number; taxAmount: number; total: number },
+  currentEndAt: string,
+  originalReq: Request,
 ): Promise<void> {
-  await supabaseAdmin
-    .from("bookings")
-    .update({
-      subtotal: totals.subtotal,
-      tax_amount: totals.taxAmount,
-      total_amount: totals.total,
-    })
-    .eq("id", bookingId);
-}
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+  const resp = await fetch(
+    `${supabaseUrl}/functions/v1/reprice-booking`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: originalReq.headers.get("Authorization") || `Bearer ${serviceRoleKey}`,
+        apikey: serviceRoleKey,
+      },
+      body: JSON.stringify({
+        bookingId,
+        operation: "modify",
+        newEndAt: currentEndAt,
+        reason: "upsell_reprice",
+      }),
+    },
+  );
+
+  if (!resp.ok) {
+    const errBody = await resp.text();
+    console.error("[persist-booking-extras] reprice-booking failed:", resp.status, errBody);
+  }
+}
 
