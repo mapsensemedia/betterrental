@@ -1,0 +1,5 @@
+
+ALTER TABLE public.damage_reports FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.incident_cases FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.incident_photos FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.incident_repairs FORCE ROW LEVEL SECURITY;
