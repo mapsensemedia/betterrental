@@ -77,6 +77,20 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
   const vehicleCents = useRemainder ? vehicleRemainderCents : vehicleBaseCents;
   const vehicleHasAdjustments = useRemainder && vehicleRemainderCents !== vehicleBaseCents;
 
+  // Detect missing join rows: if no add-ons/drivers but vehicle remainder is much larger than base
+  const extrasLikelyMissing = bookingAddOns.length === 0
+    && additionalDrivers.length === 0
+    && vehicleRemainderCents > vehicleBaseCents * 1.5
+    && vehicleRemainderCents > 0;
+
+  if (extrasLikelyMissing) {
+    console.warn(
+      `[OPS_BREAKDOWN] Missing join rows for booking ${booking.booking_code || booking.id}: ` +
+      `base=$${fromCents(vehicleBaseCents)}, remainder=$${fromCents(vehicleRemainderCents)}, ` +
+      `unpersisted_extras=$${fromCents(vehicleRemainderCents - vehicleBaseCents)}`
+    );
+  }
+
   const itemizedCents = vehicleCents + nonVehicleCents;
 
   const deltaCents = dbSubtotalCents - itemizedCents;
@@ -127,17 +141,35 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
 
   return (
     <div className="space-y-1.5 text-xs">
-      {/* Vehicle (uses remainder to absorb surcharges/discounts) */}
+      {/* Warning: extras not persisted */}
+      {extrasLikelyMissing && (
+        <div className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-2 py-1 mb-1">
+          <Info className="h-3 w-3 shrink-0" />
+          <span>Add-ons/drivers not persisted — breakdown may be inaccurate</span>
+        </div>
+      )}
+
+      {/* Vehicle — only show base when extras are missing (don't inflate) */}
       <div className="flex justify-between">
         <span className="text-muted-foreground">
-          Vehicle{vehicleHasAdjustments ? " (incl. surcharges/discounts)" : ` (${totalDays}d × $${Number(booking.daily_rate).toFixed(2)}/day)`}
+          Vehicle{vehicleHasAdjustments && !extrasLikelyMissing ? " (incl. surcharges/discounts)" : ` (${totalDays}d × $${Number(booking.daily_rate).toFixed(2)}/day)`}
         </span>
-        <span>${fromCents(vehicleCents)}</span>
+        <span>${fromCents(extrasLikelyMissing ? vehicleBaseCents : vehicleCents)}</span>
       </div>
-      {vehicleHasAdjustments && (
+      {vehicleHasAdjustments && !extrasLikelyMissing && (
         <p className="text-[10px] text-muted-foreground pl-2">
           Base: {totalDays}d × ${Number(booking.daily_rate).toFixed(2)}/day = ${fromCents(vehicleBaseCents)}
         </p>
+      )}
+      {/* Show unpersisted extras remainder when join rows are missing */}
+      {extrasLikelyMissing && (
+        <div className="flex justify-between text-amber-600">
+          <span className="flex items-center gap-1">
+            <Info className="h-3 w-3" />
+            Extras (not itemized — missing DB rows)
+          </span>
+          <span>${fromCents(vehicleRemainderCents - vehicleBaseCents)}</span>
+        </div>
       )}
 
       {/* Protection */}
