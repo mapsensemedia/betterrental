@@ -348,72 +348,68 @@ export default function NewCheckout() {
       // Card info will be collected by Stripe checkout — store nulls for now
 
       if (session) {
-        // Logged-in user flow - create booking directly
-        // Note: vehicle_id stores the category ID for category-based bookings
-        const { data: bookingData, error } = await supabase
-          .from("bookings")
-          .insert({
-            user_id: session.user.id,
-            vehicle_id: categoryId, // This is the category ID
-            location_id: locationId,
-            start_at: searchData.pickupDate.toISOString(),
-            end_at: searchData.returnDate.toISOString(),
-            daily_rate: vehicle.dailyRate,
-            total_days: rentalDays,
-            subtotal: pricing.subtotal,
-            tax_amount: pricing.taxAmount,
-            total_amount: pricing.total,
-            deposit_amount: DEFAULT_DEPOSIT_AMOUNT,
-            booking_code: `C2C${Date.now().toString(36).toUpperCase()}`,
-            status: paymentMethod === "pay-now" ? "draft" : "pending",
-            notes: bookingNotes,
-            pickup_address: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : null,
-            pickup_lat: searchData.deliveryLat,
-            pickup_lng: searchData.deliveryLng,
-            driver_age_band: driverAgeBand,
-            young_driver_fee: pricing.youngDriverFee,
-            save_time_at_counter: saveTimeAtCounter,
-            pickup_contact_name: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : null,
-            pickup_contact_phone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : null,
-            special_instructions: saveTimeAtCounter && specialInstructions ? specialInstructions : null,
-            card_last_four: null,
-            card_type: null,
-            card_holder_name: null,
-            protection_plan: protection,
-            return_location_id: pricing.isDifferentDropoff ? searchData.returnLocationId : null,
-            different_dropoff_fee: pricing.differentDropoffFee || 0,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        booking = bookingData;
-
-        // Persist add-ons and additional drivers via service-role edge function
-        // (required by fail-closed price triggers that block anon inserts with price != 0)
-        const hasExtras = addOnIds.length > 0 || (searchData.additionalDrivers && searchData.additionalDrivers.length > 0);
-        if (hasExtras) {
-          const extrasPayload: Record<string, unknown> = { bookingId: booking!.id };
-          if (addOnIds.length > 0) {
-            extrasPayload.addOns = addOnIds.map((id) => ({
-              addOnId: id,
-              quantity: searchData.addOnQuantities?.[id] || 1,
-            }));
-          }
-          if (searchData.additionalDrivers && searchData.additionalDrivers.length > 0) {
-            extrasPayload.additionalDrivers = searchData.additionalDrivers.map((driver) => ({
-              driverName: driver.name || null,
-              driverAgeBand: driver.ageBand,
-            }));
-          }
-          const { error: extrasError } = await supabase.functions.invoke("persist-booking-extras", {
-            body: extrasPayload,
+        // Logged-in user flow — call create-booking edge function for server-side pricing
+        let authResponse;
+        try {
+          authResponse = await supabase.functions.invoke("create-booking", {
+            body: {
+              vehicleId: categoryId,
+              locationId,
+              startAt: searchData.pickupDate.toISOString(),
+              endAt: searchData.returnDate.toISOString(),
+              driverAgeBand,
+              protectionPlan: protection,
+              addOns: addOnIds.map((id) => ({
+                addOnId: id,
+                quantity: searchData.addOnQuantities?.[id] || 1,
+              })),
+              additionalDrivers: (searchData.additionalDrivers || []).map((driver) => ({
+                driverName: driver.name || null,
+                driverAgeBand: driver.ageBand,
+              })),
+              notes: bookingNotes,
+              deliveryFee: searchData.deliveryFee || 0,
+              returnLocationId: pricing.isDifferentDropoff ? searchData.returnLocationId : undefined,
+              totalAmount: pricing.total,
+              paymentMethod,
+              pickupAddress: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : undefined,
+              pickupLat: searchData.deliveryLat,
+              pickupLng: searchData.deliveryLng,
+              saveTimeAtCounter,
+              pickupContactName: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : undefined,
+              pickupContactPhone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : undefined,
+              specialInstructions: saveTimeAtCounter && specialInstructions ? specialInstructions : undefined,
+            },
           });
-          if (extrasError) {
-            console.error("Failed to persist booking extras:", extrasError);
-            throw new Error("Failed to save booking add-ons. Please contact support.");
-          }
+        } catch (networkError: any) {
+          console.error("Network error during booking creation:", networkError);
+          throw new Error("Unable to connect to booking service. Please check your internet connection and try again.");
         }
+
+        // Handle errors from edge function
+        if (authResponse.data?.error) {
+          const errorCode = authResponse.data.error;
+          const errorMessages: Record<string, string> = {
+            "age_validation_failed": "Please confirm your age on the search page before booking.",
+            "PRICE_MISMATCH": `Price has changed. Server total: $${authResponse.data.serverTotal?.toFixed(2) || "N/A"}. Please refresh and try again.`,
+            "vehicle_unavailable": "This vehicle is no longer available for the selected dates.",
+            "reservation_expired": "Your reservation has expired. Please start over.",
+          };
+          throw new Error(errorMessages[errorCode] || authResponse.data.message || "Failed to create booking.");
+        }
+        if (authResponse.error) {
+          throw new Error(authResponse.error.message || "Failed to create booking.");
+        }
+
+        if (!authResponse.data?.booking) {
+          throw new Error("Failed to create booking. Please try again.");
+        }
+
+        const bookingResponse = authResponse.data.booking;
+        booking = {
+          id: bookingResponse.id,
+          booking_code: bookingResponse.bookingCode || bookingResponse.booking_code || "",
+        };
       } else {
         // Guest checkout flow - use edge function
         const addOnData = addOnIds.map((id) => {
