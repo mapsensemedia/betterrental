@@ -120,7 +120,6 @@ Deno.serve(async (req) => {
       cardType,
       cardHolderName,
       deliveryFee,
-      differentDropoffFee,
       totalAmount,    // Client total — used only for mismatch check
     } = body;
 
@@ -155,7 +154,8 @@ Deno.serve(async (req) => {
         })),
         driverAgeBand,
         deliveryFee,
-        differentDropoffFee,
+        locationId: body.locationId,
+        returnLocationId: body.returnLocationId,
         clientTotal: Number(totalAmount),
       });
     } catch (err) {
@@ -259,7 +259,6 @@ Deno.serve(async (req) => {
       cardHolderName,
       returnLocationId: body.returnLocationId,
       deliveryFee,
-      differentDropoffFee,
     }, serverTotals);
 
     if (!bookingResult.success || !bookingResult.booking) {

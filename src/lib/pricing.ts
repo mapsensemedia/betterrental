@@ -39,6 +39,38 @@ export const MAX_DRIVER_AGE = 70;
 // ========== CANCELLATION FEE ==========
 export const CANCELLATION_FEE = 19.99; // CAD
 
+// ========== DROP-OFF FEE TIERS ==========
+// Must mirror server-side computeDropoffFee in booking-core.ts
+const DROPOFF_LOCATION_GROUPS: Record<string, string> = {
+  "a1b2c3d4-1111-4000-8000-000000000001": "surrey",
+  "a1b2c3d4-2222-4000-8000-000000000002": "langley",
+  "a1b2c3d4-3333-4000-8000-000000000003": "abbotsford",
+};
+
+/**
+ * Compute drop-off fee for display based on pickup/return location IDs.
+ * Server recomputes this canonically — this is for UI preview only.
+ */
+export function computeDropoffFeeClient(
+  pickupLocationId: string | null | undefined,
+  returnLocationId: string | null | undefined,
+): number {
+  if (!pickupLocationId || !returnLocationId) return 0;
+  if (pickupLocationId === returnLocationId) return 0;
+
+  const pickupGroup = DROPOFF_LOCATION_GROUPS[pickupLocationId];
+  const returnGroup = DROPOFF_LOCATION_GROUPS[returnLocationId];
+  if (!pickupGroup || !returnGroup || pickupGroup === returnGroup) return 0;
+
+  const pair = [pickupGroup, returnGroup].sort().join("|");
+  switch (pair) {
+    case "langley|surrey": return 50;
+    case "abbotsford|langley":
+    case "abbotsford|surrey": return 75;
+    default: return 0;
+  }
+}
+
 // ========== MYSTERY CAR PRICING ==========
 export const MYSTERY_CAR_FEE = 30; // CAD base price for Mystery Car category
 
