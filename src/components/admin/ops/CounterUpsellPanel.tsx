@@ -1,14 +1,11 @@
 /**
- * CounterUpsellPanel - Add upgrades/add-ons at the counter before activating the rental
+ * CounterUpsellPanel - Add upgrades/add-ons at the counter before activating the rental.
+ * All mutations route through persist-booking-extras edge function (service_role).
  */
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ShoppingCart, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAddOns, type AddOn, isFuelAddOn, isAdditionalDriverAddOn } from "@/hooks/use-add-ons";
@@ -36,56 +33,25 @@ function useBookingAddOns(bookingId: string) {
 function useAddBookingAddOn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ bookingId, addOn, rentalDays }: { bookingId: string; addOn: AddOn; rentalDays: number }) => {
-      // Calculate price
-      let price: number;
-      if (isFuelAddOn(addOn.name)) {
-        price = addOn.oneTimeFee || addOn.dailyRate;
-      } else {
-        price = addOn.dailyRate * rentalDays + (addOn.oneTimeFee || 0);
-      }
-
-      // Insert booking_add_on
-      const { error: insertErr } = await supabase
-        .from("booking_add_ons")
-        .insert({
-          booking_id: bookingId,
-          add_on_id: addOn.id,
-          price: Number(price.toFixed(2)),
+    mutationFn: async ({ bookingId, addOn }: { bookingId: string; addOn: AddOn }) => {
+      const { data, error } = await supabase.functions.invoke("persist-booking-extras", {
+        body: {
+          bookingId,
+          action: "upsell-add",
+          addOnId: addOn.id,
           quantity: 1,
-        });
-      if (insertErr) throw insertErr;
-
-      // Update booking totals
-      const { data: booking } = await supabase
-        .from("bookings")
-        .select("subtotal, tax_amount, total_amount")
-        .eq("id", bookingId)
-        .maybeSingle();
-
-      if (booking) {
-        const newSubtotal = Number(booking.subtotal) + price;
-        const taxRate = Number(booking.tax_amount) / Number(booking.subtotal) || 0;
-        const newTax = newSubtotal * taxRate;
-        const newTotal = newSubtotal + newTax;
-
-        await supabase
-          .from("bookings")
-          .update({
-            subtotal: Number(newSubtotal.toFixed(2)),
-            tax_amount: Number(newTax.toFixed(2)),
-            total_amount: Number(newTotal.toFixed(2)),
-          })
-          .eq("id", bookingId);
-      }
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["booking-add-ons", vars.bookingId] });
       queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
       toast.success("Add-on added to booking");
     },
-    onError: () => {
-      toast.error("Failed to add add-on. Please try again.");
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to add add-on. Please try again.");
     },
   });
 }
@@ -93,44 +59,24 @@ function useAddBookingAddOn() {
 function useRemoveBookingAddOn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, bookingId, price }: { id: string; bookingId: string; price: number }) => {
-      // Remove add-on
-      const { error } = await supabase
-        .from("booking_add_ons")
-        .delete()
-        .eq("id", id);
+    mutationFn: async ({ id, bookingId }: { id: string; bookingId: string }) => {
+      const { data, error } = await supabase.functions.invoke("persist-booking-extras", {
+        body: {
+          bookingId,
+          action: "upsell-remove",
+          bookingAddOnId: id,
+        },
+      });
       if (error) throw error;
-
-      // Update booking totals
-      const { data: booking } = await supabase
-        .from("bookings")
-        .select("subtotal, tax_amount, total_amount")
-        .eq("id", bookingId)
-        .maybeSingle();
-
-      if (booking) {
-        const newSubtotal = Math.max(0, Number(booking.subtotal) - price);
-        const taxRate = Number(booking.subtotal) > 0 ? Number(booking.tax_amount) / Number(booking.subtotal) : 0;
-        const newTax = newSubtotal * taxRate;
-        const newTotal = newSubtotal + newTax;
-
-        await supabase
-          .from("bookings")
-          .update({
-            subtotal: Number(newSubtotal.toFixed(2)),
-            tax_amount: Number(newTax.toFixed(2)),
-            total_amount: Number(newTotal.toFixed(2)),
-          })
-          .eq("id", bookingId);
-      }
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["booking-add-ons", vars.bookingId] });
       queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
       toast.success("Add-on removed");
     },
-    onError: () => {
-      toast.error("Failed to remove add-on. Please try again.");
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to remove add-on. Please try again.");
     },
   });
 }
@@ -149,11 +95,11 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
   );
 
   const handleAdd = (addOn: AddOn) => {
-    addAddOn.mutate({ bookingId, addOn, rentalDays });
+    addAddOn.mutate({ bookingId, addOn });
   };
 
-  const handleRemove = (id: string, price: number) => {
-    removeAddOn.mutate({ id, bookingId, price });
+  const handleRemove = (id: string) => {
+    removeAddOn.mutate({ id, bookingId });
   };
 
   return (
@@ -182,7 +128,7 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
                   variant="ghost"
                   size="sm"
                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                  onClick={() => handleRemove(addon.id, Number(addon.price))}
+                  onClick={() => handleRemove(addon.id)}
                   disabled={removeAddOn.isPending}
                 >
                   <X className="w-4 h-4" />
