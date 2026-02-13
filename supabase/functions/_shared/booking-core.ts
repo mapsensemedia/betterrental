@@ -28,6 +28,33 @@ const MINIMUM_DEPOSIT_AMOUNT = 350;
 // ========== PRICE VALIDATION TOLERANCE ==========
 const PRICE_MISMATCH_TOLERANCE = 0.50; // $0.50 tolerance for rounding
 
+// ========== FUEL PRICING (mirrors src/lib/fuel-pricing.ts) ==========
+const MARKET_FUEL_PRICE_PER_LITER = 1.85;
+const FUEL_DISCOUNT_CENTS = 5;
+const OUR_FUEL_PRICE_PER_LITER = MARKET_FUEL_PRICE_PER_LITER - FUEL_DISCOUNT_CENTS / 100;
+
+const TANK_SIZES: Record<string, number> = {
+  economy: 45, compact: 50, midsize: 55, fullsize: 65,
+  suv: 75, "large-suv": 90, minivan: 75, premium: 70, luxury: 80, default: 60,
+};
+
+function isFuelAddOn(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.includes("fuel") && (lower.includes("service") || lower.includes("tank") || lower.includes("prepaid"));
+}
+
+function getTankSizeForCategory(category: string): number {
+  const lower = (category || "").toLowerCase();
+  for (const [key, size] of Object.entries(TANK_SIZES)) {
+    if (key !== "default" && lower.includes(key)) return size;
+  }
+  return TANK_SIZES.default;
+}
+
+function computeFuelCost(tankLiters: number): number {
+  return roundCents(tankLiters * OUR_FUEL_PRICE_PER_LITER);
+}
+
 export interface BookingInput {
   userId: string;
   vehicleId: string;
@@ -554,7 +581,7 @@ export async function computeBookingTotals(input: {
       const addOnIds = filteredAddOns.map(a => a.addOnId);
       const { data: addOnRows } = await supabase
         .from("add_ons")
-        .select("id, daily_rate, one_time_fee")
+        .select("id, name, daily_rate, one_time_fee")
         .in("id", addOnIds);
 
       if (addOnRows) {
@@ -563,6 +590,16 @@ export async function computeBookingTotals(input: {
           const row = priceMap.get(a.addOnId);
           if (!row) throw new Error(`Invalid add-on: ${a.addOnId}`);
           const qty = Math.min(10, Math.max(1, a.quantity));
+
+          // Fuel add-on: compute from tank size (mirrors client logic)
+          if (isFuelAddOn(row.name)) {
+            const tankLiters = getTankSizeForCategory(vehicleCategory || "");
+            const fuelPrice = computeFuelCost(tankLiters);
+            addOnsTotal = roundCents(addOnsTotal + fuelPrice);
+            addOnPrices.push({ addOnId: a.addOnId, quantity: 1, price: fuelPrice });
+            continue;
+          }
+
           const dailyCost = roundCents(Number(row.daily_rate) * days * qty);
           const oneTimeCost = roundCents(Number(row.one_time_fee ?? 0) * qty);
           const totalPrice = roundCents(dailyCost + oneTimeCost);
