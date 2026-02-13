@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.backfill-additional-drivers]
 verify_jwt = false
+
+[functions.persist-booking-extras]
+verify_jwt = false
