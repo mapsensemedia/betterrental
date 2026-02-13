@@ -74,9 +74,9 @@ Deno.serve(async (req) => {
       }
 
       if (action === "upsell-add") {
-        return await handleUpsellAdd(supabaseAdmin, booking, body, corsHeaders);
+        return await handleUpsellAdd(supabaseAdmin, booking, body, corsHeaders, auth.userId);
       } else {
-        return await handleUpsellRemove(supabaseAdmin, booking, body, corsHeaders);
+        return await handleUpsellRemove(supabaseAdmin, booking, body, corsHeaders, auth.userId);
       }
     }
 
@@ -156,131 +156,150 @@ Deno.serve(async (req) => {
 });
 
 
-// ── Staff upsell: add a single add-on ────────────────────────────
+// ── Staff upsell: add a single add-on (canonical pricing) ───────
 async function handleUpsellAdd(
   supabaseAdmin: any,
   booking: any,
   body: any,
   corsHeaders: Record<string, string>,
+  userId: string,
 ): Promise<Response> {
   const { bookingId, addOnId, quantity } = body;
   if (!addOnId) {
     return new Response(
-      JSON.stringify({ error: "addOnId required" }),
+      JSON.stringify({ error: "addOnId required", errorCode: "MISSING_ADDON_ID" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
   const qty = Math.min(10, Math.max(1, Number(quantity) || 1));
 
-  // Compute server-side price for this single add-on
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const days = Math.max(1, Math.ceil(
-    (new Date(booking.end_at).getTime() - new Date(booking.start_at).getTime()) / msPerDay
-  ));
-
+  // Validate add-on exists
   const { data: addOnRow, error: aoErr } = await supabaseAdmin
     .from("add_ons")
-    .select("id, daily_rate, one_time_fee, name")
+    .select("id, name")
     .eq("id", addOnId)
+    .eq("is_active", true)
     .single();
 
   if (aoErr || !addOnRow) {
     return new Response(
-      JSON.stringify({ error: "Invalid add-on" }),
+      JSON.stringify({ error: "Invalid or inactive add-on", errorCode: "INVALID_ADDON" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
-  const roundCents = (n: number) => Math.round(n * 100) / 100;
-
-  // Fuel add-ons are one-time only
-  const isFuel = addOnRow.name?.toLowerCase().includes("fuel");
-  const dailyCost = isFuel ? 0 : roundCents(Number(addOnRow.daily_rate) * days * qty);
-  const oneTimeCost = roundCents(Number(addOnRow.one_time_fee ?? 0) * qty);
-  const price = isFuel
-    ? roundCents(Number(addOnRow.one_time_fee ?? addOnRow.daily_rate) * qty)
-    : roundCents(dailyCost + oneTimeCost);
-
-  // Idempotent: delete existing row for same booking+addOn, then insert
-  await supabaseAdmin
+  // Read existing booking_add_ons to build full context for computeBookingTotals
+  const { data: existingAddOns } = await supabaseAdmin
     .from("booking_add_ons")
-    .delete()
-    .eq("booking_id", bookingId)
-    .eq("add_on_id", addOnId);
+    .select("add_on_id, quantity")
+    .eq("booking_id", bookingId);
 
-  const { error: insertErr } = await supabaseAdmin
-    .from("booking_add_ons")
-    .insert({
-      booking_id: bookingId,
-      add_on_id: addOnId,
-      price,
-      quantity: qty,
-    });
+  // Merge: replace quantity if addOnId exists, else append
+  const addOnMap = new Map<string, number>();
+  for (const row of (existingAddOns || [])) {
+    addOnMap.set(row.add_on_id, Number(row.quantity) || 1);
+  }
+  addOnMap.set(addOnId, qty);
 
-  if (insertErr) {
-    console.error("[persist-booking-extras] upsell-add insert failed:", insertErr);
+  const mergedAddOns = Array.from(addOnMap.entries()).map(([id, q]) => ({
+    addOnId: id,
+    quantity: q,
+  }));
+
+  // Read existing additional drivers for full context
+  const { data: existingDrivers } = await supabaseAdmin
+    .from("booking_additional_drivers")
+    .select("driver_name, driver_age_band, young_driver_fee")
+    .eq("booking_id", bookingId);
+
+  const driverInputs = (existingDrivers || []).map((d: any) => ({
+    driverName: d.driver_name || null,
+    driverAgeBand: d.driver_age_band || "25_70",
+    youngDriverFee: 0, // computed by engine
+  }));
+
+  // Compute canonical totals with full add-on + driver context
+  const serverTotals = await computeBookingTotals({
+    vehicleId: booking.vehicle_id,
+    startAt: booking.start_at,
+    endAt: booking.end_at,
+    protectionPlan: booking.protection_plan || undefined,
+    addOns: mergedAddOns,
+    additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
+    driverAgeBand: booking.driver_age_band || undefined,
+    deliveryFee: Number(booking.delivery_fee) || 0,
+    differentDropoffFee: Number(booking.different_dropoff_fee) || 0,
+  });
+
+  // Find the computed price for this specific add-on
+  const computedEntry = serverTotals.addOnPrices.find(p => p.addOnId === addOnId);
+  if (!computedEntry) {
     return new Response(
-      JSON.stringify({ error: "EXTRAS_PERSIST_FAILED" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Add-on excluded by pricing engine (e.g. Premium Roadside with All Inclusive)", errorCode: "ADDON_EXCLUDED" }),
+      { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
-  // Reprice booking totals
-  await repriceBookingTotals(supabaseAdmin, booking);
-
-  return new Response(
-    JSON.stringify({ ok: true, price }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
-
-
-// ── Staff upsell: remove a single add-on ─────────────────────────
-async function handleUpsellRemove(
-  supabaseAdmin: any,
-  booking: any,
-  body: any,
-  corsHeaders: Record<string, string>,
-): Promise<Response> {
-  const { bookingId, bookingAddOnId } = body;
-  if (!bookingAddOnId) {
-    return new Response(
-      JSON.stringify({ error: "bookingAddOnId required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  // Verify the row belongs to this booking
-  const { data: existing } = await supabaseAdmin
+  // Persist: upsert using delete-then-insert (no unique constraint on booking_id+add_on_id)
+  // Check if row already exists
+  const { data: existingRow } = await supabaseAdmin
     .from("booking_add_ons")
-    .select("id")
-    .eq("id", bookingAddOnId)
+    .select("id, price, quantity")
     .eq("booking_id", bookingId)
+    .eq("add_on_id", addOnId)
     .maybeSingle();
 
-  if (!existing) {
-    return new Response(
-      JSON.stringify({ error: "Add-on not found on this booking" }),
-      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  const oldData = existingRow
+    ? { addOnId, quantity: existingRow.quantity, price: Number(existingRow.price) }
+    : null;
+
+  if (existingRow) {
+    // Update existing row
+    const { error: updateErr } = await supabaseAdmin
+      .from("booking_add_ons")
+      .update({ price: computedEntry.price, quantity: computedEntry.quantity })
+      .eq("id", existingRow.id);
+
+    if (updateErr) {
+      console.error("[persist-booking-extras] upsell-add update failed:", updateErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to update add-on", errorCode: "EXTRAS_PERSIST_FAILED" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+  } else {
+    // Insert new row
+    const { error: insertErr } = await supabaseAdmin
+      .from("booking_add_ons")
+      .insert({
+        booking_id: bookingId,
+        add_on_id: addOnId,
+        price: computedEntry.price,
+        quantity: computedEntry.quantity,
+      });
+
+    if (insertErr) {
+      console.error("[persist-booking-extras] upsell-add insert failed:", insertErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to add add-on", errorCode: "EXTRAS_PERSIST_FAILED" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
   }
 
-  const { error: delErr } = await supabaseAdmin
-    .from("booking_add_ons")
-    .delete()
-    .eq("id", bookingAddOnId);
+  // Audit log
+  await supabaseAdmin.from("audit_logs").insert({
+    action: "booking_addon_upsell_add",
+    entity_type: "booking",
+    entity_id: bookingId,
+    user_id: userId,
+    old_data: oldData,
+    new_data: { addOnId, addOnName: addOnRow.name, quantity: computedEntry.quantity, computedPrice: computedEntry.price },
+  });
 
-  if (delErr) {
-    console.error("[persist-booking-extras] upsell-remove delete failed:", delErr);
-    return new Response(
-      JSON.stringify({ error: "EXTRAS_PERSIST_FAILED" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  // Reprice booking totals
-  await repriceBookingTotals(supabaseAdmin, booking);
+  // Reprice booking totals using canonical computeBookingTotals result
+  await repriceFromServerTotals(supabaseAdmin, bookingId, serverTotals);
 
   return new Response(
     JSON.stringify({ ok: true }),
@@ -289,60 +308,134 @@ async function handleUpsellRemove(
 }
 
 
-// ── Reprice booking totals after upsell change ───────────────────
-async function repriceBookingTotals(supabaseAdmin: any, booking: any): Promise<void> {
-  const roundCents = (n: number) => Math.round(n * 100) / 100;
+// ── Staff upsell: remove a single add-on (with audit) ───────────
+async function handleUpsellRemove(
+  supabaseAdmin: any,
+  booking: any,
+  body: any,
+  corsHeaders: Record<string, string>,
+  userId: string,
+): Promise<Response> {
+  const { bookingId, bookingAddOnId, addOnId } = body;
+  // Support both bookingAddOnId (row id) and addOnId (add_on_id)
+  const lookupById = !!bookingAddOnId;
 
-  // Fetch current add-ons total from DB
-  const { data: addOns } = await supabaseAdmin
+  if (!bookingAddOnId && !addOnId) {
+    return new Response(
+      JSON.stringify({ error: "bookingAddOnId or addOnId required", errorCode: "MISSING_IDENTIFIER" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Find the row to remove
+  let query = supabaseAdmin
     .from("booking_add_ons")
-    .select("price")
-    .eq("booking_id", booking.id);
+    .select("id, add_on_id, price, quantity")
+    .eq("booking_id", bookingId);
 
-  // Fetch current additional drivers total from DB
-  const { data: drivers } = await supabaseAdmin
+  if (lookupById) {
+    query = query.eq("id", bookingAddOnId);
+  } else {
+    query = query.eq("add_on_id", addOnId);
+  }
+
+  const { data: existing } = await query.maybeSingle();
+
+  if (!existing) {
+    return new Response(
+      JSON.stringify({ error: "Add-on not found on this booking", errorCode: "ADDON_NOT_FOUND" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Capture old data for audit before deletion
+  const oldData = {
+    addOnId: existing.add_on_id,
+    quantity: existing.quantity,
+    price: Number(existing.price),
+  };
+
+  // Delete the row
+  const { error: delErr } = await supabaseAdmin
+    .from("booking_add_ons")
+    .delete()
+    .eq("id", existing.id);
+
+  if (delErr) {
+    console.error("[persist-booking-extras] upsell-remove delete failed:", delErr);
+    return new Response(
+      JSON.stringify({ error: "Failed to remove add-on", errorCode: "EXTRAS_PERSIST_FAILED" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Audit log (captures what was deleted)
+  await supabaseAdmin.from("audit_logs").insert({
+    action: "booking_addon_upsell_remove",
+    entity_type: "booking",
+    entity_id: bookingId,
+    user_id: userId,
+    old_data: oldData,
+    new_data: null,
+  });
+
+  // Reprice: rebuild totals with remaining add-ons
+  const { data: remainingAddOns } = await supabaseAdmin
+    .from("booking_add_ons")
+    .select("add_on_id, quantity")
+    .eq("booking_id", bookingId);
+
+  const { data: remainingDrivers } = await supabaseAdmin
     .from("booking_additional_drivers")
-    .select("young_driver_fee")
-    .eq("booking_id", booking.id);
+    .select("driver_name, driver_age_band, young_driver_fee")
+    .eq("booking_id", bookingId);
 
-  // Recompute using canonical logic (includes all line items)
-  const addOnInputs = (addOns || []).length > 0
-    ? (addOns || []).map(() => ({ addOnId: "skip", quantity: 1 }))
-    : undefined;
+  const addOnInputs = (remainingAddOns || []).map((r: any) => ({
+    addOnId: r.add_on_id,
+    quantity: Number(r.quantity) || 1,
+  }));
 
-  // We need the actual add-on IDs for proper computation, but since the rows
-  // already exist in DB with correct prices, we can sum them directly.
-  const addOnsDbTotal = (addOns || []).reduce((s: number, a: any) => s + roundCents(Number(a.price)), 0);
-  const driversDbTotal = (drivers || []).reduce((s: number, d: any) => s + roundCents(Number(d.young_driver_fee)), 0);
+  const driverInputs = (remainingDrivers || []).map((d: any) => ({
+    driverName: d.driver_name || null,
+    driverAgeBand: d.driver_age_band || "25_70",
+    youngDriverFee: 0,
+  }));
 
-  // Recompute base totals (without add-ons/drivers — we'll add DB totals)
   const serverTotals = await computeBookingTotals({
     vehicleId: booking.vehicle_id,
     startAt: booking.start_at,
     endAt: booking.end_at,
     protectionPlan: booking.protection_plan || undefined,
+    addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
+    additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
     driverAgeBand: booking.driver_age_band || undefined,
     deliveryFee: Number(booking.delivery_fee) || 0,
     differentDropoffFee: Number(booking.different_dropoff_fee) || 0,
-    // Omit addOns and additionalDrivers — we use DB totals directly
   });
 
-  // Rebuild subtotal with DB-sourced add-on/driver totals
-  const newSubtotal = roundCents(
-    serverTotals.subtotal + addOnsDbTotal + driversDbTotal
+  await repriceFromServerTotals(supabaseAdmin, bookingId, serverTotals);
+
+  return new Response(
+    JSON.stringify({ ok: true }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
+}
 
-  const PST_RATE = 0.07;
-  const GST_RATE = 0.05;
-  const newTax = roundCents(roundCents(newSubtotal * PST_RATE) + roundCents(newSubtotal * GST_RATE));
-  const newTotal = roundCents(newSubtotal + newTax);
 
+// ── Update booking totals from canonical ServerPricingResult ──────
+async function repriceFromServerTotals(
+  supabaseAdmin: any,
+  bookingId: string,
+  totals: { subtotal: number; taxAmount: number; total: number },
+): Promise<void> {
   await supabaseAdmin
     .from("bookings")
     .update({
-      subtotal: newSubtotal,
-      tax_amount: newTax,
-      total_amount: newTotal,
+      subtotal: totals.subtotal,
+      tax_amount: totals.taxAmount,
+      total_amount: totals.total,
     })
-    .eq("id", booking.id);
+    .eq("id", bookingId);
 }
+
+
