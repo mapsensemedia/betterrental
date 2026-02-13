@@ -271,13 +271,19 @@ Deno.serve(async (req) => {
     console.log("Booking created:", booking.id);
 
     // Create add-ons with SERVER-COMPUTED prices
-    if (serverTotals.addOnPrices.length > 0) {
-      await createBookingAddOns(booking.id, serverTotals.addOnPrices);
-    }
+    console.log(`[create-booking] addOnPrices count: ${serverTotals.addOnPrices.length}, additionalDriverRecords count: ${serverTotals.additionalDriverRecords.length}`);
+    try {
+      if (serverTotals.addOnPrices.length > 0) {
+        await createBookingAddOns(booking.id, serverTotals.addOnPrices);
+      }
 
-    // Create additional drivers with SERVER-COMPUTED fees
-    if (serverTotals.additionalDriverRecords.length > 0) {
-      await createAdditionalDrivers(booking.id, serverTotals.additionalDriverRecords);
+      // Create additional drivers with SERVER-COMPUTED fees
+      if (serverTotals.additionalDriverRecords.length > 0) {
+        await createAdditionalDrivers(booking.id, serverTotals.additionalDriverRecords);
+      }
+    } catch (extrasError) {
+      console.error(`[create-booking] Extras persistence FAILED for booking ${booking.id}:`, extrasError);
+      // Don't fail the whole booking — extras can be added later via persist-booking-extras
     }
 
     // Mark hold as converted (if hold was used)

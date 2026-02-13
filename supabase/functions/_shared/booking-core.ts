@@ -862,7 +862,13 @@ export async function createBookingAddOns(
     quantity: addon.quantity,
   }));
   
-  await supabase.from("booking_add_ons").insert(addOnRecords);
+  console.log(`[createBookingAddOns] Inserting ${addOnRecords.length} add-ons for booking ${bookingId}:`, JSON.stringify(addOnRecords));
+  const { data, error } = await supabase.from("booking_add_ons").insert(addOnRecords).select();
+  if (error) {
+    console.error(`[createBookingAddOns] FAILED for booking ${bookingId}:`, error);
+    throw new Error(`Failed to persist add-ons: ${error.message}`);
+  }
+  console.log(`[createBookingAddOns] Successfully inserted ${data?.length ?? 0} rows for booking ${bookingId}`);
 }
 
 /**
@@ -883,7 +889,13 @@ export async function createAdditionalDrivers(
     young_driver_fee: driver.youngDriverFee || 0,
   }));
   
-  await supabase.from("booking_additional_drivers").insert(driverRecords);
+  console.log(`[createAdditionalDrivers] Inserting ${driverRecords.length} drivers for booking ${bookingId}:`, JSON.stringify(driverRecords));
+  const { data, error } = await supabase.from("booking_additional_drivers").insert(driverRecords).select();
+  if (error) {
+    console.error(`[createAdditionalDrivers] FAILED for booking ${bookingId}:`, error);
+    throw new Error(`Failed to persist additional drivers: ${error.message}`);
+  }
+  console.log(`[createAdditionalDrivers] Successfully inserted ${data?.length ?? 0} rows for booking ${bookingId}`);
 }
 
 /**
