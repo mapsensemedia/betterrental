@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
+import { formatLocalDate } from "@/lib/date-utils";
 
 const STEPS = [
   { id: 1, label: "Search", path: "/search" },
@@ -27,8 +28,8 @@ export function BookingStepper({ currentStep, className }: BookingStepperProps) 
   const buildParams = () => {
     const params = new URLSearchParams();
     if (searchData.selectedVehicleId) params.set("vehicleId", searchData.selectedVehicleId);
-    if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
-    if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
+    if (searchData.pickupDate) params.set("startAt", formatLocalDate(searchData.pickupDate));
+    if (searchData.returnDate) params.set("endAt", formatLocalDate(searchData.returnDate));
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     return params.toString();
   };

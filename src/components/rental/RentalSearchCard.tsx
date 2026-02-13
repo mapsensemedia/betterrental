@@ -3,6 +3,7 @@
  * Includes Mapbox-powered address autocomplete and route map
  */
 import { useState, useEffect, useCallback } from "react";
+import { formatLocalDate, parseLocalDate, addLocalDays, diffLocalDays } from "@/lib/date-utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Calendar,
@@ -62,13 +63,13 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
   const [locationId, setLocationId] = useState(searchData.pickupLocationId || "");
   const [pickupDate, setPickupDate] = useState(
     searchData.pickupDate
-      ? searchData.pickupDate.toISOString().split("T")[0]
+      ? formatLocalDate(searchData.pickupDate)
       : ""
   );
   const [pickupTime, setPickupTime] = useState(searchData.pickupTime);
   const [returnDate, setReturnDate] = useState(
     searchData.returnDate
-      ? searchData.returnDate.toISOString().split("T")[0]
+      ? formatLocalDate(searchData.returnDate)
       : ""
   );
   const [returnTime, setReturnTime] = useState(searchData.returnTime);
@@ -104,7 +105,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
   } | null>(null);
 
   // Get minimum date (today)
-  const today = new Date().toISOString().split("T")[0];
+  const today = formatLocalDate(new Date());
 
   // Auto-select delivery mode from URL param
   useEffect(() => {
@@ -120,10 +121,10 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
       setLocationId(searchData.pickupLocationId);
     }
     if (searchData.pickupDate) {
-      setPickupDate(searchData.pickupDate.toISOString().split("T")[0]);
+      setPickupDate(formatLocalDate(searchData.pickupDate));
     }
     if (searchData.returnDate) {
-      setReturnDate(searchData.returnDate.toISOString().split("T")[0]);
+      setReturnDate(formatLocalDate(searchData.returnDate));
     }
     setPickupTime(searchData.pickupTime);
     setReturnTime(searchData.returnTime);
@@ -289,8 +290,8 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
     }
 
     // Update context with final values
-    setPickupDateTime(new Date(`${pickupDate}T${pickupTime}`), pickupTime);
-    setReturnDateTime(new Date(`${returnDate}T${returnTime}`), returnTime);
+    setPickupDateTime(parseLocalDate(pickupDate), pickupTime);
+    setReturnDateTime(parseLocalDate(returnDate), returnTime);
 
     onSearchComplete?.();
     navigate("/search");
@@ -419,15 +420,13 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                     setPickupDate(newDate);
                     // Persist to context immediately
                     if (newDate) {
-                      setPickupDateTime(new Date(`${newDate}T${pickupTime}`), pickupTime);
+                      setPickupDateTime(parseLocalDate(newDate), pickupTime);
                     }
                     if (!returnDate || newDate > returnDate) {
-                      const nextDay = new Date(newDate);
-                      nextDay.setDate(nextDay.getDate() + 1);
-                      const nextDayStr = nextDay.toISOString().split("T")[0];
+                      const nextDayStr = addLocalDays(newDate, 1);
                       setReturnDate(nextDayStr);
                       // Also persist return date
-                      setReturnDateTime(new Date(`${nextDayStr}T${returnTime}`), returnTime);
+                      setReturnDateTime(parseLocalDate(nextDayStr), returnTime);
                     }
                   }}
                   className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
@@ -484,9 +483,9 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                   type="date"
                   min={pickupDate || today}
                   max={pickupDate ? (() => {
-                    const maxDate = new Date(pickupDate);
+                    const maxDate = parseLocalDate(pickupDate);
                     maxDate.setDate(maxDate.getDate() + MAX_RENTAL_DAYS);
-                    return maxDate.toISOString().split("T")[0];
+                    return formatLocalDate(maxDate);
                   })() : undefined}
                   value={returnDate}
                   onChange={(e) => {
@@ -501,9 +500,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
               </div>
               {pickupDate && returnDate && (
                 (() => {
-                  const days = Math.ceil(
-                    (new Date(returnDate).getTime() - new Date(pickupDate).getTime()) / (1000 * 60 * 60 * 24)
-                  );
+                  const days = diffLocalDays(pickupDate, returnDate);
                   if (days > MAX_RENTAL_DAYS) {
                     return (
                       <p className="text-xs text-destructive">
@@ -606,9 +603,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                     setPickupDateTime(new Date(`${newDate}T${pickupTime}`), pickupTime);
                   }
                   if (!returnDate || newDate > returnDate) {
-                    const nextDay = new Date(newDate);
-                    nextDay.setDate(nextDay.getDate() + 1);
-                    const nextDayStr = nextDay.toISOString().split("T")[0];
+                    const nextDayStr = addLocalDays(newDate, 1);
                     setReturnDate(nextDayStr);
                     // Also persist return date
                     setReturnDateTime(new Date(`${nextDayStr}T${returnTime}`), returnTime);
@@ -668,9 +663,9 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
                 type="date"
                 min={pickupDate || today}
                 max={pickupDate ? (() => {
-                  const maxDate = new Date(pickupDate);
+                  const maxDate = parseLocalDate(pickupDate);
                   maxDate.setDate(maxDate.getDate() + MAX_RENTAL_DAYS);
-                  return maxDate.toISOString().split("T")[0];
+                  return formatLocalDate(maxDate);
                 })() : undefined}
                 value={returnDate}
                 onChange={(e) => {
@@ -685,9 +680,7 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
             </div>
             {pickupDate && returnDate && (
               (() => {
-                const days = Math.ceil(
-                  (new Date(returnDate).getTime() - new Date(pickupDate).getTime()) / (1000 * 60 * 60 * 24)
-                );
+                const days = diffLocalDays(pickupDate, returnDate);
                 if (days > MAX_RENTAL_DAYS) {
                   return (
                     <p className="text-xs text-destructive">

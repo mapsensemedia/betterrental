@@ -5,6 +5,7 @@
  */
 import { memo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { formatLocalDate } from "@/lib/date-utils";
 import { Fuel, Users, Gauge, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,8 +68,8 @@ export const VehicleCard = memo(function VehicleCard({
     // Build URL params from context
     const params = new URLSearchParams();
     params.set("vehicleId", id);
-    if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
-    if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
+    if (searchData.pickupDate) params.set("startAt", formatLocalDate(searchData.pickupDate));
+    if (searchData.returnDate) params.set("endAt", formatLocalDate(searchData.returnDate));
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
 
     navigate(`/protection?${params.toString()}`);

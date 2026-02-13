@@ -2,6 +2,7 @@
  * Protection - Select protection package before checkout
  */
 import { useState, useEffect } from "react";
+import { formatLocalDate } from "@/lib/date-utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check, X, Info, Shield } from "lucide-react";
 import { PriceTooltip } from "@/components/shared/PriceTooltip";
@@ -77,8 +78,8 @@ export default function Protection() {
     } else if (vehicleId) {
       params.set("vehicleId", vehicleId);
     }
-    if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
-    if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
+    if (searchData.pickupDate) params.set("startAt", formatLocalDate(searchData.pickupDate));
+    if (searchData.returnDate) params.set("endAt", formatLocalDate(searchData.returnDate));
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     params.set("protection", selectedPackage);
 

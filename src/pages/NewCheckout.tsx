@@ -4,6 +4,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, Link, useLocation } from "react-router-dom";
 import { format } from "date-fns";
+import { formatLocalDate, localDateTimeToISO } from "@/lib/date-utils";
 import {
   ArrowLeft,
   Check,
@@ -243,8 +244,8 @@ export default function NewCheckout() {
       firstName: formData.firstName || undefined,
       lastName: formData.lastName || undefined,
       vehicleId: vehicleId || undefined,
-      pickupDate: searchData.pickupDate?.toISOString(),
-      returnDate: searchData.returnDate?.toISOString(),
+      pickupDate: searchData.pickupDate ? formatLocalDate(searchData.pickupDate) : undefined,
+      returnDate: searchData.returnDate ? formatLocalDate(searchData.returnDate) : undefined,
       locationId: locationId && /^[0-9a-f-]{36}$/i.test(locationId) ? locationId : undefined,
       deliveryMode: searchData.deliveryMode || undefined,
       deliveryAddress: searchData.deliveryAddress || undefined,
@@ -287,8 +288,8 @@ export default function NewCheckout() {
     
     const params = new URLSearchParams();
     if (vehicleId) params.set("vehicleId", vehicleId);
-    if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
-    if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
+    if (searchData.pickupDate) params.set("startAt", localDateTimeToISO(formatLocalDate(searchData.pickupDate), searchData.pickupTime));
+    if (searchData.returnDate) params.set("endAt", localDateTimeToISO(formatLocalDate(searchData.returnDate), searchData.returnTime));
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     params.set("protection", protection);
     navigate(`/add-ons?${params.toString()}`);
@@ -355,8 +356,8 @@ export default function NewCheckout() {
             body: {
               vehicleId: categoryId,
               locationId,
-              startAt: searchData.pickupDate.toISOString(),
-              endAt: searchData.returnDate.toISOString(),
+              startAt: localDateTimeToISO(formatLocalDate(searchData.pickupDate), searchData.pickupTime),
+              endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate), searchData.returnTime),
               driverAgeBand,
               protectionPlan: protection,
               addOns: addOnIds.map((id) => ({
@@ -439,8 +440,8 @@ export default function NewCheckout() {
               phone: `${formData.countryCode}${formData.phone}`,
               vehicleId: categoryId, // This is the category ID
               locationId,
-              startAt: searchData.pickupDate.toISOString(),
-              endAt: searchData.returnDate.toISOString(),
+              startAt: localDateTimeToISO(formatLocalDate(searchData.pickupDate), searchData.pickupTime),
+              endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate), searchData.returnTime),
               dailyRate: vehicle.dailyRate,
               totalDays: rentalDays,
               subtotal: pricing.subtotal,
