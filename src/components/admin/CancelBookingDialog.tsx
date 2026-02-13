@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuditLog } from "@/hooks/use-admin";
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,7 +54,7 @@ export function CancelBookingDialog({
   onSuccess,
 }: CancelBookingDialogProps) {
   const queryClient = useQueryClient();
-  const { logAction } = useAuditLog();
+  
   const [reasonType, setReasonType] = useState("");
   const [reasonDetails, setReasonDetails] = useState("");
 
@@ -68,51 +68,30 @@ export function CancelBookingDialog({
         ? `${CANCELLATION_REASONS.find(r => r.value === reasonType)?.label}: ${reasonDetails}`
         : CANCELLATION_REASONS.find(r => r.value === reasonType)?.label || reasonType;
 
-      // Update booking status
-      const { error: updateError } = await supabase
-        .from("bookings")
-        .update({ 
-          status: "cancelled",
-          notes: fullReason,
-          actual_return_at: new Date().toISOString(),
-        })
-        .eq("id", bookingId);
-
-      if (updateError) throw updateError;
-
-      // Log the action
-      await logAction("booking_cancelled", "booking", bookingId, {
-        reason_type: reasonType,
-        reason_details: reasonDetails,
-        full_reason: fullReason,
+      // Use void-booking edge function to bypass security triggers
+      const { data, error } = await supabase.functions.invoke("void-booking", {
+        body: {
+          bookingId,
+          reason: fullReason,
+          refundAmount: 0,
+          panelSource: "ops",
+        },
       });
 
-      // Create admin alert
-      await supabase.from("admin_alerts").insert([
-        {
-          alert_type: "customer_issue",
-          title: `Booking Cancelled - ${bookingCode}`,
-          message: `Booking ${bookingCode} was cancelled. Reason: ${fullReason}`,
-          booking_id: bookingId,
-          status: "new",
-        } as any,
-      ]);
+      if (error) throw new Error(error.message || "Failed to cancel booking");
+      if (data?.error) throw new Error(data.error);
 
-      // Send admin notification
-      try {
-        await supabase.functions.invoke("notify-admin", {
-          body: {
-            eventType: "booking_cancelled",
-            bookingId,
-            bookingCode,
-            customerName,
-            vehicleName,
-            details: fullReason,
-          },
-        });
-      } catch (err) {
-        console.error("Failed to send admin notification:", err);
-      }
+      // Send admin notification (fire-and-forget)
+      supabase.functions.invoke("notify-admin", {
+        body: {
+          eventType: "booking_cancelled",
+          bookingId,
+          bookingCode,
+          customerName,
+          vehicleName,
+          details: fullReason,
+        },
+      }).catch(err => console.error("Failed to send admin notification:", err));
 
       return { success: true };
     },
