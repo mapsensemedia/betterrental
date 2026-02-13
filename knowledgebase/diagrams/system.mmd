@@ -1,0 +1,65 @@
+%%{ init: { 'theme': 'base', 'themeVariables': { 'primaryColor': '#1a1a2e', 'lineColor': '#e94560' } } }%%
+graph TD
+    subgraph Client["Browser (Untrusted)"]
+        UI[React SPA<br/>src/pages + src/components]
+        PricingPreview[pricing.ts<br/>Display-only estimates]
+        SupaClient[supabase/client.ts<br/>Anon key only]
+    end
+
+    subgraph Edge["Supabase Edge Functions (Trusted Boundary)"]
+        CreateBooking[create-booking]
+        CreateGuestBooking[create-guest-booking]
+        PersistExtras[persist-booking-extras]
+        RepriceBooking[reprice-booking]
+        CheckoutSession[create-checkout-session]
+        CheckoutHold[create-checkout-hold]
+        PaymentIntent[create-payment-intent]
+        StripeWebhook[stripe-webhook]
+        VoidBooking[void-booking]
+        SendOTP[send-booking-otp]
+        VerifyOTP[verify-booking-otp]
+        Notifications[send-booking-email<br/>send-booking-sms]
+        GenerateAgreement[generate-agreement]
+        CloseAccount[close-account]
+        DepositOps[create-deposit-hold<br/>capture-deposit<br/>release-deposit-hold]
+    end
+
+    subgraph Shared["_shared/ (Server Libraries)"]
+        Auth[auth.ts<br/>JWT + role enforcement]
+        BookingCore[booking-core.ts<br/>computeBookingTotals<br/>validateClientPricing]
+        CORS[cors.ts<br/>Origin whitelist + rate limit]
+        Idempotency[idempotency.ts<br/>Dedup via notification_logs]
+        RateLimitDB[rate-limit-db.ts<br/>Atomic DB rate limiting]
+    end
+
+    subgraph DB["PostgreSQL (Enforced)"]
+        Tables[(bookings, payments,<br/>booking_add_ons, profiles,<br/>locations, vehicles, ...)]
+        RLS{RLS + FORCE RLS}
+        Triggers{Seatbelt Triggers<br/>trg_block_sensitive_booking_updates<br/>trg_enforce_addon_price<br/>trg_enforce_driver_fee}
+        AuditLog[(audit_logs)]
+    end
+
+    subgraph Stripe["Stripe (External)"]
+        StripeAPI[Stripe API<br/>PaymentIntents<br/>Checkout Sessions]
+        Webhooks[Webhook Events]
+    end
+
+    UI -->|Anon JWT| SupaClient
+    SupaClient -->|HTTPS + JWT| Edge
+    PricingPreview -.->|Display only| UI
+
+    Edge -->|service_role| DB
+    CreateBooking --> BookingCore
+    CreateGuestBooking --> BookingCore
+    PersistExtras --> BookingCore
+    RepriceBooking --> BookingCore
+
+    CheckoutSession -->|Amount from DB| StripeAPI
+    PaymentIntent -->|Amount from DB| StripeAPI
+    Webhooks -->|Signature verified| StripeWebhook
+    StripeWebhook -->|Idempotent insert| DB
+
+    DB --> RLS
+    DB --> Triggers
+    Triggers -->|Block if not service_role| Tables
+    RLS -->|Enforce per-user access| Tables

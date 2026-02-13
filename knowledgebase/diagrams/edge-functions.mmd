@@ -1,0 +1,60 @@
+%%{ init: { 'theme': 'base' } }%%
+graph LR
+    subgraph BookingCreation["Booking Creation"]
+        CB[create-booking<br/>JWT required]
+        CGB[create-guest-booking<br/>No auth, shadow user]
+        PBE[persist-booking-extras<br/>service_role bypass]
+    end
+
+    subgraph Pricing["Pricing & Modification"]
+        RB[reprice-booking<br/>Admin/staff only]
+        BC[booking-core.ts<br/>computeBookingTotals]
+    end
+
+    subgraph Payments["Stripe Integration"]
+        CCS[create-checkout-session<br/>JWT or access token]
+        CCH[create-checkout-hold<br/>JWT or access token]
+        CPI[create-payment-intent<br/>JWT, ownership/staff]
+        SW[stripe-webhook<br/>Signature verified]
+        CDH[create-deposit-hold]
+        CD[capture-deposit<br/>JWT]
+        RDH[release-deposit-hold<br/>JWT]
+    end
+
+    subgraph GuestAuth["Guest Authentication"]
+        SOTP[send-booking-otp<br/>DB rate limited]
+        VOTP[verify-booking-otp<br/>5 attempt lockout]
+    end
+
+    subgraph Admin["Admin Operations"]
+        VB[void-booking<br/>Admin only]
+        CA[close-account<br/>JWT]
+        CFC[calculate-fleet-costs<br/>JWT]
+    end
+
+    subgraph Notifications["Notifications"]
+        SBE[send-booking-email<br/>service-to-service]
+        SBS[send-booking-sms<br/>service-to-service]
+        NA[notify-admin<br/>service-to-service]
+    end
+
+    subgraph Public["Public Endpoints"]
+        GMT[get-mapbox-token]
+        GSC[get-stripe-config]
+        SCE[send-contact-email]
+        SSS[send-support-sms]
+    end
+
+    subgraph Ops["Ops & Delivery"]
+        CDL[claim-delivery]
+        CTE[check-ticket-escalation]
+        CRA[check-rental-alerts<br/>Cron-invoked]
+        GA[generate-agreement]
+        GRR[generate-return-receipt]
+    end
+
+    CB --> BC
+    CGB --> BC
+    PBE --> RB
+    RB --> BC
+    SW -->|"Idempotent"| DB[(PostgreSQL)]

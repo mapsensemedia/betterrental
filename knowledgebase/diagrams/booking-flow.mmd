@@ -1,0 +1,44 @@
+%%{ init: { 'theme': 'base' } }%%
+sequenceDiagram
+    participant C as Client (Browser)
+    participant CB as create-booking / create-guest-booking
+    participant PE as persist-booking-extras
+    participant BC as booking-core.ts
+    participant DB as PostgreSQL
+    participant S as Stripe
+    participant WH as stripe-webhook
+    participant N as Notifications
+
+    Note over C: === AUTHENTICATED FLOW ===
+    C->>CB: POST {vehicleId, dates, addOns, protection, ...}
+    CB->>BC: validateClientPricing(clientTotal, inputs)
+    BC->>DB: SELECT daily_rate FROM vehicles
+    BC->>DB: SELECT * FROM add_ons
+    BC->>DB: SELECT * FROM system_settings
+    BC-->>CB: {valid: true, serverTotals}
+    Note over CB: If |server - client| > $0.50 → 400 PRICE_MISMATCH
+    CB->>DB: INSERT INTO bookings (server-computed amounts)
+    CB->>PE: POST {bookingId, addOns, drivers} (service_role)
+    PE->>DB: INSERT INTO booking_add_ons (server-computed prices)
+    PE->>DB: INSERT INTO booking_additional_drivers
+    CB-->>C: {bookingId, bookingCode, serverTotal}
+
+    Note over C: === GUEST FLOW (additional steps) ===
+    C->>CB: POST (no JWT, includes email/phone)
+    CB->>DB: admin.createUser (shadow user, random 40+ char pwd)
+    CB->>DB: UPSERT profiles
+    Note over CB: Then same flow as authenticated
+
+    Note over C: === PAYMENT FLOW ===
+    C->>S: Stripe Checkout / PaymentIntent
+    S->>WH: checkout.session.completed / payment_intent.succeeded
+    WH->>DB: Check stripe_webhook_events (idempotency)
+    WH->>DB: INSERT INTO payments
+    WH->>DB: UPDATE bookings SET status (monotonic guard)
+    WH->>N: Trigger confirmation notifications
+
+    Note over C: === HOLD FLOW ===
+    C->>S: create-checkout-hold (deposit_amount from DB)
+    S-->>DB: PaymentIntent created, booking.stripe_deposit_pi_id set
+    Note over DB: deposit_status: 'authorized'
+    Note over DB: Later: capture-deposit or release-deposit-hold

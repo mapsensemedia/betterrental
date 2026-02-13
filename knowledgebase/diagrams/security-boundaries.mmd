@@ -1,0 +1,40 @@
+%%{ init: { 'theme': 'base' } }%%
+graph TD
+    subgraph Untrusted["UNTRUSTED ZONE"]
+        Browser[Browser / Client Code]
+        AnonKey[Supabase Anon Key]
+    end
+
+    subgraph TrustBoundary["TRUST BOUNDARY — Edge Functions"]
+        JWTCheck[validateAuth / requireRoleOrThrow]
+        PriceValidation[validateClientPricing<br/>Server recomputes all amounts]
+        RateLimit[In-memory + DB rate limiting]
+        InputSanitize[sanitizeInput from cors.ts]
+    end
+
+    subgraph Trusted["TRUSTED ZONE — PostgreSQL"]
+        direction TB
+        RLS_Layer["RLS Policies<br/>auth.uid() = user_id checks"]
+        ForceRLS["FORCE RLS Tables:<br/>bookings, payments, deposit_ledger,<br/>final_invoices, damage_reports,<br/>incident_cases, incident_photos,<br/>incident_repairs"]
+        Seatbelts["Seatbelt Triggers"]
+        SB1["trg_block_sensitive_booking_updates<br/>Blocks: total_amount, subtotal, tax_amount,<br/>daily_rate, deposit_amount, young_driver_fee,<br/>upgrade_daily_fee, different_dropoff_fee<br/>UNLESS current_setting = service_role"]
+        SB2["trg_enforce_addon_price<br/>Zeros price on booking_add_ons<br/>unless service_role"]
+        SB3["trg_enforce_driver_fee<br/>Zeros young_driver_fee on<br/>booking_additional_drivers<br/>unless service_role"]
+        AuditLog["audit_logs<br/>All mutations logged with old/new data"]
+    end
+
+    subgraph External["EXTERNAL"]
+        Stripe[Stripe API]
+        StripeSig[Webhook Signature Verification]
+    end
+
+    Browser -->|"Anon JWT"| TrustBoundary
+    TrustBoundary -->|"service_role"| Trusted
+    Stripe -->|"Signed webhook"| StripeSig
+    StripeSig -->|"Verified event"| TrustBoundary
+
+    Seatbelts --> SB1
+    Seatbelts --> SB2
+    Seatbelts --> SB3
+
+    RLS_Layer --> ForceRLS

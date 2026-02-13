@@ -1,0 +1,176 @@
+[
+  {
+    "topic": "System Overview",
+    "file": "knowledgebase/01-system-overview.md",
+    "keywords": ["architecture", "trust boundary", "security model", "client server", "edge functions", "overview"],
+    "summary": "High-level platform architecture, trust boundaries between browser/edge/DB, security model summary, and why edge functions exist as the trust boundary."
+  },
+  {
+    "topic": "Architecture",
+    "file": "knowledgebase/02-architecture.md",
+    "keywords": ["frontend", "edge", "database", "pricing trust", "service role", "triggers", "RLS", "auth", "stripe", "flow"],
+    "summary": "Detailed frontend-to-edge-to-DB flow, pricing trust boundaries, service_role usage, trigger/RLS enforcement, auth model, and Stripe integration architecture."
+  },
+  {
+    "topic": "Booking Flow",
+    "file": "knowledgebase/03-booking-flow.md",
+    "keywords": ["booking", "guest", "authenticated", "hold", "create-booking", "persist-booking-extras", "reprice", "checkout", "draft", "confirmed"],
+    "summary": "Complete booking lifecycle for guest and authenticated flows, including call order, hold management, persist-booking-extras, repricing, and failure states."
+  },
+  {
+    "topic": "Pricing Engine",
+    "file": "knowledgebase/04-pricing-engine.md",
+    "keywords": ["pricing", "computeBookingTotals", "validateClientPricing", "mismatch", "reconciliation", "tax", "discount", "surcharge", "rounding"],
+    "summary": "Server-side computeBookingTotals computation steps, client-side preview, $0.50 tolerance reconciliation, mismatch handling, and rounding strategy."
+  },
+  {
+    "topic": "Drop-off Fees",
+    "file": "knowledgebase/05-dropoff-fees.md",
+    "keywords": ["dropoff", "fee_group", "computeDropoffFee", "locations", "surrey", "langley", "abbotsford", "migration", "legacy"],
+    "summary": "Location-based drop-off fee computation using fee_group pairs, fee matrix ($50/$75), client/server implementations, and migration from legacy $25 flat fee."
+  },
+  {
+    "topic": "Edge Functions Reference",
+    "file": "knowledgebase/06-edge-functions.md",
+    "keywords": ["edge function", "create-booking", "stripe-webhook", "void-booking", "reprice", "OTP", "payment", "deposit", "notifications"],
+    "summary": "Complete reference for all edge functions: purpose, auth model, DB writes, rate limits, and security reasoning for each function."
+  },
+  {
+    "topic": "Database Security",
+    "file": "knowledgebase/07-database-security.md",
+    "keywords": ["RLS", "FORCE RLS", "seatbelt", "trigger", "trg_block_sensitive", "trg_enforce_addon", "trg_enforce_driver", "audit", "security"],
+    "summary": "RLS and FORCE RLS configuration, seatbelt trigger specifications, audit logging, and table-level security matrix."
+  },
+  {
+    "topic": "Ops Panel",
+    "file": "knowledgebase/08-ops-panel.md",
+    "keywords": ["ops", "financial breakdown", "counter upsell", "staff", "permissions", "reprice", "admin panel"],
+    "summary": "Ops panel components including FinancialBreakdown, CounterUpsellPanel, staff permission model, and repricing workflows."
+  },
+  {
+    "topic": "Admin Upsells",
+    "file": "knowledgebase/09-admin-upsells.md",
+    "keywords": ["upsell", "upsell-add", "upsell-remove", "persist-booking-extras", "audit", "reprice", "client writes removed"],
+    "summary": "Server-side upsell flow via persist-booking-extras, audit logging for all upsell operations, automatic repricing, and why client-side writes were eliminated."
+  },
+  {
+    "topic": "Troubleshooting",
+    "file": "knowledgebase/10-troubleshooting.md",
+    "keywords": ["debug", "missing addons", "wrong totals", "dropoff fee", "pricing mismatch", "stripe", "deposit", "webhook"],
+    "summary": "Diagnostic procedures for common issues: missing add-ons, wrong totals, drop-off fee discrepancies, pricing mismatches, and Stripe payment problems."
+  },
+  {
+    "topic": "Glossary",
+    "file": "knowledgebase/11-glossary.md",
+    "keywords": ["glossary", "terms", "definitions", "domain", "vocabulary"],
+    "summary": "Definitions of all domain-specific terms used across the platform: seatbelt triggers, monotonic guard, shadow user, service_role, FORCE RLS, etc."
+  },
+  {
+    "topic": "System Architecture Diagram",
+    "file": "knowledgebase/diagrams/system.mmd",
+    "keywords": ["diagram", "mermaid", "architecture", "system", "flow"],
+    "summary": "Mermaid diagram showing full system architecture: client, edge functions, shared modules, PostgreSQL with RLS/triggers, and Stripe integration."
+  },
+  {
+    "topic": "Booking Flow Diagram",
+    "file": "knowledgebase/diagrams/booking-flow.mmd",
+    "keywords": ["diagram", "mermaid", "booking", "sequence", "flow", "payment", "hold"],
+    "summary": "Mermaid sequence diagram showing authenticated booking, guest booking, payment, and hold flows with exact call order."
+  },
+  {
+    "topic": "Pricing Engine Diagram",
+    "file": "knowledgebase/diagrams/pricing-engine.mmd",
+    "keywords": ["diagram", "mermaid", "pricing", "reconciliation", "validation"],
+    "summary": "Mermaid diagram showing pricing computation pipeline, client vs server paths, and the validation/reconciliation gate."
+  },
+  {
+    "topic": "Security Boundaries Diagram",
+    "file": "knowledgebase/diagrams/security-boundaries.mmd",
+    "keywords": ["diagram", "mermaid", "security", "RLS", "FORCE RLS", "triggers", "seatbelt", "trust"],
+    "summary": "Mermaid diagram showing untrusted/trusted zones, trust boundary enforcement points, seatbelt triggers, FORCE RLS tables, and Stripe signature verification."
+  },
+  {
+    "topic": "Edge Functions Diagram",
+    "file": "knowledgebase/diagrams/edge-functions.mmd",
+    "keywords": ["diagram", "mermaid", "edge functions", "categories", "relationships"],
+    "summary": "Mermaid diagram categorizing all edge functions: booking creation, pricing, payments, guest auth, admin ops, notifications, and public endpoints."
+  },
+  {
+    "topic": "Incident: Pricing Mismatch",
+    "file": "knowledgebase/incidents/pricing-mismatch.md",
+    "keywords": ["incident", "pricing", "mismatch", "PRICE_MISMATCH", "400", "recovery"],
+    "summary": "Incident playbook for pricing mismatch errors: root causes, detection queries, recovery steps, and permanent fix patterns."
+  },
+  {
+    "topic": "Incident: Missing Add-Ons",
+    "file": "knowledgebase/incidents/missing-addons.md",
+    "keywords": ["incident", "addons", "missing", "booking_add_ons", "seatbelt", "zero price"],
+    "summary": "Incident playbook for missing add-ons: seatbelt trigger detection, premium filtering, recovery via Counter Upsell Panel."
+  },
+  {
+    "topic": "Incident: Drop-off Fee Wrong",
+    "file": "knowledgebase/incidents/dropoff-fee-wrong.md",
+    "keywords": ["incident", "dropoff", "fee", "fee_group", "legacy", "wrong"],
+    "summary": "Incident playbook for incorrect drop-off fees: fee_group diagnosis, fee matrix, legacy $25 detection, recovery via reprice."
+  },
+  {
+    "topic": "Incident: Stripe Payment Failed",
+    "file": "knowledgebase/incidents/stripe-payment-failed.md",
+    "keywords": ["incident", "stripe", "payment", "webhook", "duplicate", "deposit", "failed"],
+    "summary": "Incident playbook for Stripe failures: missing webhooks, duplicate payments, status not updating, deposit hold issues."
+  },
+  {
+    "topic": "Incident: Edge Function Down",
+    "file": "knowledgebase/incidents/edge-function-down.md",
+    "keywords": ["incident", "edge function", "500", "502", "504", "down", "deployment"],
+    "summary": "Incident playbook for edge function outages: detection via logs, root causes, secret verification, redeployment."
+  },
+  {
+    "topic": "Incident: RLS Blocking",
+    "file": "knowledgebase/incidents/rls-blocking.md",
+    "keywords": ["incident", "RLS", "blocking", "permission denied", "empty results", "FORCE RLS"],
+    "summary": "Incident playbook for RLS blocking legitimate operations: diagnosis queries, service_role vs anon key issues, FORCE RLS implications."
+  },
+  {
+    "topic": "Runbook: Reprice Booking",
+    "file": "knowledgebase/runbooks/reprice-booking.md",
+    "keywords": ["runbook", "reprice", "modify", "upgrade", "totals", "staff"],
+    "summary": "Step-by-step runbook for repricing bookings: modify dates, apply upgrades, remove upgrades, with validation and rollback."
+  },
+  {
+    "topic": "Runbook: Manual Add-Ons",
+    "file": "knowledgebase/runbooks/manual-addons.md",
+    "keywords": ["runbook", "addons", "upsell", "persist-booking-extras", "manual"],
+    "summary": "Runbook for manually adding/removing add-ons via persist-booking-extras upsell actions."
+  },
+  {
+    "topic": "Runbook: Refund Processing",
+    "file": "knowledgebase/runbooks/refund-processing.md",
+    "keywords": ["runbook", "refund", "deposit", "release", "capture", "stripe"],
+    "summary": "Runbook for deposit release, deposit capture, and Stripe refund handling."
+  },
+  {
+    "topic": "Runbook: Booking Recovery",
+    "file": "knowledgebase/runbooks/booking-recovery.md",
+    "keywords": ["runbook", "recovery", "stuck", "status", "void", "draft"],
+    "summary": "Runbook for recovering stuck bookings: status diagnosis, reprice recovery, void broken bookings."
+  },
+  {
+    "topic": "Runbook: Vehicle Unlock",
+    "file": "knowledgebase/runbooks/vehicle-unlock.md",
+    "keywords": ["runbook", "vehicle", "unlock", "release", "unit", "stuck", "reserved"],
+    "summary": "Runbook for releasing vehicle units stuck in reserved/rented status after booking cancellation."
+  },
+  {
+    "topic": "Runbook: Late Return",
+    "file": "knowledgebase/runbooks/late-return.md",
+    "keywords": ["runbook", "late", "return", "overdue", "fee", "override", "deposit capture"],
+    "summary": "Runbook for handling late returns: detection, fee application via reprice, fee override, deposit capture."
+  },
+  {
+    "topic": "Onboarding Guide",
+    "file": "knowledgebase/onboarding/new-engineer.md",
+    "keywords": ["onboarding", "new engineer", "first day", "mental model", "folder", "debug", "exercises"],
+    "summary": "New engineer onboarding: system mental model, folder walkthrough, critical files, security model, first-day tasks, and debug exercises."
+  }
+]
