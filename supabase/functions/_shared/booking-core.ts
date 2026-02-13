@@ -444,18 +444,33 @@ export async function computeBookingTotals(input: {
   const ms = new Date(input.endAt).getTime() - new Date(input.startAt).getTime();
   const days = Math.max(1, Math.ceil(ms / msPerDay));
 
-  // 2) Fetch canonical daily rate from vehicles table (NOT vehicle_categories)
+  // 2) Fetch canonical daily rate — support both vehicles (legacy) and vehicle_categories IDs
+  let dailyRate: number;
+  let vehicleCategory: string | null = null;
+
   const { data: vehicle, error: vehErr } = await supabase
     .from("vehicles")
     .select("id, daily_rate, category")
     .eq("id", input.vehicleId)
     .single();
 
-  if (vehErr || !vehicle) {
-    throw new Error(`Invalid vehicle: ${input.vehicleId}`);
-  }
+  if (!vehErr && vehicle) {
+    dailyRate = Number(vehicle.daily_rate);
+    vehicleCategory = vehicle.category;
+  } else {
+    // Fallback: vehicleId may be a vehicle_categories ID
+    const { data: category, error: catErr } = await supabase
+      .from("vehicle_categories")
+      .select("id, daily_rate, name")
+      .eq("id", input.vehicleId)
+      .single();
 
-  const dailyRate = Number(vehicle.daily_rate);
+    if (catErr || !category) {
+      throw new Error(`Invalid vehicle: ${input.vehicleId}`);
+    }
+    dailyRate = Number(category.daily_rate);
+    vehicleCategory = category.name;
+  }
 
   // 3) Vehicle total with weekend surcharge + duration discount
   const vehicleBaseTotal = roundCents(dailyRate * days);
