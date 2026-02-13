@@ -2227,6 +2227,33 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          id: string
+          key: string
+          max_requests: number
+          request_count: number
+          window_seconds: number
+          window_start: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          max_requests?: number
+          request_count?: number
+          window_seconds?: number
+          window_start?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          max_requests?: number
+          request_count?: number
+          window_seconds?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       receipt_events: {
         Row: {
           action: string
@@ -3388,6 +3415,7 @@ export type Database = {
         Returns: string
       }
       check_ticket_escalation: { Args: never; Returns: undefined }
+      cleanup_expired_rate_limits: { Args: never; Returns: undefined }
       generate_booking_code: { Args: never; Returns: string }
       get_available_categories: {
         Args: { p_location_id: string }

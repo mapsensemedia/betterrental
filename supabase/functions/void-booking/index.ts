@@ -1,57 +1,30 @@
 /**
  * void-booking - Admin-only secure booking void operation
  * Requires admin role, writes to audit_logs with panel_source
+ * Enforces lifecycle: cannot void completed or already-cancelled bookings
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import {
+  getUserOrThrow,
+  requireRoleOrThrow,
+  getAdminClient,
+  authErrorResponse,
+} from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-  
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Auth + role gate (shared helpers)
+    const { userId } = await getUserOrThrow(req, corsHeaders);
+    await requireRoleOrThrow(userId, ["admin"], corsHeaders);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Validate user
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getUser(token);
-    if (claimsError || !claimsData.user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userId = claimsData.user.id;
-
-    // Check admin role
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (!roleData) {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const supabase = getAdminClient();
 
     const { bookingId, reason, refundAmount, panelSource } = await req.json();
 
@@ -74,6 +47,22 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ── Lifecycle guard: block voiding terminal states ──
+    const terminalStatuses = ["cancelled", "completed"];
+    if (terminalStatuses.includes(booking.status)) {
+      return new Response(
+        JSON.stringify({
+          error: `Cannot void a ${booking.status} booking`,
+          errorCode: "INVALID_STATE_TRANSITION",
+          currentStatus: booking.status,
+        }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Void the booking
@@ -125,6 +114,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    // Handle AuthError from shared helpers
+    try {
+      return authErrorResponse(err, corsHeaders);
+    } catch {
+      // Not an auth error — generic handler
+    }
     console.error("Void booking error:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
     return new Response(JSON.stringify({ error: message }), {

@@ -4,10 +4,9 @@ import {
   getCorsHeaders, 
   handleCorsPreflightRequest,
   getClientIp,
-  checkRateLimit,
-  rateLimitResponse,
 } from "../_shared/cors.ts";
 import { getAdminClient } from "../_shared/auth.ts";
+import { checkDbRateLimit } from "../_shared/rate-limit-db.ts";
 
 interface SendOtpRequest {
   bookingId: string;
@@ -38,16 +37,19 @@ serve(async (req: Request): Promise<Response> => {
   try {
     const clientIp = getClientIp(req);
     
-    // Rate limit by IP: 5 OTP requests per 10 minutes
-    const ipRateLimit = checkRateLimit(clientIp, {
-      windowMs: 10 * 60 * 1000,
+    // DB-backed rate limit by IP: 5 OTP requests per 10 minutes
+    const ipRateLimit = await checkDbRateLimit({
+      key: `otp-ip:${clientIp}`,
+      windowSeconds: 600,
       maxRequests: 5,
-      keyPrefix: "otp-ip",
     });
     
     if (!ipRateLimit.allowed) {
       console.log(`[send-booking-otp] IP rate limit exceeded: ${clientIp}`);
-      return rateLimitResponse(ipRateLimit.resetAt, corsHeaders);
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(Math.ceil((ipRateLimit.resetAt - Date.now()) / 1000)) } }
+      );
     }
 
     const supabaseAdmin = getAdminClient();
@@ -60,11 +62,11 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Rate limit by booking: 3 OTP requests per booking per 5 minutes
-    const bookingRateLimit = checkRateLimit(bookingId, {
-      windowMs: 5 * 60 * 1000,
+    // DB-backed rate limit by booking: 3 OTP requests per booking per 5 minutes
+    const bookingRateLimit = await checkDbRateLimit({
+      key: `otp-booking:${bookingId}`,
+      windowSeconds: 300,
       maxRequests: 3,
-      keyPrefix: "otp-booking",
     });
     
     if (!bookingRateLimit.allowed) {
@@ -111,13 +113,13 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // Rate limit by phone/email: 10 OTPs per day
+    // DB-backed rate limit by phone/email: 10 OTPs per day
     const contactKey = channel === "sms" ? userPhone : userEmail;
     if (contactKey) {
-      const contactRateLimit = checkRateLimit(contactKey, {
-        windowMs: 24 * 60 * 60 * 1000,
+      const contactRateLimit = await checkDbRateLimit({
+        key: `otp-${channel}:${contactKey}`,
+        windowSeconds: 86400,
         maxRequests: 10,
-        keyPrefix: `otp-${channel}`,
       });
       
       if (!contactRateLimit.allowed) {
