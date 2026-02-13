@@ -300,7 +300,8 @@ async function handleUpsellAdd(
   });
 
   // Reprice booking totals via canonical reprice-booking edge function
-  await invokeRepriceBooking(bookingId, booking.end_at, req);
+  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  if (repriceResult) return repriceResult;
 
   return new Response(
     JSON.stringify({ ok: true }),
@@ -382,7 +383,8 @@ async function handleUpsellRemove(
   });
 
   // Reprice booking totals via canonical reprice-booking edge function
-  await invokeRepriceBooking(bookingId, booking.end_at, req);
+  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  if (repriceResult) return repriceResult;
 
   return new Response(
     JSON.stringify({ ok: true }),
@@ -392,13 +394,24 @@ async function handleUpsellRemove(
 
 
 // ── Invoke reprice-booking edge function (canonical totals writer) ──
+// Returns null on success, or a Response on failure.
 async function invokeRepriceBooking(
   bookingId: string,
   currentEndAt: string,
   originalReq: Request,
-): Promise<void> {
+  corsHeaders: Record<string, string>,
+): Promise<Response | null> {
+  const authHeader = originalReq.headers.get("Authorization");
+  if (!authHeader) {
+    console.error("[persist-booking-extras] invokeRepriceBooking: missing Authorization header");
+    return new Response(
+      JSON.stringify({ error: "REPRICE_FAILED", errorCode: "MISSING_AUTH", details: "No Authorization header available for reprice call" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
   const resp = await fetch(
     `${supabaseUrl}/functions/v1/reprice-booking`,
@@ -406,8 +419,8 @@ async function invokeRepriceBooking(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: originalReq.headers.get("Authorization") || `Bearer ${serviceRoleKey}`,
-        apikey: serviceRoleKey,
+        Authorization: authHeader,
+        apikey: anonKey,
       },
       body: JSON.stringify({
         bookingId,
@@ -421,6 +434,12 @@ async function invokeRepriceBooking(
   if (!resp.ok) {
     const errBody = await resp.text();
     console.error("[persist-booking-extras] reprice-booking failed:", resp.status, errBody);
+    return new Response(
+      JSON.stringify({ error: "REPRICE_FAILED", errorCode: "REPRICE_ERROR", details: errBody }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
+
+  return null; // success
 }
 
