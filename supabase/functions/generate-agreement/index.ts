@@ -275,17 +275,23 @@ serve(async (req) => {
 
     console.log(`Found profile: ${displayName}`);
 
-    // Fetch add-ons for this booking
-    const { data: bookingAddOns } = await supabase
-      .from("booking_add_ons")
-      .select(`
-        id,
-        price,
-        quantity,
-        add_on_id,
-        add_ons (name, description)
-      `)
-      .eq("booking_id", bookingId);
+    // Fetch add-ons and additional drivers for this booking
+    const [{ data: bookingAddOns }, { data: bookingDrivers }] = await Promise.all([
+      supabase
+        .from("booking_add_ons")
+        .select(`
+          id,
+          price,
+          quantity,
+          add_on_id,
+          add_ons (name, description)
+        `)
+        .eq("booking_id", bookingId),
+      supabase
+        .from("booking_additional_drivers")
+        .select("id, driver_name, driver_age_band, young_driver_fee")
+        .eq("booking_id", bookingId),
+    ]);
 
     // Check for vehicle upgrade on the booking
     const hasUpgrade = booking.upgraded_at && booking.upgrade_daily_fee != null && Number(booking.upgrade_daily_fee) > 0;
@@ -311,7 +317,7 @@ serve(async (req) => {
     const protectionPlanId = (booking as any).protection_plan || "none";
     const planMeta = PROTECTION_PLAN_META[protectionPlanId] || PROTECTION_PLAN_META.none;
     
-    // Calculate financial breakdown
+    // Calculate financial breakdown using DB source-of-truth for totals
     const rentalDays = booking.total_days || 1;
     const dailyRate = Number(booking.daily_rate) || 0;
     const vehicleSubtotal = dailyRate * rentalDays;
@@ -322,29 +328,30 @@ serve(async (req) => {
       ?? getProtectionRate(protectionPlanId, categoryInfo.name);
     const protectionTotal = protectionDailyRate * rentalDays;
     
-    // Add-ons total (includes upgrade fee)
+    // Add-ons total from DB rows (includes upgrade fee)
     const addOnsTotal = (bookingAddOns || []).reduce((sum, addon) => {
       return sum + (Number(addon.price) || 0);
     }, 0) + upgradeFee;
+
+    // Additional drivers total from DB rows
+    const driversTotal = (bookingDrivers || []).reduce((sum, d) => {
+      return sum + (Number(d.young_driver_fee) || 0);
+    }, 0);
     
-    // Young driver fee
+    // Young driver fee (primary renter)
     const youngDriverFee = Number(booking.young_driver_fee) || 0;
     
     // Daily regulatory fees
     const pvrtTotal = PVRT_DAILY_FEE * rentalDays;
     const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
     
-    // Calculate subtotal before tax (rounded to avoid floating point drift)
-    const subtotalBeforeTax = Math.round(
-      (vehicleSubtotal + protectionTotal + addOnsTotal + youngDriverFee + pvrtTotal + acsrchTotal) * 100
-    ) / 100;
-    
-    // Calculate taxes (round each individually)
+    // Use DB source-of-truth for subtotal, tax, total (same as FinancialBreakdown component)
+    const subtotalBeforeTax = Number(booking.subtotal) || 0;
+    const dbTaxAmount = Number(booking.tax_amount) || 0;
     const pstAmount = Math.round(subtotalBeforeTax * PST_RATE * 100) / 100;
     const gstAmount = Math.round(subtotalBeforeTax * GST_RATE * 100) / 100;
-    const totalTax = Math.round((pstAmount + gstAmount) * 100) / 100;
-    
-    const grandTotal = Math.round((subtotalBeforeTax + totalTax) * 100) / 100;
+    const totalTax = dbTaxAmount;
+    const grandTotal = Number(booking.total_amount) || 0;
 
     // Format dates
     const startDate = new Date(booking.start_at).toLocaleDateString('en-US', { 
@@ -394,11 +401,23 @@ TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount
 
 Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (without approval), racing, off-road, or international travel. Return with same fuel level. Late fee: 25% surcharge of daily rate per extra hour up to 2 hrs after 30-min grace; after 2 hrs, full day charge per day. Renter liable for damage & traffic violations. Third-party liability comes standard. Optional rental coverages available at pickup. Unlimited km.`.trim();
 
-    // Build add-ons list including upgrades
+    // Build add-ons list including additional drivers and upgrades
     const addOnsList = (bookingAddOns || []).map(addon => ({
       name: (addon.add_ons as any)?.name || "—",
       price: Number(addon.price),
     }));
+    // Include additional drivers as line items
+    for (const d of (bookingDrivers || [])) {
+      const isYoung = d.driver_age_band === "20_24";
+      const fee = Number(d.young_driver_fee) || 0;
+      const driverLabel = d.driver_name || "Additional Driver";
+      const bandLabel = isYoung ? "Young" : "Standard";
+      const perDay = fee > 0 ? (fee / rentalDays) : 0;
+      addOnsList.push({
+        name: `${driverLabel} (${bandLabel} $${perDay.toFixed(2)}/day × ${rentalDays}d)`,
+        price: fee,
+      });
+    }
     if (hasUpgrade) {
       addOnsList.push({
         name: `Upgrade – ${upgradeName}`,
@@ -459,7 +478,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
       financial: {
         vehicleSubtotal,
         protectionTotal,
-        addOnsTotal,
+        addOnsTotal: addOnsTotal + driversTotal,
         youngDriverFee,
         pvrtTotal,
         acsrchTotal,
