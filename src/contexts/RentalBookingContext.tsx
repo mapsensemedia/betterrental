@@ -182,15 +182,25 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
       const startAt = params.get("startAt");
       const endAt = params.get("endAt");
       if (startAt) {
-        const d = new Date(startAt);
-        if (!isNaN(d.getTime())) {
-          stored.pickupDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        // Use parseLocalDate for "YYYY-MM-DD" strings to avoid UTC shift
+        if (startAt.length === 10 && !startAt.includes("T")) {
+          stored.pickupDate = parseLocalDate(startAt);
+        } else {
+          // Legacy ISO string — extract local date
+          const d = new Date(startAt);
+          if (!isNaN(d.getTime())) {
+            stored.pickupDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          }
         }
       }
       if (endAt) {
-        const d = new Date(endAt);
-        if (!isNaN(d.getTime())) {
-          stored.returnDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        if (endAt.length === 10 && !endAt.includes("T")) {
+          stored.returnDate = parseLocalDate(endAt);
+        } else {
+          const d = new Date(endAt);
+          if (!isNaN(d.getTime())) {
+            stored.returnDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          }
         }
       }
     }
