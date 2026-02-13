@@ -2,6 +2,7 @@
  * AddOns - Select additional services after protection
  */
 import { useState, useEffect } from "react";
+import { formatLocalDate } from "@/lib/date-utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check, Plus, Minus, Users, Car, Baby, Fuel, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -182,8 +183,8 @@ export default function AddOns() {
     // Use categoryId for checkout (this is the new category-based flow)
     const checkoutCategoryId = categoryId || vehicleId;
     if (checkoutCategoryId) params.set("categoryId", checkoutCategoryId);
-    if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
-    if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
+    if (searchData.pickupDate) params.set("startAt", formatLocalDate(searchData.pickupDate));
+    if (searchData.returnDate) params.set("endAt", formatLocalDate(searchData.returnDate));
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     params.set("protection", protection);
     params.set("addOns", cleanedAddOnIds.join(","));
@@ -202,8 +203,8 @@ export default function AddOns() {
     } else if (vehicleId) {
       params.set("vehicleId", vehicleId);
     }
-    if (searchData.pickupDate) params.set("startAt", searchData.pickupDate.toISOString());
-    if (searchData.returnDate) params.set("endAt", searchData.returnDate.toISOString());
+    if (searchData.pickupDate) params.set("startAt", formatLocalDate(searchData.pickupDate));
+    if (searchData.returnDate) params.set("endAt", formatLocalDate(searchData.returnDate));
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     navigate(`/protection?${params.toString()}`);
   };

@@ -6,6 +6,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { RENTAL_LOCATIONS, getLocationById, RentalLocation } from "@/constants/rentalLocations";
 import { MAX_RENTAL_DAYS, MIN_RENTAL_DAYS, calculateDeliveryFee, MAX_DELIVERY_DISTANCE_KM } from "@/lib/rental-rules";
 import type { DriverAgeBand } from "@/lib/pricing";
+import { formatLocalDate, parseLocalDate } from "@/lib/date-utils";
 
 // Delivery mode types
 export type DeliveryMode = "pickup" | "delivery";
@@ -138,19 +139,7 @@ const defaultSearchData: RentalSearchData = {
   additionalDrivers: [],
 };
 
-/** Format a Date to YYYY-MM-DD using local components (avoids UTC shift) */
-function formatLocalDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-/** Parse a YYYY-MM-DD string into a local Date (no UTC interpretation) */
-function parseLocalDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
+// formatLocalDate and parseLocalDate imported from @/lib/date-utils
 
 function loadFromStorage(): RentalSearchData {
   try {
