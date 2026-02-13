@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.persist-booking-extras]
 verify_jwt = false
+
+[functions.create-walk-in-booking]
+verify_jwt = false
