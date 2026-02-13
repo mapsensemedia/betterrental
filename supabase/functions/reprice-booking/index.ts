@@ -21,6 +21,7 @@ import {
   AuthError,
   authErrorResponse,
 } from "../_shared/auth.ts";
+import { computeDropoffFee } from "../_shared/booking-core.ts";
 
 // ========== Pricing constants (mirror src/lib/pricing.ts) ==========
 const PST_RATE = 0.07;
@@ -116,7 +117,8 @@ Deno.serve(async (req) => {
         id, start_at, end_at, daily_rate, total_days, subtotal,
         tax_amount, total_amount, vehicle_id, user_id, status,
         driver_age_band, protection_plan, young_driver_fee,
-        delivery_fee, different_dropoff_fee, upgrade_daily_fee, location_id
+        delivery_fee, different_dropoff_fee, upgrade_daily_fee, location_id,
+        return_location_id
       `)
       .eq("id", bookingId)
       .single();
@@ -151,7 +153,8 @@ Deno.serve(async (req) => {
     }
 
     const deliveryFee = Number(booking.delivery_fee) || 0;
-    const differentDropoffFee = Number(booking.different_dropoff_fee) || 0;
+    // Always recompute drop-off fee from location IDs (canonical)
+    const differentDropoffFee = computeDropoffFee(booking.location_id, booking.return_location_id);
 
     let updateData: Record<string, unknown> = {};
     let oldData: Record<string, unknown> = {};
@@ -189,6 +192,7 @@ Deno.serve(async (req) => {
         tax_amount: pricing.taxAmount,
         total_amount: pricing.total,
         young_driver_fee: pricing.youngDriverFee,
+        different_dropoff_fee: differentDropoffFee,
       };
       auditAction = "booking_modified";
 

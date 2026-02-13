@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       additionalDrivers, // { driverName, driverAgeBand }[] — fees computed server-side
       notes,
       deliveryFee,
-      differentDropoffFee,
+      returnLocationId,
       totalAmount,  // Client total — used only for mismatch check, never stored
     } = body;
 
@@ -109,7 +109,8 @@ Deno.serve(async (req) => {
         })),
         driverAgeBand,
         deliveryFee,
-        differentDropoffFee,
+        locationId,
+        returnLocationId,
         clientTotal: Number(totalAmount),
       });
     } catch (err) {
@@ -229,6 +230,7 @@ Deno.serve(async (req) => {
         notes: notes?.slice(0, 1000) || null,
         driver_age_band: driverAgeBand,
         protection_plan: protectionPlan || null,
+        return_location_id: returnLocationId || null,
       })
       .select()
       .single();

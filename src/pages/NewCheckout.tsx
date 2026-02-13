@@ -55,7 +55,8 @@ import {
   YOUNG_DRIVER_FEE, 
   BOOKING_INCLUDED_FEATURES,
   DEFAULT_DEPOSIT_AMOUNT,
-  DriverAgeBand 
+  DriverAgeBand,
+  computeDropoffFeeClient,
 } from "@/lib/pricing";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
@@ -173,7 +174,9 @@ export default function NewCheckout() {
     const { total: addOnsTotal, itemized } = calculateAddOnsCost(addOns, addOnIds, rentalDays, vehicleCategory, undefined, searchData.addOnQuantities);
     const deliveryFee = searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0;
     const isDifferentDropoff = !searchData.returnSameAsPickup && !!searchData.returnLocationId && searchData.returnLocationId !== searchData.pickupLocationId;
-    const differentDropoffFee = isDifferentDropoff ? 25 : 0;
+    const differentDropoffFee = isDifferentDropoff
+      ? computeDropoffFeeClient(searchData.pickupLocationId, searchData.returnLocationId)
+      : 0;
     
     // Calculate additional drivers cost
     const additionalDriversCost = calculateAdditionalDriversCost(searchData.additionalDrivers || [], rentalDays, additionalDriverRate, youngAdditionalDriverRate);
@@ -459,7 +462,6 @@ export default function NewCheckout() {
               cardHolderName: null,
               paymentMethod: paymentMethod,
               returnLocationId: pricing.isDifferentDropoff ? searchData.returnLocationId : undefined,
-              differentDropoffFee: pricing.differentDropoffFee || 0,
             },
           });
         } catch (networkError: any) {

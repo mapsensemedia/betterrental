@@ -350,6 +350,49 @@ export async function requireBookingOwnerOrToken(
   throw new AuthError("Authentication or access token required", 401);
 }
 
+// ========== DROP-OFF FEE COMPUTATION ==========
+
+// Location IDs → city group mapping
+const LOCATION_CITY_GROUPS: Record<string, string> = {
+  "a1b2c3d4-1111-4000-8000-000000000001": "surrey",
+  "a1b2c3d4-2222-4000-8000-000000000002": "langley",
+  "a1b2c3d4-3333-4000-8000-000000000003": "abbotsford",
+};
+
+/**
+ * Compute drop-off fee based on pickup and return location IDs.
+ * Returns 0 if same location or unknown locations.
+ * 
+ * Business rules:
+ *   Surrey <-> Langley: $50
+ *   (Surrey or Langley) <-> Abbotsford: $75
+ */
+export function computeDropoffFee(
+  pickupLocationId: string | null | undefined,
+  returnLocationId: string | null | undefined,
+): number {
+  if (!pickupLocationId || !returnLocationId) return 0;
+  if (pickupLocationId === returnLocationId) return 0;
+
+  const pickupGroup = LOCATION_CITY_GROUPS[pickupLocationId];
+  const returnGroup = LOCATION_CITY_GROUPS[returnLocationId];
+
+  if (!pickupGroup || !returnGroup) return 0;
+  if (pickupGroup === returnGroup) return 0;
+
+  const pair = [pickupGroup, returnGroup].sort().join("|");
+
+  switch (pair) {
+    case "langley|surrey":
+      return 50;
+    case "abbotsford|langley":
+    case "abbotsford|surrey":
+      return 75;
+    default:
+      return 0;
+  }
+}
+
 // ========== SERVER-SIDE PRICING ==========
 
 function isWeekendPickup(dateStr: string): boolean {
@@ -385,6 +428,9 @@ export async function computeBookingTotals(input: {
   driverAgeBand?: string;
   deliveryFee?: number;
   differentDropoffFee?: number;
+  /** If provided, server computes drop-off fee from location IDs (overrides differentDropoffFee) */
+  locationId?: string;
+  returnLocationId?: string;
 }): Promise<ServerPricingResult> {
   const supabase = getAdminClient();
 
@@ -535,7 +581,10 @@ export async function computeBookingTotals(input: {
 
   // 8) Delivery + dropoff fees
   const deliveryFee = roundCents(Number(input.deliveryFee ?? 0));
-  const differentDropoffFee = roundCents(Number(input.differentDropoffFee ?? 0));
+  // Prefer server-computed drop-off fee from location IDs; fall back to explicit input
+  const differentDropoffFee = (input.locationId && input.returnLocationId)
+    ? computeDropoffFee(input.locationId, input.returnLocationId)
+    : roundCents(Number(input.differentDropoffFee ?? 0));
 
   // 9) Subtotal (now includes additional drivers)
   const subtotal = roundCents(
@@ -592,6 +641,8 @@ export async function validateClientPricing(params: {
   driverAgeBand?: string;
   deliveryFee?: number;
   differentDropoffFee?: number;
+  locationId?: string;
+  returnLocationId?: string;
   clientTotal: number;
 }): Promise<{ valid: boolean; serverTotals: ServerPricingResult; error?: string }> {
   // FAIL CLOSED: if computeBookingTotals throws, we reject
@@ -605,6 +656,8 @@ export async function validateClientPricing(params: {
     driverAgeBand: params.driverAgeBand,
     deliveryFee: params.deliveryFee,
     differentDropoffFee: params.differentDropoffFee,
+    locationId: params.locationId,
+    returnLocationId: params.returnLocationId,
   });
 
   const diff = Math.abs(roundCents(server.total) - roundCents(params.clientTotal));
