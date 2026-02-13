@@ -89,6 +89,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Lifecycle guard: only active or completed bookings can be closed
+    const closableStatuses = ["active", "completed"];
+    if (!closableStatuses.includes(booking.status)) {
+      return new Response(
+        JSON.stringify({
+          error: `Cannot close account for a ${booking.status} booking`,
+          errorCode: "INVALID_STATE_TRANSITION",
+          currentStatus: booking.status,
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get all payments
     const { data: payments } = await supabase
       .from("payments")
