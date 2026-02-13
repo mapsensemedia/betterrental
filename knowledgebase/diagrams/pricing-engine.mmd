@@ -1,0 +1,33 @@
+%%{ init: { 'theme': 'base' } }%%
+graph TD
+    subgraph Client["Client-Side (Display Only)"]
+        CP[calculateBookingPricing<br/>src/lib/pricing.ts]
+        CP -->|Shows estimate| UIPreview[UI Price Display]
+    end
+
+    subgraph Server["Server-Side (Authoritative)"]
+        CBT[computeBookingTotals<br/>_shared/booking-core.ts]
+
+        CBT --> Duration["1. Duration<br/>days = ceil(diff / 86400000)"]
+        Duration --> BaseRate["2. Base Rate<br/>dailyRate × days (from DB)"]
+        BaseRate --> Weekend["3. Weekend Surcharge<br/>Fri/Sat/Sun pickup → +15%"]
+        Weekend --> DurationDisc["4. Duration Discount<br/>≥21d → 20%, ≥7d → 10%"]
+        DurationDisc --> Protection["5. Protection<br/>system_settings rate × days"]
+        Protection --> AddOns["6. Add-Ons<br/>(daily × days × qty) + (one_time × qty)<br/>Filter roadside if premium"]
+        AddOns --> YoungDriver["7. Young Driver Fee<br/>20-24 → $15/day × days"]
+        YoungDriver --> AdditionalDrivers["8. Additional Drivers<br/>standard $14.99/d, young $19.99/d"]
+        AdditionalDrivers --> RegFees["9. Regulatory Fees<br/>PVRT $1.50/d + ACSRCH $1.00/d"]
+        RegFees --> Delivery["10. Delivery + Drop-off<br/>computeDropoffFee()"]
+        Delivery --> Subtotal["11. Subtotal = sum of above"]
+        Subtotal --> Tax["12. Tax<br/>PST 7% + GST 5%"]
+        Tax --> Total["13. Total + Deposit $350"]
+    end
+
+    subgraph Validation["Price Reconciliation"]
+        VCP[validateClientPricing]
+        VCP -->|"|server - client| > $0.50"| Reject[400 PRICE_MISMATCH]
+        VCP -->|"Within tolerance"| Accept[Use server totals for DB write]
+    end
+
+    CP -.->|"Client sends totalAmount"| VCP
+    CBT -->|"Server recomputes"| VCP
