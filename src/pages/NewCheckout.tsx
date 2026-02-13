@@ -1028,6 +1028,14 @@ export default function NewCheckout() {
                       </div>
                     )}
 
+                    {/* Different drop-off fee */}
+                    {pricing.differentDropoffFee > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Different drop-off location</span>
+                        <span>${pricing.differentDropoffFee.toFixed(2)} CAD</span>
+                      </div>
+                    )}
+
                     {/* Regulatory fees — itemized */}
                     <div className="flex justify-between items-center">
                       <span className="flex items-center">
