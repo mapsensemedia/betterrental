@@ -34,8 +34,19 @@ interface StaffOption { id: string; full_name: string | null; email: string | nu
 
 // Query functions defined outside component
 const fetchVehicleOptions = async (): Promise<VehicleOption[]> => {
-  const client = supabase as any;
-  const { data, error } = await client.from("vehicles").select("id, make, model, year").eq("is_active", true).order("make");
+  // Try vehicle_categories first (primary source for vehicle display data)
+  const { data: categories } = await supabase
+    .from("vehicle_categories")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name");
+  
+  if (categories && categories.length > 0) {
+    return categories.map(c => ({ id: c.id, make: c.name, model: "", year: new Date().getFullYear() }));
+  }
+  
+  // Fallback to vehicles table
+  const { data, error } = await supabase.from("vehicles").select("id, make, model, year").eq("is_available", true).order("make");
   if (error) throw error;
   return data || [];
 };

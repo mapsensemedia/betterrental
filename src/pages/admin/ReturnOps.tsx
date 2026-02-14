@@ -446,11 +446,11 @@ export default function ReturnOps() {
                   />
                 )}
                 {activeStep === "closeout" && (
-                  <StepReturnCloseout 
+                <StepReturnCloseout 
                     booking={booking}
                     completion={completion}
                     onCompleteReturn={handleCompleteReturn}
-                    isCompleting={completeStep.isPending}
+                    isCompleting={completeStep.isPending || closeAccount.isPending}
                     returnState={returnState}
                     isLocked={stepIsLocked}
                     calculatedLateFee={calculatedLateFee}

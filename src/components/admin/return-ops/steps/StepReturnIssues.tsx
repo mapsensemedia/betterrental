@@ -80,14 +80,26 @@ export function StepReturnIssues({
   const lateFee = calculateLateFee(minutesLate);
 
   // Fetch vehicle info for damage dialog
+  // vehicle_id on bookings points to vehicle_categories, not vehicles
   const { data: vehicle } = useQuery({
-    queryKey: ["vehicle", vehicleId],
+    queryKey: ["vehicle-category", vehicleId],
     queryFn: async () => {
+      // Try vehicle_categories first (booking.vehicle_id points here)
+      const { data: cat } = await supabase
+        .from("vehicle_categories")
+        .select("id, name, image_url")
+        .eq("id", vehicleId)
+        .maybeSingle();
+      if (cat) {
+        // Parse name to extract make/model/year-like info
+        return { make: cat.name, model: "", year: new Date().getFullYear(), category: cat.name };
+      }
+      // Fallback to vehicles table
       const { data, error } = await supabase
         .from("vehicles")
         .select("make, model, year")
         .eq("id", vehicleId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
