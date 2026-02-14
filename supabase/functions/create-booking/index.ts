@@ -6,6 +6,7 @@
  * - Server-side price computation — all client pricing fields ignored
  * - Fail-closed: if pricing computation throws, return 400
  * - Add-on prices computed server-side from DB
+ * - P0 FIX: No service_role key in inter-function fetch calls
  */
 import { 
   getCorsHeaders, 
@@ -59,23 +60,23 @@ Deno.serve(async (req) => {
     console.log("Creating booking for user:", auth.userId);
 
     const {
-      holdId,        // Optional — not used for direct checkout
+      holdId,
       vehicleId,
       locationId,
       startAt,
       endAt,
-      pickupDate,    // "YYYY-MM-DD" date-only string for pricing
-      dropoffDate,   // "YYYY-MM-DD" date-only string for pricing
+      pickupDate,
+      dropoffDate,
       userPhone,
       driverAgeBand,
       protectionPlan,
-      addOns,      // Only { addOnId, quantity }[] accepted — price ignored
-      additionalDrivers, // { driverName, driverAgeBand }[] — fees computed server-side
+      addOns,
+      additionalDrivers,
       notes,
       deliveryFee,
       returnLocationId,
-      totalAmount,  // Client total — used only for mismatch check, never stored
-      paymentMethod, // "pay-now" | "pay-later"
+      totalAmount,
+      paymentMethod,
       pickupAddress,
       pickupLat,
       pickupLng,
@@ -115,7 +116,7 @@ Deno.serve(async (req) => {
         additionalDrivers: (additionalDrivers || []).map((d: any) => ({
           driverName: d.driverName || null,
           driverAgeBand: d.driverAgeBand || "25_70",
-          youngDriverFee: 0, // computed server-side
+          youngDriverFee: 0,
         })),
         driverAgeBand,
         deliveryFee,
@@ -233,7 +234,6 @@ Deno.serve(async (req) => {
         location_id: locationId,
         start_at: startAt,
         end_at: endAt,
-        // ALL financial fields from server computation
         daily_rate: serverTotals.dailyRate,
         total_days: serverTotals.days,
         subtotal: serverTotals.subtotal,
@@ -277,13 +277,11 @@ Deno.serve(async (req) => {
         await createBookingAddOns(booking.id, serverTotals.addOnPrices);
       }
 
-      // Create additional drivers with SERVER-COMPUTED fees
       if (serverTotals.additionalDriverRecords.length > 0) {
         await createAdditionalDrivers(booking.id, serverTotals.additionalDriverRecords);
       }
     } catch (extrasError) {
       console.error(`[create-booking] Extras persistence FAILED for booking ${booking.id}:`, extrasError);
-      // Don't fail the whole booking — extras can be added later via persist-booking-extras
     }
 
     // Mark hold as converted (if hold was used)
@@ -294,10 +292,7 @@ Deno.serve(async (req) => {
         .eq("id", holdId);
     }
 
-    // Notifications
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
+    // P0 FIX: Use supabase.functions.invoke instead of raw fetch with service_role Bearer token
     let customerName = "";
     let vehicleName = "";
     
@@ -319,28 +314,23 @@ Deno.serve(async (req) => {
       console.log("Failed to fetch names for notification:", e);
     }
 
+    // Use admin client's functions.invoke — no service_role key in headers
     const notificationPromises = [
-      fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-        body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
-      }).catch(err => console.error("SMS notification failed:", err)),
-      fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-        body: JSON.stringify({ bookingId: booking.id, templateType: "confirmation" }),
-      }).catch(err => console.error("Email notification failed:", err)),
-      fetch(`${supabaseUrl}/functions/v1/notify-admin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-        body: JSON.stringify({
+      supabaseAdmin.functions.invoke("send-booking-sms", {
+        body: { bookingId: booking.id, templateType: "confirmation" },
+      }).catch((err: any) => console.error("SMS notification failed:", err)),
+      supabaseAdmin.functions.invoke("send-booking-email", {
+        body: { bookingId: booking.id, templateType: "confirmation" },
+      }).catch((err: any) => console.error("Email notification failed:", err)),
+      supabaseAdmin.functions.invoke("notify-admin", {
+        body: {
           eventType: "new_booking",
           bookingId: booking.id,
           bookingCode: booking.booking_code,
           customerName,
           vehicleName,
-        }),
-      }).catch(err => console.error("Admin notification failed:", err)),
+        },
+      }).catch((err: any) => console.error("Admin notification failed:", err)),
     ];
 
     await Promise.all(notificationPromises);

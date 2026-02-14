@@ -1,15 +1,14 @@
 /**
  * reprice-booking — Server-side booking financial field updates
  *
- * Handles two operations:
+ * Handles three operations:
  *   1. "modify" — Extend/shorten rental duration, recalculate totals
- *   2. "upgrade" — Apply/remove upgrade daily fee, recalculate total
+ *   2. "upgrade" — Apply upgrade daily fee, recalculate total
  *   3. "remove_upgrade" — Remove upgrade fee and restore total
  *
- * All pricing is computed server-side from DB values.
+ * All pricing is computed server-side via canonical computeBookingTotals().
  * Only admin/staff can call this function.
  */
-import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   getCorsHeaders,
   handleCorsPreflightRequest,
@@ -21,77 +20,10 @@ import {
   AuthError,
   authErrorResponse,
 } from "../_shared/auth.ts";
-import { computeDropoffFee } from "../_shared/booking-core.ts";
-
-// ========== Pricing constants (mirror src/lib/pricing.ts) ==========
-const PST_RATE = 0.07;
-const GST_RATE = 0.05;
-const PVRT_DAILY_FEE = 1.50;
-const ACSRCH_DAILY_FEE = 1.00;
-const WEEKEND_SURCHARGE_RATE = 0.15;
-const WEEKLY_DISCOUNT_THRESHOLD = 7;
-const WEEKLY_DISCOUNT_RATE = 0.10;
-const MONTHLY_DISCOUNT_THRESHOLD = 21;
-const MONTHLY_DISCOUNT_RATE = 0.20;
-const YOUNG_DRIVER_FEE = 15;
-
-function isWeekendPickup(dateStr: string): boolean {
-  const day = new Date(dateStr).getUTCDay();
-  return day === 5 || day === 6 || day === 0;
-}
-
-function getDurationDiscount(days: number): number {
-  if (days >= MONTHLY_DISCOUNT_THRESHOLD) return MONTHLY_DISCOUNT_RATE;
-  if (days >= WEEKLY_DISCOUNT_THRESHOLD) return WEEKLY_DISCOUNT_RATE;
-  return 0;
-}
+import { computeBookingTotals } from "../_shared/booking-core.ts";
 
 function roundCents(v: number): number {
   return Math.round(v * 100) / 100;
-}
-
-interface ServerPricing {
-  subtotal: number;
-  taxAmount: number;
-  total: number;
-  youngDriverFee: number;
-}
-
-function computeTotals(
-  dailyRate: number,
-  rentalDays: number,
-  protectionDailyRate: number,
-  addOnsTotal: number,
-  deliveryFee: number,
-  differentDropoffFee: number,
-  driverAgeBand: string | null,
-  pickupDate: string,
-  upgradeDailyFee: number,
-): ServerPricing {
-  const vehicleBase = dailyRate * rentalDays;
-  const weekendSurcharge = isWeekendPickup(pickupDate) ? vehicleBase * WEEKEND_SURCHARGE_RATE : 0;
-  const discountRate = getDurationDiscount(rentalDays);
-  const vehicleAfterSurcharge = vehicleBase + weekendSurcharge;
-  const durationDiscount = vehicleAfterSurcharge * discountRate;
-  const vehicleTotal = vehicleAfterSurcharge - durationDiscount;
-
-  const protectionTotal = protectionDailyRate * rentalDays;
-  const pvrtTotal = PVRT_DAILY_FEE * rentalDays;
-  const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
-  const youngDriverFee = driverAgeBand === "20_24" ? YOUNG_DRIVER_FEE * rentalDays : 0;
-  const upgradeTotal = upgradeDailyFee * rentalDays;
-
-  const subtotal = roundCents(
-    vehicleTotal + protectionTotal + addOnsTotal + deliveryFee +
-    differentDropoffFee + youngDriverFee + pvrtTotal + acsrchTotal + upgradeTotal
-  );
-
-  const pst = roundCents(subtotal * PST_RATE);
-  const gst = roundCents(subtotal * GST_RATE);
-  const taxAmount = roundCents(pst + gst);
-  const total = roundCents(subtotal + taxAmount);
-
-  return { subtotal, taxAmount, total, youngDriverFee };
 }
 
 Deno.serve(async (req) => {
@@ -118,7 +50,7 @@ Deno.serve(async (req) => {
         tax_amount, total_amount, vehicle_id, user_id, status,
         driver_age_band, protection_plan, young_driver_fee,
         delivery_fee, different_dropoff_fee, upgrade_daily_fee, location_id,
-        return_location_id
+        return_location_id, assigned_unit_id
       `)
       .eq("id", bookingId)
       .single();
@@ -127,34 +59,30 @@ Deno.serve(async (req) => {
       return jsonResp({ error: "Booking not found" }, 404, corsHeaders);
     }
 
-    // Get add-ons total
-    const { data: addOns } = await supabase
+    // Read existing add-ons for full context
+    const { data: addOnRows } = await supabase
       .from("booking_add_ons")
-      .select("price, quantity")
+      .select("add_on_id, quantity")
       .eq("booking_id", bookingId);
-    const addOnsTotal = (addOns || []).reduce((s, a) => s + Number(a.price), 0);
 
-    // Get protection daily rate
-    let protectionDailyRate = 0;
-    if (booking.protection_plan && booking.protection_plan !== "none") {
-      // Look up from system settings first, then fallback to known rates
-      const { data: settings } = await supabase
-        .from("system_settings")
-        .select("value")
-        .eq("key", `protection_${booking.protection_plan}_rate`)
-        .maybeSingle();
-      if (settings?.value) {
-        protectionDailyRate = Number(settings.value);
-      } else {
-        // Fallback to hardcoded rates matching pricing.ts
-        const RATES: Record<string, number> = { basic: 32.99, smart: 37.99, premium: 49.99 };
-        protectionDailyRate = RATES[booking.protection_plan] || 0;
-      }
-    }
+    const addOnInputs = (addOnRows || []).map((a: any) => ({
+      addOnId: a.add_on_id,
+      quantity: Number(a.quantity) || 1,
+    }));
+
+    // Read existing additional drivers for full context
+    const { data: driverRows } = await supabase
+      .from("booking_additional_drivers")
+      .select("driver_name, driver_age_band")
+      .eq("booking_id", bookingId);
+
+    const driverInputs = (driverRows || []).map((d: any) => ({
+      driverName: d.driver_name || null,
+      driverAgeBand: d.driver_age_band || "25_70",
+      youngDriverFee: 0, // computed by engine
+    }));
 
     const deliveryFee = Number(booking.delivery_fee) || 0;
-    // Always recompute drop-off fee from location IDs (canonical, DB-driven)
-    const differentDropoffFee = await computeDropoffFee(booking.location_id, booking.return_location_id);
 
     let updateData: Record<string, unknown> = {};
     let oldData: Record<string, unknown> = {};
@@ -169,16 +97,34 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "Only pending/confirmed/active bookings can be modified" }, 400, corsHeaders);
       }
 
-      const start = new Date(booking.start_at);
-      const newEnd = new Date(newEndAt);
-      const hoursDiff = (newEnd.getTime() - start.getTime()) / (1000 * 60 * 60);
-      const newDays = Math.max(1, Math.ceil(hoursDiff / 24));
-
       const upgradeFee = Number(booking.upgrade_daily_fee) || 0;
-      const pricing = computeTotals(
-        booking.daily_rate, newDays, protectionDailyRate, addOnsTotal,
-        deliveryFee, differentDropoffFee, booking.driver_age_band, booking.start_at, upgradeFee,
-      );
+
+      // Use canonical pricing engine for ALL totals
+      const serverTotals = await computeBookingTotals({
+        vehicleId: booking.vehicle_id,
+        startAt: booking.start_at,
+        endAt: newEndAt,
+        protectionPlan: booking.protection_plan || undefined,
+        addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
+        additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
+        driverAgeBand: booking.driver_age_band || undefined,
+        deliveryFee,
+        locationId: booking.location_id,
+        returnLocationId: booking.return_location_id,
+      });
+
+      // If upgrade fee exists, add it to the canonical totals
+      let finalSubtotal = serverTotals.subtotal;
+      let finalTaxAmount = serverTotals.taxAmount;
+      let finalTotal = serverTotals.total;
+      if (upgradeFee > 0) {
+        const upgradeTotal = roundCents(upgradeFee * serverTotals.days);
+        finalSubtotal = roundCents(finalSubtotal + upgradeTotal);
+        const pst = roundCents(finalSubtotal * 0.07);
+        const gst = roundCents(finalSubtotal * 0.05);
+        finalTaxAmount = roundCents(pst + gst);
+        finalTotal = roundCents(finalSubtotal + finalTaxAmount);
+      }
 
       oldData = {
         end_at: booking.end_at, total_days: booking.total_days,
@@ -187,12 +133,12 @@ Deno.serve(async (req) => {
 
       updateData = {
         end_at: newEndAt,
-        total_days: newDays,
-        subtotal: pricing.subtotal,
-        tax_amount: pricing.taxAmount,
-        total_amount: pricing.total,
-        young_driver_fee: pricing.youngDriverFee,
-        different_dropoff_fee: differentDropoffFee,
+        total_days: serverTotals.days,
+        subtotal: finalSubtotal,
+        tax_amount: finalTaxAmount,
+        total_amount: finalTotal,
+        young_driver_fee: serverTotals.youngDriverFee,
+        different_dropoff_fee: serverTotals.differentDropoffFee,
       };
       auditAction = "booking_modified";
 
@@ -202,11 +148,28 @@ Deno.serve(async (req) => {
       const fee = Number(upgradeDailyFee) || 0;
 
       const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
-      // Recalculate total with new upgrade fee
-      const pricing = computeTotals(
-        booking.daily_rate, booking.total_days, protectionDailyRate, addOnsTotal,
-        deliveryFee, differentDropoffFee, booking.driver_age_band, booking.start_at, fee,
-      );
+
+      // Compute canonical totals (without upgrade fee) then add upgrade
+      const serverTotals = await computeBookingTotals({
+        vehicleId: booking.vehicle_id,
+        startAt: booking.start_at,
+        endAt: booking.end_at,
+        protectionPlan: booking.protection_plan || undefined,
+        addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
+        additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
+        driverAgeBand: booking.driver_age_band || undefined,
+        deliveryFee,
+        locationId: booking.location_id,
+        returnLocationId: booking.return_location_id,
+      });
+
+      // Add upgrade fee on top of canonical totals
+      const upgradeTotal = roundCents(fee * serverTotals.days);
+      const finalSubtotal = roundCents(serverTotals.subtotal + upgradeTotal);
+      const pst = roundCents(finalSubtotal * 0.07);
+      const gst = roundCents(finalSubtotal * 0.05);
+      const finalTaxAmount = roundCents(pst + gst);
+      const finalTotal = roundCents(finalSubtotal + finalTaxAmount);
 
       oldData = {
         total_amount: booking.total_amount,
@@ -221,9 +184,10 @@ Deno.serve(async (req) => {
         upgrade_reason: upgradeReason || null,
         upgraded_at: new Date().toISOString(),
         upgraded_by: authResult.userId,
-        subtotal: pricing.subtotal,
-        tax_amount: pricing.taxAmount,
-        total_amount: pricing.total,
+        subtotal: finalSubtotal,
+        tax_amount: finalTaxAmount,
+        total_amount: finalTotal,
+        different_dropoff_fee: serverTotals.differentDropoffFee,
       };
 
       // Handle unit assignment if provided
@@ -244,11 +208,20 @@ Deno.serve(async (req) => {
 
     } else if (operation === "remove_upgrade") {
       const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
-      // Recalculate with zero upgrade
-      const pricing = computeTotals(
-        booking.daily_rate, booking.total_days, protectionDailyRate, addOnsTotal,
-        deliveryFee, differentDropoffFee, booking.driver_age_band, booking.start_at, 0,
-      );
+
+      // Compute canonical totals (no upgrade fee)
+      const serverTotals = await computeBookingTotals({
+        vehicleId: booking.vehicle_id,
+        startAt: booking.start_at,
+        endAt: booking.end_at,
+        protectionPlan: booking.protection_plan || undefined,
+        addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
+        additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
+        driverAgeBand: booking.driver_age_band || undefined,
+        deliveryFee,
+        locationId: booking.location_id,
+        returnLocationId: booking.return_location_id,
+      });
 
       oldData = {
         upgrade_daily_fee: currentUpgradeFee,
@@ -259,9 +232,10 @@ Deno.serve(async (req) => {
         upgrade_daily_fee: 0,
         upgrade_category_label: null,
         upgrade_visible_to_customer: false,
-        subtotal: pricing.subtotal,
-        tax_amount: pricing.taxAmount,
-        total_amount: pricing.total,
+        subtotal: serverTotals.subtotal,
+        tax_amount: serverTotals.taxAmount,
+        total_amount: serverTotals.total,
+        different_dropoff_fee: serverTotals.differentDropoffFee,
       };
       auditAction = "upgrade_fee_removed";
 

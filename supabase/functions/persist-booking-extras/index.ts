@@ -9,6 +9,7 @@
  *   2. Staff upsell: action="upsell-add" or "upsell-remove" for counter upsell.
  * 
  * Prices are computed server-side from DB — client prices ignored.
+ * Drop-off fees are always recomputed from location IDs (never static).
  */
 import {
   getCorsHeaders,
@@ -48,10 +49,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch booking
+    // Fetch booking — include location IDs for canonical drop-off fee computation
     const { data: booking, error: bErr } = await supabaseAdmin
       .from("bookings")
-      .select("id, user_id, vehicle_id, start_at, end_at, protection_plan, driver_age_band, delivery_fee, different_dropoff_fee, subtotal, tax_amount, total_amount")
+      .select("id, user_id, vehicle_id, start_at, end_at, protection_plan, driver_age_band, delivery_fee, different_dropoff_fee, subtotal, tax_amount, total_amount, location_id, return_location_id")
       .eq("id", bookingId)
       .single();
 
@@ -101,6 +102,7 @@ Deno.serve(async (req) => {
       youngDriverFee: 0,
     }));
 
+    // P0 FIX: Pass locationId + returnLocationId for canonical drop-off fee computation
     const serverTotals = await computeBookingTotals({
       vehicleId: booking.vehicle_id,
       startAt: booking.start_at,
@@ -110,7 +112,8 @@ Deno.serve(async (req) => {
       additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
       driverAgeBand: booking.driver_age_band || undefined,
       deliveryFee: Number(booking.delivery_fee) || 0,
-      differentDropoffFee: Number(booking.different_dropoff_fee) || 0,
+      locationId: booking.location_id,
+      returnLocationId: booking.return_location_id,
     });
 
     const errors: string[] = [];
@@ -220,7 +223,7 @@ async function handleUpsellAdd(
     youngDriverFee: 0, // computed by engine
   }));
 
-  // Compute canonical totals with full add-on + driver context
+  // P0 FIX: Pass locationId + returnLocationId for canonical drop-off fee computation
   const serverTotals = await computeBookingTotals({
     vehicleId: booking.vehicle_id,
     startAt: booking.start_at,
@@ -230,7 +233,8 @@ async function handleUpsellAdd(
     additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
     driverAgeBand: booking.driver_age_band || undefined,
     deliveryFee: Number(booking.delivery_fee) || 0,
-    differentDropoffFee: Number(booking.different_dropoff_fee) || 0,
+    locationId: booking.location_id,
+    returnLocationId: booking.return_location_id,
   });
 
   // Find the computed price for this specific add-on
@@ -243,7 +247,6 @@ async function handleUpsellAdd(
   }
 
   // Persist: upsert using delete-then-insert (no unique constraint on booking_id+add_on_id)
-  // Check if row already exists
   const { data: existingRow } = await supabaseAdmin
     .from("booking_add_ons")
     .select("id, price, quantity")
@@ -256,7 +259,6 @@ async function handleUpsellAdd(
     : null;
 
   if (existingRow) {
-    // Update existing row
     const { error: updateErr } = await supabaseAdmin
       .from("booking_add_ons")
       .update({ price: computedEntry.price, quantity: computedEntry.quantity })
@@ -270,7 +272,6 @@ async function handleUpsellAdd(
       );
     }
   } else {
-    // Insert new row
     const { error: insertErr } = await supabaseAdmin
       .from("booking_add_ons")
       .insert({
@@ -320,7 +321,6 @@ async function handleUpsellRemove(
   req: Request,
 ): Promise<Response> {
   const { bookingId, bookingAddOnId, addOnId } = body;
-  // Support both bookingAddOnId (row id) and addOnId (add_on_id)
   const lookupById = !!bookingAddOnId;
 
   if (!bookingAddOnId && !addOnId) {
@@ -330,7 +330,6 @@ async function handleUpsellRemove(
     );
   }
 
-  // Find the row to remove
   let query = supabaseAdmin
     .from("booking_add_ons")
     .select("id, add_on_id, price, quantity")
@@ -351,14 +350,12 @@ async function handleUpsellRemove(
     );
   }
 
-  // Capture old data for audit before deletion
   const oldData = {
     addOnId: existing.add_on_id,
     quantity: existing.quantity,
     price: Number(existing.price),
   };
 
-  // Delete the row
   const { error: delErr } = await supabaseAdmin
     .from("booking_add_ons")
     .delete()
@@ -372,7 +369,6 @@ async function handleUpsellRemove(
     );
   }
 
-  // Audit log (captures what was deleted)
   await supabaseAdmin.from("audit_logs").insert({
     action: "booking_addon_upsell_remove",
     entity_type: "booking",
@@ -394,7 +390,6 @@ async function handleUpsellRemove(
 
 
 // ── Invoke reprice-booking edge function (canonical totals writer) ──
-// Returns null on success, or a Response on failure.
 async function invokeRepriceBooking(
   bookingId: string,
   currentEndAt: string,
@@ -442,4 +437,3 @@ async function invokeRepriceBooking(
 
   return null; // success
 }
-

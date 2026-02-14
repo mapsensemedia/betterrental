@@ -6,11 +6,8 @@ import { validateAuth, isAdminOrStaff } from "../_shared/auth.ts";
 /**
  * Close Account
  * 
- * Simplified account closeout:
- * 1. Calculate all final charges
- * 2. Generate final invoice
- * 3. Send receipt to customer
- * 4. If balance > 0, admin sends payment link separately
+ * P1 FIX: Invoice line items properly decompose booking.subtotal so sum(line items) == subtotal.
+ * Add-ons, drivers, protection, fees are subtracted from subtotal to derive the vehicle rental portion.
  */
 
 interface CloseAccountRequest {
@@ -21,6 +18,10 @@ interface CloseAccountRequest {
     type: "late_fee" | "damage" | "fee" | "other";
   }>;
   notes?: string;
+}
+
+function roundCents(v: number): number {
+  return Math.round(v * 100) / 100;
 }
 
 Deno.serve(async (req) => {
@@ -70,6 +71,12 @@ Deno.serve(async (req) => {
           price,
           quantity,
           add_on:add_ons (name)
+        ),
+        booking_additional_drivers (
+          id,
+          driver_name,
+          driver_age_band,
+          young_driver_fee
         )
       `)
       .eq("id", bookingId)
@@ -109,14 +116,75 @@ Deno.serve(async (req) => {
       .eq("booking_id", bookingId)
       .eq("status", "completed");
 
-    // Calculate totals
-    // booking.subtotal is the pre-tax subtotal (includes vehicle, protection, add-ons, fees)
-    // booking.tax_amount is the tax on that subtotal
-    // booking.total_amount = subtotal + tax_amount (the amount the customer was quoted)
-    // Add-ons are already included in booking.subtotal — do NOT add them again
-    const bookingTotal = Number(booking.total_amount) || 0;
+    // ── P1 FIX: Decompose subtotal into non-overlapping line items ──
+    const bookingSubtotal = Number(booking.subtotal) || 0;
     const taxAmount = Number(booking.tax_amount) || 0;
+    const bookingTotal = Number(booking.total_amount) || 0;
     const lateFees = Number(booking.late_return_fee) || 0;
+
+    // Compute individual components that are already included in subtotal
+    const addonsFromBooking = (booking.booking_add_ons || []).map((addon: any) => ({
+      description: addon.add_on?.name || "Add-on",
+      amount: roundCents(Number(addon.price) * (addon.quantity || 1)),
+    }));
+    const addonsTotal = addonsFromBooking.reduce((sum: number, a: any) => sum + a.amount, 0);
+
+    const driversFromBooking = (booking.booking_additional_drivers || []).map((d: any) => ({
+      description: `Additional Driver: ${d.driver_name || d.driver_age_band}`,
+      amount: Number(d.young_driver_fee) || 0,
+    }));
+    const additionalDriversTotal = driversFromBooking.reduce((sum: number, d: any) => sum + d.amount, 0);
+
+    const deliveryFee = Number(booking.delivery_fee) || 0;
+    const differentDropoffFee = Number(booking.different_dropoff_fee) || 0;
+    const youngDriverFee = Number(booking.young_driver_fee) || 0;
+    const upgradeDailyFee = Number(booking.upgrade_daily_fee) || 0;
+    const upgradeTotal = roundCents(upgradeDailyFee * (booking.total_days || 0));
+
+    // Vehicle rental portion = subtotal minus all individually itemized components
+    // This ensures sum(line items) == booking.subtotal exactly
+    const vehicleRentalPortion = roundCents(
+      bookingSubtotal
+      - addonsTotal
+      - additionalDriversTotal
+      - deliveryFee
+      - differentDropoffFee
+      - youngDriverFee
+      - upgradeTotal
+    );
+
+    // Build line items that sum exactly to subtotal
+    const lineItems: { description: string; amount: number }[] = [
+      { description: `Vehicle Rental (${booking.total_days} days)`, amount: vehicleRentalPortion },
+    ];
+
+    // Add itemized components (only if non-zero)
+    if (youngDriverFee > 0) {
+      lineItems.push({ description: "Young Driver Fee", amount: youngDriverFee });
+    }
+    for (const addon of addonsFromBooking) {
+      if (addon.amount > 0) lineItems.push(addon);
+    }
+    for (const driver of driversFromBooking) {
+      if (driver.amount > 0) lineItems.push(driver);
+    }
+    if (deliveryFee > 0) {
+      lineItems.push({ description: "Delivery Fee", amount: deliveryFee });
+    }
+    if (differentDropoffFee > 0) {
+      lineItems.push({ description: "Different Drop-off Fee", amount: differentDropoffFee });
+    }
+    if (upgradeTotal > 0) {
+      lineItems.push({ description: `Vehicle Upgrade (${booking.total_days} days)`, amount: upgradeTotal });
+    }
+
+    // Tax line
+    lineItems.push({ description: "Taxes (PST + GST)", amount: taxAmount });
+
+    // Post-booking charges
+    if (lateFees > 0) {
+      lineItems.push({ description: "Late Return Fee", amount: lateFees });
+    }
 
     const damageCharges = (additionalCharges || [])
       .filter(c => c.type === "damage")
@@ -125,46 +193,30 @@ Deno.serve(async (req) => {
       .filter(c => c.type !== "damage")
       .reduce((sum, c) => sum + c.amount, 0);
 
-    // Total charges = original booking total + any post-booking charges
-    const totalCharges = bookingTotal + lateFees + damageCharges + otherFees;
+    for (const charge of (additionalCharges || [])) {
+      lineItems.push({ description: charge.description, amount: charge.amount });
+    }
+
+    // Grand total = original booking total + post-booking charges
+    const totalCharges = roundCents(bookingTotal + lateFees + damageCharges + otherFees);
 
     const paymentsReceived = (payments || [])
       .filter((p: any) => p.payment_type === "rental" || p.payment_type === "additional")
       .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
-    const amountDue = totalCharges - paymentsReceived;
+    const amountDue = roundCents(totalCharges - paymentsReceived);
 
     // Collect Stripe payment IDs
     const stripePaymentIds = (payments || [])
       .filter((p: any) => p.transaction_id?.startsWith("pi_"))
       .map((p: any) => p.transaction_id);
 
-    // Build line items from the booking's stored values
-    const rentalSubtotal = Number(booking.subtotal) || 0;
-    const addonsFromBooking = (booking.booking_add_ons || []).map((addon: any) => ({
-      description: addon.add_on?.name || "Add-on",
-      amount: Number(addon.price) * (addon.quantity || 1),
-    }));
-    
-    const lineItems = [
-      { description: `Rental (${booking.total_days} days)`, amount: rentalSubtotal },
-      ...addonsFromBooking,
-      { description: "Taxes", amount: taxAmount },
-      ...(lateFees > 0 ? [{ description: "Late Return Fee", amount: lateFees }] : []),
-      ...(additionalCharges || []).map(c => ({
-        description: c.description,
-        amount: c.amount,
-      })),
-    ];
-
-    const addonsTotal = addonsFromBooking.reduce((sum: number, a: any) => sum + a.amount, 0);
-    
     // Create final invoice
     const { data: invoice, error: invoiceError } = await supabase
       .from("final_invoices")
       .insert({
         booking_id: bookingId,
-        rental_subtotal: rentalSubtotal,
+        rental_subtotal: bookingSubtotal,
         addons_total: addonsTotal,
         taxes_total: taxAmount,
         fees_total: otherFees,
@@ -212,6 +264,7 @@ Deno.serve(async (req) => {
         total_charges: totalCharges,
         payments_received: paymentsReceived,
         amount_due: Math.max(0, amountDue),
+        line_items_count: lineItems.length,
       },
     });
 

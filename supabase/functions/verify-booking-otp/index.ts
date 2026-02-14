@@ -5,7 +5,7 @@ import {
   checkRateLimit,
   rateLimitResponse,
 } from "../_shared/cors.ts";
-import { AuthError, authErrorResponse } from "../_shared/auth.ts";
+import { AuthError, authErrorResponse, getAdminClient } from "../_shared/auth.ts";
 import { verifyOtpAndMintToken } from "../_shared/booking-core.ts";
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -59,21 +59,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     console.log(`[verify-booking-otp] Booking ${bookingId} verified, token minted`);
 
-    // Fire-and-forget confirmation notifications
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    // P0 FIX: Use admin client's functions.invoke instead of raw fetch with service_role Bearer
+    const supabaseAdmin = getAdminClient();
     
     Promise.all([
-      fetch(`${supabaseUrl}/functions/v1/send-booking-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-        body: JSON.stringify({ bookingId }),
-      }).catch(e => console.log("[verify-booking-otp] Email notification failed:", e)),
-      fetch(`${supabaseUrl}/functions/v1/send-booking-sms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-        body: JSON.stringify({ bookingId }),
-      }).catch(e => console.log("[verify-booking-otp] SMS notification failed:", e)),
+      supabaseAdmin.functions.invoke("send-booking-email", {
+        body: { bookingId },
+      }).catch((e: any) => console.log("[verify-booking-otp] Email notification failed:", e)),
+      supabaseAdmin.functions.invoke("send-booking-sms", {
+        body: { bookingId },
+      }).catch((e: any) => console.log("[verify-booking-otp] SMS notification failed:", e)),
     ]).catch(console.error);
 
     return new Response(
