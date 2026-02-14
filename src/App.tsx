@@ -64,6 +64,7 @@ const AdminOffers = lazy(() => import("./pages/admin/Offers"));
 const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
 const AdminVendors = lazy(() => import("./pages/admin/Vendors"));
 const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
+const BookingDebug = lazy(() => import("./pages/admin/BookingDebug"));
 
 // Support Panel Pages - lazy loaded with separate route protection
 const SupportTickets = lazy(() => import("./pages/support/SupportTickets"));
@@ -175,6 +176,7 @@ const App = () => (
                 <Route path="/admin/incidents" element={<AdminProtectedRoute><AdminIncidents /></AdminProtectedRoute>} />
                 <Route path="/admin/damages" element={<AdminProtectedRoute><AdminDamages /></AdminProtectedRoute>} />
                 <Route path="/admin/vendors" element={<AdminProtectedRoute><AdminVendors /></AdminProtectedRoute>} />
+                <Route path="/admin/debug/:bookingId" element={<AdminProtectedRoute><BookingDebug /></AdminProtectedRoute>} />
 
                 {/* Support Panel Routes - Separate from Admin */}
                 <Route path="/support" element={<SupportProtectedRoute><SupportTickets /></SupportProtectedRoute>} />
