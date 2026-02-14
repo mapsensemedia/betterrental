@@ -267,14 +267,24 @@ export function useCreateDamage() {
         bookingCode = booking.booking_code;
       }
       
-      const { data: vehicle } = await supabase
-        .from("vehicles")
-        .select("make, model, year")
+      // vehicle_id may point to vehicle_categories or vehicles
+      const { data: category } = await supabase
+        .from("vehicle_categories")
+        .select("name")
         .eq("id", damageData.vehicleId)
         .maybeSingle();
       
-      if (vehicle) {
-        vehicleName = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+      if (category) {
+        vehicleName = category.name;
+      } else {
+        const { data: vehicle } = await supabase
+          .from("vehicles")
+          .select("make, model, year")
+          .eq("id", damageData.vehicleId)
+          .maybeSingle();
+        if (vehicle) {
+          vehicleName = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+        }
       }
 
       // Create the damage report
