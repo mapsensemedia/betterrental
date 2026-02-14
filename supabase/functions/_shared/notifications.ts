@@ -3,6 +3,7 @@
  * 
  * Provides idempotent notification sending with deduplication.
  * PR5: Edge Function Deduplication
+ * P0 FIX: Uses supabase.functions.invoke instead of raw fetch with service_role Bearer token
  */
 
 import { getAdminClient } from "./auth.ts";
@@ -28,14 +29,13 @@ export interface NotificationResult {
 
 /**
  * Generate idempotency key for notification
- * Uses booking ID, template type, and hour to prevent duplicates within same hour
  */
 export function generateNotificationKey(
   bookingId: string,
   templateType: string,
   suffix?: string
 ): string {
-  const hourKey = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
+  const hourKey = new Date().toISOString().slice(0, 13);
   return `${templateType}:${bookingId}:${hourKey}${suffix ? `:${suffix}` : ""}`;
 }
 
@@ -91,7 +91,7 @@ export async function logNotification(params: {
 
 /**
  * Send notification with idempotency check
- * This is the main entry point for sending notifications
+ * P0 FIX: Uses supabase.functions.invoke instead of raw fetch with service_role key
  */
 export async function sendNotificationWithIdempotency(
   request: NotificationRequest
@@ -99,7 +99,6 @@ export async function sendNotificationWithIdempotency(
   const idempotencyKey = request.idempotencyKey || 
     generateNotificationKey(request.bookingId, request.templateType);
   
-  // Check for recent duplicate
   const alreadySent = await wasNotificationSent(idempotencyKey);
   if (alreadySent) {
     console.log(`[notifications] Skipping duplicate: ${idempotencyKey}`);
@@ -111,9 +110,7 @@ export async function sendNotificationWithIdempotency(
     };
   }
   
-  // Dispatch to actual notification functions
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = getAdminClient();
   
   const result: NotificationResult = {
     sent: false,
@@ -124,31 +121,26 @@ export async function sendNotificationWithIdempotency(
   const sendChannel = async (channel: "email" | "sms") => {
     try {
       const endpoint = channel === "email" 
-        ? `${supabaseUrl}/functions/v1/send-booking-email`
-        : `${supabaseUrl}/functions/v1/send-booking-sms`;
+        ? "send-booking-email"
+        : "send-booking-sms";
       
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({
+      const { error } = await supabase.functions.invoke(endpoint, {
+        body: {
           bookingId: request.bookingId,
           templateType: request.templateType,
           ...request.metadata,
-        }),
+        },
       });
       
-      result.channels[channel] = response.ok;
-      if (response.ok) result.sent = true;
+      result.channels[channel] = !error;
+      if (!error) result.sent = true;
+      if (error) console.error(`[notifications] ${channel} invoke error:`, error);
     } catch (err) {
       console.error(`[notifications] ${channel} failed:`, err);
       result.channels[channel] = false;
     }
   };
   
-  // Send to requested channels
   const promises: Promise<void>[] = [];
   if (request.channel === "email" || request.channel === "both") {
     promises.push(sendChannel("email"));
@@ -159,7 +151,6 @@ export async function sendNotificationWithIdempotency(
   
   await Promise.all(promises);
   
-  // Log the notification
   await logNotification({
     bookingId: request.bookingId,
     userId: request.userId,
@@ -174,7 +165,6 @@ export async function sendNotificationWithIdempotency(
 
 /**
  * Fire-and-forget notification helper
- * Use when you don't need to wait for result
  */
 export function fireAndForgetNotification(request: NotificationRequest): void {
   sendNotificationWithIdempotency(request).catch(err => {

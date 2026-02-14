@@ -5,6 +5,7 @@
  * PR5: Edge Function Deduplication
  * PR6: Server-side price validation + ownership helpers
  * PR7: OTP-based guest auth, fail-closed pricing, server-only totals
+ * P0 FIX: No service_role key in inter-function fetch calls
  */
 
 import { getAdminClient, AuthError } from "./auth.ts";
@@ -167,21 +168,18 @@ export async function verifyOtpAndMintToken(
 ): Promise<OtpResult> {
   const supabase = getAdminClient();
 
-  // Validate presence
   if (!otpCode || typeof otpCode !== "string") {
     const err = new AuthError("OTP is required", 400);
     (err as any).errorCode = "OTP_REQUIRED";
     throw err;
   }
 
-  // Validate format
   if (!OTP_FORMAT.test(otpCode)) {
     const err = new AuthError("Invalid code", 400);
     (err as any).errorCode = "OTP_INVALID_FORMAT";
     throw err;
   }
 
-  // Fetch booking
   const { data: booking, error } = await supabase
     .from("bookings")
     .select("id, user_id, booking_code, total_amount, deposit_amount, status")
@@ -192,7 +190,6 @@ export async function verifyOtpAndMintToken(
     throw new AuthError("Booking not found", 404);
   }
 
-  // Find latest non-expired OTP for this booking
   const { data: otpRecord, error: otpErr } = await supabase
     .from("booking_otps")
     .select("id, otp_hash, expires_at, verified_at, attempts")
@@ -210,21 +207,17 @@ export async function verifyOtpAndMintToken(
 
   const currentAttempts = otpRecord.attempts ?? 0;
 
-  // Check if already locked out
   if (currentAttempts >= MAX_OTP_ATTEMPTS) {
     const err = new AuthError("Invalid or expired code", 401);
     (err as any).errorCode = "OTP_LOCKED";
     throw err;
   }
 
-  // Hash and compare
   const providedHash = await hashWithKey(otpCode);
 
   if (providedHash !== otpRecord.otp_hash) {
-    // Wrong OTP: increment attempts
     const newAttempts = currentAttempts + 1;
     const updatePayload: Record<string, unknown> = { attempts: newAttempts };
-    // If max reached, invalidate by expiring
     if (newAttempts >= MAX_OTP_ATTEMPTS) {
       updatePayload.expires_at = new Date().toISOString();
     }
@@ -242,20 +235,17 @@ export async function verifyOtpAndMintToken(
     throw err;
   }
 
-  // Correct OTP: reset attempts to 0, set verified_at
   await supabase
     .from("booking_otps")
     .update({ verified_at: new Date().toISOString(), attempts: 0 })
     .eq("id", otpRecord.id);
 
-  // Revoke all existing tokens for this booking before minting new one
   await supabase
     .from("booking_access_tokens")
     .update({ revoked_at: new Date().toISOString() })
     .eq("booking_id", bookingId)
     .is("revoked_at", null);
 
-  // Mint access token
   const rawToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .map(b => b.toString(16).padStart(2, "0"))
     .join("");
@@ -310,12 +300,10 @@ export async function validateAccessToken(
     throw new AuthError("Invalid or expired access token", 401);
   }
 
-  // Defensive: ensure token's booking_id matches the requested bookingId
   if (tokenRow.booking_id !== bookingId) {
     throw new AuthError("Token/booking mismatch", 401);
   }
 
-  // Audit: mark first usage timestamp (don't overwrite)
   if (!tokenRow.used_at) {
     await supabase
       .from("booking_access_tokens")
@@ -324,7 +312,6 @@ export async function validateAccessToken(
       .is("used_at", null);
   }
 
-  // Fetch booking
   const { data: booking, error: bookErr } = await supabase
     .from("bookings")
     .select("id, user_id, booking_code, total_amount, deposit_amount, status")
@@ -350,7 +337,6 @@ export async function requireBookingOwnerOrToken(
 ): Promise<BookingRow> {
   const supabase = getAdminClient();
 
-  // Path 1: Authenticated user
   if (authUserId) {
     const { data: booking, error } = await supabase
       .from("bookings")
@@ -369,7 +355,6 @@ export async function requireBookingOwnerOrToken(
     return booking;
   }
 
-  // Path 2: Guest with access token
   if (accessToken) {
     return validateAccessToken(bookingId, accessToken);
   }
@@ -379,10 +364,6 @@ export async function requireBookingOwnerOrToken(
 
 // ========== DROP-OFF FEE COMPUTATION (DB-driven) ==========
 
-/**
- * Compute fee tier from two fee_group strings.
- * Pure logic — no DB access.
- */
 function feeFromGroups(
   pickupGroup: string | null | undefined,
   returnGroup: string | null | undefined,
@@ -400,10 +381,6 @@ function feeFromGroups(
   }
 }
 
-/**
- * Compute drop-off fee by looking up fee_group from the locations table.
- * Returns 0 if same location, unknown locations, or null fee_group.
- */
 export async function computeDropoffFee(
   pickupLocationId: string | null | undefined,
   returnLocationId: string | null | undefined,
@@ -446,9 +423,6 @@ function roundCents(n: number): number {
 /**
  * Compute canonical booking totals from DB prices.
  * This is the server-side source of truth for price validation.
- * 
- * IMPORTANT: input.vehicleId is vehicles.id (NOT vehicle_categories.id).
- * We read vehicles.daily_rate directly.
  */
 export async function computeBookingTotals(input: {
   vehicleId: string;
@@ -467,7 +441,6 @@ export async function computeBookingTotals(input: {
   const supabase = getAdminClient();
 
   // 1) Compute days from date-only portions
-  // If input is "YYYY-MM-DD" (10 chars, no T), use directly; otherwise extract date from ISO timestamp
   const startDate = input.startAt.length === 10 ? input.startAt : input.startAt.substring(0, 10);
   const endDate = input.endAt.length === 10 ? input.endAt : input.endAt.substring(0, 10);
   const startMs = Date.UTC(+startDate.slice(0,4), +startDate.slice(5,7)-1, +startDate.slice(8,10));
@@ -488,7 +461,6 @@ export async function computeBookingTotals(input: {
     dailyRate = Number(vehicle.daily_rate);
     vehicleCategory = vehicle.category;
   } else {
-    // Fallback: vehicleId may be a vehicle_categories ID
     const { data: category, error: catErr } = await supabase
       .from("vehicle_categories")
       .select("id, daily_rate, name")
@@ -515,7 +487,6 @@ export async function computeBookingTotals(input: {
   // 4) Protection pricing (group-aware from system_settings)
   let protectionDailyRate = 0;
   if (input.protectionPlan && input.protectionPlan !== "none") {
-    // Determine protection group from vehicle category name
     const catUpper = (vehicleCategory || "").toUpperCase();
     let groupPrefix = "protection"; // Group 1 default
     if (catUpper.includes("LARGE") && catUpper.includes("SUV")) {
@@ -524,7 +495,6 @@ export async function computeBookingTotals(input: {
       groupPrefix = "protection_g2";
     }
 
-    // DB key format: protection_premium_rate (not _daily_rate)
     const settingsKey = `${groupPrefix}_${input.protectionPlan}_rate`;
     const { data: setting } = await supabase
       .from("system_settings")
@@ -535,7 +505,6 @@ export async function computeBookingTotals(input: {
     if (setting?.value) {
       protectionDailyRate = Number(setting.value);
     } else {
-      // Hardcoded fallbacks per group
       const groupDefaults: Record<string, Record<string, number>> = {
         protection: { basic: 32.99, smart: 37.99, premium: 49.99 },
         protection_g2: { basic: 52.99, smart: 57.99, premium: 69.99 },
@@ -551,7 +520,6 @@ export async function computeBookingTotals(input: {
   const addOnPrices: { addOnId: string; quantity: number; price: number }[] = [];
 
   if (input.addOns && input.addOns.length > 0) {
-    // Filter out Premium Roadside if All Inclusive protection
     let filteredAddOns = input.addOns.slice(0, 10);
 
     if (input.protectionPlan === "premium" && filteredAddOns.length > 0) {
@@ -591,7 +559,6 @@ export async function computeBookingTotals(input: {
           if (!row) throw new Error(`Invalid add-on: ${a.addOnId}`);
           const qty = Math.min(10, Math.max(1, a.quantity));
 
-          // Fuel add-on: compute from tank size (mirrors client logic)
           if (isFuelAddOn(row.name)) {
             const tankLiters = getTankSizeForCategory(vehicleCategory || "");
             const fuelPrice = computeFuelCost(tankLiters);
@@ -613,12 +580,11 @@ export async function computeBookingTotals(input: {
   // 6) Young driver fee
   const youngDriverFee = input.driverAgeBand === "20_24" ? roundCents(YOUNG_DRIVER_FEE * days) : 0;
 
-  // 6b) Additional drivers — compute server-side from system_settings rates
+  // 6b) Additional drivers
   let additionalDriversTotal = 0;
   const additionalDriverRecords: { driverName: string | null; driverAgeBand: string; youngDriverFee: number }[] = [];
 
   if (input.additionalDrivers && input.additionalDrivers.length > 0) {
-    // Fetch rates from system_settings (new spec keys → old keys → defaults)
     const { data: rateSettings } = await supabase
       .from("system_settings")
       .select("key, value")
@@ -716,7 +682,6 @@ export async function validateClientPricing(params: {
   returnLocationId?: string;
   clientTotal: number;
 }): Promise<{ valid: boolean; serverTotals: ServerPricingResult; error?: string }> {
-  // FAIL CLOSED: if computeBookingTotals throws, we reject
   const server = await computeBookingTotals({
     vehicleId: params.vehicleId,
     startAt: params.startAt,
@@ -748,9 +713,6 @@ export async function validateClientPricing(params: {
 
 // ========== BOOKING CREATION ==========
 
-/**
- * Check for conflicting bookings
- */
 export async function checkBookingConflicts(
   vehicleId: string,
   startAt: string,
@@ -769,17 +731,10 @@ export async function checkBookingConflicts(
   return !!(conflicts && conflicts.length > 0);
 }
 
-/**
- * Validate driver age band
- */
 export function isValidAgeBand(ageBand: string | undefined): boolean {
   return !!ageBand && ["20_24", "25_70"].includes(ageBand);
 }
 
-/**
- * Create booking record using SERVER-COMPUTED totals only.
- * No client-sent pricing fields are accepted.
- */
 export async function createBookingRecord(
   input: BookingInput,
   serverTotals: ServerPricingResult,
@@ -794,7 +749,6 @@ export async function createBookingRecord(
       location_id: input.locationId,
       start_at: input.startAt,
       end_at: input.endAt,
-      // ALL financial fields from server computation
       daily_rate: serverTotals.dailyRate,
       total_days: serverTotals.days,
       subtotal: serverTotals.subtotal,
@@ -802,7 +756,7 @@ export async function createBookingRecord(
       deposit_amount: serverTotals.depositAmount,
       total_amount: serverTotals.total,
       young_driver_fee: serverTotals.youngDriverFee,
-      booking_code: "", // Generated by trigger
+      booking_code: "",
       status: input.status || "confirmed",
       notes: input.notes?.slice(0, 1000) || null,
       driver_age_band: input.driverAgeBand,
@@ -843,10 +797,6 @@ export async function createBookingRecord(
   };
 }
 
-/**
- * Create booking add-ons using SERVER-COMPUTED prices.
- * Never uses client-sent addon.price.
- */
 export async function createBookingAddOns(
   bookingId: string,
   serverAddOnPrices: { addOnId: string; quantity: number; price: number }[],
@@ -871,9 +821,6 @@ export async function createBookingAddOns(
   console.log(`[createBookingAddOns] Successfully inserted ${data?.length ?? 0} rows for booking ${bookingId}`);
 }
 
-/**
- * Create additional drivers
- */
 export async function createAdditionalDrivers(
   bookingId: string,
   drivers: AdditionalDriverInput[]
@@ -899,7 +846,8 @@ export async function createAdditionalDrivers(
 }
 
 /**
- * Send booking notifications (awaitable)
+ * Send booking notifications using admin client's functions.invoke.
+ * P0 FIX: No service_role key in Authorization headers.
  */
 export async function sendBookingNotifications(params: {
   bookingId: string;
@@ -908,20 +856,16 @@ export async function sendBookingNotifications(params: {
   vehicleName?: string;
   isGuest?: boolean;
 }): Promise<void> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = getAdminClient();
   
   const sendNotification = async (endpoint: string, body: Record<string, unknown>) => {
     try {
-      const resp = await fetch(`${supabaseUrl}/functions/v1/${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify(body),
-      });
-      console.log(`Notification ${endpoint} response: ${resp.status}`);
+      const { error } = await supabase.functions.invoke(endpoint, { body });
+      if (error) {
+        console.error(`Notification ${endpoint} failed:`, error);
+      } else {
+        console.log(`Notification ${endpoint} sent successfully`);
+      }
     } catch (err) {
       console.error(`Notification ${endpoint} failed:`, err);
     }
