@@ -78,7 +78,9 @@ export function useReturnStateTransition() {
           }
           break;
         case "closeout_done":
-          updateData.status = "completed";
+          // Status change to "completed" is handled by close-account edge function
+          // which runs with service_role to bypass the security trigger.
+          // We only set actual_return_at here as a non-sensitive field.
           updateData.actual_return_at = new Date().toISOString();
           break;
       }
