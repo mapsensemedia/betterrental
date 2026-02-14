@@ -112,13 +112,25 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Record event
-    await supabase.from("stripe_webhook_events").insert({
+    // Record event — unique constraint on event_id prevents double-processing
+    const { error: insertEventErr } = await supabase.from("stripe_webhook_events").insert({
       event_id: event.id,
       event_type: event.type,
       booking_id: bookingId,
       payload_hash: event.created.toString(),
     });
+
+    // P2 FIX: Handle unique constraint violation as a race-safe duplicate
+    if (insertEventErr) {
+      if (insertEventErr.code === "23505") {
+        console.log(`Event ${event.id} already recorded (race condition), skipping`);
+        return new Response(
+          JSON.stringify({ received: true, duplicate: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.error(`Failed to record webhook event ${event.id}:`, insertEventErr);
+    }
 
     let result: Record<string, unknown> = { processed: true };
 
