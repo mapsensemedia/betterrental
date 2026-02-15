@@ -454,6 +454,8 @@ export default function NewCheckout() {
               totalAmount: pricing.total,
               driverAgeBand,
               youngDriverFee: pricing.youngDriverFee,
+              protectionPlan: protection || "none",
+              deliveryFee: searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0,
               addOns: addOnData.length > 0 ? addOnData : undefined,
               additionalDrivers: additionalDriversData.length > 0 ? additionalDriversData : undefined,
               notes: bookingNotes,
