@@ -382,7 +382,7 @@ export default function AdminBilling() {
     toast({ title: "Data refreshed" });
   };
 
-  const handleDownloadInvoicePdf = (inv: InvoiceRow) => {
+  const handleDownloadInvoicePdf = async (inv: InvoiceRow) => {
     const lineItems = Array.isArray(inv.line_items_json)
       ? inv.line_items_json.map((item: any) => ({
           description: item.description || item.label || "Item",
@@ -390,7 +390,7 @@ export default function AdminBilling() {
         }))
       : [];
 
-    generateInvoicePdf({
+    await generateInvoicePdf({
       invoiceNumber: inv.invoice_number,
       status: inv.status || "draft",
       issuedAt: inv.issued_at,
