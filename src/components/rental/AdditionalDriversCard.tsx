@@ -119,11 +119,7 @@ export function AdditionalDriversCard({
                       <SelectItem value="20_24">20-24 years</SelectItem>
                     </SelectContent>
                   </Select>
-                  {driver.ageBand === "20_24" && (
-                    <p className="text-xs text-amber-600 mt-1">
-                      + ${youngDriverFee.toFixed(2)}/day young driver surcharge
-                    </p>
-                  )}
+                  
                 </div>
               </div>
             </div>
