@@ -502,7 +502,7 @@ function renderStructuredPdf(
       items: [
         `Renter must be at least ${p.minAge} years of age.`,
         "Valid driver's license required at time of pickup.",
-        "Government-issued photo ID required for signature.",
+        "Government-issued photo ID required for rental.",
         "Additional drivers must be registered and approved.",
       ]
     },
@@ -553,7 +553,7 @@ function renderStructuredPdf(
     {
       title: "8. TERMINATION",
       items: [
-        "Rental company may terminate for violation of terms.",
+        "Rental may be terminated for violation of terms.",
         "Early return does not guarantee refund.",
       ]
     },
@@ -587,6 +587,14 @@ function renderStructuredPdf(
   }
 
   y = Math.max(ly, ry) + 3;
+
+  // Check if signature block needs a new page (estimate ~80pt needed)
+  const signatureBlockHeight = 80;
+  const footerReserve = 20;
+  if (y + signatureBlockHeight + footerReserve > PAGE_H - M) {
+    pdf.addPage();
+    y = M;
+  }
 
   hLine(pdf, y);
   y += SEC_GAP - 2;
