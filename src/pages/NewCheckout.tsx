@@ -532,7 +532,9 @@ export default function NewCheckout() {
       if (paymentMethod === "pay-now") {
         // Create Stripe Checkout Session and redirect to hosted payment page
         try {
-          const successUrl = `${window.location.origin}/booking/${booking.id}?payment=success`;
+          const successUrl = !user
+            ? `${window.location.origin}/complete-signup?bookingCode=${encodeURIComponent(booking.booking_code)}&bookingId=${encodeURIComponent(booking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`
+            : `${window.location.origin}/booking/${booking.id}?payment=success`;
           const cancelUrl = window.location.href;
           
           let paymentResponse;
@@ -601,7 +603,12 @@ export default function NewCheckout() {
           description: `Your reservation code is ${booking.booking_code}. Please pay at pickup.`,
         });
 
-        navigate(`/booking/${booking.id}`);
+        // Guest users → redirect to signup page; authenticated users → booking detail
+        if (!user) {
+          navigate(`/complete-signup?bookingCode=${encodeURIComponent(booking.booking_code)}&bookingId=${encodeURIComponent(booking.id)}&email=${encodeURIComponent(formData.email)}`);
+        } else {
+          navigate(`/booking/${booking.id}`);
+        }
       }
     } catch (error: any) {
       console.error("Booking error:", error);

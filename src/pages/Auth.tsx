@@ -28,8 +28,16 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
 
-  // Get return URL from query params
+  // Get return URL and prefill email from query params
   const returnUrl = searchParams.get("returnUrl") || "/dashboard";
+  const prefillEmail = searchParams.get("email") || "";
+
+  // Prefill email from query param (e.g., from complete-signup redirect)
+  useEffect(() => {
+    if (prefillEmail && !email) {
+      setEmail(prefillEmail);
+    }
+  }, [prefillEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect if already logged in
   useEffect(() => {
