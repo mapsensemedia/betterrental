@@ -720,15 +720,22 @@ export async function checkBookingConflicts(
 ): Promise<boolean> {
   const supabase = getAdminClient();
   
-  const { data: conflicts } = await supabase
+  // Unit-level availability: count total units vs overlapping bookings for this category
+  const { count: totalUnits } = await supabase
+    .from("vehicle_units")
+    .select("id", { count: "exact", head: true })
+    .eq("category_id", vehicleId)
+    .in("status", ["available", "on_rent"]);
+
+  const { count: overlappingBookings } = await supabase
     .from("bookings")
-    .select("id")
+    .select("id", { count: "exact", head: true })
     .eq("vehicle_id", vehicleId)
-    .in("status", ["draft", "pending", "confirmed", "active"])
-    .or(`and(start_at.lte.${endAt},end_at.gte.${startAt})`)
-    .limit(1);
-  
-  return !!(conflicts && conflicts.length > 0);
+    .in("status", ["pending", "confirmed", "active", "draft"])
+    .lte("start_at", endAt)
+    .gte("end_at", startAt);
+
+  return (totalUnits ?? 0) <= (overlappingBookings ?? 0);
 }
 
 export function isValidAgeBand(ageBand: string | undefined): boolean {
