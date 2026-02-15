@@ -196,16 +196,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Double-check no conflicting bookings
-    const { data: conflicts } = await supabaseAdmin
-      .from("bookings")
-      .select("id")
-      .eq("vehicle_id", vehicleId)
-      .in("status", ["pending", "confirmed", "active"])
-      .or(`and(start_at.lte.${endAt},end_at.gte.${startAt})`)
-      .limit(1);
+    // Unit-level availability check: count total units vs overlapping bookings for this category
+    const { count: totalUnits } = await supabaseAdmin
+      .from("vehicle_units")
+      .select("id", { count: "exact", head: true })
+      .eq("category_id", vehicleId)
+      .in("status", ["available", "on_rent"]);
 
-    if (conflicts && conflicts.length > 0) {
+    const { count: overlappingBookings } = await supabaseAdmin
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("vehicle_id", vehicleId)
+      .in("status", ["pending", "confirmed", "active", "draft"])
+      .lte("start_at", endAt)
+      .gte("end_at", startAt);
+
+    if ((totalUnits ?? 0) <= (overlappingBookings ?? 0)) {
       if (holdId) {
         await supabaseAdmin
           .from("reservation_holds")
