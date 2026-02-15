@@ -66,7 +66,7 @@ function fmtDateShort(dateStr: string | null): string {
   }
 }
 
-// ── Shared drawing helpers (same as rental agreement) ──
+// ── Shared drawing helpers ──
 
 function hLine(pdf: jsPDF, y: number) {
   pdf.setDrawColor(180, 180, 180);
@@ -106,6 +106,36 @@ function finRowBold(pdf: jsPDF, label: string, amount: string, y: number) {
   pdf.setTextColor(0, 0, 0);
   pdf.text(label, L, y);
   pdf.text(amount, R - 4, y, { align: "right" });
+}
+
+// Footer height reserved at bottom of every page
+const FOOTER_RESERVE = 30;
+const CONTENT_BOTTOM = PAGE_H - M - FOOTER_RESERVE;
+
+function checkPageBreak(pdf: jsPDF, y: number, needed: number): number {
+  if (y + needed > CONTENT_BOTTOM) {
+    pdf.addPage();
+    return M;
+  }
+  return y;
+}
+
+function drawPageFooter(pdf: jsPDF, invoiceNumber: string) {
+  const totalPages = pdf.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    pdf.setPage(i);
+    const footerY = PAGE_H - 14;
+    pdf.setDrawColor(180, 180, 180);
+    pdf.setLineWidth(0.3);
+    pdf.line(L, footerY - 6, R, footerY - 6);
+    pdf.setFontSize(5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(120, 120, 120);
+    pdf.text(
+      `C2C Car Rental  |  Invoice ${invoiceNumber}  |  Generated ${format(new Date(), "MMM d, yyyy")}  |  Page ${i} of ${totalPages}`,
+      PAGE_W / 2, footerY, { align: "center" }
+    );
+  }
 }
 
 // ── Data interface ──
@@ -148,7 +178,7 @@ export interface InvoicePdfData {
   notes: string | null;
 }
 
-// ── Main export (now async for logo loading) ──
+// ── Main export ──
 
 export async function generateInvoicePdf(data: InvoicePdfData) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
@@ -158,7 +188,6 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   const TITLE_GAP = 11;
   const ROW_H = 11;
   const FIN_ROW_H = 10;
-  const FIN_HEAD_H = 11;
 
   let y = M;
 
@@ -175,7 +204,7 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   pdf.setFontSize(8.5);
   pdf.text("INVOICE", PAGE_W / 2, y + 20, { align: "center" });
 
-  // Status badge (top right)
+  // Status badge
   const statusText = (data.status || "draft").toUpperCase();
   pdf.setFontSize(7);
   const statusW = pdf.getTextWidth(statusText) + 12;
@@ -187,10 +216,9 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   pdf.setFont("helvetica", "bold");
   pdf.text(statusText, R - statusW + 6, y + 8);
   pdf.setTextColor(0, 0, 0);
-
   y += 26;
 
-  // Contact info bar (same as rental agreement)
+  // Contact bar
   pdf.setFillColor(245, 245, 245);
   pdf.setDrawColor(200, 200, 200);
   pdf.setLineWidth(0.3);
@@ -205,7 +233,7 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   pdf.setTextColor(0, 0, 0);
   y += 13;
 
-  // Invoice number + date row
+  // Invoice number + date
   pdf.setFontSize(7.5);
   pdf.setFont("helvetica", "bold");
   pdf.text("Invoice Number:", L, y);
@@ -216,7 +244,6 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   pdf.setFont("helvetica", "normal");
   pdf.text(fmtDate(data.issuedAt), MID + 55, y);
   y += 10;
-
   hLine(pdf, y);
   y += SEC_GAP;
 
@@ -225,18 +252,14 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "CUSTOMER INFORMATION", L, y);
   y += TITLE_GAP;
-
-  const displayName = data.customerName && !data.customerName.includes("@")
-    ? data.customerName : "—";
+  const displayName = data.customerName && !data.customerName.includes("@") ? data.customerName : "—";
   labelValue(pdf, "Name:", displayName, L, y);
   labelValue(pdf, "Email:", data.customerEmail || "—", MID, y);
   y += ROW_H;
-
   if (data.customerPhone) {
     labelValue(pdf, "Phone:", data.customerPhone, L, y);
     y += ROW_H;
   }
-
   y += 2;
   hLine(pdf, y);
   y += SEC_GAP;
@@ -246,28 +269,24 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "BOOKING DETAILS", L, y);
   y += TITLE_GAP;
-
   labelValue(pdf, "Booking Code:", data.bookingCode, L, y);
   labelValue(pdf, "Vehicle:", data.vehicleName || "—", MID, y);
   y += ROW_H;
-
   if (data.pickupLocation || data.returnLocation) {
     labelValue(pdf, "Pickup:", data.pickupLocation || "—", L, y);
     labelValue(pdf, "Return:", data.returnLocation || data.pickupLocation || "—", MID, y);
     y += ROW_H;
   }
-
   const startStr = fmtDateShort(data.startDate);
   const endStr = fmtDateShort(data.endDate);
   labelValue(pdf, "Rental Period:", `${startStr} — ${endStr} (${data.totalDays} days)`, L, y);
   y += ROW_H;
-
   y += 2;
   hLine(pdf, y);
   y += SEC_GAP;
 
   // ─────────────────────────────────────────────
-  // LINE ITEMS TABLE
+  // ITEMIZED CHARGES (line items from builder)
   // ─────────────────────────────────────────────
   sectionTitle(pdf, "CHARGES", L, y);
   y += TITLE_GAP;
@@ -286,114 +305,49 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   y += 12;
 
   // Table rows
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(7);
-
   for (const item of data.lineItems) {
-    if (y > PAGE_H - 120) {
-      pdf.addPage();
-      y = M;
-    }
+    y = checkPageBreak(pdf, y, 14);
     pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7);
     pdf.setTextColor(0, 0, 0);
     pdf.text(item.description, L + 4, y);
     pdf.text(fmt(item.amount), R - 4, y, { align: "right" });
-
-    // Subtle row separator
     pdf.setDrawColor(230, 230, 230);
     pdf.setLineWidth(0.2);
     pdf.line(L, y + 4, R, y + 4);
     y += 12;
   }
 
-  y += 4;
+  y += 2;
+
+  // ─────────────────────────────────────────────
+  // SUBTOTAL / TAX / TOTAL
+  // ─────────────────────────────────────────────
+  y = checkPageBreak(pdf, y, 80);
   hLine(pdf, y);
   y += SEC_GAP;
 
-  // ─────────────────────────────────────────────
-  // FINANCIAL SUMMARY
-  // ─────────────────────────────────────────────
-  sectionTitle(pdf, "FINANCIAL SUMMARY", L, y);
-  y += TITLE_GAP;
+  // Subtotal
+  finRowBold(pdf, "SUBTOTAL:", fmt(data.rentalSubtotal), y);
+  y += FIN_ROW_H + 2;
 
-  // Rental subtotal
+  // Taxes
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(7);
-  pdf.text("RENTAL CHARGES:", L, y);
+  pdf.text("TAXES:", L, y);
   pdf.setFont("helvetica", "normal");
-  y += FIN_HEAD_H;
+  y += 11;
 
-  if (data.dailyRate && data.dailyRate > 0) {
-    finRow(pdf, `Vehicle Rental: ${fmt(data.dailyRate)}/day × ${data.totalDays} days`, fmt(data.dailyRate * data.totalDays), y);
+  if (data.pstAmount != null && data.gstAmount != null && (data.pstAmount > 0 || data.gstAmount > 0)) {
+    finRow(pdf, "PST (7%):", fmt(data.pstAmount), y);
+    y += FIN_ROW_H;
+    finRow(pdf, "GST (5%):", fmt(data.gstAmount), y);
+    y += FIN_ROW_H;
   } else {
-    finRow(pdf, "Vehicle Rental", fmt(data.rentalSubtotal), y);
-  }
-  y += FIN_ROW_H;
-
-  // Protection
-  if (data.protectionTotal && data.protectionTotal > 0) {
-    if (data.protectionDailyRate && data.protectionDailyRate > 0) {
-      finRow(pdf, `${data.protectionPlan || "Protection"}: ${fmt(data.protectionDailyRate)}/day × ${data.totalDays} days`, fmt(data.protectionTotal), y);
-    } else {
-      finRow(pdf, data.protectionPlan || "Protection Plan", fmt(data.protectionTotal), y);
-    }
+    finRow(pdf, "Taxes (PST + GST)", fmt(data.taxesTotal), y);
     y += FIN_ROW_H;
   }
-
-  // Add-ons
-  if (data.addonsTotal > 0) {
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7);
-    pdf.text("ADD-ONS:", L, y);
-    pdf.setFont("helvetica", "normal");
-    y += FIN_HEAD_H;
-
-    // Render individual add-on line items if available
-    const addonItems = data.lineItems.filter(i =>
-      !i.description.toLowerCase().includes("rental") &&
-      !i.description.toLowerCase().includes("tax") &&
-      !i.description.toLowerCase().includes("pvrt") &&
-      !i.description.toLowerCase().includes("acsrch") &&
-      !i.description.toLowerCase().includes("protection") &&
-      !i.description.toLowerCase().includes("driver") &&
-      !i.description.toLowerCase().includes("drop-off") &&
-      !i.description.toLowerCase().includes("delivery") &&
-      !i.description.toLowerCase().includes("late") &&
-      !i.description.toLowerCase().includes("damage")
-    );
-    if (addonItems.length > 0) {
-      for (const addon of addonItems) {
-        finRow(pdf, addon.description, fmt(addon.amount), y);
-        y += FIN_ROW_H;
-      }
-    } else {
-      finRow(pdf, "Add-ons Total", fmt(data.addonsTotal), y);
-      y += FIN_ROW_H;
-    }
-  }
-
-  // Delivery fee
-  if (data.deliveryFee && data.deliveryFee > 0) {
-    finRow(pdf, "Delivery Fee", fmt(data.deliveryFee), y);
-    y += FIN_ROW_H;
-  }
-
-  // Drop-off fee
-  if (data.differentDropoffFee > 0) {
-    finRow(pdf, "Different Drop-off Location Fee", fmt(data.differentDropoffFee), y);
-    y += FIN_ROW_H;
-  }
-
-  // Regulatory fees
-  if (data.feesTotal > 0) {
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7);
-    pdf.text("REGULATORY FEES:", L, y);
-    pdf.setFont("helvetica", "normal");
-    y += FIN_HEAD_H;
-    finRow(pdf, "PVRT, ACSRCH & Other Fees", fmt(data.feesTotal), y);
-    y += FIN_ROW_H;
-  }
+  y += 2;
 
   // Late fees
   if (data.lateFees > 0) {
@@ -409,34 +363,8 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
     y += FIN_ROW_H;
   }
 
-  // Subtotal line
-  pdf.setDrawColor(160, 160, 160);
-  pdf.setLineWidth(0.3);
-  pdf.line(L, y, R, y);
-  y += 8;
-  finRowBold(pdf, "SUBTOTAL:", fmt(data.rentalSubtotal), y);
-  y += FIN_ROW_H + 2;
-
-  // Taxes
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(7);
-  pdf.text("TAXES:", L, y);
-  pdf.setFont("helvetica", "normal");
-  y += FIN_HEAD_H;
-
-  if (data.pstAmount != null && data.gstAmount != null && (data.pstAmount > 0 || data.gstAmount > 0)) {
-    finRow(pdf, "PST (7%):", fmt(data.pstAmount), y);
-    y += FIN_ROW_H;
-    finRow(pdf, "GST (5%):", fmt(data.gstAmount), y);
-    y += FIN_ROW_H;
-  } else {
-    finRow(pdf, "Taxes (PST + GST)", fmt(data.taxesTotal), y);
-    y += FIN_ROW_H;
-  }
-
-  y += 2;
-
-  // Grand total box (matches rental agreement style)
+  // Grand total box
+  y = checkPageBreak(pdf, y, 20);
   pdf.setFillColor(240, 240, 240);
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.8);
@@ -470,6 +398,7 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   // ─────────────────────────────────────────────
   // PAYMENT SUMMARY
   // ─────────────────────────────────────────────
+  y = checkPageBreak(pdf, y, 40);
   sectionTitle(pdf, "PAYMENT SUMMARY", L, y);
   y += TITLE_GAP;
 
@@ -512,6 +441,7 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   // NOTES
   // ─────────────────────────────────────────────
   if (data.notes) {
+    y = checkPageBreak(pdf, y, 30);
     hLine(pdf, y);
     y += SEC_GAP;
     sectionTitle(pdf, "NOTES", L, y);
@@ -521,7 +451,7 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
     pdf.setTextColor(60, 60, 60);
     const noteLines = pdf.splitTextToSize(data.notes, CW);
     for (const nl of noteLines) {
-      if (y > PAGE_H - 50) { pdf.addPage(); y = M; }
+      y = checkPageBreak(pdf, y, 10);
       pdf.text(nl, L, y);
       y += 8;
     }
@@ -532,35 +462,23 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
   // ─────────────────────────────────────────────
   // CONTACT / POLICY FOOTER
   // ─────────────────────────────────────────────
-  if (y < PAGE_H - 60) {
-    hLine(pdf, y);
-    y += SEC_GAP;
-    pdf.setFontSize(5.5);
-    pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(`This invoice is generated for booking ${data.bookingCode}.`, L, y);
-    y += 7;
-    pdf.text("For questions, contact us at (604) 771-3995 or visit c2ccarrental.ca.", L, y);
-    y += 7;
-    pdf.text("Refund and cancellation policies apply as per your rental agreement terms.", L, y);
-    pdf.setTextColor(0, 0, 0);
-  }
-
-  // ─────────────────────────────────────────────
-  // PAGE FOOTER (matches rental agreement)
-  // ─────────────────────────────────────────────
-  const footerY = PAGE_H - 14;
-  pdf.setDrawColor(180, 180, 180);
-  pdf.setLineWidth(0.3);
-  pdf.line(L, footerY - 6, R, footerY - 6);
-
-  pdf.setFontSize(5);
+  y = checkPageBreak(pdf, y, 30);
+  hLine(pdf, y);
+  y += SEC_GAP;
+  pdf.setFontSize(5.5);
   pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(120, 120, 120);
-  pdf.text(
-    `C2C Car Rental  |  Invoice ${data.invoiceNumber}  |  Generated ${format(new Date(), "MMM d, yyyy")}  |  Thank you for choosing us!`,
-    PAGE_W / 2, footerY, { align: "center" }
-  );
+  pdf.setTextColor(100, 100, 100);
+  pdf.text(`This invoice is generated for booking ${data.bookingCode}.`, L, y);
+  y += 7;
+  pdf.text("For questions, contact us at (604) 771-3995 or visit c2ccarrental.ca.", L, y);
+  y += 7;
+  pdf.text("Refund and cancellation policies apply as per your rental agreement terms.", L, y);
+  pdf.setTextColor(0, 0, 0);
+
+  // ─────────────────────────────────────────────
+  // PAGE FOOTER (all pages)
+  // ─────────────────────────────────────────────
+  drawPageFooter(pdf, data.invoiceNumber);
 
   pdf.save(`Invoice-${data.invoiceNumber}.pdf`);
 }

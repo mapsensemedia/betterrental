@@ -24,6 +24,7 @@ import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import { generateReceiptPdf } from "@/lib/pdf/receipt-pdf";
 import { generateInvoicePdf, type InvoicePdfData } from "@/lib/pdf/invoice-pdf";
+import { buildInvoicePdfData } from "@/lib/pdf/invoice-data-builder";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -383,40 +384,27 @@ export default function AdminBilling() {
   };
 
   const handleDownloadInvoicePdf = async (inv: InvoiceRow) => {
-    const lineItems = Array.isArray(inv.line_items_json)
-      ? inv.line_items_json.map((item: any) => ({
-          description: item.description || item.label || "Item",
-          amount: Number(item.amount || item.total || 0),
-        }))
-      : [];
-
-    await generateInvoicePdf({
-      invoiceNumber: inv.invoice_number,
-      status: inv.status || "draft",
-      issuedAt: inv.issued_at,
-      customerName: inv.booking?.profile?.full_name || "N/A",
-      customerEmail: inv.booking?.profile?.email || "",
-      bookingCode: inv.booking?.booking_code || "",
-      vehicleName: inv.booking?.vehicleName || "N/A",
-      startDate: inv.booking?.start_at || "",
-      endDate: inv.booking?.end_at || "",
-      totalDays: inv.booking?.total_days || 0,
-      lineItems,
-      rentalSubtotal: Number(inv.rental_subtotal),
-      addonsTotal: Number(inv.addons_total || 0),
-      feesTotal: Number(inv.fees_total || 0),
-      taxesTotal: Number(inv.taxes_total),
-      lateFees: Number(inv.late_fees || 0),
-      damageCharges: Number(inv.damage_charges || 0),
-      grandTotal: Number(inv.grand_total),
-      paymentsReceived: Number(inv.payments_received || 0),
-      amountDue: Number(inv.amount_due || 0),
-      depositHeld: Number(inv.deposit_held || 0),
-      depositReleased: Number(inv.deposit_released || 0),
-      depositCaptured: Number(inv.deposit_captured || 0),
-      differentDropoffFee: Number((inv.booking as any)?.different_dropoff_fee || 0),
-      notes: inv.notes,
-    });
+    try {
+      const pdfData = await buildInvoicePdfData(inv.booking_id, {
+        invoice_number: inv.invoice_number,
+        status: inv.status,
+        issued_at: inv.issued_at,
+        grand_total: Number(inv.grand_total),
+        rental_subtotal: Number(inv.rental_subtotal),
+        taxes_total: Number(inv.taxes_total),
+        late_fees: Number(inv.late_fees || 0),
+        damage_charges: Number(inv.damage_charges || 0),
+        payments_received: Number(inv.payments_received || 0),
+        amount_due: Number(inv.amount_due || 0),
+        deposit_held: Number(inv.deposit_held || 0),
+        deposit_released: Number(inv.deposit_released || 0),
+        deposit_captured: Number(inv.deposit_captured || 0),
+        notes: inv.notes,
+      });
+      await generateInvoicePdf(pdfData);
+    } catch (error) {
+      console.error("Invoice PDF generation failed:", error);
+    }
   };
 
   return (

@@ -11,6 +11,7 @@ import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
+import { buildInvoicePdfData } from "@/lib/pdf/invoice-data-builder";
 import {
   PVRT_DAILY_FEE,
   ACSRCH_DAILY_FEE,
@@ -1053,39 +1054,27 @@ export default function BookingDetail() {
                             size="sm"
                             className="w-full mt-2"
                             onClick={async () => {
-                              const lineItems = Array.isArray(invoice.line_items_json)
-                                ? invoice.line_items_json.map((item: any) => ({
-                                    description: item.description || item.label || "Item",
-                                    amount: Number(item.amount || item.total || 0),
-                                  }))
-                                : [];
-                              await generateInvoicePdf({
-                                invoiceNumber: invoice.invoice_number,
-                                status: invoice.status || "draft",
-                                issuedAt: invoice.issued_at,
-                                customerName: booking.profiles?.full_name || "N/A",
-                                customerEmail: booking.profiles?.email || "",
-                                bookingCode: booking.booking_code,
-                                vehicleName: vehicleName,
-                                startDate: booking.start_at,
-                                endDate: booking.end_at,
-                                totalDays: booking.total_days,
-                                lineItems,
-                                rentalSubtotal: Number(invoice.rental_subtotal),
-                                addonsTotal: Number(invoice.addons_total || 0),
-                                feesTotal: Number(invoice.fees_total || 0),
-                                taxesTotal: Number(invoice.taxes_total),
-                                lateFees: Number(invoice.late_fees || 0),
-                                damageCharges: Number(invoice.damage_charges || 0),
-                                grandTotal: Number(invoice.grand_total),
-                                paymentsReceived: Number(invoice.payments_received || 0),
-                                amountDue: Number(invoice.amount_due || 0),
-                                depositHeld: Number(invoice.deposit_held || 0),
-                                depositReleased: Number(invoice.deposit_released || 0),
-                                depositCaptured: Number(invoice.deposit_captured || 0),
-                                differentDropoffFee: Number(booking.different_dropoff_fee || 0),
-                                notes: invoice.notes,
-                              });
+                              try {
+                                const pdfData = await buildInvoicePdfData(booking.id, {
+                                  invoice_number: invoice.invoice_number,
+                                  status: invoice.status,
+                                  issued_at: invoice.issued_at,
+                                  grand_total: Number(invoice.grand_total),
+                                  rental_subtotal: Number(invoice.rental_subtotal),
+                                  taxes_total: Number(invoice.taxes_total),
+                                  late_fees: Number(invoice.late_fees || 0),
+                                  damage_charges: Number(invoice.damage_charges || 0),
+                                  payments_received: Number(invoice.payments_received || 0),
+                                  amount_due: Number(invoice.amount_due || 0),
+                                  deposit_held: Number(invoice.deposit_held || 0),
+                                  deposit_released: Number(invoice.deposit_released || 0),
+                                  deposit_captured: Number(invoice.deposit_captured || 0),
+                                  notes: invoice.notes,
+                                });
+                                await generateInvoicePdf(pdfData);
+                              } catch (error) {
+                                console.error("Invoice PDF generation failed:", error);
+                              }
                             }}
                           >
                             <Download className="w-4 h-4 mr-2" />
