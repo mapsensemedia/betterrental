@@ -136,13 +136,19 @@ export function AddOnsPricingPanel() {
 
   const updateDriverFees = useMutation({
     mutationFn: async (values: { additionalDriverRate: number; youngAdditionalDriverRate: number }) => {
-      const { error: err1 } = await supabase
-        .from("system_settings" as any)
-        .upsert({ key: "additional_driver_daily_rate", value: String(values.additionalDriverRate) } as any, { onConflict: "key" });
-      const { error: err2 } = await supabase
-        .from("system_settings" as any)
-        .upsert({ key: "young_additional_driver_daily_rate", value: String(values.youngAdditionalDriverRate) } as any, { onConflict: "key" });
-      if (err1 || err2) throw new Error(err1?.message || err2?.message);
+      // Write to BOTH the new spec keys (which readers prioritize) AND legacy keys for backward compat
+      const upserts = [
+        { key: "additional_driver_daily_rate_standard", value: String(values.additionalDriverRate) },
+        { key: "additional_driver_daily_rate", value: String(values.additionalDriverRate) },
+        { key: "additional_driver_daily_rate_young", value: String(values.youngAdditionalDriverRate) },
+        { key: "young_additional_driver_daily_rate", value: String(values.youngAdditionalDriverRate) },
+      ];
+      for (const row of upserts) {
+        const { error } = await supabase
+          .from("system_settings" as any)
+          .upsert(row as any, { onConflict: "key" });
+        if (error) throw new Error(error.message);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["driver-fee-settings"] });
