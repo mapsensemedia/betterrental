@@ -30,6 +30,7 @@ const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const CompleteSignup = lazy(() => import("./pages/CompleteSignup"));
 
 // Post-booking customer pages
 const BookingConfirmed = lazy(() => import("./pages/booking/BookingConfirmed"));
@@ -126,6 +127,7 @@ const App = () => (
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/checkout" element={<NewCheckout />} />
+                <Route path="/complete-signup" element={<CompleteSignup />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/booking/:id" element={<BookingDetail />} />
                 <Route path="/locations" element={<Locations />} />
