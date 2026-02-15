@@ -66,7 +66,7 @@ import { useBookingVerification } from "@/hooks/use-verification";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { CustomerWalkaroundAcknowledge } from "@/components/booking/CustomerWalkaroundAcknowledge";
 import { ReportIssueDialog } from "@/components/booking/ReportIssueDialog";
-import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
+import { FinancialBreakdown } from "@/components/admin/ops/FinancialBreakdown";
 import { BookingProgressStepper } from "@/components/booking/BookingProgressStepper";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
@@ -103,6 +103,14 @@ interface BookingData {
   notes: string | null;
   driver_age_band: string | null;
   young_driver_fee: number | null;
+  protection_plan: string | null;
+  different_dropoff_fee: number | null;
+  delivery_fee: number | null;
+  late_return_fee: number | null;
+  upgrade_daily_fee: number | null;
+  upgrade_category_label: string | null;
+  upgrade_visible_to_customer: boolean | null;
+  created_at: string;
   // Delivery fields
   pickup_address: string | null;
   pickup_lat: number | null;
@@ -111,10 +119,9 @@ interface BookingData {
   card_last_four: string | null;
   card_type: string | null;
   card_holder_name: string | null;
-  // Upgrade fields
-  upgrade_daily_fee: number | null;
-  upgrade_category_label: string | null;
-  upgrade_visible_to_customer: boolean | null;
+  // Join tables for FinancialBreakdown
+  booking_add_ons: any[];
+  booking_additional_drivers: any[];
   vehicles: {
     id: string;
     make: string;
@@ -311,6 +318,10 @@ export default function BookingDetail() {
             notes,
             driver_age_band,
             young_driver_fee,
+            protection_plan,
+            different_dropoff_fee,
+            delivery_fee,
+            late_return_fee,
             pickup_address,
             pickup_lat,
             pickup_lng,
@@ -321,6 +332,9 @@ export default function BookingDetail() {
             upgrade_daily_fee,
             upgrade_category_label,
             upgrade_visible_to_customer,
+            created_at,
+            booking_add_ons (id, add_on_id, price, quantity, add_ons (name)),
+            booking_additional_drivers (id, driver_name, driver_age_band, young_driver_fee),
             locations!location_id (id, name, address, city)
           `)
           .eq("id", id)
@@ -355,6 +369,8 @@ export default function BookingDetail() {
           setBooking({
             ...data,
             vehicles: vehicleData,
+            booking_add_ons: data.booking_add_ons || [],
+            booking_additional_drivers: data.booking_additional_drivers || [],
           } as BookingData);
         }
       } catch (err) {
@@ -645,7 +661,7 @@ export default function BookingDetail() {
                 <CustomerWalkaroundAcknowledge bookingId={id} />
               )}
 
-              {/* Payment Summary */}
+              {/* Payment Summary — uses shared FinancialBreakdown for consistency */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -653,45 +669,8 @@ export default function BookingDetail() {
                     Payment Summary
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      ${Number(booking.daily_rate).toFixed(2)}* × {booking.total_days} days
-                    </span>
-                    <span>${(Number(booking.daily_rate) * booking.total_days).toFixed(2)}</span>
-                  </div>
-                  {booking.young_driver_fee && Number(booking.young_driver_fee) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Young driver fee ($15/day × {booking.total_days} days)</span>
-                      <span>${Number(booking.young_driver_fee).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {booking.upgrade_visible_to_customer && Number(booking.upgrade_daily_fee) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Vehicle Upgrade{booking.upgrade_category_label ? ` (${booking.upgrade_category_label})` : ''} — ${Number(booking.upgrade_daily_fee).toFixed(2)}/day × {booking.total_days} days
-                      </span>
-                      <span>${(Number(booking.upgrade_daily_fee) * booking.total_days).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {booking.tax_amount && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Taxes & Fees</span>
-                      <span>${Number(booking.tax_amount).toFixed(2)}</span>
-                    </div>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between font-semibold">
-                    <span>Total</span>
-                    <span>${Number(booking.total_amount).toFixed(2)}</span>
-                  </div>
-                  {booking.deposit_amount && Number(booking.deposit_amount) > 0 && (
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Security Deposit (held)</span>
-                      <span>${Number(booking.deposit_amount).toFixed(2)}</span>
-                    </div>
-                  )}
-                  <PriceDisclaimer variant="summary" className="pt-2" />
+                <CardContent>
+                  <FinancialBreakdown booking={booking} />
                   
                   {/* Card on File */}
                   {booking.card_last_four && (
