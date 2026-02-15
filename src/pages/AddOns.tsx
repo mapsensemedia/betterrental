@@ -120,6 +120,14 @@ export default function AddOns() {
   const addOnsTotal = selectedAddOnIds.reduce((sum, id) => {
     const addon = addOns.find((a) => a.id === id);
     if (!addon || isAdditionalDriverAddon(addon.name)) return sum;
+    
+    // Fuel add-on uses tank-based pricing, not daily rate
+    if (isFuelAddon(addon.name)) {
+      const categoryName = vehicle?.category || (vehicle as any)?.categoryName || "default";
+      const fuelCost = calculateFuelCostForUnit(null, categoryName);
+      return sum + fuelCost.ourPrice;
+    }
+    
     const qty = addOnQuantities[id] || 1;
     return sum + (addon.dailyRate * rentalDays + (addon.oneTimeFee || 0)) * qty;
   }, 0);
