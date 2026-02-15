@@ -82,6 +82,17 @@ Deno.serve(async (req) => {
       .eq("id", bookingId)
       .single();
 
+    // Fetch vehicle category name for protection group lookup
+    let vehicleCatName = "";
+    if (booking?.vehicle_id) {
+      const { data: cat } = await supabase
+        .from("vehicle_categories")
+        .select("name")
+        .eq("id", booking.vehicle_id)
+        .maybeSingle();
+      vehicleCatName = cat?.name || "";
+    }
+
     if (bookingError || !booking) {
       return new Response(
         JSON.stringify({ error: "Booking not found" }),
@@ -116,70 +127,139 @@ Deno.serve(async (req) => {
       .eq("booking_id", bookingId)
       .eq("status", "completed");
 
-    // ── P1 FIX: Decompose subtotal into non-overlapping line items ──
+    // ── Decompose subtotal into non-overlapping line items matching FinancialBreakdown ──
     const bookingSubtotal = Number(booking.subtotal) || 0;
     const taxAmount = Number(booking.tax_amount) || 0;
     const bookingTotal = Number(booking.total_amount) || 0;
     const lateFees = Number(booking.late_return_fee) || 0;
+    const totalDays = booking.total_days || 0;
+    const dailyRate = Number(booking.daily_rate) || 0;
 
-    // Compute individual components that are already included in subtotal
-    const addonsFromBooking = (booking.booking_add_ons || []).map((addon: any) => ({
-      description: addon.add_on?.name || "Add-on",
-      amount: roundCents(Number(addon.price) * (addon.quantity || 1)),
-    }));
+    // Add-ons: price is already the server-computed line total
+    const addonsFromBooking = (booking.booking_add_ons || []).map((addon: any) => {
+      const qty = Number(addon.quantity) || 1;
+      const name = addon.add_on?.name || "Add-on";
+      return {
+        description: qty > 1 ? `${name} ×${qty}` : name,
+        amount: roundCents(Number(addon.price)),
+      };
+    });
     const addonsTotal = addonsFromBooking.reduce((sum: number, a: any) => sum + a.amount, 0);
 
-    const driversFromBooking = (booking.booking_additional_drivers || []).map((d: any) => ({
-      description: `Additional Driver: ${d.driver_name || d.driver_age_band}`,
-      amount: Number(d.young_driver_fee) || 0,
-    }));
+    // Additional drivers
+    const driversFromBooking = (booking.booking_additional_drivers || []).map((d: any) => {
+      const fee = Number(d.young_driver_fee) || 0;
+      const isYoung = d.driver_age_band === "20_24";
+      const perDay = fee > 0 ? roundCents(fee / totalDays) : (isYoung ? 19.99 : 14.99);
+      const displayTotal = fee > 0 ? fee : roundCents(perDay * totalDays);
+      return {
+        description: `${d.driver_name || "Additional Driver"} (${isYoung ? "Young" : "Standard"} $${perDay.toFixed(2)}/day × ${totalDays}d)`,
+        amount: roundCents(displayTotal),
+      };
+    });
     const additionalDriversTotal = driversFromBooking.reduce((sum: number, d: any) => sum + d.amount, 0);
 
     const deliveryFee = Number(booking.delivery_fee) || 0;
     const differentDropoffFee = Number(booking.different_dropoff_fee) || 0;
     const youngDriverFee = Number(booking.young_driver_fee) || 0;
     const upgradeDailyFee = Number(booking.upgrade_daily_fee) || 0;
-    const upgradeTotal = roundCents(upgradeDailyFee * (booking.total_days || 0));
+    const upgradeTotal = roundCents(upgradeDailyFee * totalDays);
+
+    // Protection plan
+    const PVRT_DAILY = 1.50;
+    const ACSRCH_DAILY = 1.00;
+    const protectionPlan = booking.protection_plan || "none";
+    let protectionDailyRate = 0;
+    if (protectionPlan !== "none") {
+      // Group-based protection rates (same as FinancialBreakdown)
+      const catUpper = vehicleCatName.toUpperCase();
+      let group = 1;
+      if (catUpper.includes("LARGE") && catUpper.includes("SUV")) group = 3;
+      else if (catUpper.includes("MINIVAN") || (catUpper.includes("STANDARD") && catUpper.includes("SUV"))) group = 2;
+      const GROUP_RATES: Record<number, Record<string, number>> = {
+        1: { basic: 32.99, smart: 37.99, premium: 49.99 },
+        2: { basic: 52.99, smart: 57.99, premium: 69.99 },
+        3: { basic: 64.99, smart: 69.99, premium: 82.99 },
+      };
+      protectionDailyRate = GROUP_RATES[group]?.[protectionPlan] ?? 0;
+    }
+    const protectionTotal = roundCents(protectionDailyRate * totalDays);
+    const pvrtTotal = roundCents(PVRT_DAILY * totalDays);
+    const acsrchTotal = roundCents(ACSRCH_DAILY * totalDays);
+
+    const PROTECTION_LABELS: Record<string, string> = {
+      premium: "All Inclusive Coverage",
+      smart: "Smart Coverage",
+      basic: "Basic Coverage",
+    };
 
     // Vehicle rental portion = subtotal minus all individually itemized components
-    // This ensures sum(line items) == booking.subtotal exactly
     const vehicleRentalPortion = roundCents(
       bookingSubtotal
+      - protectionTotal
       - addonsTotal
       - additionalDriversTotal
       - deliveryFee
       - differentDropoffFee
       - youngDriverFee
       - upgradeTotal
+      - pvrtTotal
+      - acsrchTotal
     );
 
-    // Build line items that sum exactly to subtotal
-    const lineItems: { description: string; amount: number }[] = [
-      { description: `Vehicle Rental (${booking.total_days} days)`, amount: vehicleRentalPortion },
-    ];
+    // Build line items matching FinancialBreakdown order
+    const lineItems: { description: string; amount: number }[] = [];
 
-    // Add itemized components (only if non-zero)
-    if (youngDriverFee > 0) {
-      lineItems.push({ description: "Young Driver Fee", amount: youngDriverFee });
+    // Vehicle rental
+    const vehicleBase = roundCents(dailyRate * totalDays);
+    const hasAdjustments = Math.abs(vehicleRentalPortion - vehicleBase) > 0.01;
+    lineItems.push({
+      description: hasAdjustments
+        ? `Vehicle Rental (${totalDays} days, incl. surcharges/discounts)`
+        : `Vehicle Rental ($${dailyRate.toFixed(2)}/day × ${totalDays} days)`,
+      amount: vehicleRentalPortion,
+    });
+
+    // Protection plan
+    if (protectionTotal > 0) {
+      lineItems.push({
+        description: `${PROTECTION_LABELS[protectionPlan] || "Protection"} ($${protectionDailyRate.toFixed(2)}/day × ${totalDays} days)`,
+        amount: protectionTotal,
+      });
     }
+
+    // Add-ons
     for (const addon of addonsFromBooking) {
       if (addon.amount > 0) lineItems.push(addon);
     }
+
+    // Additional drivers
     for (const driver of driversFromBooking) {
       if (driver.amount > 0) lineItems.push(driver);
     }
+
+    // Young driver fee (primary renter)
+    if (youngDriverFee > 0) {
+      lineItems.push({
+        description: `Young Renter Fee ($${roundCents(youngDriverFee / totalDays).toFixed(2)}/day × ${totalDays} days)`,
+        amount: youngDriverFee,
+      });
+    }
+
+    // Delivery / Drop-off / Upgrade
     if (deliveryFee > 0) {
       lineItems.push({ description: "Delivery Fee", amount: deliveryFee });
     }
     if (differentDropoffFee > 0) {
-      lineItems.push({ description: "Different Drop-off Fee", amount: differentDropoffFee });
+      lineItems.push({ description: "Different Drop-off Location Fee", amount: differentDropoffFee });
     }
     if (upgradeTotal > 0) {
-      lineItems.push({ description: `Vehicle Upgrade (${booking.total_days} days)`, amount: upgradeTotal });
+      lineItems.push({ description: `Upgrade ($${upgradeDailyFee.toFixed(2)}/day × ${totalDays} days)`, amount: upgradeTotal });
     }
 
-    // Tax line
-    lineItems.push({ description: "Taxes (PST + GST)", amount: taxAmount });
+    // Regulatory fees
+    lineItems.push({ description: `PVRT ($${PVRT_DAILY.toFixed(2)}/day × ${totalDays} days)`, amount: pvrtTotal });
+    lineItems.push({ description: `ACSRCH ($${ACSRCH_DAILY.toFixed(2)}/day × ${totalDays} days)`, amount: acsrchTotal });
 
     // Post-booking charges
     if (lateFees > 0) {

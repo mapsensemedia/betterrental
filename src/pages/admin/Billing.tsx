@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { generateReceiptPdf } from "@/lib/pdf/receipt-pdf";
 import { generateInvoicePdf, type InvoicePdfData } from "@/lib/pdf/invoice-pdf";
 import { buildInvoicePdfData } from "@/lib/pdf/invoice-data-builder";
+import { FinancialBreakdown } from "@/components/admin/ops/FinancialBreakdown";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -153,6 +154,32 @@ export default function AdminBilling() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
   const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">("invoices");
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch full booking data for invoice detail dialog (for FinancialBreakdown)
+  const selectedInvoiceBookingId = selectedInvoice?.booking_id;
+  const { data: invoiceBookingData } = useQuery({
+    queryKey: ["invoice-booking-detail", selectedInvoiceBookingId],
+    enabled: !!selectedInvoiceBookingId,
+    queryFn: async () => {
+      const { data: booking } = await supabase
+        .from("bookings")
+        .select(`
+          *,
+          booking_add_ons(id, price, quantity, add_ons(name, daily_rate, one_time_fee)),
+          booking_additional_drivers(id, driver_name, driver_age_band, young_driver_fee)
+        `)
+        .eq("id", selectedInvoiceBookingId!)
+        .single();
+      if (!booking) return null;
+      // Fetch category name separately (no FK)
+      let vehicleCat = "";
+      if (booking.vehicle_id) {
+        const { data: cat } = await supabase.from("vehicle_categories").select("name").eq("id", booking.vehicle_id).maybeSingle();
+        vehicleCat = cat?.name || "";
+      }
+      return { ...booking, vehicles: { category: vehicleCat } };
+    },
+  });
 
   // ==================== INVOICES ====================
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
@@ -905,53 +932,22 @@ export default function AdminBilling() {
 
                 <Separator />
 
-                {/* Line Items */}
-                {Array.isArray(selectedInvoice.line_items_json) && selectedInvoice.line_items_json.length > 0 && (
+                {/* Financial Breakdown — uses same shared component as Ops/Booking Summary */}
+                {invoiceBookingData ? (
                   <div>
-                    <p className="text-sm font-medium mb-2">Line Items</p>
-                    <div className="rounded-lg border overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/50">
-                            <TableHead className="text-xs">Description</TableHead>
-                            <TableHead className="text-xs text-right">Amount</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedInvoice.line_items_json.map((item: any, i: number) => (
-                            <TableRow key={i}>
-                              <TableCell className="text-sm">{item.description || item.label}</TableCell>
-                              <TableCell className="text-sm text-right font-medium">${Number(item.amount || item.total || 0).toFixed(2)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                    <p className="text-sm font-medium mb-2">Financial Breakdown</p>
+                    <div className="p-3 bg-muted/30 rounded-lg">
+                      <FinancialBreakdown booking={invoiceBookingData} />
                     </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                    Loading breakdown...
                   </div>
                 )}
 
-                {/* Summary */}
+                {/* Invoice-specific charges & payments (not in FinancialBreakdown) */}
                 <div className="p-4 bg-muted rounded-xl space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Rental Subtotal</span>
-                    <span>${Number(selectedInvoice.rental_subtotal).toFixed(2)}</span>
-                  </div>
-                  {Number(selectedInvoice.addons_total) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Add-ons</span>
-                      <span>${Number(selectedInvoice.addons_total).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {Number(selectedInvoice.fees_total) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Fees</span>
-                      <span>${Number(selectedInvoice.fees_total).toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Taxes</span>
-                    <span>${Number(selectedInvoice.taxes_total).toFixed(2)}</span>
-                  </div>
                   {Number(selectedInvoice.late_fees) > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Late Fees</span>
