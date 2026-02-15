@@ -1052,14 +1052,14 @@ export default function BookingDetail() {
                             variant="outline"
                             size="sm"
                             className="w-full mt-2"
-                            onClick={() => {
+                            onClick={async () => {
                               const lineItems = Array.isArray(invoice.line_items_json)
                                 ? invoice.line_items_json.map((item: any) => ({
                                     description: item.description || item.label || "Item",
                                     amount: Number(item.amount || item.total || 0),
                                   }))
                                 : [];
-                              generateInvoicePdf({
+                              await generateInvoicePdf({
                                 invoiceNumber: invoice.invoice_number,
                                 status: invoice.status || "draft",
                                 issuedAt: invoice.issued_at,
