@@ -189,65 +189,63 @@ function renderStructuredPdf(
   logoBase64: string | null,
   signatureBase64: string | null
 ) {
-  let y = M;
+  let y = 18; // tight top margin
   const bookingCode = (t as any).bookingCode || bookingId.slice(0, 8).toUpperCase();
 
-  // ── Spacing constants ──
-  const SEC_GAP = 8;     // gap after horizontal lines (before next section)
-  const TITLE_GAP = 11;  // gap after section title
-  const ROW_H = 11;      // height between label-value rows
-  const FIN_ROW_H = 10;  // height between financial rows
-  const FIN_HEAD_H = 11;  // gap after financial sub-headers
+  // ── Spacing constants (compressed for single-page fit) ──
+  const SEC_GAP = 5;
+  const TITLE_GAP = 8;
+  const ROW_H = 9;
+  const FIN_ROW_H = 8;
+  const FIN_HEAD_H = 9;
 
   // ─────────────────────────────────────────────
   // HEADER
   // ─────────────────────────────────────────────
   if (logoBase64) {
-    try { pdf.addImage(logoBase64, "PNG", L, y - 2, 55, 20); } catch { /* skip */ }
+    try { pdf.addImage(logoBase64, "PNG", L, y - 2, 42, 15); } catch { /* skip */ }
   }
-  pdf.setFontSize(15);
+  pdf.setFontSize(13);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
-  pdf.text("C2C CAR RENTAL", PAGE_W / 2, y + 8, { align: "center" });
-  pdf.setFontSize(8.5);
-  pdf.text("LEGAL VEHICLE RENTAL AGREEMENT", PAGE_W / 2, y + 20, { align: "center" });
-  y += 26;
+  pdf.text("C2C CAR RENTAL", PAGE_W / 2, y + 6, { align: "center" });
+  pdf.setFontSize(7);
+  pdf.text("LEGAL VEHICLE RENTAL AGREEMENT", PAGE_W / 2, y + 15, { align: "center" });
+  y += 19;
 
   // Contact info bar
   pdf.setFillColor(245, 245, 245);
   pdf.setDrawColor(200, 200, 200);
   pdf.setLineWidth(0.3);
-  pdf.rect(L, y - 3, CW, 11, "FD");
-  pdf.setFontSize(5.5);
+  pdf.rect(L, y - 2, CW, 9, "FD");
+  pdf.setFontSize(5);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(60, 60, 60);
   pdf.text(
     "Surrey, BC  |  Contact: (604) 771-3995  |  24/7 Support: (778) 580-0498  |  Roadside: (604) 771-3995",
     PAGE_W / 2,
-    y + 4,
+    y + 3,
     { align: "center" }
   );
   pdf.setTextColor(0, 0, 0);
-  y += 13;
+  y += 11;
 
   // Booking ref + date
-  pdf.setFontSize(7.5);
+  pdf.setFontSize(6.5);
   pdf.setFont("helvetica", "bold");
   pdf.text("Booking Reference:", L, y);
   pdf.setFont("helvetica", "normal");
-  pdf.text(bookingCode, L + 85, y);
+  pdf.text(bookingCode, L + 75, y);
   pdf.setFont("helvetica", "bold");
   pdf.text("Agreement Date:", MID, y);
   pdf.setFont("helvetica", "normal");
-  pdf.text(fmtDateShort(agreement.created_at), MID + 72, y);
-  y += 10;
+  pdf.text(fmtDateShort(agreement.created_at), MID + 62, y);
+  y += 7;
 
   hLine(pdf, y);
   y += SEC_GAP;
 
-  // ─────────────────────────────────────────────
   // RENTER INFORMATION
-  // ─────────────────────────────────────────────
   sectionTitle(pdf, "RENTER INFORMATION", L, y);
   y += TITLE_GAP;
 
@@ -257,20 +255,17 @@ function renderStructuredPdf(
 
   labelValue(pdf, "Name:", displayName, L, y);
   labelValue(pdf, "Email:", displayEmail, MID, y);
-  y += ROW_H + 2;
+  y += ROW_H;
 
   hLine(pdf, y);
   y += SEC_GAP;
 
-  // ─────────────────────────────────────────────
   // LOCATIONS (two columns)
-  // ─────────────────────────────────────────────
   sectionTitle(pdf, "LOCATIONS", L, y);
   y += TITLE_GAP;
 
   const pickupLoc = t.locations.pickup;
   const dropoffLoc = t.locations.dropoff;
-  // Format addresses as multi-line: Street / City, BC / Postal Code
   const pickupAddrLines = formatAddressLines(pickupLoc.address, pickupLoc.city);
   const dropoffAddrLines = formatAddressLines(dropoffLoc.address, dropoffLoc.city);
   const pickupLabel = pickupLoc.name || "";
@@ -280,38 +275,35 @@ function renderStructuredPdf(
   const isSameLoc = pickupFull.join("|") === dropoffRaw.join("|");
   const dropoffFull = isSameLoc ? [...dropoffRaw, "(Same as pickup)"] : dropoffRaw;
 
-  pdf.setFontSize(7);
+  pdf.setFontSize(6.5);
   pdf.setFont("helvetica", "bold");
   pdf.text("Pickup Location:", L, y);
   pdf.text("Drop-off Location:", MID, y);
-  y += 8;
+  y += 7;
   pdf.setFont("helvetica", "normal");
   const locLines = Math.max(pickupFull.length, dropoffFull.length);
   for (let i = 0; i < locLines; i++) {
     if (pickupFull[i]) pdf.text(pickupFull[i], L, y);
     if (dropoffFull[i]) pdf.text(dropoffFull[i], MID, y);
-    y += 7;
+    y += 6;
   }
 
   if (t.locations.deliveryAddress) {
-    y += 1;
     pdf.setFont("helvetica", "bold");
     pdf.text("Delivery Address:", L, y);
     pdf.setFont("helvetica", "normal");
     const delAddrLines = pdf.splitTextToSize(t.locations.deliveryAddress, CW * 0.7);
     for (const dl of delAddrLines) {
-      pdf.text(dl, L + 68, y);
-      y += 7;
+      pdf.text(dl, L + 60, y);
+      y += 6;
     }
   }
 
-  y += 2;
+  y += 1;
   hLine(pdf, y);
   y += SEC_GAP;
 
-  // ─────────────────────────────────────────────
-  // VEHICLE DETAILS + CONDITION
-  // ─────────────────────────────────────────────
+  // VEHICLE DETAILS + CONDITION + RENTAL PERIOD (combined)
   sectionTitle(pdf, "VEHICLE DETAILS", L, y);
   y += TITLE_GAP;
 
@@ -332,7 +324,7 @@ function renderStructuredPdf(
   labelValue(pdf, "Tank Capacity:", `${t.vehicle.tankCapacityLiters || 50} litres`, MID, y);
   y += ROW_H;
 
-  // VIN / Plate / Color (only if present)
+  // VIN / Plate / Color on one row if possible
   const hasVin = t.vehicle.vin && t.vehicle.vin !== "N/A";
   const hasPlate = t.vehicle.licensePlate && t.vehicle.licensePlate !== "N/A";
   const hasColor = !!t.vehicle.color;
@@ -348,48 +340,41 @@ function renderStructuredPdf(
   }
 
   // Condition at pickup
-  pdf.setFontSize(7);
+  pdf.setFontSize(6.5);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(60, 60, 60);
   pdf.text("CONDITION AT PICKUP:", L, y);
   pdf.setTextColor(0, 0, 0);
-  y += ROW_H;
 
   const odometerStr = t.condition.odometerOut != null
     ? `${t.condition.odometerOut.toLocaleString()} km` : "N/A";
   const fuelStr = t.condition.fuelLevelOut != null
     ? `${t.condition.fuelLevelOut}%` : "N/A";
-
-  labelValue(pdf, "Kilometres Out:", odometerStr, L, y);
-  labelValue(pdf, "Fuel Level:", fuelStr, MID, y);
+  labelValue(pdf, "Kilometres Out:", odometerStr, L + 95, y);
+  labelValue(pdf, "Fuel Level:", fuelStr, MID + 50, y);
   y += ROW_H;
 
   hLine(pdf, y);
   y += SEC_GAP;
 
-  // ─────────────────────────────────────────────
-  // RENTAL PERIOD
-  // ─────────────────────────────────────────────
+  // RENTAL PERIOD (compact - single row)
   sectionTitle(pdf, "RENTAL PERIOD", L, y);
   y += TITLE_GAP;
 
   labelValue(pdf, "Pick-up Date/Time:", fmtDateFull(t.rental.startAt), L, y);
   y += ROW_H;
   labelValue(pdf, "Return Date/Time:", fmtDateFull(t.rental.endAt), L, y);
-  y += ROW_H;
-  labelValue(pdf, "Duration:", `${t.rental.totalDays} day(s)`, L, y);
+  labelValue(pdf, "Duration:", `${t.rental.totalDays} day(s)`, MID + 60, y);
   y += ROW_H;
 
   hLine(pdf, y);
   y += SEC_GAP;
 
-  // ─────────────────────────────────────────────
   // FINANCIAL SUMMARY
-  // ─────────────────────────────────────────────
   sectionTitle(pdf, "FINANCIAL SUMMARY", L, y);
   y += TITLE_GAP;
 
-  const FS = 7.5;
+  const FS = 6.5;
   pdf.setFontSize(FS);
 
   // Vehicle Rental
@@ -452,49 +437,46 @@ function renderStructuredPdf(
   pdf.setDrawColor(160, 160, 160);
   pdf.setLineWidth(0.3);
   pdf.line(L, y, R, y);
-  y += 8;
+  y += 6;
   finRowBold(pdf, "SUBTOTAL:", fmt(t.financial.subtotalBeforeTax), y);
-  y += FIN_ROW_H + 2;
+  y += FIN_ROW_H;
 
-  // Taxes - separate section with clear spacing
+  // Taxes
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(7);
+  pdf.setFontSize(6.5);
   pdf.text("TAXES:", L, y);
   pdf.setFont("helvetica", "normal");
   y += FIN_HEAD_H;
   finRow(pdf, `PST (${(t.taxes.pstRate * 100).toFixed(0)}%):`, fmt(t.financial.pstAmount), y);
   y += FIN_ROW_H;
   finRow(pdf, `GST (${(t.taxes.gstRate * 100).toFixed(0)}%):`, fmt(t.financial.gstAmount), y);
-  y += FIN_ROW_H + 2;
+  y += FIN_ROW_H;
 
   // Total box
   pdf.setFillColor(240, 240, 240);
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.8);
-  pdf.rect(L, y - 1, CW, 14, "FD");
-  pdf.setFontSize(8.5);
+  pdf.rect(L, y - 1, CW, 12, "FD");
+  pdf.setFontSize(7.5);
   pdf.setFont("helvetica", "bold");
-  pdf.text("TOTAL AMOUNT DUE:", L + 4, y + 8);
-  pdf.text(`${fmt(t.financial.grandTotal)} CAD`, R - 4, y + 8, { align: "right" });
-  y += 18;
+  pdf.text("TOTAL AMOUNT DUE:", L + 4, y + 7);
+  pdf.text(`${fmt(t.financial.grandTotal)} CAD`, R - 4, y + 7, { align: "right" });
+  y += 15;
 
   // Deposit
   pdf.setFontSize(FS);
   pdf.setFont("helvetica", "normal");
   finRow(pdf, "Security Deposit:", `${fmt(t.financial.depositAmount)} (refundable)`, y);
-  y += FIN_ROW_H + 2;
+  y += FIN_ROW_H;
 
   hLine(pdf, y);
   y += SEC_GAP;
 
-  // ─────────────────────────────────────────────
   // TERMS AND CONDITIONS (two-column, compact)
-  // ─────────────────────────────────────────────
   sectionTitle(pdf, "TERMS AND CONDITIONS", L, y);
-  y += 7;
+  y += 5;
 
   const p = t.policies;
-  const tankCap = t.vehicle.tankCapacityLiters || 50;
 
   const tcBlocks = [
     {
@@ -566,8 +548,8 @@ function renderStructuredPdf(
   ];
 
   // Render in two columns
-  const TF = 6.5;
-  const TLH = 7.5; // line height for T&C items
+  const TF = 5.5;
+  const TLH = 6.5; // compact line height for T&C items
   const colW = CW * 0.48;
   const col1X = L;
   const col2X = MID + 4;
@@ -586,27 +568,17 @@ function renderStructuredPdf(
     ry = renderTcBlock(pdf, block.title, block.items, col2X, ry, colW, TF, TLH);
   }
 
-  y = Math.max(ly, ry) + 3;
-
-  // Check if signature block needs a new page (estimate ~80pt needed)
-  const signatureBlockHeight = 80;
-  const footerReserve = 20;
-  if (y + signatureBlockHeight + footerReserve > PAGE_H - M) {
-    pdf.addPage();
-    y = M;
-  }
+  y = Math.max(ly, ry) + 2;
 
   hLine(pdf, y);
   y += SEC_GAP - 2;
 
-  // ─────────────────────────────────────────────
   // ACKNOWLEDGMENT AND SIGNATURE
-  // ─────────────────────────────────────────────
   sectionTitle(pdf, "ACKNOWLEDGMENT AND SIGNATURE", L, y);
-  y += 7;
+  y += 5;
 
-  const ackFontSize = 6.5;
-  const ackLH = 8;
+  const ackFontSize = 5.5;
+  const ackLH = 6.5;
   pdf.setFontSize(ackFontSize);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(30, 30, 30);
@@ -622,42 +594,39 @@ function renderStructuredPdf(
       pdf.text(line, L, y);
       y += ackLH;
     }
-    y += 2;
   }
 
-  y += 4;
+  y += 3;
 
   // Signature block
   pdf.setTextColor(0, 0, 0);
   if (agreement.customer_signature) {
-    pdf.setFontSize(7);
+    pdf.setFontSize(6.5);
     pdf.setFont("helvetica", "bold");
     pdf.text("RENTER SIGNATURE:", L, y);
     pdf.setFont("helvetica", "normal");
-    pdf.text(agreement.customer_signature, L + 80, y);
+    pdf.text(agreement.customer_signature, L + 76, y);
 
     pdf.setFont("helvetica", "bold");
     pdf.text("DATE:", MID + 20, y);
     pdf.setFont("helvetica", "normal");
-    pdf.text(fmtDateLong(agreement.customer_signed_at!), MID + 48, y);
-    y += 10;
+    pdf.text(fmtDateLong(agreement.customer_signed_at!), MID + 42, y);
+    y += 8;
 
-    // Embed signature PNG image if available
+    // Embed signature PNG image if available (compact)
     if (signatureBase64) {
       try {
-        pdf.addImage(signatureBase64, "PNG", L, y, 140, 35);
-        y += 40;
-      } catch {
-        // Skip image if it fails to render
-      }
+        pdf.addImage(signatureBase64, "PNG", L, y, 100, 25);
+        y += 28;
+      } catch { /* skip */ }
     }
 
     if (agreement.staff_confirmed_at) {
       pdf.setFont("helvetica", "bold");
       pdf.text("CONFIRMED BY STAFF:", L, y);
       pdf.setFont("helvetica", "normal");
-      pdf.text(fmtDateLong(agreement.staff_confirmed_at), L + 88, y);
-      y += 10;
+      pdf.text(fmtDateLong(agreement.staff_confirmed_at), L + 85, y);
+      y += 8;
     }
 
     if (agreement.signed_manually) {
@@ -665,19 +634,17 @@ function renderStructuredPdf(
       pdf.setFont("helvetica", "italic");
       pdf.setTextColor(100, 100, 100);
       pdf.text("(Signed in person)", L, y);
-      y += 8;
     }
   } else {
-    pdf.setFontSize(7);
+    pdf.setFontSize(6.5);
     pdf.setFont("helvetica", "normal");
     pdf.text("RENTER SIGNATURE:", L, y);
     pdf.setDrawColor(0);
     pdf.setLineWidth(0.3);
-    pdf.line(L + 82, y, L + 220, y);
+    pdf.line(L + 78, y, L + 200, y);
 
     pdf.text("DATE:", MID + 30, y);
-    pdf.line(MID + 56, y, MID + 160, y);
-    y += 12;
+    pdf.line(MID + 50, y, MID + 150, y);
   }
 
   // ─────────────────────────────────────────────
@@ -701,7 +668,7 @@ function renderStructuredPdf(
 
 // ── Helper: Section title ──
 function sectionTitle(pdf: jsPDF, text: string, x: number, y: number) {
-  pdf.setFontSize(8);
+  pdf.setFontSize(7);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(text, x, y);
@@ -709,28 +676,28 @@ function sectionTitle(pdf: jsPDF, text: string, x: number, y: number) {
 
 // ── Helper: Label + value pair ──
 function labelValue(pdf: jsPDF, label: string, value: string, x: number, y: number) {
-  pdf.setFontSize(7.5);
+  pdf.setFontSize(6.5);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(60, 60, 60);
   pdf.text(label, x, y);
   const labelW = pdf.getTextWidth(label);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(0, 0, 0);
-  pdf.text(value, x + labelW + 3, y);
+  pdf.text(value, x + labelW + 2, y);
 }
 
 // ── Helper: Financial row (label left, amount right) ──
 function finRow(pdf: jsPDF, label: string, amount: string, y: number, startX?: number) {
   const x = startX || L;
-  pdf.setFontSize(7);
+  pdf.setFontSize(6.5);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(0, 0, 0);
-  pdf.text(label, x + 8, y);
+  pdf.text(label, x + 6, y);
   pdf.text(amount, R - 4, y, { align: "right" });
 }
 
 function finRowBold(pdf: jsPDF, label: string, amount: string, y: number) {
-  pdf.setFontSize(7.5);
+  pdf.setFontSize(7);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(label, L, y);
@@ -768,7 +735,7 @@ function renderTcBlock(
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(0, 0, 0);
   pdf.text(title, x, y);
-  y += lineH + 1.5;
+  y += lineH + 0.5;
 
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(30, 30, 30);
@@ -778,9 +745,8 @@ function renderTcBlock(
       pdf.text(line, x + 3, y);
       y += lineH;
     }
-    y += 1; // extra gap between items
   }
-  y += 3; // gap between blocks
+  y += 2; // gap between blocks
   return y;
 }
 
