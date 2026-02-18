@@ -37,11 +37,12 @@ type SortOption = "recommended" | "price-low" | "price-high";
 
 export default function Search() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { 
     searchData, 
     isSearchValid,
     canProceedToSelectCar,
+    clearSearch,
     setSelectedVehicle,
     setSelectedAddOns,
     setAdditionalDrivers,
@@ -54,8 +55,19 @@ export default function Search() {
     document.title = "Browse Cars | C2C Rental – Surrey, Langley & Abbotsford";
   }, []);
 
-  // Hydrate context from URL params if context is empty (safety net for landing page → search)
+  // When arriving from homepage fleet section, clear previous search state
+  // so Browse Cars loads with no prefilled location/dates (Sixt-like behavior)
   useEffect(() => {
+    if (searchParams.get("from") === "fleet") {
+      clearSearch();
+      // Remove the param from URL to avoid re-clearing on subsequent renders
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("from");
+      setSearchParams(newParams, { replace: true });
+      return; // Skip hydration below since we just cleared
+    }
+
+    // Hydrate context from URL params if context is empty (safety net for landing page → search)
     const urlLocationId = searchParams.get("locationId");
     const urlStartAt = searchParams.get("startAt");
     const urlEndAt = searchParams.get("endAt");
