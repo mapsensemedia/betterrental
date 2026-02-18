@@ -47,7 +47,7 @@ function LocationCard({ location }: { location: Location }) {
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow animate-fade-in">
-      <CardContent className="p-6">
+      <CardContent className="p-4 md:p-6">
         <div className="flex items-start gap-4">
           {/* Map Pin Icon */}
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -94,10 +94,10 @@ export function LocationsSection({ className }: LocationsSectionProps) {
     <section className={cn("section-spacing bg-muted/50", className)}>
       <div className="container-page">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h2 className="heading-2 text-foreground mb-3">Our Locations</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Visit any of our convenient locations across the Lower Mainland, or let us bring the car to you
+        <div className="text-center mb-6 md:mb-12">
+          <h2 className="heading-2 text-foreground mb-2">Our Locations</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-base">
+            Convenient locations across the Lower Mainland
           </p>
         </div>
 

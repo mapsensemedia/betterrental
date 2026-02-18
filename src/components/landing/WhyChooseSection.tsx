@@ -33,37 +33,33 @@ export function WhyChooseSection({ className }: WhyChooseSectionProps) {
     <section className={cn("section-spacing bg-background", className)}>
       <div className="container-page">
         {/* Header */}
-        <div className="mb-12">
+        <div className="mb-6 md:mb-12">
           <h2 className="heading-2 text-foreground">Why Choose C2C Rental?</h2>
         </div>
 
-        {/* Feature Cards - matching Browse by Brand style */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Feature Cards — horizontal on mobile, grid on desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
           {features.map((feature, index) => (
             <div
               key={feature.title}
-              className="group relative aspect-[4/3] rounded-2xl overflow-hidden bg-foreground animate-fade-in"
+              className="group relative rounded-2xl overflow-hidden bg-foreground animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               {/* Content */}
-              <div className="absolute inset-0 p-5 flex flex-col justify-between">
-                {/* Title & Description at top */}
+              <div className="p-4 md:p-5 flex flex-col gap-2 md:aspect-[4/3]">
+                {/* Icon — smaller on mobile */}
+                <feature.icon
+                  className="w-7 h-7 md:w-10 md:h-10 text-background/50"
+                  strokeWidth={1.5}
+                />
+                {/* Title & Description */}
                 <div>
-                  <h3 className="text-xl font-semibold text-background mb-2">
+                  <h3 className="text-sm md:text-xl font-semibold text-background mb-1">
                     {feature.title}
                   </h3>
-                  <p className="text-sm text-background/60 leading-relaxed">
+                  <p className="text-xs md:text-sm text-background/60 leading-snug hidden sm:block">
                     {feature.description}
                   </p>
-                </div>
-
-                {/* Icon at bottom left, Arrow at bottom right */}
-                <div className="flex items-end justify-between">
-                  {/* Large outline icon */}
-                  <feature.icon 
-                    className="w-16 h-16 text-background/50" 
-                    strokeWidth={1.5}
-                  />
                 </div>
               </div>
             </div>
