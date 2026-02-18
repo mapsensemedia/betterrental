@@ -80,19 +80,19 @@ const Index = () => {
   return (
     <CustomerLayout>
       {/* Hero Section */}
-      <section className="hero-premium-bg pt-16 pb-16 relative overflow-hidden">
+      <section className="bg-background pt-8 pb-16 relative overflow-hidden">
         <div className="container-page relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Hero Content */}
             <div className="max-w-xl animate-slide-up">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tighter leading-tight text-foreground mb-2">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-tight text-foreground mb-3">
                 C2C Rental
               </h1>
-              <div className="w-16 h-1 rounded-full mb-4" style={{ backgroundColor: '#197149' }} />
-              <p className="text-xl md:text-2xl font-medium text-foreground/80 mb-6 leading-relaxed" style={{ lineHeight: '1.7' }}>
+              <div className="w-16 h-1 mb-6" style={{ backgroundColor: '#197149' }} />
+              <p className="text-xl md:text-2xl font-semibold text-foreground/80 mb-4">
                 Car Rental Made Simple
               </p>
-              <p className="text-base text-muted-foreground/80 mb-8" style={{ lineHeight: '1.8' }}>
+              <p className="text-base text-muted-foreground/80 mb-8 leading-relaxed">
                 Skip the hassle. Rent quality vehicles with transparent pricing,
                 flexible pickup options, and 24/7 support. Your next adventure
                 starts here.
@@ -100,12 +100,11 @@ const Index = () => {
             </div>
 
             {/* Hero Image */}
-            <div className="relative animate-fade-in animation-delay-200">
+            <div className="relative animate-fade-in animation-delay-200 -my-8">
               <img
                 src={heroImage}
                 alt="Premium car rental service"
-                className="w-full h-auto rounded-2xl object-cover drop-shadow-xl"
-                style={{ filter: 'drop-shadow(0 20px 40px rgb(0 0 0 / 0.12))' }}
+                className="w-full h-auto object-cover"
               />
             </div>
           </div>
