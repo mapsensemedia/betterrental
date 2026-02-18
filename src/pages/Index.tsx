@@ -80,7 +80,7 @@ const Index = () => {
   return (
     <CustomerLayout>
       {/* Hero Section */}
-      <section className="bg-background pt-8 pb-16 relative overflow-hidden">
+      <section className="bg-background pt-6 pb-10 md:pt-8 md:pb-16 relative overflow-hidden">
         <div className="container-page relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Hero Content */}
@@ -120,7 +120,7 @@ const Index = () => {
       <WhyChooseSection />
 
       {/* Browse Categories Section */}
-      <section className="py-20 bg-muted">
+      <section className="py-10 md:py-20 bg-muted">
         <div className="container-page">
           <SectionHeader
             title="Browse Our Fleet"

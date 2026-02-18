@@ -10,9 +10,9 @@ interface CTABannerProps {
 
 export function CTABanner({ className }: CTABannerProps) {
   return (
-    <section className={cn("py-16 bg-background", className)}>
+    <section className={cn("py-8 md:py-16 bg-background", className)}>
       <div className="container-page">
-        <div className="rounded-3xl bg-foreground text-background p-8 md:p-12">
+        <div className="rounded-3xl bg-foreground text-background p-6 md:p-12">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
             {/* Content */}
             <div className="max-w-xl">
