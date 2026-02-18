@@ -260,22 +260,6 @@
     pointer-events: none;
   }
 
-  /* Faint architectural skyline overlay */
-  .hero-skyline-overlay {
-    background-image: 
-      linear-gradient(to right, hsl(0 0% 85% / 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(0 0% 85% / 0.03) 1px, transparent 1px);
-    background-size: 80px 80px;
-    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.04) 30%, rgba(0,0,0,0.06) 60%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.04) 30%, rgba(0,0,0,0.06) 60%, transparent 100%);
-  }
-
-  .dark .hero-skyline-overlay {
-    background-image: 
-      linear-gradient(to right, hsl(0 0% 30% / 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(0 0% 30% / 0.04) 1px, transparent 1px);
-  }
-
   .dark .hero-premium-bg {
     background: linear-gradient(
       135deg,
