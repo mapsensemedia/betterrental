@@ -6,8 +6,8 @@
 
 @layer base {
   :root {
-    /* Core palette - Clean Uber-like theme */
-    --background: 0 0% 98%;
+    /* Core palette - Premium warm off-white */
+    --background: 40 20% 97%;
     --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
@@ -210,7 +210,15 @@
   }
 
   .section-spacing {
-    @apply py-8 md:py-16 lg:py-20;
+    @apply py-10 md:py-16 lg:py-24;
+  }
+
+  /* Premium card - unified elevation */
+  .card-premium {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    box-shadow: 0 1px 4px 0 hsl(0 0% 0% / 0.04), 0 4px 16px -4px hsl(0 0% 0% / 0.06);
   }
 
   /* Glass effects */
