@@ -32,7 +32,7 @@ export default function Contact() {
     email: "",
     phone: "",
     subject: "",
-    message: "",
+    message: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -49,15 +49,15 @@ export default function Contact() {
           email: formData.email,
           phone: formData.phone || undefined,
           subject: formData.subject,
-          message: formData.message,
-        },
+          message: formData.message
+        }
       });
 
       if (error) throw error;
 
       trackEvent("contact_form_submitted", {
         has_phone: !!formData.phone,
-        subject_length: formData.subject.length,
+        subject_length: formData.subject.length
       });
 
       setIsSubmitted(true);
@@ -69,7 +69,7 @@ export default function Contact() {
         email: "",
         phone: "",
         subject: "",
-        message: "",
+        message: ""
       });
     } catch (error: any) {
       console.error("Contact form error:", error);
@@ -83,7 +83,7 @@ export default function Contact() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.value
     }));
   };
 
@@ -147,8 +147,8 @@ export default function Contact() {
                   <CardDescription>Fill out the form below and we'll get back to you within 24 hours.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isSubmitted ? (
-                    <div className="text-center py-8">
+                  {isSubmitted ?
+                  <div className="text-center py-8">
                       <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                         <CheckCircle className="w-8 h-8 text-primary" />
                       </div>
@@ -159,32 +159,32 @@ export default function Contact() {
                       <Button variant="outline" onClick={() => setIsSubmitted(false)}>
                         Send Another Message
                       </Button>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    </div> :
+
+                  <form onSubmit={handleSubmit} className="space-y-6">
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="name">Full Name *</Label>
                           <Input
-                            id="name"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            placeholder="John Doe"
-                            required
-                          />
+                          id="name"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          placeholder="John Doe"
+                          required />
+
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="email">Email Address *</Label>
                           <Input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            placeholder="john@example.com"
-                            required
-                          />
+                          id="email"
+                          name="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          placeholder="john@example.com"
+                          required />
+
                         </div>
                       </div>
 
@@ -192,52 +192,52 @@ export default function Contact() {
                         <div className="space-y-2">
                           <Label htmlFor="phone">Phone Number</Label>
                           <Input
-                            id="phone"
-                            name="phone"
-                            type="tel"
-                            value={formData.phone}
-                            onChange={handleChange}
-                            placeholder="(604) 123-4567"
-                          />
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          placeholder="(604) 123-4567" />
+
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="subject">Subject *</Label>
                           <Input
-                            id="subject"
-                            name="subject"
-                            value={formData.subject}
-                            onChange={handleChange}
-                            placeholder="How can we help?"
-                            required
-                          />
+                          id="subject"
+                          name="subject"
+                          value={formData.subject}
+                          onChange={handleChange}
+                          placeholder="How can we help?"
+                          required />
+
                         </div>
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="message">Message *</Label>
                         <Textarea
-                          id="message"
-                          name="message"
-                          value={formData.message}
-                          onChange={handleChange}
-                          placeholder="Tell us more about your inquiry..."
-                          rows={5}
-                          required
-                        />
+                        id="message"
+                        name="message"
+                        value={formData.message}
+                        onChange={handleChange}
+                        placeholder="Tell us more about your inquiry..."
+                        rows={5}
+                        required />
+
                       </div>
 
                       <Button type="submit" size="lg" disabled={isSubmitting}>
-                        {isSubmitting ? (
-                          "Sending..."
-                        ) : (
-                          <>
+                        {isSubmitting ?
+                      "Sending..." :
+
+                      <>
                             Send Message
                             <Send className="w-4 h-4 ml-2" />
                           </>
-                        )}
+                      }
                       </Button>
                     </form>
-                  )}
+                  }
                 </CardContent>
               </Card>
             </div>
@@ -258,9 +258,9 @@ export default function Contact() {
                       <p className="text-sm text-muted-foreground">Phone</p>
                       <a
                         href="tel:+16041234567"
-                        className="font-medium text-foreground hover:text-primary transition-colors"
-                      >
-                        (604) 123-4567
+                        className="font-medium text-foreground hover:text-primary transition-colors">(604) 763-4242
+
+
                       </a>
                     </div>
                   </div>
@@ -273,8 +273,8 @@ export default function Contact() {
                       <p className="text-sm text-muted-foreground">Email</p>
                       <a
                         href="mailto:info@c2crental.ca"
-                        className="font-medium text-foreground hover:text-primary transition-colors"
-                      >
+                        className="font-medium text-foreground hover:text-primary transition-colors">
+
                         info@c2crental.ca
                       </a>
                     </div>
@@ -298,35 +298,35 @@ export default function Contact() {
                   <CardTitle className="text-base">Our Locations</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {isLoading ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="animate-pulse">
+                  {isLoading ?
+                  <div className="space-y-3">
+                      {[1, 2, 3].map((i) =>
+                    <div key={i} className="animate-pulse">
                           <div className="h-4 bg-muted rounded w-3/4 mb-2" />
                           <div className="h-3 bg-muted rounded w-full" />
                         </div>
-                      ))}
-                    </div>
-                  ) : locations && locations.length > 0 ? (
-                    locations.map((location) => (
-                      <div key={location.id} className="pb-4 border-b last:border-0 last:pb-0">
+                    )}
+                    </div> :
+                  locations && locations.length > 0 ?
+                  locations.map((location) =>
+                  <div key={location.id} className="pb-4 border-b last:border-0 last:pb-0">
                         <div className="flex items-start gap-3">
                           <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                           <div>
                             <p className="font-medium text-foreground text-sm">{location.name}</p>
                             <p className="text-xs text-muted-foreground">{location.address}</p>
-                            {location.phone && (
-                              <a href={`tel:${location.phone}`} className="text-xs text-primary hover:underline">
+                            {location.phone &&
+                        <a href={`tel:${location.phone}`} className="text-xs text-primary hover:underline">
                                 {location.phone}
                               </a>
-                            )}
+                        }
                           </div>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No locations available.</p>
-                  )}
+                  ) :
+
+                  <p className="text-sm text-muted-foreground">No locations available.</p>
+                  }
 
                   <Button asChild variant="outline" size="sm" className="w-full">
                     <Link to="/locations">View All Locations</Link>
@@ -348,33 +348,33 @@ export default function Contact() {
 
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {[
-              {
-                q: "What documents do I need to rent a car?",
-                a: "You'll need a valid driver's license, a credit card, and be at least 20 years old. International visitors may need an International Driving Permit.",
-              },
-              {
-                q: "Can you deliver the car to my location?",
-                a: "Yes! Our new 'Bring Car to Me' service delivers vehicles within 50km of our locations. Select this option during checkout.",
-              },
-              {
-                q: "What's your cancellation policy?",
-                a: "Free cancellation anytime prior to pickup. No-shows (cancellations after pickup time) are subject to a $19.99 CAD fee.",
-              },
-              {
-                q: "Is insurance included?",
-                a: "Third Party insurance is included with all rentals. We offer additional coverage options during the booking process.",
-              },
-            ].map((faq) => (
-              <Card key={faq.q}>
+            {
+              q: "What documents do I need to rent a car?",
+              a: "You'll need a valid driver's license, a credit card, and be at least 20 years old. International visitors may need an International Driving Permit."
+            },
+            {
+              q: "Can you deliver the car to my location?",
+              a: "Yes! Our new 'Bring Car to Me' service delivers vehicles within 50km of our locations. Select this option during checkout."
+            },
+            {
+              q: "What's your cancellation policy?",
+              a: "Free cancellation anytime prior to pickup. No-shows (cancellations after pickup time) are subject to a $19.99 CAD fee."
+            },
+            {
+              q: "Is insurance included?",
+              a: "Third Party insurance is included with all rentals. We offer additional coverage options during the booking process."
+            }].
+            map((faq) =>
+            <Card key={faq.q}>
                 <CardContent className="p-6">
                   <h3 className="font-semibold text-foreground mb-2">{faq.q}</h3>
                   <p className="text-sm text-muted-foreground">{faq.a}</p>
                 </CardContent>
               </Card>
-            ))}
+            )}
           </div>
         </div>
       </section>
-    </CustomerLayout>
-  );
+    </CustomerLayout>);
+
 }
