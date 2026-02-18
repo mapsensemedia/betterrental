@@ -17,8 +17,8 @@ import {
   ACSRCH_DAILY_FEE,
   PST_RATE,
   GST_RATE,
-  PROTECTION_RATES,
 } from "@/lib/pricing";
+import { getProtectionRateForCategory } from "@/lib/protection-groups";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -777,8 +777,9 @@ export default function BookingDetail() {
 
                     {/* Protection plan with cost */}
                     {(() => {
+                      const vehicleCat = booking.vehicles?.category || "";
                       const plan = booking.protection_plan && booking.protection_plan !== "none"
-                        ? PROTECTION_RATES[booking.protection_plan]
+                        ? getProtectionRateForCategory(booking.protection_plan, vehicleCat)
                         : null;
                       const protectionTotal = plan ? plan.rate * booking.total_days : 0;
                       return (
