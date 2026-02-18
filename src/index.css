@@ -28,9 +28,14 @@
     --muted: 0 0% 94%;
     --muted-foreground: 0 0% 45%;
 
-    /* Accent - Subtle blue for highlights */
-    --accent: 220 100% 50%;
+    /* Accent - Premium green #197149 */
+    --accent: 152 58% 19%;
     --accent-foreground: 0 0% 100%;
+
+    /* Luxury accent for hero elements */
+    --luxury-accent: 152 58% 19%;
+    --luxury-accent-light: 152 40% 95%;
+    --luxury-accent-glow: 152 58% 19%;
 
     /* Destructive */
     --destructive: 0 84% 60%;
@@ -88,8 +93,12 @@
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 60%;
 
-    --accent: 220 100% 60%;
+    --accent: 152 58% 25%;
     --accent-foreground: 0 0% 100%;
+
+    --luxury-accent: 152 58% 25%;
+    --luxury-accent-light: 152 40% 12%;
+    --luxury-accent-glow: 152 58% 25%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
@@ -226,6 +235,79 @@
   /* Text gradient */
   .text-gradient {
     @apply bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent;
+  }
+
+  /* Premium hero background */
+  .hero-premium-bg {
+    background: linear-gradient(
+      135deg,
+      hsl(0 0% 99%) 0%,
+      hsl(40 20% 97%) 40%,
+      hsl(0 0% 96%) 100%
+    );
+    position: relative;
+  }
+
+  .hero-premium-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 60% 50% at 20% 50%,
+      hsl(40 30% 96% / 0.8) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  .dark .hero-premium-bg {
+    background: linear-gradient(
+      135deg,
+      hsl(0 0% 8%) 0%,
+      hsl(0 0% 7%) 40%,
+      hsl(0 0% 6%) 100%
+    );
+  }
+
+  .dark .hero-premium-bg::before {
+    background: radial-gradient(
+      ellipse 60% 50% at 20% 50%,
+      hsl(152 20% 10% / 0.3) 0%,
+      transparent 70%
+    );
+  }
+
+  /* Premium search card */
+  .search-card-premium {
+    @apply bg-card/95 backdrop-blur-xl border border-border/60;
+    box-shadow:
+      0 4px 24px -4px rgb(0 0 0 / 0.06),
+      0 1px 3px rgb(0 0 0 / 0.04);
+    border-radius: 1.25rem;
+  }
+
+  /* Premium CTA button */
+  .btn-luxury {
+    background: linear-gradient(135deg, hsl(var(--luxury-accent)), hsl(152 58% 15%));
+    color: white;
+    border-radius: 9999px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 12px -2px hsl(var(--luxury-accent) / 0.35);
+  }
+
+  .btn-luxury:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px -4px hsl(var(--luxury-accent) / 0.45);
+  }
+
+  /* Premium input focus */
+  .input-luxury:focus-within {
+    border-color: hsl(var(--luxury-accent));
+    box-shadow: 0 0 0 3px hsl(var(--luxury-accent) / 0.1);
+  }
+
+  .input-luxury:hover {
+    border-color: hsl(var(--luxury-accent) / 0.4);
   }
 }
 

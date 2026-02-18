@@ -80,17 +80,19 @@ const Index = () => {
   return (
     <CustomerLayout>
       {/* Hero Section */}
-      <section className="bg-background pt-16 pb-16">
-        <div className="container-page">
+      <section className="hero-premium-bg pt-16 pb-16 relative overflow-hidden">
+        <div className="container-page relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Hero Content */}
             <div className="max-w-xl animate-slide-up">
-              <h1 className="heading-1 text-foreground mb-6">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tighter leading-tight text-foreground mb-2">
                 C2C Rental
-                <br />
-                <span className="text-muted-foreground">Car Rental Made Simple</span>
               </h1>
-              <p className="text-lg text-muted-foreground mb-8">
+              <div className="w-16 h-1 rounded-full mb-4" style={{ backgroundColor: '#197149' }} />
+              <p className="text-xl md:text-2xl font-medium text-foreground/80 mb-6 leading-relaxed" style={{ lineHeight: '1.7' }}>
+                Car Rental Made Simple
+              </p>
+              <p className="text-base text-muted-foreground/80 mb-8" style={{ lineHeight: '1.8' }}>
                 Skip the hassle. Rent quality vehicles with transparent pricing,
                 flexible pickup options, and 24/7 support. Your next adventure
                 starts here.
@@ -101,15 +103,16 @@ const Index = () => {
             <div className="relative animate-fade-in animation-delay-200">
               <img
                 src={heroImage}
-                alt="Premium luxury car"
-                className="w-full h-auto rounded-2xl shadow-card object-cover"
+                alt="Premium car rental service"
+                className="w-full h-auto rounded-2xl object-cover drop-shadow-xl"
+                style={{ filter: 'drop-shadow(0 20px 40px rgb(0 0 0 / 0.12))' }}
               />
             </div>
           </div>
 
           {/* Search Card */}
           <div className="mt-12 animate-scale-in animation-delay-300">
-            <RentalSearchCard />
+            <RentalSearchCard className="search-card-premium" />
           </div>
         </div>
       </section>

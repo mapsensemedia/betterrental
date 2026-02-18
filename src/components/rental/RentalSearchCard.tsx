@@ -856,11 +856,11 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
 
         <Button
           onClick={handleSearch}
-          className="h-12 px-8 w-full"
+          className="h-12 px-8 w-full btn-luxury text-base font-semibold"
           variant="default"
         >
           <Search className="w-4 h-4 mr-2" />
-          Search
+          Search Available Vehicles
         </Button>
       </div>
     </div>
