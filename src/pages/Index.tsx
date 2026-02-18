@@ -17,58 +17,49 @@ import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-catego
 import heroImage from "@/assets/hero-c2c.jpg";
 
 // Category display card for homepage
-function CategoryDisplayCard({ category }: {category: FleetCategory;}) {
+function CategoryDisplayCard({ category }: { category: FleetCategory }) {
   return (
-    <Link to="/search" className="block">
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group h-full">
+    <Link to="/search" className="block group">
+      <div className="card-premium overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col">
         {/* Image */}
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          {category.image_url ?
-          <img
-            src={category.image_url}
-            alt={category.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => e.currentTarget.src = '/placeholder.svg'} /> :
-
-
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+          {category.image_url ? (
+            <img
+              src={category.image_url}
+              alt={category.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => (e.currentTarget.src = "/placeholder.svg")}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
               <Car className="w-12 h-12" />
             </div>
-          }
+          )}
         </div>
 
-        <CardContent className="p-4">
+        <div className="p-4 flex flex-col flex-1">
           {/* Title */}
-          <h3 className="font-semibold text-base mb-2 line-clamp-1">{category.name}</h3>
+          <h3 className="font-semibold text-base mb-2 line-clamp-1 text-foreground">{category.name}</h3>
 
           {/* Specs */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-            <div className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" />
-              <span>{category.seats || 5}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Fuel className="w-3.5 h-3.5" />
-              <span>{category.fuel_type || 'Gas'}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Settings2 className="w-3.5 h-3.5" />
-              <span>{category.transmission === 'Automatic' ? 'Auto' : 'Manual'}</span>
-            </div>
+            <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{category.seats || 5}</span>
+            <span className="flex items-center gap-1"><Fuel className="w-3.5 h-3.5" />{category.fuel_type || "Gas"}</span>
+            <span className="flex items-center gap-1"><Settings2 className="w-3.5 h-3.5" />{category.transmission === "Automatic" ? "Auto" : "Manual"}</span>
           </div>
 
           {/* Price */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-auto">
             <div>
-              <span className="text-xl font-bold text-primary">${category.daily_rate}</span>
+              <span className="text-xl font-bold text-foreground">${category.daily_rate}</span>
               <span className="text-xs text-muted-foreground">/day</span>
             </div>
-            <Button size="sm" variant="outline">View</Button>
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-[10px] border border-border bg-secondary text-foreground">View</span>
           </div>
-        </CardContent>
-      </Card>
-    </Link>);
-
+        </div>
+      </div>
+    </Link>
+  );
 }
 
 const Index = () => {
@@ -79,65 +70,86 @@ const Index = () => {
 
   return (
     <CustomerLayout>
-      {/* Hero Section */}
-      <section className="bg-background pt-6 pb-10 md:pt-8 md:pb-16 relative overflow-hidden">
-        <div className="container-page relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+      {/* ── A) HERO SECTION ─────────────────────────────────────── */}
+      <section className="bg-background pt-10 pb-12 md:pt-16 md:pb-20">
+        <div className="container-page">
+          <div className="grid lg:grid-cols-2 gap-10 items-center">
             {/* Hero Content */}
             <div className="max-w-xl animate-slide-up">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-tight text-foreground mb-3">
+              {/* Eyebrow */}
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+                Premium Rentals · Lower Mainland
+              </p>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05] text-foreground mb-2">
                 C2C Rental
               </h1>
-              <div className="w-16 h-1 mb-6" style={{ backgroundColor: '#197149' }} />
-              <p className="text-xl md:text-2xl font-semibold text-foreground/80 mb-4">Pickup or delivery
-
+              {/* Accent underline — brand green, flush to type */}
+              <div className="w-12 h-[3px] mb-6" style={{ backgroundColor: '#197149' }} />
+              <p className="text-lg md:text-xl font-semibold text-foreground/80 mb-3">
+                Pickup or delivery
               </p>
-              <p className="text-base text-muted-foreground/80 mb-8 leading-relaxed">Flexible pickup options, and 24/7 support.
-
-
-
+              <p className="text-base text-muted-foreground leading-relaxed mb-8">
+                Flexible pickup options and 24/7 support across Surrey, Langley & Abbotsford.
               </p>
+              {/* Hero CTAs */}
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to="/search"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-[14px] text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5"
+                  style={{ backgroundColor: '#197149' }}
+                >
+                  Browse Vehicles
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  to="/locations"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-[14px] text-sm font-semibold bg-card border border-border text-foreground transition-all duration-200 hover:bg-secondary"
+                >
+                  Our Locations
+                </Link>
+              </div>
             </div>
 
-            {/* Hero Image */}
-            <div className="relative animate-fade-in animation-delay-200 -my-8">
+            {/* Hero Image — immersive, no clipping */}
+            <div className="relative animate-fade-in animation-delay-200 -my-10 md:-my-16">
               <img
                 src={heroImage}
                 alt="Premium car rental service"
-                className="w-full h-auto object-cover" />
-
+                className="w-full h-auto object-cover"
+              />
             </div>
           </div>
 
-          {/* Search Card */}
-          <div className="mt-12 animate-scale-in animation-delay-300">
+          {/* ── C) BOOKING / SEARCH MODULE ──────────────────────── */}
+          <div className="mt-10 animate-scale-in animation-delay-300">
             <RentalSearchCard className="search-card-premium" />
           </div>
         </div>
       </section>
 
-      {/* Why Choose Section */}
+      {/* ── D) WHY CHOOSE SECTION ──────────────────────────────── */}
       <WhyChooseSection />
 
-      {/* Browse Categories Section */}
-      <section className="py-10 md:py-20 bg-muted">
+      {/* ── E) BROWSE FLEET ────────────────────────────────────── */}
+      <section className="py-10 md:py-20 bg-background">
         <div className="container-page">
           <SectionHeader
             title="Browse Our Fleet"
             action={
-            <Button variant="default" asChild>
-                <Link to="/search">
-                  View all
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Link>
-              </Button>
-            } />
+              <Link
+                to="/search"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold border border-border bg-card text-foreground transition-all duration-200 hover:bg-secondary"
+              >
+                View all
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            }
+          />
 
-          
-          {isLoading ?
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[1, 2, 3, 4].map((i) =>
-            <div key={i} className="rounded-2xl overflow-hidden bg-card">
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="card-premium overflow-hidden">
                   <Skeleton className="h-40 w-full" />
                   <div className="p-4 space-y-2">
                     <Skeleton className="h-5 w-3/4" />
@@ -145,30 +157,30 @@ const Index = () => {
                     <Skeleton className="h-6 w-1/3" />
                   </div>
                 </div>
-            )}
-            </div> :
-          displayCategories.length > 0 ?
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {displayCategories.map((category) =>
-            <CategoryDisplayCard key={category.id} category={category} />
-            )}
-            </div> :
-
-          <div className="text-center py-12 text-muted-foreground">
+              ))}
+            </div>
+          ) : displayCategories.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {displayCategories.map((category) => (
+                <CategoryDisplayCard key={category.id} category={category} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
               <p>No vehicles available at the moment.</p>
             </div>
-          }
+          )}
         </div>
       </section>
 
-      {/* CTA Banner */}
+      {/* ── F) DELIVERY PROMO (CTABanner) ──────────────────────── */}
       <CTABanner />
 
-      {/* Our Locations Section */}
+      {/* ── G) LOCATIONS ───────────────────────────────────────── */}
       <LocationsSection />
 
-    </CustomerLayout>);
-
+    </CustomerLayout>
+  );
 };
 
 export default Index;
