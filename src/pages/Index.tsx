@@ -92,10 +92,10 @@ const Index = () => {
               <p className="text-xl md:text-2xl font-semibold text-foreground/80 mb-4">Pickup or delivery
 
               </p>
-              <p className="text-base text-muted-foreground/80 mb-8 leading-relaxed">
-                Skip the hassle. Rent quality vehicles with transparent pricing,
-                flexible pickup options, and 24/7 support. Your next adventure
-                starts here.
+              <p className="text-base text-muted-foreground/80 mb-8 leading-relaxed">Flexible pickup options, and 24/7 support.
+
+
+
               </p>
             </div>
 
