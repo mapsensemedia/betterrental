@@ -73,9 +73,10 @@ const Index = () => {
       {/* ── A) HERO SECTION ─────────────────────────────────────── */}
       <section className="bg-[#FBFAF8] pt-10 md:pt-16 pb-6 md:pb-10">
         <div className="container-page">
-          <div className="grid lg:grid-cols-2 gap-8 md:gap-10 items-center">
+          {/* On mobile: single column (text then image). On lg+: two-column side-by-side. */}
+          <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-10 lg:items-center">
             {/* Hero Content */}
-            <div className="max-w-xl animate-slide-up">
+            <div className="relative z-10 max-w-xl animate-slide-up">
               {/* Eyebrow */}
               <p className="text-[12px] md:text-[13px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-4">
                 Premium Rentals · Lower Mainland
@@ -92,18 +93,18 @@ const Index = () => {
                 Flexible pickup options and 24/7 support across Surrey, Langley &amp; Abbotsford.
               </p>
               {/* Scroll cue — not clickable */}
-              <p className="text-[13px] md:text-[14px] text-zinc-500 flex items-center gap-2 mt-8 select-none">
+              <p className="text-[13px] md:text-[14px] text-zinc-500 flex items-center gap-2 mt-6 mb-6 leading-tight select-none">
                 Search availability below
-                <ChevronDown className="w-4 h-4 opacity-70 [animation:hero-nudge_1.8s_ease-in-out_infinite]" />
+                <ChevronDown className="w-4 h-4 opacity-70" />
               </p>
             </div>
 
-            {/* Hero Image */}
-            <div className="relative animate-fade-in animation-delay-200 -my-10 md:-my-16">
+            {/* Hero Image — sits below cue on mobile, beside text on desktop */}
+            <div className="relative z-0 block w-full animate-fade-in animation-delay-200">
               <img
                 src={heroImage}
                 alt="Premium car rental service"
-                className="w-full max-h-[260px] md:max-h-none object-contain"
+                className="block w-full max-h-[260px] lg:max-h-none object-contain"
               />
             </div>
           </div>
