@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Users, Fuel, Settings2, Car } from "lucide-react";
+import { ArrowRight, Users, Fuel, Settings2, Car, ShieldCheck, Handshake, Truck } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { CategoryCard } from "@/components/landing/CategoryCard";
@@ -79,40 +79,65 @@ const Index = () => {
 
   return (
     <CustomerLayout>
-      {/* Hero Section */}
-      <section className="hero-premium-bg pt-16 pb-16 relative overflow-hidden">
-        <div className="container-page relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Hero Content */}
-            <div className="max-w-xl animate-slide-up">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tighter leading-tight text-foreground mb-2">
-                C2C Rental
-              </h1>
-              <div className="w-16 h-1 rounded-full mb-4" style={{ backgroundColor: '#197149' }} />
-              <p className="text-xl md:text-2xl font-medium text-foreground/80 mb-6 leading-relaxed" style={{ lineHeight: '1.7' }}>
-                Car Rental Made Simple
-              </p>
-              <p className="text-base text-muted-foreground/80 mb-8" style={{ lineHeight: '1.8' }}>
-                Skip the hassle. Rent quality vehicles with transparent pricing,
-                flexible pickup options, and 24/7 support. Your next adventure
-                starts here.
-              </p>
+      {/* Hero Section - Rolzo-inspired layout */}
+      <section className="hero-premium-bg relative overflow-hidden min-h-[90vh] flex items-center">
+        {/* Faint city skyline decorative element */}
+        <div className="absolute inset-0 pointer-events-none hero-skyline-overlay" />
+        
+        <div className="container-page relative z-10 py-12 lg:py-20">
+          <div className="grid lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] gap-8 lg:gap-12 items-start">
+            
+            {/* Left: Visual storytelling */}
+            <div className="flex flex-col justify-center">
+              {/* Headline */}
+              <div className="animate-slide-up mb-8 lg:mb-10">
+                <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] xl:text-6xl font-extrabold tracking-tight leading-[1.1] text-foreground mb-3">
+                  Car Rental,
+                  <br />
+                  <span className="relative inline-block">
+                    Made Simple.
+                    <span className="absolute -bottom-2 left-0 w-20 h-1 rounded-full" style={{ backgroundColor: '#197149' }} />
+                  </span>
+                </h1>
+                <p className="text-lg md:text-xl text-muted-foreground/70 mt-6 max-w-md" style={{ lineHeight: '1.75' }}>
+                  Premium vehicles. Seamless booking.
+                  <br className="hidden sm:block" />
+                  Delivered to your door.
+                </p>
+              </div>
+
+              {/* Hero vehicle image */}
+              <div className="relative animate-fade-in animation-delay-200 mb-8 lg:mb-10">
+                <img
+                  src={heroImage}
+                  alt="Premium car rental service"
+                  className="w-full max-w-2xl h-auto object-contain"
+                  style={{ filter: 'drop-shadow(0 30px 50px rgb(0 0 0 / 0.10))' }}
+                />
+              </div>
+
+              {/* Micro-feature bullets */}
+              <div className="flex flex-wrap gap-6 md:gap-10 animate-fade-in animation-delay-300">
+                {[
+                  { icon: ShieldCheck, label: "Quality Cars" },
+                  { icon: Handshake, label: "Trusted Deals" },
+                  { icon: Truck, label: "Smooth Delivery" },
+                ].map(({ icon: Icon, label }) => (
+                  <div key={label} className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: 'hsl(152 58% 19% / 0.08)' }}>
+                      <Icon className="w-4.5 h-4.5" style={{ color: '#197149' }} />
+                    </div>
+                    <span className="text-sm font-medium text-foreground/80">{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Hero Image */}
-            <div className="relative animate-fade-in animation-delay-200">
-              <img
-                src={heroImage}
-                alt="Premium car rental service"
-                className="w-full h-auto rounded-2xl object-cover drop-shadow-xl"
-                style={{ filter: 'drop-shadow(0 20px 40px rgb(0 0 0 / 0.12))' }}
-              />
+            {/* Right: Booking card - floating */}
+            <div className="animate-scale-in animation-delay-300 lg:sticky lg:top-24">
+              <RentalSearchCard className="search-card-premium" />
             </div>
-          </div>
 
-          {/* Search Card */}
-          <div className="mt-12 animate-scale-in animation-delay-300">
-            <RentalSearchCard className="search-card-premium" />
           </div>
         </div>
       </section>
