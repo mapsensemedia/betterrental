@@ -8,7 +8,6 @@ import { SectionHeader } from "@/components/landing/SectionHeader";
 import { WhyChooseSection } from "@/components/landing/WhyChooseSection";
 import { CleaningBanner } from "@/components/landing/CleaningBanner";
 import { DeliveryBanner } from "@/components/landing/DeliveryBanner";
-import { CTABanner } from "@/components/landing/CTABanner";
 import { LocationsSection } from "@/components/landing/LocationsSection";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -124,9 +123,6 @@ const Index = () => {
       {/* ── D2) CLEANING BANNER ─────────────────────────────── */}
       <CleaningBanner />
 
-      {/* ── D3) DELIVERY BANNER ─────────────────────────────── */}
-      <DeliveryBanner />
-
       {/* ── E) BROWSE FLEET ────────────────────────────────────── */}
       <section className="py-10 md:py-20 bg-background">
         <div className="container-page">
@@ -170,8 +166,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ── F) DELIVERY PROMO (CTABanner) ──────────────────────── */}
-      <CTABanner />
+      {/* ── F) DELIVERY PROMO ──────────────────────────────────── */}
+      <DeliveryBanner />
 
       {/* ── G) LOCATIONS ───────────────────────────────────────── */}
       <LocationsSection />
