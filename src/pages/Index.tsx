@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Users, Fuel, Settings2, Car } from "lucide-react";
+import { ChevronDown, ArrowRight, Users, Fuel, Settings2, Car } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { CategoryCard } from "@/components/landing/CategoryCard";
@@ -71,51 +71,39 @@ const Index = () => {
   return (
     <CustomerLayout>
       {/* ── A) HERO SECTION ─────────────────────────────────────── */}
-      <section className="bg-background pt-10 pb-12 md:pt-16 md:pb-20">
+      <section className="bg-[#FBFAF8] pt-10 md:pt-16 pb-6 md:pb-10">
         <div className="container-page">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 md:gap-10 items-center">
             {/* Hero Content */}
             <div className="max-w-xl animate-slide-up">
               {/* Eyebrow */}
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+              <p className="text-[12px] md:text-[13px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-4">
                 Premium Rentals · Lower Mainland
               </p>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05] text-foreground mb-2">
+              <h1 className="text-[44px] md:text-[64px] font-semibold tracking-[-0.03em] leading-[1.05] text-zinc-950 mb-2">
                 C2C Rental
               </h1>
-              {/* Accent underline — brand green, flush to type */}
-              <div className="w-12 h-[3px] mb-6" style={{ backgroundColor: '#197149' }} />
-              <p className="text-lg md:text-xl font-semibold text-foreground/80 mb-3">
+              {/* Accent underline */}
+              <div className="w-14 h-[3px] mt-4 mb-6 rounded-full" style={{ backgroundColor: '#197149' }} />
+              <p className="text-[22px] md:text-[28px] font-medium text-zinc-800 mt-8">
                 Pickup or delivery
               </p>
-              <p className="text-base text-muted-foreground leading-relaxed mb-8">
-                Flexible pickup options and 24/7 support across Surrey, Langley & Abbotsford.
+              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">
+                Flexible pickup options and 24/7 support across Surrey, Langley &amp; Abbotsford.
               </p>
-              {/* Hero CTAs */}
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  to="/search"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-[14px] text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5"
-                  style={{ backgroundColor: '#197149' }}
-                >
-                  Browse Vehicles
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link
-                  to="/locations"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-[14px] text-sm font-semibold bg-card border border-border text-foreground transition-all duration-200 hover:bg-secondary"
-                >
-                  Our Locations
-                </Link>
-              </div>
+              {/* Scroll cue — not clickable */}
+              <p className="text-[13px] md:text-[14px] text-zinc-500 flex items-center gap-2 mt-8 select-none">
+                Search availability below
+                <ChevronDown className="w-4 h-4 opacity-70 [animation:hero-nudge_1.8s_ease-in-out_infinite]" />
+              </p>
             </div>
 
-            {/* Hero Image — immersive, no clipping */}
+            {/* Hero Image */}
             <div className="relative animate-fade-in animation-delay-200 -my-10 md:-my-16">
               <img
                 src={heroImage}
                 alt="Premium car rental service"
-                className="w-full h-auto object-cover"
+                className="w-full max-h-[260px] md:max-h-none object-contain"
               />
             </div>
           </div>
