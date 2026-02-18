@@ -20,7 +20,7 @@ import heroImage from "@/assets/hero-c2c.jpg";
 // Category display card for homepage
 function CategoryDisplayCard({ category }: { category: FleetCategory }) {
   return (
-    <Link to="/search" className="block group">
+    <Link to="/search?from=fleet" className="block group">
       <div className="card-premium overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col">
         {/* Image */}
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
@@ -130,7 +130,7 @@ const Index = () => {
             title="Browse Our Fleet"
             action={
               <Link
-                to="/search"
+                to="/search?from=fleet"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold border border-border bg-card text-foreground transition-all duration-200 hover:bg-secondary"
               >
                 View all
