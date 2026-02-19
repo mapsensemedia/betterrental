@@ -90,8 +90,8 @@ const Index = () => {
               <p className="text-zinc-800 mt-8 md:text-xl font-semibold text-lg"> 24/7 Support, Pickup or delivery & Transparent pricing. 
 
               </p>
-              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">
-                Flexible pickup options and 24/7 support across Surrey, Langley &amp; Abbotsford.
+              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">After helping hundreds of renters, we built C2C to remove the friction from car rental.
+
               </p>
               {/* Scroll cue — not clickable */}
               <p className="text-[13px] md:text-[14px] text-zinc-500 flex items-center gap-2 mt-6 mb-6 leading-tight select-none">
