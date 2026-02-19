@@ -14,34 +14,34 @@ interface LocationsSectionProps {
 const LOCATION_MAPS_LINKS: Record<string, string> = {
   "Abbotsford Centre": "https://maps.app.goo.gl/LC1Ua6q2XxcMw2TA9",
   "Langley Centre": "https://maps.app.goo.gl/ToULonCLvQ8Me9Yi7",
-  "Surrey Newton": "https://maps.app.goo.gl/LhWcpkRffqz335hH8",
+  "Surrey Newton": "https://maps.app.goo.gl/LhWcpkRffqz335hH8"
 };
 
 function formatHours(hoursJson: Record<string, string> | null): string {
   if (!hoursJson) return "Hours not available";
-  
+
   const weekdayHours = hoursJson.mon || hoursJson.tue || hoursJson.wed;
   const weekendHours = hoursJson.sat || hoursJson.sun;
-  
+
   if (weekdayHours && weekendHours) {
     return `Mon-Fri: ${weekdayHours}, Sat-Sun: ${weekendHours}`;
   }
   return weekdayHours || weekendHours || "Hours not available";
 }
 
-function LocationCard({ location }: { location: Location }) {
+function LocationCard({ location }: {location: Location;}) {
   const handleGetDirections = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Use specific Google Maps link if available, otherwise fallback to generated URL
     const specificLink = LOCATION_MAPS_LINKS[location.name];
     const url = specificLink || (
-      location.lat && location.lng
-        ? `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`
-        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`
-    );
-    
+    location.lat && location.lng ?
+    `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}` :
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`);
+
+
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -68,16 +68,16 @@ function LocationCard({ location }: { location: Location }) {
               type="button"
               onClick={handleGetDirections}
               onTouchEnd={handleGetDirections}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[14px] text-xs font-semibold border border-border bg-card text-foreground transition-all duration-200 hover:bg-secondary min-h-[36px]"
-            >
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[14px] text-xs font-semibold border border-border bg-card text-foreground transition-all duration-200 hover:bg-secondary min-h-[36px]">
+
               <Navigation className="w-3.5 h-3.5" />
               Get Directions
             </button>
           </div>
         </div>
       </CardContent>
-    </Card>
-  );
+    </Card>);
+
 }
 
 export function LocationsSection({ className }: LocationsSectionProps) {
@@ -95,10 +95,10 @@ export function LocationsSection({ className }: LocationsSectionProps) {
         </div>
 
         {/* Location Cards Grid */}
-        {isLoading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="border border-border">
+        {isLoading ?
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3].map((i) =>
+          <Card key={i} className="border border-border">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <Skeleton className="w-10 h-10 rounded-xl" />
@@ -111,34 +111,34 @@ export function LocationsSection({ className }: LocationsSectionProps) {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        ) : locations && locations.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {locations.map((location) => (
-              <LocationCard key={location.id} location={location} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-muted-foreground">
+          )}
+          </div> :
+        locations && locations.length > 0 ?
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {locations.map((location) =>
+          <LocationCard key={location.id} location={location} />
+          )}
+          </div> :
+
+        <div className="text-center py-12 text-muted-foreground">
             <MapPin className="w-12 h-12 mx-auto mb-4 opacity-40" />
             <p>No locations available at the moment.</p>
           </div>
-        )}
+        }
 
         {/* View All CTA */}
-        {locations && locations.length > 0 && (
-          <div className="mt-8">
+        {locations && locations.length > 0 &&
+        <div className="mt-8">
             <Link
-              to="/locations"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-[14px] text-sm font-semibold border border-border bg-card text-foreground transition-all duration-200 hover:bg-secondary"
-            >
+            to="/locations"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-[14px] text-sm font-semibold border border-border transition-all duration-200 bg-accent text-primary-foreground">
+
               View All Locations
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-        )}
+        }
       </div>
-    </section>
-  );
+    </section>);
+
 }

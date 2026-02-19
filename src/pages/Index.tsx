@@ -131,7 +131,7 @@ const Index = () => {
             action={
             <Link
               to="/search?from=fleet"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold border border-border bg-card text-foreground transition-all duration-200 hover:bg-secondary">
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold border border-border transition-all duration-200 bg-accent text-primary-foreground">
 
                 View all
                 <ArrowRight className="w-4 h-4" />
