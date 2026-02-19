@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, MapPin } from "lucide-react";
+import { Mail, MapPin, Instagram, Facebook } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import c2cLogo from "@/assets/c2c-logo-footer.png";
@@ -77,7 +77,27 @@ export function Footer() {
         {/* Copyright */}
         <div className="mt-6 pt-6 border-t border-background/8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-background/35">
           <p>© {new Date().getFullYear()} C2C Rental. All rights reserved.</p>
-          <div className="flex gap-6">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+              <a
+                href="https://www.instagram.com/c2c.rental/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="text-background/45 hover:text-[#197149] transition-colors duration-200"
+              >
+                <Instagram className="w-5 h-5" />
+              </a>
+              <a
+                href="https://www.facebook.com/people/C2C-Rental/61587985570949/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="text-background/45 hover:text-[#197149] transition-colors duration-200"
+              >
+                <Facebook className="w-5 h-5" />
+              </a>
+            </div>
             <Link to="/terms" className="hover:text-background/70 transition-colors duration-200">Terms</Link>
             <Link to="/privacy" className="hover:text-background/70 transition-colors duration-200">Privacy</Link>
             <Link to="/legal" className="hover:text-background/70 transition-colors duration-200">Legal</Link>
