@@ -87,7 +87,7 @@ const Index = () => {
               </h1>
               {/* Accent underline */}
               <div className="w-14 h-[3px] mt-4 mb-6 rounded-full" style={{ backgroundColor: '#197149' }} />
-              <p className="text-zinc-800 mt-8 md:text-xl font-semibold text-lg"> 24/7 Support, Pickup or delivery & Transparent pricing. 
+              <p className="text-zinc-800 mt-8 md:text-xl font-semibold text-lg">24/7 Support, Pickup or delivery & Transparent pricing. 
 
               </p>
               <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">After helping hundreds of renters, we built C2C to remove the friction from car rental.
@@ -103,9 +103,9 @@ const Index = () => {
             {/* Hero Image — sits below cue on mobile, beside text on desktop */}
             <div className="relative z-0 block w-full animate-fade-in animation-delay-200">
               <img
-                src={heroImage}
+
                 alt="Premium car rental service"
-                className="block w-full max-h-[260px] lg:max-h-none object-contain" />
+                className="block w-full max-h-[260px] lg:max-h-none object-cover rounded-lg" src="/lovable-uploads/ae30751c-fe6d-4959-839f-3ebc3decea01.png" />
 
             </div>
           </div>
