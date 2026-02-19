@@ -87,11 +87,11 @@ const Index = () => {
               </h1>
               {/* Accent underline */}
               <div className="w-14 h-[3px] mt-4 mb-6 rounded-full" style={{ backgroundColor: '#197149' }} />
-              <p className="text-[22px] md:text-[28px] font-medium text-zinc-800 mt-8">
-                Pickup or delivery
-              </p>
-              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">After helping hundreds of renters, we built C2C to remove the friction from car rental.
+              <p className="text-[22px] md:text-[28px] font-medium text-zinc-800 mt-8">Pickup or delivery, 24/7 Support
 
+              </p>
+              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">
+                Flexible pickup options and 24/7 support across Surrey, Langley &amp; Abbotsford.
               </p>
               {/* Scroll cue — not clickable */}
               <p className="text-[13px] md:text-[14px] text-zinc-500 flex items-center gap-2 mt-6 mb-6 leading-tight select-none">
