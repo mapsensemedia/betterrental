@@ -42,7 +42,7 @@ export function TopNav() {
         <nav className="flex items-center justify-between h-16 md:h-[72px]" aria-label="Primary">
           {/* Logo */}
           <Link to="/" className="flex items-center" aria-label="C2C Rental home">
-            <img src={c2cLogo} alt="C2C Rental" className="h-7 md:h-8 w-auto" />
+            <img src={c2cLogo} alt="C2C Rental" className="h-9 md:h-10 w-auto" />
           </Link>
 
           {/* Desktop Navigation - Hidden on tablet, show on lg+ */}
