@@ -378,16 +378,10 @@ export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCa
               onBlur={handleManualAddressBlur}
               placeholder="Enter your full delivery address"
             />
-            {deliveryCoords && deliveryAddress && (
-              <div className="flex items-start gap-2 mt-2">
-                <MapPin className="w-4 h-4 text-success shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground line-clamp-2">{deliveryAddress}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {searchData.deliveryDistanceKm?.toFixed(1)}km from {searchData.closestPickupCenterName}
-                  </p>
-                </div>
-              </div>
+            {deliveryCoords && deliveryAddress && searchData.deliveryDistanceKm != null && (
+              <p className="text-xs text-muted-foreground mt-1 pl-10">
+                {searchData.deliveryDistanceKm.toFixed(1)}km from {searchData.closestPickupCenterName}
+              </p>
             )}
           </div>
 
