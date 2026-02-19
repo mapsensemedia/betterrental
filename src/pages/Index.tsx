@@ -87,7 +87,7 @@ const Index = () => {
               </h1>
               {/* Accent underline */}
               <div className="w-14 h-[3px] mt-4 mb-6 rounded-full" style={{ backgroundColor: '#197149' }} />
-              <p className="text-[22px] text-zinc-800 mt-8 md:text-xl font-semibold"> 24/7 Support, Pickup or delivery, Transparent pricing. 
+              <p className="text-zinc-800 mt-8 md:text-xl font-semibold text-lg"> 24/7 Support, Pickup or delivery, Transparent pricing. 
 
               </p>
               <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">
