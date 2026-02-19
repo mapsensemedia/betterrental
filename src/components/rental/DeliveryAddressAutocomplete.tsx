@@ -165,12 +165,6 @@ export function DeliveryAddressAutocomplete({
         {isSearching && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
         )}
-        {/* Full address display below input for long addresses */}
-        {value && value.length > 40 && (
-          <div className="mt-1 text-xs text-muted-foreground px-1 break-words">
-            {value}
-          </div>
-        )}
       </div>
 
       {/* Suggestions dropdown */}
@@ -196,10 +190,11 @@ export function DeliveryAddressAutocomplete({
         </div>
       )}
 
-      {/* Helper text */}
-      <p className="mt-1 text-xs text-muted-foreground">
-        Start typing and select from suggestions, or enter full address manually
-      </p>
+      {!showSuggestions && !value && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Start typing and select from suggestions, or enter full address manually
+        </p>
+      )}
     </div>
   );
 }
