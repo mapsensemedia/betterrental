@@ -66,6 +66,7 @@ const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
 const AdminVendors = lazy(() => import("./pages/admin/Vendors"));
 const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 const BookingDebug = lazy(() => import("./pages/admin/BookingDebug"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 // Support Panel Pages - lazy loaded with separate route protection
 const SupportTickets = lazy(() => import("./pages/support/SupportTickets"));
@@ -147,6 +148,8 @@ const App = () => (
                 {/* Redirect my-booking to dashboard */}
                 <Route path="/my-booking" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/my-booking/:bookingCode" element={<Navigate to="/dashboard" replace />} />
+
+                <Route path="/terms" element={<Terms />} />
 
                 {/* Redirects for removed vehicle detail pages */}
                 <Route path="/vehicle/:id" element={<Navigate to="/search" replace />} />
