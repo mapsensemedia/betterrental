@@ -15,27 +15,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
 
 // Images
-import heroImage from "@/assets/hero-c2c.png";
+import heroImage from "@/assets/hero-c2c.jpg";
 
 // Category display card for homepage
-function CategoryDisplayCard({ category }: { category: FleetCategory }) {
+function CategoryDisplayCard({ category }: {category: FleetCategory;}) {
   return (
     <Link to="/search?from=fleet" className="block group">
       <div className="card-premium overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col">
         {/* Image */}
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          {category.image_url ? (
-            <img
-              src={category.image_url}
-              alt={category.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={(e) => (e.currentTarget.src = "/placeholder.svg")}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+          {category.image_url ?
+          <img
+            src={category.image_url}
+            alt={category.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => e.currentTarget.src = "/placeholder.svg"} /> :
+
+
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
               <Car className="w-12 h-12" />
             </div>
-          )}
+          }
         </div>
 
         <div className="p-4 flex flex-col flex-1">
@@ -59,8 +59,8 @@ function CategoryDisplayCard({ category }: { category: FleetCategory }) {
           </div>
         </div>
       </div>
-    </Link>
-  );
+    </Link>);
+
 }
 
 const Index = () => {
@@ -90,8 +90,8 @@ const Index = () => {
               <p className="text-[22px] md:text-[28px] font-medium text-zinc-800 mt-8">
                 Pickup or delivery
               </p>
-              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">
-                Flexible pickup options and 24/7 support across Surrey, Langley &amp; Abbotsford.
+              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">After helping hundreds of renters, we built C2C to remove the friction from car rental.
+
               </p>
               {/* Scroll cue — not clickable */}
               <p className="text-[13px] md:text-[14px] text-zinc-500 flex items-center gap-2 mt-6 mb-6 leading-tight select-none">
@@ -105,8 +105,8 @@ const Index = () => {
               <img
                 src={heroImage}
                 alt="Premium car rental service"
-                className="block w-full max-h-[260px] lg:max-h-none object-contain rounded-2xl border border-border/40 shadow-sm"
-              />
+                className="block w-full max-h-[260px] lg:max-h-none object-contain" />
+
             </div>
           </div>
 
@@ -129,20 +129,20 @@ const Index = () => {
           <SectionHeader
             title="Browse Our Fleet"
             action={
-              <Link
-                to="/search?from=fleet"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold border border-border bg-card text-foreground transition-all duration-200 hover:bg-secondary"
-              >
+            <Link
+              to="/search?from=fleet"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold border border-border bg-card text-foreground transition-all duration-200 hover:bg-secondary">
+
                 View all
                 <ArrowRight className="w-4 h-4" />
               </Link>
-            }
-          />
+            } />
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="card-premium overflow-hidden">
+
+          {isLoading ?
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {[1, 2, 3, 4].map((i) =>
+            <div key={i} className="card-premium overflow-hidden">
                   <Skeleton className="h-40 w-full" />
                   <div className="p-4 space-y-2">
                     <Skeleton className="h-5 w-3/4" />
@@ -150,19 +150,19 @@ const Index = () => {
                     <Skeleton className="h-6 w-1/3" />
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : displayCategories.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {displayCategories.map((category) => (
-                <CategoryDisplayCard key={category.id} category={category} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
+            )}
+            </div> :
+          displayCategories.length > 0 ?
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {displayCategories.map((category) =>
+            <CategoryDisplayCard key={category.id} category={category} />
+            )}
+            </div> :
+
+          <div className="text-center py-12 text-muted-foreground">
               <p>No vehicles available at the moment.</p>
             </div>
-          )}
+          }
         </div>
       </section>
 
@@ -172,8 +172,8 @@ const Index = () => {
       {/* ── G) LOCATIONS ───────────────────────────────────────── */}
       <LocationsSection />
 
-    </CustomerLayout>
-  );
+    </CustomerLayout>);
+
 };
 
 export default Index;
