@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
 
 // Images
-import heroImage from "@/assets/hero-c2c.jpg";
+import heroImage from "@/assets/hero-c2c.png";
 
 // Category display card for homepage
 function CategoryDisplayCard({ category }: { category: FleetCategory }) {
@@ -105,7 +105,7 @@ const Index = () => {
               <img
                 src={heroImage}
                 alt="Premium car rental service"
-                className="block w-full max-h-[260px] lg:max-h-none object-contain"
+                className="block w-full max-h-[260px] lg:max-h-none object-contain rounded-2xl border border-border/40 shadow-sm"
               />
             </div>
           </div>
