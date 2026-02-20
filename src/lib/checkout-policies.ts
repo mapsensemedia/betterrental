@@ -5,9 +5,9 @@
 
 export const CANCELLATION_POLICY = {
   title: "Cancellation Policy",
-  content: `Free cancellation is available anytime prior to the scheduled pickup time. Cancellations made after the pickup time (no-show) will be subject to a flat fee of CAD $19.99. A valid credit card must be presented at the time of rental to complete the reservation.`,
-  noShowFee: 19.99,
-  cancellationFee: 19.99,
+  content: `Free cancellation is available anytime prior to the scheduled pickup time. Late cancellations (after pickup time) or no-shows will be charged one full day rental rate based on the booked vehicle category. A valid credit card must be presented at the time of rental to complete the reservation.`,
+  // Toggle is_active to re-enable fixed fee later
+  // Fee is now dynamic: 1 × daily_rate of the booked vehicle category
 };
 
 export const PICKUP_REQUIREMENTS = {

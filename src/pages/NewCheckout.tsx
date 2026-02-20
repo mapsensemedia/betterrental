@@ -832,7 +832,7 @@ export default function NewCheckout() {
                   {paymentMethod === "pay-later" && searchData.deliveryMode !== "delivery" && (
                     <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                       <p className="text-xs text-amber-700 dark:text-amber-400">
-                        <strong>Note:</strong> A valid credit card is required. A $19.99 CAD fee applies for no-shows or late cancellations.
+                        <strong>Note:</strong> A valid credit card is required. Late cancellations (after pickup time) or no-shows are charged one full day rental rate for the booked vehicle category.
                       </p>
                     </div>
                   )}
@@ -1121,7 +1121,7 @@ export default function NewCheckout() {
                   </p>
                   <ul className="list-disc pl-4 space-y-1">
                     <li>Free cancellation anytime prior to the scheduled pickup time</li>
-                    <li>No-show fee: ${CANCELLATION_POLICY.cancellationFee.toFixed(2)} CAD if cancelled after pickup time</li>
+                    <li>Late cancellations (after pickup time) or no-shows are charged one full day rental rate for the booked vehicle category</li>
                     <li>A valid credit card (not debit) must be presented at pickup</li>
                     <li>You are legally responsible for any damages caused during the rental period</li>
                   </ul>
