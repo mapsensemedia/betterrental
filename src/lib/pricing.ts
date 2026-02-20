@@ -18,7 +18,7 @@ export const PVRT_DAILY_FEE = 1.50; // Passenger Vehicle Rental Tax
 export const ACSRCH_DAILY_FEE = 1.00; // Airport Concession/Surcharge
 
 // ========== WEEKEND PRICING ==========
-export const WEEKEND_SURCHARGE_RATE = 0.15; // 15% weekend surcharge (Fri-Sun pickups)
+export const WEEKEND_SURCHARGE_RATE = 0.15; // 15% weekend surcharge per weekend day (Fri/Sat/Sun)
 
 // ========== DURATION DISCOUNTS ==========
 export const WEEKLY_DISCOUNT_THRESHOLD = 7; // Days for weekly discount
@@ -98,7 +98,8 @@ export interface PricingInput {
   deliveryFee?: number;
   differentDropoffFee?: number;
   driverAgeBand?: DriverAgeBand | null;
-  pickupDate?: Date | null; // For weekend pricing detection
+  pickupDate?: Date | null; // Start date for weekend day counting
+  returnDate?: Date | null; // End date for weekend day counting
   lateFeeAmount?: number; // For return calculations
 }
 
@@ -271,10 +272,33 @@ export function formatCADCompact(amount: number): string {
 /**
  * Check if a date falls on a weekend (Friday, Saturday, or Sunday)
  */
-export function isWeekendPickup(date: Date | null | undefined): boolean {
-  if (!date) return false;
+export function isWeekendDay(date: Date): boolean {
   const day = date.getDay();
   return day === 5 || day === 6 || day === 0; // Fri, Sat, Sun
+}
+
+/** @deprecated Use countWeekendDays instead */
+export function isWeekendPickup(date: Date | null | undefined): boolean {
+  if (!date) return false;
+  return isWeekendDay(date);
+}
+
+/**
+ * Count the number of weekend days (Fri/Sat/Sun) within a rental date range.
+ * Each rental day is the check-in date; the range is [pickupDate, pickupDate + rentalDays - 1].
+ * Falls back to pickup-only check if returnDate not provided.
+ */
+export function countWeekendDays(
+  pickupDate: Date | null | undefined,
+  rentalDays: number,
+): number {
+  if (!pickupDate || rentalDays <= 0) return 0;
+  let count = 0;
+  for (let i = 0; i < rentalDays; i++) {
+    const d = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate() + i);
+    if (isWeekendDay(d)) count++;
+  }
+  return count;
 }
 
 /**
@@ -333,9 +357,10 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
   // Base vehicle cost
   const vehicleBaseTotal = vehicleDailyRate * rentalDays;
   
-  // Weekend surcharge (applied to vehicle rental only)
-  const weekendSurcharge = isWeekendPickup(pickupDate) 
-    ? vehicleBaseTotal * WEEKEND_SURCHARGE_RATE 
+  // Weekend surcharge: applied per weekend day (Fri/Sat/Sun) in the rental range
+  const weekendDayCount = countWeekendDays(pickupDate, rentalDays);
+  const weekendSurcharge = weekendDayCount > 0
+    ? Math.round(vehicleDailyRate * weekendDayCount * WEEKEND_SURCHARGE_RATE * 100) / 100
     : 0;
   
   // Duration discount (applied after weekend surcharge)

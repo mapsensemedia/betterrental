@@ -10,7 +10,7 @@ graph TD
 
         CBT --> Duration["1. Duration<br/>days = ceil(diff / 86400000)"]
         Duration --> BaseRate["2. Base Rate<br/>dailyRate × days (from DB)"]
-        BaseRate --> Weekend["3. Weekend Surcharge<br/>Fri/Sat/Sun pickup → +15%"]
+        BaseRate --> Weekend["3. Weekend Surcharge<br/>Per-day: count Fri/Sat/Sun in range × 15%"]
         Weekend --> DurationDisc["4. Duration Discount<br/>≥21d → 20%, ≥7d → 10%"]
         DurationDisc --> Protection["5. Protection<br/>system_settings rate × days"]
         Protection --> AddOns["6. Add-Ons<br/>(daily × days × qty) + (one_time × qty)<br/>Filter roadside if premium"]

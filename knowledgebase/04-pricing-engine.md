@@ -45,11 +45,12 @@ dailyRate = vehicles.daily_rate   (from DB, NOT from client)
 vehicleBaseTotal = dailyRate × days
 ```
 
-### 3. Weekend Surcharge
+### 3. Weekend Surcharge (Per-Day)
 ```
-if pickup day is Fri/Sat/Sun (UTC):
-  weekendSurcharge = vehicleBaseTotal × 0.15
+weekendDayCount = count of Fri/Sat/Sun days in [startDate, startDate + days - 1]
+weekendSurcharge = dailyRate × weekendDayCount × 0.15
 ```
+Applied only to weekend days within the range, not the entire booking.
 
 ### 4. Duration Discount
 ```
@@ -166,7 +167,7 @@ GST_RATE = 0.05
 PVRT_DAILY_FEE = 1.50
 ACSRCH_DAILY_FEE = 1.00
 YOUNG_DRIVER_FEE = 15
-WEEKEND_SURCHARGE_RATE = 0.15
+WEEKEND_SURCHARGE_RATE = 0.15 (per weekend day, not entire booking)
 WEEKLY_DISCOUNT_THRESHOLD = 7 → 10%
 MONTHLY_DISCOUNT_THRESHOLD = 21 → 20%
 ```
