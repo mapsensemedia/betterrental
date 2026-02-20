@@ -98,9 +98,9 @@ export function Footer() {
                 <Facebook className="w-5 h-5" />
               </a>
             </div>
-            <Link to="/terms" className="hover:text-background/70 transition-colors duration-200">Terms</Link>
-            <Link to="/privacy" className="hover:text-background/70 transition-colors duration-200">Privacy</Link>
-            <Link to="/legal" className="hover:text-background/70 transition-colors duration-200">Legal</Link>
+            <a href="/documents/terms-and-conditions.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-background/70 transition-colors duration-200">Terms</a>
+            <a href="/documents/terms-and-conditions.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-background/70 transition-colors duration-200">Privacy</a>
+            <a href="/documents/rental-agreement.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-background/70 transition-colors duration-200">Legal</a>
           </div>
         </div>
       </div>

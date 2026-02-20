@@ -66,8 +66,9 @@ const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
 const AdminVendors = lazy(() => import("./pages/admin/Vendors"));
 const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 const BookingDebug = lazy(() => import("./pages/admin/BookingDebug"));
-const Terms = lazy(() => import("./pages/Terms"));
-const Legal = lazy(() => import("./pages/Legal"));
+const Terms = lazy(() => import("./pages/PdfViewerPage").then(m => ({ default: m.Terms })));
+const Legal = lazy(() => import("./pages/PdfViewerPage").then(m => ({ default: m.Legal })));
+const Privacy = lazy(() => import("./pages/PdfViewerPage").then(m => ({ default: m.Privacy })));
 
 // Support Panel Pages - lazy loaded with separate route protection
 const SupportTickets = lazy(() => import("./pages/support/SupportTickets"));
@@ -152,6 +153,7 @@ const App = () => (
 
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/legal" element={<Legal />} />
+                <Route path="/privacy" element={<Privacy />} />
 
                 {/* Redirects for removed vehicle detail pages */}
                 <Route path="/vehicle/:id" element={<Navigate to="/search" replace />} />
