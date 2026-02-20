@@ -1,34 +1,48 @@
 /**
- * PriceTooltip - Reusable tooltip for price line items
- * Provides contextual help text explaining each charge
+ * PriceTooltip - Reusable info popover for price line items.
+ * Works on both desktop (hover/click) and mobile (tap).
+ * Uses Popover instead of Tooltip so touch events open/close it correctly.
  */
 import { Info } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface PriceTooltipProps {
-  content: string;
+  /** Plain string content shown in the popover body. */
+  content?: string;
+  /** Optional rich JSX content (overrides `content`). */
+  children?: React.ReactNode;
 }
 
-export function PriceTooltip({ content }: PriceTooltipProps) {
+export function PriceTooltip({ content, children }: PriceTooltipProps) {
   return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Info className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-muted-foreground cursor-help inline-block ml-1 shrink-0" />
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="max-w-[260px] text-xs leading-relaxed normal-case bg-popover text-popover-foreground border border-border shadow-md z-50"
+    <Popover>
+      <PopoverTrigger asChild>
+        {/* min-w/h ensures a 44px-ish tap target on mobile */}
+        <button
+          type="button"
+          aria-label="More information"
+          className="inline-flex items-center justify-center ml-1 shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          style={{ minWidth: 28, minHeight: 28 }}
         >
-          {content}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+          <Info className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        sideOffset={6}
+        className="max-w-[280px] text-xs leading-relaxed normal-case bg-popover text-popover-foreground border border-border shadow-lg z-[9999] p-3"
+        // Stop clicks inside the popover from propagating and accidentally
+        // triggering parent buttons/links (important in checkout flow).
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children ?? content}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -38,7 +52,7 @@ export function PriceTooltip({ content }: PriceTooltipProps) {
  */
 export const PRICE_TOOLTIPS = {
   vehicleRental: "Base rental charge calculated as daily rate × number of rental days.",
-  weekendSurcharge: "A 15% surcharge applies for rentals picked up on Friday, Saturday, or Sunday.",
+  weekendSurcharge: "A 15% surcharge applies for each Friday, Saturday, or Sunday within your rental range.",
   weeklyDiscount: "A 10% discount is applied for rentals of 7 days or longer.",
   monthlyDiscount: "A 20% discount is applied for rentals of 21 days or longer.",
   protection: (name: string) =>
