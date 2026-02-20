@@ -319,7 +319,7 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
       {/* Tax — single DB-driven line */}
       {dbTaxCents > 0 && (
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Tax (PST+GST)</span>
+          <span className="text-muted-foreground">Tax (12%)</span>
           <span>${fromCents(dbTaxCents)}</span>
         </div>
       )}

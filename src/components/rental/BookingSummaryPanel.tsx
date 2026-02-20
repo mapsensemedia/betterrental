@@ -458,17 +458,24 @@ export function BookingSummaryPanel({
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground flex items-center">
                   Tax ({(TOTAL_TAX_RATE * 100).toFixed(0)}%)
-                  <PriceTooltip content={PRICE_TOOLTIPS.totalTax} />
+                  <PriceTooltip>
+                    <div className="space-y-1">
+                      <div className="flex justify-between gap-4">
+                        <span>PST (7%)</span>
+                        <span className="font-medium">${pricing.pstAmount.toFixed(2)} CAD</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span>GST (5%)</span>
+                        <span className="font-medium">${pricing.gstAmount.toFixed(2)} CAD</span>
+                      </div>
+                      <div className="flex justify-between gap-4 border-t border-border pt-1 font-semibold">
+                        <span>Total (12%)</span>
+                        <span>${pricing.taxAmount.toFixed(2)} CAD</span>
+                      </div>
+                    </div>
+                  </PriceTooltip>
                 </span>
                 <span>${pricing.taxAmount.toFixed(2)} CAD</span>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground pl-4">
-                <span>PST (7%)</span>
-                <span>${pricing.pstAmount.toFixed(2)} CAD</span>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground pl-4">
-                <span>GST (5%)</span>
-                <span>${pricing.gstAmount.toFixed(2)} CAD</span>
               </div>
               
               <Separator className="my-2" />
