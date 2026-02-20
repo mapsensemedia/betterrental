@@ -404,10 +404,24 @@ export async function computeDropoffFee(
 
 // ========== SERVER-SIDE PRICING ==========
 
-function isWeekendPickup(dateStr: string): boolean {
-  const d = new Date(dateStr);
+function isWeekendDay(d: Date): boolean {
   const day = d.getUTCDay();
   return day === 5 || day === 6 || day === 0;
+}
+
+/**
+ * Count weekend days (Fri/Sat/Sun) in a rental range using UTC dates.
+ * Range: [startDate, startDate + days - 1] (each rental day).
+ */
+function countWeekendDaysInRange(startDateStr: string, days: number): number {
+  const sd = startDateStr.length === 10 ? startDateStr : startDateStr.substring(0, 10);
+  const startMs = Date.UTC(+sd.slice(0,4), +sd.slice(5,7)-1, +sd.slice(8,10));
+  let count = 0;
+  for (let i = 0; i < days; i++) {
+    const d = new Date(startMs + i * 86400000);
+    if (isWeekendDay(d)) count++;
+  }
+  return count;
 }
 
 function getDurationDiscount(days: number): number {
@@ -476,8 +490,9 @@ export async function computeBookingTotals(input: {
 
   // 3) Vehicle total with weekend surcharge + duration discount
   const vehicleBaseTotal = roundCents(dailyRate * days);
-  const weekendSurcharge = isWeekendPickup(input.startAt)
-    ? roundCents(vehicleBaseTotal * WEEKEND_SURCHARGE_RATE)
+  const weekendDayCount = countWeekendDaysInRange(input.startAt, days);
+  const weekendSurcharge = weekendDayCount > 0
+    ? roundCents(dailyRate * weekendDayCount * WEEKEND_SURCHARGE_RATE)
     : 0;
   const afterSurcharge = roundCents(vehicleBaseTotal + weekendSurcharge);
   const discountRate = getDurationDiscount(days);
