@@ -1,0 +1,8 @@
+# Serve PDFs inline so browsers open them natively (no "Save as" / "Open with" prompt)
+# Accept-Ranges enables iOS Safari to paginate multi-page PDFs correctly
+
+/documents/*.pdf
+  Content-Type: application/pdf
+  Content-Disposition: inline
+  Accept-Ranges: bytes
+  Cache-Control: public, max-age=86400

@@ -1135,9 +1135,9 @@ export default function NewCheckout() {
                   />
                   <Label htmlFor="termsAccepted" className="text-sm cursor-pointer">
                     I have read and accept the{" "}
-                    <Link to="/terms" className="text-primary underline">Rental Information</Link>, the{" "}
-                    <Link to="/terms" className="text-primary underline">Terms and Conditions</Link>, and the{" "}
-                    <Link to="/privacy" className="text-primary underline">Privacy Policy</Link>.
+                    <a href="/documents/terms-and-conditions.pdf" target="_blank" rel="noopener noreferrer" className="text-primary underline">Rental Information</a>, the{" "}
+                    <a href="/documents/terms-and-conditions.pdf" target="_blank" rel="noopener noreferrer" className="text-primary underline">Terms and Conditions</a>, and the{" "}
+                    <a href="/documents/terms-and-conditions.pdf" target="_blank" rel="noopener noreferrer" className="text-primary underline">Privacy Policy</a>.
                     I acknowledge my liability for any damages caused during the rental period.
                   </Label>
                 </div>
