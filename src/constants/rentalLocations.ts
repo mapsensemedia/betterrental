@@ -9,6 +9,8 @@ export interface RentalLocation {
   city: string;
   lat: number;
   lng: number;
+  /** Toggle to true to re-enable a location for customers */
+  isActive: boolean;
 }
 
 export const RENTAL_LOCATIONS: RentalLocation[] = [
@@ -19,6 +21,7 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
     city: "Surrey",
     lat: 49.1280,
     lng: -122.8465,
+    isActive: true, // Toggle to true to re-enable this location
   },
   {
     id: "a1b2c3d4-2222-4000-8000-000000000002",
@@ -27,6 +30,7 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
     city: "Langley",
     lat: 49.1042,
     lng: -122.6604,
+    isActive: false, // Toggle to true to re-enable this location
   },
   {
     id: "a1b2c3d4-3333-4000-8000-000000000003",
@@ -35,8 +39,15 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
     city: "Abbotsford",
     lat: 49.0504,
     lng: -122.3045,
+    isActive: false, // Toggle to true to re-enable this location
   },
 ];
+
+/**
+ * Active (customer-visible) locations only.
+ * Toggle isActive on any entry above to re-enable it.
+ */
+export const ACTIVE_RENTAL_LOCATIONS = RENTAL_LOCATIONS.filter((loc) => loc.isActive);
 
 /**
  * Get a location by ID
@@ -74,10 +85,12 @@ export function findClosestLocation(
   lat: number,
   lng: number
 ): { location: RentalLocation; distanceKm: number } {
-  let closest = RENTAL_LOCATIONS[0];
+  // Only consider active (customer-visible) locations as delivery origins
+  const candidates = ACTIVE_RENTAL_LOCATIONS.length > 0 ? ACTIVE_RENTAL_LOCATIONS : RENTAL_LOCATIONS;
+  let closest = candidates[0];
   let minDistance = haversineDistance(lat, lng, closest.lat, closest.lng);
 
-  for (const loc of RENTAL_LOCATIONS.slice(1)) {
+  for (const loc of candidates.slice(1)) {
     const dist = haversineDistance(lat, lng, loc.lat, loc.lng);
     if (dist < minDistance) {
       minDistance = dist;

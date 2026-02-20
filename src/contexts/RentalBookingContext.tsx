@@ -3,7 +3,7 @@
  * Persists all search and selection data across pages
  */
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { RENTAL_LOCATIONS, getLocationById, RentalLocation } from "@/constants/rentalLocations";
+import { RENTAL_LOCATIONS, ACTIVE_RENTAL_LOCATIONS, getLocationById, RentalLocation } from "@/constants/rentalLocations";
 import { MAX_RENTAL_DAYS, MIN_RENTAL_DAYS, calculateDeliveryFee, MAX_DELIVERY_DISTANCE_KM } from "@/lib/rental-rules";
 import type { DriverAgeBand } from "@/lib/pricing";
 import { formatLocalDate, parseLocalDate } from "@/lib/date-utils";
@@ -294,12 +294,23 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  // Set delivery mode
+  // Set delivery mode — when switching to delivery, force Surrey as the pickup origin
   const setDeliveryMode = useCallback((mode: DeliveryMode) => {
+    const surrey = ACTIVE_RENTAL_LOCATIONS[0]; // Surrey is always first active location
     setSearchData((prev) => ({
       ...prev,
       deliveryMode: mode,
-      // Clear delivery fields when switching to pickup
+      // When switching to delivery, auto-set the origin to Surrey
+      ...(mode === "delivery" && surrey && {
+        pickupLocationId: surrey.id,
+        pickupLocationName: surrey.name,
+        pickupLocationAddress: surrey.address,
+        pickupLocation: surrey.address,
+        closestPickupCenterId: surrey.id,
+        closestPickupCenterName: surrey.name,
+        closestPickupCenterAddress: surrey.address,
+      }),
+      // Clear delivery address fields when switching to pickup
       ...(mode === "pickup" && {
         deliveryAddress: null,
         deliveryLat: null,
@@ -493,7 +504,7 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
         canProceedToSelectCar,
         clearSearch,
         resetContext,
-        pickupLocations: RENTAL_LOCATIONS,
+        pickupLocations: ACTIVE_RENTAL_LOCATIONS,
       }}
     >
       {children}

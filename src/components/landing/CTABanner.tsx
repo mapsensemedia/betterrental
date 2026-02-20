@@ -29,7 +29,7 @@ export function CTABanner({ className }: CTABannerProps) {
               </p>
               <div className="flex items-center gap-2 text-xs text-background/50">
                 <Car className="w-3.5 h-3.5" />
-                <span>Surrey · Langley · Abbotsford</span>
+                <span>Surrey, BC</span>
               </div>
             </div>
 

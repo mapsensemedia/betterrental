@@ -69,7 +69,7 @@ export function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <span className="flex items-center gap-2 text-sm text-background/50">
               <MapPin className="w-4 h-4" />
-              Surrey · Langley · Abbotsford BC
+              Surrey, BC
             </span>
           </div>
         </div>

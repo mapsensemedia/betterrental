@@ -80,7 +80,7 @@ export default function About() {
               <div className="space-y-4 text-muted-foreground">
                 <p>C2C Rental was established with a singular mission: to elevate the standard of car rentals throughout the Lower Mainland. Recognizing that the industry was often plagued by opaque pricing, complex logistics, and impersonal service, we committed to a different approach </p>
                 <p>Our business is built on the pillars of transparency, uncompromising quality, and genuine client care. We have curated a fleet where every vehicle undergoes rigorous selection and maintenance to guarantee a safe, reliable, and premium driving experience.</p>
-                <p>Today, C2C Rental proudly serves a growing community across Surrey, Langley, and Abbotsford. We continue to innovate for your convenience, recently introducing our "Bring Car to Me" service to offer seamless, doorstep vehicle delivery.</p>
+                <p>Today, C2C Rental proudly serves a growing community across Surrey and the Lower Mainland. We continue to innovate for your convenience, recently introducing our "Bring Car to Me" service to offer seamless, doorstep vehicle delivery.</p>
               </div>
             </div>
             
