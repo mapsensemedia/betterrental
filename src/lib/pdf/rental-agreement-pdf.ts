@@ -544,6 +544,13 @@ function renderStructuredPdf(
       ]
     },
     {
+      title: "9. CANCELLATION POLICY",
+      items: [
+        "Free cancellation anytime prior to scheduled pickup.",
+        "Late cancellations (after pickup) or no-shows are charged one full day rental rate for the booked vehicle category.",
+      ]
+    },
+    {
       title: "9. TAX INFORMATION",
       items: [
         `PST: ${(t.taxes.pstRate * 100).toFixed(0)}%, GST: ${(t.taxes.gstRate * 100).toFixed(0)}%, PVRT: ${fmt(t.taxes.pvrtDailyFee)}/day, ACSRCH: ${fmt(t.taxes.acsrchDailyFee)}/day`,

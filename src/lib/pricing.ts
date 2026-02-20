@@ -37,7 +37,9 @@ export const YOUNG_DRIVER_MAX_AGE = 24;
 export const MAX_DRIVER_AGE = 70;
 
 // ========== CANCELLATION FEE ==========
-export const CANCELLATION_FEE = 19.99; // CAD
+// No-show / late cancellation fee = 1 × daily_rate of booked vehicle category
+// Toggle is_active on locations or update CANCELLATION_PENALTY_DAYS in rental-rules.ts to adjust
+export const CANCELLATION_FEE_DAYS = 1; // Days of daily rate charged as penalty
 
 // ========== DROP-OFF FEE TIERS ==========
 // Uses fee_group from locations table — no hardcoded UUIDs.

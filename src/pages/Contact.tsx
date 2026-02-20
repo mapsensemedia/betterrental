@@ -358,7 +358,7 @@ export default function Contact() {
             },
             {
               q: "What's your cancellation policy?",
-              a: "Free cancellation anytime prior to pickup. No-shows (cancellations after pickup time) are subject to a $19.99 CAD fee."
+              a: "Free cancellation anytime prior to pickup. Late cancellations (after pickup time) or no-shows are charged one full day rental rate for the booked vehicle category."
             },
             {
               q: "Is insurance included?",
