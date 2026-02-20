@@ -21,7 +21,7 @@ export default function Locations() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = "Our Locations | C2C Rental – Surrey, Langley & Abbotsford";
+    document.title = "Our Locations | C2C Rental – Surrey, BC";
   }, []);
 
   const handleGetDirections = (locationName: string, lat: number | null, lng: number | null, address: string, city: string) => {

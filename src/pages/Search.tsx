@@ -52,7 +52,7 @@ export default function Search() {
   } = useRentalBooking();
   
   useEffect(() => {
-    document.title = "Browse Cars | C2C Rental – Surrey, Langley & Abbotsford";
+    document.title = "Browse Cars | C2C Rental – Surrey, BC";
   }, []);
 
   // When arriving from homepage fleet section, clear previous search state
