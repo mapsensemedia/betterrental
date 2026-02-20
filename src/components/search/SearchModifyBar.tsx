@@ -1,25 +1,45 @@
 /**
  * SearchModifyBar - Compact bar showing current search criteria with modify option
  * Displayed at top of browse cars page
+ *
+ * Mobile: renders a full-screen fixed panel with its own scroll container so the
+ *         form is fully interactive (inputs, dropdowns, date pickers all work).
+ * Desktop: renders the existing shadcn Dialog (unchanged behaviour).
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { MapPin, Calendar, Clock, Edit } from "lucide-react";
+import { Calendar, Clock, Edit, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SearchModifyBarProps {
   className?: string;
 }
 
-export function SearchModifyBar({ className }: SearchModifyBarProps) {
-  const { searchData, rentalDays } = useRentalBooking();
-  const [showModifyDialog, setShowModifyDialog] = useState(false);
+/** Lock body scroll (overflow:hidden) without position:fixed to avoid iOS scroll jump */
+function useLockBodyScroll(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [active]);
+}
 
-  // Display full address including city
+export function SearchModifyBar({ className }: SearchModifyBarProps) {
+  const { searchData } = useRentalBooking();
+  const [showModifyDialog, setShowModifyDialog] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Lock background scroll when the mobile panel is open
+  useLockBodyScroll(showModifyDialog && isMobile);
+
   const locationDisplay = searchData.deliveryMode === "delivery"
     ? searchData.deliveryAddress
     : searchData.pickupLocationAddress || searchData.pickupLocationName;
@@ -27,10 +47,12 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
   const pickupDateDisplay = searchData.pickupDate
     ? format(searchData.pickupDate, "d MMMM")
     : null;
-  
+
   const returnDateDisplay = searchData.returnDate
     ? format(searchData.returnDate, "d MMMM")
     : null;
+
+  const handleClose = () => setShowModifyDialog(false);
 
   return (
     <>
@@ -42,7 +64,7 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
               <h2 className="text-xl font-bold">Book car in easy steps</h2>
               <p className="text-sm text-muted-foreground">
                 Renting a car brings you freedom, and we'll help you find the best car for you at a great price.
-            </p>
+              </p>
             </div>
 
             {/* Right: Search criteria display */}
@@ -58,7 +80,7 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
                 </span>
               </div>
 
-              {/* Drop-off (same location) */}
+              {/* Drop-off */}
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
@@ -119,15 +141,71 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
         </div>
       </div>
 
-      {/* Modify Dialog */}
-      <Dialog open={showModifyDialog} onOpenChange={setShowModifyDialog}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Modify Your Search</DialogTitle>
-          </DialogHeader>
-          <RentalSearchCard onSearchComplete={() => setShowModifyDialog(false)} />
-        </DialogContent>
-      </Dialog>
+      {/* ── MOBILE: full-screen fixed panel with its own scroll container ──
+          Key design decisions:
+          - backdrop sits at z-40, panel at z-50 → panel always above overlay
+          - panel uses flex column: fixed header + flex-1 scroll area
+          - overflow-y:auto + -webkit-overflow-scrolling:touch = smooth iOS scroll
+          - overscroll-behavior:contain prevents rubber-band bleed to background
+          - pointer-events:auto explicitly declared to prevent any parent interference
+      */}
+      {isMobile && showModifyDialog && (
+        <>
+          {/* Backdrop — tap outside to close */}
+          <div
+            className="fixed inset-0 bg-foreground/50 z-40"
+            onClick={handleClose}
+            aria-hidden="true"
+          />
+
+          {/* Panel */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Modify Your Search"
+            className="fixed inset-0 z-50 flex flex-col bg-background"
+            style={{ pointerEvents: "auto" }}
+          >
+            {/* Fixed header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-background">
+              <h2 className="text-base font-semibold">Modify Your Search</h2>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="p-2 rounded-full hover:bg-muted transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable content — must NOT be overflow:hidden */}
+            <div
+              className="flex-1 min-h-0 overflow-y-auto"
+              style={{
+                WebkitOverflowScrolling: "touch",
+                overscrollBehavior: "contain",
+              }}
+            >
+              <div className="px-4 py-4 pb-10">
+                <RentalSearchCard onSearchComplete={handleClose} />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── DESKTOP: existing Dialog — behaviour unchanged ── */}
+      {!isMobile && (
+        <Dialog open={showModifyDialog} onOpenChange={setShowModifyDialog}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Modify Your Search</DialogTitle>
+            </DialogHeader>
+            <RentalSearchCard onSearchComplete={() => setShowModifyDialog(false)} />
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
