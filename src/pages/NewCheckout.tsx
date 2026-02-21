@@ -1178,7 +1178,9 @@ export default function NewCheckout() {
                     )}
                     <div>
                       <p className="font-semibold">
-                        {vehicle.year} {vehicle.make} {vehicle.model}
+                        {(vehicle as any).isCategory 
+                          ? (vehicle as any).categoryName 
+                          : `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         or similar | {vehicle.category}
