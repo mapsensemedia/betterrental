@@ -249,7 +249,7 @@ export function BookingSummaryPanel({
               <p className="text-sm font-medium">
                 {(vehicle as any).isCategory 
                   ? (vehicle as any).categoryName 
-                  : `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                  : `${vehicle.make} ${vehicle.model}`}
               </p>
               <p className="text-sm text-muted-foreground">
                 ${vehicle.dailyRate} CAD/day
