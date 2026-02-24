@@ -130,10 +130,12 @@ export default function LocationDetail() {
                   <div>
                     <p className="font-medium mb-2">Hours</p>
                     <div className="text-sm text-muted-foreground space-y-1">
-                      {Object.entries(location.hoursJson).map(([day, hours]) => (
+                      {["mon","tue","wed","thu","fri","sat","sun"]
+                        .filter(day => location.hoursJson![day])
+                        .map(day => (
                         <div key={day} className="flex justify-between gap-4">
                           <span className="capitalize">{day}</span>
-                          <span>{hours}</span>
+                          <span>{location.hoursJson![day]}</span>
                         </div>
                       ))}
                     </div>
