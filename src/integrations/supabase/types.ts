@@ -487,6 +487,9 @@ export type Database = {
           upgraded_by: string | null
           user_id: string
           vehicle_id: string
+          wl_auth_status: string | null
+          wl_profile_customer_code: string | null
+          wl_transaction_id: string | null
           young_driver_fee: number | null
         }
         Insert: {
@@ -580,6 +583,9 @@ export type Database = {
           upgraded_by?: string | null
           user_id: string
           vehicle_id: string
+          wl_auth_status?: string | null
+          wl_profile_customer_code?: string | null
+          wl_transaction_id?: string | null
           young_driver_fee?: number | null
         }
         Update: {
@@ -673,6 +679,9 @@ export type Database = {
           upgraded_by?: string | null
           user_id?: string
           vehicle_id?: string
+          wl_auth_status?: string | null
+          wl_profile_customer_code?: string | null
+          wl_transaction_id?: string | null
           young_driver_fee?: number | null
         }
         Relationships: [
@@ -1954,6 +1963,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_profiles: {
+        Row: {
+          card_expiry_month: number | null
+          card_expiry_year: number | null
+          card_last_four: string | null
+          card_type: string | null
+          created_at: string
+          id: string
+          is_default: boolean | null
+          updated_at: string
+          user_id: string
+          worldline_customer_code: string
+        }
+        Insert: {
+          card_expiry_month?: number | null
+          card_expiry_year?: number | null
+          card_last_four?: string | null
+          card_type?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          updated_at?: string
+          user_id: string
+          worldline_customer_code: string
+        }
+        Update: {
+          card_expiry_month?: number | null
+          card_expiry_year?: number | null
+          card_last_four?: string | null
+          card_type?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          updated_at?: string
+          user_id?: string
+          worldline_customer_code?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -3397,6 +3445,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "walkaround_inspections_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_events: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          event_id: string
+          event_type: string
+          id: string
+          payload_hash: string | null
+          processed_at: string | null
+          provider: string
+          result: Json | null
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          event_id: string
+          event_type: string
+          id?: string
+          payload_hash?: string | null
+          processed_at?: string | null
+          provider?: string
+          result?: Json | null
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload_hash?: string | null
+          processed_at?: string | null
+          provider?: string
+          result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_events_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"

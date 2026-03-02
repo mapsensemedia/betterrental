@@ -98,3 +98,24 @@ verify_jwt = false
 
 [functions.create-walk-in-booking]
 verify_jwt = false
+
+[functions.wl-pay]
+verify_jwt = false
+
+[functions.wl-authorize]
+verify_jwt = false
+
+[functions.wl-capture]
+verify_jwt = false
+
+[functions.wl-cancel-auth]
+verify_jwt = false
+
+[functions.wl-create-profile]
+verify_jwt = false
+
+[functions.wl-get-profile]
+verify_jwt = false
+
+[functions.wl-webhook]
+verify_jwt = false
