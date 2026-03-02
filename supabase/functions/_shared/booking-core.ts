@@ -128,9 +128,9 @@ export interface ServerPricingResult {
   addOnPrices: { addOnId: string; quantity: number; price: number }[];
 }
 
-// ========== HASHING HELPERS ==========
+// ========== HASHING HELPERS (exported for reuse) ==========
 
-async function hashWithKey(value: string): Promise<string> {
+export async function hashWithKey(value: string): Promise<string> {
   const normalized = value.trim();
   const encoder = new TextEncoder();
   const data = encoder.encode(`${normalized}|${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`);
@@ -141,7 +141,7 @@ async function hashWithKey(value: string): Promise<string> {
 
 const MAX_OTP_ATTEMPTS = 5;
 const OTP_FORMAT = /^\d{4,8}$/;
-const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
+export const ACCESS_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 // ========== GUEST AUTH: OTP → ACCESS TOKEN FLOW ==========
 
