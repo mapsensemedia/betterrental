@@ -49,8 +49,7 @@ export async function worldlineRequest<T = unknown>(
   path: string,
   body?: unknown,
 ): Promise<WorldlineResponse<T>> {
-  const { merchantId } = getCredentials();
-  const url = `${BASE_URL}/v1/${merchantId}${path}`;
+  const url = `${BASE_URL}/v1${path}`;
 
   const headers: Record<string, string> = {
     "Authorization": getAuthHeader(),
