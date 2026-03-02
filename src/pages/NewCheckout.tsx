@@ -1113,15 +1113,9 @@ export default function NewCheckout() {
                           navigate(`/booking/${pendingBooking.id}?payment=success`);
                         }
                       }}
-                      onError={async (errorMsg) => {
+                      onError={(errorMsg) => {
                         toast({ title: "Payment failed", description: errorMsg, variant: "destructive" });
-                        // Cleanup draft booking
-                        try {
-                          await supabase.from("booking_add_ons").delete().eq("booking_id", pendingBooking.id);
-                          await supabase.from("bookings").delete().eq("id", pendingBooking.id);
-                        } catch {}
-                        setShowPaymentForm(false);
-                        setPendingBooking(null);
+                        // Keep payment form visible so customer can retry with a different card
                       }}
                     />
                   </div>
