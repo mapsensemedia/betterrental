@@ -142,6 +142,7 @@ export default function NewCheckout() {
   const [pendingBooking, setPendingBooking] = useState<{ id: string; booking_code: string; user_id?: string; accessToken?: string } | null>(null);
   const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   
   // Force pay-now for delivery bookings
   useEffect(() => {
@@ -349,7 +350,7 @@ export default function NewCheckout() {
           : `Special instructions: ${specialInstructions}`;
       }
 
-      let booking: { id: string; booking_code: string; user_id?: string } | null = null;
+      let booking: { id: string; booking_code: string; user_id?: string; accessToken?: string } | null = null;
 
       // Card info will be collected by Stripe checkout — store nulls for now
 
@@ -1107,7 +1108,9 @@ export default function NewCheckout() {
                       accessToken={!user ? pendingBooking.accessToken : undefined}
                       customerCode={selectedSavedCard || undefined}
                       buttonLabel={`Pay $${finalTotal.toFixed(2)} CAD`}
+                      inlineError={paymentError || undefined}
                       onSuccess={() => {
+                        setPaymentError(null);
                         if (!user) {
                           navigate(`/complete-signup?bookingCode=${encodeURIComponent(pendingBooking.booking_code)}&bookingId=${encodeURIComponent(pendingBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
                         } else {
@@ -1115,8 +1118,7 @@ export default function NewCheckout() {
                         }
                       }}
                       onError={(errorMsg) => {
-                        toast({ title: "Payment failed", description: errorMsg, variant: "destructive" });
-                        // Keep payment form visible so customer can retry with a different card
+                        setPaymentError(errorMsg);
                       }}
                     />
                   </div>
