@@ -135,14 +135,22 @@ export function useSaveAbandonedCart() {
         if (error) throw error;
         return existing.id;
       } else {
-        // Insert new
-        const { data, error } = await supabase
-          .from("abandoned_carts")
-          .insert(payload as any)
-          .select("id")
-          .single();
-        if (error) throw error;
-        return data.id;
+        // Insert new — wrapped in try/catch so 409 conflicts don't block booking
+        try {
+          const { data, error } = await supabase
+            .from("abandoned_carts")
+            .insert(payload as any)
+            .select("id")
+            .single();
+          if (error) {
+            console.warn("Abandoned cart insert failed (non-blocking):", error.message);
+            return null;
+          }
+          return data.id;
+        } catch (insertErr) {
+          console.warn("Abandoned cart insert exception (non-blocking):", insertErr);
+          return null;
+        }
       }
     },
   });
