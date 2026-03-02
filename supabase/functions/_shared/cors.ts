@@ -11,6 +11,8 @@
 const ALLOWED_ORIGINS = [
   // Production
   "https://betterrental.lovable.app",
+  "https://c2crental.com",
+  "https://www.c2crental.com",
   "https://c4r.ca",
   "https://www.c4r.ca",
   // Preview (Lovable)
@@ -41,7 +43,8 @@ export function getCorsHeaders(req: Request, isWebhook = false): Record<string, 
   const isAllowed = ALLOWED_ORIGINS.includes(origin) || 
     origin.endsWith(".lovable.app") || // Allow all Lovable preview URLs
     origin.endsWith(".lovableproject.com") || // Allow Lovable project preview URLs
-    origin.endsWith(".c4r.ca"); // Allow subdomains
+    origin.endsWith(".c4r.ca") || // Allow subdomains
+    origin.endsWith(".c2crental.com"); // Allow subdomains
   
   const allowedOrigin = isAllowed ? origin : ALLOWED_ORIGINS[0];
   
