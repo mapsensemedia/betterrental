@@ -422,11 +422,9 @@ export default function NewCheckout() {
       } else {
         // Guest checkout flow - use edge function
         const addOnData = addOnIds.map((id) => {
-          const addon = addOns.find((a) => a.id === id);
           const qty = searchData.addOnQuantities?.[id] || 1;
           return {
             addOnId: id,
-            price: addon ? (addon.dailyRate * rentalDays + (addon.oneTimeFee || 0)) * qty : 0,
             quantity: qty,
           };
         });
@@ -435,7 +433,6 @@ export default function NewCheckout() {
         const additionalDriversData = (searchData.additionalDrivers || []).map((driver) => ({
           driverName: driver.name || null,
           driverAgeBand: driver.ageBand,
-          youngDriverFee: 0,
         }));
 
         let guestResponse;
@@ -452,16 +449,10 @@ export default function NewCheckout() {
               endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate), searchData.returnTime),
               pickupDate: formatLocalDate(searchData.pickupDate),
               dropoffDate: formatLocalDate(searchData.returnDate),
-              dailyRate: vehicle.dailyRate,
-              totalDays: rentalDays,
-              subtotal: pricing.subtotal,
-              taxAmount: pricing.taxAmount,
-              depositAmount: DEFAULT_DEPOSIT_AMOUNT,
               totalAmount: pricing.total,
               driverAgeBand,
-              youngDriverFee: pricing.youngDriverFee,
-              protectionPlan: protection || "none",
-              deliveryFee: searchData.deliveryMode === "delivery" ? searchData.deliveryFee : 0,
+              protectionPlan: protection,
+              deliveryFee: searchData.deliveryFee || 0,
               addOns: addOnData.length > 0 ? addOnData : undefined,
               additionalDrivers: additionalDriversData.length > 0 ? additionalDriversData : undefined,
               notes: bookingNotes,
