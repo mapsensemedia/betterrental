@@ -63,7 +63,13 @@ export async function worldlineRequest<T = unknown>(
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  let data: unknown = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { message: text || "Empty response from payment gateway" };
+  }
 
   return {
     ok: res.ok,
