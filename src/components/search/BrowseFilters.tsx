@@ -22,7 +22,7 @@ import {
 
 /** Derive vehicle type labels from category names */
 const VEHICLE_TYPES = ["SUV", "Sedan", "Minivan", "Economy", "Compact", "Full Size", "Mystery"] as const;
-const PASSENGER_OPTIONS = [2, 4, 5, 7] as const;
+const PASSENGER_OPTIONS = [5, 7] as const;
 
 export interface BrowseFilterState {
   vehicleTypes: string[];
@@ -175,22 +175,6 @@ function FilterContent({
 
       <Separator />
 
-      {/* Automatic */}
-      <div className="flex items-center justify-between">
-        <Label htmlFor="automatic-toggle" className="font-semibold text-sm cursor-pointer">
-          Automatic
-        </Label>
-        <Switch
-          id="automatic-toggle"
-          checked={filters.automaticOnly}
-          onCheckedChange={(checked) =>
-            onChange({ ...filters, automaticOnly: checked })
-          }
-        />
-      </div>
-
-      <Separator />
-
       {/* Budget */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -236,7 +220,7 @@ function FilterContent({
                     : "bg-background text-foreground border-border hover:border-foreground/40"
                 )}
               >
-                {count >= 7 ? "7+" : count}
+                {count}
               </button>
             ))}
           </div>
