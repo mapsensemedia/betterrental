@@ -57,8 +57,9 @@ export async function worldlineRequest<T = unknown>(
     "Content-Type": "application/json",
   };
 
+  const creds = getCredentials();
   console.log("Worldline request:", method, url);
-  console.log("Merchant ID present:", !!merchantId, "Passcode present:", !!passcode);
+  console.log("Merchant ID present:", !!creds.merchantId, "Passcode present:", !!creds.passcode);
 
   const res = await fetch(url, {
     method,
