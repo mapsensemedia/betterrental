@@ -183,8 +183,18 @@ export function WorldlineCheckout({
 
         const { data, error } = await supabase.functions.invoke(functionName, { body });
 
+        // Check for handled decline/error from the edge function first
+        if (data?.declined) {
+          onError("Your card was declined. Please try a different card.");
+          setIsProcessing(false);
+          return;
+        }
+        if (data?.error) {
+          onError(data.error);
+          setIsProcessing(false);
+          return;
+        }
         if (error) throw new Error(error.message || "Payment failed");
-        if (data?.error) throw new Error(data.message || data.error);
 
         onSuccess({
           transactionId: data.transactionId || data.transaction_id || "",
