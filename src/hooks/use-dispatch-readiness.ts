@@ -36,7 +36,7 @@ export function useDispatchReadiness({ bookingId, enabled = true }: UseDispatchR
       // Fetch booking details
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
-        .select("id, deposit_status, assigned_unit_id, stripe_deposit_pi_id")
+        .select("id, deposit_status, assigned_unit_id, stripe_deposit_pi_id, wl_transaction_id")
         .eq("id", bookingId)
         .maybeSingle();
 
@@ -64,6 +64,7 @@ export function useDispatchReadiness({ bookingId, enabled = true }: UseDispatchR
         depositStatus: booking.deposit_status,
         assignedUnitId: booking.assigned_unit_id,
         stripeDepositPiId: booking.stripe_deposit_pi_id,
+        wlTransactionId: booking.wl_transaction_id,
       };
 
       return checkDispatchReadiness(bookingData, photoCount || 0);
@@ -87,7 +88,7 @@ export function useBatchDispatchReadiness(bookingIds: string[]) {
       // Fetch all bookings
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, deposit_status, assigned_unit_id, stripe_deposit_pi_id")
+        .select("id, deposit_status, assigned_unit_id, stripe_deposit_pi_id, wl_transaction_id")
         .in("id", bookingIds);
 
       // Fetch photo counts for all bookings
@@ -112,6 +113,7 @@ export function useBatchDispatchReadiness(bookingIds: string[]) {
           depositStatus: booking.deposit_status,
           assignedUnitId: booking.assigned_unit_id,
           stripeDepositPiId: booking.stripe_deposit_pi_id,
+          wlTransactionId: booking.wl_transaction_id,
         };
         results.set(
           booking.id,
