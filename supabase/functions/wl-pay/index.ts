@@ -71,7 +71,17 @@ Deno.serve(async (req) => {
     if (!res.ok || !res.data.approved) {
       log.error("Payment declined", undefined, { response: res.data });
       return new Response(
-        JSON.stringify({ error: parseWorldlineError(res.data), declined: true }),
+        JSON.stringify({
+          error: parseWorldlineError(res.data),
+          declined: true,
+          debug: {
+            bamboraStatus: res.status,
+            bamboraOk: res.ok,
+            bamboraMessage: res.data?.message,
+            bamboraCode: res.data?.message_id,
+            bamboraApproved: res.data?.approved,
+          },
+        }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
