@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .eq("vehicle_id", vehicleId)
-      .in("status", ["pending", "confirmed", "active", "draft"])
+      .in("status", ["pending", "confirmed", "active"])
       .lte("start_at", endAt)
       .gte("end_at", startAt);
 
