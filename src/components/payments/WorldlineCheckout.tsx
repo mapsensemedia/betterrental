@@ -25,6 +25,7 @@ interface WorldlineCheckoutProps {
   disabled?: boolean;
   buttonLabel?: string;
   customerCode?: string;
+  inlineError?: string;
 }
 
 interface FieldState {
@@ -63,6 +64,7 @@ export function WorldlineCheckout({
   disabled = false,
   buttonLabel,
   customerCode,
+  inlineError,
 }: WorldlineCheckoutProps) {
   const [sdkReady, setSdkReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -183,25 +185,45 @@ export function WorldlineCheckout({
 
         const { data, error } = await supabase.functions.invoke(functionName, { body });
 
-        // Check for handled decline/error from the edge function first
-        if (data?.declined) {
-          onError("Your card was declined. Please try a different card.");
+        if (error) {
+          // Read the actual response body from the error context
+          let parsed: any = null;
+          try {
+            const bodyText = await (error as any)?.context?.json?.();
+            parsed = bodyText;
+          } catch {
+            try {
+              parsed = (error as any)?.context;
+            } catch {}
+          }
+
+          if (parsed?.declined) {
+            onError("Your card was declined. Please try a different card or contact your bank.");
+          } else {
+            onError(parsed?.error || "Payment failed. Please try again.");
+          }
           setIsProcessing(false);
           return;
         }
+
+        if (data?.declined) {
+          onError("Your card was declined. Please try a different card or contact your bank.");
+          setIsProcessing(false);
+          return;
+        }
+
         if (data?.error) {
           onError(data.error);
           setIsProcessing(false);
           return;
         }
-        if (error) throw new Error(error.message || "Payment failed");
 
         onSuccess({
           transactionId: data.transactionId || data.transaction_id || "",
           lastFour: result.last4 || "",
         });
       } catch (err: any) {
-        onError(err.message || "Payment processing failed");
+        onError(err.message || "Payment processing failed. Please try again.");
       } finally {
         setIsProcessing(false);
       }
@@ -290,6 +312,13 @@ export function WorldlineCheckout({
           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           Loading secure payment form...
         </div>
+      )}
+
+      {inlineError && (
+        <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-sm">{inlineError}</AlertDescription>
+        </Alert>
       )}
 
       <Button
