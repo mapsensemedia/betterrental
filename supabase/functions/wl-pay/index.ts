@@ -65,6 +65,9 @@ Deno.serve(async (req) => {
       }),
     );
 
+    console.log("Bambora response:", JSON.stringify(res.data));
+    console.log("Bambora status:", res.status, "ok:", res.ok);
+
     if (!res.ok || !res.data.approved) {
       log.error("Payment declined", undefined, { response: res.data });
       return new Response(
