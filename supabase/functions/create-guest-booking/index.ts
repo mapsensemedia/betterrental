@@ -27,6 +27,8 @@ import {
   createAdditionalDrivers,
   sendBookingNotifications,
   validateClientPricing,
+  hashWithKey,
+  ACCESS_TOKEN_TTL_MS,
   type AdditionalDriverInput,
 } from "../_shared/booking-core.ts";
 
@@ -280,6 +282,32 @@ Deno.serve(async (req) => {
       await createAdditionalDrivers(booking.id, serverTotals.additionalDriverRecords);
     }
 
+    // Mint access token for pay-now guest flow
+    let accessToken: string | undefined;
+    if (body.paymentMethod === "pay-now") {
+      // Revoke any previous tokens for this booking
+      await supabaseAdmin
+        .from("booking_access_tokens")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("booking_id", booking.id)
+        .is("revoked_at", null);
+
+      const rawToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      const tokenHash = await hashWithKey(rawToken);
+      const expiresAt = new Date(Date.now() + ACCESS_TOKEN_TTL_MS).toISOString();
+
+      await supabaseAdmin.from("booking_access_tokens").insert({
+        booking_id: booking.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+      });
+
+      accessToken = rawToken;
+    }
+
     // Send notifications
     await sendBookingNotifications({
       bookingId: booking.id,
@@ -299,6 +327,7 @@ Deno.serve(async (req) => {
         userId,
         isNewUser,
         requiresEmailVerification: isNewUser,
+        ...(accessToken ? { accessToken } : {}),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

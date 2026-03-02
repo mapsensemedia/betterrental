@@ -139,7 +139,7 @@ export default function NewCheckout() {
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [pendingBooking, setPendingBooking] = useState<{ id: string; booking_code: string; user_id?: string } | null>(null);
+  const [pendingBooking, setPendingBooking] = useState<{ id: string; booking_code: string; user_id?: string; accessToken?: string } | null>(null);
   const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
   
@@ -522,7 +522,8 @@ export default function NewCheckout() {
         booking = {
           id: bookingResponse.id,
           booking_code: bookingResponse.bookingCode || bookingResponse.booking_code || "",
-          user_id: guestResponse.data.userId, // For guest checkout - pass to checkout session
+          user_id: guestResponse.data.userId,
+          accessToken: guestResponse.data.accessToken,
         };
       }
 
@@ -1103,7 +1104,7 @@ export default function NewCheckout() {
                       mode="pay"
                       bookingId={pendingBooking.id}
                       amount={finalTotal}
-                      accessToken={!user ? pendingBooking.user_id : undefined}
+                      accessToken={!user ? pendingBooking.accessToken : undefined}
                       customerCode={selectedSavedCard || undefined}
                       buttonLabel={`Pay $${finalTotal.toFixed(2)} CAD`}
                       onSuccess={() => {
