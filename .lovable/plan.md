@@ -1,45 +1,67 @@
 
-# Fix: Subtotal Mismatch in Booking Summary
 
-## Problem Identified
+# TD Worldline (Bambora) Integration -- Implementation Plan
 
-The booking subtotal is **$192.96** but the visible line items only add up to **$160.98** (Vehicle $80 + Protection $75.98 + PVRT $3 + ACSRCH $2). The hidden **$31.98** comes from additional driver fees ($15.99/day x 2 days) that were included in the pricing calculation but are **never displayed** in the Ops Booking Summary.
+## Step 1: Add Secrets
 
-### Root Causes Found
+Store your Worldline/Bambora credentials securely in Lovable Cloud:
 
-1. **AddOns page URL bug (line 189 in AddOns.tsx)**: When navigating to checkout, it passes `selectedAddOnIds` (uncleaned) instead of `cleanedAddOnIds`, allowing the "Additional Driver" add-on ID to leak into checkout URL params.
+- **WORLDLINE_MERCHANT_ID** -- Your Bambora merchant ID
+- **WORLDLINE_API_PASSCODE** -- Your Payments API passcode
+- **WORLDLINE_ENVIRONMENT** -- `sandbox` or `production`
 
-2. **OpsBookingSummary missing line item**: The ops summary displays vehicle, protection, add-ons, young driver fee, PVRT, and ACSRCH -- but has **zero code** to display additional driver fees from `booking_additional_drivers`. So even when drivers are correctly charged, the breakdown never shows them.
+## Step 2: Build Shared Backend Helper
 
-3. **Checkout doesn't filter "Additional Driver" add-on**: The `addOnIds` array used for inserting into `booking_add_ons` is not filtered, potentially double-counting.
+Create `supabase/functions/_shared/worldline.ts` with:
+- Base URL resolution (Bambora NAM API)
+- Authenticated HTTP client (Basic auth: base64 of `merchantId:passcode`)
+- Error response parsing
 
-## Plan
+## Step 3: Build Edge Functions
 
-### 1. Fix AddOns.tsx URL param bug
-- Line 189: Change `selectedAddOnIds.join(",")` to `cleanedAddOnIds.join(",")` so the "Additional Driver" add-on ID never reaches checkout URL
+Create new payment edge functions replacing Stripe:
 
-### 2. Filter add-on IDs at checkout (NewCheckout.tsx)
-- Filter out "Additional Driver" add-on from `addOnIds` before using them for price calculation and DB insertion, as a safety net
+| Function | Replaces | Purpose |
+|----------|----------|---------|
+| `wl-pay` | `create-checkout-session` | Full payment (complete: true) using token nonce |
+| `wl-authorize` | `create-checkout-hold` | Pre-auth deposit hold (complete: false) |
+| `wl-capture` | `capture-deposit` | Capture a held authorization |
+| `wl-cancel-auth` | `release-deposit-hold` | Void/release a hold |
+| `wl-create-profile` | -- | Tokenize card for returning users |
+| `wl-get-profile` | -- | Fetch saved payment methods |
+| `wl-webhook` | `stripe-webhook` | Handle Worldline status callbacks |
 
-### 3. Add additional drivers line item to OpsBookingSummary
-- Query `booking_additional_drivers` for the booking (the parent query likely already fetches this -- verify and add if not)
-- Add a visible line item between add-ons and young driver fee showing "Additional Drivers (N) - $XX.XX"
+All functions follow existing security patterns: `requireBookingOwnerOrToken` for customer endpoints, `requireRoleOrThrow` for admin endpoints, server-derived amounts only.
 
-### 4. Ensure the booking query includes additional drivers
-- Check the booking detail query used by the ops pages to ensure `booking_additional_drivers` is included in the select
+## Step 4: Database Changes
 
-## Technical Details
+- Add columns to `bookings`: `wl_transaction_id`, `wl_auth_status`, `wl_profile_customer_code`
+- Create `payment_profiles` table (user_id, worldline_customer_code, card_last_four, card_type, expiry)
+- Create `webhook_events` table for idempotency (replaces stripe_webhook_events for new flow)
+- RLS: users see own profiles only; service_role manages all
 
-### File Changes
+## Step 5: Frontend -- Custom Checkout Component
 
-| File | Change |
-|------|--------|
-| `src/pages/AddOns.tsx` | Line 189: use `cleanedAddOnIds` instead of `selectedAddOnIds` |
-| `src/pages/NewCheckout.tsx` | Filter `addOnIds` to exclude "Additional Driver" add-on before DB insert |
-| `src/components/admin/ops/OpsBookingSummary.tsx` | Add additional drivers line item in the financial breakdown section |
-| Ops booking query (hooks) | Ensure `booking_additional_drivers` is fetched alongside the booking |
+- Create `WorldlineCheckout.tsx` that loads the Bambora Custom Checkout JS SDK (`customcheckout.js`)
+- SDK renders PCI-compliant iframe inputs for card number, CVV, expiry
+- On submit: `createToken()` returns a single-use nonce passed to the backend
+- Create `SavedCardsSelector.tsx` for returning users with tokenized cards
 
-### Impact
-- Fixes the visible subtotal mismatch for all bookings with additional drivers
-- Prevents the "Additional Driver" add-on from leaking into checkout in future bookings
-- All existing bookings with additional drivers will now show the fee breakdown correctly
+## Step 6: Wire Checkout Flows
+
+- Update `NewCheckout.tsx` to render inline `WorldlineCheckout` instead of Stripe redirect
+- Pay-now flow calls `wl-pay` with nonce
+- Deposit hold flow calls `wl-authorize` with nonce
+- Admin capture/void calls `wl-capture` / `wl-cancel-auth`
+
+## Step 7: Update Admin Panels
+
+- Replace `stripe_deposit_pi_id` references with `wl_transaction_id` in ops/dispatch/deposit UI
+- Update transaction history displays
+
+## Step 8: Remove Stripe (after verification)
+
+- Delete Stripe edge functions and frontend components
+- Remove `@stripe/react-stripe-js` and `@stripe/stripe-js` packages
+- Clean up `use-stripe-config.ts`
+
