@@ -15,6 +15,8 @@ import {
   Loader2,
   Lock,
 } from "lucide-react";
+import { WorldlineCheckout } from "@/components/payments/WorldlineCheckout";
+import { SavedCardsSelector } from "@/components/payments/SavedCardsSelector";
 import { PriceTooltip, PRICE_TOOLTIPS } from "@/components/shared/PriceTooltip";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -136,6 +138,9 @@ export default function NewCheckout() {
 
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [pendingBooking, setPendingBooking] = useState<{ id: string; booking_code: string; user_id?: string } | null>(null);
+  const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
   
   // Force pay-now for delivery bookings
@@ -530,72 +535,11 @@ export default function NewCheckout() {
       markCartConverted.mutate(booking.id);
 
       if (paymentMethod === "pay-now") {
-        // Create Stripe Checkout Session and redirect to hosted payment page
-        try {
-          const successUrl = !user
-            ? `${window.location.origin}/complete-signup?bookingCode=${encodeURIComponent(booking.booking_code)}&bookingId=${encodeURIComponent(booking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`
-            : `${window.location.origin}/booking/${booking.id}?payment=success`;
-          const cancelUrl = window.location.href;
-          
-          let paymentResponse;
-          try {
-            paymentResponse = await supabase.functions.invoke("create-checkout-session", {
-              body: {
-                bookingId: booking.id,
-                amount: pricing.total,
-                currency: "cad",
-                successUrl,
-                cancelUrl,
-                userId: booking.user_id, // For guest checkout
-              },
-            });
-          } catch (networkError: any) {
-            console.error("Network error during payment creation:", networkError);
-            throw new Error("Unable to connect to payment service. Please try again.");
-          }
-
-          if (paymentResponse.error) {
-            const errorMessage = paymentResponse.error.message || "Failed to create payment";
-            if (errorMessage.includes("non-2xx")) {
-              throw new Error("Payment service temporarily unavailable. Please try again in a moment.");
-            }
-            throw new Error(errorMessage);
-          }
-          
-          if (paymentResponse.data?.error) {
-            throw new Error(paymentResponse.data.error);
-          }
-
-          const { url: stripeUrl } = paymentResponse.data || {};
-
-          if (stripeUrl) {
-            // Redirect to Stripe hosted checkout page
-            window.location.href = stripeUrl;
-            return;
-          } else {
-            throw new Error("Unable to initialize payment. Please try again.");
-          }
-        } catch (paymentError: any) {
-          console.error("Payment error:", paymentError);
-          
-          // Delete the booking since payment failed
-          try {
-            await supabase.from("booking_add_ons").delete().eq("booking_id", booking.id);
-            await supabase.from("bookings").delete().eq("id", booking.id);
-            console.log("Deleted unpaid booking:", booking.id);
-          } catch (deleteError) {
-            console.error("Failed to cleanup booking:", deleteError);
-          }
-          
-          toast({
-            title: "Payment initialization failed",
-            description: paymentError.message || "Your booking was not created. Please try again.",
-            variant: "destructive",
-          });
-
-          setIsSubmitting(false);
-          return;
-        }
+        // Show inline payment form instead of redirecting
+        setPendingBooking(booking);
+        setShowPaymentForm(true);
+        setIsSubmitting(false);
+        return;
       } else {
         // Pay at pickup flow
         toast({
@@ -844,7 +788,7 @@ export default function NewCheckout() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">Amount to pay now</p>
-                        <p className="text-xs text-muted-foreground">Secure payment via Stripe</p>
+                        <p className="text-xs text-muted-foreground">Secure payment</p>
                       </div>
                       <p className="text-lg font-bold">${finalTotal.toFixed(2)} CAD</p>
                     </div>
@@ -1142,7 +1086,46 @@ export default function NewCheckout() {
                   </Label>
                 </div>
 
-                {/* Submit button */}
+                {/* Inline Payment Form or Submit button */}
+                {showPaymentForm && pendingBooking ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
+                      <Check className="w-4 h-4" />
+                      Booking created — complete payment below
+                    </div>
+                    {user && (
+                      <SavedCardsSelector
+                        onSelectCard={setSelectedSavedCard}
+                        selectedCard={selectedSavedCard}
+                      />
+                    )}
+                    <WorldlineCheckout
+                      mode="pay"
+                      bookingId={pendingBooking.id}
+                      amount={finalTotal}
+                      accessToken={!user ? pendingBooking.user_id : undefined}
+                      customerCode={selectedSavedCard || undefined}
+                      buttonLabel={`Pay $${finalTotal.toFixed(2)} CAD`}
+                      onSuccess={() => {
+                        if (!user) {
+                          navigate(`/complete-signup?bookingCode=${encodeURIComponent(pendingBooking.booking_code)}&bookingId=${encodeURIComponent(pendingBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
+                        } else {
+                          navigate(`/booking/${pendingBooking.id}?payment=success`);
+                        }
+                      }}
+                      onError={async (errorMsg) => {
+                        toast({ title: "Payment failed", description: errorMsg, variant: "destructive" });
+                        // Cleanup draft booking
+                        try {
+                          await supabase.from("booking_add_ons").delete().eq("booking_id", pendingBooking.id);
+                          await supabase.from("bookings").delete().eq("id", pendingBooking.id);
+                        } catch {}
+                        setShowPaymentForm(false);
+                        setPendingBooking(null);
+                      }}
+                    />
+                  </div>
+                ) : (
                   <Button
                     onClick={handleSubmit}
                     disabled={isSubmitting}
@@ -1160,6 +1143,7 @@ export default function NewCheckout() {
                       "Pay and Book"
                     )}
                   </Button>
+                )}
               </Card>
             </div>
 

@@ -1,7 +1,5 @@
 /**
- * StepPayment - Simple payment status display
- * 
- * Shows payment status from Stripe. No manual authorization hold management.
+ * StepPayment - Payment status display with Worldline auth controls
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,14 +12,16 @@ import {
   Loader2,
   AlertCircle,
   Copy,
-  ExternalLink,
   Send,
+  ShieldCheck,
+  ShieldOff,
 } from "lucide-react";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface StepPaymentProps {
   bookingId: string;
@@ -34,6 +34,9 @@ interface StepPaymentProps {
 export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: paymentStatus, isLoading } = usePaymentDepositStatus(bookingId);
   const [isSendingRequest, setIsSendingRequest] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
+  const queryClient = useQueryClient();
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -55,6 +58,40 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
     }
   };
 
+  const handleCapture = async () => {
+    setIsCapturing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-capture", {
+        body: { bookingId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      toast.success("Deposit captured successfully");
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+    } catch (err: any) {
+      toast.error("Capture failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const handleRelease = async () => {
+    setIsReleasing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-cancel-auth", {
+        body: { bookingId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      toast.success("Hold released successfully");
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+    } catch (err: any) {
+      toast.error("Release failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsReleasing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -66,6 +103,9 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   }
 
   const isPaid = paymentStatus?.paymentStatus === 'paid';
+  const wlAuthStatus = paymentStatus?.wlAuthStatus;
+  const wlTransactionId = paymentStatus?.wlTransactionId;
+  const isAuthorized = wlAuthStatus === "authorized";
 
   return (
     <div className="space-y-4">
@@ -116,7 +156,65 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             </div>
           )}
 
-          {/* Stripe transaction IDs */}
+          {/* Worldline Auth Status */}
+          {(wlAuthStatus || wlTransactionId) && (
+            <div className="p-3 rounded-md bg-muted/30 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Authorization</p>
+              {wlAuthStatus && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Auth Status</span>
+                  <Badge variant={isAuthorized ? "default" : "secondary"} className="text-xs capitalize">
+                    {wlAuthStatus}
+                  </Badge>
+                </div>
+              )}
+              {wlTransactionId && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Transaction ID</span>
+                  <div className="flex items-center gap-1">
+                    <code className="font-mono text-xs bg-background px-2 py-0.5 rounded">
+                      {wlTransactionId.length > 16 ? `${wlTransactionId.slice(0, 16)}…` : wlTransactionId}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => copyToClipboard(wlTransactionId, "Transaction ID")}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Capture / Release buttons */}
+              {isAuthorized && (
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    onClick={handleCapture}
+                    disabled={isCapturing || isReleasing}
+                    className="flex-1"
+                  >
+                    {isCapturing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-1" />}
+                    Capture Deposit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRelease}
+                    disabled={isCapturing || isReleasing}
+                    className="flex-1"
+                  >
+                    {isReleasing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShieldOff className="h-4 w-4 mr-1" />}
+                    Release Hold
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Legacy transaction IDs */}
           {paymentStatus?.payments.filter(p => p.transactionId).map((payment) => (
             <div key={payment.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/30">
               <span className="text-muted-foreground capitalize">{payment.paymentType}</span>
@@ -134,16 +232,6 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
-                    {payment.transactionId.startsWith("pi_") && (
-                      <a
-                        href={`https://dashboard.stripe.com/payments/${payment.transactionId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
                   </>
                 )}
               </div>
@@ -151,7 +239,7 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
           ))}
 
           {/* No payment - send request */}
-          {!isPaid && (
+          {!isPaid && !wlAuthStatus && (
             <div className="space-y-3">
               <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
                 <AlertCircle className="h-4 w-4 text-amber-600" />
