@@ -143,7 +143,7 @@ export default function NewCheckout() {
   const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [checkoutStep, setCheckoutStep] = useState<"idle" | "creating" | "paying">("idle");
+  const [checkoutStep, setCheckoutStep] = useState<"idle" | "creating" | "paying" | "deposit">("idle");
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const worldlineRef = useRef<WorldlineCheckoutHandle>(null);
   
@@ -563,6 +563,8 @@ export default function NewCheckout() {
         setPendingBooking(booking);
         setCheckoutStep("paying");
         
+        // submit() handles the rental payment (wl-pay) — deposit hold is triggered
+        // in onSuccess after rental payment completes
         try {
           await worldlineRef.current?.submit();
         } catch (err: any) {
@@ -858,8 +860,33 @@ export default function NewCheckout() {
                       headless
                       inlineError={paymentError || undefined}
                       onProcessingChange={setIsPaymentProcessing}
-                      onSuccess={() => {
+                      onSuccess={async () => {
                         setPaymentError(null);
+                        
+                        // Step 2: Place deposit hold if booking has deposit
+                        const depositAmount = DEFAULT_DEPOSIT_AMOUNT;
+                        if (depositAmount > 0 && pendingBooking) {
+                          setCheckoutStep("deposit");
+                          try {
+                            const tokenResult = await worldlineRef.current?.getToken();
+                            if (tokenResult) {
+                              const authBody: Record<string, unknown> = {
+                                bookingId: pendingBooking.id,
+                                token: tokenResult.token,
+                                name: tokenResult.name,
+                              };
+                              if (pendingBooking.accessToken) authBody.accessToken = pendingBooking.accessToken;
+                              
+                              const { error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
+                              if (authError) {
+                                console.warn("Deposit hold failed (non-blocking):", authError);
+                              }
+                            }
+                          } catch (depositErr) {
+                            console.warn("Deposit hold failed (non-blocking):", depositErr);
+                          }
+                        }
+                        
                         setCheckoutStep("idle");
                         if (!user && pendingBooking) {
                           navigate(`/complete-signup?bookingCode=${encodeURIComponent(pendingBooking.booking_code)}&bookingId=${encodeURIComponent(pendingBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
@@ -1172,10 +1199,22 @@ export default function NewCheckout() {
                         Creating your booking...
                       </span>
                     </div>
-                    {checkoutStep === "paying" && (
+                    {(checkoutStep === "paying" || checkoutStep === "deposit") && (
+                      <div className="flex items-center gap-2 text-sm">
+                        {checkoutStep === "paying" ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        ) : (
+                          <Check className="w-4 h-4 text-primary" />
+                        )}
+                        <span className={checkoutStep === "paying" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                          Charging rental amount...
+                        </span>
+                      </div>
+                    )}
+                    {checkoutStep === "deposit" && (
                       <div className="flex items-center gap-2 text-sm">
                         <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                        <span className="text-foreground font-medium">Processing payment...</span>
+                        <span className="text-foreground font-medium">Placing deposit hold...</span>
                       </div>
                     )}
                   </div>
@@ -1190,14 +1229,14 @@ export default function NewCheckout() {
                   {isSubmitting || isPaymentProcessing ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      {checkoutStep === "creating" ? "Creating booking..." : checkoutStep === "paying" ? "Processing payment..." : "Processing..."}
+                      {checkoutStep === "creating" ? "Creating booking..." : checkoutStep === "paying" ? "Charging rental amount..." : checkoutStep === "deposit" ? "Placing deposit hold..." : "Processing..."}
                     </>
                   ) : paymentMethod === "pay-later" ? (
                     "Confirm Booking"
                   ) : (
                     <>
                       <Lock className="w-4 h-4 mr-2" />
-                      Pay and Book — ${finalTotal.toFixed(2)} CAD
+                      Pay ${finalTotal.toFixed(2)} + ${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} deposit hold
                     </>
                   )}
                 </Button>
