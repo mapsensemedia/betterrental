@@ -106,23 +106,16 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
     }
   };
 
-  const handlePlaceDepositHold = async () => {
+  const handleSendDepositRequest = async () => {
     setIsPlacingHold(true);
     try {
-      const { data, error } = await supabase.functions.invoke("wl-authorize", {
+      const { error } = await supabase.functions.invoke("send-payment-request", {
         body: { bookingId },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
-      toast.success("Deposit hold placed successfully");
-      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      toast.success("Deposit payment link sent to customer");
     } catch (err: any) {
-      const msg = err.message || "Unknown error";
-      if (msg.includes("token") || msg.includes("required")) {
-        toast.error("Cannot place hold — no card token on file. The customer must complete a new checkout to provide card details.");
-      } else {
-        toast.error("Failed to place deposit hold: " + msg);
-      }
+      toast.error("Failed to send request: " + (err.message || "Unknown error"));
     } finally {
       setIsPlacingHold(false);
     }
@@ -260,7 +253,7 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             </div>
           )}
 
-          {/* Place Deposit Hold — for paid bookings missing a deposit hold */}
+          {/* Deposit hold missing — for paid bookings before two-step flow */}
           {needsDepositHold && (
             <div className="p-3 rounded-md border border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30 space-y-3">
               <div className="flex items-start gap-2">
@@ -268,55 +261,32 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-200">No deposit hold on file</p>
                   <p className="text-xs text-muted-foreground">
-                    This booking was paid before the two-step deposit flow was implemented. 
-                    You can attempt to place a $350 hold using the card on file. If no card token 
-                    is available, the customer will need to complete a new checkout.
+                    This booking was paid before the two-step deposit flow was implemented.
+                    A deposit hold requires the customer to re-enter their card details through checkout.
+                    Send them a payment link to complete the deposit authorization.
                   </p>
                 </div>
               </div>
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isPlacingHold}
-                    className="w-full border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950"
-                  >
-                    {isPlacingHold ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Placing hold...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldAlert className="h-4 w-4 mr-2" />
-                        Place $350 Deposit Hold
-                      </>
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Place Deposit Hold</AlertDialogTitle>
-                    <AlertDialogDescription className="space-y-2">
-                      <span className="block">
-                        Place a <strong>$350.00</strong> pre-authorization hold on the customer's card on file?
-                      </span>
-                      <span className="block text-xs">
-                        This will not charge the card — it only places a temporary hold that can be captured or released later. 
-                        If no card token is saved for this booking, the operation will fail and the customer will need to go through checkout again.
-                      </span>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handlePlaceDepositHold}>
-                      Place Hold
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isPlacingHold}
+                onClick={handleSendDepositRequest}
+                className="w-full border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950"
+              >
+                {isPlacingHold ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send Deposit Link to Customer
+                  </>
+                )}
+              </Button>
             </div>
           )}
 
