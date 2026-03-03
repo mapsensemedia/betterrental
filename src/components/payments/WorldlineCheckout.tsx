@@ -24,6 +24,8 @@ export interface WorldlineCheckoutHandle {
   submit: () => Promise<void>;
   /** Whether the card fields are valid and ready to submit */
   isReady: () => boolean;
+  /** Get a single-use token from the mounted card fields (does NOT call any edge function) */
+  getToken: () => Promise<{ token: string; last4: string; name: string }>;
 }
 
 interface WorldlineCheckoutProps {
@@ -277,11 +279,29 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
       });
     }, [allFieldsValid, cardholderName, mode, onSuccess, onError]);
 
+    // Tokenize only — no edge function call
+    const getToken = useCallback((): Promise<{ token: string; last4: string; name: string }> => {
+      return new Promise((resolve, reject) => {
+        if (!checkoutRef.current) {
+          reject(new Error("Payment form not ready"));
+          return;
+        }
+        checkoutRef.current.createToken((result: TokenResult) => {
+          if (result.error || !result.token) {
+            reject(new Error(result.error?.message || "Failed to tokenize card"));
+          } else {
+            resolve({ token: result.token, last4: result.last4 || "", name: cardholderName.trim() });
+          }
+        });
+      });
+    }, [cardholderName]);
+
     // Expose imperative handle for parent
     useImperativeHandle(ref, () => ({
       submit: handleSubmit,
       isReady: () => canSubmit && sdkReady,
-    }), [handleSubmit, canSubmit, sdkReady]);
+      getToken,
+    }), [handleSubmit, canSubmit, sdkReady, getToken]);
 
     const fieldError = fieldStates["card-number"].error || fieldStates.cvv.error || fieldStates.expiry.error;
 
