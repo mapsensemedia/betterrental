@@ -2,6 +2,7 @@
  * NewCheckout - Full checkout page with driver info, payment, and booking summary
  */
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import type { WorldlineCheckoutHandle } from "@/components/payments/WorldlineCheckout";
 import { useNavigate, useSearchParams, Link, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import { formatLocalDate, localDateTimeToISO } from "@/lib/date-utils";
@@ -138,11 +139,13 @@ export default function NewCheckout() {
 
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [pendingBooking, setPendingBooking] = useState<{ id: string; booking_code: string; user_id?: string; accessToken?: string } | null>(null);
   const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null);
   const [priceDetailsOpen, setPriceDetailsOpen] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [checkoutStep, setCheckoutStep] = useState<"idle" | "creating" | "paying">("idle");
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const worldlineRef = useRef<WorldlineCheckoutHandle>(null);
   
   // Force pay-now for delivery bookings
   useEffect(() => {
@@ -327,6 +330,10 @@ export default function NewCheckout() {
     }
 
     setIsSubmitting(true);
+    setPaymentError(null);
+    if (paymentMethod === "pay-now") {
+      setCheckoutStep("creating");
+    }
 
     try {
       // Get location ID - use the first available location UUID as fallback
@@ -528,9 +535,16 @@ export default function NewCheckout() {
       markCartConverted.mutate(booking.id);
 
       if (paymentMethod === "pay-now") {
-        // Show inline payment form instead of redirecting
+        // Store booking info and trigger payment on the already-mounted card form
         setPendingBooking(booking);
-        setShowPaymentForm(true);
+        setCheckoutStep("paying");
+        
+        try {
+          await worldlineRef.current?.submit();
+        } catch (err: any) {
+          setPaymentError(err.message || "Payment failed");
+          setCheckoutStep("idle");
+        }
         setIsSubmitting(false);
         return;
       } else {
@@ -550,6 +564,7 @@ export default function NewCheckout() {
     } catch (error: any) {
       console.error("Booking error:", error);
       toast({ title: "Booking failed", description: error.message, variant: "destructive" });
+      setCheckoutStep("idle");
     } finally {
       setIsSubmitting(false);
     }
@@ -795,6 +810,47 @@ export default function NewCheckout() {
                     </div>
                   )}
                 </div>
+
+                {/* Inline card form — shown immediately when pay-now selected */}
+                {paymentMethod === "pay-now" && (
+                  <div className="mt-5 space-y-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" />
+                      Card Details
+                    </h3>
+                    {user && (
+                      <SavedCardsSelector
+                        onSelectCard={setSelectedSavedCard}
+                        selectedCard={selectedSavedCard}
+                      />
+                    )}
+                    <WorldlineCheckout
+                      ref={worldlineRef}
+                      mode="pay"
+                      bookingId={pendingBooking?.id || "pending"}
+                      amount={finalTotal}
+                      accessToken={!user ? pendingBooking?.accessToken : undefined}
+                      customerCode={selectedSavedCard || undefined}
+                      headless
+                      inlineError={paymentError || undefined}
+                      onProcessingChange={setIsPaymentProcessing}
+                      onSuccess={() => {
+                        setPaymentError(null);
+                        setCheckoutStep("idle");
+                        if (!user && pendingBooking) {
+                          navigate(`/complete-signup?bookingCode=${encodeURIComponent(pendingBooking.booking_code)}&bookingId=${encodeURIComponent(pendingBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
+                        } else if (pendingBooking) {
+                          navigate(`/booking/${pendingBooking.id}?payment=success`);
+                        }
+                      }}
+                      onError={(errorMsg) => {
+                        setPaymentError(errorMsg);
+                        setCheckoutStep("idle");
+                        setIsSubmitting(false);
+                      }}
+                    />
+                  </div>
+                )}
               </Card>
 
               {/* Save Time at Counter */}
@@ -1079,59 +1135,48 @@ export default function NewCheckout() {
                   </Label>
                 </div>
 
-                {/* Inline Payment Form or Submit button */}
-                {showPaymentForm && pendingBooking ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
-                      <Check className="w-4 h-4" />
-                      Booking created — complete payment below
+                {/* Progress steps + Submit button */}
+                {checkoutStep !== "idle" && (
+                  <div className="mb-4 space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      {checkoutStep === "creating" ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      ) : (
+                        <Check className="w-4 h-4 text-primary" />
+                      )}
+                      <span className={checkoutStep === "creating" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                        Creating your booking...
+                      </span>
                     </div>
-                    {user && (
-                      <SavedCardsSelector
-                        onSelectCard={setSelectedSavedCard}
-                        selectedCard={selectedSavedCard}
-                      />
+                    {checkoutStep === "paying" && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span className="text-foreground font-medium">Processing payment...</span>
+                      </div>
                     )}
-                    <WorldlineCheckout
-                      mode="pay"
-                      bookingId={pendingBooking.id}
-                      amount={finalTotal}
-                      accessToken={!user ? pendingBooking.accessToken : undefined}
-                      customerCode={selectedSavedCard || undefined}
-                      buttonLabel={`Pay $${finalTotal.toFixed(2)} CAD`}
-                      inlineError={paymentError || undefined}
-                      onSuccess={() => {
-                        setPaymentError(null);
-                        if (!user) {
-                          navigate(`/complete-signup?bookingCode=${encodeURIComponent(pendingBooking.booking_code)}&bookingId=${encodeURIComponent(pendingBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
-                        } else {
-                          navigate(`/booking/${pendingBooking.id}?payment=success`);
-                        }
-                      }}
-                      onError={(errorMsg) => {
-                        setPaymentError(errorMsg);
-                      }}
-                    />
                   </div>
-                ) : (
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="w-full h-14 text-lg bg-primary hover:bg-primary/90"
-                    size="lg"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : paymentMethod === "pay-later" ? (
-                      "Confirm Booking"
-                    ) : (
-                      "Pay and Book"
-                    )}
-                  </Button>
                 )}
+
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || isPaymentProcessing}
+                  className="w-full h-14 text-lg bg-primary hover:bg-primary/90"
+                  size="lg"
+                >
+                  {isSubmitting || isPaymentProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      {checkoutStep === "creating" ? "Creating booking..." : checkoutStep === "paying" ? "Processing payment..." : "Processing..."}
+                    </>
+                  ) : paymentMethod === "pay-later" ? (
+                    "Confirm Booking"
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4 mr-2" />
+                      Pay and Book — ${finalTotal.toFixed(2)} CAD
+                    </>
+                  )}
+                </Button>
               </Card>
             </div>
 
