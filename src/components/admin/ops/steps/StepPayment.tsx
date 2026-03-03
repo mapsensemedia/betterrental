@@ -106,19 +106,11 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
     }
   };
 
-  const handleSendDepositRequest = async () => {
-    setIsPlacingHold(true);
-    try {
-      const { error } = await supabase.functions.invoke("send-payment-request", {
-        body: { bookingId },
-      });
-      if (error) throw error;
-      toast.success("Deposit payment link sent to customer");
-    } catch (err: any) {
-      toast.error("Failed to send request: " + (err.message || "Unknown error"));
-    } finally {
-      setIsPlacingHold(false);
-    }
+  const handleCopyCheckoutLink = () => {
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/my-booking/${bookingId}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Booking link copied — send to customer to complete deposit checkout");
   };
 
   if (isLoading) {
@@ -271,21 +263,11 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
               <Button
                 size="sm"
                 variant="outline"
-                disabled={isPlacingHold}
-                onClick={handleSendDepositRequest}
+                onClick={handleCopyCheckoutLink}
                 className="w-full border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950"
               >
-                {isPlacingHold ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Deposit Link to Customer
-                  </>
-                )}
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Booking Link for Customer
               </Button>
             </div>
           )}
