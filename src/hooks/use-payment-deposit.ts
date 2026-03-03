@@ -30,6 +30,7 @@ export interface PaymentSummary {
   payments: PaymentRecord[];
   wlTransactionId: string | null;
   wlAuthStatus: string | null;
+  depositDbStatus: string | null;
 }
 
 export function usePaymentDepositStatus(bookingId: string | null) {
@@ -40,7 +41,7 @@ export function usePaymentDepositStatus(bookingId: string | null) {
 
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('total_amount, deposit_amount, wl_transaction_id, wl_auth_status')
+        .select('total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_auth_status')
         .eq('id', bookingId)
         .single();
 
@@ -101,6 +102,7 @@ export function usePaymentDepositStatus(bookingId: string | null) {
         payments: formattedPayments,
         wlTransactionId: booking.wl_transaction_id || null,
         wlAuthStatus: booking.wl_auth_status || null,
+        depositDbStatus: booking.deposit_status || null,
       } as PaymentSummary;
     },
     enabled: !!bookingId,
