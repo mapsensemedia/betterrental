@@ -501,14 +501,38 @@ export default function NewCheckout() {
 
         // Handle edge function errors (network issues, 5xx errors)
         if (guestResponse.error) {
-          const errorMessage = guestResponse.error.message || "Failed to create booking";
           console.error("Guest booking edge function error:", guestResponse.error);
           
-          // Only show generic message for true network/server failures
-          if (errorMessage.includes("non-2xx") || errorMessage.includes("Failed to fetch")) {
+          // For non-2xx responses, try to parse the actual error body from the response context
+          if (guestResponse.error.message?.includes("non-2xx")) {
+            try {
+              const ctx = (guestResponse.error as any).context;
+              if (ctx?.body) {
+                const body = typeof ctx.body === "string" ? JSON.parse(ctx.body) : ctx.body;
+                if (body?.error) {
+                  throw new Error(errorMessages[body.error] || body.message || "Booking failed.");
+                }
+              }
+              // If context has no body, try reading from response
+              if (ctx instanceof Response) {
+                const body = await ctx.json().catch(() => null);
+                if (body?.error) {
+                  throw new Error(errorMessages[body.error] || body.message || "Booking failed.");
+                }
+              }
+            } catch (parseErr) {
+              // If it's our own re-thrown error, propagate it
+              if (parseErr instanceof Error && !parseErr.message.includes("non-2xx")) {
+                throw parseErr;
+              }
+            }
             throw new Error("Booking service temporarily unavailable. Please try again in a moment.");
           }
-          throw new Error(errorMessage);
+          
+          if (guestResponse.error.message?.includes("Failed to fetch")) {
+            throw new Error("Unable to connect to booking service. Please check your internet connection.");
+          }
+          throw new Error(guestResponse.error.message || "Failed to create booking");
         }
 
         if (!guestResponse.data?.booking) {
