@@ -1,5 +1,6 @@
 /**
  * StepPayment - Payment status display with Worldline auth controls
+ * Includes inline walk-in payment via WorldlineCheckout for unpaid bookings.
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +34,11 @@ import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { WorldlineCheckout } from "@/components/payments/WorldlineCheckout";
+import type { WorldlineCheckoutHandle } from "@/components/payments/WorldlineCheckout";
+import { DEFAULT_DEPOSIT_AMOUNT } from "@/lib/pricing";
 
 interface StepPaymentProps {
   bookingId: string;
@@ -51,6 +55,11 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const [isReleasing, setIsReleasing] = useState(false);
   const [isPlacingHold, setIsPlacingHold] = useState(false);
   const queryClient = useQueryClient();
+
+  // Walk-in payment state
+  const [walkinPayStep, setWalkinPayStep] = useState<"idle" | "paying" | "depositing" | "done">("idle");
+  const [walkinError, setWalkinError] = useState<string | null>(null);
+  const worldlineRef = useRef<WorldlineCheckoutHandle>(null);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -113,6 +122,43 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
     toast.success("Booking link copied — send to customer to complete deposit checkout");
   };
 
+  // Walk-in payment success: rental paid → now place deposit hold
+  const handleWalkinPaySuccess = async (result: { transactionId: string; lastFour: string }) => {
+    setWalkinPayStep("depositing");
+
+    try {
+      // Get a fresh token from the still-mounted card fields
+      const tokenData = await worldlineRef.current!.getToken();
+
+      const { data, error } = await supabase.functions.invoke("wl-authorize", {
+        body: {
+          bookingId,
+          token: tokenData.token,
+          name: tokenData.name,
+        },
+      });
+
+      if (error || data?.error) {
+        // Non-blocking: rental was paid, deposit hold failed
+        console.warn("Deposit hold failed after rental payment:", error || data?.error);
+        toast.info("Rental paid but deposit hold failed — customer can complete later");
+      } else {
+        toast.success("Payment and deposit hold completed successfully");
+      }
+    } catch (err: any) {
+      console.warn("Deposit hold error:", err);
+      toast.info("Rental paid but deposit hold failed — customer can complete later");
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+    setWalkinPayStep("done");
+  };
+
+  const handleWalkinPayError = (error: string) => {
+    setWalkinError(error);
+    toast.error(error);
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -129,6 +175,11 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const depositDbStatus = paymentStatus?.depositDbStatus;
   const isAuthorized = wlAuthStatus === "authorized";
   const needsDepositHold = wlAuthStatus === "completed" && (!depositDbStatus || depositDbStatus === "none");
+
+  // Show walk-in payment form when booking is unpaid and has no auth
+  const bookingStatus = paymentStatus?.bookingStatus;
+  const canShowWalkinPayment = !isPaid && !wlAuthStatus && !wlTransactionId
+    && (bookingStatus === "confirmed" || bookingStatus === "pending");
 
   return (
     <div className="space-y-4">
@@ -296,8 +347,76 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             </div>
           ))}
 
-          {/* No payment - send request */}
-          {!isPaid && !wlAuthStatus && (
+          {/* Walk-in payment: inline WorldlineCheckout for unpaid bookings */}
+          {canShowWalkinPayment && (
+            <div className="space-y-3">
+              {walkinPayStep !== "done" ? (
+                <>
+                  <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+                    <CreditCard className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-800 dark:text-amber-200">
+                      <p className="font-medium mb-1">Take Payment</p>
+                      <p className="text-sm">
+                        Enter the customer's card details below to charge the rental and place a ${DEFAULT_DEPOSIT_AMOUNT.toFixed(0)} deposit hold.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+
+                  {walkinError && (
+                    <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-sm">{walkinError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Card form wrapper — overlay during deposit step */}
+                  <div className="relative">
+                    <WorldlineCheckout
+                      ref={worldlineRef}
+                      mode="pay"
+                      bookingId={bookingId}
+                      amount={paymentStatus?.totalDue || 0}
+                      onSuccess={handleWalkinPaySuccess}
+                      onError={handleWalkinPayError}
+                      disabled={walkinPayStep === "depositing"}
+                      buttonLabel={`Pay $${(paymentStatus?.totalDue || 0).toFixed(2)} + $${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} deposit hold`}
+                      headless={false}
+                    />
+
+                    {/* Overlay during deposit hold step */}
+                    {walkinPayStep === "depositing" && (
+                      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center z-10">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                        <p className="text-sm font-medium">Placing ${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} deposit hold...</p>
+                        <p className="text-xs text-muted-foreground mt-1">Please wait, do not close this panel</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fallback: copy booking link */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCopyCheckoutLink}
+                    className="w-full text-muted-foreground"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Or copy booking link for customer
+                  </Button>
+                </>
+              ) : (
+                <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <AlertDescription className="text-emerald-800 dark:text-emerald-200">
+                    <p className="font-medium">Payment completed successfully</p>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          {/* No payment and not eligible for walk-in form */}
+          {!isPaid && !wlAuthStatus && !canShowWalkinPayment && (
             <div className="space-y-3">
               <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
                 <AlertCircle className="h-4 w-4 text-amber-600" />

@@ -329,8 +329,12 @@ export default function NewCheckout() {
       return;
     }
 
-    setIsSubmitting(true);
+    // Clear stale state from any previous booking attempt
+    setPendingBooking(null);
     setPaymentError(null);
+    setCheckoutStep("idle");
+
+    setIsSubmitting(true);
     if (paymentMethod === "pay-now") {
       setCheckoutStep("creating");
     }
