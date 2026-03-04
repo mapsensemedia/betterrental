@@ -122,6 +122,12 @@ interface BookingData {
   // Worldline payment info
   wl_transaction_id: string | null;
   wl_auth_status: string | null;
+  wl_deposit_transaction_id: string | null;
+  wl_deposit_auth_status: string | null;
+  deposit_status: string | null;
+  deposit_authorized_at: string | null;
+  deposit_captured_at: string | null;
+  deposit_released_at: string | null;
   // Join tables for FinancialBreakdown
   booking_add_ons: any[];
   booking_additional_drivers: any[];
@@ -339,6 +345,12 @@ export default function BookingDetail() {
             upgrade_visible_to_customer,
             wl_transaction_id,
             wl_auth_status,
+            wl_deposit_transaction_id,
+            wl_deposit_auth_status,
+            deposit_status,
+            deposit_authorized_at,
+            deposit_captured_at,
+            deposit_released_at,
             created_at,
             booking_add_ons (id, add_on_id, price, quantity, add_ons (name)),
             booking_additional_drivers (id, driver_name, driver_age_band, young_driver_fee),
@@ -484,6 +496,17 @@ export default function BookingDetail() {
       </CustomerLayout>
     );
   }
+
+  const depositStatusRaw = booking.deposit_status || booking.wl_deposit_auth_status || null;
+  const hasDepositHold = !!booking.wl_deposit_transaction_id;
+  const depositStatusLabel =
+    depositStatusRaw === "authorized"
+      ? "Hold placed"
+      : depositStatusRaw === "captured"
+        ? "Captured"
+        : depositStatusRaw === "released" || depositStatusRaw === "voided"
+          ? "Released"
+          : "Not placed";
 
   return (
     <CustomerLayout>
@@ -751,6 +774,46 @@ export default function BookingDetail() {
                       </div>
                     </>
                   )}
+
+                  <Separator className="my-3" />
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Deposit</span>
+                      <Badge variant={hasDepositHold && depositStatusRaw === "authorized" ? "warning" : hasDepositHold && (depositStatusRaw === "captured" || depositStatusRaw === "released" || depositStatusRaw === "voided") ? "success" : "secondary"}>
+                        {depositStatusLabel}
+                      </Badge>
+                    </div>
+                    {hasDepositHold && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Deposit Transaction ID</span>
+                        <span className="font-mono text-xs">{booking.wl_deposit_transaction_id}</span>
+                      </div>
+                    )}
+                    {booking.deposit_amount != null && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Deposit Amount</span>
+                        <span>${Number(booking.deposit_amount).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {booking.deposit_authorized_at && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Authorized</span>
+                        <span>{format(new Date(booking.deposit_authorized_at), "MMM d, yyyy h:mm a")}</span>
+                      </div>
+                    )}
+                    {booking.deposit_captured_at && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Captured</span>
+                        <span>{format(new Date(booking.deposit_captured_at), "MMM d, yyyy h:mm a")}</span>
+                      </div>
+                    )}
+                    {booking.deposit_released_at && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Released</span>
+                        <span>{format(new Date(booking.deposit_released_at), "MMM d, yyyy h:mm a")}</span>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
