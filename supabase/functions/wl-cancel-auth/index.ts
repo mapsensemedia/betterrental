@@ -1,7 +1,8 @@
 /**
- * wl-cancel-auth — Void/release a pre-authorization hold
+ * wl-cancel-auth — Void/release a pre-authorization deposit hold
  * 
  * Admin/staff only. Voids the auth so the hold is released on the card.
+ * Uses wl_deposit_transaction_id (not rental wl_transaction_id).
  */
 
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -35,13 +36,16 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bErr } = await supabase
       .from("bookings")
-      .select("wl_transaction_id, deposit_amount, deposit_status")
+      .select("wl_deposit_transaction_id, wl_transaction_id, deposit_amount, deposit_status")
       .eq("id", bookingId)
       .single();
 
-    if (bErr || !booking?.wl_transaction_id) {
+    // Use deposit-specific txn id, fall back to legacy wl_transaction_id
+    const depositTxnId = booking?.wl_deposit_transaction_id || booking?.wl_transaction_id;
+
+    if (bErr || !depositTxnId) {
       return new Response(
-        JSON.stringify({ error: "No Worldline transaction found for this booking" }),
+        JSON.stringify({ error: "No deposit authorization found for this booking" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -54,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     const res = await log.timed("bambora_void", () =>
-      worldlineRequest("POST", `/payments/${booking.wl_transaction_id}/void`, {
+      worldlineRequest("POST", `/payments/${depositTxnId}/void`, {
         amount: booking.deposit_amount,
       }),
     );
@@ -70,15 +74,15 @@ Deno.serve(async (req) => {
     await supabase.from("bookings").update({
       deposit_status: "released",
       deposit_released_at: new Date().toISOString(),
-      wl_auth_status: "voided",
+      wl_deposit_auth_status: "released",
     }).eq("id", bookingId);
 
     await supabase.from("payments")
       .update({ status: "voided" })
       .eq("booking_id", bookingId)
-      .eq("transaction_id", booking.wl_transaction_id);
+      .eq("transaction_id", depositTxnId);
 
-    log.info("Auth voided", { transaction_id: booking.wl_transaction_id });
+    log.info("Auth voided", { depositTxnId });
 
     return new Response(
       JSON.stringify({ success: true }),

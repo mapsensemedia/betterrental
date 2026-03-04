@@ -2,7 +2,7 @@
  * Payment Deposit Status Hook
  * 
  * Provides read-only payment status for a booking.
- * Simplified: no deposit hold logic - just tracks payments.
+ * Reads separate rental (wl_transaction_id) and deposit (wl_deposit_transaction_id) fields.
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +13,7 @@ export interface PaymentRecord {
   amount: number;
   paymentType: 'rental' | 'deposit' | 'additional';
   paymentMethod: string | null;
-  status: 'pending' | 'completed' | 'refunded' | 'failed';
+  status: 'pending' | 'completed' | 'refunded' | 'failed' | 'authorized' | 'voided';
   transactionId: string | null;
   createdAt: string;
 }
@@ -28,8 +28,12 @@ export interface PaymentSummary {
   depositStatus: 'not_required' | 'pending' | 'held' | 'released';
   allComplete: boolean;
   payments: PaymentRecord[];
+  // Rental fields
   wlTransactionId: string | null;
   wlAuthStatus: string | null;
+  // Deposit fields (separate from rental)
+  wlDepositTransactionId: string | null;
+  wlDepositAuthStatus: string | null;
   depositDbStatus: string | null;
   bookingStatus: string | null;
 }
@@ -42,7 +46,7 @@ export function usePaymentDepositStatus(bookingId: string | null) {
 
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_auth_status, status')
+        .select('total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_auth_status, wl_deposit_transaction_id, wl_deposit_auth_status, status')
         .eq('id', bookingId)
         .single();
 
@@ -59,7 +63,6 @@ export function usePaymentDepositStatus(bookingId: string | null) {
       const totalDue = Number(booking.total_amount) || 0;
       const depositRequired = Number(booking.deposit_amount) || 0;
 
-      // Calculate totals from completed payments
       const completedPayments = (payments || []).filter(p => p.status === 'completed');
       const totalPaid = completedPayments
         .filter(p => p.payment_type !== 'refund')
@@ -86,7 +89,7 @@ export function usePaymentDepositStatus(bookingId: string | null) {
         amount: Number(p.amount),
         paymentType: p.payment_type as 'rental' | 'deposit' | 'additional',
         paymentMethod: p.payment_method,
-        status: p.status as 'pending' | 'completed' | 'refunded' | 'failed',
+        status: p.status as PaymentRecord['status'],
         transactionId: p.transaction_id,
         createdAt: p.created_at,
       }));
@@ -103,6 +106,8 @@ export function usePaymentDepositStatus(bookingId: string | null) {
         payments: formattedPayments,
         wlTransactionId: booking.wl_transaction_id || null,
         wlAuthStatus: booking.wl_auth_status || null,
+        wlDepositTransactionId: (booking as any).wl_deposit_transaction_id || null,
+        wlDepositAuthStatus: (booking as any).wl_deposit_auth_status || null,
         depositDbStatus: booking.deposit_status || null,
         bookingStatus: booking.status || null,
       } as PaymentSummary;

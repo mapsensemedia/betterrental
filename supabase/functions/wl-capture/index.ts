@@ -1,7 +1,8 @@
 /**
- * wl-capture — Capture a previously authorized hold
+ * wl-capture — Capture a previously authorized deposit hold
  * 
  * Admin/staff only. Captures the full or partial amount of a pre-auth.
+ * Uses wl_deposit_transaction_id (not rental wl_transaction_id).
  */
 
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -35,13 +36,16 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bErr } = await supabase
       .from("bookings")
-      .select("wl_transaction_id, deposit_amount, deposit_status, booking_code")
+      .select("wl_deposit_transaction_id, wl_transaction_id, deposit_amount, deposit_status, booking_code")
       .eq("id", bookingId)
       .single();
 
-    if (bErr || !booking?.wl_transaction_id) {
+    // Use deposit-specific txn id, fall back to legacy wl_transaction_id
+    const depositTxnId = booking?.wl_deposit_transaction_id || booking?.wl_transaction_id;
+
+    if (bErr || !depositTxnId) {
       return new Response(
-        JSON.stringify({ error: "No Worldline transaction found for this booking" }),
+        JSON.stringify({ error: "No deposit authorization found for this booking" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -56,7 +60,7 @@ Deno.serve(async (req) => {
     const finalAmount = captureAmount ?? booking.deposit_amount;
 
     const res = await log.timed("bambora_capture", () =>
-      worldlineRequest("POST", `/payments/${booking.wl_transaction_id}/completions`, {
+      worldlineRequest("POST", `/payments/${depositTxnId}/completions`, {
         amount: finalAmount,
       }),
     );
@@ -74,16 +78,16 @@ Deno.serve(async (req) => {
       deposit_captured_amount: finalAmount,
       deposit_captured_at: new Date().toISOString(),
       deposit_capture_reason: "manual_capture",
-      wl_auth_status: "captured",
+      wl_deposit_auth_status: "captured",
     }).eq("id", bookingId);
 
-    // Update payment record
+    // Update payment record for the deposit transaction
     await supabase.from("payments")
       .update({ status: "completed" })
       .eq("booking_id", bookingId)
-      .eq("transaction_id", booking.wl_transaction_id);
+      .eq("transaction_id", depositTxnId);
 
-    log.info("Capture completed", { amount: finalAmount });
+    log.info("Capture completed", { amount: finalAmount, depositTxnId });
 
     return new Response(
       JSON.stringify({ success: true, capturedAmount: finalAmount }),

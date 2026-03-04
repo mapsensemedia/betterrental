@@ -488,6 +488,8 @@ export type Database = {
           user_id: string
           vehicle_id: string
           wl_auth_status: string | null
+          wl_deposit_auth_status: string | null
+          wl_deposit_transaction_id: string | null
           wl_profile_customer_code: string | null
           wl_transaction_id: string | null
           young_driver_fee: number | null
@@ -584,6 +586,8 @@ export type Database = {
           user_id: string
           vehicle_id: string
           wl_auth_status?: string | null
+          wl_deposit_auth_status?: string | null
+          wl_deposit_transaction_id?: string | null
           wl_profile_customer_code?: string | null
           wl_transaction_id?: string | null
           young_driver_fee?: number | null
@@ -680,6 +684,8 @@ export type Database = {
           user_id?: string
           vehicle_id?: string
           wl_auth_status?: string | null
+          wl_deposit_auth_status?: string | null
+          wl_deposit_transaction_id?: string | null
           wl_profile_customer_code?: string | null
           wl_transaction_id?: string | null
           young_driver_fee?: number | null
