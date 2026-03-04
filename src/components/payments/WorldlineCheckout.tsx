@@ -106,14 +106,20 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
       onProcessingChange?.(isProcessing);
     }, [isProcessing, onProcessingChange]);
 
-    // We need stable refs for bookingId/accessToken/customerCode since they may change
-    // after booking creation in headless mode
+    // Keep latest dynamic inputs/callbacks in refs so headless submit() always
+    // uses current booking context even if parent state changes just before submit.
     const bookingIdRef = useRef(bookingId);
     const accessTokenRef = useRef(accessToken);
     const customerCodeRef = useRef(customerCode);
+    const modeRef = useRef(mode);
+    const onSuccessRef = useRef(onSuccess);
+    const onErrorRef = useRef(onError);
     useEffect(() => { bookingIdRef.current = bookingId; }, [bookingId]);
     useEffect(() => { accessTokenRef.current = accessToken; }, [accessToken]);
     useEffect(() => { customerCodeRef.current = customerCode; }, [customerCode]);
+    useEffect(() => { modeRef.current = mode; }, [mode]);
+    useEffect(() => { onSuccessRef.current = onSuccess; }, [onSuccess]);
+    useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
     // Load SDK script
     useEffect(() => {
@@ -128,7 +134,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
       script.src = SDK_URL;
       script.async = true;
       script.onload = () => setSdkReady(true);
-      script.onerror = () => onError("Failed to load payment SDK");
+      script.onerror = () => onErrorRef.current("Failed to load payment SDK");
       document.head.appendChild(script);
     }, []);
 
@@ -199,12 +205,15 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
     const canSubmit = allFieldsValid && cardholderName.trim().length > 0 && !isProcessing && !disabled;
 
     const handleSubmit = useCallback(async () => {
+      const reportError = (message: string) => onErrorRef.current(message);
+      const reportSuccess = (result: { transactionId: string; lastFour: string }) => onSuccessRef.current(result);
+
       if (!checkoutRef.current) {
-        onError("Payment form not ready. Please wait a moment.");
+        reportError("Payment form not ready. Please wait a moment.");
         return;
       }
       if (!allFieldsValid || !cardholderName.trim()) {
-        onError("Please fill in all card fields.");
+        reportError("Please fill in all card fields.");
         return;
       }
       setIsProcessing(true);
@@ -213,13 +222,13 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
         checkoutRef.current!.createToken(async (result: TokenResult) => {
           if (result.error || !result.token) {
             setIsProcessing(false);
-            onError(result.error?.message || "Failed to tokenize card");
+            reportError(result.error?.message || "Failed to tokenize card");
             resolve();
             return;
           }
 
           try {
-            const functionName = mode === "authorize" ? "wl-authorize" : "wl-pay";
+            const functionName = modeRef.current === "authorize" ? "wl-authorize" : "wl-pay";
             const body: Record<string, unknown> = {
               bookingId: bookingIdRef.current,
               token: result.token,
@@ -242,7 +251,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
 
                   if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
                     console.warn("[WorldlineCheckout] Payment succeeded server-side despite client error:", error);
-                    onSuccess({ transactionId: booking.wl_transaction_id, lastFour: "" });
+                    reportSuccess({ transactionId: booking.wl_transaction_id, lastFour: "" });
                     setIsProcessing(false);
                     resolve();
                     return;
@@ -263,9 +272,9 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
               }
 
               if (parsed?.declined) {
-                onError("Your card was declined. Please try a different card or contact your bank.");
+                reportError("Your card was declined. Please try a different card or contact your bank.");
               } else {
-                onError(parsed?.error || "Payment failed. Please try again.");
+                reportError(parsed?.error || "Payment failed. Please try again.");
               }
               setIsProcessing(false);
               resolve();
@@ -284,7 +293,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
 
                   if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
                     console.warn("[WorldlineCheckout] Payment succeeded server-side despite data.declined");
-                    onSuccess({ transactionId: booking.wl_transaction_id, lastFour: result.last4 || "" });
+                    reportSuccess({ transactionId: booking.wl_transaction_id, lastFour: result.last4 || "" });
                     setIsProcessing(false);
                     resolve();
                     return;
@@ -293,7 +302,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
                   console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
                 }
               }
-              onError("Your card was declined. Please try a different card or contact your bank.");
+              reportError("Your card was declined. Please try a different card or contact your bank.");
               setIsProcessing(false);
               resolve();
               return;
@@ -311,7 +320,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
 
                   if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
                     console.warn("[WorldlineCheckout] Payment succeeded server-side despite data.error:", data.error);
-                    onSuccess({ transactionId: booking.wl_transaction_id, lastFour: result.last4 || "" });
+                    reportSuccess({ transactionId: booking.wl_transaction_id, lastFour: result.last4 || "" });
                     setIsProcessing(false);
                     resolve();
                     return;
@@ -320,25 +329,25 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
                   console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
                 }
               }
-              onError(data.error);
+              reportError(data.error);
               setIsProcessing(false);
               resolve();
               return;
             }
 
-            onSuccess({
+            reportSuccess({
               transactionId: data.transactionId || data.transaction_id || "",
               lastFour: result.last4 || "",
             });
           } catch (err: any) {
-            onError(err.message || "Payment processing failed. Please try again.");
+            reportError(err.message || "Payment processing failed. Please try again.");
           } finally {
             setIsProcessing(false);
             resolve();
           }
         });
       });
-    }, [allFieldsValid, cardholderName, mode, onSuccess, onError]);
+    }, [allFieldsValid, cardholderName]);
 
     // Tokenize only — no edge function call
     const getToken = useCallback((): Promise<{ token: string; last4: string; name: string }> => {

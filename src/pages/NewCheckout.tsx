@@ -147,7 +147,32 @@ export default function NewCheckout() {
   const [checkoutStep, setCheckoutStep] = useState<"idle" | "creating" | "paying" | "deposit">("idle");
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const worldlineRef = useRef<WorldlineCheckoutHandle>(null);
+  const pendingBookingRef = useRef<{ id: string; booking_code: string; user_id?: string; accessToken?: string } | null>(null);
+  const paymentSubmitStartedForBookingRef = useRef<string | null>(null);
   
+  useEffect(() => {
+    pendingBookingRef.current = pendingBooking;
+  }, [pendingBooking]);
+
+  useEffect(() => {
+    if (checkoutStep !== "paying" || !pendingBooking || !worldlineRef.current) return;
+    if (paymentSubmitStartedForBookingRef.current === pendingBooking.id) return;
+
+    paymentSubmitStartedForBookingRef.current = pendingBooking.id;
+
+    void (async () => {
+      try {
+        await worldlineRef.current?.submit();
+      } catch (err: any) {
+        setPaymentError(err.message || "Payment failed");
+        setCheckoutStep("idle");
+        paymentSubmitStartedForBookingRef.current = null;
+      } finally {
+        setIsSubmitting(false);
+      }
+    })();
+  }, [checkoutStep, pendingBooking]);
+
   // Force pay-now for delivery bookings
   useEffect(() => {
     if (searchData.deliveryMode === "delivery" && paymentMethod === "pay-later") {
@@ -331,6 +356,8 @@ export default function NewCheckout() {
     }
 
     // Clear stale state from any previous booking attempt
+    pendingBookingRef.current = null;
+    paymentSubmitStartedForBookingRef.current = null;
     setPendingBooking(null);
     setPaymentError(null);
     setCheckoutStep("idle");
@@ -564,18 +591,11 @@ export default function NewCheckout() {
       markCartConverted.mutate(booking.id);
 
       if (paymentMethod === "pay-now") {
-        // Store booking info and trigger payment on the already-mounted card form
+        // Store booking info first, then let the mounted checkout submit on the next render
+        pendingBookingRef.current = booking;
+        paymentSubmitStartedForBookingRef.current = null;
         setPendingBooking(booking);
         setCheckoutStep("paying");
-        
-        // submit() handles the rental payment (wl-pay) — deposit hold is triggered
-        // in onSuccess after rental payment completes
-        try {
-          await worldlineRef.current?.submit();
-        } catch (err: any) {
-          setPaymentError(err.message || "Payment failed");
-          setCheckoutStep("idle");
-        }
         setIsSubmitting(false);
         return;
       } else {
@@ -866,23 +886,25 @@ export default function NewCheckout() {
                       inlineError={paymentError || undefined}
                       onProcessingChange={setIsPaymentProcessing}
                       onSuccess={async () => {
+                        const activeBooking = pendingBookingRef.current;
+                        paymentSubmitStartedForBookingRef.current = null;
                         setPaymentError(null);
                         
                         // Step 2: Place deposit hold if booking has deposit
                         const depositAmount = DEFAULT_DEPOSIT_AMOUNT;
-                        if (depositAmount > 0 && pendingBooking) {
+                        if (depositAmount > 0 && activeBooking) {
                           setCheckoutStep("deposit");
-                          console.log("[checkout] deposit hold attempt", { bookingId: pendingBooking.id, depositAmount });
+                          console.log("[checkout] deposit hold attempt", { bookingId: activeBooking.id, depositAmount });
                           try {
                             const tokenResult = await worldlineRef.current?.getToken();
                             console.log("[checkout] deposit token result", { hasToken: !!tokenResult?.token });
                             if (tokenResult) {
                               const authBody: Record<string, unknown> = {
-                                bookingId: pendingBooking.id,
+                                bookingId: activeBooking.id,
                                 token: tokenResult.token,
                                 name: tokenResult.name,
                               };
-                              if (pendingBooking.accessToken) authBody.accessToken = pendingBooking.accessToken;
+                              if (activeBooking.accessToken) authBody.accessToken = activeBooking.accessToken;
                               
                               const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
                               if (authError || authData?.error) {
@@ -902,10 +924,10 @@ export default function NewCheckout() {
                         }
                         
                         setCheckoutStep("idle");
-                        if (!user && pendingBooking) {
-                          navigate(`/complete-signup?bookingCode=${encodeURIComponent(pendingBooking.booking_code)}&bookingId=${encodeURIComponent(pendingBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
-                        } else if (pendingBooking) {
-                          navigate(`/booking/${pendingBooking.id}?payment=success`);
+                        if (!user && activeBooking) {
+                          navigate(`/complete-signup?bookingCode=${encodeURIComponent(activeBooking.booking_code)}&bookingId=${encodeURIComponent(activeBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
+                        } else if (activeBooking) {
+                          navigate(`/booking/${activeBooking.id}?payment=success`);
                         }
                       }}
                       onError={(errorMsg) => {
