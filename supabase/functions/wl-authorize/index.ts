@@ -4,6 +4,8 @@
  * Replaces create-checkout-hold for deposit hold flow.
  * Accepts a single-use token nonce from the Custom Checkout SDK.
  * Amount is server-derived from booking.deposit_amount.
+ * 
+ * Writes to separate deposit columns: wl_deposit_transaction_id, wl_deposit_auth_status
  */
 
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -47,7 +49,7 @@ Deno.serve(async (req) => {
     const supabase = getAdminClient();
     const amount = booking.deposit_amount ?? booking.total_amount;
 
-    // Pre-auth: complete: false
+    // Pre-auth: complete: false — uses -DEP suffix to avoid order_number collision with rental
     const res = await log.timed("bambora_preauth", () =>
       worldlineRequest<BamboraPaymentResponse>("POST", "/payments", {
         order_number: booking.booking_code + "-DEP",
@@ -68,9 +70,10 @@ Deno.serve(async (req) => {
 
     const txn = res.data;
 
+    // Write deposit-specific columns (separate from rental wl_transaction_id)
     await supabase.from("bookings").update({
-      wl_transaction_id: String(txn.id),
-      wl_auth_status: "authorized",
+      wl_deposit_transaction_id: String(txn.id),
+      wl_deposit_auth_status: "authorized",
       deposit_status: "authorized",
       deposit_amount: amount,
       deposit_authorized_at: new Date().toISOString(),
@@ -97,6 +100,7 @@ Deno.serve(async (req) => {
         transactionId: txn.id,
         amount,
         authCode: txn.auth_code,
+        status: "authorized",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

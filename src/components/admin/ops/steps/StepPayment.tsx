@@ -1,43 +1,31 @@
 /**
- * StepPayment - Payment status display with Worldline auth controls
- * Includes inline walk-in payment via WorldlineCheckout for unpaid bookings.
+ * StepPayment - Payment & Deposit status display with ops controls
+ * 
+ * Shows rental status, deposit status, and action buttons.
+ * Uses OpsPaymentAndDeposit for inline card form (no copy-link).
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { 
   CheckCircle2, 
   CreditCard, 
   Clock, 
   Loader2,
   AlertCircle,
   Copy,
-  Send,
   ShieldCheck,
   ShieldOff,
   ShieldAlert,
-  Info,
 } from "lucide-react";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { WorldlineCheckout } from "@/components/payments/WorldlineCheckout";
-import type { WorldlineCheckoutHandle } from "@/components/payments/WorldlineCheckout";
+import { OpsPaymentAndDeposit } from "@/components/payments/OpsPaymentAndDeposit";
 import { DEFAULT_DEPOSIT_AMOUNT } from "@/lib/pricing";
 
 interface StepPaymentProps {
@@ -50,35 +38,13 @@ interface StepPaymentProps {
 
 export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: paymentStatus, isLoading } = usePaymentDepositStatus(bookingId);
-  const [isSendingRequest, setIsSendingRequest] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
-  const [isPlacingHold, setIsPlacingHold] = useState(false);
   const queryClient = useQueryClient();
-
-  // Walk-in payment state
-  const [walkinPayStep, setWalkinPayStep] = useState<"idle" | "paying" | "depositing" | "done">("idle");
-  const [walkinError, setWalkinError] = useState<string | null>(null);
-  const worldlineRef = useRef<WorldlineCheckoutHandle>(null);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard`);
-  };
-
-  const handleSendPaymentRequest = async () => {
-    setIsSendingRequest(true);
-    try {
-      const { error } = await supabase.functions.invoke("send-payment-request", {
-        body: { bookingId },
-      });
-      if (error) throw error;
-      toast.success("Payment request sent to customer");
-    } catch (err: any) {
-      toast.error("Failed to send request: " + (err.message || "Unknown error"));
-    } finally {
-      setIsSendingRequest(false);
-    }
   };
 
   const handleCapture = async () => {
@@ -115,48 +81,8 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
     }
   };
 
-  const handleCopyCheckoutLink = () => {
-    const baseUrl = window.location.origin;
-    const link = `${baseUrl}/my-booking/${bookingId}`;
-    navigator.clipboard.writeText(link);
-    toast.success("Booking link copied — send to customer to complete deposit checkout");
-  };
-
-  // Walk-in payment success: rental paid → now place deposit hold
-  const handleWalkinPaySuccess = async (result: { transactionId: string; lastFour: string }) => {
-    setWalkinPayStep("depositing");
-
-    try {
-      // Get a fresh token from the still-mounted card fields
-      const tokenData = await worldlineRef.current!.getToken();
-
-      const { data, error } = await supabase.functions.invoke("wl-authorize", {
-        body: {
-          bookingId,
-          token: tokenData.token,
-          name: tokenData.name,
-        },
-      });
-
-      if (error || data?.error) {
-        // Non-blocking: rental was paid, deposit hold failed
-        console.warn("Deposit hold failed after rental payment:", error || data?.error);
-        toast.info("Rental paid but deposit hold failed — customer can complete later");
-      } else {
-        toast.success("Payment and deposit hold completed successfully");
-      }
-    } catch (err: any) {
-      console.warn("Deposit hold error:", err);
-      toast.info("Rental paid but deposit hold failed — customer can complete later");
-    }
-
+  const refreshData = () => {
     queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
-    setWalkinPayStep("done");
-  };
-
-  const handleWalkinPayError = (error: string) => {
-    setWalkinError(error);
-    toast.error(error);
   };
 
   if (isLoading) {
@@ -172,14 +98,22 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const isPaid = paymentStatus?.paymentStatus === 'paid';
   const wlAuthStatus = paymentStatus?.wlAuthStatus;
   const wlTransactionId = paymentStatus?.wlTransactionId;
+  const wlDepositTxnId = paymentStatus?.wlDepositTransactionId;
+  const wlDepositAuthStatus = paymentStatus?.wlDepositAuthStatus;
   const depositDbStatus = paymentStatus?.depositDbStatus;
-  const isAuthorized = wlAuthStatus === "authorized";
-  const needsDepositHold = wlAuthStatus === "completed" && (!depositDbStatus || depositDbStatus === "none");
-
-  // Show walk-in payment form when booking is unpaid and has no auth
   const bookingStatus = paymentStatus?.bookingStatus;
-  const canShowWalkinPayment = !isPaid && !wlAuthStatus && !wlTransactionId
+
+  const depositIsAuthorized = depositDbStatus === "authorized" || wlDepositAuthStatus === "authorized";
+  const depositIsCaptured = depositDbStatus === "captured" || wlDepositAuthStatus === "captured";
+  const depositIsReleased = depositDbStatus === "released" || wlDepositAuthStatus === "released";
+  const hasDeposit = depositIsAuthorized || depositIsCaptured || depositIsReleased;
+
+  // Show inline payment form when unpaid
+  const canShowPayForm = !isPaid && !wlTransactionId
     && (bookingStatus === "confirmed" || bookingStatus === "pending");
+
+  // Show deposit-only form when paid but no deposit hold
+  const canShowDepositOnly = isPaid && !hasDeposit && !wlDepositTxnId;
 
   return (
     <div className="space-y-4">
@@ -230,39 +164,53 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             </div>
           )}
 
-          {/* Worldline Auth Status */}
-          {(wlAuthStatus || wlTransactionId) && (
+          {/* === RENTAL SECTION === */}
+          {wlTransactionId && (
             <div className="p-3 rounded-md bg-muted/30 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Authorization</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rental</p>
               {wlAuthStatus && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Auth Status</span>
-                  <Badge variant={isAuthorized ? "default" : "secondary"} className="text-xs capitalize">
-                    {wlAuthStatus}
-                  </Badge>
+                  <Badge variant="secondary" className="text-xs capitalize">{wlAuthStatus}</Badge>
                 </div>
               )}
-              {depositDbStatus && depositDbStatus !== "none" && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Deposit Status</span>
-                  <Badge variant={depositDbStatus === "authorized" ? "default" : "secondary"} className="text-xs capitalize">
-                    {depositDbStatus}
-                  </Badge>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Transaction ID</span>
+                <div className="flex items-center gap-1">
+                  <code className="font-mono text-xs bg-background px-2 py-0.5 rounded">
+                    {wlTransactionId.length > 16 ? `${wlTransactionId.slice(0, 16)}…` : wlTransactionId}
+                  </code>
+                  <Button variant="ghost" size="icon" className="h-6 w-6"
+                    onClick={() => copyToClipboard(wlTransactionId, "Transaction ID")}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
                 </div>
-              )}
-              {wlTransactionId && (
+              </div>
+            </div>
+          )}
+
+          {/* === DEPOSIT SECTION === */}
+          {(hasDeposit || wlDepositTxnId) && (
+            <div className="p-3 rounded-md bg-muted/30 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Deposit</p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Status</span>
+                <Badge 
+                  variant={depositIsAuthorized ? "default" : "secondary"} 
+                  className={cn("text-xs capitalize", depositIsCaptured && "bg-emerald-500/10 text-emerald-600")}
+                >
+                  {depositDbStatus || wlDepositAuthStatus || "none"}
+                </Badge>
+              </div>
+              {wlDepositTxnId && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Transaction ID</span>
                   <div className="flex items-center gap-1">
                     <code className="font-mono text-xs bg-background px-2 py-0.5 rounded">
-                      {wlTransactionId.length > 16 ? `${wlTransactionId.slice(0, 16)}…` : wlTransactionId}
+                      {wlDepositTxnId.length > 16 ? `${wlDepositTxnId.slice(0, 16)}…` : wlDepositTxnId}
                     </code>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => copyToClipboard(wlTransactionId, "Transaction ID")}
-                    >
+                    <Button variant="ghost" size="icon" className="h-6 w-6"
+                      onClick={() => copyToClipboard(wlDepositTxnId, "Deposit Transaction ID")}>
                       <Copy className="h-3 w-3" />
                     </Button>
                   </div>
@@ -270,24 +218,13 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
               )}
 
               {/* Capture / Release buttons */}
-              {isAuthorized && (
+              {depositIsAuthorized && (
                 <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    onClick={handleCapture}
-                    disabled={isCapturing || isReleasing}
-                    className="flex-1"
-                  >
+                  <Button size="sm" onClick={handleCapture} disabled={isCapturing || isReleasing} className="flex-1">
                     {isCapturing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-1" />}
                     Capture Deposit
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleRelease}
-                    disabled={isCapturing || isReleasing}
-                    className="flex-1"
-                  >
+                  <Button size="sm" variant="outline" onClick={handleRelease} disabled={isCapturing || isReleasing} className="flex-1">
                     {isReleasing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ShieldOff className="h-4 w-4 mr-1" />}
                     Release Hold
                   </Button>
@@ -296,157 +233,35 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             </div>
           )}
 
-          {/* Deposit hold missing — for paid bookings before two-step flow */}
-          {needsDepositHold && (
-            <div className="p-3 rounded-md border border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30 space-y-3">
-              <div className="flex items-start gap-2">
-                <ShieldAlert className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">No deposit hold on file</p>
-                  <p className="text-xs text-muted-foreground">
-                    This booking was paid before the two-step deposit flow was implemented.
-                    A deposit hold requires the customer to re-enter their card details through checkout.
-                    Send them a payment link to complete the deposit authorization.
-                  </p>
-                </div>
-              </div>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCopyCheckoutLink}
-                className="w-full border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Copy Booking Link for Customer
-              </Button>
-            </div>
+          {/* === INLINE PAYMENT FORM: pay+hold (unpaid) === */}
+          {canShowPayForm && (
+            <OpsPaymentAndDeposit
+              bookingId={bookingId}
+              rentalAmount={paymentStatus?.totalDue || 0}
+              depositAmount={DEFAULT_DEPOSIT_AMOUNT}
+              onUpdated={refreshData}
+            />
           )}
 
-          {/* Legacy transaction IDs */}
-          {paymentStatus?.payments.filter(p => p.transactionId).map((payment) => (
-            <div key={payment.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/30">
-              <span className="text-muted-foreground capitalize">{payment.paymentType}</span>
-              <div className="flex items-center gap-2">
-                {payment.transactionId && (
-                  <>
-                    <code className="font-mono text-xs bg-background px-2 py-0.5 rounded">
-                      {payment.transactionId.slice(0, 20)}...
-                    </code>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => copyToClipboard(payment.transactionId!, "Transaction ID")}
-                    >
-                      <Copy className="h-3 w-3" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {/* Walk-in payment: inline WorldlineCheckout for unpaid bookings */}
-          {canShowWalkinPayment && (
-            <div className="space-y-3">
-              {walkinPayStep !== "done" ? (
-                <>
-                  <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
-                    <CreditCard className="h-4 w-4 text-amber-600" />
-                    <AlertDescription className="text-amber-800 dark:text-amber-200">
-                      <p className="font-medium mb-1">Take Payment</p>
-                      <p className="text-sm">
-                        Enter the customer's card details below to charge the rental and place a ${DEFAULT_DEPOSIT_AMOUNT.toFixed(0)} deposit hold.
-                      </p>
-                    </AlertDescription>
-                  </Alert>
-
-                  {walkinError && (
-                    <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-sm">{walkinError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Card form wrapper — overlay during deposit step */}
-                  <div className="relative">
-                    <WorldlineCheckout
-                      ref={worldlineRef}
-                      mode="pay"
-                      bookingId={bookingId}
-                      amount={paymentStatus?.totalDue || 0}
-                      onSuccess={handleWalkinPaySuccess}
-                      onError={handleWalkinPayError}
-                      disabled={walkinPayStep === "depositing"}
-                      buttonLabel={`Pay $${(paymentStatus?.totalDue || 0).toFixed(2)} + $${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} deposit hold`}
-                      headless={false}
-                    />
-
-                    {/* Overlay during deposit hold step */}
-                    {walkinPayStep === "depositing" && (
-                      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center z-10">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
-                        <p className="text-sm font-medium">Placing ${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} deposit hold...</p>
-                        <p className="text-xs text-muted-foreground mt-1">Please wait, do not close this panel</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Fallback: copy booking link */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleCopyCheckoutLink}
-                    className="w-full text-muted-foreground"
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Or copy booking link for customer
-                  </Button>
-                </>
-              ) : (
-                <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-                    <p className="font-medium">Payment completed successfully</p>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
+          {/* === INLINE DEPOSIT-ONLY FORM (paid, no deposit) === */}
+          {canShowDepositOnly && (
+            <OpsPaymentAndDeposit
+              bookingId={bookingId}
+              rentalAmount={0}
+              depositAmount={DEFAULT_DEPOSIT_AMOUNT}
+              onUpdated={refreshData}
+            />
           )}
 
-          {/* No payment and not eligible for walk-in form */}
-          {!isPaid && !wlAuthStatus && !canShowWalkinPayment && (
-            <div className="space-y-3">
-              <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800 dark:text-amber-200">
-                  <p className="font-medium mb-1">Payment not yet received</p>
-                  <p className="text-sm">
-                    The customer hasn't completed checkout or needs to pay an outstanding balance.
-                  </p>
-                </AlertDescription>
-              </Alert>
-              
-              <Button 
-                onClick={handleSendPaymentRequest}
-                disabled={isSendingRequest}
-                className="w-full"
-                variant="default"
-              >
-                {isSendingRequest ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Payment Link to Customer
-                  </>
-                )}
-              </Button>
-            </div>
+          {/* No payment and not eligible for any form */}
+          {!isPaid && !wlAuthStatus && !wlTransactionId && !canShowPayForm && (
+            <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <p className="font-medium mb-1">Payment not yet received</p>
+                <p className="text-sm">The customer hasn't completed checkout.</p>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Completion Indicators */}
