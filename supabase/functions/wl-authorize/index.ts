@@ -24,6 +24,41 @@ interface BamboraPaymentResponse {
   card?: { card_type: string; last_four: string; name: string };
 }
 
+async function persistDepositAuthorization(
+  supabase: ReturnType<typeof getAdminClient>,
+  bookingId: string,
+  bookingUserId: string,
+  amount: number,
+  transactionId: string,
+  cardholderName: string | null,
+  card?: { card_type?: string; last_four?: string; name?: string },
+) {
+  const bookingUpdate = await supabase.from("bookings").update({
+    wl_deposit_transaction_id: transactionId,
+    wl_deposit_auth_status: "authorized",
+    deposit_status: "authorized",
+    deposit_amount: amount,
+    deposit_authorized_at: new Date().toISOString(),
+    card_last_four: card?.last_four || null,
+    card_type: card?.card_type || null,
+    card_holder_name: card?.name || cardholderName || null,
+  }).eq("id", bookingId);
+
+  if (bookingUpdate.error) throw bookingUpdate.error;
+
+  const paymentInsert = await supabase.from("payments").insert({
+    booking_id: bookingId,
+    user_id: bookingUserId,
+    amount,
+    payment_type: "deposit",
+    payment_method: "card",
+    status: "authorized",
+    transaction_id: transactionId,
+  });
+
+  if (paymentInsert.error) throw paymentInsert.error;
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
@@ -31,9 +66,10 @@ Deno.serve(async (req) => {
   const log = createLogger("wl-authorize");
 
   try {
-    const { bookingId, accessToken, token, name } = await req.json();
+    const { bookingId, accessToken, token, name, simulate } = await req.json();
+    const simulationEnabled = simulate === true;
 
-    if (!bookingId || !token) {
+    if (!bookingId || (!token && !simulationEnabled)) {
       return new Response(
         JSON.stringify({ error: "bookingId and token are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -45,9 +81,47 @@ Deno.serve(async (req) => {
     const booking = await requireBookingOwnerOrToken(bookingId, authUserId, accessToken);
 
     log.setBooking(bookingId);
+    if (authUserId) log.setUser(authUserId);
 
     const supabase = getAdminClient();
     const amount = booking.deposit_amount ?? booking.total_amount;
+
+    log.info("Deposit authorization invoked", {
+      simulation_enabled: simulationEnabled,
+      has_token: !!token,
+      has_name: typeof name === "string" && name.trim().length > 0,
+      has_access_token: !!accessToken,
+      amount,
+    });
+
+    if (simulationEnabled) {
+      const simulatedTransactionId = `sim-${crypto.randomUUID()}`;
+      await persistDepositAuthorization(
+        supabase,
+        bookingId,
+        booking.user_id,
+        amount,
+        simulatedTransactionId,
+        typeof name === "string" ? name.trim() : null,
+      );
+
+      log.info("Simulation deposit authorized", {
+        transaction_id: simulatedTransactionId,
+        amount,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          simulated: true,
+          transactionId: simulatedTransactionId,
+          amount,
+          authCode: "SIMULATED",
+          status: "authorized",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Pre-auth: complete: false — uses -DEP suffix to avoid order_number collision with rental
     const res = await log.timed("bambora_preauth", () =>
@@ -70,27 +144,15 @@ Deno.serve(async (req) => {
 
     const txn = res.data;
 
-    // Write deposit-specific columns (separate from rental wl_transaction_id)
-    await supabase.from("bookings").update({
-      wl_deposit_transaction_id: String(txn.id),
-      wl_deposit_auth_status: "authorized",
-      deposit_status: "authorized",
-      deposit_amount: amount,
-      deposit_authorized_at: new Date().toISOString(),
-      card_last_four: txn.card?.last_four || null,
-      card_type: txn.card?.card_type || null,
-      card_holder_name: txn.card?.name || name || null,
-    }).eq("id", bookingId);
-
-    await supabase.from("payments").insert({
-      booking_id: bookingId,
-      user_id: booking.user_id,
+    await persistDepositAuthorization(
+      supabase,
+      bookingId,
+      booking.user_id,
       amount,
-      payment_type: "deposit",
-      payment_method: "card",
-      status: "authorized",
-      transaction_id: String(txn.id),
-    });
+      String(txn.id),
+      typeof name === "string" ? name.trim() : null,
+      txn.card,
+    );
 
     log.info("Pre-auth completed", { transaction_id: txn.id, amount });
 
