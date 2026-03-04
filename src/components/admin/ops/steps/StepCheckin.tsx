@@ -77,6 +77,7 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   
   // Contact info state
   const [contactInfo, setContactInfo] = useState({
+    full_name: "",
     phone: "",
     email: "",
     address: "",
@@ -125,9 +126,10 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   });
   
   // Initialize contact info from profile
-  useEffect(() => {
+   useEffect(() => {
     if (profile) {
       setContactInfo({
+        full_name: profile.full_name || booking.profiles?.full_name || "",
         phone: profile.phone || booking.profiles?.phone || "",
         email: profile.email || booking.profiles?.email || "",
         address: profile.address || "",
@@ -208,39 +210,44 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   // Update contact info mutation
   const updateContactMutation = useMutation({
     mutationFn: async (data: typeof contactInfo & { licenseNumber: string }) => {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          phone: data.phone || null,
-          address: data.address || null,
-          driver_license_number: data.licenseNumber || null,
-        })
-        .eq("id", booking.user_id);
-      
-      if (profileError) throw profileError;
-      
-      // Also store in booking notes for reference
-      const { error: bookingError } = await supabase
-        .from("bookings")
-        .update({
-          special_instructions: booking.special_instructions 
-            ? `${booking.special_instructions}\n\nCustomer Contact: ${data.phone || 'N/A'}, ${data.email || 'N/A'}, ${data.address || 'N/A'}`
-            : `Customer Contact: ${data.phone || 'N/A'}, ${data.email || 'N/A'}, ${data.address || 'N/A'}`,
-        })
-        .eq("id", booking.id);
-      
-      if (bookingError) throw bookingError;
+      // Update customer profile via edge function (secure, service_role)
+      const { data: result, error } = await supabase.functions.invoke("update-booking-customer", {
+        body: {
+          bookingId: booking.id,
+          customer: {
+            full_name: data.full_name || null,
+            email: data.email || null,
+            phone: data.phone || null,
+            address: data.address || null,
+          },
+        },
+      });
+
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+
+      // License number update still goes direct (non-financial, non-sensitive field on profile)
+      if (data.licenseNumber !== undefined) {
+        const { error: licError } = await supabase
+          .from("profiles")
+          .update({ driver_license_number: data.licenseNumber || null })
+          .eq("id", booking.user_id);
+        if (licError) console.warn("License number update failed:", licError);
+      }
+
+      return result;
     },
     onSuccess: () => {
-      toast({ title: "Contact info saved" });
+      toast({ title: "Customer info saved" });
       setEditingContact(false);
       refetchProfile();
       queryClient.invalidateQueries({ queryKey: ["booking", booking.id] });
+      queryClient.invalidateQueries({ queryKey: ["profile-license", booking.user_id] });
     },
-    onError: () => {
+    onError: (err: any) => {
       toast({ 
-        title: "Failed to save contact info. Please try again.", 
+        title: "Failed to save customer info",
+        description: err?.message || "Please try again.", 
         variant: "destructive" 
       });
     },
@@ -337,6 +344,16 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5" /> Full Name
+                </Label>
+                <Input
+                  value={contactInfo.full_name}
+                  onChange={(e) => setContactInfo(prev => ({ ...prev, full_name: e.target.value }))}
+                  placeholder="Customer full name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5" /> Phone Number
                 </Label>
                 <Input
@@ -354,7 +371,6 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
                   value={contactInfo.email}
                   onChange={(e) => setContactInfo(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="customer@example.com"
-                  disabled // Email usually comes from auth
                 />
               </div>
               <div className="space-y-2">
@@ -377,14 +393,14 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
                 ) : (
                   <Save className="h-4 w-4 mr-2" />
                 )}
-                Save Contact Info
+                Save Customer Info
               </Button>
             </div>
           ) : (
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{displayName(booking.profiles?.full_name)}</span>
+                <span className="font-medium">{displayName(contactInfo.full_name || booking.profiles?.full_name)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground" />

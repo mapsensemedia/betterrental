@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.wl-webhook]
 verify_jwt = false
+
+[functions.update-booking-customer]
+verify_jwt = false
