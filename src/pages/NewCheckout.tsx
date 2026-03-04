@@ -149,9 +149,6 @@ export default function NewCheckout() {
   const worldlineRef = useRef<WorldlineCheckoutHandle>(null);
   const pendingBookingRef = useRef<{ id: string; booking_code: string; user_id?: string; accessToken?: string } | null>(null);
   const paymentSubmitStartedForBookingRef = useRef<string | null>(null);
-  const isDepositSimulationMode =
-    (typeof window !== "undefined" && (window.location.hostname.includes("preview") || window.location.hostname === "localhost")) &&
-    searchParams.get("depositSim") === "1";
   
   useEffect(() => {
     pendingBookingRef.current = pendingBooking;
@@ -903,37 +900,28 @@ export default function NewCheckout() {
                           console.log("[checkout] deposit hold attempt", {
                             bookingId: activeBooking.id,
                             depositAmount,
-                            simulate: isDepositSimulationMode,
                             hasAccessToken: !!activeBooking.accessToken,
                           });
                           try {
+                            const tokenResult = await worldlineRef.current?.getToken();
+                            console.log("[checkout] deposit token result", { hasToken: !!tokenResult?.token });
+                            if (!tokenResult) {
+                              console.warn("[checkout] deposit hold skipped: no token from getToken()");
+                              sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
+                              setCheckoutStep("idle");
+                              if (!user) {
+                                navigate(`/complete-signup?bookingCode=${encodeURIComponent(activeBooking.booking_code)}&bookingId=${encodeURIComponent(activeBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
+                              } else {
+                                navigate(`/booking/${activeBooking.id}?payment=success`);
+                              }
+                              return;
+                            }
+
                             const authBody: Record<string, unknown> = {
                               bookingId: activeBooking.id,
-                              name: fallbackCardholderName,
+                              token: tokenResult.token,
+                              name: tokenResult.name || fallbackCardholderName,
                             };
-
-                            if (isDepositSimulationMode) {
-                              authBody.token = "simulated-dry-run-token";
-                              authBody.simulate = true;
-                              console.log("[checkout] deposit dry-run mode enabled", { bookingId: activeBooking.id });
-                            } else {
-                              const tokenResult = await worldlineRef.current?.getToken();
-                              console.log("[checkout] deposit token result", { hasToken: !!tokenResult?.token });
-                              if (!tokenResult) {
-                                console.warn("[checkout] deposit hold skipped: no token from getToken()");
-                                sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
-                                setCheckoutStep("idle");
-                                if (!user) {
-                                  navigate(`/complete-signup?bookingCode=${encodeURIComponent(activeBooking.booking_code)}&bookingId=${encodeURIComponent(activeBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
-                                } else {
-                                  navigate(`/booking/${activeBooking.id}?payment=success`);
-                                }
-                                return;
-                              }
-
-                              authBody.token = tokenResult.token;
-                              authBody.name = tokenResult.name || fallbackCardholderName;
-                            }
 
                             if (activeBooking.accessToken) authBody.accessToken = activeBooking.accessToken;
 
@@ -944,7 +932,6 @@ export default function NewCheckout() {
                             } else {
                               console.log("[checkout] deposit hold success", {
                                 transactionId: authData?.transactionId,
-                                simulated: authData?.simulated === true,
                               });
                             }
                           } catch (depositErr) {

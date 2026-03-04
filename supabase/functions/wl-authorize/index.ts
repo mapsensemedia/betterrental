@@ -66,10 +66,9 @@ Deno.serve(async (req) => {
   const log = createLogger("wl-authorize");
 
   try {
-    const { bookingId, accessToken, token, name, simulate } = await req.json();
-    const simulationEnabled = simulate === true;
+    const { bookingId, accessToken, token, name } = await req.json();
 
-    if (!bookingId || (!token && !simulationEnabled)) {
+    if (!bookingId || !token) {
       return new Response(
         JSON.stringify({ error: "bookingId and token are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -87,41 +86,11 @@ Deno.serve(async (req) => {
     const amount = booking.deposit_amount ?? booking.total_amount;
 
     log.info("Deposit authorization invoked", {
-      simulation_enabled: simulationEnabled,
       has_token: !!token,
       has_name: typeof name === "string" && name.trim().length > 0,
       has_access_token: !!accessToken,
       amount,
     });
-
-    if (simulationEnabled) {
-      const simulatedTransactionId = `sim-${crypto.randomUUID()}`;
-      await persistDepositAuthorization(
-        supabase,
-        bookingId,
-        booking.user_id,
-        amount,
-        simulatedTransactionId,
-        typeof name === "string" ? name.trim() : null,
-      );
-
-      log.info("Simulation deposit authorized", {
-        transaction_id: simulatedTransactionId,
-        amount,
-      });
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          simulated: true,
-          transactionId: simulatedTransactionId,
-          amount,
-          authCode: "SIMULATED",
-          status: "authorized",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     // Pre-auth: complete: false — uses -DEP suffix to avoid order_number collision with rental
     const res = await log.timed("bambora_preauth", () =>
