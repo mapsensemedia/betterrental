@@ -44,6 +44,7 @@ import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { useSaveAbandonedCart, useMarkCartConverted, getCartSessionId } from "@/hooks/use-abandoned-carts";
@@ -884,15 +885,19 @@ export default function NewCheckout() {
                               if (pendingBooking.accessToken) authBody.accessToken = pendingBooking.accessToken;
                               
                               const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
-                              if (authError) {
-                                console.warn("[checkout] deposit hold failed (non-blocking):", authError);
-                                // Non-blocking: rental is paid, deposit will be arranged separately
+                              if (authError || authData?.error) {
+                                console.warn("[checkout] deposit hold failed (non-blocking):", authError || authData?.error);
+                                sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
                               } else {
                                 console.log("[checkout] deposit hold success", { transactionId: authData?.transactionId });
                               }
+                            } else {
+                              console.warn("[checkout] deposit hold skipped: no token from getToken()");
+                              sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
                             }
                           } catch (depositErr) {
                             console.warn("[checkout] deposit hold exception (non-blocking):", depositErr);
+                            sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
                           }
                         }
                         
