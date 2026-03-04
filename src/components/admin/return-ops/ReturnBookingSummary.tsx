@@ -2,14 +2,12 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DeliveryDetailsCard } from "@/components/admin/DeliveryDetailsCard";
+import { BookingCustomerCard } from "@/components/admin/BookingCustomerCard";
 import { 
-  User, 
   Car, 
   MapPin, 
   Calendar, 
   DollarSign,
-  Phone,
-  Mail,
   Clock,
   AlertTriangle,
 } from "lucide-react";
@@ -57,29 +55,12 @@ export function ReturnBookingSummary({ booking, isException }: ReturnBookingSumm
       )}
       
       {/* Customer Info */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Customer
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p className="font-medium">{booking.profiles?.full_name || "Unknown"}</p>
-          {booking.profiles?.email && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-3.5 w-3.5" />
-              <span className="truncate">{booking.profiles.email}</span>
-            </div>
-          )}
-          {booking.profiles?.phone && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Phone className="h-3.5 w-3.5" />
-              <span>{booking.profiles.phone}</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <BookingCustomerCard
+        bookingId={booking.id}
+        userId={booking.user_id}
+        customer={booking.profiles}
+        editable={true}
+      />
       
       {/* Vehicle Info */}
       <Card>
