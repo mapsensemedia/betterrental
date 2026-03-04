@@ -231,6 +231,27 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
             const { data, error } = await supabase.functions.invoke(functionName, { body });
 
             if (error) {
+              // Before showing error, verify if payment actually succeeded server-side
+              if (bookingIdRef.current && bookingIdRef.current !== "pending") {
+                try {
+                  const { data: booking } = await supabase
+                    .from("bookings")
+                    .select("status, wl_transaction_id")
+                    .eq("id", bookingIdRef.current)
+                    .single();
+
+                  if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
+                    console.warn("[WorldlineCheckout] Payment succeeded server-side despite client error:", error);
+                    onSuccess({ transactionId: booking.wl_transaction_id, lastFour: "" });
+                    setIsProcessing(false);
+                    resolve();
+                    return;
+                  }
+                } catch (verifyErr) {
+                  console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
+                }
+              }
+
               let parsed: any = null;
               try {
                 const bodyText = await (error as any)?.context?.json?.();

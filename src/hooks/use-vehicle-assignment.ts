@@ -59,7 +59,7 @@ export function useCheckVehicleAvailability(
   });
 }
 
-// Get available vehicles for a date range at a location
+// Get available vehicle units for a date range at a location
 export function useAvailableVehicles(
   locationId: string | null,
   startAt: string | null,
@@ -71,33 +71,51 @@ export function useAvailableVehicles(
     queryFn: async () => {
       if (!locationId || !startAt || !endAt) return [];
 
-      // Get all vehicles at this location
-      const { data: vehicles, error: vehicleError } = await supabase
-        .from('vehicles')
-        .select('id, make, model, year, category, daily_rate, image_url')
+      // Get all available units at this location (modern fleet source)
+      const { data: units, error: unitError } = await supabase
+        .from('vehicle_units')
+        .select('id, vin, license_plate, color, status, category_id, location_id, vehicle_categories(id, name, daily_rate, image_url)')
         .eq('location_id', locationId)
-        .eq('is_available', true);
+        .in('status', ['available']);
 
-      if (vehicleError) throw vehicleError;
+      if (unitError) throw unitError;
 
-      // Get conflicting bookings for the date range
+      // Get conflicting bookings for the date range (unit-level)
       const { data: bookings, error: bookingError } = await supabase
         .from('bookings')
-        .select('vehicle_id')
+        .select('assigned_unit_id')
         .in('status', ['pending', 'confirmed', 'active'])
+        .not('assigned_unit_id', 'is', null)
         .or(`and(start_at.lte.${endAt},end_at.gte.${startAt})`);
 
       if (bookingError) throw bookingError;
 
-      // Filter out the excluded booking
-      const conflictingVehicleIds = new Set(
+      // Filter out the excluded booking's unit
+      const conflictingUnitIds = new Set(
         (bookings || [])
-          .filter(b => b.vehicle_id)
-          .map(b => b.vehicle_id)
+          .filter(b => b.assigned_unit_id)
+          .map(b => b.assigned_unit_id)
       );
 
-      // Return vehicles that don't have conflicts
-      return (vehicles || []).filter(v => !conflictingVehicleIds.has(v.id));
+      // Return units that don't have conflicts, mapped to a consistent shape
+      return (units || [])
+        .filter(u => !conflictingUnitIds.has(u.id))
+        .map(u => {
+          const cat = u.vehicle_categories as any;
+          return {
+            id: u.id,
+            vin: u.vin,
+            license_plate: u.license_plate,
+            color: u.color,
+            make: null,
+            model: null,
+            year: null,
+            category: cat?.name || null,
+            category_id: u.category_id,
+            daily_rate: cat?.daily_rate || 0,
+            image_url: cat?.image_url || null,
+          };
+        });
     },
     enabled: !!locationId && !!startAt && !!endAt,
   });
@@ -112,15 +130,38 @@ export function useAssignVehicle() {
     mutationFn: async ({
       bookingId,
       vehicleId,
+      unitId,
+      categoryId,
       startAt,
       endAt,
     }: {
       bookingId: string;
       vehicleId: string;
+      unitId?: string;
+      categoryId?: string;
       startAt: string;
       endAt: string;
     }) => {
-      // First check for conflicts
+      // Unit-level conflict check (assigned_unit_id)
+      if (unitId) {
+        const { data: unitConflicts, error: unitCheckError } = await supabase
+          .from('bookings')
+          .select('id, booking_code')
+          .eq('assigned_unit_id', unitId)
+          .neq('id', bookingId)
+          .in('status', ['pending', 'confirmed', 'active'])
+          .or(`and(start_at.lte.${endAt},end_at.gte.${startAt})`);
+
+        if (unitCheckError) throw unitCheckError;
+
+        if (unitConflicts && unitConflicts.length > 0) {
+          throw new Error(
+            `Vehicle unit is already assigned to booking${unitConflicts.length > 1 ? 's' : ''}: ${unitConflicts.map(c => c.booking_code).join(', ')}`
+          );
+        }
+      }
+
+      // Category-level conflict check (vehicle_id) as fallback
       const { data: conflicts, error: checkError } = await supabase
         .from('bookings')
         .select('id, booking_code')
@@ -137,10 +178,14 @@ export function useAssignVehicle() {
         );
       }
 
-      // Assign the vehicle
+      // Assign the vehicle (both category and unit level)
+      const updatePayload: Record<string, unknown> = { vehicle_id: vehicleId };
+      if (unitId) updatePayload.assigned_unit_id = unitId;
+      if (categoryId) updatePayload.internal_unit_category_id = categoryId;
+
       const { error: updateError } = await supabase
         .from('bookings')
-        .update({ vehicle_id: vehicleId })
+        .update(updatePayload)
         .eq('id', bookingId);
 
       if (updateError) throw updateError;

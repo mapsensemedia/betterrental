@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     // Pre-auth: complete: false
     const res = await log.timed("bambora_preauth", () =>
       worldlineRequest<BamboraPaymentResponse>("POST", "/payments", {
-        order_number: booking.booking_code,
+        order_number: booking.booking_code + "-DEP",
         amount,
         payment_method: "token",
         token: { code: token, name: name || "Cardholder" },
