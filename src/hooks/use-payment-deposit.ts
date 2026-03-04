@@ -6,6 +6,12 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  getDepositLifecycleState,
+  getDepositStatusLabel,
+  isDepositActionComplete,
+  type DepositLifecycleState,
+} from '@/lib/deposit-state';
 
 export interface PaymentRecord {
   id: string;
@@ -26,6 +32,13 @@ export interface PaymentSummary {
   balance: number;
   paymentStatus: 'unpaid' | 'partial' | 'paid';
   depositStatus: 'not_required' | 'pending' | 'held' | 'released';
+  depositLifecycleState: DepositLifecycleState;
+  depositStatusLabel: string;
+  hasAnyDeposit: boolean;
+  hasActiveHold: boolean;
+  canCaptureDeposit: boolean;
+  canReleaseDeposit: boolean;
+  depositActionComplete: boolean;
   allComplete: boolean;
   payments: PaymentRecord[];
   // Rental fields
@@ -94,14 +107,44 @@ export function usePaymentDepositStatus(bookingId: string | null) {
         createdAt: p.created_at,
       }));
 
+      const latestDepositPayment = [...formattedPayments]
+        .reverse()
+        .find(payment => payment.paymentType === 'deposit');
+
+      const depositLifecycleState = getDepositLifecycleState({
+        transactionId: booking.wl_deposit_transaction_id || latestDepositPayment?.transactionId || null,
+        depositStatus: booking.deposit_status || null,
+        worldlineAuthStatus: (booking as any).wl_deposit_auth_status || null,
+        paymentStatus: latestDepositPayment?.status || null,
+      });
+
+      const hasAnyDeposit = !!booking.wl_deposit_transaction_id || !!latestDepositPayment;
+      const hasActiveHold = depositLifecycleState === 'authorized';
+      const depositActionComplete = isDepositActionComplete(depositLifecycleState);
+      const depositStatus =
+        depositRequired <= 0
+          ? 'not_required'
+          : hasActiveHold
+            ? 'held'
+            : depositActionComplete
+              ? 'released'
+              : 'pending';
+
       return {
         totalDue,
         totalPaid: netPaid,
         depositRequired,
-        depositHeld: 0,
+        depositHeld: hasActiveHold ? depositRequired : 0,
         balance: Math.max(0, balance),
         paymentStatus,
-        depositStatus: 'not_required' as const,
+        depositStatus,
+        depositLifecycleState,
+        depositStatusLabel: getDepositStatusLabel(depositLifecycleState),
+        hasAnyDeposit,
+        hasActiveHold,
+        canCaptureDeposit: hasActiveHold,
+        canReleaseDeposit: hasActiveHold,
+        depositActionComplete,
         allComplete,
         payments: formattedPayments,
         wlTransactionId: booking.wl_transaction_id || null,
