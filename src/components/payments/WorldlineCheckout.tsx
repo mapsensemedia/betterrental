@@ -273,6 +273,26 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
             }
 
             if (data?.declined) {
+              // Before showing decline, verify server-side truth
+              if (bookingIdRef.current && bookingIdRef.current !== "pending") {
+                try {
+                  const { data: booking } = await supabase
+                    .from("bookings")
+                    .select("status, wl_transaction_id")
+                    .eq("id", bookingIdRef.current)
+                    .single();
+
+                  if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
+                    console.warn("[WorldlineCheckout] Payment succeeded server-side despite data.declined");
+                    onSuccess({ transactionId: booking.wl_transaction_id, lastFour: result.last4 || "" });
+                    setIsProcessing(false);
+                    resolve();
+                    return;
+                  }
+                } catch (verifyErr) {
+                  console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
+                }
+              }
               onError("Your card was declined. Please try a different card or contact your bank.");
               setIsProcessing(false);
               resolve();
@@ -280,6 +300,26 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
             }
 
             if (data?.error) {
+              // Before showing error, verify server-side truth
+              if (bookingIdRef.current && bookingIdRef.current !== "pending") {
+                try {
+                  const { data: booking } = await supabase
+                    .from("bookings")
+                    .select("status, wl_transaction_id")
+                    .eq("id", bookingIdRef.current)
+                    .single();
+
+                  if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
+                    console.warn("[WorldlineCheckout] Payment succeeded server-side despite data.error:", data.error);
+                    onSuccess({ transactionId: booking.wl_transaction_id, lastFour: result.last4 || "" });
+                    setIsProcessing(false);
+                    resolve();
+                    return;
+                  }
+                } catch (verifyErr) {
+                  console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
+                }
+              }
               onError(data.error);
               setIsProcessing(false);
               resolve();
