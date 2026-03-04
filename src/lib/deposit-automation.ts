@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { getDepositLifecycleState } from "@/lib/deposit-state";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -12,20 +13,29 @@ export async function handleDepositOnStatusChange(
   bookingId: string,
   newStatus: BookingStatus
 ): Promise<void> {
-  // Get deposit payment info
-  const { data: depositPayment } = await supabase
-    .from("payments")
-    .select("id, amount, status")
-    .eq("booking_id", bookingId)
-    .eq("payment_type", "deposit")
-    .eq("status", "completed")
+  const { data: bookingDeposit, error: bookingError } = await supabase
+    .from("bookings")
+    .select("deposit_amount, deposit_status, wl_deposit_auth_status, wl_deposit_transaction_id")
+    .eq("id", bookingId)
     .maybeSingle();
 
-  if (!depositPayment) {
-    // No deposit held, nothing to do
+  if (bookingError) {
+    console.error("Failed to load booking deposit state:", bookingError);
     return;
   }
 
+  const depositState = getDepositLifecycleState({
+    transactionId: bookingDeposit?.wl_deposit_transaction_id,
+    depositStatus: bookingDeposit?.deposit_status,
+    worldlineAuthStatus: bookingDeposit?.wl_deposit_auth_status,
+  });
+
+  if (depositState !== "authorized") {
+    // No active hold to process
+    return;
+  }
+
+  const depositAmount = Number(bookingDeposit?.deposit_amount) || 0;
   const { data: { user } } = await supabase.auth.getUser();
   const userId = user?.id;
 
@@ -44,22 +54,22 @@ export async function handleDepositOnStatusChange(
     ) || 0;
 
     if (!hasOpenDamages) {
-      // No damages - auto-release full deposit
-      await autoReleaseDeposit(bookingId, depositPayment.id, depositPayment.amount, userId);
+      // No damages - release the active hold
+      await autoReleaseDepositHold(bookingId, depositAmount, userId);
     } else if (totalDamageCost > 0) {
       // Has damages - create alert for manual review
       await createDepositReviewAlert(
         bookingId,
-        depositPayment.amount,
+        depositAmount,
         totalDamageCost,
         "damage_review"
       );
     }
   } else if (newStatus === "cancelled") {
-    // Cancelled booking with deposit - always requires manual review
+    // Cancelled booking with active hold - always requires manual review
     await createDepositReviewAlert(
       bookingId,
-      depositPayment.amount,
+      depositAmount,
       0,
       "cancelled_with_deposit"
     );
@@ -67,41 +77,28 @@ export async function handleDepositOnStatusChange(
 }
 
 /**
- * Auto-release deposit and record in ledger
+ * Release an authorized deposit hold and record the action.
  */
-async function autoReleaseDeposit(
+async function autoReleaseDepositHold(
   bookingId: string,
-  paymentId: string,
   amount: number,
   userId: string | undefined
 ): Promise<void> {
-  // Mark payment as refunded
-  const { error: updateError } = await supabase
-    .from("payments")
-    .update({ status: "refunded" })
-    .eq("id", paymentId);
+  const { data, error } = await supabase.functions.invoke("wl-cancel-auth", {
+    body: { bookingId },
+  });
 
-  if (updateError) {
-    console.error("Failed to update deposit payment status:", updateError);
+  if (error || data?.error) {
+    console.error("Failed to release deposit hold:", error || data?.error);
+    await createDepositReviewAlert(bookingId, amount, 0, "release_failed");
     return;
   }
 
-  // Add ledger entry
   if (userId) {
-    await supabase.from("deposit_ledger").insert({
-      booking_id: bookingId,
-      payment_id: paymentId,
-      action: "release",
-      amount,
-      reason: "Auto-released on rental completion (no damages)",
-      created_by: userId,
-    });
-
-    // Log to audit
     await supabase.from("audit_logs").insert({
       action: "deposit_auto_released",
-      entity_type: "payment",
-      entity_id: paymentId,
+      entity_type: "booking",
+      entity_id: bookingId,
       user_id: userId,
       new_data: {
         booking_id: bookingId,
@@ -111,7 +108,6 @@ async function autoReleaseDeposit(
     });
   }
 
-  // Send notification to customer via general booking notification
   try {
     await supabase.functions.invoke("send-booking-notification", {
       body: {
@@ -131,17 +127,21 @@ async function createDepositReviewAlert(
   bookingId: string,
   depositAmount: number,
   damageCost: number,
-  reason: "damage_review" | "cancelled_with_deposit"
+  reason: "damage_review" | "cancelled_with_deposit" | "release_failed"
 ): Promise<void> {
   const alertTitle =
     reason === "cancelled_with_deposit"
       ? "Cancelled Booking: Deposit Requires Manual Review"
-      : "Completed Booking: Deposit Requires Damage Review";
+      : reason === "release_failed"
+        ? "Completed Booking: Deposit Release Failed"
+        : "Completed Booking: Deposit Requires Damage Review";
 
   const alertMessage =
     reason === "cancelled_with_deposit"
       ? `Booking was cancelled with $${depositAmount.toFixed(2)} deposit held. Manual review required to determine refund.`
-      : `Booking completed with $${damageCost.toFixed(2)} in damage costs. Deposit of $${depositAmount.toFixed(2)} requires review before release.`;
+      : reason === "release_failed"
+        ? `Booking completed with a $${depositAmount.toFixed(2)} authorized deposit hold, but automatic release failed. Manual review required.`
+        : `Booking completed with $${damageCost.toFixed(2)} in damage costs. Deposit of $${depositAmount.toFixed(2)} requires review before release.`;
 
   // Check if alert already exists
   const { data: existingAlert } = await supabase

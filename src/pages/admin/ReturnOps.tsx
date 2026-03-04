@@ -109,7 +109,7 @@ export default function ReturnOps() {
   const returnPhotos = photos?.return || [];
   const hasMinimumPhotos = returnPhotos.length >= 4;
   const isCompleted = booking?.status === "completed";
-  const depositReleased = depositData?.depositStatus === "released";
+  const depositResolved = depositData?.depositActionComplete ?? false;
   const noDepositRequired = !booking?.deposit_amount || booking?.deposit_amount === 0;
 
   const completion: ReturnCompletion = {
@@ -133,7 +133,7 @@ export default function ReturnOps() {
       completed: isCompleted,
     },
     deposit: {
-      processed: depositReleased || noDepositRequired || isCompleted,
+      processed: noDepositRequired || depositResolved,
     },
   };
 

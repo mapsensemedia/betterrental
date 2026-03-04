@@ -5,18 +5,21 @@
  */
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Receipt, CreditCard, CheckCircle2, Loader2, FileText } from "lucide-react";
+import { Receipt, CreditCard, CheckCircle2, Loader2, FileText, ShieldCheck, ShieldOff, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { useCloseAccount } from "@/hooks/use-deposit-hold";
+import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 
 interface AccountCloseoutPanelProps {
   bookingId: string;
@@ -34,8 +37,12 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
   const [confirmCharges, setConfirmCharges] = useState(false);
   const [confirmInspection, setConfirmInspection] = useState(false);
   const [confirmInvoice, setConfirmInvoice] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
 
   const closeAccount = useCloseAccount();
+  const queryClient = useQueryClient();
+  const { data: depositData } = usePaymentDepositStatus(bookingId);
 
   const { data: bookingData, isLoading } = useQuery({
     queryKey: ["closeout-data", bookingId],
@@ -57,6 +64,47 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
     },
     enabled: !!bookingId,
   });
+
+  const refreshDepositState = () => {
+    queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+    queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+    queryClient.invalidateQueries({ queryKey: ["closeout-data", bookingId] });
+    queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+  };
+
+  const handleCaptureDeposit = async () => {
+    setIsCapturing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-capture", {
+        body: { bookingId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      toast.success("Deposit captured successfully");
+      refreshDepositState();
+    } catch (err: any) {
+      toast.error("Capture failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const handleReleaseDeposit = async () => {
+    setIsReleasing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-cancel-auth", {
+        body: { bookingId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      toast.success("Hold released successfully");
+      refreshDepositState();
+    } catch (err: any) {
+      toast.error("Release failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsReleasing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -104,7 +152,6 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
     );
   }
 
-  // Calculate charges
   const rentalSubtotal = Number(booking.subtotal) || 0;
   const addonsTotal = (booking.booking_add_ons || []).reduce(
     (sum: number, addon: any) => sum + Number(addon.price) * (addon.quantity || 1), 0
@@ -130,9 +177,11 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
   const amountDue = totalCharges - paymentsReceived;
 
   const allChecked = confirmCharges && confirmInspection && confirmInvoice;
+  const hasActiveHold = depositData?.hasActiveHold ?? false;
+  const depositAmount = depositData?.depositRequired || Number(booking.deposit_amount) || 0;
 
   const handleCloseAccount = async () => {
-    if (!allChecked) return;
+    if (!allChecked || hasActiveHold) return;
     await closeAccount.mutateAsync({ bookingId });
     onCloseComplete?.();
   };
@@ -153,7 +202,6 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Final Charges */}
         <div>
           <h4 className="font-medium text-sm mb-3">📋 FINAL CHARGES SUMMARY</h4>
           <div className="space-y-1 text-sm">
@@ -171,7 +219,6 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
           </div>
         </div>
 
-        {/* Payments Received */}
         <div>
           <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
             <CreditCard className="h-4 w-4" /> PAYMENTS RECEIVED
@@ -193,7 +240,6 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
 
         <Separator />
 
-        {/* Settlement */}
         <div>
           <h4 className="font-medium text-sm mb-3">📊 SETTLEMENT</h4>
           <div className="space-y-1 text-sm">
@@ -222,7 +268,49 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
 
         <Separator />
 
-        {/* Confirmations */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-lg bg-muted/30 p-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Deposit Hold</p>
+              <p className="text-lg font-semibold">${depositAmount.toFixed(2)}</p>
+            </div>
+            <Badge variant={hasActiveHold ? "default" : "secondary"}>
+              {depositData?.depositStatusLabel || "No hold"}
+            </Badge>
+          </div>
+
+          {hasActiveHold ? (
+            <>
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  This booking still has an authorized deposit hold. Capture or release it before closing the account.
+                </AlertDescription>
+              </Alert>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button onClick={handleCaptureDeposit} disabled={isCapturing || isReleasing}>
+                  {isCapturing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                  Capture Deposit
+                </Button>
+                <Button variant="outline" onClick={handleReleaseDeposit} disabled={isCapturing || isReleasing}>
+                  {isReleasing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldOff className="h-4 w-4 mr-2" />}
+                  Release Hold
+                </Button>
+              </div>
+            </>
+          ) : depositData?.depositActionComplete ? (
+            <p className="text-sm text-muted-foreground">
+              Deposit action is finalized, so account closeout can proceed.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No active deposit hold is on file for this booking.
+            </p>
+          )}
+        </div>
+
+        <Separator />
+
         <div className="space-y-3">
           <div className="flex items-start space-x-3">
             <Checkbox id="confirm-charges" checked={confirmCharges} onCheckedChange={(c) => setConfirmCharges(!!c)} />
@@ -238,7 +326,7 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
           </div>
         </div>
 
-        <Button className="w-full" size="lg" disabled={!allChecked || closeAccount.isPending} onClick={handleCloseAccount}>
+        <Button className="w-full" size="lg" disabled={!allChecked || closeAccount.isPending || hasActiveHold} onClick={handleCloseAccount}>
           {closeAccount.isPending ? (
             <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
           ) : (
@@ -251,6 +339,7 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
             <div>• Generate final invoice</div>
             <div>• Email receipt to customer</div>
             {amountDue > 0 && <div>• Outstanding balance: ${amountDue.toFixed(2)} (collect separately)</div>}
+            {hasActiveHold && <div>• Deposit decision required before closeout</div>}
           </div>
         )}
       </CardContent>
