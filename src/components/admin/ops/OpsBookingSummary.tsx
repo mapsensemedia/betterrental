@@ -41,6 +41,7 @@ import { CollapsibleSection } from "./sections/CollapsibleSection";
 import { CardInfoSection } from "./sections/CardInfoSection";
 import { OpsActivityTimeline } from "./OpsActivityTimeline";
 import { FinancialBreakdown } from "./FinancialBreakdown";
+import { BookingCustomerCard } from "@/components/admin/BookingCustomerCard";
 
 interface OpsBookingSummaryProps {
   booking: any;
@@ -273,48 +274,40 @@ export function OpsBookingSummary({
             isOpen={sectionStates.customer}
             onOpenChange={(open) => updateSectionState('customer', open)}
           >
-            <div className="space-y-2 text-sm">
-              <p className="font-medium">{displayName(booking.profiles?.full_name)}</p>
-              {booking.profiles?.email && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="h-3.5 w-3.5" />
-                  <span className="truncate text-xs">{booking.profiles.email}</span>
-                </div>
-              )}
-              {booking.profiles?.phone && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone className="h-3.5 w-3.5" />
-                  <span className="text-xs">{formatPhone(booking.profiles.phone)}</span>
-                </div>
-              )}
-              {booking.driver_age_band && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Driver Age</span>
-                  <Badge variant="outline" className="text-[10px]">{booking.driver_age_band}</Badge>
-                </div>
-              )}
-              {booking.profiles?.driver_license_status && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">License</span>
-                  <Badge 
-                    variant="outline" 
-                    className={cn("text-[10px]",
-                      booking.profiles.driver_license_status === "verified" && "border-emerald-500 text-emerald-600",
-                      booking.profiles.driver_license_status === "pending" && "border-amber-500 text-amber-600",
-                      booking.profiles.driver_license_status === "rejected" && "border-destructive text-destructive",
-                    )}
-                  >
-                    {booking.profiles.driver_license_status}
-                  </Badge>
-                </div>
-              )}
-              {booking.booking_source && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Source</span>
-                  <span className="capitalize">{booking.booking_source}</span>
-                </div>
-              )}
-            </div>
+            <BookingCustomerCard
+              bookingId={booking.id}
+              userId={booking.user_id}
+              customer={booking.profiles}
+              compact
+              editable
+            />
+            {booking.driver_age_band && (
+              <div className="flex justify-between text-xs mt-2">
+                <span className="text-muted-foreground">Driver Age</span>
+                <Badge variant="outline" className="text-[10px]">{booking.driver_age_band}</Badge>
+              </div>
+            )}
+            {booking.profiles?.driver_license_status && (
+              <div className="flex justify-between text-xs mt-1">
+                <span className="text-muted-foreground">License</span>
+                <Badge 
+                  variant="outline" 
+                  className={cn("text-[10px]",
+                    booking.profiles.driver_license_status === "verified" && "border-emerald-500 text-emerald-600",
+                    booking.profiles.driver_license_status === "pending" && "border-amber-500 text-amber-600",
+                    booking.profiles.driver_license_status === "rejected" && "border-destructive text-destructive",
+                  )}
+                >
+                  {booking.profiles.driver_license_status}
+                </Badge>
+              </div>
+            )}
+            {booking.booking_source && (
+              <div className="flex justify-between text-xs mt-1">
+                <span className="text-muted-foreground">Source</span>
+                <span className="capitalize">{booking.booking_source}</span>
+              </div>
+            )}
           </CollapsibleSection>
           
           <Separator />

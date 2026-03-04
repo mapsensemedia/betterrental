@@ -20,6 +20,7 @@ interface UpdateCustomerBody {
     email?: string | null;
     phone?: string | null;
     address?: string | null;
+    driver_license_number?: string | null;
   };
 }
 
@@ -82,7 +83,7 @@ Deno.serve(async (req) => {
     // 4. Load current profile for audit diff
     const { data: oldProfile } = await admin
       .from("profiles")
-      .select("full_name, email, phone, address")
+      .select("full_name, email, phone, address, driver_license_number")
       .eq("id", profileUserId)
       .single();
 
@@ -122,6 +123,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (customer.driver_license_number !== undefined) {
+      const newVal = customer.driver_license_number?.trim() || null;
+      if (newVal !== (oldProfile?.driver_license_number ?? null)) {
+        updatePayload.driver_license_number = newVal;
+        changedFields.driver_license_number = { old: oldProfile?.driver_license_number, new: newVal };
+      }
+    }
+
     // Nothing changed
     if (Object.keys(updatePayload).length === 0) {
       return new Response(
@@ -158,7 +167,7 @@ Deno.serve(async (req) => {
     // 8. Return updated profile
     const { data: updatedProfile } = await admin
       .from("profiles")
-      .select("full_name, email, phone, address")
+      .select("full_name, email, phone, address, driver_license_number")
       .eq("id", profileUserId)
       .single();
 

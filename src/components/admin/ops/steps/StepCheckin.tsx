@@ -24,16 +24,11 @@ import {
   Loader2, 
   X,
   CreditCard,
-  User,
-  Phone,
-  Mail,
-  MapPin,
   Eye,
   Edit2,
   Save,
-  
 } from "lucide-react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -44,6 +39,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
+import { BookingCustomerCard } from "@/components/admin/BookingCustomerCard";
 
 
 
@@ -66,7 +62,6 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   const [editingVerification, setEditingVerification] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [editingContact, setEditingContact] = useState(false);
   const [licenseNumber, setLicenseNumber] = useState("");
   
   // Interactive verification state
@@ -74,14 +69,6 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
   const [licenseNameMatches, setLicenseNameMatches] = useState(false);
   const [licenseExpiryDate, setLicenseExpiryDate] = useState("");
   const [customerDob, setCustomerDob] = useState("");
-  
-  // Contact info state
-  const [contactInfo, setContactInfo] = useState({
-    full_name: "",
-    phone: "",
-    email: "",
-    address: "",
-  });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -125,18 +112,12 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
     enabled: !!booking.user_id,
   });
   
-  // Initialize contact info from profile
+   // Initialize license number from profile
    useEffect(() => {
     if (profile) {
-      setContactInfo({
-        full_name: profile.full_name || booking.profiles?.full_name || "",
-        phone: profile.phone || booking.profiles?.phone || "",
-        email: profile.email || booking.profiles?.email || "",
-        address: profile.address || "",
-      });
       setLicenseNumber(profile.driver_license_number || "");
     }
-  }, [profile, booking.profiles]);
+  }, [profile]);
   
   const licenseOnFile = profile?.driver_license_status === "on_file";
   const licenseExpiry = profile?.driver_license_expiry;
@@ -207,51 +188,7 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
     );
   };
 
-  // Update contact info mutation
-  const updateContactMutation = useMutation({
-    mutationFn: async (data: typeof contactInfo & { licenseNumber: string }) => {
-      // Update customer profile via edge function (secure, service_role)
-      const { data: result, error } = await supabase.functions.invoke("update-booking-customer", {
-        body: {
-          bookingId: booking.id,
-          customer: {
-            full_name: data.full_name || null,
-            email: data.email || null,
-            phone: data.phone || null,
-            address: data.address || null,
-          },
-        },
-      });
-
-      if (error) throw error;
-      if (result?.error) throw new Error(result.error);
-
-      // License number update still goes direct (non-financial, non-sensitive field on profile)
-      if (data.licenseNumber !== undefined) {
-        const { error: licError } = await supabase
-          .from("profiles")
-          .update({ driver_license_number: data.licenseNumber || null })
-          .eq("id", booking.user_id);
-        if (licError) console.warn("License number update failed:", licError);
-      }
-
-      return result;
-    },
-    onSuccess: () => {
-      toast({ title: "Customer info saved" });
-      setEditingContact(false);
-      refetchProfile();
-      queryClient.invalidateQueries({ queryKey: ["booking", booking.id] });
-      queryClient.invalidateQueries({ queryKey: ["profile-license", booking.user_id] });
-    },
-    onError: (err: any) => {
-      toast({ 
-        title: "Failed to save customer info",
-        description: err?.message || "Please try again.", 
-        variant: "destructive" 
-      });
-    },
-  });
+  // (Customer edit mutation moved to BookingCustomerCard)
 
   // Handle staff license upload for customer
   const handleUploadLicense = async () => {
@@ -316,108 +253,15 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
     }
   };
   
-  const handleSaveContact = () => {
-    updateContactMutation.mutate({ ...contactInfo, licenseNumber });
-  };
-  
   return (
     <div className="space-y-4">
-      {/* Customer Info Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <CardTitle className="text-base">Customer Information</CardTitle>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => setEditingContact(!editingContact)}
-            >
-              {editingContact ? <X className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {editingContact ? (
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5" /> Full Name
-                </Label>
-                <Input
-                  value={contactInfo.full_name}
-                  onChange={(e) => setContactInfo(prev => ({ ...prev, full_name: e.target.value }))}
-                  placeholder="Customer full name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5" /> Phone Number
-                </Label>
-                <Input
-                  value={contactInfo.phone}
-                  onChange={(e) => setContactInfo(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5" /> Email Address
-                </Label>
-                <Input
-                  type="email"
-                  value={contactInfo.email}
-                  onChange={(e) => setContactInfo(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="customer@example.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" /> Home Address
-                </Label>
-                <Input
-                  value={contactInfo.address}
-                  onChange={(e) => setContactInfo(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="123 Main St, City, State ZIP"
-                />
-              </div>
-              <Button 
-                onClick={handleSaveContact}
-                disabled={updateContactMutation.isPending}
-                className="w-full"
-              >
-                {updateContactMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Save Customer Info
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{displayName(contactInfo.full_name || booking.profiles?.full_name)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span>{formatPhone(contactInfo.phone || booking.profiles?.phone) || "Not provided"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span>{contactInfo.email || booking.profiles?.email || "Not provided"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{contactInfo.address || "Not provided"}</span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Customer Info Card — shared reusable component */}
+      <BookingCustomerCard
+        bookingId={booking.id}
+        userId={booking.user_id}
+        customer={profile || booking.profiles}
+        extraInvalidateKeys={[["profile-license", booking.user_id]]}
+      />
 
       {/* Driver's License Card */}
       <Card>
@@ -456,26 +300,13 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
             </div>
           )}
           
-          {/* License Number */}
-          <div className="space-y-2">
-            <Label>License Number</Label>
-            <div className="flex gap-2">
-              <Input
-                value={licenseNumber}
-                onChange={(e) => setLicenseNumber(e.target.value)}
-                placeholder="Enter license number"
-              />
-              {licenseNumber !== (profile?.driver_license_number || "") && (
-                <Button 
-                  size="sm"
-                  onClick={() => updateContactMutation.mutate({ ...contactInfo, licenseNumber })}
-                  disabled={updateContactMutation.isPending}
-                >
-                  Save
-                </Button>
-              )}
+          {/* License Number - display only, edit via Customer card above */}
+          {profile?.driver_license_number && (
+            <div className="space-y-2">
+              <Label>License Number</Label>
+              <p className="font-mono text-sm px-3 py-2 bg-muted rounded-lg">{profile.driver_license_number}</p>
             </div>
-          </div>
+          )}
           
           {/* Upload Button */}
           {!licenseOnFile && (
