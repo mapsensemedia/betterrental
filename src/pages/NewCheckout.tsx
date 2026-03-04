@@ -871,8 +871,10 @@ export default function NewCheckout() {
                         const depositAmount = DEFAULT_DEPOSIT_AMOUNT;
                         if (depositAmount > 0 && pendingBooking) {
                           setCheckoutStep("deposit");
+                          console.log("[checkout] deposit hold attempt", { bookingId: pendingBooking.id, depositAmount });
                           try {
                             const tokenResult = await worldlineRef.current?.getToken();
+                            console.log("[checkout] deposit token result", { hasToken: !!tokenResult?.token });
                             if (tokenResult) {
                               const authBody: Record<string, unknown> = {
                                 bookingId: pendingBooking.id,
@@ -881,13 +883,16 @@ export default function NewCheckout() {
                               };
                               if (pendingBooking.accessToken) authBody.accessToken = pendingBooking.accessToken;
                               
-                              const { error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
+                              const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
                               if (authError) {
-                                console.warn("Deposit hold failed (non-blocking):", authError);
+                                console.warn("[checkout] deposit hold failed (non-blocking):", authError);
+                                // Non-blocking: rental is paid, deposit will be arranged separately
+                              } else {
+                                console.log("[checkout] deposit hold success", { transactionId: authData?.transactionId });
                               }
                             }
                           } catch (depositErr) {
-                            console.warn("Deposit hold failed (non-blocking):", depositErr);
+                            console.warn("[checkout] deposit hold exception (non-blocking):", depositErr);
                           }
                         }
                         

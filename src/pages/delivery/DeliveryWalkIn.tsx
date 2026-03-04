@@ -93,14 +93,30 @@ export default function DeliveryWalkIn() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Parse meaningful error from edge function response body
+        let errorMessage = "Failed to create booking";
+        try {
+          const body = await (error as any)?.context?.json?.();
+          if (body?.error) {
+            errorMessage = body.error === "Forbidden: staff role required"
+              ? "Access denied: staff role required"
+              : body.error;
+          }
+        } catch {
+          // Fall through to generic message
+        }
+        console.error("[walk-in] Edge function error:", errorMessage, error);
+        toast.error(errorMessage);
+        return;
+      }
 
       if (data?.error) {
-        if (data.error === "Forbidden: staff role required") {
-          toast.error("Access denied: staff role required");
-        } else {
-          toast.error(data.error);
-        }
+        const errorMessage = data.error === "Forbidden: staff role required"
+          ? "Access denied: staff role required"
+          : data.error;
+        console.error("[walk-in] Response error:", errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
