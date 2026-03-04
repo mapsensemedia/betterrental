@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
       subtotal,
       taxAmount,
       totalAmount,
+      depositAmount,
     } = body;
 
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone) {
@@ -81,6 +82,7 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log("[walkin] role mode", { hasServiceKey: !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") });
     const supabaseAdmin = getAdminClient();
 
     // 4. Resolve or create a user for this walk-in customer
@@ -154,6 +156,7 @@ Deno.serve(async (req) => {
         tax_amount: computedTax,
         total_amount: computedTotal,
         booking_source: "walk_in",
+        deposit_amount: depositAmount ?? 350,
         pickup_contact_name: customerName.trim(),
         pickup_contact_phone: sanitizedPhone,
         notes: notes || null,
