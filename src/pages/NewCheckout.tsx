@@ -149,6 +149,9 @@ export default function NewCheckout() {
   const worldlineRef = useRef<WorldlineCheckoutHandle>(null);
   const pendingBookingRef = useRef<{ id: string; booking_code: string; user_id?: string; accessToken?: string } | null>(null);
   const paymentSubmitStartedForBookingRef = useRef<string | null>(null);
+  const isDepositSimulationMode =
+    (typeof window !== "undefined" && (window.location.hostname.includes("preview") || window.location.hostname === "localhost")) &&
+    searchParams.get("depositSim") === "1";
   
   useEffect(() => {
     pendingBookingRef.current = pendingBooking;
@@ -894,28 +897,55 @@ export default function NewCheckout() {
                         const depositAmount = DEFAULT_DEPOSIT_AMOUNT;
                         if (depositAmount > 0 && activeBooking) {
                           setCheckoutStep("deposit");
-                          console.log("[checkout] deposit hold attempt", { bookingId: activeBooking.id, depositAmount });
+                          const fallbackCardholderName = worldlineRef.current?.getCardholderName()?.trim()
+                            || `${formData.firstName} ${formData.lastName}`.trim()
+                            || "Cardholder";
+                          console.log("[checkout] deposit hold attempt", {
+                            bookingId: activeBooking.id,
+                            depositAmount,
+                            simulate: isDepositSimulationMode,
+                            hasAccessToken: !!activeBooking.accessToken,
+                          });
                           try {
-                            const tokenResult = await worldlineRef.current?.getToken();
-                            console.log("[checkout] deposit token result", { hasToken: !!tokenResult?.token });
-                            if (tokenResult) {
-                              const authBody: Record<string, unknown> = {
-                                bookingId: activeBooking.id,
-                                token: tokenResult.token,
-                                name: tokenResult.name,
-                              };
-                              if (activeBooking.accessToken) authBody.accessToken = activeBooking.accessToken;
-                              
-                              const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
-                              if (authError || authData?.error) {
-                                console.warn("[checkout] deposit hold failed (non-blocking):", authError || authData?.error);
-                                sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
-                              } else {
-                                console.log("[checkout] deposit hold success", { transactionId: authData?.transactionId });
-                              }
+                            const authBody: Record<string, unknown> = {
+                              bookingId: activeBooking.id,
+                              name: fallbackCardholderName,
+                            };
+
+                            if (isDepositSimulationMode) {
+                              authBody.token = "simulated-dry-run-token";
+                              authBody.simulate = true;
+                              console.log("[checkout] deposit dry-run mode enabled", { bookingId: activeBooking.id });
                             } else {
-                              console.warn("[checkout] deposit hold skipped: no token from getToken()");
+                              const tokenResult = await worldlineRef.current?.getToken();
+                              console.log("[checkout] deposit token result", { hasToken: !!tokenResult?.token });
+                              if (!tokenResult) {
+                                console.warn("[checkout] deposit hold skipped: no token from getToken()");
+                                sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
+                                setCheckoutStep("idle");
+                                if (!user) {
+                                  navigate(`/complete-signup?bookingCode=${encodeURIComponent(activeBooking.booking_code)}&bookingId=${encodeURIComponent(activeBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
+                                } else {
+                                  navigate(`/booking/${activeBooking.id}?payment=success`);
+                                }
+                                return;
+                              }
+
+                              authBody.token = tokenResult.token;
+                              authBody.name = tokenResult.name || fallbackCardholderName;
+                            }
+
+                            if (activeBooking.accessToken) authBody.accessToken = activeBooking.accessToken;
+
+                            const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
+                            if (authError || authData?.error) {
+                              console.warn("[checkout] deposit hold failed (non-blocking):", authError || authData?.error);
                               sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
+                            } else {
+                              console.log("[checkout] deposit hold success", {
+                                transactionId: authData?.transactionId,
+                                simulated: authData?.simulated === true,
+                              });
                             }
                           } catch (depositErr) {
                             console.warn("[checkout] deposit hold exception (non-blocking):", depositErr);

@@ -26,6 +26,8 @@ export interface WorldlineCheckoutHandle {
   isReady: () => boolean;
   /** Get a single-use token from the mounted card fields (does NOT call any edge function) */
   getToken: () => Promise<{ token: string; last4: string; name: string }>;
+  /** Read the current cardholder name without tokenizing */
+  getCardholderName: () => string;
 }
 
 interface WorldlineCheckoutProps {
@@ -371,7 +373,8 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
       submit: handleSubmit,
       isReady: () => canSubmit && sdkReady,
       getToken,
-    }), [handleSubmit, canSubmit, sdkReady, getToken]);
+      getCardholderName: () => cardholderName.trim(),
+    }), [handleSubmit, canSubmit, sdkReady, getToken, cardholderName]);
 
     const fieldError = fieldStates["card-number"].error || fieldStates.cvv.error || fieldStates.expiry.error;
 
