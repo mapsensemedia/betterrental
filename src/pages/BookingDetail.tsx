@@ -497,16 +497,23 @@ export default function BookingDetail() {
     );
   }
 
-  const depositStatusRaw = booking.deposit_status || booking.wl_deposit_auth_status || null;
+  const rentalStatusLabel =
+    booking.wl_auth_status === "completed"
+      ? "Payment Complete"
+      : booking.wl_auth_status === "authorized"
+        ? "Payment Authorized"
+        : booking.wl_auth_status || "Unknown";
+
   const hasDepositHold = !!booking.wl_deposit_transaction_id;
-  const depositStatusLabel =
-    depositStatusRaw === "authorized"
+  const depositStatusLabel = !hasDepositHold
+    ? "Not placed"
+    : booking.deposit_status === "authorized"
       ? "Hold placed"
-      : depositStatusRaw === "captured"
+      : booking.deposit_status === "captured"
         ? "Captured"
-        : depositStatusRaw === "released" || depositStatusRaw === "voided"
+        : booking.deposit_status === "released"
           ? "Released"
-          : "Not placed";
+          : booking.deposit_status || booking.wl_deposit_auth_status || "Unknown";
 
   return (
     <CustomerLayout>
@@ -769,7 +776,7 @@ export default function BookingDetail() {
                         <Badge
                           variant={booking.wl_auth_status === "completed" ? "success" : booking.wl_auth_status === "authorized" ? "warning" : "secondary"}
                         >
-                          {booking.wl_auth_status === "completed" ? "Payment Complete" : booking.wl_auth_status === "authorized" ? "Deposit Hold" : booking.wl_auth_status || "Unknown"}
+                          {rentalStatusLabel}
                         </Badge>
                       </div>
                     </>
@@ -779,7 +786,7 @@ export default function BookingDetail() {
                   <div className="space-y-1.5 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Deposit</span>
-                      <Badge variant={hasDepositHold && depositStatusRaw === "authorized" ? "warning" : hasDepositHold && (depositStatusRaw === "captured" || depositStatusRaw === "released" || depositStatusRaw === "voided") ? "success" : "secondary"}>
+                      <Badge variant={hasDepositHold && booking.deposit_status === "authorized" ? "warning" : hasDepositHold && (booking.deposit_status === "captured" || booking.deposit_status === "released") ? "success" : "secondary"}>
                         {depositStatusLabel}
                       </Badge>
                     </div>
