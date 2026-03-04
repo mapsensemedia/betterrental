@@ -206,6 +206,37 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
     const allFieldsValid = fieldStates["card-number"].isValid && fieldStates.cvv.isValid && fieldStates.expiry.isValid;
     const canSubmit = allFieldsValid && cardholderName.trim().length > 0 && !isProcessing && !disabled;
 
+    const verifyServerSuccess = useCallback(async (): Promise<{ transactionId: string | null }> => {
+      if (!bookingIdRef.current || bookingIdRef.current === "pending") {
+        return { transactionId: null };
+      }
+
+      const { data: booking } = await supabase
+        .from("bookings")
+        .select("status, wl_transaction_id, wl_deposit_transaction_id, deposit_status, wl_deposit_auth_status")
+        .eq("id", bookingIdRef.current)
+        .single();
+
+      if (modeRef.current === "authorize") {
+        const depositStates = [booking?.deposit_status, booking?.wl_deposit_auth_status]
+          .map((value) => value?.toLowerCase().trim())
+          .filter((value): value is string => Boolean(value));
+
+        const depositAuthorized =
+          !!booking?.wl_deposit_transaction_id &&
+          depositStates.some((value) => value === "authorized" || value === "hold_created");
+
+        return {
+          transactionId: depositAuthorized ? booking.wl_deposit_transaction_id : null,
+        };
+      }
+
+      const rentalPaid = !!booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active");
+      return {
+        transactionId: rentalPaid ? booking.wl_transaction_id : null,
+      };
+    }, []);
+
     const handleSubmit = useCallback(async () => {
       const reportError = (message: string) => onErrorRef.current(message);
       const reportSuccess = (result: { transactionId: string; lastFour: string }) => onSuccessRef.current(result);
@@ -222,6 +253,24 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
 
       return new Promise<void>((resolve) => {
         checkoutRef.current!.createToken(async (result: TokenResult) => {
+          const recoverFromServerTruth = async () => {
+            try {
+              const truth = await verifyServerSuccess();
+              if (!truth.transactionId) return false;
+
+              console.warn(
+                `[WorldlineCheckout] ${modeRef.current === "authorize" ? "Deposit authorization" : "Payment"} succeeded server-side despite client error.`
+              );
+              reportSuccess({ transactionId: truth.transactionId, lastFour: result.last4 || "" });
+              setIsProcessing(false);
+              resolve();
+              return true;
+            } catch (verifyErr) {
+              console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
+              return false;
+            }
+          };
+
           if (result.error || !result.token) {
             setIsProcessing(false);
             reportError(result.error?.message || "Failed to tokenize card");
@@ -242,25 +291,8 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
             const { data, error } = await supabase.functions.invoke(functionName, { body });
 
             if (error) {
-              // Before showing error, verify if payment actually succeeded server-side
-              if (bookingIdRef.current && bookingIdRef.current !== "pending") {
-                try {
-                  const { data: booking } = await supabase
-                    .from("bookings")
-                    .select("status, wl_transaction_id")
-                    .eq("id", bookingIdRef.current)
-                    .single();
-
-                  if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
-                    console.warn("[WorldlineCheckout] Payment succeeded server-side despite client error:", error);
-                    reportSuccess({ transactionId: booking.wl_transaction_id, lastFour: "" });
-                    setIsProcessing(false);
-                    resolve();
-                    return;
-                  }
-                } catch (verifyErr) {
-                  console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
-                }
+              if (await recoverFromServerTruth()) {
+                return;
               }
 
               let parsed: any = null;
@@ -274,9 +306,18 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
               }
 
               if (parsed?.declined) {
-                reportError("Your card was declined. Please try a different card or contact your bank.");
+                reportError(
+                  modeRef.current === "authorize"
+                    ? "Deposit hold was declined. Please try a different card or contact the card issuer."
+                    : "Your card was declined. Please try a different card or contact your bank."
+                );
               } else {
-                reportError(parsed?.error || "Payment failed. Please try again.");
+                reportError(
+                  parsed?.error ||
+                    (modeRef.current === "authorize"
+                      ? "Deposit hold failed. Please try again."
+                      : "Payment failed. Please try again.")
+                );
               }
               setIsProcessing(false);
               resolve();
@@ -284,53 +325,25 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
             }
 
             if (data?.declined) {
-              // Before showing decline, verify server-side truth
-              if (bookingIdRef.current && bookingIdRef.current !== "pending") {
-                try {
-                  const { data: booking } = await supabase
-                    .from("bookings")
-                    .select("status, wl_transaction_id")
-                    .eq("id", bookingIdRef.current)
-                    .single();
-
-                  if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
-                    console.warn("[WorldlineCheckout] Payment succeeded server-side despite data.declined");
-                    reportSuccess({ transactionId: booking.wl_transaction_id, lastFour: result.last4 || "" });
-                    setIsProcessing(false);
-                    resolve();
-                    return;
-                  }
-                } catch (verifyErr) {
-                  console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
-                }
+              if (await recoverFromServerTruth()) {
+                return;
               }
-              reportError("Your card was declined. Please try a different card or contact your bank.");
+
+              reportError(
+                modeRef.current === "authorize"
+                  ? "Deposit hold was declined. Please try a different card or contact the card issuer."
+                  : "Your card was declined. Please try a different card or contact your bank."
+              );
               setIsProcessing(false);
               resolve();
               return;
             }
 
             if (data?.error) {
-              // Before showing error, verify server-side truth
-              if (bookingIdRef.current && bookingIdRef.current !== "pending") {
-                try {
-                  const { data: booking } = await supabase
-                    .from("bookings")
-                    .select("status, wl_transaction_id")
-                    .eq("id", bookingIdRef.current)
-                    .single();
-
-                  if (booking?.wl_transaction_id && (booking.status === "confirmed" || booking.status === "active")) {
-                    console.warn("[WorldlineCheckout] Payment succeeded server-side despite data.error:", data.error);
-                    reportSuccess({ transactionId: booking.wl_transaction_id, lastFour: result.last4 || "" });
-                    setIsProcessing(false);
-                    resolve();
-                    return;
-                  }
-                } catch (verifyErr) {
-                  console.warn("[WorldlineCheckout] Could not verify server state:", verifyErr);
-                }
+              if (await recoverFromServerTruth()) {
+                return;
               }
+
               reportError(data.error);
               setIsProcessing(false);
               resolve();
@@ -349,7 +362,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
           }
         });
       });
-    }, [allFieldsValid, cardholderName]);
+    }, [allFieldsValid, cardholderName, verifyServerSuccess]);
 
     // Tokenize only — no edge function call
     const getToken = useCallback((): Promise<{ token: string; last4: string; name: string }> => {
