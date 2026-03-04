@@ -159,9 +159,9 @@ export function useCategoryVins(categoryId: string | null) {
       const { data, error } = await supabase
         .from("vehicle_units")
         .select(`
-          *,
+          id, vin, license_plate, status, location_id, notes, current_mileage, acquisition_cost, category_id, created_at,
           location:locations(name),
-          vehicle:vehicles(year, make, model)
+          vehicle:vehicles!vehicle_units_vehicle_id_fkey(year, make, model)
         `)
         .eq("category_id", categoryId)
         .order("status")
