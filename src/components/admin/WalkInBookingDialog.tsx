@@ -151,88 +151,56 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     setIsSubmitting(true);
     
     try {
-      // First create or find the customer profile
-      // Check if user exists by email
-      const { data: existingUser } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", formData.email.toLowerCase().trim())
-        .maybeSingle();
+      // Route ALL walk-in creation through the edge function (service_role)
+      // Never insert directly into bookings from client — triggers block financial fields
+      const { data, error } = await supabase.functions.invoke("create-walk-in-booking", {
+        body: {
+          locationId: formData.locationId,
+          categoryId: formData.vehicleId,
+          startAt: formData.startDate.toISOString(),
+          endAt: formData.endDate.toISOString(),
+          customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+          customerPhone: formData.phone || "000-000-0000",
+          customerEmail: formData.email.toLowerCase().trim(),
+          notes: formData.notes ? `Walk-in booking: ${formData.notes}` : "Walk-in booking",
+          dailyRate: formData.dailyRate,
+          totalDays,
+          subtotal,
+          taxAmount,
+          totalAmount,
+          depositAmount: formData.depositAmount,
+        },
+      });
 
-      let customerId: string;
-
-      if (existingUser) {
-        customerId = existingUser.id;
-      } else {
-        // Create a guest user via edge function
-        const { data: guestResult, error: guestError } = await supabase.functions.invoke(
-          "create-guest-booking",
-          {
-            body: {
-              email: formData.email.toLowerCase().trim(),
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-              phone: formData.phone || undefined,
-              vehicleId: formData.vehicleId,
-              locationId: formData.locationId,
-              startAt: formData.startDate.toISOString(),
-              endAt: formData.endDate.toISOString(),
-              dailyRate: formData.dailyRate,
-              totalDays,
-              subtotal,
-              taxAmount,
-              depositAmount: formData.depositAmount,
-              totalAmount,
-              driverAgeBand: "25_70",
-              notes: formData.notes ? `Walk-in booking: ${formData.notes}` : "Walk-in booking",
-              isWalkIn: true,
-            },
+      if (error) {
+        // Parse meaningful error from edge function response
+        let errorMessage = "Failed to create booking";
+        try {
+          const body = await (error as any)?.context?.json?.();
+          if (body?.error) {
+            errorMessage = body.error;
           }
-        );
-
-        if (guestError) throw guestError;
-        
-        // Navigate to the booking ops page
-        if (guestResult?.booking?.id) {
-          toast.success(`Walk-in booking created: ${guestResult.booking.bookingCode || guestResult.booking.booking_code}`);
-          onOpenChange(false);
-          navigate(`/admin/bookings/${guestResult.booking.id}/ops?returnTo=/admin/bookings`);
-          return;
+        } catch {
+          // Fall through to generic message
         }
-        
-        throw new Error("Failed to create booking");
+        console.error("[walk-in] Edge function error:", errorMessage, error);
+        toast.error(errorMessage);
+        return;
       }
 
-      // If customer exists, create booking directly
-      const bookingCode = generateBookingCode();
-      
-      const { data: booking, error: bookingError } = await supabase
-        .from("bookings")
-        .insert({
-          user_id: customerId,
-          vehicle_id: formData.vehicleId,
-          location_id: formData.locationId,
-          booking_code: bookingCode,
-          start_at: formData.startDate.toISOString(),
-          end_at: formData.endDate.toISOString(),
-          daily_rate: formData.dailyRate,
-          total_days: totalDays,
-          subtotal,
-          tax_amount: taxAmount,
-          deposit_amount: formData.depositAmount,
-          total_amount: totalAmount,
-          status: "confirmed",
-          notes: formData.notes ? `Walk-in booking: ${formData.notes}` : "Walk-in booking",
-        })
-        .select()
-        .single();
+      if (data?.error) {
+        console.error("[walk-in] Response error:", data.error);
+        toast.error(data.error);
+        return;
+      }
 
-      if (bookingError) throw bookingError;
-
-      toast.success(`Walk-in booking created: ${bookingCode}`);
-      onOpenChange(false);
-      navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin/bookings`);
-      
+      if (data?.booking?.id) {
+        toast.success(`Walk-in booking created: ${data.booking.bookingCode || data.booking.booking_code}`);
+        onOpenChange(false);
+        navigate(`/admin/bookings/${data.booking.id}/ops?returnTo=/admin/bookings`);
+      } else {
+        throw new Error("No booking returned from server");
+      }
     } catch (error: any) {
       console.error("Walk-in booking error:", error);
       toast.error(error.message || "Failed to create booking");
