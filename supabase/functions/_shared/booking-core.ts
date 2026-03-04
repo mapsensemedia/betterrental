@@ -348,7 +348,21 @@ export async function requireBookingOwnerOrToken(
       throw new AuthError("Booking not found", 404);
     }
 
-    if (booking.user_id !== authUserId) {
+    // Owner match — fast path
+    if (booking.user_id === authUserId) {
+      return booking;
+    }
+
+    // Fall back to staff/admin role check (e.g. walk-in payments by staff)
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", authUserId)
+      .in("role", ["admin", "staff"])
+      .limit(1)
+      .maybeSingle();
+
+    if (!roleRow) {
       throw new AuthError("Forbidden: not booking owner", 403);
     }
 
