@@ -687,7 +687,7 @@ export default function SupportTicketsPage() {
                 <Input
                   value={newTicketForm.guest_phone}
                   onChange={(e) => setNewTicketForm({ ...newTicketForm, guest_phone: e.target.value })}
-                  placeholder="+1 555 0123"
+                  placeholder="+1 (604) 763-4242"
                 />
               </div>
             </div>

@@ -202,7 +202,7 @@ export function BookingCustomerCard({
             onChange={(e) =>
               setForm((prev) => ({ ...prev, phone: e.target.value }))
             }
-            placeholder="+1 (555) 123-4567"
+            placeholder="+1 (604) 763-4242"
           />
         </div>
         <div className="space-y-2">

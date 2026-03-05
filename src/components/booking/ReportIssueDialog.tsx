@@ -186,10 +186,10 @@ export function ReportIssueDialog({
                 For immediate roadside assistance:
               </p>
               <a 
-                href="tel:+18005551234" 
+                href="tel:+16047634242" 
                 className="flex items-center gap-2 text-destructive font-bold text-lg hover:underline"
               >
-                📞 +1 (800) 555-1234
+                📞 +1 (604) 763-4242
               </a>
               <p className="text-xs text-destructive/80">Available 24/7</p>
             </div>

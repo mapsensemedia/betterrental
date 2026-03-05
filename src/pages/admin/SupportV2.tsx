@@ -835,7 +835,7 @@ export default function SupportV2Page() {
                 <Label>Customer Phone</Label>
                 <Input
                   type="tel"
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="+1 (604) 763-4242"
                   value={newTicketForm.guest_phone}
                   onChange={(e) => setNewTicketForm({ ...newTicketForm, guest_phone: e.target.value })}
                 />
