@@ -30,7 +30,7 @@ export function formatPhone(phone: string | null | undefined): string | null {
   const hasPlus = phone.startsWith("+");
   const digits = phone.replace(/\D/g, "");
 
-  // 10-digit: (604) 555-0200
+  // 10-digit: (604) 763-4242
   if (digits.length === 10) {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
