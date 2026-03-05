@@ -173,7 +173,7 @@ export default function DeliveryWalkIn() {
                     type="tel"
                     value={formData.customerPhone}
                     onChange={(e) => handleChange("customerPhone", e.target.value)}
-                    placeholder="(555) 123-4567"
+                    placeholder="+1 (604) 763-4242"
                     required
                   />
                 </div>

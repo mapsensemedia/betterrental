@@ -309,7 +309,7 @@ export function SaveTimeAtCounter({
                       id="pickup-contact-phone"
                       value={pickupContactPhone}
                       onChange={(e) => onPickupContactPhoneChange(e.target.value)}
-                      placeholder="+1 555-123-4567"
+                      placeholder="+1 (604) 763-4242"
                     />
                   </div>
                 </div>

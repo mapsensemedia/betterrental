@@ -191,7 +191,7 @@ export function WalkaroundSendDialog({
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="+1 (604) 763-4242"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                   />
