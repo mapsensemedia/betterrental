@@ -68,9 +68,9 @@ Deno.serve(async (req) => {
       depositAmount,
     } = body;
 
-    if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone) {
+    if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: locationId, categoryId, startAt, endAt, customerName, customerPhone" }),
+        JSON.stringify({ error: "Missing required fields: locationId, categoryId, startAt, endAt, customerName, customerPhone, customerEmail. Walk-in bookings require customer email." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     console.log("[walkin] role mode", { hasServiceKey: !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") });
     const supabaseAdmin = getAdminClient();
 
-    // 4. Resolve or create a dedicated customer identity for this walk-in
+    // 4. Resolve or create a dedicated auth-backed customer identity for this walk-in
     const sanitizedName = customerName.trim();
     const sanitizedPhone = sanitizePhone(customerPhone);
     const email = customerEmail ? sanitizeEmail(customerEmail) : null;
@@ -104,41 +104,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (email && !isValidEmail(email)) {
+    if (!email || !isValidEmail(email)) {
       return new Response(
-        JSON.stringify({ error: "Invalid customer email" }),
+        JSON.stringify({ error: "Walk-in bookings require a valid customer email so the booking can be linked to a real customer account." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     let userId: string | null = null;
 
-    if (email) {
-      const { data: existingProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("email", email)
-        .maybeSingle();
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
 
-      if (existingProfile) {
-        userId = existingProfile.id;
-      }
+    if (existingProfile) {
+      userId = existingProfile.id;
     }
 
     if (!userId) {
-      const { data: existingPhoneProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("phone", sanitizedPhone)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingPhoneProfile) {
-        userId = existingPhoneProfile.id;
-      }
-    }
-
-    if (!userId && email) {
       const randomPassword = crypto.randomUUID() + crypto.randomUUID().slice(0, 8) + "Aa1!";
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -152,39 +137,32 @@ Deno.serve(async (req) => {
         },
       });
 
-      if (!createError && newUser?.user) {
-        userId = newUser.user.id;
-        await supabaseAdmin.from("profiles").upsert({
-          id: userId,
-          email,
-          full_name: sanitizedName,
-          phone: sanitizedPhone,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "id" });
-      }
-    }
-
-    if (!userId) {
-      const guestProfileId = crypto.randomUUID();
-      const { error: guestProfileError } = await supabaseAdmin.from("profiles").insert({
-        id: guestProfileId,
-        email,
-        full_name: sanitizedName,
-        phone: sanitizedPhone,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-      if (guestProfileError) {
-        console.error("[create-walk-in-booking] Failed to resolve customer identity:", guestProfileError);
+      if (createError || !newUser?.user) {
+        console.error("[create-walk-in-booking] Failed to create walk-in customer:", createError);
         return new Response(
-          JSON.stringify({ error: "Failed to resolve customer identity" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ error: "Walk-in bookings require a valid customer email. We couldn't create or link a customer account for this email." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
-      userId = guestProfileId;
+      userId = newUser.user.id;
+    }
+
+    const { error: profileUpsertError } = await supabaseAdmin.from("profiles").upsert({
+      id: userId,
+      email,
+      full_name: sanitizedName,
+      phone: sanitizedPhone,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" });
+
+    if (profileUpsertError) {
+      console.error("[create-walk-in-booking] Failed to upsert customer profile:", profileUpsertError);
+      return new Response(
+        JSON.stringify({ error: "Walk-in bookings require a valid customer email. We couldn't save the customer profile for this email." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // 5. Compute pricing — trust staff input
