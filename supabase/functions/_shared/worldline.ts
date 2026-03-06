@@ -80,11 +80,24 @@ export async function worldlineRequest<T = unknown>(
 /**
  * Parse a Worldline error response into a user-friendly message.
  */
+/**
+ * Known Bambora error codes mapped to actionable staff messages.
+ */
+const KNOWN_ERROR_CODES: Record<number, string> = {
+  319: "This hold can no longer be voided (it may have already settled). Try issuing a refund instead.",
+  302: "Transaction was already completed — no further action needed.",
+  16:  "Transaction not found at the gateway. It may have already been released automatically.",
+};
+
 export function parseWorldlineError(data: unknown): string {
-  if (data && typeof data === "object" && "message" in data) {
+  if (data && typeof data === "object" && "code" in data) {
     const err = data as WorldlineError;
+    // Return a friendly message for known codes
+    if (err.code && KNOWN_ERROR_CODES[err.code]) {
+      return KNOWN_ERROR_CODES[err.code];
+    }
     const details = err.details?.map(d => `${d.field}: ${d.message}`).join("; ");
-    return details ? `${err.message} (${details})` : err.message;
+    return details ? `${err.message} (${details})` : (err.message || "Payment processing failed");
   }
   return "Payment processing failed";
 }
