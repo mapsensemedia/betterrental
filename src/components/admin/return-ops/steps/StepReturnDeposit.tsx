@@ -5,6 +5,7 @@
  * An authorized hold must be captured or released before the return can be finalized.
  */
 import { useState } from "react";
+import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

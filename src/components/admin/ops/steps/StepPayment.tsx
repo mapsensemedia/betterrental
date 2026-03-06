@@ -4,6 +4,7 @@
  * Shows rental status, deposit status, and action buttons.
  * Uses OpsPaymentAndDeposit for inline card form (no copy-link).
  */
+import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
