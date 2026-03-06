@@ -95,8 +95,10 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
       const { data, error } = await supabase.functions.invoke("wl-cancel-auth", {
         body: { bookingId },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
+      }
       toast.success("Hold released successfully");
       refreshDepositState();
     } catch (err: any) {

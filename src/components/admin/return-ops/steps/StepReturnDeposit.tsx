@@ -99,8 +99,10 @@ export function StepReturnDeposit({
         body: { bookingId },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
+      }
 
       toast.success("Hold released successfully");
       invalidateDepositState();
