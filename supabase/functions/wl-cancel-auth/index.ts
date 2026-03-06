@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     if (!bookingId) {
       return new Response(
-        JSON.stringify({ error: "bookingId is required" }),
+        JSON.stringify({ success: false, error: "bookingId is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -40,49 +40,79 @@ Deno.serve(async (req) => {
       .eq("id", bookingId)
       .single();
 
-    // Use deposit-specific txn id, fall back to legacy wl_transaction_id
-    const depositTxnId = booking?.wl_deposit_transaction_id || booking?.wl_transaction_id;
-
-    if (bErr || !depositTxnId) {
+    if (bErr) {
+      log.error("Booking fetch error", bErr);
       return new Response(
-        JSON.stringify({ error: "No deposit authorization found for this booking" }),
+        JSON.stringify({ success: false, error: "Booking not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
+    // Check if already released
     if (booking.deposit_status === "released" || booking.deposit_status === "voided") {
       return new Response(
-        JSON.stringify({ error: "Authorization already released" }),
+        JSON.stringify({ success: false, error: "Hold already released" }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Use deposit-specific txn id, fall back to legacy wl_transaction_id
+    const depositTxnId = booking.wl_deposit_transaction_id || booking.wl_transaction_id;
+
+    if (!depositTxnId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No active hold found for this booking" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const voidAmount = Number(booking.deposit_amount) || 0;
+    if (voidAmount <= 0) {
+      log.error("Invalid deposit amount for void", undefined, { deposit_amount: booking.deposit_amount });
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid deposit amount — cannot release hold" }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const res = await log.timed("bambora_void", () =>
       worldlineRequest("POST", `/payments/${depositTxnId}/void`, {
-        amount: booking.deposit_amount,
+        amount: voidAmount,
       }),
     );
 
     if (!res.ok) {
-      log.error("Void failed", undefined, { response: res.data });
+      const errMsg = parseWorldlineError(res.data);
+      log.error("Void failed", undefined, { response: res.data, status: res.status });
       return new Response(
-        JSON.stringify({ error: parseWorldlineError(res.data) }),
+        JSON.stringify({ success: false, error: errMsg }),
         { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
+    // Update booking status
     await supabase.from("bookings").update({
       deposit_status: "released",
       deposit_released_at: new Date().toISOString(),
       wl_deposit_auth_status: "released",
     }).eq("id", bookingId);
 
+    // Update payment record if exists
     await supabase.from("payments")
       .update({ status: "voided" })
       .eq("booking_id", bookingId)
       .eq("transaction_id", depositTxnId);
 
-    log.info("Auth voided", { depositTxnId });
+    // Add deposit ledger entry for audit trail
+    await supabase.from("deposit_ledger").insert({
+      booking_id: bookingId,
+      action: "release",
+      amount: voidAmount,
+      reason: "Hold released via admin panel",
+      created_by: user.userId,
+    });
+
+    log.info("Auth voided", { depositTxnId, amount: voidAmount });
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -92,7 +122,7 @@ Deno.serve(async (req) => {
     if (error instanceof AuthError) return authErrorResponse(error, corsHeaders);
     log.error("Void error", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
