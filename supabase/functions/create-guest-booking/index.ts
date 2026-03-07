@@ -184,14 +184,8 @@ Deno.serve(async (req) => {
 
     const serverTotals = priceCheck.serverTotals;
 
-    // Check for conflicting bookings
-    const hasConflict = await checkBookingConflicts(vehicleId, startAt, endAt);
-    if (hasConflict) {
-      return new Response(
-        JSON.stringify({ error: "vehicle_unavailable", message: "This vehicle is no longer available." }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // NOTE: Availability check removed — overbooking is allowed.
+    // Staff will assign specific VIN units manually.
 
     // Create or find guest user
     let userId: string | null = null;

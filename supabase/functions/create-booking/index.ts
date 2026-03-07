@@ -197,36 +197,8 @@ Deno.serve(async (req) => {
     }
 
     // Unit-level availability check: count total units vs overlapping bookings for this category
-    const { count: totalUnits } = await supabaseAdmin
-      .from("vehicle_units")
-      .select("id", { count: "exact", head: true })
-      .eq("category_id", vehicleId)
-      .in("status", ["available", "on_rent"]);
-
-    const { count: overlappingBookings } = await supabaseAdmin
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("vehicle_id", vehicleId)
-      .in("status", ["pending", "confirmed", "active"])
-      .lte("start_at", endAt)
-      .gte("end_at", startAt);
-
-    if ((totalUnits ?? 0) <= (overlappingBookings ?? 0)) {
-      if (holdId) {
-        await supabaseAdmin
-          .from("reservation_holds")
-          .update({ status: "expired" })
-          .eq("id", holdId);
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          error: "vehicle_unavailable",
-          message: "This vehicle was just booked by another customer." 
-        }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // NOTE: Availability check removed — overbooking is allowed.
+    // Staff will assign specific VIN units manually.
 
     // Determine initial status
     const initialStatus = paymentMethod === "pay-now" ? "draft" : (paymentMethod === "pay-later" ? "pending" : "confirmed");

@@ -98,7 +98,7 @@ function buildCategoryData(
         transmission: data.transmission,
       };
     })
-    .filter((c): c is BrowseCategory => c !== null && c.availableCount > 0);
+    .filter((c): c is BrowseCategory => c !== null);
 }
 
 export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
