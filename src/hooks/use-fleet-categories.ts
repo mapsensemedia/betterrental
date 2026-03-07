@@ -105,20 +105,20 @@ export function useFleetCategories() {
   });
 }
 
-// Get available categories for customer browsing (only those with available VINs)
+// Get available categories for customer browsing (all active categories, overbooking allowed)
 export function useAvailableCategories(locationId: string | null) {
   return useQuery({
     queryKey: ["available-categories", locationId],
     queryFn: async () => {
       if (!locationId) return [];
 
-      // Use the database function for consistency
+      // Use the database function which returns all active categories with availability counts
       const { data, error } = await supabase
         .rpc("get_available_categories", { p_location_id: locationId });
 
       if (error) {
         console.error("Error fetching available categories:", error);
-        // Fallback to manual query if function doesn't exist yet
+        // Fallback: return all active categories with counts
         const { data: categories } = await supabase
           .from("vehicle_categories")
           .select("*")
