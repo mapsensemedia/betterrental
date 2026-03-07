@@ -132,10 +132,7 @@ export function useAvailableCategories(locationId: string | null) {
           .eq("location_id", locationId)
           .eq("status", "available");
 
-        const availableCategories = new Set(units?.map(u => u.category_id) || []);
-        
         return (categories || [])
-          .filter(c => availableCategories.has(c.id))
           .map(c => ({
             ...c,
             available_count: units?.filter(u => u.category_id === c.id).length || 0,
