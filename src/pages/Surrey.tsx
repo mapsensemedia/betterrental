@@ -139,6 +139,8 @@ const SurreyPage = () => {
     };
   }, []);
 
+  return (
+    <CustomerLayout>
       <PageContainer className="max-w-4xl mx-auto space-y-16">
         {/* H1 + Intro */}
         <section className="space-y-6">
