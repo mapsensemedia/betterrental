@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       customerEmail,
       notes,
       dailyRate,
+      driverAgeBand,
       totalDays,
       subtotal,
       taxAmount,
