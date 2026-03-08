@@ -100,6 +100,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     vehicleDailyRate: formData.dailyRate,
     rentalDays: totalDays,
     pickupDate: formData.startDate,
+    driverAgeBand: formData.driverAgeBand,
   });
   
   const subtotal = pricing.subtotal;
