@@ -251,50 +251,28 @@ export function UnifiedVehicleManager({
 
       // 1. Category change → update booking record
       if (categoryChanged && selectedCategory) {
-        const shouldUpdatePricing = chargeCustomer && newPricing;
-        
-        const updatePayload: Record<string, any> = {
-          original_vehicle_id: booking.vehicle_id,
-          vehicle_id: selectedCategoryId,
-          daily_rate: Number(selectedCategory.daily_rate),
-          upgraded_at: new Date().toISOString(),
-          upgraded_by: userId,
-          upgrade_reason: reason || null,
-          updated_at: new Date().toISOString(),
-        };
+        const upgradeDailyFee = chargeCustomer
+          ? Number(selectedCategory.daily_rate) - booking.daily_rate
+          : 0;
 
-        // Only update pricing if charging the customer
-        if (shouldUpdatePricing && newPricing) {
-          updatePayload.subtotal = newPricing.subtotal;
-          updatePayload.tax_amount = newPricing.taxAmount;
-          updatePayload.total_amount = newPricing.total;
-        }
-
-        const { error } = await supabase
-          .from("bookings")
-          .update(updatePayload)
-          .eq("id", bookingId);
-        if (error) throw error;
-
-        // Audit log
-        await supabase.from("audit_logs").insert({
-          action: priceDiff > 0 ? "category_upgrade" : "category_change",
-          entity_type: "booking",
-          entity_id: bookingId,
-          user_id: userId,
-          old_data: {
-            vehicle_id: booking.vehicle_id,
-            daily_rate: booking.daily_rate,
-            total_amount: booking.total_amount,
-          },
-          new_data: {
-            vehicle_id: selectedCategoryId,
-            daily_rate: Number(selectedCategory.daily_rate),
-            total_amount: shouldUpdatePricing && newPricing ? newPricing.total : booking.total_amount,
-            charge_customer: chargeCustomer,
-            reason,
+        const { data, error } = await supabase.functions.invoke("reprice-booking", {
+          body: {
+            bookingId,
+            operation: "upgrade",
+            upgradeDailyFee,
+            showToCustomer: chargeCustomer,
+            categoryLabel: selectedCategory.name,
+            upgradeReason: reason || "Category change via ops panel",
+            assignUnitId: unitChanged ? selectedUnitId : undefined,
+            assignUnitCategoryId: selectedCategoryId,
           },
         });
+
+        if (error) {
+          const msg = await extractEdgeFunctionError(data, error);
+          throw new Error(msg);
+        }
+        if (data?.error) throw new Error(data.error);
       }
 
       // 2. Unit assignment change
