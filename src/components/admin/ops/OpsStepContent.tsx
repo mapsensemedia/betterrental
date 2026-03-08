@@ -299,8 +299,8 @@ export function OpsStepContent({
                 onActivate={onActivate}
                 isBookingCompleted={isBookingCompleted}
               />
-              {/* Allow vehicle change and booking edits on the handover step before activation */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {/* Allow vehicle change and booking edits on the handover step for non-terminal bookings */}
+              {!isBookingCompleted && !isBookingCancelled && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-sm font-medium text-muted-foreground">Quick Actions</h3>
                   <UnifiedVehicleManager bookingId={booking.id} booking={booking} />

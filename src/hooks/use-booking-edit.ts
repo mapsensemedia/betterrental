@@ -192,6 +192,7 @@ export function useEditBooking() {
 
       if (startAt) updatePayload.start_at = startAt;
       if (endAt) updatePayload.end_at = endAt;
+      if (dailyRate) updatePayload.daily_rate = dailyRate;
       if (locationId && locationId !== booking.location_id) {
         updatePayload.location_id = locationId;
         // Clear vehicle assignment when location changes (vehicle may not be available at new location)

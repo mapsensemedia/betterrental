@@ -1,10 +1,11 @@
 /**
- * BookingEditPanel - Edit booking dates, time, location, and duration
- * before rental activation with automatic pricing recalculation.
+ * BookingEditPanel - Edit booking dates, time, location, duration,
+ * daily rate, notes, and special instructions with automatic pricing recalculation.
  */
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -26,10 +27,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Calendar, MapPin, Clock, TrendingUp, TrendingDown, Minus, Lock } from "lucide-react";
+import { Pencil, Calendar, MapPin, Clock, TrendingUp, TrendingDown, Minus, Lock, StickyNote, DollarSign, Loader2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { previewBookingEdit, useEditBooking, useLocations } from "@/hooks/use-booking-edit";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface BookingEditPanelProps {
   booking: {
@@ -47,22 +51,35 @@ interface BookingEditPanelProps {
     status: string;
     location_id: string;
     locations?: { name: string } | null;
+    notes?: string | null;
+    special_instructions?: string | null;
   };
 }
 
 export function BookingEditPanel({ booking }: BookingEditPanelProps) {
-  const isEditable = ["pending", "confirmed"].includes(booking.status);
+  const isEditable = !["completed", "cancelled"].includes(booking.status);
   const [startAt, setStartAt] = useState(booking.start_at);
   const [endAt, setEndAt] = useState(booking.end_at);
   const [locationId, setLocationId] = useState(booking.location_id);
+  const [dailyRate, setDailyRate] = useState(booking.daily_rate.toString());
   const [reason, setReason] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Notes fields
+  const [notes, setNotes] = useState(booking.notes || "");
+  const [specialInstructions, setSpecialInstructions] = useState(booking.special_instructions || "");
+  const [savingNotes, setSavingNotes] = useState(false);
+
   const editBooking = useEditBooking();
   const { data: locations = [] } = useLocations();
+  const queryClient = useQueryClient();
 
-  // Detect if anything changed
-  const hasChanges = startAt !== booking.start_at || endAt !== booking.end_at || locationId !== booking.location_id;
+  // Detect if anything changed (dates/location/rate)
+  const rateChanged = parseFloat(dailyRate) !== booking.daily_rate && !isNaN(parseFloat(dailyRate));
+  const hasChanges = startAt !== booking.start_at || endAt !== booking.end_at || locationId !== booking.location_id || rateChanged;
+
+  // Detect notes changes
+  const notesChanged = notes !== (booking.notes || "") || specialInstructions !== (booking.special_instructions || "");
 
   // Preview pricing
   const preview = useMemo(() => {
@@ -91,6 +108,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
         startAt: startAt !== booking.start_at ? startAt : undefined,
         endAt: endAt !== booking.end_at ? endAt : undefined,
         locationId: locationId !== booking.location_id ? locationId : undefined,
+        dailyRate: rateChanged ? parseFloat(dailyRate) : undefined,
         reason: reason.trim(),
       },
       {
@@ -100,6 +118,26 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
         },
       }
     );
+  };
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          notes: notes || null,
+          special_instructions: specialInstructions || null,
+        })
+        .eq("id", booking.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["booking", booking.id] });
+      toast.success("Notes saved");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save notes");
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   const priceDiff = preview?.priceDifference ?? 0;
@@ -115,7 +153,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
             <Badge variant="outline" className="text-xs">Read-Only</Badge>
           </CardTitle>
           <CardDescription>
-            Booking details cannot be edited after rental activation.
+            Booking details cannot be edited after completion or cancellation.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -155,7 +193,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
             Edit Booking Details
           </CardTitle>
           <CardDescription>
-            Change dates, time, location, or duration. Pricing recalculates automatically.
+            Change dates, time, location, rate, or duration. Pricing recalculates automatically.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -174,7 +212,6 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
                 if (e.target.value) {
                   const newStart = new Date(e.target.value).toISOString();
                   setStartAt(newStart);
-                  // Auto-adjust end if it's before new start
                   if (new Date(newStart) >= new Date(endAt)) {
                     setEndAt(addDays(new Date(newStart), 1).toISOString());
                   }
@@ -217,6 +254,28 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
                 </Button>
               ))}
             </div>
+          </div>
+
+          {/* Daily Rate Override */}
+          <div>
+            <Label htmlFor="edit-rate" className="text-sm font-medium flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5" />
+              Daily Rate (CAD)
+            </Label>
+            <Input
+              id="edit-rate"
+              type="number"
+              step="0.01"
+              min="0"
+              className="mt-1.5"
+              value={dailyRate}
+              onChange={(e) => setDailyRate(e.target.value)}
+            />
+            {rateChanged && (
+              <p className="text-xs text-amber-600 mt-1">
+                ⚠ Rate override: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}/day
+              </p>
+            )}
           </div>
 
           {/* Location */}
@@ -263,7 +322,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Daily Rate</p>
-                  <p className="font-medium">${preview.dailyRate.toFixed(2)}/day</p>
+                  <p className="font-medium">${rateChanged ? parseFloat(dailyRate).toFixed(2) : preview.dailyRate.toFixed(2)}/day</p>
                 </div>
               </div>
 
@@ -311,6 +370,48 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
           >
             {editBooking.isPending ? "Saving..." : "Save Changes"}
           </Button>
+
+          <Separator />
+
+          {/* Notes & Special Instructions (Phase 3) */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <StickyNote className="w-4 h-4" />
+              Notes & Instructions
+            </h4>
+            <div>
+              <Label htmlFor="edit-notes" className="text-xs text-muted-foreground">Internal Notes</Label>
+              <Textarea
+                id="edit-notes"
+                placeholder="Internal staff notes..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-instructions" className="text-xs text-muted-foreground">Special Instructions</Label>
+              <Textarea
+                id="edit-instructions"
+                placeholder="Customer-facing special instructions..."
+                value={specialInstructions}
+                onChange={(e) => setSpecialInstructions(e.target.value)}
+                rows={2}
+                className="mt-1"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              disabled={!notesChanged || savingNotes}
+              onClick={handleSaveNotes}
+            >
+              {savingNotes ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {savingNotes ? "Saving..." : "Save Notes"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -323,6 +424,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
               {preview && (
                 <span>
                   Duration: {preview.originalDays} → {preview.newDays} day{preview.newDays !== 1 ? "s" : ""}
+                  {rateChanged && <>. Daily rate: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}</>}
                   {priceDiff !== 0 && (
                     <>. Price {priceDiff > 0 ? "increase" : "decrease"}: ${Math.abs(priceDiff).toFixed(2)} CAD</>
                   )}
@@ -331,6 +433,9 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
               )}
               {!preview && locationChanged && (
                 <span>Location changed — vehicle assignment will be cleared.</span>
+              )}
+              {!preview && rateChanged && !locationChanged && (
+                <span>Daily rate override: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}/day</span>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
