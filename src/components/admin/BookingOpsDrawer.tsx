@@ -60,6 +60,7 @@ import { WalkaroundInspection } from "./WalkaroundInspection";
 import { BookingModificationPanel } from "./ops/BookingModificationPanel";
 import { BookingEditPanel } from "./ops/BookingEditPanel";
 import { CounterUpsellPanel } from "./ops/CounterUpsellPanel";
+import { ForceCloseDialog } from "./ops/ForceCloseDialog";
 import { useAvailableDrivers } from "@/hooks/use-available-drivers";
 import { useAssignDriver, useUnassignDriver } from "@/hooks/use-assign-driver";
 
@@ -185,6 +186,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   const [verificationReviewOpen, setVerificationReviewOpen] = useState(false);
   const [selectedVerification, setSelectedVerification] = useState<any | null>(null);
   const [verificationNotes, setVerificationNotes] = useState("");
+  const [forceCloseOpen, setForceCloseOpen] = useState(false);
 
   const { data: selectedVerificationUrl } = useSignedStorageUrl({
     bucket: "verification-documents",
@@ -346,10 +348,12 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                   vehicleName={vehicleName}
                   pickupDate={booking.start_at}
                   locationName={booking.locations?.name || null}
-                  onCancel={() => handleStatusChange("cancelled")}
-                  onEditBooking={() => scrollToSection("edit-booking")}
-                  canEditBooking={["pending", "confirmed"].includes(booking.status)}
-                />
+                   onCancel={() => handleStatusChange("cancelled")}
+                   onEditBooking={() => scrollToSection("edit-booking")}
+                   canEditBooking={["pending", "confirmed"].includes(booking.status)}
+                   onForceClose={() => setForceCloseOpen(true)}
+                   canForceClose={["confirmed", "active"].includes(booking.status)}
+                 />
 
                 <Separator />
 
@@ -838,6 +842,17 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Force Close Dialog */}
+      {booking && (
+        <ForceCloseDialog
+          open={forceCloseOpen}
+          onOpenChange={setForceCloseOpen}
+          bookingId={booking.id}
+          bookingCode={booking.booking_code}
+          scheduledReturn={booking.end_at}
+        />
+      )}
     </>
   );
 }

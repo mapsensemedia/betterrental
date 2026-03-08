@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Car, MapPin, Calendar, User, MoreVertical, Pencil } from "lucide-react";
+import { Car, MapPin, Calendar, User, MoreVertical, Pencil, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,8 @@ interface OpsTopBarProps {
   onCancel: () => void;
   onEditBooking?: () => void;
   canEditBooking?: boolean;
+  onForceClose?: () => void;
+  canForceClose?: boolean;
 }
 
 export function OpsTopBar({
@@ -36,6 +38,8 @@ export function OpsTopBar({
   onCancel,
   onEditBooking,
   canEditBooking,
+  onForceClose,
+  canForceClose,
 }: OpsTopBarProps) {
   return (
     <div className="space-y-3">
@@ -61,6 +65,16 @@ export function OpsTopBar({
               </DropdownMenuItem>
             )}
             {canEditBooking && <DropdownMenuSeparator />}
+            {canForceClose && onForceClose && (
+              <DropdownMenuItem 
+                onClick={onForceClose}
+                className="text-amber-600 focus:text-amber-700"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Force Close Booking
+              </DropdownMenuItem>
+            )}
+            {(canForceClose || canEditBooking) && <DropdownMenuSeparator />}
             <DropdownMenuItem 
               onClick={onCancel}
               className="text-destructive focus:text-destructive"
