@@ -42,6 +42,8 @@ export function OpsTopBar({
   canEditBooking,
   onForceClose,
   canForceClose,
+  onReopen,
+  canReopen,
 }: OpsTopBarProps) {
   return (
     <div className="space-y-3">
