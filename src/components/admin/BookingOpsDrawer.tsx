@@ -365,6 +365,8 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                    canEditBooking={["pending", "confirmed"].includes(booking.status)}
                    onForceClose={() => setForceCloseOpen(true)}
                    canForceClose={["confirmed", "active"].includes(booking.status)}
+                   onReopen={handleReopenRental}
+                   canReopen={booking.status === "completed"}
                  />
 
                 <Separator />
