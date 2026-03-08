@@ -160,14 +160,14 @@ export default function Protection() {
                       <h3 className="font-semibold text-base leading-tight">{pkg.name}</h3>
                       <div
                         className={cn(
-                          "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                          "w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200",
                           selectedPackage === pkg.id
-                            ? "border-primary bg-primary"
-                            : "border-muted-foreground/30"
+                            ? "border-foreground bg-foreground"
+                            : "border-muted-foreground/40"
                         )}
                       >
                         {selectedPackage === pkg.id && (
-                          <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-background" />
                         )}
                       </div>
                     </div>
