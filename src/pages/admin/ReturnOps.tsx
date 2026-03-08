@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useCloseAccount } from "@/hooks/use-deposit-hold";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
@@ -33,7 +39,8 @@ import { StepReturnIssues } from "@/components/admin/return-ops/steps/StepReturn
 import { StepReturnCloseout } from "@/components/admin/return-ops/steps/StepReturnCloseout";
 import { StepReturnDeposit } from "@/components/admin/return-ops/steps/StepReturnDeposit";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
-import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle, Wrench } from "lucide-react";
+import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
+import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle, Wrench, Pencil } from "lucide-react";
 
 export default function ReturnOps() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -55,6 +62,7 @@ export default function ReturnOps() {
   const [calculatedLateFee, setCalculatedLateFee] = useState(0);
   const [isException, setIsException] = useState(false);
   const [showIncidentDialog, setShowIncidentDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const hasInitializedRef = useRef(false);
   
   // Fetch incidents for this booking
@@ -366,6 +374,15 @@ export default function ReturnOps() {
               variant="outline" 
               size="sm" 
               className="gap-1.5"
+              onClick={() => setShowEditDialog(true)}
+            >
+              <Pencil className="h-4 w-4" />
+              <span className="hidden sm:inline">Edit</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
               onClick={() => setShowIncidentDialog(true)}
             >
               <Wrench className="h-4 w-4" />
@@ -376,6 +393,16 @@ export default function ReturnOps() {
             </Button>
           </div>
         </div>
+        
+        {/* Edit Booking Dialog */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Booking Details</DialogTitle>
+            </DialogHeader>
+            <BookingEditPanel booking={booking} />
+          </DialogContent>
+        </Dialog>
         
         {/* Incident Dialog */}
         <CreateIncidentDialog

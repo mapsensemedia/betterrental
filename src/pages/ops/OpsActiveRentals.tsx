@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listBookings, BookingSummary } from "@/domain/bookings";
-import { format, parseISO, differenceInHours, isPast } from "date-fns";
+import { format, parseISO, differenceInHours, isPast, isToday, isTomorrow } from "date-fns";
 import { useState } from "react";
 
 function RentalCard({ booking }: { booking: BookingSummary }) {
@@ -99,8 +99,14 @@ export default function OpsActiveRentals() {
     queryFn: () => listBookings({ status: "active" }),
   });
 
+  // Exclude bookings that belong in Returns (due today/tomorrow/overdue)
+  const activeOnlyBookings = (bookings || []).filter((b) => {
+    const d = parseISO(b.endAt);
+    return !isToday(d) && !isTomorrow(d) && !isPast(d);
+  });
+
   // Filter by search
-  const filteredBookings = (bookings || []).filter((b) => {
+  const filteredBookings = activeOnlyBookings.filter((b) => {
     if (!search) return true;
     return (
       b.bookingCode.toLowerCase().includes(search.toLowerCase()) ||
