@@ -425,6 +425,9 @@ const LangleyPage = () => {
           <Button asChild variant="hero" size="xl">
             <Link to="/search">View Available Cars in Langley <ArrowRight className="ml-2 h-5 w-5" /></Link>
           </Button>
+          <p className="text-sm text-primary-foreground/60 pt-2">
+            <Link to="/contact" className="underline underline-offset-2 hover:text-primary-foreground/90">Questions? Contact our team →</Link>
+          </p>
         </section>
       </PageContainer>
     </CustomerLayout>

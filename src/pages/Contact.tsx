@@ -1,336 +1,300 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Phone, Mail, Clock, MessageSquare, Send, Car, Sparkles, ArrowRight, CheckCircle } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Send, CheckCircle, Instagram, Facebook, ArrowRight } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { useLocations } from "@/hooks/use-locations";
-import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
+import { toast } from "sonner";
 
-function formatHours(hoursJson: Record<string, string> | null): string {
-  if (!hoursJson) return "Hours not available";
-
-  const weekdayHours = hoursJson.mon || hoursJson.tue || hoursJson.wed;
-  const weekendHours = hoursJson.sat || hoursJson.sun;
-
-  if (weekdayHours && weekendHours) {
-    return `Mon-Fri: ${weekdayHours}, Sat-Sun: ${weekendHours}`;
-  }
-  return weekdayHours || weekendHours || "Hours not available";
-}
+const faqs = [
+  {
+    q: "How quickly do you respond to inquiries?",
+    a: "We typically reply within 1–2 hours during business hours. For urgent same-day bookings, call or text directly.",
+  },
+  {
+    q: "Can I book a car without calling?",
+    a: "Yes — you can start a booking entirely online. Contact us if you have specific questions about your licence, coverage, or vehicle availability.",
+  },
+  {
+    q: "Do you offer vehicle delivery in Surrey or Langley?",
+    a: "Limited delivery is available in some areas subject to booking type and fee. Contact us with your location and we'll confirm options.",
+  },
+  {
+    q: "I need a replacement rental — can you help today?",
+    a: "Yes. We coordinate regularly with body shops for insurance replacement rentals. Call us directly for same-day availability.",
+  },
+];
 
 export default function Contact() {
-  const { data: locations, isLoading } = useLocations();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
-    subject: "",
-    message: ""
+    location: "",
+    inquiryType: "",
+    message: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  useEffect(() => {
+    document.title = "Contact C2C Rental – Surrey, Langley & Abbotsford Car Rental";
 
+    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
+    meta.content = "Get in touch with C2C Rental. Call, email, or send a message for bookings, questions, and rental inquiries in Surrey, Langley, and Abbotsford, BC.";
+
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
+    canonical.href = "https://c2crental.com/contact";
+
+    const ogTags = [
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "C2C Rental" },
+      { property: "og:title", content: "Contact C2C Rental – Surrey, Langley & Abbotsford Car Rental" },
+      { property: "og:description", content: "Get in touch with C2C Rental for bookings and inquiries in Surrey, Langley, and Abbotsford, BC." },
+      { property: "og:url", content: "https://c2crental.com/contact" },
+    ];
+    ogTags.forEach(({ property, content }) => {
+      let tag = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
+      if (!tag) { tag = document.createElement("meta"); tag.setAttribute("property", property); document.head.appendChild(tag); }
+      tag.setAttribute("content", content);
+    });
+
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "ContactPage",
+      name: "Contact C2C Rental",
+      url: "https://c2crental.com/contact",
+      description: "Contact C2C Rental for car rental bookings and inquiries in Surrey, Langley, and Abbotsford, BC.",
+      publisher: {
+        "@type": "Organization",
+        name: "C2C Rental",
+        url: "https://c2crental.com",
+        telephone: "+1-604-763-4242",
+        email: "info@c2crental.com",
+      },
+    };
+    const script = document.createElement("script");
+    script.id = "contact-jsonld";
+    script.type = "application/ld+json";
+    script.textContent = JSON.stringify(schema);
+    document.head.appendChild(script);
+
+    return () => {
+      canonical?.remove();
+      document.getElementById("contact-jsonld")?.remove();
+    };
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.email || !formData.message) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+    setIsSubmitting(true);
     try {
-      // Send email via edge function
-      const { data, error } = await supabase.functions.invoke("send-contact-email", {
+      const { error } = await supabase.functions.invoke("send-contact-email", {
         body: {
           name: formData.name,
           email: formData.email,
           phone: formData.phone || undefined,
-          subject: formData.subject,
-          message: formData.message
-        }
+          subject: `${formData.inquiryType || "General"} — ${formData.location || "Not specified"}`,
+          message: formData.message,
+        },
       });
-
       if (error) throw error;
-
-      trackEvent("contact_form_submitted", {
-        has_phone: !!formData.phone,
-        subject_length: formData.subject.length
-      });
-
+      trackEvent("contact_form_submitted", { inquiry_type: formData.inquiryType, location: formData.location });
       setIsSubmitted(true);
-      toast.success("Message sent! We'll get back to you within 24 hours.");
-
-      // Reset form
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        subject: "",
-        message: ""
-      });
-    } catch (error: any) {
-      console.error("Contact form error:", error);
-      trackEvent("contact_form_error", { error_message: error.message });
+    } catch (err: any) {
+      console.error("Contact form error:", err);
       toast.error("Failed to send message. Please try again or call us directly.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
   return (
     <CustomerLayout>
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="bg-background pt-24 pb-12">
-        <div className="container-page">
-          <div className="max-w-3xl mx-auto text-center">
-            <Badge className="mb-4 px-3 py-1.5">
-              <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
-              Get in Touch
-            </Badge>
-            <h1 className="heading-1 text-foreground mb-6">
-              We're Here to
-              <span className="text-muted-foreground"> Help</span>
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Have questions about our vehicles or services? Need assistance with a booking? Our friendly team is ready
-              to assist you.
-            </p>
-          </div>
+        <div className="container-page max-w-3xl mx-auto text-center">
+          <h1 className="heading-1 text-foreground mb-4">Contact C2C Rental</h1>
+          <p className="text-lg text-muted-foreground">
+            Have questions about rentals, insurance, or availability? We're a local team and we respond fast.
+          </p>
         </div>
       </section>
 
-      {/* Delivery Feature Highlight */}
-      <section className="py-8 bg-primary/5">
+      {/* Two-column layout */}
+      <section className="py-16 bg-background">
         <div className="container-page">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-background rounded-2xl border border-primary/20">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Sparkles className="w-6 h-6 text-primary" />
-              </div>
+          <div className="grid lg:grid-cols-5 gap-10">
+            {/* LEFT: Contact Details */}
+            <div className="lg:col-span-2 space-y-8">
               <div>
-                <Badge variant="secondary" className="mb-1">
-                  New Service
-                </Badge>
-                <h3 className="font-semibold text-foreground">Bring Car to Me — Delivery Service</h3>
-                <p className="text-sm text-muted-foreground">We'll deliver your rental right to your doorstep!</p>
+                <h2 className="text-lg font-semibold text-foreground mb-6">Get in Touch</h2>
+                <div className="space-y-5">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <MapPin className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Location</p>
+                      <p className="font-medium text-foreground">Surrey, BC (Fraser Valley)</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Phone className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <a href="tel:+16047634242" className="font-medium text-foreground hover:text-primary transition-colors">
+                        +1 (604) 763-4242
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Mail className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <a href="mailto:info@c2crental.com" className="font-medium text-foreground hover:text-primary transition-colors">
+                        info@c2crental.com
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Clock className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Hours</p>
+                      <p className="font-medium text-foreground">Mon–Fri: 9:00 AM – 6:00 PM</p>
+                      <p className="font-medium text-foreground">Sat–Sun: 10:00 AM – 4:00 PM</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Prefer to text? Send us a message at{" "}
+                <a href="sms:+16047634242" className="text-primary hover:underline">+1 (604) 763-4242</a>{" "}
+                and we'll reply within the hour during business hours.
+              </p>
+
+              <div>
+                <p className="text-sm font-medium text-foreground mb-3">Follow Us</p>
+                <div className="flex items-center gap-3">
+                  <a
+                    href="https://www.instagram.com/c2c.rental/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                    aria-label="Instagram"
+                  >
+                    <Instagram className="w-5 h-5" />
+                  </a>
+                  <a
+                    href="https://www.facebook.com/people/C2C-Rental/61587985570949/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                    aria-label="Facebook"
+                  >
+                    <Facebook className="w-5 h-5" />
+                  </a>
+                </div>
               </div>
             </div>
-            <Button asChild>
-              <Link to="/search?mode=delivery">
-                Book with Delivery
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
 
-      {/* Main Content */}
-      <section className="section-spacing bg-background">
-        <div className="container-page">
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Contact Form */}
-            <div className="lg:col-span-2">
+            {/* RIGHT: Contact Form */}
+            <div className="lg:col-span-3">
               <Card>
-                <CardHeader>
-                  <CardTitle>Send Us a Message</CardTitle>
-                  <CardDescription>Fill out the form below and we'll get back to you within 24 hours.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isSubmitted ?
-                  <div className="text-center py-8">
+                <CardContent className="p-6 md:p-8">
+                  {isSubmitted ? (
+                    <div className="text-center py-12">
                       <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                         <CheckCircle className="w-8 h-8 text-primary" />
                       </div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">Message Sent!</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Thank you for reaching out. We'll get back to you within 24 hours.
-                      </p>
-                      <Button variant="outline" onClick={() => setIsSubmitted(false)}>
-                        Send Another Message
-                      </Button>
-                    </div> :
+                      <h3 className="text-lg font-semibold text-foreground mb-2">Thanks! We'll be in touch within a few hours.</h3>
+                      <p className="text-muted-foreground mb-6">For urgent requests, call or text us directly.</p>
+                      <Button variant="outline" onClick={() => setIsSubmitted(false)}>Send Another Message</Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <h2 className="text-lg font-semibold text-foreground">Send Us a Message</h2>
 
-                  <form onSubmit={handleSubmit} className="space-y-6">
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="name">Full Name *</Label>
-                          <Input
-                          id="name"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleChange}
-                          placeholder="John Doe"
-                          required />
-
+                          <Input id="name" name="name" value={formData.name} onChange={handleChange} placeholder="Jane Smith" required />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="email">Email Address *</Label>
-                          <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          placeholder="john@example.com"
-                          required />
-
+                          <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="jane@example.com" required />
                         </div>
                       </div>
 
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="phone">Phone Number</Label>
-                          <Input
-                          id="phone"
-                          name="phone"
-                          type="tel"
-                          value={formData.phone}
-                          onChange={handleChange}
-                          placeholder="(604) 123-4567" />
-
+                          <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="(604) 123-4567" />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="subject">Subject *</Label>
-                          <Input
-                          id="subject"
-                          name="subject"
-                          value={formData.subject}
-                          onChange={handleChange}
-                          placeholder="How can we help?"
-                          required />
-
+                          <Label>Location / City</Label>
+                          <Select value={formData.location} onValueChange={(v) => setFormData((p) => ({ ...p, location: v }))}>
+                            <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Surrey">Surrey</SelectItem>
+                              <SelectItem value="Langley">Langley</SelectItem>
+                              <SelectItem value="Abbotsford">Abbotsford</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
                       <div className="space-y-2">
+                        <Label>Rental Inquiry Type</Label>
+                        <Select value={formData.inquiryType} onValueChange={(v) => setFormData((p) => ({ ...p, inquiryType: v }))}>
+                          <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="General Question">General Question</SelectItem>
+                            <SelectItem value="Booking Request">Booking Request</SelectItem>
+                            <SelectItem value="Replacement Rental">Replacement Rental</SelectItem>
+                            <SelectItem value="Long-Term Rental">Long-Term Rental</SelectItem>
+                            <SelectItem value="Cross-Border Travel">Cross-Border Travel</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
                         <Label htmlFor="message">Message *</Label>
-                        <Textarea
-                        id="message"
-                        name="message"
-                        value={formData.message}
-                        onChange={handleChange}
-                        placeholder="Tell us more about your inquiry..."
-                        rows={5}
-                        required />
-
+                        <Textarea id="message" name="message" value={formData.message} onChange={handleChange} placeholder="Tell us about your rental needs..." rows={5} required />
                       </div>
 
-                      <Button type="submit" size="lg" disabled={isSubmitting}>
-                        {isSubmitting ?
-                      "Sending..." :
-
-                      <>
-                            Send Message
-                            <Send className="w-4 h-4 ml-2" />
-                          </>
-                      }
+                      <Button size="lg" onClick={handleSubmit} disabled={isSubmitting}>
+                        {isSubmitting ? "Sending..." : <>Send Message <Send className="w-4 h-4 ml-2" /></>}
                       </Button>
-                    </form>
-                  }
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Contact Info Sidebar */}
-            <div className="space-y-6">
-              {/* Quick Contact */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Quick Contact</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Phone className="w-5 h-5 text-primary" />
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Phone</p>
-                      <a
-                        href="tel:+16041234567"
-                        className="font-medium text-foreground hover:text-primary transition-colors">(604) 763-4242
-
-
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Mail className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <a
-                        href="mailto:info@c2crental.ca"
-                        className="font-medium text-foreground hover:text-primary transition-colors">
-
-                        info@c2crental.ca
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Clock className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Support Hours</p>
-                      <p className="font-medium text-foreground">24/7 Available</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Locations */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Our Locations</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isLoading ?
-                  <div className="space-y-3">
-                      {[1, 2, 3].map((i) =>
-                    <div key={i} className="animate-pulse">
-                          <div className="h-4 bg-muted rounded w-3/4 mb-2" />
-                          <div className="h-3 bg-muted rounded w-full" />
-                        </div>
-                    )}
-                    </div> :
-                  locations && locations.length > 0 ?
-                  locations.map((location) =>
-                  <div key={location.id} className="pb-4 border-b last:border-0 last:pb-0">
-                        <div className="flex items-start gap-3">
-                          <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-medium text-foreground text-sm">{location.name}</p>
-                            <p className="text-xs text-muted-foreground">{location.address}</p>
-                            {location.phone &&
-                        <a href={`tel:${location.phone}`} className="text-xs text-primary hover:underline">
-                                {location.phone}
-                              </a>
-                        }
-                          </div>
-                        </div>
-                      </div>
-                  ) :
-
-                  <p className="text-sm text-muted-foreground">No locations available.</p>
-                  }
-
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link to="/locations">View All Locations</Link>
-                  </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -338,43 +302,22 @@ export default function Contact() {
         </div>
       </section>
 
-      {/* FAQ Section */}
+      {/* FAQ Strip */}
       <section className="py-16 bg-muted/50">
         <div className="container-page">
-          <div className="text-center mb-12">
-            <h2 className="heading-2 text-foreground mb-3">Frequently Asked Questions</h2>
-            <p className="text-muted-foreground">Quick answers to common questions</p>
-          </div>
-
+          <h2 className="heading-2 text-foreground text-center mb-10">Quick Answers</h2>
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {[
-            {
-              q: "What documents do I need to rent a car?",
-              a: "You'll need a valid driver's license, a credit card, and be at least 20 years old. International visitors may need an International Driving Permit."
-            },
-            {
-              q: "Can you deliver the car to my location?",
-              a: "Yes! Our new 'Bring Car to Me' service delivers vehicles within 50km of our locations. Select this option during checkout."
-            },
-            {
-              q: "What's your cancellation policy?",
-              a: "Free cancellation anytime prior to pickup. Late cancellations (after pickup time) or no-shows are charged one full day rental rate for the booked vehicle category."
-            },
-            {
-              q: "Is insurance included?",
-              a: "Third Party insurance is included with all rentals. We offer additional coverage options during the booking process."
-            }].
-            map((faq) =>
-            <Card key={faq.q}>
+            {faqs.map((faq) => (
+              <Card key={faq.q}>
                 <CardContent className="p-6">
                   <h3 className="font-semibold text-foreground mb-2">{faq.q}</h3>
                   <p className="text-sm text-muted-foreground">{faq.a}</p>
                 </CardContent>
               </Card>
-            )}
+            ))}
           </div>
         </div>
       </section>
-    </CustomerLayout>);
-
+    </CustomerLayout>
+  );
 }
