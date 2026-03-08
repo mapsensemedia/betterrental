@@ -3,15 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuditLog } from "./use-admin";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
-import { handleDepositOnStatusChange } from "@/lib/deposit-automation";
-import { validateReturnWorkflow, isValidBypassReason, type ReturnState } from "@/lib/return-steps";
-import { 
-  useAwardPoints, 
-  useReversePoints,
-  calculatePointsToEarn,
-  parsePointsSettings,
-  PointsSettings,
-} from "./use-points";
+import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
