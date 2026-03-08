@@ -78,7 +78,16 @@ export function OpsTopBar({
                 Force Close Booking
               </DropdownMenuItem>
             )}
-            {(canForceClose || canEditBooking) && <DropdownMenuSeparator />}
+            {canReopen && onReopen && (
+              <DropdownMenuItem 
+                onClick={onReopen}
+                className="text-blue-600 focus:text-blue-700"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reopen Rental
+              </DropdownMenuItem>
+            )}
+            {(canForceClose || canEditBooking || canReopen) && <DropdownMenuSeparator />}
             <DropdownMenuItem 
               onClick={onCancel}
               className="text-destructive focus:text-destructive"

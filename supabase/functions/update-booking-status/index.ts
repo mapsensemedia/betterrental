@@ -111,6 +111,20 @@ Deno.serve(async (req) => {
     if (newStatus === "completed" || newStatus === "cancelled") {
       updateData.actual_return_at = new Date().toISOString();
     }
+    // Reopen: clear return workflow fields so the booking can be re-closed properly
+    if (reopen && newStatus === "active") {
+      updateData.actual_return_at = null;
+      updateData.return_state = "not_started";
+      updateData.return_started_at = null;
+      updateData.return_intake_completed_at = null;
+      updateData.return_intake_completed_by = null;
+      updateData.return_evidence_completed_at = null;
+      updateData.return_evidence_completed_by = null;
+      updateData.return_issues_reviewed_at = null;
+      updateData.return_issues_reviewed_by = null;
+      updateData.return_is_exception = null;
+      updateData.return_exception_reason = null;
+    }
     if (notes) {
       updateData.notes = notes;
     }
