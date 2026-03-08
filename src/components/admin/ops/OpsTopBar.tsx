@@ -26,6 +26,8 @@ interface OpsTopBarProps {
   canEditBooking?: boolean;
   onForceClose?: () => void;
   canForceClose?: boolean;
+  onReopen?: () => void;
+  canReopen?: boolean;
 }
 
 export function OpsTopBar({
