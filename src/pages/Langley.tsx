@@ -219,26 +219,6 @@ const LangleyPage = () => {
       canonical?.remove();
     };
   }, []);
-      description: "Affordable car rental in Langley, BC. Economy cars, SUVs, and minivans from $45/day.",
-      url: "https://c2crental.com/langley",
-      telephone: "+16043300205",
-      address: { "@type": "PostalAddress", addressLocality: "Langley", addressRegion: "BC", addressCountry: "CA" },
-      priceRange: "$45–$120/day",
-    };
-    let script = document.getElementById("langley-jsonld");
-    if (!script) {
-      script = document.createElement("script");
-      script.id = "langley-jsonld";
-      script.setAttribute("type", "application/ld+json");
-      document.head.appendChild(script);
-    }
-    script.textContent = JSON.stringify(jsonLd);
-
-    return () => {
-      script?.remove();
-      canonical?.remove();
-    };
-  }, []);
 
   return (
     <CustomerLayout>
