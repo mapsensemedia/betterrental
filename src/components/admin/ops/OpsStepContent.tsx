@@ -187,24 +187,24 @@ export function OpsStepContent({
                 onStepComplete={onCompleteStep}
                 vehicleName={booking.vehicle_categories?.name || "Vehicle"}
               />
-              {/* Edit Booking Details — available during checkin for counter edits */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {/* Edit Booking Details — available for non-terminal bookings */}
+              {!isBookingCompleted && !isBookingCancelled && (
                 <BookingEditPanel booking={booking} />
               )}
               {/* Vehicle & Category Management — unified component */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {!isBookingCompleted && !isBookingCancelled && (
                 <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
               )}
               {/* Protection Plan Change */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {!isBookingCompleted && !isBookingCancelled && (
                 <ProtectionChangePanel bookingId={booking.id} booking={booking} categoryName={booking.vehicles?.category} />
               )}
                {/* Counter Upsell */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {!isBookingCompleted && !isBookingCancelled && (
                 <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
               )}
               {/* Vehicle Upgrade Fee */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {!isBookingCompleted && !isBookingCancelled && (
                 <VehicleUpgradePanel booking={booking} />
               )}
             </>
@@ -299,8 +299,8 @@ export function OpsStepContent({
                 onActivate={onActivate}
                 isBookingCompleted={isBookingCompleted}
               />
-              {/* Allow vehicle change and booking edits on the handover step before activation */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {/* Allow vehicle change and booking edits on the handover step for non-terminal bookings */}
+              {!isBookingCompleted && !isBookingCancelled && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-sm font-medium text-muted-foreground">Quick Actions</h3>
                   <UnifiedVehicleManager bookingId={booking.id} booking={booking} />

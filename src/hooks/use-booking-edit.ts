@@ -13,6 +13,7 @@ export interface BookingEditPayload {
   startAt?: string;
   endAt?: string;
   locationId?: string;
+  dailyRate?: number;
   reason: string;
 }
 
@@ -96,7 +97,7 @@ export function useEditBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ bookingId, startAt, endAt, locationId, reason }: BookingEditPayload) => {
+    mutationFn: async ({ bookingId, startAt, endAt, locationId, dailyRate, reason }: BookingEditPayload) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
@@ -114,8 +115,8 @@ export function useEditBooking() {
 
       if (fetchErr || !booking) throw new Error("Booking not found");
 
-      if (!["pending", "confirmed"].includes(booking.status)) {
-        throw new Error("Only pending or confirmed bookings can be edited");
+      if (["completed", "cancelled"].includes(booking.status)) {
+        throw new Error("Completed or cancelled bookings cannot be edited");
       }
 
       const effectiveStartAt = startAt || booking.start_at;
@@ -158,9 +159,11 @@ export function useEditBooking() {
 
       const ageBand = booking.driver_age_band === "20_24" ? ("20_24" as DriverAgeBand) : null;
 
+      const effectiveDailyRate = dailyRate ?? booking.daily_rate;
+
       // Recalculate pricing
       const newPricing = calculateBookingPricing({
-        vehicleDailyRate: booking.daily_rate,
+        vehicleDailyRate: effectiveDailyRate,
         rentalDays: newDays,
         protectionDailyRate,
         addOnsTotal,
@@ -189,6 +192,7 @@ export function useEditBooking() {
 
       if (startAt) updatePayload.start_at = startAt;
       if (endAt) updatePayload.end_at = endAt;
+      if (dailyRate) updatePayload.daily_rate = dailyRate;
       if (locationId && locationId !== booking.location_id) {
         updatePayload.location_id = locationId;
         // Clear vehicle assignment when location changes (vehicle may not be available at new location)

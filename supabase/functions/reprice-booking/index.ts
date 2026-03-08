@@ -89,21 +89,25 @@ Deno.serve(async (req) => {
     let auditAction = "";
 
     if (operation === "modify") {
-      // Extend/shorten rental
-      const { newEndAt, reason } = body;
-      if (!newEndAt) return jsonResp({ error: "Missing newEndAt" }, 400, corsHeaders);
+      // Extend/shorten rental, optionally override daily rate
+      const { newEndAt, newDailyRate, reason } = body;
+      if (!newEndAt && !newDailyRate) return jsonResp({ error: "Missing newEndAt or newDailyRate" }, 400, corsHeaders);
 
       if (!["pending", "confirmed", "active"].includes(booking.status)) {
         return jsonResp({ error: "Only pending/confirmed/active bookings can be modified" }, 400, corsHeaders);
       }
 
       const upgradeFee = Number(booking.upgrade_daily_fee) || 0;
+      const effectiveEndAt = newEndAt || booking.end_at;
+
+      // If daily rate override provided, update it on the booking first
+      const overrideRate = newDailyRate ? Number(newDailyRate) : null;
 
       // Use canonical pricing engine for ALL totals
       const serverTotals = await computeBookingTotals({
         vehicleId: booking.vehicle_id,
         startAt: booking.start_at,
-        endAt: newEndAt,
+        endAt: effectiveEndAt,
         protectionPlan: booking.protection_plan || undefined,
         addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
         additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
@@ -111,6 +115,7 @@ Deno.serve(async (req) => {
         deliveryFee,
         locationId: booking.location_id,
         returnLocationId: booking.return_location_id,
+        overrideDailyRate: overrideRate ?? undefined,
       });
 
       // If upgrade fee exists, add it to the canonical totals
@@ -128,11 +133,12 @@ Deno.serve(async (req) => {
 
       oldData = {
         end_at: booking.end_at, total_days: booking.total_days,
+        daily_rate: booking.daily_rate,
         subtotal: booking.subtotal, tax_amount: booking.tax_amount, total_amount: booking.total_amount,
       };
 
       updateData = {
-        end_at: newEndAt,
+        end_at: effectiveEndAt,
         total_days: serverTotals.days,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
@@ -140,6 +146,9 @@ Deno.serve(async (req) => {
         young_driver_fee: serverTotals.youngDriverFee,
         different_dropoff_fee: serverTotals.differentDropoffFee,
       };
+      if (overrideRate !== null) {
+        updateData.daily_rate = overrideRate;
+      }
       auditAction = "booking_modified";
 
     } else if (operation === "upgrade") {

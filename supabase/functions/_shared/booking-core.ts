@@ -465,6 +465,8 @@ export async function computeBookingTotals(input: {
   /** If provided, server computes drop-off fee from location IDs (overrides differentDropoffFee) */
   locationId?: string;
   returnLocationId?: string;
+  /** If provided, use this rate instead of fetching from vehicle/category */
+  overrideDailyRate?: number;
 }): Promise<ServerPricingResult> {
   const supabase = getAdminClient();
 
@@ -500,6 +502,11 @@ export async function computeBookingTotals(input: {
     }
     dailyRate = Number(category.daily_rate);
     vehicleCategory = category.name;
+  }
+
+  // Apply override daily rate if provided (staff rate override)
+  if (input.overrideDailyRate !== undefined && input.overrideDailyRate > 0) {
+    dailyRate = input.overrideDailyRate;
   }
 
   // 3) Vehicle total with weekend surcharge + duration discount
