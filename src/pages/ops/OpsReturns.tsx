@@ -97,11 +97,8 @@ export default function OpsReturns() {
     queryFn: () => listBookings({ status: "active", locationId: locationFilter || undefined }),
   });
 
-  // Filter active rentals for returns (those due today/tomorrow or overdue)
-  const returnBookings = (bookings || []).filter((b) => {
-    const d = parseISO(b.endAt);
-    return isToday(d) || isTomorrow(d) || isPast(d);
-  });
+  // Show ALL active bookings in returns (not just today/tomorrow/overdue)
+  const returnBookings = bookings || [];
 
   // Apply additional filters
   const filteredBookings = returnBookings.filter((b) => {

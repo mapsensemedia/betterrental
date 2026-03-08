@@ -99,8 +99,14 @@ export default function OpsActiveRentals() {
     queryFn: () => listBookings({ status: "active" }),
   });
 
+  // Exclude bookings that belong in Returns (due today/tomorrow/overdue)
+  const activeOnlyBookings = (bookings || []).filter((b) => {
+    const d = parseISO(b.endAt);
+    return !isToday(d) && !isTomorrow(d) && !isPast(d);
+  });
+
   // Filter by search
-  const filteredBookings = (bookings || []).filter((b) => {
+  const filteredBookings = activeOnlyBookings.filter((b) => {
     if (!search) return true;
     return (
       b.bookingCode.toLowerCase().includes(search.toLowerCase()) ||
