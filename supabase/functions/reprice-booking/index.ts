@@ -89,16 +89,25 @@ Deno.serve(async (req) => {
     let auditAction = "";
 
     if (operation === "modify") {
-      // Extend/shorten rental, optionally override daily rate
-      const { newEndAt, newDailyRate, reason } = body;
-      if (!newEndAt && !newDailyRate) return jsonResp({ error: "Missing newEndAt or newDailyRate" }, 400, corsHeaders);
+      // Extend/shorten rental, change dates, location, optionally override daily rate
+      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason } = body;
+      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId) {
+        return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
+      }
 
-      if (!["pending", "confirmed", "active"].includes(booking.status)) {
-        return jsonResp({ error: "Only pending/confirmed/active bookings can be modified" }, 400, corsHeaders);
+      if (!["pending", "confirmed", "active", "overdue"].includes(booking.status)) {
+        return jsonResp({ error: "Only pending/confirmed/active/overdue bookings can be modified" }, 400, corsHeaders);
       }
 
       const upgradeFee = Number(booking.upgrade_daily_fee) || 0;
+      const effectiveStartAt = newStartAt || booking.start_at;
       const effectiveEndAt = newEndAt || booking.end_at;
+      const effectiveLocationId = newLocationId || booking.location_id;
+
+      // Validate dates
+      if (new Date(effectiveEndAt) <= new Date(effectiveStartAt)) {
+        return jsonResp({ error: "Return date must be after pickup date" }, 400, corsHeaders);
+      }
 
       // If daily rate override provided, update it on the booking first
       const overrideRate = newDailyRate ? Number(newDailyRate) : null;
@@ -106,14 +115,14 @@ Deno.serve(async (req) => {
       // Use canonical pricing engine for ALL totals
       const serverTotals = await computeBookingTotals({
         vehicleId: booking.vehicle_id,
-        startAt: booking.start_at,
+        startAt: effectiveStartAt,
         endAt: effectiveEndAt,
         protectionPlan: booking.protection_plan || undefined,
         addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
         additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
         driverAgeBand: booking.driver_age_band || undefined,
         deliveryFee,
-        locationId: booking.location_id,
+        locationId: effectiveLocationId,
         returnLocationId: booking.return_location_id,
         overrideDailyRate: overrideRate ?? undefined,
       });
@@ -132,12 +141,13 @@ Deno.serve(async (req) => {
       }
 
       oldData = {
-        end_at: booking.end_at, total_days: booking.total_days,
-        daily_rate: booking.daily_rate,
+        start_at: booking.start_at, end_at: booking.end_at, total_days: booking.total_days,
+        daily_rate: booking.daily_rate, location_id: booking.location_id,
         subtotal: booking.subtotal, tax_amount: booking.tax_amount, total_amount: booking.total_amount,
       };
 
       updateData = {
+        start_at: effectiveStartAt,
         end_at: effectiveEndAt,
         total_days: serverTotals.days,
         subtotal: finalSubtotal,
@@ -148,6 +158,21 @@ Deno.serve(async (req) => {
       };
       if (overrideRate !== null) {
         updateData.daily_rate = overrideRate;
+      }
+      // Handle location change
+      if (newLocationId && newLocationId !== booking.location_id) {
+        updateData.location_id = newLocationId;
+        // Clear vehicle assignment when location changes
+        updateData.vehicle_id = null;
+        updateData.assigned_unit_id = null;
+        // Release VIN if one was assigned
+        if (booking.assigned_unit_id) {
+          try {
+            await supabase.rpc("release_vin_from_booking", { p_booking_id: booking.id });
+          } catch (e) {
+            console.error("[reprice-booking] Failed to release VIN on location change:", e);
+          }
+        }
       }
       auditAction = "booking_modified";
 

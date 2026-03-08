@@ -1,12 +1,16 @@
 /**
  * Hook for editing booking details (dates, time, location, duration)
- * with automatic pricing recalculation and audit logging.
+ * with automatic pricing recalculation via server-side edge function.
+ *
+ * All financial writes go through reprice-booking to comply with
+ * trg_block_sensitive_booking_updates.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { calculateBookingPricing, type DriverAgeBand } from "@/lib/pricing";
 import { differenceInHours } from "date-fns";
+import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 
 export interface BookingEditPayload {
   bookingId: string;
@@ -48,7 +52,7 @@ export function useLocations() {
 }
 
 /**
- * Preview pricing impact of booking edits
+ * Preview pricing impact of booking edits (client-side display only)
  */
 export function previewBookingEdit(
   booking: {
@@ -91,154 +95,37 @@ export function previewBookingEdit(
 }
 
 /**
- * Mutation to apply booking edits with full recalculation
+ * Mutation to apply booking edits via reprice-booking edge function.
+ * All financial field writes are handled server-side.
  */
 export function useEditBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ bookingId, startAt, endAt, locationId, dailyRate, reason }: BookingEditPayload) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Fetch current booking
-      const { data: booking, error: fetchErr } = await supabase
-        .from("bookings")
-        .select(`
-          id, start_at, end_at, daily_rate, total_days, subtotal,
-          tax_amount, total_amount, vehicle_id, status,
-          driver_age_band, protection_plan, young_driver_fee,
-          location_id
-        `)
-        .eq("id", bookingId)
-        .maybeSingle();
-
-      if (fetchErr || !booking) throw new Error("Booking not found");
-
-      if (["completed", "cancelled"].includes(booking.status)) {
-        throw new Error("Completed or cancelled bookings cannot be edited");
-      }
-
-      const effectiveStartAt = startAt || booking.start_at;
-      const effectiveEndAt = endAt || booking.end_at;
-      const effectiveLocationId = locationId || booking.location_id;
-
-      // Calculate new days
-      const start = new Date(effectiveStartAt);
-      const end = new Date(effectiveEndAt);
-
-      if (end <= start) {
-        throw new Error("Return date must be after pickup date");
-      }
-
-      const hoursDiff = differenceInHours(end, start);
-      const newDays = Math.max(1, Math.ceil(hoursDiff / 24));
-
-      if (newDays > 30) {
-        throw new Error("Maximum rental duration is 30 days");
-      }
-
-      // Get add-ons total
-      const { data: addOns } = await supabase
-        .from("booking_add_ons")
-        .select("price")
-        .eq("booking_id", bookingId);
-
-      const addOnsTotal = (addOns || []).reduce((sum, a) => sum + Number(a.price), 0);
-
-      // Get protection daily rate
-      let protectionDailyRate = 0;
-      if (booking.protection_plan && booking.protection_plan !== "none") {
-        const { data: settings } = await supabase
-          .from("system_settings")
-          .select("value")
-          .eq("key", `protection_${booking.protection_plan}_rate`)
-          .maybeSingle();
-        if (settings?.value) protectionDailyRate = Number(settings.value);
-      }
-
-      const ageBand = booking.driver_age_band === "20_24" ? ("20_24" as DriverAgeBand) : null;
-
-      const effectiveDailyRate = dailyRate ?? booking.daily_rate;
-
-      // Recalculate pricing
-      const newPricing = calculateBookingPricing({
-        vehicleDailyRate: effectiveDailyRate,
-        rentalDays: newDays,
-        protectionDailyRate,
-        addOnsTotal,
-        driverAgeBand: ageBand,
-        pickupDate: start,
-      });
-
-      // Prepare old data for audit
-      const oldData = {
-        start_at: booking.start_at,
-        end_at: booking.end_at,
-        location_id: booking.location_id,
-        total_days: booking.total_days,
-        subtotal: booking.subtotal,
-        tax_amount: booking.tax_amount,
-        total_amount: booking.total_amount,
-      };
-
-      // Build update payload
-      const updatePayload: Record<string, any> = {
-        total_days: newDays,
-        subtotal: Number(newPricing.subtotal.toFixed(2)),
-        tax_amount: Number(newPricing.taxAmount.toFixed(2)),
-        total_amount: Number(newPricing.total.toFixed(2)),
-      };
-
-      if (startAt) updatePayload.start_at = startAt;
-      if (endAt) updatePayload.end_at = endAt;
-      if (dailyRate) updatePayload.daily_rate = dailyRate;
-      if (locationId && locationId !== booking.location_id) {
-        updatePayload.location_id = locationId;
-        // Clear vehicle assignment when location changes (vehicle may not be available at new location)
-        updatePayload.vehicle_id = null;
-        updatePayload.assigned_unit_id = null;
-      }
-
-      // Update booking
-      const { error: updateErr } = await supabase
-        .from("bookings")
-        .update(updatePayload)
-        .eq("id", bookingId);
-
-      if (updateErr) throw updateErr;
-
-      // If we changed location and had a VIN assigned, release it
-      if (locationId && locationId !== booking.location_id && booking.vehicle_id) {
-        try {
-          await supabase.rpc("release_vin_from_booking", { p_booking_id: bookingId });
-        } catch (e) {
-          console.error("Failed to release VIN on location change:", e);
-        }
-      }
-
-      // Audit log
-      await supabase.from("audit_logs").insert({
-        action: "booking_edited",
-        entity_type: "booking",
-        entity_id: bookingId,
-        user_id: user.id,
-        old_data: oldData,
-        new_data: {
-          ...updatePayload,
+      const { data, error } = await supabase.functions.invoke("reprice-booking", {
+        body: {
+          bookingId,
+          operation: "modify",
+          newStartAt: startAt || undefined,
+          newEndAt: endAt || undefined,
+          newDailyRate: dailyRate || undefined,
+          newLocationId: locationId || undefined,
           reason,
-          edited_by: user.id,
         },
       });
 
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
+      }
+
       return {
         bookingId,
-        oldDays: booking.total_days,
-        newDays,
-        oldTotal: booking.total_amount,
-        newTotal: newPricing.total,
-        priceDifference: newPricing.total - booking.total_amount,
-        locationChanged: locationId && locationId !== booking.location_id,
+        oldTotal: data.oldTotal,
+        newTotal: data.total,
+        priceDifference: data.total - data.oldTotal,
+        locationChanged: !!locationId,
       };
     },
     onSuccess: (result) => {
@@ -246,7 +133,7 @@ export function useEditBooking() {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["booking-activity-timeline", result.bookingId] });
-      
+
       const diff = result.priceDifference;
       const msg = result.locationChanged ? "Booking updated (location changed — vehicle cleared)" : "Booking updated";
       toast.success(msg, {
