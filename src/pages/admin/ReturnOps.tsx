@@ -400,13 +400,7 @@ export default function ReturnOps() {
             <DialogHeader>
               <DialogTitle>Edit Booking Details</DialogTitle>
             </DialogHeader>
-            <BookingEditPanel
-              booking={booking}
-              onSaved={() => {
-                setShowEditDialog(false);
-                refetchBooking();
-              }}
-            />
+            <BookingEditPanel booking={booking} />
           </DialogContent>
         </Dialog>
         
