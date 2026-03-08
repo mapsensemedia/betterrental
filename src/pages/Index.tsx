@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ArrowRight, Users, Fuel, Settings2, Car } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
