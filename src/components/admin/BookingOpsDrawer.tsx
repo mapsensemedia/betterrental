@@ -186,6 +186,7 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
   const [verificationReviewOpen, setVerificationReviewOpen] = useState(false);
   const [selectedVerification, setSelectedVerification] = useState<any | null>(null);
   const [verificationNotes, setVerificationNotes] = useState("");
+  const [forceCloseOpen, setForceCloseOpen] = useState(false);
 
   const { data: selectedVerificationUrl } = useSignedStorageUrl({
     bucket: "verification-documents",
