@@ -94,6 +94,26 @@ const LangleyPage = () => {
     }
     canonical.setAttribute("href", "https://c2crental.com/langley");
 
+    // Open Graph tags
+    const ogTags = [
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "C2C Rental" },
+      { property: "og:title", content: "Car Rental in Langley, BC | Daily & Weekly Rates – C2C Rental" },
+      { property: "og:description", content: "Rent a car in Langley, BC from C2C Rental. Flexible daily rates, delivery available. Serving Township and City of Langley with no hidden fees." },
+      { property: "og:url", content: "https://c2crental.com/langley" },
+      { property: "og:image", content: "https://c2crental.com/og-langley.jpg" },
+    ];
+
+    ogTags.forEach(({ property, content }) => {
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("property", property);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    });
+
     // LocalBusiness + CarRental JSON-LD
     const localBusinessSchema = {
       "@context": "https://schema.org",

@@ -1,22 +1,34 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, User, LogOut, LayoutDashboard } from "lucide-react";
+import { Menu, X, User, LogOut, LayoutDashboard, ChevronDown, MapPin } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/search", label: "Browse Cars" },
-  { href: "/locations", label: "Locations" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
 
+const locationLinks = [
+  { href: "/surrey", label: "Car Rental in Surrey" },
+  { href: "/langley", label: "Car Rental in Langley" },
+  { href: "/abbotsford", label: "Car Rental in Abbotsford" },
+];
+
 export function TopNav() {
   const [isOpen, setIsOpen] = useState(false);
+  const [locationsOpen, setLocationsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -35,6 +47,8 @@ export function TopNav() {
     setIsOpen(false);
     navigate("/", { replace: true });
   };
+
+  const isLocationActive = locationLinks.some((l) => location.pathname === l.href);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#FBFAF8] border-b border-black/5 transition-all duration-200">
@@ -55,12 +69,45 @@ export function TopNav() {
                   "relative text-[15px] font-medium transition-colors duration-200 whitespace-nowrap",
                   location.pathname === link.href
                     ? "text-zinc-950 after:absolute after:bottom-[-4px] after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-[#2F5D46] after:content-['']"
-                    : "text-zinc-700 hover:text-zinc-950",
+                    : "text-zinc-700 hover:text-zinc-950"
                 )}
               >
                 {link.label}
               </Link>
             ))}
+
+            {/* Locations Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "relative flex items-center gap-1 text-[15px] font-medium transition-colors duration-200 whitespace-nowrap",
+                    isLocationActive
+                      ? "text-zinc-950 after:absolute after:bottom-[-4px] after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-[#2F5D46] after:content-['']"
+                      : "text-zinc-700 hover:text-zinc-950"
+                  )}
+                >
+                  Locations
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-56">
+                {locationLinks.map((link) => (
+                  <DropdownMenuItem key={link.href} asChild>
+                    <Link
+                      to={link.href}
+                      className={cn(
+                        "flex items-center gap-2 w-full cursor-pointer",
+                        location.pathname === link.href && "bg-accent"
+                      )}
+                    >
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      {link.label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Desktop Actions - Hidden on tablet, show on lg+ */}
@@ -124,12 +171,48 @@ export function TopNav() {
                     "px-4 py-2.5 rounded-lg text-[15px] font-medium transition-colors duration-200",
                     location.pathname === link.href
                       ? "bg-black/5 text-zinc-950"
-                      : "text-zinc-700 hover:bg-black/5 hover:text-zinc-950",
+                      : "text-zinc-700 hover:bg-black/5 hover:text-zinc-950"
                   )}
                 >
                   {link.label}
                 </Link>
               ))}
+
+              {/* Mobile Locations Accordion */}
+              <div className="px-4 py-2">
+                <button
+                  onClick={() => setLocationsOpen(!locationsOpen)}
+                  className={cn(
+                    "flex items-center justify-between w-full py-2 text-[15px] font-medium transition-colors duration-200",
+                    isLocationActive ? "text-zinc-950" : "text-zinc-700"
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Locations
+                  </span>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", locationsOpen && "rotate-180")} />
+                </button>
+                {locationsOpen && (
+                  <div className="pl-6 mt-1 space-y-1">
+                    {locationLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        to={link.href}
+                        onClick={() => setIsOpen(false)}
+                        className={cn(
+                          "block py-2 text-sm transition-colors duration-200",
+                          location.pathname === link.href
+                            ? "text-zinc-950 font-medium"
+                            : "text-zinc-600 hover:text-zinc-950"
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="flex gap-2 px-4 pt-4 border-t border-black/5 mt-2">
                 <Link

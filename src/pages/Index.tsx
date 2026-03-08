@@ -70,8 +70,50 @@ const Index = () => {
   // Get top 4 categories to display
   const displayCategories = categories.filter((c) => c.is_active).slice(0, 4);
 
-  // Inject JSON-LD structured data
+  // Inject meta tags, OG tags, canonical, and JSON-LD structured data
   useEffect(() => {
+    // Title
+    document.title = "C2C Rental | Local Car Rental in Surrey, Langley & Abbotsford BC";
+
+    // Meta description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.setAttribute("name", "description");
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute("content", "Rent a car in Surrey, Langley, or Abbotsford with C2C Rental. Affordable daily and weekly rates, fully insured, no hidden fees. Book online in minutes.");
+
+    // Canonical
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", "https://c2crental.com/");
+
+    // Open Graph tags
+    const ogTags = [
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "C2C Rental" },
+      { property: "og:title", content: "C2C Rental | Local Car Rental in Surrey, Langley & Abbotsford BC" },
+      { property: "og:description", content: "Rent a car in Surrey, Langley, or Abbotsford with C2C Rental. Affordable daily and weekly rates, fully insured, no hidden fees." },
+      { property: "og:url", content: "https://c2crental.com" },
+      { property: "og:image", content: "https://c2crental.com/og-home.jpg" },
+    ];
+
+    ogTags.forEach(({ property, content }) => {
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("property", property);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    });
+
+    // JSON-LD schemas
     const localBusinessSchema = {
       "@context": "https://schema.org",
       "@type": ["LocalBusiness", "CarRental"],
@@ -192,6 +234,7 @@ const Index = () => {
       schemas.forEach(({ id }) => {
         document.getElementById(id)?.remove();
       });
+      canonical?.remove();
     };
   }, []);
 
@@ -220,10 +263,32 @@ const Index = () => {
 
               </p>
               {/* Scroll cue — not clickable */}
-              <p className="text-[13px] md:text-[14px] text-zinc-500 flex items-center gap-2 mt-6 mb-6 leading-tight select-none">
+              <p className="text-[13px] md:text-[14px] text-muted-foreground flex items-center gap-2 mt-6 mb-4 leading-tight select-none">
                 Search availability below
                 <ChevronDown className="w-4 h-4 opacity-70" />
               </p>
+
+              {/* City Shortcut Buttons */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Link
+                  to="/surrey"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+                >
+                  Rent in Surrey
+                </Link>
+                <Link
+                  to="/langley"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+                >
+                  Rent in Langley
+                </Link>
+                <Link
+                  to="/abbotsford"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+                >
+                  Rent in Abbotsford
+                </Link>
+              </div>
             </div>
 
             {/* Hero Image — sits below cue on mobile, beside text on desktop */}
