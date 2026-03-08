@@ -303,6 +303,8 @@ export function OpsStepContent({
               {!isBookingCompleted && !isBookingCancelled && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-sm font-medium text-muted-foreground">Quick Actions</h3>
+                  <ProtectionChangePanel bookingId={booking.id} booking={booking} categoryName={booking.vehicles?.category} />
+                  <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
                   <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
                   <VehicleUpgradePanel booking={booking} />
                   <BookingEditPanel booking={booking} />

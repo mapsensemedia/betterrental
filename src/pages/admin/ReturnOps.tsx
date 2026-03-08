@@ -40,6 +40,8 @@ import { StepReturnCloseout } from "@/components/admin/return-ops/steps/StepRetu
 import { StepReturnDeposit } from "@/components/admin/return-ops/steps/StepReturnDeposit";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
+import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
+import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
 import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle, Wrench, Pencil } from "lucide-react";
 
 export default function ReturnOps() {
@@ -400,7 +402,18 @@ export default function ReturnOps() {
             <DialogHeader>
               <DialogTitle>Edit Booking Details</DialogTitle>
             </DialogHeader>
-            <BookingEditPanel booking={booking} />
+            <div className="space-y-4">
+              <ProtectionChangePanel 
+                bookingId={booking.id} 
+                booking={booking} 
+                categoryName={booking.vehicles?.category} 
+              />
+              <CounterUpsellPanel 
+                bookingId={booking.id} 
+                rentalDays={booking.total_days || 1} 
+              />
+              <BookingEditPanel booking={booking} />
+            </div>
           </DialogContent>
         </Dialog>
         

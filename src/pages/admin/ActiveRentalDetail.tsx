@@ -46,12 +46,17 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
+import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
+import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
+import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
+import { useBookingById } from "@/hooks/use-bookings";
 
 export default function ActiveRentalDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: rental, isLoading, error } = useActiveRentalDetail(bookingId || null);
+  const { data: fullBooking } = useBookingById(bookingId || null);
   const createAlert = useCreateAlert();
 
   // Live timer state
@@ -577,6 +582,24 @@ export default function ActiveRentalDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Modify Booking - Protection, Add-ons, Edit */}
+        {fullBooking && (
+          <div className="grid md:grid-cols-2 gap-6">
+            <ProtectionChangePanel 
+              bookingId={rental.id} 
+              booking={fullBooking} 
+              categoryName={rental.vehicle?.category} 
+            />
+            <CounterUpsellPanel 
+              bookingId={rental.id} 
+              rentalDays={fullBooking.total_days || 1} 
+            />
+            <div className="md:col-span-2">
+              <BookingEditPanel booking={fullBooking} />
+            </div>
+          </div>
+        )}
 
         {/* Footer Quick Actions */}
         <Card>
