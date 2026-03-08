@@ -13,6 +13,7 @@ export interface BookingEditPayload {
   startAt?: string;
   endAt?: string;
   locationId?: string;
+  dailyRate?: number;
   reason: string;
 }
 
