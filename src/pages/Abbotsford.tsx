@@ -94,27 +94,127 @@ const AbbotsfordPage = () => {
     }
     canonical.setAttribute("href", "https://c2crental.com/abbotsford");
 
-    const jsonLd = {
+    // LocalBusiness + CarRental JSON-LD
+    const localBusinessSchema = {
       "@context": "https://schema.org",
-      "@type": "LocalBusiness",
-      name: "C2C Rental – Abbotsford",
-      description: "Affordable car rental in Abbotsford, BC near YXX Airport. Economy cars, SUVs, and minivans from $45/day.",
-      url: "https://c2crental.com/abbotsford",
-      telephone: "+16043300205",
-      address: { "@type": "PostalAddress", addressLocality: "Abbotsford", addressRegion: "BC", addressCountry: "CA" },
-      priceRange: "$45–$120/day",
+      "@type": ["LocalBusiness", "CarRental"],
+      "@id": "https://c2crental.com/#organization",
+      "name": "C2C Rental",
+      "url": "https://c2crental.com",
+      "logo": "https://c2crental.com/logo.png",
+      "image": "https://c2crental.com/og-image.jpg",
+      "description": "C2C Rental is a local peer-to-peer car rental platform serving Surrey, Langley, and Abbotsford, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
+      "telephone": "+1-604-330-0205",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "32835 South Fraser Way",
+        "addressLocality": "Abbotsford",
+        "addressRegion": "BC",
+        "addressCountry": "CA"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 49.0504,
+        "longitude": -122.3045
+      },
+      "areaServed": [
+        { "@type": "City", "name": "Surrey" },
+        { "@type": "City", "name": "Langley" },
+        { "@type": "City", "name": "Abbotsford" }
+      ],
+      "serviceArea": {
+        "@type": "AdministrativeArea",
+        "name": "Fraser Valley, British Columbia"
+      },
+      "priceRange": "$$",
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "08:00",
+          "closes": "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Sunday",
+          "opens": "11:00",
+          "closes": "17:00"
+        }
+      ],
+      "sameAs": [
+        "https://www.instagram.com/c2crental",
+        "https://www.facebook.com/c2crental"
+      ]
     };
-    let script = document.getElementById("abbotsford-jsonld");
-    if (!script) {
-      script = document.createElement("script");
-      script.id = "abbotsford-jsonld";
-      script.setAttribute("type", "application/ld+json");
-      document.head.appendChild(script);
-    }
-    script.textContent = JSON.stringify(jsonLd);
+
+    // FAQPage JSON-LD
+    const faqPageSchema = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is C2C Rental available near Abbotsford Airport (YXX)?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. C2C Rental serves drivers near Abbotsford International Airport (YXX), located just 10 minutes from our Abbotsford service area. Book online and arrange pickup or delivery so your vehicle is ready when you land. Contact our team for airport coordination details."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I rent a car in Abbotsford for a cross-border trip to Washington State?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Cross-border travel to the United States is possible with advance approval from C2C Rental. You must inform us at the time of booking so we can arrange the required cross-border insurance documentation. The Sumas border crossing is just minutes from Abbotsford, making it convenient for trips to Bellingham and beyond."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the minimum age to rent a car in Abbotsford, BC?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The minimum age to rent with C2C Rental in Abbotsford is 21 years old. Drivers under 25 may be subject to additional deposits or insurance requirements. Premium vehicles require a minimum age of 25. Contact us with your details and we'll confirm your eligibility."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are winter tires included in Abbotsford rentals during winter?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "During the winter season, C2C Rental equips AWD and 4WD vehicles with winter tires as standard for Abbotsford rentals. If you're planning a trip to the Coquihalla, Kelowna corridor, or any mountain pass, let us know your destination so we can ensure your vehicle is properly equipped."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How far in advance should I book a car rental in Abbotsford?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "We recommend booking at least 48 hours in advance for the best vehicle selection in Abbotsford, especially during peak travel seasons and long weekends. Same-day bookings may be available depending on fleet availability — contact our team to check."
+          }
+        }
+      ]
+    };
+
+    const schemas = [
+      { id: "abbotsford-localbusiness-jsonld", data: localBusinessSchema },
+      { id: "abbotsford-faqpage-jsonld", data: faqPageSchema },
+    ];
+
+    schemas.forEach(({ id, data }) => {
+      let script = document.getElementById(id);
+      if (!script) {
+        script = document.createElement("script");
+        script.id = id;
+        script.setAttribute("type", "application/ld+json");
+        document.head.appendChild(script);
+      }
+      script.textContent = JSON.stringify(data);
+    });
 
     return () => {
-      script?.remove();
+      schemas.forEach(({ id }) => {
+        document.getElementById(id)?.remove();
+      });
       canonical?.remove();
     };
   }, []);
