@@ -1,6 +1,8 @@
 /**
  * ProtectionChangePanel - Change or remove the protection plan at the counter
  * during customer check-in, with automatic pricing recalculation.
+ *
+ * All financial writes go through reprice-booking edge function.
  */
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,12 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Shield, ShieldCheck, ShieldX, Loader2, Check, Star, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { calculateBookingPricing, type DriverAgeBand } from "@/lib/pricing";
+import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 import { cn } from "@/lib/utils";
 
 interface ProtectionChangePanelProps {
@@ -41,57 +43,24 @@ function useChangeProtection() {
     mutationFn: async ({
       bookingId,
       newPlan,
-      newPricing,
       oldPlan,
     }: {
       bookingId: string;
       newPlan: string;
-      newPricing: { subtotal: number; taxAmount: number; total: number };
       oldPlan: string | null;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Fetch current booking for audit
-      const { data: current } = await supabase
-        .from("bookings")
-        .select("subtotal, tax_amount, total_amount, protection_plan")
-        .eq("id", bookingId)
-        .maybeSingle();
-
-      // Update booking with new protection and recalculated totals
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          protection_plan: newPlan,
-          subtotal: Number(newPricing.subtotal.toFixed(2)),
-          tax_amount: Number(newPricing.taxAmount.toFixed(2)),
-          total_amount: Number(newPricing.total.toFixed(2)),
-        })
-        .eq("id", bookingId);
-
-      if (error) throw error;
-
-      // Audit log
-      await supabase.from("audit_logs").insert({
-        action: "protection_plan_changed",
-        entity_type: "booking",
-        entity_id: bookingId,
-        user_id: user.id,
-        old_data: {
-          protection_plan: current?.protection_plan,
-          subtotal: current?.subtotal,
-          tax_amount: current?.tax_amount,
-          total_amount: current?.total_amount,
-        },
-        new_data: {
-          protection_plan: newPlan,
-          subtotal: newPricing.subtotal,
-          tax_amount: newPricing.taxAmount,
-          total_amount: newPricing.total,
-          changed_by: user.id,
+      const { data, error } = await supabase.functions.invoke("reprice-booking", {
+        body: {
+          bookingId,
+          operation: "change_protection",
+          newProtectionPlan: newPlan,
         },
       });
+
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
+      }
 
       return { bookingId, oldPlan, newPlan };
     },
@@ -104,8 +73,8 @@ function useChangeProtection() {
       const planLabel = result.newPlan === "none" ? "No Protection" : result.newPlan;
       toast.success(`Protection changed to ${planLabel}`);
     },
-    onError: () => {
-      toast.error("Failed to update protection plan");
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to update protection plan");
     },
   });
 }
@@ -122,7 +91,7 @@ export function ProtectionChangePanel({ bookingId, booking, categoryName }: Prot
   const selectedPkg = packages.find(p => p.id === selectedPlan);
   const hasChanged = selectedPlan !== currentPlan;
 
-  // Calculate pricing impact
+  // Calculate pricing impact (client-side preview only)
   const getNewPricing = (planId: string) => {
     const pkg = packages.find(p => p.id === planId);
     const protectionDailyRate = pkg?.dailyRate || 0;
@@ -140,16 +109,10 @@ export function ProtectionChangePanel({ bookingId, booking, categoryName }: Prot
 
   const handleConfirm = () => {
     if (!hasChanged) return;
-    const newPricing = getNewPricing(selectedPlan);
     changeMutation.mutate(
       {
         bookingId,
         newPlan: selectedPlan,
-        newPricing: {
-          subtotal: newPricing.subtotal,
-          taxAmount: newPricing.taxAmount,
-          total: newPricing.total,
-        },
         oldPlan: currentPlan,
       },
       {
@@ -305,7 +268,7 @@ export function ProtectionChangePanel({ bookingId, booking, categoryName }: Prot
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">
-                    {currentPkg?.name || "None"}
+                    {currentPkg?.name || "No extra protection"}
                     <ArrowRight className="w-3 h-3 inline mx-1.5 text-muted-foreground" />
                     {selectedPkg?.name || "None"}
                   </span>
