@@ -105,15 +105,17 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   const taxAmount = pricing.taxAmount;
   const totalAmount = pricing.total;
 
-  // Auto-set daily rate when vehicle is selected
+  // Auto-set daily rate ONLY when vehicle selection changes (not on every render)
+  const prevVehicleIdRef = useState({ current: "" })[0];
   useEffect(() => {
-    if (formData.vehicleId && availableVehicles) {
-      const vehicle = availableVehicles.find(v => v.id === formData.vehicleId);
+    if (formData.vehicleId && formData.vehicleId !== prevVehicleIdRef.current) {
+      prevVehicleIdRef.current = formData.vehicleId;
+      const vehicle = allVehicles?.find(v => v.id === formData.vehicleId);
       if (vehicle) {
         setFormData(prev => ({ ...prev, dailyRate: Number(vehicle.dailyRate) }));
       }
     }
-  }, [formData.vehicleId, availableVehicles]);
+  }, [formData.vehicleId, allVehicles]);
 
   const generateBookingCode = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -145,6 +147,10 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     }
     if (!formData.vehicleId) {
       toast.error("Please select a vehicle");
+      return;
+    }
+    if (!formData.dailyRate || formData.dailyRate <= 0) {
+      toast.error("Daily rate must be greater than $0");
       return;
     }
 
