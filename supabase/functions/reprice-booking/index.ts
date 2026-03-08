@@ -273,6 +273,56 @@ Deno.serve(async (req) => {
       };
       auditAction = "upgrade_fee_removed";
 
+    } else if (operation === "change_protection") {
+      // Change protection plan and recalculate totals
+      const { newProtectionPlan } = body;
+      if (newProtectionPlan === undefined) {
+        return jsonResp({ error: "Missing newProtectionPlan" }, 400, corsHeaders);
+      }
+
+      const upgradeFee = Number(booking.upgrade_daily_fee) || 0;
+      const effectivePlan = newProtectionPlan === "none" ? undefined : newProtectionPlan;
+
+      const serverTotals = await computeBookingTotals({
+        vehicleId: booking.vehicle_id,
+        startAt: booking.start_at,
+        endAt: booking.end_at,
+        protectionPlan: effectivePlan,
+        addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
+        additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
+        driverAgeBand: booking.driver_age_band || undefined,
+        deliveryFee,
+        locationId: booking.location_id,
+        returnLocationId: booking.return_location_id,
+      });
+
+      let finalSubtotal = serverTotals.subtotal;
+      let finalTaxAmount = serverTotals.taxAmount;
+      let finalTotal = serverTotals.total;
+      if (upgradeFee > 0) {
+        const upgradeTotal = roundCents(upgradeFee * serverTotals.days);
+        finalSubtotal = roundCents(finalSubtotal + upgradeTotal);
+        const pst = roundCents(finalSubtotal * 0.07);
+        const gst = roundCents(finalSubtotal * 0.05);
+        finalTaxAmount = roundCents(pst + gst);
+        finalTotal = roundCents(finalSubtotal + finalTaxAmount);
+      }
+
+      oldData = {
+        protection_plan: booking.protection_plan,
+        subtotal: booking.subtotal, tax_amount: booking.tax_amount, total_amount: booking.total_amount,
+      };
+
+      updateData = {
+        protection_plan: newProtectionPlan === "none" ? null : newProtectionPlan,
+        subtotal: finalSubtotal,
+        tax_amount: finalTaxAmount,
+        total_amount: finalTotal,
+        young_driver_fee: serverTotals.youngDriverFee,
+        different_dropoff_fee: serverTotals.differentDropoffFee,
+      };
+      auditAction = "protection_plan_changed";
+
     } else {
       return jsonResp({ error: `Unknown operation: ${operation}` }, 400, corsHeaders);
     }
