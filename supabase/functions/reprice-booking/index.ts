@@ -109,8 +109,9 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "Return date must be after pickup date" }, 400, corsHeaders);
       }
 
-      // If daily rate override provided, update it on the booking first
+      // If daily rate override provided, use it; otherwise preserve booking's stored rate
       const overrideRate = newDailyRate ? Number(newDailyRate) : null;
+      const effectiveDailyRate = overrideRate ?? Number(booking.daily_rate);
 
       // Use canonical pricing engine for ALL totals
       const serverTotals = await computeBookingTotals({
@@ -124,7 +125,7 @@ Deno.serve(async (req) => {
         deliveryFee,
         locationId: effectiveLocationId,
         returnLocationId: booking.return_location_id,
-        overrideDailyRate: overrideRate ?? undefined,
+        overrideDailyRate: effectiveDailyRate,
       });
 
       // If upgrade fee exists, add it to the canonical totals
@@ -184,6 +185,7 @@ Deno.serve(async (req) => {
       const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
 
       // Compute canonical totals (without upgrade fee) then add upgrade
+      // Always use the booking's stored daily_rate so category changes don't override admin-intended rate
       const serverTotals = await computeBookingTotals({
         vehicleId: booking.vehicle_id,
         startAt: booking.start_at,
@@ -195,6 +197,7 @@ Deno.serve(async (req) => {
         deliveryFee,
         locationId: booking.location_id,
         returnLocationId: booking.return_location_id,
+        overrideDailyRate: Number(booking.daily_rate),
       });
 
       // Add upgrade fee on top of canonical totals
@@ -244,6 +247,7 @@ Deno.serve(async (req) => {
       const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
 
       // Compute canonical totals (no upgrade fee)
+      // Use booking's stored daily_rate to preserve admin-intended rate after category changes
       const serverTotals = await computeBookingTotals({
         vehicleId: booking.vehicle_id,
         startAt: booking.start_at,
@@ -255,6 +259,7 @@ Deno.serve(async (req) => {
         deliveryFee,
         locationId: booking.location_id,
         returnLocationId: booking.return_location_id,
+        overrideDailyRate: Number(booking.daily_rate),
       });
 
       oldData = {
@@ -294,6 +299,7 @@ Deno.serve(async (req) => {
         deliveryFee,
         locationId: booking.location_id,
         returnLocationId: booking.return_location_id,
+        overrideDailyRate: Number(booking.daily_rate),
       });
 
       let finalSubtotal = serverTotals.subtotal;
