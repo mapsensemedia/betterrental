@@ -374,6 +374,15 @@ export default function ReturnOps() {
               variant="outline" 
               size="sm" 
               className="gap-1.5"
+              onClick={() => setShowEditDialog(true)}
+            >
+              <Pencil className="h-4 w-4" />
+              <span className="hidden sm:inline">Edit</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
               onClick={() => setShowIncidentDialog(true)}
             >
               <Wrench className="h-4 w-4" />
@@ -384,6 +393,22 @@ export default function ReturnOps() {
             </Button>
           </div>
         </div>
+        
+        {/* Edit Booking Dialog */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Booking Details</DialogTitle>
+            </DialogHeader>
+            <BookingEditPanel
+              booking={booking}
+              onSaved={() => {
+                setShowEditDialog(false);
+                refetchBooking();
+              }}
+            />
+          </DialogContent>
+        </Dialog>
         
         {/* Incident Dialog */}
         <CreateIncidentDialog
