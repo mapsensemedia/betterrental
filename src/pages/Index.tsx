@@ -263,10 +263,32 @@ const Index = () => {
 
               </p>
               {/* Scroll cue — not clickable */}
-              <p className="text-[13px] md:text-[14px] text-zinc-500 flex items-center gap-2 mt-6 mb-6 leading-tight select-none">
+              <p className="text-[13px] md:text-[14px] text-muted-foreground flex items-center gap-2 mt-6 mb-4 leading-tight select-none">
                 Search availability below
                 <ChevronDown className="w-4 h-4 opacity-70" />
               </p>
+
+              {/* City Shortcut Buttons */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Link
+                  to="/surrey"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+                >
+                  Rent in Surrey
+                </Link>
+                <Link
+                  to="/langley"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+                >
+                  Rent in Langley
+                </Link>
+                <Link
+                  to="/abbotsford"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+                >
+                  Rent in Abbotsford
+                </Link>
+              </div>
             </div>
 
             {/* Hero Image — sits below cue on mobile, beside text on desktop */}
