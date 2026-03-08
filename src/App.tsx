@@ -153,6 +153,11 @@ const App = () => (
                 <Route path="/langley" element={<Langley />} />
                 <Route path="/abbotsford" element={<Abbotsford />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/blog" element={<BlogIndex />} />
+                <Route path="/blog/car-rental-surrey-guide" element={<CarRentalSurreyGuide />} />
+                <Route path="/blog/icbc-car-rental-insurance-bc" element={<IcbcCarRentalInsurance />} />
+                <Route path="/blog/best-road-trips-from-surrey-bc" element={<BestRoadTripsFromSurrey />} />
+                <Route path="/blog/car-rental-tips-new-drivers-bc" element={<CarRentalTipsNewDrivers />} />
                 <Route path="/booking/confirmed" element={<BookingConfirmed />} />
                 <Route path="/booking/:bookingId/license" element={<BookingLicense />} />
                 <Route path="/booking/:bookingId/agreement" element={<BookingAgreement />} />
