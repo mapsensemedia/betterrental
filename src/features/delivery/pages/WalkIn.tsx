@@ -85,6 +85,7 @@ export default function DeliveryWalkIn() {
         vehicleDailyRate: dailyRate,
         rentalDays: days,
         pickupDate: startAt,
+        driverAgeBand: formData.driverAgeBand,
       });
       const subtotal = pricing.subtotal;
       const taxAmount = pricing.taxAmount;
