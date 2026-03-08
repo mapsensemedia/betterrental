@@ -60,6 +60,7 @@ import { WalkaroundInspection } from "./WalkaroundInspection";
 import { BookingModificationPanel } from "./ops/BookingModificationPanel";
 import { BookingEditPanel } from "./ops/BookingEditPanel";
 import { CounterUpsellPanel } from "./ops/CounterUpsellPanel";
+import { ForceCloseDialog } from "./ops/ForceCloseDialog";
 import { useAvailableDrivers } from "@/hooks/use-available-drivers";
 import { useAssignDriver, useUnassignDriver } from "@/hooks/use-assign-driver";
 
