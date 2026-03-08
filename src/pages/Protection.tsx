@@ -210,7 +210,7 @@ export default function Protection() {
                     </p>
 
                     {/* Features - compact list */}
-                    <div className="space-y-1.5 mb-3 flex-1">
+                    <div className="space-y-2 mb-3 flex-1">
                       {pkg.features.map((feature) => (
                         <div
                           key={feature.name}
