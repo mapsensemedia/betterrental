@@ -212,6 +212,18 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
     }
   };
 
+  const handleReopenRental = () => {
+    if (!bookingId) return;
+    updateStatus.mutate(
+      { bookingId, newStatus: "active" as BookingStatus, notes: "Rental reopened by staff to re-enter correct return details", bypassReason: undefined, reopen: true } as any,
+      {
+        onSuccess: () => {
+          toast.success("Rental reopened — you can now close it with the correct details");
+        },
+      }
+    );
+  };
+
   const hasReceipt = receipts.length > 0;
   const issuedReceipts = receipts.filter((r: any) => r.status === 'issued');
 
