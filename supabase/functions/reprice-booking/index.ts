@@ -298,6 +298,7 @@ Deno.serve(async (req) => {
         deliveryFee,
         locationId: booking.location_id,
         returnLocationId: booking.return_location_id,
+        overrideDailyRate: Number(booking.daily_rate),
       });
 
       let finalSubtotal = serverTotals.subtotal;
