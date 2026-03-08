@@ -172,6 +172,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
           customerEmail: formData.email.toLowerCase().trim(),
           notes: formData.notes ? `Walk-in booking: ${formData.notes}` : "Walk-in booking",
           dailyRate: formData.dailyRate,
+          driverAgeBand: formData.driverAgeBand,
           totalDays,
           subtotal,
           taxAmount,
