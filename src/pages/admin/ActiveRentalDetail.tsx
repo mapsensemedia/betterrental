@@ -583,6 +583,24 @@ export default function ActiveRentalDetail() {
           </Card>
         </div>
 
+        {/* Modify Booking - Protection, Add-ons, Edit */}
+        {fullBooking && (
+          <div className="grid md:grid-cols-2 gap-6">
+            <ProtectionChangePanel 
+              bookingId={rental.id} 
+              booking={fullBooking} 
+              categoryName={rental.vehicle?.category} 
+            />
+            <CounterUpsellPanel 
+              bookingId={rental.id} 
+              rentalDays={fullBooking.total_days || 1} 
+            />
+            <div className="md:col-span-2">
+              <BookingEditPanel booking={fullBooking} />
+            </div>
+          </div>
+        )}
+
         {/* Footer Quick Actions */}
         <Card>
           <CardHeader className="pb-3">
