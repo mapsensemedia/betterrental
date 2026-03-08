@@ -108,6 +108,26 @@ const SurreyPage = () => {
     }
     canonical.setAttribute("href", "https://c2crental.com/surrey");
 
+    // Open Graph tags
+    const ogTags = [
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "C2C Rental" },
+      { property: "og:title", content: "Car Rental in Surrey, BC | Affordable & Local – C2C Rental" },
+      { property: "og:description", content: "Economy cars, SUVs, and minivans from $45/day in Surrey, BC. No hidden fees. Book with C2C Rental today." },
+      { property: "og:url", content: "https://c2crental.com/surrey" },
+      { property: "og:image", content: "https://c2crental.com/og-surrey.jpg" },
+    ];
+
+    ogTags.forEach(({ property, content }) => {
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("property", property);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    });
+
     // LocalBusiness + CarRental JSON-LD
     const localBusinessSchema = {
       "@context": "https://schema.org",
