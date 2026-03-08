@@ -62,6 +62,7 @@ export default function ReturnOps() {
   const [calculatedLateFee, setCalculatedLateFee] = useState(0);
   const [isException, setIsException] = useState(false);
   const [showIncidentDialog, setShowIncidentDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const hasInitializedRef = useRef(false);
   
   // Fetch incidents for this booking
