@@ -97,7 +97,7 @@ export function useEditBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ bookingId, startAt, endAt, locationId, reason }: BookingEditPayload) => {
+    mutationFn: async ({ bookingId, startAt, endAt, locationId, dailyRate, reason }: BookingEditPayload) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
