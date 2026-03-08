@@ -842,6 +842,17 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Force Close Dialog */}
+      {booking && (
+        <ForceCloseDialog
+          open={forceCloseOpen}
+          onOpenChange={setForceCloseOpen}
+          bookingId={booking.id}
+          bookingCode={booking.booking_code}
+          scheduledReturn={booking.end_at}
+        />
+      )}
     </>
   );
 }
