@@ -184,6 +184,7 @@ Deno.serve(async (req) => {
       const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
 
       // Compute canonical totals (without upgrade fee) then add upgrade
+      // Always use the booking's stored daily_rate so category changes don't override admin-intended rate
       const serverTotals = await computeBookingTotals({
         vehicleId: booking.vehicle_id,
         startAt: booking.start_at,
@@ -195,6 +196,7 @@ Deno.serve(async (req) => {
         deliveryFee,
         locationId: booking.location_id,
         returnLocationId: booking.return_location_id,
+        overrideDailyRate: Number(booking.daily_rate),
       });
 
       // Add upgrade fee on top of canonical totals
