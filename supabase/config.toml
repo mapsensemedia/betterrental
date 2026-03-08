@@ -82,7 +82,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.close-account]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-checkout-hold]
 verify_jwt = false
