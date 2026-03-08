@@ -19,6 +19,7 @@ const footerLinks = {
     { href: "/contact", label: "Contact Us" },
     { href: "/search", label: "How It Works" },
     { href: "/surrey#requirements", label: "Insurance & Requirements" },
+    { href: "/blog", label: "Blog" },
   ],
 };
 

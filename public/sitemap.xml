@@ -48,4 +48,34 @@
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
+  <url>
+    <loc>https://c2crental.com/blog</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://c2crental.com/blog/car-rental-surrey-guide</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://c2crental.com/blog/icbc-car-rental-insurance-bc</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://c2crental.com/blog/best-road-trips-from-surrey-bc</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://c2crental.com/blog/car-rental-tips-new-drivers-bc</loc>
+    <lastmod>2026-03-08</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
 </urlset>

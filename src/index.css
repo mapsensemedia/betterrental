@@ -449,3 +449,14 @@
 [data-sonner-toast] [data-button] {
   margin-left: 12px;
 }
+
+/* Blog article prose styles */
+.prose-section {
+  @apply mb-10;
+}
+.prose-section h2 {
+  @apply text-xl md:text-2xl font-semibold text-foreground mt-10 mb-4;
+}
+.prose-section p {
+  @apply text-muted-foreground leading-relaxed mb-4;
+}
