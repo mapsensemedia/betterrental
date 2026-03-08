@@ -264,15 +264,17 @@ export function useUpdateBookingStatus() {
       notes,
       bypassReason,
       reopen,
+      skipNotifications,
     }: { 
       bookingId: string; 
       newStatus: BookingStatus; 
       notes?: string;
       bypassReason?: string;
       reopen?: boolean;
+      skipNotifications?: boolean;
     }) => {
       const { data, error } = await supabase.functions.invoke("update-booking-status", {
-        body: { bookingId, newStatus, notes, bypassReason, reopen },
+        body: { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications },
       });
 
       if (error || data?.error) {

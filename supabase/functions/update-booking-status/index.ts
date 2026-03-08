@@ -188,12 +188,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Send notifications
+    // Send notifications (skip when explicitly suppressed, e.g. reopen)
     let notificationStage: string | null = null;
     if (newStatus === "active") notificationStage = "rental_activated";
     else if (newStatus === "completed") notificationStage = "return_completed";
 
-    if (notificationStage) {
+    if (notificationStage && !skipNotifications) {
       try {
         // Fetch names for admin notification
         const { data: categoryData } = booking.vehicle_id
