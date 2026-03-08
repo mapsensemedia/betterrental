@@ -149,10 +149,10 @@ export default function Protection() {
                     key={pkg.id}
                     onClick={() => setSelectedPackage(pkg.id)}
                     className={cn(
-                      "relative p-4 cursor-pointer transition-all hover:shadow-md flex flex-col",
+                      "relative p-4 cursor-pointer flex flex-col transition-all duration-200 ease-in-out active:scale-[0.98]",
                       selectedPackage === pkg.id
-                        ? "ring-2 ring-primary border-primary"
-                        : "border-border hover:border-muted-foreground/30"
+                        ? "border-[2.5px] border-foreground shadow-[0_8px_28px_rgba(0,0,0,0.18)] -translate-y-0.5"
+                        : "border-[1.5px] border-border shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:border-muted-foreground/40"
                     )}
                   >
                     {/* Header row: Title + Selection indicator */}
