@@ -65,6 +65,16 @@ export function OpsTopBar({
               </DropdownMenuItem>
             )}
             {canEditBooking && <DropdownMenuSeparator />}
+            {canForceClose && onForceClose && (
+              <DropdownMenuItem 
+                onClick={onForceClose}
+                className="text-amber-600 focus:text-amber-700"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Force Close Booking
+              </DropdownMenuItem>
+            )}
+            {(canForceClose || canEditBooking) && <DropdownMenuSeparator />}
             <DropdownMenuItem 
               onClick={onCancel}
               className="text-destructive focus:text-destructive"
