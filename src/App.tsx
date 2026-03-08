@@ -31,6 +31,7 @@ const Contact = lazy(() => import("./pages/Contact"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const CompleteSignup = lazy(() => import("./pages/CompleteSignup"));
+const Surrey = lazy(() => import("./pages/Surrey"));
 
 // Post-booking customer pages
 const BookingConfirmed = lazy(() => import("./pages/booking/BookingConfirmed"));
