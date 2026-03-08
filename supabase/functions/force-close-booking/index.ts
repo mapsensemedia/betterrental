@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
       .update({
         status: "completed",
         actual_return_at: actualReturnAt,
-        return_state: "closed",
+        return_state: "closeout_done",
         notes: existingNotes,
         account_closed_at: new Date().toISOString(),
         account_closed_by: authResult.userId,
