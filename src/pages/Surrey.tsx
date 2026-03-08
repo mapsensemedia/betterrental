@@ -87,41 +87,57 @@ const bookingSteps = [
 ];
 
 const SurreyPage = () => {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "LocalBusiness",
-    name: "C2C Rental – Surrey",
-    description: "Affordable car rental in Surrey, BC. Economy cars, SUVs, and minivans from $45/day.",
-    url: "https://c2crental.com/surrey",
-    telephone: "+16043300205",
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: "6786 King George Blvd",
-      addressLocality: "Surrey",
-      addressRegion: "BC",
-      postalCode: "V3W 4Z1",
-      addressCountry: "CA",
-    },
-    geo: {
-      "@type": "GeoCoordinates",
-      latitude: 49.1565,
-      longitude: -122.8487,
-    },
-    openingHoursSpecification: [
-      { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
-      { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
-    ],
-    priceRange: "$45–$120/day",
-  };
+  useEffect(() => {
+    document.title = "Car Rental in Surrey, BC | Affordable & Local – C2C Rental";
+    
+    // Set meta description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.setAttribute("name", "description");
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute("content", "Looking for car rental in Surrey, BC? C2C Rental offers economy cars, SUVs, and minivans starting from $45/day. Serving Newton, Guildford, Surrey Central, Cloverdale, and more.");
 
-  return (
-    <CustomerLayout>
-      <Helmet>
-        <title>Car Rental in Surrey, BC | Affordable &amp; Local – C2C Rental</title>
-        <meta name="description" content="Looking for car rental in Surrey, BC? C2C Rental offers economy cars, SUVs, and minivans starting from $45/day. Serving Newton, Guildford, Surrey Central, Cloverdale, and more." />
-        <link rel="canonical" href="https://c2crental.com/surrey" />
-        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
-      </Helmet>
+    // Set canonical
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", "https://c2crental.com/surrey");
+
+    // JSON-LD
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      name: "C2C Rental – Surrey",
+      description: "Affordable car rental in Surrey, BC. Economy cars, SUVs, and minivans from $45/day.",
+      url: "https://c2crental.com/surrey",
+      telephone: "+16043300205",
+      address: { "@type": "PostalAddress", streetAddress: "6786 King George Blvd", addressLocality: "Surrey", addressRegion: "BC", postalCode: "V3W 4Z1", addressCountry: "CA" },
+      geo: { "@type": "GeoCoordinates", latitude: 49.1565, longitude: -122.8487 },
+      openingHoursSpecification: [
+        { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
+        { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
+      ],
+      priceRange: "$45–$120/day",
+    };
+    let script = document.getElementById("surrey-jsonld");
+    if (!script) {
+      script = document.createElement("script");
+      script.id = "surrey-jsonld";
+      script.setAttribute("type", "application/ld+json");
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(jsonLd);
+
+    return () => {
+      script?.remove();
+      canonical?.remove();
+    };
+  }, []);
 
       <PageContainer className="max-w-4xl mx-auto space-y-16">
         {/* H1 + Intro */}
