@@ -504,6 +504,12 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                   <span>-${pricing.durationDiscount.toFixed(2)}</span>
                 </div>
               )}
+              {pricing.youngDriverFee > 0 && (
+                <div className="flex justify-between text-sm text-amber-600">
+                  <span>Young driver fee ($15/day × {totalDays}d)</span>
+                  <span>+${pricing.youngDriverFee.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Daily fees (PVRT + ACSRCH)</span>
                 <span>${pricing.dailyFeesTotal.toFixed(2)}</span>
