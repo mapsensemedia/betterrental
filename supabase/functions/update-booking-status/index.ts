@@ -147,12 +147,12 @@ Deno.serve(async (req) => {
 
     // Audit log
     await admin.from("audit_logs").insert({
-      action: "booking_status_change",
+      action: reopen ? "booking_reopened" : "booking_status_change",
       entity_type: "booking",
       entity_id: bookingId,
       user_id: user.id,
       old_data: { status: currentStatus },
-      new_data: { status: newStatus, notes, workflow_bypassed: !!bypassReason },
+      new_data: { status: newStatus, notes, workflow_bypassed: !!bypassReason, reopened: !!reopen },
     });
 
     // Update vehicle unit status
