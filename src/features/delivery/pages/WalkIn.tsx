@@ -39,7 +39,7 @@ export default function DeliveryWalkIn() {
     categoryId: "",
     startDate: format(new Date(), "yyyy-MM-dd"),
     endDate: format(addDays(new Date(), 1), "yyyy-MM-dd"),
-    // NEW: Delivery address field
+    driverAgeBand: "25_70" as "20_24" | "25_70",
     deliveryAddress: "",
     notes: "",
   });
