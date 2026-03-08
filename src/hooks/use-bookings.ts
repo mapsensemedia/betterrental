@@ -256,7 +256,6 @@ export function useBookingById(id: string | null) {
 
 export function useUpdateBookingStatus() {
   const queryClient = useQueryClient();
-  const { logAction } = useAuditLog();
 
   return useMutation({
     mutationFn: async ({ 
