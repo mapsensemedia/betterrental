@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuditLog } from "./use-admin";
+
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { extractEdgeFunctionError } from "@/lib/edge-function-error";
