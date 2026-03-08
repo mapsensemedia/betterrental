@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.update-booking-customer]
 verify_jwt = false
+
+[functions.update-booking-status]
+verify_jwt = false
