@@ -187,24 +187,24 @@ export function OpsStepContent({
                 onStepComplete={onCompleteStep}
                 vehicleName={booking.vehicle_categories?.name || "Vehicle"}
               />
-              {/* Edit Booking Details — available during checkin for counter edits */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {/* Edit Booking Details — available for non-terminal bookings */}
+              {!isBookingCompleted && !isBookingCancelled && (
                 <BookingEditPanel booking={booking} />
               )}
               {/* Vehicle & Category Management — unified component */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {!isBookingCompleted && !isBookingCancelled && (
                 <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
               )}
               {/* Protection Plan Change */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {!isBookingCompleted && !isBookingCancelled && (
                 <ProtectionChangePanel bookingId={booking.id} booking={booking} categoryName={booking.vehicles?.category} />
               )}
                {/* Counter Upsell */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {!isBookingCompleted && !isBookingCancelled && (
                 <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
               )}
               {/* Vehicle Upgrade Fee */}
-              {(bookingStatus === "pending" || bookingStatus === "confirmed") && (
+              {!isBookingCompleted && !isBookingCancelled && (
                 <VehicleUpgradePanel booking={booking} />
               )}
             </>
