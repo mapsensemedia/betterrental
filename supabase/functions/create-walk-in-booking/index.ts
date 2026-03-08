@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       customerEmail,
       notes,
       dailyRate,
+      driverAgeBand,
       totalDays,
       subtotal,
       taxAmount,
@@ -165,11 +166,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. Compute pricing — trust staff input
+    // 5. Compute pricing — trust staff input; compute young driver fee server-side
+    const resolvedAgeBand = driverAgeBand || "25_70";
     const computedDays = totalDays || Math.max(1, Math.ceil(
       (new Date(endAt).getTime() - new Date(startAt).getTime()) / (1000 * 60 * 60 * 24),
     ));
-    const computedSubtotal = subtotal ?? dailyRate * computedDays;
+    const youngDriverFee = resolvedAgeBand === "20_24" ? 15 * computedDays : 0;
+    const computedSubtotal = subtotal ?? (dailyRate * computedDays + youngDriverFee);
     const computedTax = taxAmount ?? Math.round(computedSubtotal * 0.12 * 100) / 100; // 12% default
     const computedTotal = totalAmount ?? computedSubtotal + computedTax;
 
@@ -188,6 +191,8 @@ Deno.serve(async (req) => {
         subtotal: computedSubtotal,
         tax_amount: computedTax,
         total_amount: computedTotal,
+        driver_age_band: resolvedAgeBand,
+        young_driver_fee: youngDriverFee,
         booking_source: "walk_in",
         deposit_amount: depositAmount ?? 350,
         pickup_contact_name: customerName.trim(),

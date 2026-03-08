@@ -79,6 +79,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     endDate: addDays(new Date(), 1),
     pickupTime: DEFAULT_PICKUP_TIME,
     returnTime: DEFAULT_PICKUP_TIME,
+    driverAgeBand: "25_70" as "20_24" | "25_70",
     dailyRate: 0,
     depositAmount: DEFAULT_DEPOSIT_AMOUNT,
     notes: "",
@@ -99,6 +100,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     vehicleDailyRate: formData.dailyRate,
     rentalDays: totalDays,
     pickupDate: formData.startDate,
+    driverAgeBand: formData.driverAgeBand,
   });
   
   const subtotal = pricing.subtotal;
@@ -170,6 +172,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
           customerEmail: formData.email.toLowerCase().trim(),
           notes: formData.notes ? `Walk-in booking: ${formData.notes}` : "Walk-in booking",
           dailyRate: formData.dailyRate,
+          driverAgeBand: formData.driverAgeBand,
           totalDays,
           subtotal,
           taxAmount,
@@ -340,6 +343,23 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
               </div>
             </div>
 
+            {/* Driver Age Band */}
+            <div className="space-y-2">
+              <Label>Driver Age *</Label>
+              <Select
+                value={formData.driverAgeBand}
+                onValueChange={(value: "20_24" | "25_70") => setFormData(prev => ({ ...prev, driverAgeBand: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25_70">25–70 (Standard)</SelectItem>
+                  <SelectItem value="20_24">20–24 (Young Driver — +$15/day)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -500,6 +520,12 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 <div className="flex justify-between text-sm text-emerald-600">
                   <span>{pricing.discountType === "monthly" ? "Monthly" : "Weekly"} discount</span>
                   <span>-${pricing.durationDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {pricing.youngDriverFee > 0 && (
+                <div className="flex justify-between text-sm text-amber-600">
+                  <span>Young driver fee ($15/day × {totalDays}d)</span>
+                  <span>+${pricing.youngDriverFee.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">

@@ -39,7 +39,7 @@ export default function DeliveryWalkIn() {
     categoryId: "",
     startDate: format(new Date(), "yyyy-MM-dd"),
     endDate: format(addDays(new Date(), 1), "yyyy-MM-dd"),
-    // NEW: Delivery address field
+    driverAgeBand: "25_70" as "20_24" | "25_70",
     deliveryAddress: "",
     notes: "",
   });
@@ -85,6 +85,7 @@ export default function DeliveryWalkIn() {
         vehicleDailyRate: dailyRate,
         rentalDays: days,
         pickupDate: startAt,
+        driverAgeBand: formData.driverAgeBand,
       });
       const subtotal = pricing.subtotal;
       const taxAmount = pricing.taxAmount;
@@ -178,6 +179,22 @@ export default function DeliveryWalkIn() {
                   placeholder="Enter customer name"
                   required
                 />
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <Label>Driver Age *</Label>
+                <Select
+                  value={formData.driverAgeBand}
+                  onValueChange={(value: "20_24" | "25_70") => handleChange("driverAgeBand", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25_70">25–70 (Standard)</SelectItem>
+                    <SelectItem value="20_24">20–24 (Young Driver — +$15/day)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
