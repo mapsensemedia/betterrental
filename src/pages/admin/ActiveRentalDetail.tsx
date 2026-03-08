@@ -46,6 +46,10 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
+import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
+import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
+import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
+import { useBookingById } from "@/hooks/use-bookings";
 
 export default function ActiveRentalDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();

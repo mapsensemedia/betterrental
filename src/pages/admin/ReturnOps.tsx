@@ -40,6 +40,8 @@ import { StepReturnCloseout } from "@/components/admin/return-ops/steps/StepRetu
 import { StepReturnDeposit } from "@/components/admin/return-ops/steps/StepReturnDeposit";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
+import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
+import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
 import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle, Wrench, Pencil } from "lucide-react";
 
 export default function ReturnOps() {
