@@ -79,6 +79,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     endDate: addDays(new Date(), 1),
     pickupTime: DEFAULT_PICKUP_TIME,
     returnTime: DEFAULT_PICKUP_TIME,
+    driverAgeBand: "25_70" as "20_24" | "25_70",
     dailyRate: 0,
     depositAmount: DEFAULT_DEPOSIT_AMOUNT,
     notes: "",
