@@ -24,6 +24,8 @@ interface OpsTopBarProps {
   onCancel: () => void;
   onEditBooking?: () => void;
   canEditBooking?: boolean;
+  onForceClose?: () => void;
+  canForceClose?: boolean;
 }
 
 export function OpsTopBar({
@@ -36,6 +38,8 @@ export function OpsTopBar({
   onCancel,
   onEditBooking,
   canEditBooking,
+  onForceClose,
+  canForceClose,
 }: OpsTopBarProps) {
   return (
     <div className="space-y-3">
