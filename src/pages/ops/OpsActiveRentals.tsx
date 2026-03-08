@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listBookings, BookingSummary } from "@/domain/bookings";
-import { format, parseISO, differenceInHours, isPast } from "date-fns";
+import { format, parseISO, differenceInHours, isPast, isToday, isTomorrow } from "date-fns";
 import { useState } from "react";
 
 function RentalCard({ booking }: { booking: BookingSummary }) {
