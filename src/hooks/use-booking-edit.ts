@@ -159,9 +159,11 @@ export function useEditBooking() {
 
       const ageBand = booking.driver_age_band === "20_24" ? ("20_24" as DriverAgeBand) : null;
 
+      const effectiveDailyRate = dailyRate ?? booking.daily_rate;
+
       // Recalculate pricing
       const newPricing = calculateBookingPricing({
-        vehicleDailyRate: booking.daily_rate,
+        vehicleDailyRate: effectiveDailyRate,
         rentalDays: newDays,
         protectionDailyRate,
         addOnsTotal,
