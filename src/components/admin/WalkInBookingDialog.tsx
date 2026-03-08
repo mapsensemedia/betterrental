@@ -149,6 +149,10 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       toast.error("Please select a vehicle");
       return;
     }
+    if (!formData.dailyRate || formData.dailyRate <= 0) {
+      toast.error("Daily rate must be greater than $0");
+      return;
+    }
 
     setIsSubmitting(true);
     
