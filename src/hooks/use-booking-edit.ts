@@ -114,8 +114,8 @@ export function useEditBooking() {
 
       if (fetchErr || !booking) throw new Error("Booking not found");
 
-      if (!["pending", "confirmed"].includes(booking.status)) {
-        throw new Error("Only pending or confirmed bookings can be edited");
+      if (["completed", "cancelled"].includes(booking.status)) {
+        throw new Error("Completed or cancelled bookings cannot be edited");
       }
 
       const effectiveStartAt = startAt || booking.start_at;
