@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     const user = await getUserOrThrow(req);
     await requireRoleOrThrow(user.id, ["admin", "staff"]);
 
-    const { bookingId, newStatus, notes, bypassReason } = await req.json();
+    const { bookingId, newStatus, notes, bypassReason, reopen } = await req.json();
 
     if (!bookingId || !newStatus) {
       return new Response(
@@ -111,6 +111,20 @@ Deno.serve(async (req) => {
     if (newStatus === "completed" || newStatus === "cancelled") {
       updateData.actual_return_at = new Date().toISOString();
     }
+    // Reopen: clear return workflow fields so the booking can be re-closed properly
+    if (reopen && newStatus === "active") {
+      updateData.actual_return_at = null;
+      updateData.return_state = "not_started";
+      updateData.return_started_at = null;
+      updateData.return_intake_completed_at = null;
+      updateData.return_intake_completed_by = null;
+      updateData.return_evidence_completed_at = null;
+      updateData.return_evidence_completed_by = null;
+      updateData.return_issues_reviewed_at = null;
+      updateData.return_issues_reviewed_by = null;
+      updateData.return_is_exception = null;
+      updateData.return_exception_reason = null;
+    }
     if (notes) {
       updateData.notes = notes;
     }
@@ -133,12 +147,12 @@ Deno.serve(async (req) => {
 
     // Audit log
     await admin.from("audit_logs").insert({
-      action: "booking_status_change",
+      action: reopen ? "booking_reopened" : "booking_status_change",
       entity_type: "booking",
       entity_id: bookingId,
       user_id: user.id,
       old_data: { status: currentStatus },
-      new_data: { status: newStatus, notes, workflow_bypassed: !!bypassReason },
+      new_data: { status: newStatus, notes, workflow_bypassed: !!bypassReason, reopened: !!reopen },
     });
 
     // Update vehicle unit status
