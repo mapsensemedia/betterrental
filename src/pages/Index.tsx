@@ -70,6 +70,131 @@ const Index = () => {
   // Get top 4 categories to display
   const displayCategories = categories.filter((c) => c.is_active).slice(0, 4);
 
+  // Inject JSON-LD structured data
+  useEffect(() => {
+    const localBusinessSchema = {
+      "@context": "https://schema.org",
+      "@type": ["LocalBusiness", "CarRental"],
+      "@id": "https://c2crental.com/#organization",
+      "name": "C2C Rental",
+      "url": "https://c2crental.com",
+      "logo": "https://c2crental.com/logo.png",
+      "image": "https://c2crental.com/og-image.jpg",
+      "description": "C2C Rental is a local peer-to-peer car rental platform serving Surrey, Langley, and Abbotsford, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
+      "telephone": "+1-604-330-0205",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "6786 King George Blvd",
+        "addressLocality": "Surrey",
+        "addressRegion": "BC",
+        "postalCode": "V3W 4Z1",
+        "addressCountry": "CA"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 49.1565,
+        "longitude": -122.8487
+      },
+      "areaServed": [
+        { "@type": "City", "name": "Surrey" },
+        { "@type": "City", "name": "Langley" },
+        { "@type": "City", "name": "Abbotsford" }
+      ],
+      "serviceArea": {
+        "@type": "AdministrativeArea",
+        "name": "Fraser Valley, British Columbia"
+      },
+      "priceRange": "$$",
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "08:00",
+          "closes": "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Sunday",
+          "opens": "11:00",
+          "closes": "17:00"
+        }
+      ],
+      "sameAs": [
+        "https://www.instagram.com/c2crental",
+        "https://www.facebook.com/c2crental"
+      ]
+    };
+
+    const economyProductSchema = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": "Economy Car Rental – Surrey, BC",
+      "description": "Rent an economy sedan in Surrey, BC through C2C Rental. Daily rates from $45–$65. Ideal for commutes, airport runs, and day trips across the Fraser Valley.",
+      "brand": { "@type": "Brand", "name": "C2C Rental" },
+      "offers": {
+        "@type": "AggregateOffer",
+        "priceCurrency": "CAD",
+        "lowPrice": "45",
+        "highPrice": "65",
+        "offerCount": "3"
+      }
+    };
+
+    const suvProductSchema = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": "SUV Rental – Surrey, Langley & Abbotsford, BC",
+      "description": "Rent an SUV or crossover through C2C Rental in Surrey, Langley, or Abbotsford. Daily rates from $75–$110. Ideal for Whistler trips, winter driving, and family travel.",
+      "brand": { "@type": "Brand", "name": "C2C Rental" },
+      "offers": {
+        "@type": "AggregateOffer",
+        "priceCurrency": "CAD",
+        "lowPrice": "75",
+        "highPrice": "110",
+        "offerCount": "4"
+      }
+    };
+
+    const minivanProductSchema = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": "Minivan Rental – Surrey, Langley & Abbotsford, BC",
+      "description": "Rent a 7-seat minivan through C2C Rental for group travel, family airport runs, and events in Surrey, Langley, or Abbotsford. Daily rates from $85–$120.",
+      "brand": { "@type": "Brand", "name": "C2C Rental" },
+      "offers": {
+        "@type": "AggregateOffer",
+        "priceCurrency": "CAD",
+        "lowPrice": "85",
+        "highPrice": "120",
+        "offerCount": "2"
+      }
+    };
+
+    const schemas = [
+      { id: "home-localbusiness-jsonld", data: localBusinessSchema },
+      { id: "home-economy-product-jsonld", data: economyProductSchema },
+      { id: "home-suv-product-jsonld", data: suvProductSchema },
+      { id: "home-minivan-product-jsonld", data: minivanProductSchema },
+    ];
+
+    schemas.forEach(({ id, data }) => {
+      let script = document.getElementById(id);
+      if (!script) {
+        script = document.createElement("script");
+        script.id = id;
+        script.setAttribute("type", "application/ld+json");
+        document.head.appendChild(script);
+      }
+      script.textContent = JSON.stringify(data);
+    });
+
+    return () => {
+      schemas.forEach(({ id }) => {
+        document.getElementById(id)?.remove();
+      });
+    };
+  }, []);
+
   return (
     <CustomerLayout>
       {/* ── A) HERO SECTION ─────────────────────────────────────── */}

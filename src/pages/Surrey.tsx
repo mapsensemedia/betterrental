@@ -108,33 +108,152 @@ const SurreyPage = () => {
     }
     canonical.setAttribute("href", "https://c2crental.com/surrey");
 
-    // JSON-LD
-    const jsonLd = {
+    // LocalBusiness + CarRental JSON-LD
+    const localBusinessSchema = {
       "@context": "https://schema.org",
-      "@type": "LocalBusiness",
-      name: "C2C Rental – Surrey",
-      description: "Affordable car rental in Surrey, BC. Economy cars, SUVs, and minivans from $45/day.",
-      url: "https://c2crental.com/surrey",
-      telephone: "+16043300205",
-      address: { "@type": "PostalAddress", streetAddress: "6786 King George Blvd", addressLocality: "Surrey", addressRegion: "BC", postalCode: "V3W 4Z1", addressCountry: "CA" },
-      geo: { "@type": "GeoCoordinates", latitude: 49.1565, longitude: -122.8487 },
-      openingHoursSpecification: [
-        { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
-        { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
+      "@type": ["LocalBusiness", "CarRental"],
+      "@id": "https://c2crental.com/#organization",
+      "name": "C2C Rental",
+      "url": "https://c2crental.com",
+      "logo": "https://c2crental.com/logo.png",
+      "image": "https://c2crental.com/og-image.jpg",
+      "description": "C2C Rental is a local peer-to-peer car rental platform serving Surrey, Langley, and Abbotsford, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
+      "telephone": "+1-604-330-0205",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "6786 King George Blvd",
+        "addressLocality": "Surrey",
+        "addressRegion": "BC",
+        "postalCode": "V3W 4Z1",
+        "addressCountry": "CA"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 49.1565,
+        "longitude": -122.8487
+      },
+      "areaServed": [
+        { "@type": "City", "name": "Surrey" },
+        { "@type": "City", "name": "Langley" },
+        { "@type": "City", "name": "Abbotsford" }
       ],
-      priceRange: "$45–$120/day",
+      "serviceArea": {
+        "@type": "AdministrativeArea",
+        "name": "Fraser Valley, British Columbia"
+      },
+      "priceRange": "$$",
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "08:00",
+          "closes": "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Sunday",
+          "opens": "11:00",
+          "closes": "17:00"
+        }
+      ],
+      "sameAs": [
+        "https://www.instagram.com/c2crental",
+        "https://www.facebook.com/c2crental"
+      ]
     };
-    let script = document.getElementById("surrey-jsonld");
-    if (!script) {
-      script = document.createElement("script");
-      script.id = "surrey-jsonld";
-      script.setAttribute("type", "application/ld+json");
-      document.head.appendChild(script);
-    }
-    script.textContent = JSON.stringify(jsonLd);
+
+    // FAQPage JSON-LD
+    const faqPageSchema = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What documents do I need to rent a car in Surrey with C2C Rental?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You will need a valid driver's licence, a credit card in the renter's name for the security deposit, and in some cases proof of insurance or additional ID. International drivers may need their passport and, depending on their home country, an International Driving Permit."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I rent a car if I'm a new or young driver in BC?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "We consider applications from new and younger drivers on a case-by-case basis. Age minimums, additional deposits, or extra insurance may apply. Contact us with your details and we will confirm eligibility before you book."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do you offer long-term or monthly car rentals in Surrey?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. We provide weekly and monthly rental options for Surrey residents, students, and workers who need a car for longer periods. Long-term rentals often come with better rates and more flexible kilometre packages."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use a C2C Rental vehicle for rideshare or delivery work?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Use of our vehicles for rideshare and delivery platforms (Uber, Lyft, SkipTheDishes, DoorDash) depends on the vehicle and our insurance rules. You must disclose your planned use at booking so we can confirm what is allowed and what coverage is required."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are winter tires included on rentals in Surrey?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "During the winter season and for trips to areas requiring winter tires, we can provide vehicles with appropriate tires, subject to availability. Let us know your travel dates and destination when booking."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I drive outside Surrey or out of province?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Most rentals can be used throughout Metro Vancouver and within British Columbia, but out-of-province travel must be approved in advance. Always confirm your route with our team so your insurance and contract stay valid."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens if I get a ticket or toll during my rental?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tickets, tolls, and parking fines are the renter's responsibility. If we receive notices after your rental, we may charge the amount due plus an administrative fee to the card on file."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do damage inspections work at pickup and drop-off?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "We complete a walk-around inspection with photos at both pickup and drop-off so there is a clear record of the vehicle's condition. Any new damage not noted at pickup is assessed according to our damage policy and your coverage."
+          }
+        }
+      ]
+    };
+
+    const schemas = [
+      { id: "surrey-localbusiness-jsonld", data: localBusinessSchema },
+      { id: "surrey-faqpage-jsonld", data: faqPageSchema },
+    ];
+
+    schemas.forEach(({ id, data }) => {
+      let script = document.getElementById(id);
+      if (!script) {
+        script = document.createElement("script");
+        script.id = id;
+        script.setAttribute("type", "application/ld+json");
+        document.head.appendChild(script);
+      }
+      script.textContent = JSON.stringify(data);
+    });
 
     return () => {
-      script?.remove();
+      schemas.forEach(({ id }) => {
+        document.getElementById(id)?.remove();
+      });
       canonical?.remove();
     };
   }, []);
