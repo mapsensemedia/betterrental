@@ -181,6 +181,22 @@ export default function DeliveryWalkIn() {
                 />
               </div>
 
+              <div className="space-y-2 mb-4">
+                <Label>Driver Age *</Label>
+                <Select
+                  value={formData.driverAgeBand}
+                  onValueChange={(value: "20_24" | "25_70") => handleChange("driverAgeBand", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25_70">25–70 (Standard)</SelectItem>
+                    <SelectItem value="20_24">20–24 (Young Driver — +$15/day)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="customerPhone">Phone *</Label>

@@ -191,6 +191,8 @@ Deno.serve(async (req) => {
         subtotal: computedSubtotal,
         tax_amount: computedTax,
         total_amount: computedTotal,
+        driver_age_band: resolvedAgeBand,
+        young_driver_fee: youngDriverFee,
         booking_source: "walk_in",
         deposit_amount: depositAmount ?? 350,
         pickup_contact_name: customerName.trim(),

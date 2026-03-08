@@ -343,6 +343,23 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
               </div>
             </div>
 
+            {/* Driver Age Band */}
+            <div className="space-y-2">
+              <Label>Driver Age *</Label>
+              <Select
+                value={formData.driverAgeBand}
+                onValueChange={(value: "20_24" | "25_70") => setFormData(prev => ({ ...prev, driverAgeBand: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25_70">25–70 (Standard)</SelectItem>
+                  <SelectItem value="20_24">20–24 (Young Driver — +$15/day)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
