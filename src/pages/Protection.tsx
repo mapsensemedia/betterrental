@@ -149,10 +149,10 @@ export default function Protection() {
                     key={pkg.id}
                     onClick={() => setSelectedPackage(pkg.id)}
                     className={cn(
-                      "relative p-4 cursor-pointer transition-all hover:shadow-md flex flex-col",
+                      "relative p-4 cursor-pointer flex flex-col transition-all duration-200 ease-in-out active:scale-[0.98]",
                       selectedPackage === pkg.id
-                        ? "ring-2 ring-primary border-primary"
-                        : "border-border hover:border-muted-foreground/30"
+                        ? "border-[2.5px] border-foreground shadow-[0_8px_28px_rgba(0,0,0,0.18)] -translate-y-0.5"
+                        : "border-[1.5px] border-border shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:border-muted-foreground/40"
                     )}
                   >
                     {/* Header row: Title + Selection indicator */}
@@ -160,14 +160,14 @@ export default function Protection() {
                       <h3 className="font-semibold text-base leading-tight">{pkg.name}</h3>
                       <div
                         className={cn(
-                          "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                          "w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200",
                           selectedPackage === pkg.id
-                            ? "border-primary bg-primary"
-                            : "border-muted-foreground/30"
+                            ? "border-foreground bg-foreground"
+                            : "border-muted-foreground/40"
                         )}
                       >
                         {selectedPackage === pkg.id && (
-                          <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-background" />
                         )}
                       </div>
                     </div>
@@ -210,7 +210,7 @@ export default function Protection() {
                     </p>
 
                     {/* Features - compact list */}
-                    <div className="space-y-1.5 mb-3 flex-1">
+                    <div className="space-y-2 mb-3 flex-1">
                       {pkg.features.map((feature) => (
                         <div
                           key={feature.name}
