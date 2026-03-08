@@ -402,7 +402,18 @@ export default function ReturnOps() {
             <DialogHeader>
               <DialogTitle>Edit Booking Details</DialogTitle>
             </DialogHeader>
-            <BookingEditPanel booking={booking} />
+            <div className="space-y-4">
+              <ProtectionChangePanel 
+                bookingId={booking.id} 
+                booking={booking} 
+                categoryName={booking.vehicles?.category} 
+              />
+              <CounterUpsellPanel 
+                bookingId={booking.id} 
+                rentalDays={booking.total_days || 1} 
+              />
+              <BookingEditPanel booking={booking} />
+            </div>
           </DialogContent>
         </Dialog>
         
