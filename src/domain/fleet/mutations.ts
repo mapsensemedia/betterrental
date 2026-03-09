@@ -271,7 +271,12 @@ export async function moveUnit(input: MoveUnitInput): Promise<void> {
 export async function deleteUnit(unitId: string): Promise<void> {
   const { error } = await supabase.from("vehicle_units").delete().eq("id", unitId);
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23503') {
+      throw new Error("Cannot delete vehicle because it is associated with existing bookings or records. Consider updating its status to 'retired' or 'inactive' instead.");
+    }
+    throw error;
+  }
 
   await createAuditLog("unit_deleted", "vehicle_unit", unitId, null, null, "admin");
 }
