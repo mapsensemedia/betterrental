@@ -386,7 +386,12 @@ export function useDeleteVin() {
         .delete()
         .eq("id", vinId);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23503') {
+          throw new Error("Cannot delete vehicle because it is associated with existing bookings or records. Consider updating its status to 'retired' or 'inactive' instead.");
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fleet-categories"] });
