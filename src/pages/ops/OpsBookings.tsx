@@ -27,7 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listBookings, type BookingSummary } from "@/domain/bookings";
 import { format, parseISO, isToday, isTomorrow, isBefore, startOfDay } from "date-fns";
 
-type TabValue = "all" | "pending" | "confirmed" | "active" | "completed";
+type TabValue = "all" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "all", label: "All" },
@@ -35,6 +35,7 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "confirmed", label: "Confirmed" },
   { value: "active", label: "Active" },
   { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 function getBookingUrgency(booking: BookingSummary) {
@@ -43,7 +44,7 @@ function getBookingUrgency(booking: BookingSummary) {
   const dateStr = (booking.status === "active") ? booking.endAt : booking.startAt;
   const d = parseISO(dateStr);
   const now = new Date();
-  if (isBefore(d, startOfDay(now)) && booking.status !== "completed") {
+  if (isBefore(d, startOfDay(now)) && !["completed", "cancelled", "voided"].includes(booking.status)) {
     return { border: "border-destructive/60 bg-destructive/5", badge: "Overdue", badgeClass: "bg-destructive text-destructive-foreground" };
   }
   if (isToday(d)) {
@@ -122,13 +123,14 @@ export default function OpsBookings() {
       const filters = { locationId: locationId || undefined };
       if (activeTab === "all") {
         // Fetch all statuses in parallel
-        const [pending, confirmed, active, completed] = await Promise.all([
+        const [pending, confirmed, active, completed, cancelled] = await Promise.all([
           listBookings({ ...filters, status: "pending" }),
           listBookings({ ...filters, status: "confirmed" }),
           listBookings({ ...filters, status: "active" }),
           listBookings({ ...filters, status: "completed" }),
+          listBookings({ ...filters, status: "cancelled" }),
         ]);
-        return [...pending, ...confirmed, ...active, ...completed];
+        return [...pending, ...confirmed, ...active, ...completed, ...cancelled];
       }
       return listBookings({ ...filters, status: activeTab });
     },

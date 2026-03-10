@@ -458,6 +458,19 @@ export default function AdminBilling() {
           </Tooltip>
         </div>
 
+        {/* Orphaned Payments Notice */}
+        <Card className="border-amber-500/60 bg-amber-500/5">
+          <CardContent className="p-4 flex items-start gap-3">
+            <CreditCard className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-sm">Manual Reconciliation Required</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                2 Bambora transactions have no matching booking record: <strong>FZH86F8W</strong> ($411.56) and <strong>4HL5K9QV</strong> ($109.18). These require manual reconciliation.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
