@@ -382,7 +382,7 @@ export default function AdminBookings() {
       overdue: bookings.filter(b => 
         b.status === "active" && isBefore(parseISO(b.endAt), now)
       ),
-      completed: bookings.filter(b => b.status === "completed"),
+      completed: bookings.filter(b => b.status === "completed" || b.status === "cancelled"),
       cancelled: bookings.filter(b => b.status === "cancelled"),
     };
   }, [bookings]);
