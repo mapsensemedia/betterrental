@@ -38,6 +38,7 @@ interface AgreementRow {
   endAt: string;
   status: string;
   signaturePngUrl: string | null;
+  customerSignature: string | null;
   customerSignedAt: string | null;
   agreementContent: string;
   createdAt: string;
@@ -49,7 +50,7 @@ function useAgreements() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rental_agreements")
-        .select("id, booking_id, status, signature_png_url, customer_signed_at, agreement_content, created_at")
+        .select("id, booking_id, status, signature_png_url, customer_signature, customer_signed_at, agreement_content, created_at")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -92,6 +93,7 @@ function useAgreements() {
           endAt: booking?.end_at || "",
           status: a.status,
           signaturePngUrl: a.signature_png_url,
+          customerSignature: a.customer_signature,
           customerSignedAt: a.customer_signed_at,
           agreementContent: a.agreement_content,
           createdAt: a.created_at,
@@ -102,9 +104,16 @@ function useAgreements() {
   });
 }
 
+function isSigned(row: AgreementRow) {
+  return row.status === "confirmed" || row.status === "signed" || !!row.signaturePngUrl || !!row.customerSignature;
+}
+
 function getStatusInfo(row: AgreementRow) {
-  if (row.status === "confirmed" || row.signaturePngUrl) {
+  if (isSigned(row)) {
     return { label: "Signed", variant: "default" as const, className: "bg-emerald-600 hover:bg-emerald-600 text-white" };
+  }
+  if (row.status === "voided") {
+    return { label: "Voided", variant: "destructive" as const, className: "" };
   }
   if (row.status === "expired") {
     return { label: "Expired", variant: "destructive" as const, className: "" };
@@ -122,9 +131,9 @@ export default function AdminAgreements() {
   const filtered = useMemo(() => {
     let list = agreements;
     if (tab === "signed") {
-      list = list.filter((a) => a.status === "confirmed" || a.signaturePngUrl);
+      list = list.filter((a) => isSigned(a));
     } else if (tab === "pending") {
-      list = list.filter((a) => a.status !== "confirmed" && !a.signaturePngUrl && a.status !== "expired");
+      list = list.filter((a) => !isSigned(a) && a.status !== "expired" && a.status !== "voided");
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -137,10 +146,10 @@ export default function AdminAgreements() {
     return list;
   }, [agreements, tab, search]);
 
-  const signed = agreements.filter((a) => a.status === "confirmed" || a.signaturePngUrl).length;
-  const pending = agreements.filter((a) => a.status !== "confirmed" && !a.signaturePngUrl && a.status !== "expired").length;
+  const signed = agreements.filter((a) => isSigned(a)).length;
+  const pending = agreements.filter((a) => !isSigned(a) && a.status !== "expired" && a.status !== "voided").length;
   const pendingPastStart = agreements.filter(
-    (a) => a.status !== "confirmed" && !a.signaturePngUrl && a.status !== "expired" && a.startAt && new Date(a.startAt) < new Date()
+    (a) => !isSigned(a) && a.status !== "expired" && a.status !== "voided" && a.startAt && new Date(a.startAt) < new Date()
   ).length;
 
   if (isLoading) {
