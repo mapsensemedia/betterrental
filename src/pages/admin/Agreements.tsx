@@ -93,6 +93,7 @@ function useAgreements() {
           endAt: booking?.end_at || "",
           status: a.status,
           signaturePngUrl: a.signature_png_url,
+          customerSignature: a.customer_signature,
           customerSignedAt: a.customer_signed_at,
           agreementContent: a.agreement_content,
           createdAt: a.created_at,
