@@ -190,10 +190,14 @@ export default function ActiveRentalDetail() {
             </Button>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">Active Rental</h1>
-                <Badge variant="default" className="bg-green-600">
-                  Active
-                </Badge>
+                <h1 className="text-2xl font-bold">
+                  {rental.status === "confirmed" ? "Rental (Needs Activation)" : "Active Rental"}
+                </h1>
+                {rental.status === "confirmed" ? (
+                  <Badge className="bg-amber-500 text-white">Needs Activation</Badge>
+                ) : (
+                  <Badge variant="default" className="bg-green-600">Active</Badge>
+                )}
                 {rental.isOverdue && (
                   <Badge variant="destructive">Overdue</Badge>
                 )}
