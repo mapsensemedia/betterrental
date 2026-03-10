@@ -50,13 +50,14 @@ export function useActiveRentals() {
   return useQuery<ActiveRental[]>({
     queryKey: ["active-rentals"],
     queryFn: async () => {
+      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("bookings")
         .select(`
           *,
           locations!location_id (id, name, city)
         `)
-        .eq("status", "active")
+        .or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${now})`)
         .order("end_at", { ascending: true });
 
       if (error) {
