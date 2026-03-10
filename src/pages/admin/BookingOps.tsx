@@ -256,21 +256,9 @@ export default function BookingOps() {
   };
   
   const handleActivateRental = () => {
-    // Validate all prerequisites
+    // Only require a vehicle unit to be assigned
     if (!booking?.assigned_unit_id) {
       toast.error("Assign a vehicle unit (VIN) before activation");
-      return;
-    }
-    if (!checkStepComplete("walkaround", completion, isDeliveryBooking)) {
-      toast.error("Complete walkaround inspection before activating");
-      return;
-    }
-    if (!isPaymentComplete) {
-      toast.error("Payment must be collected before activation");
-      return;
-    }
-    if (!isAgreementSigned) {
-      toast.error("Agreement must be signed before activation");
       return;
     }
     
