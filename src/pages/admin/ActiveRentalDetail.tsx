@@ -49,7 +49,18 @@ import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
 import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
-import { useBookingById } from "@/hooks/use-bookings";
+import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Play } from "lucide-react";
 
 export default function ActiveRentalDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
