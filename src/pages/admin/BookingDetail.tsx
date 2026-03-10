@@ -28,6 +28,17 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { AuditTimeline } from "@/components/shared/AuditTimeline";
 import { VoidBookingDialog } from "@/components/admin/VoidBookingDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PriceTooltip, PRICE_TOOLTIPS } from "@/components/shared/PriceTooltip";
