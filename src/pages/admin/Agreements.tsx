@@ -102,9 +102,16 @@ function useAgreements() {
   });
 }
 
+function isSigned(row: AgreementRow) {
+  return row.status === "confirmed" || row.status === "signed" || !!row.signaturePngUrl || !!row.customerSignature;
+}
+
 function getStatusInfo(row: AgreementRow) {
-  if (row.status === "confirmed" || row.signaturePngUrl) {
+  if (isSigned(row)) {
     return { label: "Signed", variant: "default" as const, className: "bg-emerald-600 hover:bg-emerald-600 text-white" };
+  }
+  if (row.status === "voided") {
+    return { label: "Voided", variant: "destructive" as const, className: "" };
   }
   if (row.status === "expired") {
     return { label: "Expired", variant: "destructive" as const, className: "" };
