@@ -121,9 +121,9 @@ export function Footer() {
                 Surrey, BC
               </span>
               <span className="hidden md:inline">|</span>
-              <a href="tel:+16043300205" className="flex items-center gap-1.5 hover:text-background transition-colors">+1-604-330-0205
+              <a href="tel:+16047634242" className="flex items-center gap-1.5 hover:text-background transition-colors">
                 <Phone className="w-3.5 h-3.5" />
-                +1-604-330-0205
+                +1-(604) 763-4242
               </a>
               <span className="hidden md:inline">|</span>
               <a href="https://c2crental.com" className="hover:text-background transition-colors">
