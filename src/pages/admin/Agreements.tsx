@@ -131,9 +131,9 @@ export default function AdminAgreements() {
   const filtered = useMemo(() => {
     let list = agreements;
     if (tab === "signed") {
-      list = list.filter((a) => a.status === "confirmed" || a.signaturePngUrl);
+      list = list.filter((a) => isSigned(a));
     } else if (tab === "pending") {
-      list = list.filter((a) => a.status !== "confirmed" && !a.signaturePngUrl && a.status !== "expired");
+      list = list.filter((a) => !isSigned(a) && a.status !== "expired" && a.status !== "voided");
     }
     if (search.trim()) {
       const q = search.toLowerCase();
