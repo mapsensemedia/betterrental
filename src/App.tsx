@@ -186,6 +186,7 @@ const App = () => (
                 <Route path="/admin/bookings" element={<AdminProtectedRoute><AdminBookings /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings/:bookingId" element={<AdminProtectedRoute><AdminBookingDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
+                <Route path="/admin/agreements" element={<AdminProtectedRoute><AdminAgreements /></AdminProtectedRoute>} />
                 <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
