@@ -35,6 +35,7 @@ const TABS: { value: TabValue; label: string }[] = [
   { value: "confirmed", label: "Confirmed" },
   { value: "active", label: "Active" },
   { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 function getBookingUrgency(booking: BookingSummary) {
