@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.update-booking-status]
 verify_jwt = false
+
+[functions.wl-query-txn]
+verify_jwt = false
