@@ -67,8 +67,10 @@ export default function ActiveRentalDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: rental, isLoading, error } = useActiveRentalDetail(bookingId || null);
-  const { data: fullBooking } = useBookingById(bookingId || null);
+  const { data: fullBooking, refetch: refetchBooking } = useBookingById(bookingId || null);
   const createAlert = useCreateAlert();
+  const updateStatus = useUpdateBookingStatus();
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
 
   // Live timer state
   const [duration, setDuration] = useState<ReturnType<typeof calculateDuration> | null>(null);
