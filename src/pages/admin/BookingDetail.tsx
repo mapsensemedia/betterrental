@@ -3,6 +3,7 @@
  * Shows complete booking information including all associated data
  */
 import { useState } from "react";
+import { toast } from "sonner";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { PanelShell } from "@/components/shared/PanelShell";
