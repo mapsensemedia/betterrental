@@ -94,7 +94,7 @@ export default function OpsReturns() {
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ["ops-returns", locationFilter],
-    queryFn: () => listBookings({ status: "active", locationId: locationFilter || undefined }),
+    queryFn: () => listBookings({ tab: "active", locationId: locationFilter || undefined }),
   });
 
   // Show ALL active bookings in returns (not just today/tomorrow/overdue)
