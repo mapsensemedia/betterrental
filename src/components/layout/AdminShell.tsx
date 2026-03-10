@@ -19,6 +19,7 @@ import {
   Gift,
   ClipboardList,
   ArrowRightLeft,
+  FileText,
   Activity,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
