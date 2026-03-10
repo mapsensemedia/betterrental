@@ -20,6 +20,8 @@ export interface ActiveRental {
   overdueHours: number;
   isApproachingReturn: boolean; // within 2 hours
   isWarningZone: boolean; // within 6 hours
+  // Activation
+  needsActivation: boolean; // true when status is confirmed but start_at has passed
   // Joined data
   vehicle: {
     id: string;
