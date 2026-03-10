@@ -38,6 +38,7 @@ interface AgreementRow {
   endAt: string;
   status: string;
   signaturePngUrl: string | null;
+  customerSignature: string | null;
   customerSignedAt: string | null;
   agreementContent: string;
   createdAt: string;
