@@ -37,7 +37,7 @@ export function DeliveryAddressAutocomplete({
   const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch suggestions from Mapbox Geocoding API
   const fetchSuggestions = useCallback(
