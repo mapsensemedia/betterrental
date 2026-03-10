@@ -96,7 +96,7 @@ export default function OpsActiveRentals() {
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ["ops-active-rentals"],
-    queryFn: () => listBookings({ status: "active" }),
+    queryFn: () => listBookings({ tab: "active" }),
   });
 
   // Exclude bookings that belong in Returns (due today/tomorrow/overdue)
