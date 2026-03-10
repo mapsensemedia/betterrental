@@ -212,6 +212,17 @@ export default function ActiveRentalDetail() {
 
           {/* Quick Actions - wrap on mobile */}
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Activate Rental - for confirmed bookings */}
+            {rental.status === "confirmed" && (
+              <Button 
+                size="sm" 
+                className="gap-2 bg-amber-600 hover:bg-amber-700"
+                onClick={() => setShowActivateDialog(true)}
+              >
+                <Play className="h-4 w-4" />
+                Activate Rental
+              </Button>
+            )}
             {/* Primary Action - Return Vehicle */}
             <Button size="sm" asChild className="gap-2">
               <Link to={returnRoute}>
