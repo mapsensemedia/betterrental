@@ -44,7 +44,7 @@ function getBookingUrgency(booking: BookingSummary) {
   const dateStr = (booking.status === "active") ? booking.endAt : booking.startAt;
   const d = parseISO(dateStr);
   const now = new Date();
-  if (isBefore(d, startOfDay(now)) && booking.status !== "completed") {
+  if (isBefore(d, startOfDay(now)) && !["completed", "cancelled", "voided"].includes(booking.status)) {
     return { border: "border-destructive/60 bg-destructive/5", badge: "Overdue", badgeClass: "bg-destructive text-destructive-foreground" };
   }
   if (isToday(d)) {
