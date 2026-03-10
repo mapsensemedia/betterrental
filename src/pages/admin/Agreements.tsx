@@ -50,7 +50,7 @@ function useAgreements() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rental_agreements")
-        .select("id, booking_id, status, signature_png_url, customer_signed_at, agreement_content, created_at")
+        .select("id, booking_id, status, signature_png_url, customer_signature, customer_signed_at, agreement_content, created_at")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
