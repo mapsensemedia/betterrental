@@ -123,13 +123,14 @@ export default function OpsBookings() {
       const filters = { locationId: locationId || undefined };
       if (activeTab === "all") {
         // Fetch all statuses in parallel
-        const [pending, confirmed, active, completed] = await Promise.all([
+        const [pending, confirmed, active, completed, cancelled] = await Promise.all([
           listBookings({ ...filters, status: "pending" }),
           listBookings({ ...filters, status: "confirmed" }),
           listBookings({ ...filters, status: "active" }),
           listBookings({ ...filters, status: "completed" }),
+          listBookings({ ...filters, status: "cancelled" }),
         ]);
-        return [...pending, ...confirmed, ...active, ...completed];
+        return [...pending, ...confirmed, ...active, ...completed, ...cancelled];
       }
       return listBookings({ ...filters, status: activeTab });
     },
