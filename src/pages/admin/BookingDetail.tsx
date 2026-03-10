@@ -239,6 +239,21 @@ export default function BookingDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Activate Rental - for confirmed bookings */}
+              {booking.status === "confirmed" && (
+                <Button 
+                  size="sm"
+                  onClick={() => setShowActivateDialog(true)}
+                  disabled={updateStatus.isPending}
+                >
+                  {updateStatus.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                  )}
+                  Activate Rental
+                </Button>
+              )}
               {/* Open in Operations - for actionable bookings */}
               {!isOpsContext && (booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
                 <Button 
