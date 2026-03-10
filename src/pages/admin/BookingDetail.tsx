@@ -3,6 +3,7 @@
  * Shows complete booking information including all associated data
  */
 import { useState } from "react";
+import { toast } from "sonner";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { PanelShell } from "@/components/shared/PanelShell";
@@ -28,6 +29,17 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { AuditTimeline } from "@/components/shared/AuditTimeline";
 import { VoidBookingDialog } from "@/components/admin/VoidBookingDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PriceTooltip, PRICE_TOOLTIPS } from "@/components/shared/PriceTooltip";
@@ -75,6 +87,8 @@ export default function BookingDetail() {
   const isOpsContext = location.pathname.startsWith("/ops");
   const returnTo = searchParams.get("returnTo") || (isOpsContext ? "/ops/bookings" : "/admin/bookings");
   const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
+  const updateStatus = useUpdateBookingStatus();
 
   const { data: booking, isLoading, refetch } = useBookingById(bookingId || null);
   const { data: photos, isLoading: photosLoading } = useBookingConditionPhotos(bookingId || "");
@@ -226,6 +240,21 @@ export default function BookingDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Activate Rental - for confirmed bookings */}
+              {booking.status === "confirmed" && (
+                <Button 
+                  size="sm"
+                  onClick={() => setShowActivateDialog(true)}
+                  disabled={updateStatus.isPending}
+                >
+                  {updateStatus.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                  )}
+                  Activate Rental
+                </Button>
+              )}
               {/* Open in Operations - for actionable bookings */}
               {!isOpsContext && (booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
                 <Button 
@@ -1181,6 +1210,40 @@ export default function BookingDetail() {
           onSuccess={() => navigate(returnTo)}
         />
       )}
+
+      {/* Activate Rental Dialog */}
+      <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Rental</AlertDialogTitle>
+            <AlertDialogDescription>
+              Activate this rental for {booking.profiles?.full_name || "customer"} — {vehicleName}? This will mark the vehicle as on-rent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!bookingId) return;
+                updateStatus.mutate(
+                  { bookingId, newStatus: "active" as any },
+                  {
+                    onSuccess: () => {
+                      toast.success("Rental activated successfully!");
+                      refetch();
+                    },
+                    onError: (err: any) => {
+                      toast.error("Failed to activate rental", { description: err.message });
+                    },
+                  }
+                );
+              }}
+            >
+              Activate Rental
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PanelShell>
   );
 }
