@@ -49,15 +49,28 @@ import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
 import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
-import { useBookingById } from "@/hooks/use-bookings";
+import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Play } from "lucide-react";
 
 export default function ActiveRentalDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: rental, isLoading, error } = useActiveRentalDetail(bookingId || null);
-  const { data: fullBooking } = useBookingById(bookingId || null);
+  const { data: fullBooking, refetch: refetchBooking } = useBookingById(bookingId || null);
   const createAlert = useCreateAlert();
+  const updateStatus = useUpdateBookingStatus();
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
 
   // Live timer state
   const [duration, setDuration] = useState<ReturnType<typeof calculateDuration> | null>(null);
@@ -177,10 +190,14 @@ export default function ActiveRentalDetail() {
             </Button>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">Active Rental</h1>
-                <Badge variant="default" className="bg-green-600">
-                  Active
-                </Badge>
+                <h1 className="text-2xl font-bold">
+                  {rental.status === "confirmed" ? "Rental (Needs Activation)" : "Active Rental"}
+                </h1>
+                {rental.status === "confirmed" ? (
+                  <Badge className="bg-amber-500 text-white">Needs Activation</Badge>
+                ) : (
+                  <Badge variant="default" className="bg-green-600">Active</Badge>
+                )}
                 {rental.isOverdue && (
                   <Badge variant="destructive">Overdue</Badge>
                 )}
@@ -195,6 +212,17 @@ export default function ActiveRentalDetail() {
 
           {/* Quick Actions - wrap on mobile */}
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Activate Rental - for confirmed bookings */}
+            {rental.status === "confirmed" && (
+              <Button 
+                size="sm" 
+                className="gap-2 bg-amber-600 hover:bg-amber-700"
+                onClick={() => setShowActivateDialog(true)}
+              >
+                <Play className="h-4 w-4" />
+                Activate Rental
+              </Button>
+            )}
             {/* Primary Action - Return Vehicle */}
             <Button size="sm" asChild className="gap-2">
               <Link to={returnRoute}>
@@ -649,6 +677,39 @@ export default function ActiveRentalDetail() {
           </CardContent>
         </Card>
       </div>
+      {/* Activate Rental Dialog */}
+      <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Rental</AlertDialogTitle>
+            <AlertDialogDescription>
+              Activate the rental for {rental.customer?.fullName || "this customer"} — {rental.vehicle?.year} {rental.vehicle?.make} {rental.vehicle?.model}? This will mark the vehicle as on-rent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                updateStatus.mutate(
+                  { bookingId: rental.id, newStatus: "active" },
+                  {
+                    onSuccess: () => {
+                      toast.success("Rental activated successfully");
+                      refetchBooking();
+                      window.location.reload();
+                    },
+                    onError: (err: any) => {
+                      toast.error(err?.message || "Failed to activate rental");
+                    },
+                  }
+                );
+              }}
+            >
+              Activate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PanelShell>
   );
 }

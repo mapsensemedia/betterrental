@@ -99,7 +99,7 @@ export function useActiveRentalDetail(bookingId: string | null) {
           return_locations:locations!return_location_id (id, name, city, address)
         `)
         .eq("id", bookingId)
-        .eq("status", "active")
+        .in("status", ["active", "confirmed"])
         .maybeSingle();
 
       if (error) {
