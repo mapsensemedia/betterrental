@@ -19,6 +19,7 @@ import {
   Gift,
   ClipboardList,
   ArrowRightLeft,
+  FileText,
   Activity,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
@@ -68,6 +69,12 @@ const navItems: {
     label: "Bookings",
     icon: ClipboardList,
     description: "Reservations & history",
+  },
+  {
+    href: "/admin/agreements",
+    label: "Agreements",
+    icon: FileText,
+    description: "Rental agreements",
   },
   {
     href: "/admin/fleet",
