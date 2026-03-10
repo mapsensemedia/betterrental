@@ -27,7 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listBookings, type BookingSummary } from "@/domain/bookings";
 import { format, parseISO, isToday, isTomorrow, isBefore, startOfDay } from "date-fns";
 
-type TabValue = "all" | "pending" | "confirmed" | "active" | "completed";
+type TabValue = "all" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: "all", label: "All" },
