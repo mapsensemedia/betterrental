@@ -124,7 +124,7 @@ const LangleyPage = () => {
       "logo": "https://c2crental.com/logo.png",
       "image": "https://c2crental.com/og-image.jpg",
       "description": "C2C Rental is a local peer-to-peer car rental platform serving Surrey, Langley, and Abbotsford, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
-      "telephone": "+1-604-330-0205",
+      "telephone": "+1-604-763-4242",
       "address": {
         "@type": "PostalAddress",
         "streetAddress": "5933 200 St",
