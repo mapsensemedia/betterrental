@@ -146,10 +146,10 @@ export default function AdminAgreements() {
     return list;
   }, [agreements, tab, search]);
 
-  const signed = agreements.filter((a) => a.status === "confirmed" || a.signaturePngUrl).length;
-  const pending = agreements.filter((a) => a.status !== "confirmed" && !a.signaturePngUrl && a.status !== "expired").length;
+  const signed = agreements.filter((a) => isSigned(a)).length;
+  const pending = agreements.filter((a) => !isSigned(a) && a.status !== "expired" && a.status !== "voided").length;
   const pendingPastStart = agreements.filter(
-    (a) => a.status !== "confirmed" && !a.signaturePngUrl && a.status !== "expired" && a.startAt && new Date(a.startAt) < new Date()
+    (a) => !isSigned(a) && a.status !== "expired" && a.status !== "voided" && a.startAt && new Date(a.startAt) < new Date()
   ).length;
 
   if (isLoading) {
