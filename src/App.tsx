@@ -76,6 +76,7 @@ const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
 const AdminVendors = lazy(() => import("./pages/admin/Vendors"));
 const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 const AdminAgreements = lazy(() => import("./pages/admin/Agreements"));
+const AdminReconciliation = lazy(() => import("./pages/admin/Reconciliation"));
 const BookingDebug = lazy(() => import("./pages/admin/BookingDebug"));
 const Terms = lazy(() => import("./pages/PdfViewerPage").then(m => ({ default: m.Terms })));
 const Legal = lazy(() => import("./pages/PdfViewerPage").then(m => ({ default: m.Legal })));
