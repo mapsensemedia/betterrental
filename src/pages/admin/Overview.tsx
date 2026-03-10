@@ -241,7 +241,14 @@ export default function AdminOverview() {
   });
 
   // Calculate stats
-  const activeBookings = bookings.filter(b => b.status === "active").length;
+  const now = new Date();
+  const activeBookings = bookings.filter(b => {
+    if (b.status === "active") return true;
+    if (b.status === "confirmed") {
+      try { return parseISO(b.startAt) <= now; } catch { return false; }
+    }
+    return false;
+  }).length;
   const pendingBookings = bookings.filter(b => b.status === "pending").length;
   const confirmedBookings = bookings.filter(b => b.status === "confirmed").length;
   
