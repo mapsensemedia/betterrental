@@ -121,6 +121,12 @@ const navItems: {
     description: "Payments & receipts",
   },
   {
+    href: "/admin/reconciliation",
+    label: "Reconciliation",
+    icon: ClipboardList,
+    description: "Payment matching",
+  },
+  {
     href: "/admin/tickets",
     label: "Support",
     icon: MessageSquare,

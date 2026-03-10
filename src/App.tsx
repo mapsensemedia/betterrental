@@ -76,6 +76,7 @@ const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
 const AdminVendors = lazy(() => import("./pages/admin/Vendors"));
 const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 const AdminAgreements = lazy(() => import("./pages/admin/Agreements"));
+const AdminReconciliation = lazy(() => import("./pages/admin/Reconciliation"));
 const BookingDebug = lazy(() => import("./pages/admin/BookingDebug"));
 const Terms = lazy(() => import("./pages/PdfViewerPage").then(m => ({ default: m.Terms })));
 const Legal = lazy(() => import("./pages/PdfViewerPage").then(m => ({ default: m.Legal })));
@@ -188,6 +189,7 @@ const App = () => (
                 <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
                 <Route path="/admin/agreements" element={<AdminProtectedRoute><AdminAgreements /></AdminProtectedRoute>} />
                 <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
+                <Route path="/admin/reconciliation" element={<AdminProtectedRoute><AdminReconciliation /></AdminProtectedRoute>} />
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/inventory" element={<Navigate to="/admin/fleet" replace />} />
