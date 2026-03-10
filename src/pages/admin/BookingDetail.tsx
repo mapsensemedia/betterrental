@@ -1209,6 +1209,40 @@ export default function BookingDetail() {
           onSuccess={() => navigate(returnTo)}
         />
       )}
+
+      {/* Activate Rental Dialog */}
+      <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Rental</AlertDialogTitle>
+            <AlertDialogDescription>
+              Activate this rental for {booking.profiles?.full_name || "customer"} — {vehicleName}? This will mark the vehicle as on-rent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!bookingId) return;
+                updateStatus.mutate(
+                  { bookingId, newStatus: "active" as any },
+                  {
+                    onSuccess: () => {
+                      toast.success("Rental activated successfully!");
+                      refetch();
+                    },
+                    onError: (err: any) => {
+                      toast.error("Failed to activate rental", { description: err.message });
+                    },
+                  }
+                );
+              }}
+            >
+              Activate Rental
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PanelShell>
   );
 }

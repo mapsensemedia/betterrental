@@ -475,7 +475,7 @@ export default function BookingOps() {
             </ScrollArea>
             
             {/* Sticky Footer */}
-            {!isRentalActive && activeStep === "handover" && checkStepComplete("walkaround", completion, isDeliveryBooking) && (
+            {!isRentalActive && booking.status === "confirmed" && !!booking.assigned_unit_id && (
               <div className="border-t bg-background p-3 md:p-4 flex justify-end gap-2 md:gap-3">
                 <Button
                   size="default"
