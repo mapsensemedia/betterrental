@@ -71,6 +71,12 @@ const navItems: {
     description: "Reservations & history",
   },
   {
+    href: "/admin/agreements",
+    label: "Agreements",
+    icon: FileText,
+    description: "Rental agreements",
+  },
+  {
     href: "/admin/fleet",
     label: "Fleet",
     icon: Car,
