@@ -46,6 +46,11 @@ function ReturnCard({ booking }: { booking: BookingSummary }) {
               <Badge variant="outline" className="text-xs shrink-0">
                 {booking.bookingCode}
               </Badge>
+              {booking.status === "confirmed" && (
+                <Badge className="text-xs bg-amber-500 text-white">
+                  Needs Activation
+                </Badge>
+              )}
               {isOverdue && (
                 <Badge variant="destructive" className="text-xs">
                   <AlertTriangle className="w-3 h-3 mr-1" />
@@ -94,7 +99,7 @@ export default function OpsReturns() {
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ["ops-returns", locationFilter],
-    queryFn: () => listBookings({ status: "active", locationId: locationFilter || undefined }),
+    queryFn: () => listBookings({ tab: "active", locationId: locationFilter || undefined }),
   });
 
   // Show ALL active bookings in returns (not just today/tomorrow/overdue)

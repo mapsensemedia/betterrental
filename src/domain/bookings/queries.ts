@@ -53,9 +53,11 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
   if (filters.tab === "pickups") {
     query = query.eq("status", "confirmed");
   } else if (filters.tab === "active") {
-    query = query.eq("status", "active");
+    const now = new Date().toISOString();
+    query = query.or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${now})`);
   } else if (filters.tab === "returns") {
-    query = query.eq("status", "active").not("return_state", "is", null);
+    const now = new Date().toISOString();
+    query = query.or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${now})`);
   } else if (filters.tab === "completed") {
     query = query.in("status", ["completed", "cancelled"]);
   }

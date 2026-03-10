@@ -46,6 +46,11 @@ function RentalCard({ booking }: { booking: BookingSummary }) {
               <Badge variant="outline" className="text-xs shrink-0">
                 {booking.bookingCode}
               </Badge>
+              {booking.status === "confirmed" && (
+                <Badge className="text-xs bg-amber-500 text-white">
+                  Needs Activation
+                </Badge>
+              )}
               {isOverdue && (
                 <Badge variant="destructive" className="text-xs">
                   <AlertTriangle className="w-3 h-3 mr-1" />
@@ -96,7 +101,7 @@ export default function OpsActiveRentals() {
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ["ops-active-rentals"],
-    queryFn: () => listBookings({ status: "active" }),
+    queryFn: () => listBookings({ tab: "active" }),
   });
 
   // Exclude bookings that belong in Returns (due today/tomorrow/overdue)

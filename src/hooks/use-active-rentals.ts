@@ -20,6 +20,8 @@ export interface ActiveRental {
   overdueHours: number;
   isApproachingReturn: boolean; // within 2 hours
   isWarningZone: boolean; // within 6 hours
+  // Activation
+  needsActivation: boolean; // true when status is confirmed but start_at has passed
   // Joined data
   vehicle: {
     id: string;
@@ -48,13 +50,14 @@ export function useActiveRentals() {
   return useQuery<ActiveRental[]>({
     queryKey: ["active-rentals"],
     queryFn: async () => {
+      const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from("bookings")
         .select(`
           *,
           locations!location_id (id, name, city)
         `)
-        .eq("status", "active")
+        .or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${nowIso})`)
         .order("end_at", { ascending: true });
 
       if (error) {
@@ -122,6 +125,8 @@ export function useActiveRentals() {
           overdueHours,
           isApproachingReturn,
           isWarningZone,
+          // Activation
+          needsActivation: b.status === "confirmed",
           // Joined data
           vehicle: category ? {
             id: category.id,
