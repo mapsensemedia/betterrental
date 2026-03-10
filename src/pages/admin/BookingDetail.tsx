@@ -86,6 +86,8 @@ export default function BookingDetail() {
   const isOpsContext = location.pathname.startsWith("/ops");
   const returnTo = searchParams.get("returnTo") || (isOpsContext ? "/ops/bookings" : "/admin/bookings");
   const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
+  const updateStatus = useUpdateBookingStatus();
 
   const { data: booking, isLoading, refetch } = useBookingById(bookingId || null);
   const { data: photos, isLoading: photosLoading } = useBookingConditionPhotos(bookingId || "");
