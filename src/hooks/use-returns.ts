@@ -77,13 +77,14 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
           endDate = endOfDay(now);
       }
 
+      const nowIso = new Date().toISOString();
       let query = supabase
         .from("bookings")
         .select(`
           *,
           locations!location_id (id, name, city, address)
         `)
-        .eq("status", "active")
+        .or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${nowIso})`)
         .gte("end_at", startDate.toISOString())
         .lte("end_at", endDate.toISOString())
         .order("end_at", { ascending: true });

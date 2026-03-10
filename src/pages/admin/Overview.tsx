@@ -271,7 +271,7 @@ export default function AdminOverview() {
   }).length;
 
   const todayReturns = bookings.filter(b => {
-    if (b.status !== "active") return false;
+    if (b.status !== "active" && b.status !== "confirmed") return false;
     try {
       return isToday(parseISO(b.endAt));
     } catch { return false; }

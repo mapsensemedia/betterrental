@@ -125,6 +125,8 @@ export function useActiveRentals() {
           overdueHours,
           isApproachingReturn,
           isWarningZone,
+          // Activation
+          needsActivation: b.status === "confirmed",
           // Joined data
           vehicle: category ? {
             id: category.id,
