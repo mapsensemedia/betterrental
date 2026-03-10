@@ -6,21 +6,21 @@ import c2cLogo from "@/assets/c2c-logo-footer.png";
 
 const footerLinks = {
   explore: [
-    { href: "/search", label: "Browse Cars" },
-    { href: "/locations", label: "Locations" },
-  ],
+  { href: "/search", label: "Browse Cars" },
+  { href: "/locations", label: "Locations" }],
+
   serviceAreas: [
-    { href: "/surrey", label: "Car Rental in Surrey, BC" },
-    { href: "/langley", label: "Car Rental in Langley, BC" },
-    { href: "/abbotsford", label: "Car Rental in Abbotsford, BC" },
-  ],
+  { href: "/surrey", label: "Car Rental in Surrey, BC" },
+  { href: "/langley", label: "Car Rental in Langley, BC" },
+  { href: "/abbotsford", label: "Car Rental in Abbotsford, BC" }],
+
   company: [
-    { href: "/about", label: "About C2C Rental" },
-    { href: "/contact", label: "Contact Us" },
-    { href: "/search", label: "How It Works" },
-    { href: "/surrey#requirements", label: "Insurance & Requirements" },
-    { href: "/blog", label: "Blog" },
-  ],
+  { href: "/about", label: "About C2C Rental" },
+  { href: "/contact", label: "Contact Us" },
+  { href: "/search", label: "How It Works" },
+  { href: "/surrey#requirements", label: "Insurance & Requirements" },
+  { href: "/blog", label: "Blog" }]
+
 };
 
 export function Footer() {
@@ -45,13 +45,13 @@ export function Footer() {
                 <Input
                   type="email"
                   placeholder="Your email address"
-                  className="h-11 bg-background/8 border-background/15 text-background placeholder:text-background/35 focus:border-background/40 focus:ring-1 focus:ring-background/20 rounded-[12px]"
-                />
+                  className="h-11 bg-background/8 border-background/15 text-background placeholder:text-background/35 focus:border-background/40 focus:ring-1 focus:ring-background/20 rounded-[12px]" />
+                
                 <button
                   type="button"
                   className="shrink-0 h-11 w-11 flex items-center justify-center rounded-[12px] bg-background/15 hover:bg-background/25 transition-colors duration-200"
-                  aria-label="Subscribe"
-                >
+                  aria-label="Subscribe">
+                  
                   <Mail className="w-4 h-4 text-background" />
                 </button>
               </div>
@@ -62,16 +62,16 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-background/80 text-sm mb-5 uppercase tracking-wider">Service Areas</h4>
             <ul className="space-y-3">
-              {footerLinks.serviceAreas.map((link) => (
-                <li key={link.href}>
+              {footerLinks.serviceAreas.map((link) =>
+              <li key={link.href}>
                   <Link
-                    to={link.href}
-                    className="text-background/55 hover:text-background transition-colors duration-200 text-sm"
-                  >
+                  to={link.href}
+                  className="text-background/55 hover:text-background transition-colors duration-200 text-sm">
+                  
                     {link.label}
                   </Link>
                 </li>
-              ))}
+              )}
             </ul>
           </div>
 
@@ -79,16 +79,16 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-background/80 text-sm mb-5 uppercase tracking-wider">Company</h4>
             <ul className="space-y-3">
-              {footerLinks.company.map((link) => (
-                <li key={link.href}>
+              {footerLinks.company.map((link) =>
+              <li key={link.href}>
                   <Link
-                    to={link.href}
-                    className="text-background/55 hover:text-background transition-colors duration-200 text-sm"
-                  >
+                  to={link.href}
+                  className="text-background/55 hover:text-background transition-colors duration-200 text-sm">
+                  
                     {link.label}
                   </Link>
                 </li>
-              ))}
+              )}
             </ul>
           </div>
 
@@ -96,16 +96,16 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-background/80 text-sm mb-5 uppercase tracking-wider">Explore</h4>
             <ul className="space-y-3">
-              {footerLinks.explore.map((link) => (
-                <li key={link.href}>
+              {footerLinks.explore.map((link) =>
+              <li key={link.href}>
                   <Link
-                    to={link.href}
-                    className="text-background/55 hover:text-background transition-colors duration-200 text-sm"
-                  >
+                  to={link.href}
+                  className="text-background/55 hover:text-background transition-colors duration-200 text-sm">
+                  
                     {link.label}
                   </Link>
                 </li>
-              ))}
+              )}
             </ul>
           </div>
         </div>
@@ -121,7 +121,7 @@ export function Footer() {
                 Surrey, BC
               </span>
               <span className="hidden md:inline">|</span>
-              <a href="tel:+16043300205" className="flex items-center gap-1.5 hover:text-background transition-colors">
+              <a href="tel:+16043300205" className="flex items-center gap-1.5 hover:text-background transition-colors">+1-604-330-0205
                 <Phone className="w-3.5 h-3.5" />
                 +1-604-330-0205
               </a>
@@ -143,8 +143,8 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
-                className="text-background/45 hover:text-[#197149] transition-colors duration-200"
-              >
+                className="text-background/45 hover:text-[#197149] transition-colors duration-200">
+                
                 <Instagram className="w-5 h-5" />
               </a>
               <a
@@ -152,8 +152,8 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"
-                className="text-background/45 hover:text-[#197149] transition-colors duration-200"
-              >
+                className="text-background/45 hover:text-[#197149] transition-colors duration-200">
+                
                 <Facebook className="w-5 h-5" />
               </a>
             </div>
@@ -163,6 +163,6 @@ export function Footer() {
           </div>
         </div>
       </div>
-    </footer>
-  );
+    </footer>);
+
 }
