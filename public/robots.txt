@@ -4,6 +4,9 @@ Disallow: /dashboard/
 Disallow: /host/
 Disallow: /auth/
 Disallow: /admin/
+Disallow: /support/
+Disallow: /delivery/
+Disallow: /ops/
 Disallow: /checkout
 Disallow: /check-in
 Disallow: /my-booking
@@ -12,6 +15,9 @@ Disallow: /walkaround/
 Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /complete-signup
+Disallow: /compare
+Disallow: /protection
+Disallow: /add-ons
 Allow: /
 
 Sitemap: https://c2crental.com/sitemap.xml

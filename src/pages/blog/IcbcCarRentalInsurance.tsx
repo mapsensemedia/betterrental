@@ -10,31 +10,52 @@ const DESC = "Confused about ICBC and rental car insurance in BC? This guide exp
 export default function IcbcCarRentalInsurance() {
   useEffect(() => {
     document.title = "How ICBC Insurance Works for Car Rentals in BC – C2C Rental";
+    const CANONICAL = `https://c2crental.ca/blog/${SLUG}`;
+
     let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
-    meta.content = DESC;
+    if (!meta) { meta = document.createElement("meta"); meta.setAttribute("name", "description"); document.head.appendChild(meta); }
+    meta.setAttribute("content", DESC);
 
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = `https://c2crental.com/blog/${SLUG}`;
+    if (!canonical) { canonical = document.createElement("link"); canonical.setAttribute("rel", "canonical"); document.head.appendChild(canonical); }
+    canonical.setAttribute("href", CANONICAL);
+
+    let robots = document.querySelector('meta[name="robots"]');
+    if (!robots) { robots = document.createElement("meta"); robots.setAttribute("name", "robots"); document.head.appendChild(robots); }
+    robots.setAttribute("content", "index, follow");
+
+    const ogTags = [
+      { property: "og:title", content: TITLE + " | C2C Rental" },
+      { property: "og:description", content: DESC },
+      { property: "og:url", content: CANONICAL },
+      { property: "og:type", content: "article" },
+    ];
+    ogTags.forEach(({ property, content }) => {
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) { tag = document.createElement("meta"); tag.setAttribute("property", property); document.head.appendChild(tag); }
+      tag.setAttribute("content", content);
+    });
 
     const schema = {
       "@context": "https://schema.org",
-      "@type": "Article",
+      "@type": "BlogPosting",
       headline: TITLE,
-      author: { "@type": "Organization", name: "C2C Rental" },
-      publisher: { "@type": "Organization", name: "C2C Rental", logo: { "@type": "ImageObject", url: "https://c2crental.com/logo.png" } },
-      url: `https://c2crental.com/blog/${SLUG}`,
-      datePublished: "2025-01-01",
       description: DESC,
+      url: CANONICAL,
+      datePublished: "2025-01-01",
+      dateModified: "2025-01-01",
+      author: { "@type": "Organization", name: "C2C Rental", "@id": "https://c2crental.ca/#localbusiness" },
+      publisher: { "@id": "https://c2crental.ca/#localbusiness" },
+      mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
+      inLanguage: "en-CA",
     };
     const script = document.createElement("script");
-    script.id = "article-jsonld";
+    script.id = "blog-icbc-insurance-jsonld";
     script.type = "application/ld+json";
     script.textContent = JSON.stringify(schema);
     document.head.appendChild(script);
 
-    return () => { canonical?.remove(); document.getElementById("article-jsonld")?.remove(); };
+    return () => { canonical?.remove(); document.getElementById("blog-icbc-insurance-jsonld")?.remove(); };
   }, []);
 
   return (
