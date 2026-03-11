@@ -41,6 +41,7 @@ const CarRentalSurreyGuide = lazy(() => import("./pages/blog/CarRentalSurreyGuid
 const IcbcCarRentalInsurance = lazy(() => import("./pages/blog/IcbcCarRentalInsurance"));
 const BestRoadTripsFromSurrey = lazy(() => import("./pages/blog/BestRoadTripsFromSurrey"));
 const CarRentalTipsNewDrivers = lazy(() => import("./pages/blog/CarRentalTipsNewDrivers"));
+const AffordableCarRentalSurreyLangleyAbbotsford = lazy(() => import("./pages/blog/AffordableCarRentalSurreyLangleyAbbotsford"));
 
 // Post-booking customer pages
 const BookingConfirmed = lazy(() => import("./pages/booking/BookingConfirmed"));
@@ -160,6 +161,7 @@ const App = () => (
                 <Route path="/blog/icbc-car-rental-insurance-bc" element={<IcbcCarRentalInsurance />} />
                 <Route path="/blog/best-road-trips-from-surrey-bc" element={<BestRoadTripsFromSurrey />} />
                 <Route path="/blog/car-rental-tips-new-drivers-bc" element={<CarRentalTipsNewDrivers />} />
+                <Route path="/blog/affordable-car-rental-surrey-langley-abbotsford-bc" element={<AffordableCarRentalSurreyLangleyAbbotsford />} />
                 <Route path="/booking/confirmed" element={<BookingConfirmed />} />
                 <Route path="/booking/:bookingId/license" element={<BookingLicense />} />
                 <Route path="/booking/:bookingId/agreement" element={<BookingAgreement />} />
