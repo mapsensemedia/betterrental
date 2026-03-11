@@ -7,6 +7,12 @@ import { ArrowRight } from "lucide-react";
 
 const articles = [
   {
+    slug: "daily-vs-weekly-car-rental-surrey-bc",
+    title: "Daily vs Weekly Car Rental in Surrey BC: Which Saves You More?",
+    excerpt: "Not sure whether to book a daily or weekly car rental in Surrey BC? Compare rates, fees, and real scenarios. Transparent pricing and no hidden fees.",
+    category: "Pricing Guide",
+  },
+  {
     slug: "affordable-car-rental-surrey-langley-abbotsford-bc",
     title: "Affordable Car Rental in Surrey, Langley & Abbotsford BC: A Local Guide",
     excerpt: "Find affordable, fully insured car rentals in Surrey, Langley, and Abbotsford BC without hidden fees. Transparent pricing, flexible pickup, and 24/7 support.",
