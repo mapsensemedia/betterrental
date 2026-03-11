@@ -41,6 +41,7 @@ const CarRentalSurreyGuide = lazy(() => import("./pages/blog/CarRentalSurreyGuid
 const IcbcCarRentalInsurance = lazy(() => import("./pages/blog/IcbcCarRentalInsurance"));
 const BestRoadTripsFromSurrey = lazy(() => import("./pages/blog/BestRoadTripsFromSurrey"));
 const CarRentalTipsNewDrivers = lazy(() => import("./pages/blog/CarRentalTipsNewDrivers"));
+const AffordableCarRentalSurreyLangleyAbbotsford = lazy(() => import("./pages/blog/AffordableCarRentalSurreyLangleyAbbotsford"));
 
 // Post-booking customer pages
 const BookingConfirmed = lazy(() => import("./pages/booking/BookingConfirmed"));
