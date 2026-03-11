@@ -212,11 +212,23 @@ const Index = () => {
       }
     };
 
+    const websiteSchema = {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": "https://c2crental.ca/#website",
+      "url": "https://c2crental.ca",
+      "name": "C2C Rental — Car Rental Surrey, Langley, Abbotsford BC",
+      "description": "Local car rental in Surrey, Langley, Abbotsford and the Lower Mainland BC. Affordable daily and weekly rates, fully insured vehicles, transparent pricing, flexible pickup, and 24/7 support.",
+      "publisher": { "@id": "https://c2crental.ca/#localbusiness" },
+      "inLanguage": "en-CA"
+    };
+
     const schemas = [
       { id: "home-localbusiness-jsonld", data: localBusinessSchema },
       { id: "home-economy-product-jsonld", data: economyProductSchema },
       { id: "home-suv-product-jsonld", data: suvProductSchema },
       { id: "home-minivan-product-jsonld", data: minivanProductSchema },
+      { id: "home-website-jsonld", data: websiteSchema },
     ];
 
     schemas.forEach(({ id, data }) => {
