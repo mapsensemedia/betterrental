@@ -73,7 +73,7 @@ const Index = () => {
   // Inject meta tags, OG tags, canonical, and JSON-LD structured data
   useEffect(() => {
     // Title
-    document.title = "C2C Rental | Local Car Rental in Surrey, Langley & Abbotsford BC";
+    document.title = "C2C Rental | Car Rental Surrey, Langley & Abbotsford BC | No Hidden Fees";
 
     // Meta description
     let metaDesc = document.querySelector('meta[name="description"]');
@@ -82,7 +82,7 @@ const Index = () => {
       metaDesc.setAttribute("name", "description");
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute("content", "Rent a car in Surrey, Langley, or Abbotsford with C2C Rental. Affordable daily and weekly rates, fully insured, no hidden fees. Book online in minutes.");
+    metaDesc.setAttribute("content", "Local car rental in Surrey, Langley, Abbotsford and the Lower Mainland BC. Affordable daily and weekly rates, fully insured vehicles, transparent pricing, flexible pickup, and 24/7 support. Book at c2crental.ca.");
 
     // Canonical
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
@@ -91,16 +91,39 @@ const Index = () => {
       canonical.setAttribute("rel", "canonical");
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute("href", "https://c2crental.com/");
+    canonical.setAttribute("href", "https://c2crental.ca/");
+
+    // Robots
+    let robots = document.querySelector('meta[name="robots"]');
+    if (!robots) {
+      robots = document.createElement("meta");
+      robots.setAttribute("name", "robots");
+      document.head.appendChild(robots);
+    }
+    robots.setAttribute("content", "index, follow");
+
+    // Geo tags
+    const geoTags = [
+      { name: "geo.region", content: "CA-BC" },
+      { name: "geo.placename", content: "Surrey, British Columbia" },
+    ];
+    geoTags.forEach(({ name, content }) => {
+      let tag = document.querySelector(`meta[name="${name}"]`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("name", name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    });
 
     // Open Graph tags
     const ogTags = [
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "C2C Rental" },
-      { property: "og:title", content: "C2C Rental | Local Car Rental in Surrey, Langley & Abbotsford BC" },
-      { property: "og:description", content: "Rent a car in Surrey, Langley, or Abbotsford with C2C Rental. Affordable daily and weekly rates, fully insured, no hidden fees." },
-      { property: "og:url", content: "https://c2crental.com" },
-      { property: "og:image", content: "https://c2crental.com/og-home.jpg" },
+      { property: "og:locale", content: "en_CA" },
+      { property: "og:title", content: "C2C Rental | Car Rental Surrey, Langley & Abbotsford BC" },
+      { property: "og:description", content: "Local car rental in Surrey, Langley, Abbotsford and the Lower Mainland BC. Affordable rates, fully insured, no hidden fees, 24/7 support." },
+      { property: "og:url", content: "https://c2crental.ca/" },
     ];
 
     ogTags.forEach(({ property, content }) => {
