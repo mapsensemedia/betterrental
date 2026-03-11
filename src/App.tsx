@@ -163,6 +163,7 @@ const App = () => (
                 <Route path="/blog/best-road-trips-from-surrey-bc" element={<BestRoadTripsFromSurrey />} />
                 <Route path="/blog/car-rental-tips-new-drivers-bc" element={<CarRentalTipsNewDrivers />} />
                 <Route path="/blog/affordable-car-rental-surrey-langley-abbotsford-bc" element={<AffordableCarRentalSurreyLangleyAbbotsford />} />
+                <Route path="/blog/daily-vs-weekly-car-rental-surrey-bc" element={<DailyVsWeeklyCarRentalSurrey />} />
                 <Route path="/booking/confirmed" element={<BookingConfirmed />} />
                 <Route path="/booking/:bookingId/license" element={<BookingLicense />} />
                 <Route path="/booking/:bookingId/agreement" element={<BookingAgreement />} />
