@@ -20,4 +20,4 @@ Disallow: /protection
 Disallow: /add-ons
 Allow: /
 
-Sitemap: https://c2crental.com/sitemap.xml
+Sitemap: https://c2crental.ca/sitemap.xml
