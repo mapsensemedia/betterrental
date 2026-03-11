@@ -7,6 +7,12 @@ import { ArrowRight } from "lucide-react";
 
 const articles = [
   {
+    slug: "affordable-car-rental-surrey-langley-abbotsford-bc",
+    title: "Affordable Car Rental in Surrey, Langley & Abbotsford BC: A Local Guide",
+    excerpt: "Find affordable, fully insured car rentals in Surrey, Langley, and Abbotsford BC without hidden fees. Transparent pricing, flexible pickup, and 24/7 support.",
+    category: "Local Guide",
+  },
+  {
     slug: "car-rental-surrey-guide",
     title: "The Complete Guide to Renting a Car in Surrey, BC",
     excerpt: "Everything Surrey residents need to know — ICBC coverage, age rules, best vehicle types, and how C2C Rental compares to the alternatives.",
