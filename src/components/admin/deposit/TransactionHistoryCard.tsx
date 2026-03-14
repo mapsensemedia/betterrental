@@ -2,7 +2,7 @@
  * TransactionHistoryCard
  * 
  * Displays complete transaction history for a booking
- * Shows all Stripe IDs with copy functionality
+ * Shows all Worldline transaction IDs with copy functionality
  */
 
 import { useState } from "react";
@@ -38,13 +38,13 @@ interface Transaction {
   amount: number;
   status: "pending" | "completed" | "failed" | "refunded";
   timestamp: string;
-  stripeId: string | null;
-  chargeId?: string | null;
+  wlTransactionId: string | null;
+  wlDepositTransactionId?: string | null;
   description: string;
   cardLast4?: string | null;
 }
 
-function CopyableStripeId({ value, label }: { value: string; label?: string }) {
+function CopyableTransactionId({ value, label }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -127,12 +127,10 @@ export function TransactionHistoryCard({ bookingId, className }: TransactionHist
       const { data: booking } = await supabase
         .from("bookings")
         .select(`
+          wl_deposit_transaction_id,
+          wl_deposit_auth_status,
           deposit_status,
-          stripe_deposit_pi_id,
-          stripe_deposit_charge_id,
           deposit_authorized_at,
-          deposit_captured_at,
-          deposit_released_at,
           deposit_amount,
           card_last_four
         `)
@@ -150,7 +148,7 @@ export function TransactionHistoryCard({ bookingId, className }: TransactionHist
             amount: Number(p.amount),
             status: p.status as Transaction["status"],
             timestamp: p.created_at,
-            stripeId: p.transaction_id,
+            wlTransactionId: p.transaction_id,
             description: p.payment_type === "rental" ? "Initial Payment" : "Additional Payment",
           });
         } else if (p.payment_type === "refund") {
@@ -160,21 +158,21 @@ export function TransactionHistoryCard({ bookingId, className }: TransactionHist
             amount: Math.abs(Number(p.amount)),
             status: "completed",
             timestamp: p.created_at,
-            stripeId: p.transaction_id,
+            wlTransactionId: p.transaction_id,
             description: "Refund",
           });
         }
       });
 
       // Add deposit authorization if exists
-      if (booking?.deposit_authorized_at && booking?.stripe_deposit_pi_id) {
+      if (booking?.deposit_authorized_at && booking?.wl_deposit_transaction_id) {
         txns.push({
           id: `dep-auth-${bookingId}`,
           type: "deposit_auth",
           amount: Number(booking.deposit_amount) || 0,
           status: "completed",
           timestamp: booking.deposit_authorized_at,
-          stripeId: booking.stripe_deposit_pi_id,
+          wlTransactionId: booking.wl_deposit_transaction_id,
           description: "Deposit Authorization",
           cardLast4: booking.card_last_four,
         });
@@ -191,8 +189,8 @@ export function TransactionHistoryCard({ bookingId, className }: TransactionHist
           amount: Number(captureEntry.amount),
           status: "completed",
           timestamp: captureEntry.created_at,
-          stripeId: captureEntry.stripe_pi_id,
-          chargeId: captureEntry.stripe_charge_id,
+          wlTransactionId: captureEntry.payment_id,
+          wlDepositTransactionId: captureEntry.payment_id,
           description: captureEntry.action === "partial_capture" 
             ? "Deposit Partial Capture" 
             : "Deposit Capture",
@@ -201,7 +199,7 @@ export function TransactionHistoryCard({ bookingId, className }: TransactionHist
 
       // Add deposit release if exists
       const releaseEntry = (ledgerEntries || []).find(
-        (e) => e.action === "stripe_release" || e.action === "release"
+        (e) => e.action === "release"
       );
       if (releaseEntry) {
         txns.push({
@@ -210,7 +208,7 @@ export function TransactionHistoryCard({ bookingId, className }: TransactionHist
           amount: Number(releaseEntry.amount),
           status: "completed",
           timestamp: releaseEntry.created_at,
-          stripeId: releaseEntry.stripe_pi_id,
+          wlTransactionId: releaseEntry.payment_id,
           description: "Deposit Authorization Released",
         });
       }
@@ -312,17 +310,17 @@ export function TransactionHistoryCard({ bookingId, className }: TransactionHist
                 </div>
               </div>
 
-              {/* Stripe IDs */}
-              {(txn.stripeId || txn.chargeId) && (
+              {/* Transaction IDs */}
+              {(txn.wlTransactionId || txn.wlDepositTransactionId) && (
                 <div className="flex flex-wrap gap-2">
-                  {txn.stripeId && (
-                    <CopyableStripeId 
-                      value={txn.stripeId} 
-                      label={txn.stripeId.startsWith("pi_") ? "PI" : "ID"} 
+                  {txn.wlTransactionId && (
+                    <CopyableTransactionId 
+                      value={txn.wlTransactionId} 
+                      label="TXN" 
                     />
                   )}
-                  {txn.chargeId && (
-                    <CopyableStripeId value={txn.chargeId} label="Charge" />
+                  {txn.wlDepositTransactionId && (
+                    <CopyableTransactionId value={txn.wlDepositTransactionId} label="DEP" />
                   )}
                 </div>
               )}
