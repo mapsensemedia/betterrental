@@ -21,7 +21,6 @@ export interface BookingForDispatchCheck {
   id: string;
   depositStatus?: string | null;
   assignedUnitId?: string | null;
-  stripeDepositPiId?: string | null;
   wlTransactionId?: string | null;
 }
 
