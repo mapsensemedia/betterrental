@@ -25,7 +25,7 @@ export function useAssignDriver() {
       // Fetch booking details for readiness check
       const { data: booking, error: bookingFetchError } = await supabase
         .from("bookings")
-        .select("id, deposit_status, assigned_unit_id, stripe_deposit_pi_id")
+        .select("id, deposit_status, assigned_unit_id")
         .eq("id", bookingId)
         .maybeSingle();
 

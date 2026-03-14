@@ -87,7 +87,7 @@ export function useBatchDispatchReadiness(bookingIds: string[]) {
       // Fetch all bookings
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, deposit_status, assigned_unit_id, stripe_deposit_pi_id, wl_transaction_id")
+        .select("id, deposit_status, assigned_unit_id, wl_transaction_id")
         .in("id", bookingIds);
 
       // Fetch photo counts for all bookings
