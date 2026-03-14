@@ -36,7 +36,7 @@ export function useDispatchReadiness({ bookingId, enabled = true }: UseDispatchR
       // Fetch booking details
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
-        .select("id, deposit_status, assigned_unit_id, stripe_deposit_pi_id, wl_transaction_id")
+        .select("id, deposit_status, assigned_unit_id, wl_transaction_id")
         .eq("id", bookingId)
         .maybeSingle();
 
