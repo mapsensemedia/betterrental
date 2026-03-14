@@ -18,7 +18,6 @@ import {
   Loader2,
   Info,
   Copy,
-  ExternalLink,
   Send,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -139,16 +138,6 @@ export function PaymentDepositPanel({
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
-                  )}
-                  {payment.transactionId?.startsWith("pi_") && (
-                    <a
-                      href={`https://dashboard.stripe.com/payments/${payment.transactionId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
                   )}
                 </div>
               </div>
