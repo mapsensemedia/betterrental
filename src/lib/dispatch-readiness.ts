@@ -21,7 +21,6 @@ export interface BookingForDispatchCheck {
   id: string;
   depositStatus?: string | null;
   assignedUnitId?: string | null;
-  stripeDepositPiId?: string | null;
   wlTransactionId?: string | null;
 }
 
@@ -55,7 +54,6 @@ export function checkDispatchReadiness(
   const requirements = {
     paymentHoldAuthorized: 
       AUTHORIZED_DEPOSIT_STATUSES.includes(booking.depositStatus || '') ||
-      !!booking.stripeDepositPiId ||
       !!booking.wlTransactionId,
     unitAssigned: !!booking.assignedUnitId,
     prepPhotosComplete: prepPhotoCount >= MINIMUM_PREP_PHOTOS,

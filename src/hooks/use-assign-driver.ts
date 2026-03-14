@@ -44,7 +44,6 @@ export function useAssignDriver() {
         id: booking.id,
         depositStatus: booking.deposit_status,
         assignedUnitId: booking.assigned_unit_id,
-        stripeDepositPiId: booking.stripe_deposit_pi_id,
       };
 
       const readiness = checkDispatchReadiness(bookingData, photoCount || 0);
