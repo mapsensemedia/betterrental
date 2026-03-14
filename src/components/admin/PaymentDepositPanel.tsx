@@ -18,7 +18,6 @@ import {
   Loader2,
   Info,
   Copy,
-  ExternalLink,
   Send,
 } from 'lucide-react';
 import { useState } from 'react';
