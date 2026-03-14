@@ -111,7 +111,6 @@ export function useBatchDispatchReadiness(bookingIds: string[]) {
           id: booking.id,
           depositStatus: booking.deposit_status,
           assignedUnitId: booking.assigned_unit_id,
-          stripeDepositPiId: booking.stripe_deposit_pi_id,
           wlTransactionId: booking.wl_transaction_id,
         };
         results.set(
