@@ -72,6 +72,7 @@ interface BamboraTxn {
   status: string;
   dateTime: string;
   orderNumber: string;
+  type: string;
   error?: string;
 }
 
