@@ -44,6 +44,7 @@ export function useAssignDriver() {
         id: booking.id,
         depositStatus: booking.deposit_status,
         assignedUnitId: booking.assigned_unit_id,
+        wlTransactionId: booking.wl_transaction_id,
       };
 
       const readiness = checkDispatchReadiness(bookingData, photoCount || 0);

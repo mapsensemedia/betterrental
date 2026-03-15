@@ -61,7 +61,6 @@ export function StepDispatch({
       id: bookingId,
       depositStatus: booking?.deposit_status,
       assignedUnitId: booking?.assigned_unit_id,
-      stripeDepositPiId: booking?.stripe_deposit_pi_id,
     } as BookingForDispatchCheck,
     prepPhotoCount
   );
