@@ -55,6 +55,7 @@ interface OpsStepContentProps {
   completion: StepCompletion;
   onCompleteStep: () => void;
   onActivate: () => void;
+  onManualActivate?: (reason: string, incompleteItems: string[]) => void;
   isRentalActive: boolean;
   isDelivery?: boolean;
   driverInfo?: { fullName: string; phone?: string | null } | null;
