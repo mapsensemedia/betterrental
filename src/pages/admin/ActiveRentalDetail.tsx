@@ -181,9 +181,9 @@ export default function ActiveRentalDetail() {
   const activationReason = fullBooking?.activation_reason;
   
   // Get incomplete items from audit logs
-  const incompleteAtActivation = fullBooking?.auditLogs?.find(
+  const incompleteAtActivation = (fullBooking?.auditLogs?.find(
     (log: any) => log.action === "manual_activation"
-  )?.new_data?.incomplete_at_activation as string[] | undefined;
+  )?.new_data as Record<string, unknown> | null)?.incomplete_at_activation as string[] | undefined;
 
   const opsRoute = isOpsContext 
     ? `/ops/booking-ops/${rental?.id}` 
