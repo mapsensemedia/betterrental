@@ -175,9 +175,55 @@ export default function ActiveRentalDetail() {
     return `${prefix}${h}:${m}:${s}`;
   };
 
+  // Manual activation detection
+  const isManuallyActivated = fullBooking?.activation_source === "ops_manual";
+  const activationReason = fullBooking?.activation_reason;
+  
+  // Get incomplete items from audit logs
+  const incompleteAtActivation = fullBooking?.auditLogs?.find(
+    (log: any) => log.action === "manual_activation"
+  )?.new_data?.incomplete_at_activation as string[] | undefined;
+
+  const opsRoute = isOpsContext 
+    ? `/ops/booking-ops/${rental?.id}` 
+    : `/admin/booking-ops/${rental?.id}`;
+
   return (
     <PanelShell>
       <div className="space-y-6">
+        {/* Manual Activation Banner */}
+        {isManuallyActivated && (
+          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-700 dark:text-amber-400">Manually Activated</AlertTitle>
+            <AlertDescription className="text-amber-600 dark:text-amber-500 space-y-2">
+              {activationReason && (
+                <p className="text-sm">Reason: {activationReason}</p>
+              )}
+              {incompleteAtActivation && incompleteAtActivation.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Items incomplete at activation:</p>
+                  <ul className="text-sm list-disc list-inside space-y-0.5">
+                    {incompleteAtActivation.map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-400"
+                asChild
+              >
+                <Link to={opsRoute}>
+                  Complete Missing Items
+                  <ExternalLink className="w-3 h-3 ml-1.5" />
+                </Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
