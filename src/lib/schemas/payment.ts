@@ -79,17 +79,6 @@ export const depositReleaseRequestSchema = z.object({
 
 export type DepositReleaseRequest = z.infer<typeof depositReleaseRequestSchema>;
 
-// Stripe checkout session request
-export const checkoutSessionRequestSchema = z.object({
-  bookingId: z.string().uuid(),
-  amount: z.number().positive(),
-  currency: z.string().length(3).default("cad"),
-  successUrl: z.string().url(),
-  cancelUrl: z.string().url(),
-});
-
-export type CheckoutSessionRequest = z.infer<typeof checkoutSessionRequestSchema>;
-
 // Refund request
 export const refundRequestSchema = z.object({
   bookingId: z.string().uuid(),
