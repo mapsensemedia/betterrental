@@ -143,6 +143,12 @@ const navGroups: NavGroup[] = [
     title: "MONEY & BILLING",
     items: [
       {
+        href: "/admin/payment-dashboard",
+        label: "Collection",
+        icon: DollarSign,
+        description: "Revenue & collection metrics",
+      },
+      {
         href: "/admin/billing",
         label: "Payments",
         icon: CreditCard,
