@@ -144,17 +144,10 @@ const navGroups: NavGroup[] = [
     title: "MONEY & BILLING",
     items: [
       {
-        href: "/admin/payment-dashboard",
-        label: "Collection",
-        icon: DollarSign,
-        description: "Revenue & collection metrics",
-      },
-      {
-        href: "/admin/billing",
+        href: "/admin/finance",
         label: "Payments",
         icon: CreditCard,
-        badgeKey: "billing",
-        description: "Income & outflow",
+        description: "Revenue, invoices & transactions",
       },
       {
         href: "/admin/agreements",
