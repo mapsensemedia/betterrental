@@ -644,21 +644,31 @@ export default function Reconciliation() {
         {/* ── SECTION 3: LIVE BAMBORA DATA ── */}
         <Card>
           <CardContent className="p-0">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold">Live Bambora Transactions</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Fetch real-time transaction data directly from the payment gateway
-                </p>
+            <div className="p-4 border-b border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold">Live Bambora Transactions</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Fetch real-time transaction data directly from the payment gateway
+                  </p>
+                </div>
+                <Button onClick={handleFetchBambora} disabled={bamboraLoading}>
+                  {bamboraLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  Fetch from Bambora
+                </Button>
               </div>
-              <Button onClick={handleFetchBambora} disabled={bamboraLoading || rows.length === 0}>
-                {bamboraLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Download className="w-4 h-4 mr-2" />
-                )}
-                Fetch from Bambora
-              </Button>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Additional transaction IDs (comma or newline separated)"
+                  value={manualTxnInput}
+                  onChange={(e) => setManualTxnInput(e.target.value)}
+                  className="font-mono text-sm"
+                />
+              </div>
             </div>
 
             {bamboraData && (
