@@ -103,15 +103,15 @@ export function useEditBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ bookingId, startAt, endAt, locationId, dailyRate, reason }: BookingEditPayload) => {
+    mutationFn: async ({ bookingId, startAt, endAt, locationId, dailyRate, reason, timeOnly }: BookingEditPayload) => {
       const { data, error } = await supabase.functions.invoke("reprice-booking", {
         body: {
           bookingId,
-          operation: "modify",
+          operation: timeOnly ? "update_time_only" : "modify",
           newStartAt: startAt || undefined,
           newEndAt: endAt || undefined,
-          newDailyRate: dailyRate || undefined,
-          newLocationId: locationId || undefined,
+          newDailyRate: timeOnly ? undefined : (dailyRate || undefined),
+          newLocationId: timeOnly ? undefined : (locationId || undefined),
           reason,
         },
       });
@@ -125,8 +125,9 @@ export function useEditBooking() {
         bookingId,
         oldTotal: data.oldTotal,
         newTotal: data.total,
-        priceDifference: data.total - data.oldTotal,
+        priceDifference: timeOnly ? 0 : (data.total - data.oldTotal),
         locationChanged: !!locationId,
+        timeOnly: !!timeOnly,
       };
     },
     onSuccess: (result) => {
