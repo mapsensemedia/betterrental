@@ -59,6 +59,7 @@ const AdminAlerts = lazy(() => import("./pages/admin/Alerts"));
 const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
 const AdminBookingDetail = lazy(() => import("./pages/admin/BookingDetail"));
 const AdminBilling = lazy(() => import("./pages/admin/Billing"));
+const AdminPaymentDashboard = lazy(() => import("./pages/admin/PaymentDashboard"));
 const AdminInventory = lazy(() => import("./pages/admin/Inventory"));
 const AdminCalendar = lazy(() => import("./pages/admin/Calendar"));
 const AdminTickets = lazy(() => import("./pages/admin/Tickets"));
@@ -193,6 +194,7 @@ const App = () => (
                 <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
                 <Route path="/admin/agreements" element={<AdminProtectedRoute><AdminAgreements /></AdminProtectedRoute>} />
                 <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
+                <Route path="/admin/payment-dashboard" element={<AdminProtectedRoute><AdminPaymentDashboard /></AdminProtectedRoute>} />
                 <Route path="/admin/reconciliation" element={<AdminProtectedRoute><AdminReconciliation /></AdminProtectedRoute>} />
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
