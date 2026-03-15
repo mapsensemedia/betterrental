@@ -1,8 +1,19 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { StepCompletion } from "@/lib/ops-steps";
 import { 
   CheckCircle2, 
@@ -12,6 +23,7 @@ import {
   ArrowRight,
   Check,
   MessageSquare,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,15 +31,19 @@ interface StepHandoverProps {
   booking: any;
   completion: StepCompletion;
   onActivate: () => void;
+  onManualActivate?: (reason: string, incompleteItems: string[]) => void;
   isBookingCompleted?: boolean;
 }
 
-export function StepHandover({ booking, completion, onActivate, isBookingCompleted }: StepHandoverProps) {
+export function StepHandover({ booking, completion, onActivate, onManualActivate, isBookingCompleted }: StepHandoverProps) {
   const isRentalActive = booking?.status === "active";
   const isCompleted = booking?.status === "completed" || isBookingCompleted;
   const hasUnitAssigned = !!booking?.assigned_unit_id;
   
-  // UPDATED: Prerequisites for handover - includes VIN assignment
+  const [manualReason, setManualReason] = useState("");
+  const [showManualConfirm, setShowManualConfirm] = useState(false);
+  
+  // Prerequisites for handover
   const allPrerequisitesMet = 
     hasUnitAssigned &&
     completion.checkin.govIdVerified &&
@@ -56,6 +72,18 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
   ];
   
   const incompleteItems = prerequisites.filter(p => !p.complete);
+  const incompleteLabels = incompleteItems.map(p => p.label);
+  
+  const canManualActivate = hasUnitAssigned && !allPrerequisitesMet && onManualActivate;
+  const isManualReasonValid = manualReason.trim().length >= 10;
+  
+  const handleManualConfirm = () => {
+    if (onManualActivate && isManualReasonValid) {
+      onManualActivate(manualReason.trim(), incompleteLabels);
+      setShowManualConfirm(false);
+      setManualReason("");
+    }
+  };
   
   return (
     <div className="space-y-4">
@@ -200,14 +228,107 @@ export function StepHandover({ booking, completion, onActivate, isBookingComplet
           </CardContent>
         </Card>
       ) : (
-        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-700 dark:text-amber-400">Cannot Activate Yet</AlertTitle>
-          <AlertDescription className="text-amber-600 dark:text-amber-500">
-            Complete the following before activation: {incompleteItems.map(p => p.label).join(", ")}
-          </AlertDescription>
-        </Alert>
+        <div className="space-y-4">
+          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-700 dark:text-amber-400">Cannot Activate Yet</AlertTitle>
+            <AlertDescription className="text-amber-600 dark:text-amber-500">
+              Complete the following before activation: {incompleteLabels.join(", ")}
+            </AlertDescription>
+          </Alert>
+          
+          {/* Manual Activation Section — only when unit is assigned but other items are incomplete */}
+          {canManualActivate && (
+            <Card className="border-amber-200 dark:border-amber-900">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <CardTitle className="text-base text-amber-700 dark:text-amber-400">
+                    Manual Activation
+                  </CardTitle>
+                </div>
+                <CardDescription>
+                  Activate anyway and add missing details later from the active rental or booking page.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">
+                    Reason for manual activation <span className="text-destructive">*</span>
+                  </label>
+                  <Textarea
+                    placeholder="e.g. Customer in a rush, will upload license and photos later"
+                    value={manualReason}
+                    onChange={(e) => setManualReason(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {manualReason.trim().length < 10 
+                      ? `Minimum 10 characters (${manualReason.trim().length}/10)` 
+                      : `${manualReason.trim().length} characters`
+                    }
+                  </p>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  className="w-full border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                  disabled={!isManualReasonValid}
+                  onClick={() => setShowManualConfirm(true)}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Activate Anyway (add missing details later)
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
+      
+      {/* Manual Activation Confirmation Dialog */}
+      <AlertDialog open={showManualConfirm} onOpenChange={setShowManualConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Confirm Manual Activation
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  The rental will be activated immediately. No SMS will be sent to the customer.
+                </p>
+                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
+                    Missing items to complete later:
+                  </p>
+                  <ul className="text-sm text-amber-700 dark:text-amber-400 space-y-1">
+                    {incompleteLabels.map((label, i) => (
+                      <li key={i} className="flex items-center gap-2">
+                        <XCircle className="w-3 h-3 shrink-0" />
+                        {label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className="text-sm font-medium">
+                  Complete the missing items from the active rental page as soon as possible.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleManualConfirm}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Confirm Activation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

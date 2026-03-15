@@ -299,6 +299,7 @@ export function OpsStepContent({
                 booking={booking}
                 completion={completion}
                 onActivate={onActivate}
+                onManualActivate={onManualActivate}
                 isBookingCompleted={isBookingCompleted}
               />
               {/* Allow vehicle change and booking edits on the handover step for non-terminal bookings */}

@@ -496,6 +496,7 @@ export default function BookingOps() {
                   completion={completion}
                   onCompleteStep={handleCompleteStep}
                   onActivate={handleActivateRental}
+                  onManualActivate={handleManualActivateRental}
                   isRentalActive={isRentalActive}
                   isDelivery={isDeliveryBooking}
                   driverInfo={driverInfo}
