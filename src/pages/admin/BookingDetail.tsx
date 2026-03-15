@@ -255,6 +255,16 @@ export default function BookingDetail() {
                   Activate Rental
                 </Button>
               )}
+              {/* View Active Rental tracking */}
+              {booking.status === "active" && (
+                <Button 
+                  size="sm"
+                  onClick={() => navigate(isOpsContext ? `/ops/rental/${bookingId}` : `/admin/active-rentals/${bookingId}`)}
+                >
+                  <Car className="h-4 w-4 mr-2" />
+                  View Active Rental
+                </Button>
+              )}
               {/* Open in Operations - for actionable bookings */}
               {!isOpsContext && (booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
                 <Button 
