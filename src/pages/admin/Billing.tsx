@@ -301,29 +301,101 @@ export default function AdminBilling() {
     },
   });
 
-  // ==================== PAYMENTS ====================
+  // ==================== PAYMENTS (combined: Worldline bookings + payments table) ====================
   const { data: payments = [], isLoading: paymentsLoading } = useQuery({
     queryKey: ["admin-payments"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Fetch payments table records
+      const { data: manualPayments, error: pErr } = await supabase
         .from("payments")
         .select(`*, booking:bookings(booking_code, user_id)`)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
+      if (pErr) throw pErr;
 
-      if (error) throw error;
-      
-      const userIds = [...new Set(data.map(p => p.booking?.user_id).filter(Boolean))];
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+      // 2. Fetch Worldline bookings (have wl_transaction_id)
+      const { data: wlBookings, error: wlErr } = await supabase
+        .from("bookings")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id")
+        .not("wl_transaction_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (wlErr) throw wlErr;
+
+      // 3. Fetch Worldline deposit bookings (have wl_deposit_transaction_id)
+      const { data: wlDepositBookings, error: wlDErr } = await supabase
+        .from("bookings")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id")
+        .not("wl_deposit_transaction_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (wlDErr) throw wlDErr;
+
+      // Gather all user IDs for profile lookup
+      const allUserIds = [
+        ...manualPayments.map(p => p.booking?.user_id),
+        ...wlBookings.map(b => b.user_id),
+        ...(wlDepositBookings || []).map(b => b.user_id),
+      ].filter(Boolean) as string[];
+      const uniqueUserIds = [...new Set(allUserIds)];
+      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", uniqueUserIds);
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      
-      return data.map(payment => ({
+
+      // Build a set of Worldline txn IDs already in payments table to avoid duplicates
+      const existingTxnIds = new Set(manualPayments.filter(p => p.transaction_id).map(p => p.transaction_id));
+
+      // Map manual payments
+      const manual: Payment[] = manualPayments.map(payment => ({
         ...payment,
+        source: "manual" as const,
         booking: payment.booking ? {
           ...payment.booking,
           profile: profileMap.get(payment.booking.user_id) || null,
         } : null,
-      })) as Payment[];
+      }));
+
+      // Map Worldline rental bookings (skip if already in payments table)
+      const wlRental: Payment[] = (wlBookings || [])
+        .filter(b => !existingTxnIds.has(b.wl_transaction_id!))
+        .map(b => ({
+          id: `wl-rental-${b.id}`,
+          booking_id: b.id,
+          amount: Number(b.total_amount),
+          payment_type: "rental",
+          payment_method: b.card_type ? `card (${b.card_type})` : "card",
+          status: b.wl_auth_status === "completed" ? "completed" : b.wl_auth_status || "pending",
+          transaction_id: b.wl_transaction_id,
+          created_at: b.created_at,
+          source: "worldline" as const,
+          booking: {
+            booking_code: b.booking_code,
+            profile: profileMap.get(b.user_id) || null,
+          },
+        }));
+
+      // Map Worldline deposit bookings (skip if already in payments table)
+      const wlDeposit: Payment[] = (wlDepositBookings || [])
+        .filter(b => !existingTxnIds.has(b.wl_deposit_transaction_id!))
+        .map(b => ({
+          id: `wl-deposit-${b.id}`,
+          booking_id: b.id,
+          amount: Number(b.deposit_amount || 0),
+          payment_type: "deposit",
+          payment_method: b.card_type ? `card (${b.card_type})` : "card",
+          status: b.wl_deposit_auth_status === "authorized" ? "authorized" : b.deposit_status || "pending",
+          transaction_id: b.wl_deposit_transaction_id,
+          created_at: b.deposit_authorized_at || b.created_at,
+          source: "worldline" as const,
+          booking: {
+            booking_code: b.booking_code,
+            profile: profileMap.get(b.user_id) || null,
+          },
+        }));
+
+      // Combine and sort by date
+      const combined = [...manual, ...wlRental, ...wlDeposit];
+      combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return combined;
     },
   });
 
