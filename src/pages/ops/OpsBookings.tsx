@@ -134,14 +134,15 @@ export default function OpsBookings() {
         search: debouncedSearch.trim() || undefined,
       };
       if (activeTab === "all") {
-        const [pending, confirmed, active, completed, cancelled] = await Promise.all([
+        const [draft, pending, confirmed, active, completed, cancelled] = await Promise.all([
+          listBookings({ ...filters, status: "draft" }),
           listBookings({ ...filters, status: "pending" }),
           listBookings({ ...filters, status: "confirmed" }),
           listBookings({ ...filters, status: "active" }),
           listBookings({ ...filters, status: "completed" }),
           listBookings({ ...filters, status: "cancelled" }),
         ]);
-        return [...pending, ...confirmed, ...active, ...completed, ...cancelled];
+        return [...draft, ...pending, ...confirmed, ...active, ...completed, ...cancelled];
       }
       return listBookings({ ...filters, status: activeTab });
     },
