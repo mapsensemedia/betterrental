@@ -154,7 +154,6 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
   };
 
   const priceDiff = preview?.priceDifference ?? 0;
-  const locationChanged = locationId !== booking.location_id;
 
   if (!isEditable) {
     return (
