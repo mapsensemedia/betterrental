@@ -497,7 +497,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
               onClick={handleConfirm}
               disabled={!reason.trim() || editBooking.isPending}
             >
-              {editBooking.isPending ? "Saving..." : "Confirm Changes"}
+              {editBooking.isPending ? "Saving..." : isTimeOnlyChange ? "Update Time" : "Confirm Changes"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
