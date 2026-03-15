@@ -265,6 +265,9 @@ export function useUpdateBookingStatus() {
       bypassReason,
       reopen,
       skipNotifications,
+      activationSource,
+      activationReason,
+      incompleteAtActivation,
     }: { 
       bookingId: string; 
       newStatus: BookingStatus; 
@@ -272,9 +275,12 @@ export function useUpdateBookingStatus() {
       bypassReason?: string;
       reopen?: boolean;
       skipNotifications?: boolean;
+      activationSource?: string;
+      activationReason?: string;
+      incompleteAtActivation?: string[];
     }) => {
       const { data, error } = await supabase.functions.invoke("update-booking-status", {
-        body: { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications },
+        body: { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications, activationSource, activationReason, incompleteAtActivation },
       });
 
       if (error || data?.error) {
