@@ -85,6 +85,19 @@ export function StepReturnDeposit({
       if (data?.error) throw new Error(data.message || data.error);
 
       toast.success("Deposit captured successfully");
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("deposit_ledger").insert({
+          booking_id: bookingId,
+          action: "hold",
+          amount: depositData?.depositRequired || 350,
+          reason: "Deposit captured at return — damage deduction",
+          created_by: user?.id,
+        });
+        queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
+      } catch (ledgerErr) {
+        console.error("Failed to write deposit ledger:", ledgerErr);
+      }
       invalidateDepositState();
     } catch (err: any) {
       toast.error("Capture failed: " + (err.message || "Unknown error"));
@@ -106,6 +119,19 @@ export function StepReturnDeposit({
       }
 
       toast.success("Hold released successfully");
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("deposit_ledger").insert({
+          booking_id: bookingId,
+          action: "release",
+          amount: depositData?.depositRequired || 350,
+          reason: "Deposit released at return — no damages",
+          created_by: user?.id,
+        });
+        queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
+      } catch (ledgerErr) {
+        console.error("Failed to write deposit ledger:", ledgerErr);
+      }
       invalidateDepositState();
     } catch (err: any) {
       toast.error("Release failed: " + (err.message || "Unknown error"));
