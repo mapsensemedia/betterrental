@@ -123,6 +123,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
         locationId: locationId !== booking.location_id ? locationId : undefined,
         dailyRate: rateChanged ? parseFloat(dailyRate) : undefined,
         reason: reason.trim(),
+        timeOnly: isTimeOnlyChange,
       },
       {
         onSuccess: () => {
