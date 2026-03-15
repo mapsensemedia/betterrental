@@ -266,12 +266,43 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
 
           {/* === INLINE PAYMENT FORM: pay+hold (unpaid) === */}
           {canShowPayForm && (
-            <OpsPaymentAndDeposit
-              bookingId={bookingId}
-              rentalAmount={paymentStatus?.totalDue || 0}
-              depositAmount={DEFAULT_DEPOSIT_AMOUNT}
-              onUpdated={refreshData}
-            />
+            <div className="space-y-3">
+              <div className="flex gap-1 rounded-md bg-muted p-1">
+                <Button
+                  variant={payMode === "card" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => setPayMode("card")}
+                >
+                  <CreditCard className="h-3 w-3 mr-1" />
+                  Card Payment
+                </Button>
+                <Button
+                  variant={payMode === "terminal" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex-1 h-7 text-xs"
+                  onClick={() => setPayMode("terminal")}
+                >
+                  <ShieldAlert className="h-3 w-3 mr-1" />
+                  Terminal
+                </Button>
+              </div>
+
+              {payMode === "card" ? (
+                <OpsPaymentAndDeposit
+                  bookingId={bookingId}
+                  rentalAmount={paymentStatus?.totalDue || 0}
+                  depositAmount={DEFAULT_DEPOSIT_AMOUNT}
+                  onUpdated={refreshData}
+                />
+              ) : (
+                <TerminalPaymentForm
+                  bookingId={bookingId}
+                  amount={paymentStatus?.totalDue || 0}
+                  onUpdated={refreshData}
+                />
+              )}
+            </div>
           )}
 
           {/* === INLINE DEPOSIT-ONLY FORM (paid, no deposit) === */}
