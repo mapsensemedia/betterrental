@@ -654,14 +654,6 @@ export default function Reconciliation() {
                   Fetch from Bambora
                 </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Additional transaction IDs (comma or newline separated)"
-                  value={manualTxnInput}
-                  onChange={(e) => setManualTxnInput(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
             </div>
 
             {bamboraData && (
