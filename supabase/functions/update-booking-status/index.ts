@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     const user = await getUserOrThrow(req);
     await requireRoleOrThrow(user.id, ["admin", "staff"]);
 
-    const { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications } = await req.json();
+    const { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications, activationSource, activationReason, incompleteAtActivation } = await req.json();
 
     if (!bookingId || !newStatus) {
       return new Response(
