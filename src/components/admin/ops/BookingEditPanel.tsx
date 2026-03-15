@@ -76,20 +76,33 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
 
   // Detect if anything changed (dates/location/rate)
   const rateChanged = parseFloat(dailyRate) !== booking.daily_rate && !isNaN(parseFloat(dailyRate));
-  const hasChanges = startAt !== booking.start_at || endAt !== booking.end_at || locationId !== booking.location_id || rateChanged;
+  const locationChanged = locationId !== booking.location_id;
+  const hasChanges = startAt !== booking.start_at || endAt !== booking.end_at || locationChanged || rateChanged;
+
+  // Detect time-only change: same calendar date but different time, no location/rate change
+  const isTimeOnlyChange = useMemo(() => {
+    if (!hasChanges || locationChanged || rateChanged) return false;
+    const oldStartDate = startAt !== booking.start_at ? booking.start_at.substring(0, 10) : null;
+    const newStartDate = startAt !== booking.start_at ? new Date(startAt).toISOString().substring(0, 10) : null;
+    const oldEndDate = endAt !== booking.end_at ? booking.end_at.substring(0, 10) : null;
+    const newEndDate = endAt !== booking.end_at ? new Date(endAt).toISOString().substring(0, 10) : null;
+    const startDateSame = !oldStartDate || oldStartDate === newStartDate;
+    const endDateSame = !oldEndDate || oldEndDate === newEndDate;
+    return startDateSame && endDateSame;
+  }, [hasChanges, startAt, endAt, booking.start_at, booking.end_at, locationChanged, rateChanged]);
 
   // Detect notes changes
   const notesChanged = notes !== (booking.notes || "") || specialInstructions !== (booking.special_instructions || "");
 
-  // Preview pricing
+  // Preview pricing (skip for time-only changes)
   const preview = useMemo(() => {
-    if (!hasChanges) return null;
+    if (!hasChanges || isTimeOnlyChange) return null;
     try {
       return previewBookingEdit(booking, startAt, endAt);
     } catch {
       return null;
     }
-  }, [hasChanges, startAt, endAt, booking]);
+  }, [hasChanges, isTimeOnlyChange, startAt, endAt, booking]);
 
   const formatLocalDatetime = (isoString: string) => {
     return format(new Date(isoString), "yyyy-MM-dd'T'HH:mm");
@@ -110,6 +123,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
         locationId: locationId !== booking.location_id ? locationId : undefined,
         dailyRate: rateChanged ? parseFloat(dailyRate) : undefined,
         reason: reason.trim(),
+        timeOnly: isTimeOnlyChange,
       },
       {
         onSuccess: () => {
@@ -141,7 +155,6 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
   };
 
   const priceDiff = preview?.priceDifference ?? 0;
-  const locationChanged = locationId !== booking.location_id;
 
   if (!isEditable) {
     return (
@@ -305,8 +318,21 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
 
           <Separator />
 
-          {/* Pricing Preview */}
-          {preview && (
+          {/* Time-only change indicator */}
+          {isTimeOnlyChange && hasChanges && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1">
+              <h4 className="text-sm font-medium flex items-center gap-2 text-emerald-700">
+                <Clock className="w-4 h-4" />
+                Time Adjustment Only
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Only the pickup/return time will change. Total price will <strong>NOT</strong> change.
+              </p>
+            </div>
+          )}
+
+          {/* Pricing Preview (only for full edits) */}
+          {preview && !isTimeOnlyChange && (
             <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -368,7 +394,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
             disabled={!hasChanges || editBooking.isPending}
             onClick={() => setConfirmOpen(true)}
           >
-            {editBooking.isPending ? "Saving..." : "Save Changes"}
+            {editBooking.isPending ? "Saving..." : isTimeOnlyChange ? "Update Time" : "Save Changes"}
           </Button>
 
           <Separator />
@@ -419,24 +445,37 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Booking Edit</AlertDialogTitle>
-            <AlertDialogDescription>
-              {preview && (
-                <span>
-                  Duration: {preview.originalDays} → {preview.newDays} day{preview.newDays !== 1 ? "s" : ""}
-                  {rateChanged && <>. Daily rate: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}</>}
-                  {priceDiff !== 0 && (
-                    <>. Price {priceDiff > 0 ? "increase" : "decrease"}: ${Math.abs(priceDiff).toFixed(2)} CAD</>
-                  )}
-                  {locationChanged && ". Location changed — vehicle assignment will be cleared."}
-                </span>
-              )}
-              {!preview && locationChanged && (
-                <span>Location changed — vehicle assignment will be cleared.</span>
-              )}
-              {!preview && rateChanged && !locationChanged && (
-                <span>Daily rate override: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}/day</span>
-              )}
+            <AlertDialogTitle>{isTimeOnlyChange ? "Confirm Time Adjustment" : "Confirm Booking Edit"}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                {isTimeOnlyChange && (
+                  <>
+                    {startAt !== booking.start_at && (
+                      <p>Pickup: {format(new Date(booking.start_at), "h:mm a")} → {format(new Date(startAt), "h:mm a")}</p>
+                    )}
+                    {endAt !== booking.end_at && (
+                      <p>Return: {format(new Date(booking.end_at), "h:mm a")} → {format(new Date(endAt), "h:mm a")}</p>
+                    )}
+                    <p className="font-medium text-emerald-600">Total price will NOT change.</p>
+                  </>
+                )}
+                {!isTimeOnlyChange && preview && (
+                  <p>
+                    Duration: {preview.originalDays} → {preview.newDays} day{preview.newDays !== 1 ? "s" : ""}
+                    {rateChanged && <>. Daily rate: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}</>}
+                    {priceDiff !== 0 && (
+                      <>. Price {priceDiff > 0 ? "increase" : "decrease"}: ${Math.abs(priceDiff).toFixed(2)} CAD</>
+                    )}
+                    {locationChanged && ". Location changed — vehicle assignment will be cleared."}
+                  </p>
+                )}
+                {!isTimeOnlyChange && !preview && locationChanged && (
+                  <p>Location changed — vehicle assignment will be cleared.</p>
+                )}
+                {!isTimeOnlyChange && !preview && rateChanged && !locationChanged && (
+                  <p>Daily rate override: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}/day</p>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-3">
@@ -458,7 +497,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
               onClick={handleConfirm}
               disabled={!reason.trim() || editBooking.isPending}
             >
-              {editBooking.isPending ? "Saving..." : "Confirm Changes"}
+              {editBooking.isPending ? "Saving..." : isTimeOnlyChange ? "Update Time" : "Confirm Changes"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
