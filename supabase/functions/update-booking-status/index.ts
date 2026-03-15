@@ -108,8 +108,20 @@ Deno.serve(async (req) => {
 
     // Build update payload
     const updateData: Record<string, unknown> = { status: newStatus };
+    const now = new Date().toISOString();
     if (newStatus === "completed" || newStatus === "cancelled") {
-      updateData.actual_return_at = new Date().toISOString();
+      updateData.actual_return_at = now;
+    }
+    // When activating, set handover/activation timestamps
+    if (newStatus === "active" && !reopen) {
+      updateData.handed_over_at = now;
+      updateData.handed_over_by = user.id;
+      updateData.activated_at = now;
+      updateData.activated_by = user.id;
+      updateData.activation_source = activationSource || "counter";
+      if (activationReason) {
+        updateData.activation_reason = activationReason;
+      }
     }
     // Reopen: clear return workflow fields so the booking can be re-closed properly
     if (reopen && newStatus === "active") {
