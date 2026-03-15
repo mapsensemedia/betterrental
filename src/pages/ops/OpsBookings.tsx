@@ -116,13 +116,24 @@ export default function OpsBookings() {
   const activeTab = (searchParams.get("tab") as TabValue) || "all";
   const locationId = useOpsLocationFilter();
 
-  // Fetch all bookings - filtered by location and status
+  // Debounced search for server-side querying
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  
+  // Debounce search input
+  useMemo(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Fetch bookings - filtered by location, status, and search (server-side)
   const { data: bookings = [], isLoading, refetch } = useQuery({
-    queryKey: ["ops-all-bookings", activeTab, locationId],
+    queryKey: ["ops-all-bookings", activeTab, locationId, debouncedSearch],
     queryFn: async () => {
-      const filters = { locationId: locationId || undefined };
+      const filters = { 
+        locationId: locationId || undefined,
+        search: debouncedSearch.trim() || undefined,
+      };
       if (activeTab === "all") {
-        // Fetch all statuses in parallel
         const [pending, confirmed, active, completed, cancelled] = await Promise.all([
           listBookings({ ...filters, status: "pending" }),
           listBookings({ ...filters, status: "confirmed" }),
@@ -136,17 +147,7 @@ export default function OpsBookings() {
     },
   });
 
-  // Filter by search term
-  const filteredBookings = useMemo(() => {
-    if (!search.trim()) return bookings;
-    const term = search.toLowerCase();
-    return bookings.filter((b) => 
-      b.bookingCode.toLowerCase().includes(term) ||
-      b.profile?.fullName?.toLowerCase().includes(term) ||
-      b.profile?.phone?.includes(term) ||
-      b.profile?.email?.toLowerCase().includes(term)
-    );
-  }, [bookings, search]);
+  const filteredBookings = bookings;
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
