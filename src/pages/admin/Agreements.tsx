@@ -339,7 +339,7 @@ export default function AdminAgreements() {
 
       {/* View Agreement Modal */}
       <Dialog open={!!viewAgreement} onOpenChange={() => setViewAgreement(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
@@ -355,20 +355,20 @@ export default function AdminAgreements() {
                   <span>Signed: <strong className="text-foreground">{format(new Date(viewAgreement.customerSignedAt), "MMM d, yyyy h:mm a")}</strong></span>
                 )}
               </div>
-              <div
-                className="border rounded-lg p-4 bg-white text-sm prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: viewAgreement.agreementContent }}
-              />
-              {viewAgreement.signaturePngUrl && (
-                <div className="border rounded-lg p-4">
-                  <p className="text-xs text-muted-foreground mb-2">Customer Signature</p>
-                  <img
-                    src={viewAgreement.signaturePngUrl}
-                    alt="Customer signature"
-                    className="max-h-24 border rounded"
+              <ScrollArea className="h-[60vh] border rounded-lg p-4 bg-muted/30">
+                {isLoadingFull ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Skeleton className="h-8 w-48" />
+                  </div>
+                ) : fullAgreement ? (
+                  <AgreementStructuredView agreement={fullAgreement} bookingId={viewAgreement.bookingId} />
+                ) : (
+                  <div
+                    className="border rounded-lg p-4 bg-white text-sm prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: viewAgreement.agreementContent }}
                   />
-                </div>
-              )}
+                )}
+              </ScrollArea>
             </div>
           )}
         </DialogContent>
