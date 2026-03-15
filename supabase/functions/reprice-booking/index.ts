@@ -278,6 +278,35 @@ Deno.serve(async (req) => {
       };
       auditAction = "upgrade_fee_removed";
 
+    } else if (operation === "update_time_only") {
+      // Update pickup/return timestamps WITHOUT recalculating any financial fields
+      const { newStartAt, newEndAt } = body;
+      if (!newStartAt && !newEndAt) {
+        return jsonResp({ error: "Missing newStartAt or newEndAt" }, 400, corsHeaders);
+      }
+
+      if (!["pending", "confirmed", "active", "overdue"].includes(booking.status)) {
+        return jsonResp({ error: "Only pending/confirmed/active/overdue bookings can be modified" }, 400, corsHeaders);
+      }
+
+      const effectiveStartAt = newStartAt || booking.start_at;
+      const effectiveEndAt = newEndAt || booking.end_at;
+
+      if (new Date(effectiveEndAt) <= new Date(effectiveStartAt)) {
+        return jsonResp({ error: "Return date must be after pickup date" }, 400, corsHeaders);
+      }
+
+      oldData = {
+        start_at: booking.start_at,
+        end_at: booking.end_at,
+      };
+
+      updateData = {};
+      if (newStartAt) updateData.start_at = newStartAt;
+      if (newEndAt) updateData.end_at = newEndAt;
+      // NO financial field changes — preserves customer's agreed price
+      auditAction = "booking_time_adjusted";
+
     } else if (operation === "change_protection") {
       // Change protection plan and recalculate totals
       const { newProtectionPlan } = body;

@@ -19,6 +19,7 @@ export interface BookingEditPayload {
   locationId?: string;
   dailyRate?: number;
   reason: string;
+  timeOnly?: boolean;
 }
 
 export interface BookingEditPreview {
