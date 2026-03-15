@@ -294,6 +294,81 @@ export default function Reconciliation() {
   const bulkMatched = bulkResults?.filter((r) => r.found).length ?? 0;
   const bulkNotFound = bulkResults?.filter((r) => !r.found).length ?? 0;
 
+  // Fetch live Bambora data for all transaction IDs
+  const handleFetchBambora = async () => {
+    const txnIds = new Set<string>();
+    rows.forEach((r) => {
+      if (r.wlTransactionId) txnIds.add(r.wlTransactionId);
+      if (r.wlDepositTransactionId) txnIds.add(r.wlDepositTransactionId);
+    });
+
+    if (txnIds.size === 0) {
+      toast.error("No transaction IDs to query");
+      return;
+    }
+
+    setBamboraLoading(true);
+    setBamboraData(null);
+
+    try {
+      const results: BamboraTxn[] = [];
+      const ids = Array.from(txnIds);
+
+      // Process in batches of 5 to avoid overwhelming the API
+      for (let i = 0; i < ids.length; i += 5) {
+        const batch = ids.slice(i, i + 5);
+        const batchResults = await Promise.allSettled(
+          batch.map(async (txnId) => {
+            const { data, error } = await supabase.functions.invoke("wl-query-txn", {
+              body: { transactionId: txnId },
+            });
+
+            if (error) {
+              return { transactionId: txnId, error: "Function error" } as BamboraTxn;
+            }
+
+            if (!data?.ok || !data?.data) {
+              return {
+                transactionId: txnId,
+                amount: 0,
+                cardLastFour: "",
+                cardType: "",
+                status: "error",
+                dateTime: "",
+                orderNumber: "",
+                error: data?.data?.message || "Not found at gateway",
+              } as BamboraTxn;
+            }
+
+            const txn = data.data;
+            return {
+              transactionId: String(txn.id),
+              amount: Number(txn.amount || 0),
+              cardLastFour: txn.card?.last_four || "",
+              cardType: txn.card?.card_type || "",
+              status: txn.approved === 1 ? "Approved" : txn.message || "Declined",
+              dateTime: txn.created || "",
+              orderNumber: txn.order_number || "",
+            } as BamboraTxn;
+          })
+        );
+
+        batchResults.forEach((r) => {
+          if (r.status === "fulfilled") results.push(r.value);
+          else results.push({ transactionId: "unknown", error: "Request failed" } as BamboraTxn);
+        });
+      }
+
+      setBamboraData(results);
+      toast.success(`Fetched ${results.length} transactions from Bambora`);
+    } catch (err) {
+      toast.error("Failed to fetch Bambora data");
+      console.error(err);
+    } finally {
+      setBamboraLoading(false);
+    }
+  };
+
   // Find rental payment for a row
   const getRentalPayment = (row: ReconciliationRow) =>
     row.payments.find((p) => p.paymentType === "rental" || p.paymentType === "PAC" || p.paymentType === "P") ||
