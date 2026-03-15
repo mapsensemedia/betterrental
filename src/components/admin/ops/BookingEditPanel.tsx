@@ -477,7 +477,6 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
                 )}
               </div>
             </AlertDialogDescription>
-            </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-3">
             <Label htmlFor="edit-reason" className="text-sm font-medium">
