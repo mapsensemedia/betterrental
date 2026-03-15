@@ -136,15 +136,19 @@ export function useEditBooking() {
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["booking-activity-timeline", result.bookingId] });
 
-      const diff = result.priceDifference;
-      const msg = result.locationChanged ? "Booking updated (location changed — vehicle cleared)" : "Booking updated";
-      toast.success(msg, {
-        description: diff > 0
-          ? `Additional charge: $${diff.toFixed(2)} CAD`
-          : diff < 0
-          ? `Refund: $${Math.abs(diff).toFixed(2)} CAD`
-          : "No price change",
-      });
+      if (result.timeOnly) {
+        toast.success("Return time updated — no price change");
+      } else {
+        const diff = result.priceDifference;
+        const msg = result.locationChanged ? "Booking updated (location changed — vehicle cleared)" : "Booking updated";
+        toast.success(msg, {
+          description: diff > 0
+            ? `Additional charge: $${diff.toFixed(2)} CAD`
+            : diff < 0
+            ? `Refund: $${Math.abs(diff).toFixed(2)} CAD`
+            : "No price change",
+        });
+      }
     },
     onError: (err) => {
       toast.error((err as Error).message || "Failed to edit booking");
