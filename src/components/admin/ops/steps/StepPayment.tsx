@@ -43,6 +43,7 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: paymentStatus, isLoading } = usePaymentDepositStatus(bookingId);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
+  const [payMode, setPayMode] = useState<"card" | "terminal">("card");
   const queryClient = useQueryClient();
 
   const copyToClipboard = (text: string, label: string) => {
