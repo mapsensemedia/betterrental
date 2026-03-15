@@ -59,6 +59,7 @@ const AdminAlerts = lazy(() => import("./pages/admin/Alerts"));
 const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
 const AdminBookingDetail = lazy(() => import("./pages/admin/BookingDetail"));
 const AdminBilling = lazy(() => import("./pages/admin/Billing"));
+const AdminPaymentDashboard = lazy(() => import("./pages/admin/PaymentDashboard"));
 const AdminInventory = lazy(() => import("./pages/admin/Inventory"));
 const AdminCalendar = lazy(() => import("./pages/admin/Calendar"));
 const AdminTickets = lazy(() => import("./pages/admin/Tickets"));
