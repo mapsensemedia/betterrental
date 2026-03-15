@@ -192,8 +192,9 @@ const App = () => (
                 <Route path="/admin/bookings/:bookingId" element={<AdminProtectedRoute><AdminBookingDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings/:bookingId/ops" element={<AdminProtectedRoute><BookingOps /></AdminProtectedRoute>} />
                 <Route path="/admin/agreements" element={<AdminProtectedRoute><AdminAgreements /></AdminProtectedRoute>} />
-                <Route path="/admin/billing" element={<AdminProtectedRoute><AdminBilling /></AdminProtectedRoute>} />
-                <Route path="/admin/payment-dashboard" element={<AdminProtectedRoute><AdminPaymentDashboard /></AdminProtectedRoute>} />
+                <Route path="/admin/finance" element={<AdminProtectedRoute><AdminFinance /></AdminProtectedRoute>} />
+                <Route path="/admin/billing" element={<Navigate to="/admin/finance?tab=transactions" replace />} />
+                <Route path="/admin/payment-dashboard" element={<Navigate to="/admin/finance?tab=overview" replace />} />
                 <Route path="/admin/reconciliation" element={<AdminProtectedRoute><AdminReconciliation /></AdminProtectedRoute>} />
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
