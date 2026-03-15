@@ -82,12 +82,9 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
   // Detect time-only change: same calendar date but different time, no location/rate change
   const isTimeOnlyChange = useMemo(() => {
     if (!hasChanges || locationChanged || rateChanged) return false;
-    const oldStartDate = startAt !== booking.start_at ? booking.start_at.substring(0, 10) : null;
-    const newStartDate = startAt !== booking.start_at ? new Date(startAt).toISOString().substring(0, 10) : null;
-    const oldEndDate = endAt !== booking.end_at ? booking.end_at.substring(0, 10) : null;
-    const newEndDate = endAt !== booking.end_at ? new Date(endAt).toISOString().substring(0, 10) : null;
-    const startDateSame = !oldStartDate || oldStartDate === newStartDate;
-    const endDateSame = !oldEndDate || oldEndDate === newEndDate;
+    const localDate = (iso: string) => format(new Date(iso), "yyyy-MM-dd");
+    const startDateSame = startAt === booking.start_at || localDate(startAt) === localDate(booking.start_at);
+    const endDateSame = endAt === booking.end_at || localDate(endAt) === localDate(booking.end_at);
     return startDateSame && endDateSame;
   }, [hasChanges, startAt, endAt, booking.start_at, booking.end_at, locationChanged, rateChanged]);
 
