@@ -636,6 +636,81 @@ export default function Reconciliation() {
             )}
           </CardContent>
         </Card>
+        {/* ── SECTION 3: LIVE BAMBORA DATA ── */}
+        <Card>
+          <CardContent className="p-0">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold">Live Bambora Transactions</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Fetch real-time transaction data directly from the payment gateway
+                </p>
+              </div>
+              <Button onClick={handleFetchBambora} disabled={bamboraLoading || rows.length === 0}>
+                {bamboraLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Fetch from Bambora
+              </Button>
+            </div>
+
+            {bamboraData && (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead>Transaction ID</TableHead>
+                      <TableHead>Order Ref</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Card</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date/Time</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bamboraData.map((txn, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-mono text-sm">{txn.transactionId}</TableCell>
+                        <TableCell className="font-mono text-sm">{txn.orderNumber || "—"}</TableCell>
+                        <TableCell className="text-sm font-medium">
+                          {txn.error ? "—" : `$${txn.amount.toFixed(2)}`}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {txn.cardLastFour ? (
+                            <span>{txn.cardType} •••• {txn.cardLastFour}</span>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {txn.error ? (
+                            <Badge variant="destructive" className="text-xs">{txn.error}</Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className={
+                                txn.status === "Approved"
+                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                  : "bg-destructive/10 text-destructive border-destructive/20"
+                              }
+                            >
+                              {txn.status}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {txn.dateTime
+                            ? format(new Date(txn.dateTime), "MMM d, yyyy h:mm a")
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AdminShell>
   );
