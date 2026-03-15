@@ -141,7 +141,7 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
 
   // Show inline payment form when unpaid
   const canShowPayForm = !isPaid && !wlTransactionId
-    && (bookingStatus === "confirmed" || bookingStatus === "pending");
+    && (bookingStatus === "confirmed" || bookingStatus === "pending" || bookingStatus === "draft");
 
   // Show deposit-only form when paid but no deposit hold
   const canShowDepositOnly = isPaid && !hasDeposit && !wlDepositTxnId;
