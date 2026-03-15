@@ -304,6 +304,9 @@ export default function Reconciliation() {
       if (r.wlDepositTransactionId) txnIds.add(r.wlDepositTransactionId);
     });
 
+    // Add manually entered IDs
+    manualTxnInput.split(/[\n,\s]+/).map(s => s.trim()).filter(Boolean).forEach(id => txnIds.add(id));
+
     if (txnIds.size === 0) {
       toast.error("No transaction IDs to query");
       return;
