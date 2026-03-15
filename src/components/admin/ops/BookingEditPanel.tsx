@@ -78,18 +78,30 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
   const rateChanged = parseFloat(dailyRate) !== booking.daily_rate && !isNaN(parseFloat(dailyRate));
   const hasChanges = startAt !== booking.start_at || endAt !== booking.end_at || locationId !== booking.location_id || rateChanged;
 
+  // Detect time-only change: same calendar date but different time, no location/rate change
+  const isTimeOnlyChange = useMemo(() => {
+    if (!hasChanges || locationChanged || rateChanged) return false;
+    const oldStartDate = startAt !== booking.start_at ? booking.start_at.substring(0, 10) : null;
+    const newStartDate = startAt !== booking.start_at ? new Date(startAt).toISOString().substring(0, 10) : null;
+    const oldEndDate = endAt !== booking.end_at ? booking.end_at.substring(0, 10) : null;
+    const newEndDate = endAt !== booking.end_at ? new Date(endAt).toISOString().substring(0, 10) : null;
+    const startDateSame = !oldStartDate || oldStartDate === newStartDate;
+    const endDateSame = !oldEndDate || oldEndDate === newEndDate;
+    return startDateSame && endDateSame;
+  }, [hasChanges, startAt, endAt, booking.start_at, booking.end_at, locationChanged, rateChanged]);
+
   // Detect notes changes
   const notesChanged = notes !== (booking.notes || "") || specialInstructions !== (booking.special_instructions || "");
 
-  // Preview pricing
+  // Preview pricing (skip for time-only changes)
   const preview = useMemo(() => {
-    if (!hasChanges) return null;
+    if (!hasChanges || isTimeOnlyChange) return null;
     try {
       return previewBookingEdit(booking, startAt, endAt);
     } catch {
       return null;
     }
-  }, [hasChanges, startAt, endAt, booking]);
+  }, [hasChanges, isTimeOnlyChange, startAt, endAt, booking]);
 
   const formatLocalDatetime = (isoString: string) => {
     return format(new Date(isoString), "yyyy-MM-dd'T'HH:mm");
