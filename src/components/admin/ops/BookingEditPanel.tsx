@@ -445,24 +445,38 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Booking Edit</AlertDialogTitle>
-            <AlertDialogDescription>
-              {preview && (
-                <span>
-                  Duration: {preview.originalDays} → {preview.newDays} day{preview.newDays !== 1 ? "s" : ""}
-                  {rateChanged && <>. Daily rate: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}</>}
-                  {priceDiff !== 0 && (
-                    <>. Price {priceDiff > 0 ? "increase" : "decrease"}: ${Math.abs(priceDiff).toFixed(2)} CAD</>
-                  )}
-                  {locationChanged && ". Location changed — vehicle assignment will be cleared."}
-                </span>
-              )}
-              {!preview && locationChanged && (
-                <span>Location changed — vehicle assignment will be cleared.</span>
-              )}
-              {!preview && rateChanged && !locationChanged && (
-                <span>Daily rate override: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}/day</span>
-              )}
+            <AlertDialogTitle>{isTimeOnlyChange ? "Confirm Time Adjustment" : "Confirm Booking Edit"}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                {isTimeOnlyChange && (
+                  <>
+                    {startAt !== booking.start_at && (
+                      <p>Pickup: {format(new Date(booking.start_at), "h:mm a")} → {format(new Date(startAt), "h:mm a")}</p>
+                    )}
+                    {endAt !== booking.end_at && (
+                      <p>Return: {format(new Date(booking.end_at), "h:mm a")} → {format(new Date(endAt), "h:mm a")}</p>
+                    )}
+                    <p className="font-medium text-emerald-600">Total price will NOT change.</p>
+                  </>
+                )}
+                {!isTimeOnlyChange && preview && (
+                  <p>
+                    Duration: {preview.originalDays} → {preview.newDays} day{preview.newDays !== 1 ? "s" : ""}
+                    {rateChanged && <>. Daily rate: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}</>}
+                    {priceDiff !== 0 && (
+                      <>. Price {priceDiff > 0 ? "increase" : "decrease"}: ${Math.abs(priceDiff).toFixed(2)} CAD</>
+                    )}
+                    {locationChanged && ". Location changed — vehicle assignment will be cleared."}
+                  </p>
+                )}
+                {!isTimeOnlyChange && !preview && locationChanged && (
+                  <p>Location changed — vehicle assignment will be cleared.</p>
+                )}
+                {!isTimeOnlyChange && !preview && rateChanged && !locationChanged && (
+                  <p>Daily rate override: ${booking.daily_rate.toFixed(2)} → ${parseFloat(dailyRate).toFixed(2)}/day</p>
+                )}
+              </div>
+            </AlertDialogDescription>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-3">
