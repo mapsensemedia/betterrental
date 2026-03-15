@@ -76,7 +76,8 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
 
   // Detect if anything changed (dates/location/rate)
   const rateChanged = parseFloat(dailyRate) !== booking.daily_rate && !isNaN(parseFloat(dailyRate));
-  const hasChanges = startAt !== booking.start_at || endAt !== booking.end_at || locationId !== booking.location_id || rateChanged;
+  const locationChanged = locationId !== booking.location_id;
+  const hasChanges = startAt !== booking.start_at || endAt !== booking.end_at || locationChanged || rateChanged;
 
   // Detect time-only change: same calendar date but different time, no location/rate change
   const isTimeOnlyChange = useMemo(() => {
