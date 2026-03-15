@@ -675,6 +675,7 @@ export default function Reconciliation() {
                       <TableRow key={i}>
                         <TableCell className="font-mono text-sm">{txn.transactionId}</TableCell>
                         <TableCell className="font-mono text-sm">{txn.orderNumber || "—"}</TableCell>
+                        <TableCell className="text-sm">{txn.type}</TableCell>
                         <TableCell className="text-sm font-medium">
                           {txn.error ? "—" : `$${txn.amount.toFixed(2)}`}
                         </TableCell>
