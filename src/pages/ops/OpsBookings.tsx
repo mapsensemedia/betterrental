@@ -157,6 +157,7 @@ export default function OpsBookings() {
   const handleOpenBooking = (booking: BookingSummary) => {
     // Route based on status
     switch (booking.status) {
+      case "draft":
       case "pending":
       case "confirmed":
         navigate(`/ops/booking/${booking.id}/handover`);
