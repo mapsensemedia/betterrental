@@ -619,7 +619,7 @@ export default function AdminBilling() {
             </TabsTrigger>
             <TabsTrigger value="payments" className="gap-1.5">
               <CreditCard className="w-3.5 h-3.5" />
-              Payments
+              Payments ({payments.length})
             </TabsTrigger>
             <TabsTrigger value="deposits" className="gap-1.5">
               <Banknote className="w-3.5 h-3.5" />
