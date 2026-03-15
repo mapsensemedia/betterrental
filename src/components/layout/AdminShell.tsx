@@ -350,33 +350,47 @@ export function AdminShell({
               </Button>
             </div>
             <nav className="space-y-0.5">
-              {navItems.map(item => {
-                const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0;
-                return (
-                  <Link 
-                    key={item.href} 
-                    to={item.href} 
-                    onClick={() => setMobileMenuOpen(false)} 
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors", 
-                      isActive(item.href) 
-                        ? "bg-primary text-primary-foreground" 
-                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                    {badgeCount > 0 && (
-                      <Badge 
-                        variant={item.priority ? "destructive" : "secondary"} 
-                        className="ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center"
-                      >
-                        {badgeCount > 99 ? "99+" : badgeCount}
-                      </Badge>
-                    )}
-                  </Link>
-                );
-              })}
+              {navGroups.map((group, index) => (
+                <div key={group.title}>
+                  {index > 0 && <div className="py-2"><div className="h-px bg-border/40" /></div>}
+                  <p className={cn(
+                    "px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider",
+                    group.priority ? "text-destructive/80" : "text-muted-foreground/60"
+                  )}>
+                    {group.title}
+                  </p>
+                  <div className="space-y-0.5">
+                    {group.items.map(item => {
+                      const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0;
+                      return (
+                        <Link 
+                          key={item.href + item.label} 
+                          to={item.href} 
+                          onClick={() => setMobileMenuOpen(false)}
+                          title={item.description}
+                          className={cn(
+                            "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors", 
+                            isActive(item.href) 
+                              ? "bg-primary text-primary-foreground" 
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          )}
+                        >
+                          <item.icon className="w-4 h-4" />
+                          {item.label}
+                          {badgeCount > 0 && (
+                            <Badge 
+                              variant={group.priority ? "destructive" : "secondary"} 
+                              className="ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center"
+                            >
+                              {badgeCount > 99 ? "99+" : badgeCount}
+                            </Badge>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
               
               {/* Ops Panel Switch - Mobile */}
               {caps?.canAccessOpsPanel && (
