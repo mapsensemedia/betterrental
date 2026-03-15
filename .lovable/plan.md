@@ -1,167 +1,84 @@
 
 
-# Production Bug Fix Plan — 4 Critical Issues
+# C2C Rental Booking Flow — Return Time & Pricing Fix
 
-## Evidence Summary
+## Problem Analysis
 
-**DB state** (all 3 paid bookings):
-- `3RZW932M`: wl_auth_status=completed, deposit_status=none, txn=10000000
-- `FZH86F8W`: wl_auth_status=completed, deposit_status=none, txn=10000001
-- `4HL5K9QV`: wl_auth_status=completed, deposit_status=none, txn=10000003
+After thorough code inspection, here are the two root causes:
 
-All payments are `payment_type=rental`, zero deposit payment records exist. No edge function logs available for `wl-authorize`, `wl-pay`, or `create-walk-in-booking` (logging gap is itself a concern).
+### Bug #1: Return Time Resets to Midnight
+The `localDateTimeToISO` function correctly converts date + time to ISO. However, the pricing engine (`computeBookingTotals` in `_shared/booking-core.ts` line 474-478) strips time from both `startAt` and `endAt`, using only the date portion (`substring(0, 10)`) for day calculations. **The timestamps themselves are stored correctly in the DB with the customer's selected time** — the `create-booking` edge function passes `startAt` and `endAt` directly to the insert (lines 213-214).
 
----
+So this is actually **not a storage bug**. The customer's time IS persisted. If the user is seeing 12:00 AM, it's likely a display issue or the `localDateTimeToISO` function converting to UTC (`.toISOString()` always outputs UTC). A customer selecting 12:00 PM PDT gets stored as `2026-03-15T20:00:00.000Z` — which when naively displayed without timezone conversion shows 8:00 PM UTC, not midnight. **I need to verify the actual display behavior.**
 
-## P1 — Deposit Hold Not Created
+**Real fix**: Ensure all UI display points use local timezone formatting (which `date-fns` `format()` already does). The `localDateTimeToISO` function is correct. If there's a confirmed midnight issue, it would be in how the search context hydrates the time from URL params.
 
-**Proven**: `wl-authorize` never succeeds — zero deposit payment records in DB, zero logs.
+### Bug #2: Ops Edit Triggers Unintended Price Recalculation
+This is confirmed. The `BookingEditPanel` sends ALL date changes through `reprice-booking` with operation `"modify"`, which always runs the full pricing engine including duration discounts. When ops changes return time by a few hours (e.g., 12:00 PM → 3:00 PM on same day), the day count doesn't change but the discount tiers might shift if it crosses a day boundary. More critically, **any date edit forces a full reprice** — there's no way for ops to update just the return time without triggering price recalculation.
 
-**Most likely cause**: `wl-authorize` uses `order_number: booking.booking_code` (line 53), same as `wl-pay` (line 60 in wl-pay). Bambora may reject duplicate order numbers. Additionally, the token lifecycle after first tokenization is uncertain.
+## Plan
 
-**Not yet proven without logs**: exact gateway rejection reason.
+### 1. Add "update_time_only" operation to `reprice-booking` edge function
+**File**: `supabase/functions/reprice-booking/index.ts`
 
-### Fix (requires 1-line edge function change — justified)
+Add a new operation branch `"update_time_only"` that:
+- Accepts `newStartAt` and/or `newEndAt` timestamps
+- Updates ONLY `start_at` and/or `end_at` in the bookings table
+- Does NOT recalculate any financial fields
+- Writes an audit log entry with action `"booking_time_adjusted"`
+- Returns the updated timestamps without any pricing data
 
-**File: `supabase/functions/wl-authorize/index.ts`** line 53:
-- Change `order_number: booking.booking_code` → `order_number: booking.booking_code + "-DEP"`
-- This is the only way to fix this; the frontend cannot control order_number.
-
-**File: `src/pages/NewCheckout.tsx`** lines 867-891 (onSuccess callback):
-- Add structured console logging: `console.log("[checkout] deposit hold attempt", { bookingId, hasToken })` and `console.log("[checkout] deposit hold result", { error })`
-- After deposit failure, show a non-blocking info toast: "Rental paid. Deposit hold will be arranged separately."
-
-**Rollout**: Deploy edge function change first, then frontend. Rollback: revert the 1-line change.
-
----
-
-## P2 — Customer Sees "Payment Failed" But Payment Succeeded
-
-**Root cause**: When `supabase.functions.invoke()` encounters a network timeout, CORS issue, or response parsing failure, it sets `error` (FunctionsHttpError) even though the server successfully processed the payment. The UI at `WorldlineCheckout.tsx` line 233 immediately shows the error without verifying server state.
-
-### Fix
-
-**File: `src/components/payments/WorldlineCheckout.tsx`** lines 231-252 (the `if (error)` block):
-
-Before displaying an error to the user, add a server-side verification step:
-
-```typescript
-if (error) {
-  // Before showing error, verify if payment actually succeeded server-side
-  if (bookingIdRef.current && bookingIdRef.current !== "pending") {
-    const { data: booking } = await supabase
-      .from("bookings")
-      .select("status, wl_transaction_id")
-      .eq("id", bookingIdRef.current)
-      .single();
-    
-    if (booking?.wl_transaction_id && booking.status === "confirmed") {
-      // Payment succeeded server-side despite client error
-      console.warn("[WorldlineCheckout] Payment succeeded server-side despite client error");
-      onSuccess({ transactionId: booking.wl_transaction_id, lastFour: "" });
-      setIsProcessing(false);
-      resolve();
-      return;
-    }
-  }
-  // ... existing error display logic
+```text
+if (operation === "update_time_only") {
+  // Only update timestamps, no pricing recalculation
+  updateData = {};
+  if (newStartAt) updateData.start_at = newStartAt;
+  if (newEndAt) updateData.end_at = newEndAt;
+  // NO financial field changes
+  auditAction = "booking_time_adjusted";
 }
 ```
 
-This is idempotent, race-safe (worst case shows success slightly late), and adds observability via the console.warn.
+### 2. Split BookingEditPanel into time-only vs full edit modes
+**File**: `src/components/admin/ops/BookingEditPanel.tsx`
 
-**Rollback**: Revert the verification block; error display returns to current behavior.
+Add a toggle/separation between:
+- **"Adjust Time"** — only updates pickup/return time on the same dates. Calls `reprice-booking` with `operation: "update_time_only"`. Shows a confirmation dialog with old vs new times and a message: "Total price will NOT change."
+- **"Full Edit"** (existing behavior) — for date changes that shift day count, location changes, or rate overrides. Continues to call with `operation: "modify"`.
 
----
+Logic: When only the time portion changed (same calendar date), default to `update_time_only`. When the date portion changes, use `modify` as before.
 
-## P3 — Walk-in Booking Fails
+### 3. Add `useEditBooking` support for time-only operation  
+**File**: `src/hooks/use-booking-edit.ts`
 
-**Root cause**: At `DeliveryWalkIn.tsx` line 96, `if (error) throw error` fires for any non-2xx response from the edge function. The throw jumps to the catch block at line 109, which shows the generic message "Failed to create booking". The meaningful error message (e.g., "staff role required") in the response body is never shown.
+Add a `timeOnly` flag to `BookingEditPayload`. When set, the mutation sends `operation: "update_time_only"` instead of `"modify"`. The success toast says "Return time updated — no price change."
 
-With Supabase JS SDK, when `error` is a `FunctionsHttpError`, the response body is in `error.context`, NOT in `data`. So `data?.error` at line 98 may never be reachable.
+### 4. Verify customer-facing time display
+**Files**: Display components that format `start_at`/`end_at`
 
-### Fix
+Audit key display points to confirm they use `format(new Date(isoString), "h:mm a")` (date-fns, which uses local timezone). The existing code already does this correctly in:
+- `OpsPickups.tsx` (line 47: `parseISO` + `format`)
+- `BookingEditPanel.tsx` (line 96: `format(new Date(...))`)
+- Booking detail views
 
-**File: `src/pages/delivery/DeliveryWalkIn.tsx`** lines 96-111:
+No changes needed here unless testing reveals an actual midnight display bug.
 
-Replace the error handling with proper FunctionsHttpError parsing:
+### 5. Confirmation dialog for time-only changes
+**File**: `src/components/admin/ops/BookingEditPanel.tsx`
 
-```typescript
-if (error) {
-  // Parse meaningful error from edge function response
-  let errorMessage = "Failed to create booking";
-  try {
-    const body = await (error as any)?.context?.json?.();
-    if (body?.error) {
-      errorMessage = body.error === "Forbidden: staff role required"
-        ? "Access denied: staff role required"
-        : body.error;
-    }
-  } catch {
-    // Fall through to generic message
-  }
-  toast.error(errorMessage);
-  return;
-}
+When the edit is time-only, the confirmation dialog shows:
+- Old pickup/return time
+- New pickup/return time  
+- "Total price will NOT change" (explicit reassurance)
+- No pricing preview section
 
-if (data?.error) {
-  toast.error(data.error === "Forbidden: staff role required"
-    ? "Access denied: staff role required"
-    : data.error);
-  return;
-}
-```
+### Summary of file changes
 
-**Rollback**: Revert to `if (error) throw error`.
+| File | Change |
+|------|--------|
+| `supabase/functions/reprice-booking/index.ts` | Add `update_time_only` operation branch |
+| `src/hooks/use-booking-edit.ts` | Add `timeOnly` flag to payload and mutation |
+| `src/components/admin/ops/BookingEditPanel.tsx` | Auto-detect time-only changes, use appropriate operation, update confirmation dialog |
 
----
-
-## P4 — Vehicle Exchange Broken After Fleet Updates
-
-**Root cause**: `useAvailableVehicles()` in `use-vehicle-assignment.ts` line 76 queries the **legacy `vehicles` table** (30 stale rows). The modern fleet is managed via `vehicle_units` (11 active rows). When staff adds/removes vehicles through `UnifiedVehicleManager`, the legacy table is never updated.
-
-Additionally, `useAssignVehicle()` at line 143 updates `bookings.vehicle_id` (category-level), not `bookings.assigned_unit_id` (unit-level). This is a category assignment, which is correct for category changes but wrong for unit-level vehicle exchange.
-
-### Fix
-
-**File: `src/hooks/use-vehicle-assignment.ts`**:
-
-1. **`useAvailableVehicles`** (lines 62-104): Replace the `vehicles` table query with `vehicle_units` joined to `vehicle_categories`:
-   ```typescript
-   const { data: units } = await supabase
-     .from('vehicle_units')
-     .select('id, vin, license_plate, color, status, category_id, location_id, vehicle_categories(id, name, daily_rate, image_url)')
-     .eq('location_id', locationId)
-     .in('status', ['available']);
-   ```
-   Then filter by conflict check using `bookings.assigned_unit_id` instead of `bookings.vehicle_id`.
-
-2. **`useCheckVehicleAvailability`** (lines 20-60): This checks category-level availability via `bookings.vehicle_id` — this is correct for category checks. No change needed here.
-
-3. **`useAssignVehicle`** (lines 107-176): The conflict check at line 127 uses `bookings.vehicle_id` (category). For unit-level assignment, add a parallel check on `bookings.assigned_unit_id`. The update at line 143 should set `assigned_unit_id` in addition to `vehicle_id` when assigning a specific unit.
-
-**Rollback**: Revert query changes.
-
----
-
-## Deployment Order
-
-1. **P3** (walk-in error handling) — zero risk, error display only
-2. **P4** (vehicle assignment query migration) — low risk, only affects assignment UI
-3. **P2** (payment verification fallback) — adds resilience, no behavior change for success path
-4. **P1** (edge function order_number + frontend logging) — enables deposit holds
-
-## Files Changed
-
-| File | Bug |
-|------|-----|
-| `supabase/functions/wl-authorize/index.ts` | P1 (1 line) |
-| `src/pages/NewCheckout.tsx` | P1 (logging) |
-| `src/components/payments/WorldlineCheckout.tsx` | P2 |
-| `src/pages/delivery/DeliveryWalkIn.tsx` | P3 |
-| `src/hooks/use-vehicle-assignment.ts` | P4 |
-
-## Open Item
-
-Edge function logs showing "No logs found" for all payment functions. This must be investigated separately — either the functions are not being invoked (unlikely given DB records), or log retention/routing is misconfigured. After P1 fix is deployed, the first test booking should confirm logs appear.
+No database schema changes needed — `start_at` and `end_at` already store full timestamps correctly.
 
