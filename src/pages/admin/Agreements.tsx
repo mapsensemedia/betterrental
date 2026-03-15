@@ -131,6 +131,11 @@ export default function AdminAgreements() {
   const [viewAgreement, setViewAgreement] = useState<AgreementRow | null>(null);
   const [viewSignature, setViewSignature] = useState<string | null>(null);
 
+  // Fetch full agreement data when viewing
+  const { data: fullAgreement, isLoading: isLoadingFull } = useRentalAgreement(
+    viewAgreement?.bookingId || null
+  );
+
   const filtered = useMemo(() => {
     let list = agreements;
     if (tab === "signed") {
