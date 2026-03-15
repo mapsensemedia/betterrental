@@ -182,14 +182,13 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
       const startAt = params.get("startAt");
       const endAt = params.get("endAt");
       if (startAt) {
-        // Use parseLocalDate for "YYYY-MM-DD" strings to avoid UTC shift
         if (startAt.length === 10 && !startAt.includes("T")) {
           stored.pickupDate = parseLocalDate(startAt);
         } else {
-          // Legacy ISO string — extract local date
           const d = new Date(startAt);
           if (!isNaN(d.getTime())) {
             stored.pickupDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            stored.pickupTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
           }
         }
       }
@@ -200,6 +199,7 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
           const d = new Date(endAt);
           if (!isNaN(d.getTime())) {
             stored.returnDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            stored.returnTime = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
           }
         }
       }
