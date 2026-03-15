@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
       }
 
-      if (!["pending", "confirmed", "active", "overdue"].includes(booking.status)) {
+      if (!["draft", "pending", "confirmed", "active", "overdue"].includes(booking.status)) {
         return jsonResp({ error: "Only pending/confirmed/active/overdue bookings can be modified" }, 400, corsHeaders);
       }
 
@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "Missing newStartAt or newEndAt" }, 400, corsHeaders);
       }
 
-      if (!["pending", "confirmed", "active", "overdue"].includes(booking.status)) {
+      if (!["draft", "pending", "confirmed", "active", "overdue"].includes(booking.status)) {
         return jsonResp({ error: "Only pending/confirmed/active/overdue bookings can be modified" }, 400, corsHeaders);
       }
 
