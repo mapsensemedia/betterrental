@@ -6,6 +6,7 @@
  */
 import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { TerminalPaymentForm } from "@/components/payments/TerminalPaymentForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
