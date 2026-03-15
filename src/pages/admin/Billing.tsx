@@ -468,11 +468,13 @@ export default function AdminBilling() {
     }
   };
 
-  // Stats
+  // Stats — combined from all sources
   const totalRevenue = payments.filter(p => p.status === "completed").reduce((sum, p) => sum + Number(p.amount), 0);
   const pendingAmount = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
   const depositPayments = payments.filter(p => p.payment_type === "deposit");
   const totalDeposits = depositPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const worldlineCount = payments.filter(p => p.source === "worldline").length;
+  const manualCount = payments.filter(p => p.source === "manual").length;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
