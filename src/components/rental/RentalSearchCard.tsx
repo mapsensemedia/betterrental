@@ -40,9 +40,10 @@ import { computeDropoffFeeFromGroups } from "@/lib/pricing";
 interface RentalSearchCardProps {
   className?: string;
   onSearchComplete?: () => void;
+  defaultLocationId?: string;
 }
 
-export function RentalSearchCard({ className, onSearchComplete }: RentalSearchCardProps) {
+export function RentalSearchCard({ className, onSearchComplete, defaultLocationId }: RentalSearchCardProps) {
   const navigate = useNavigate();
   const {
     searchData,

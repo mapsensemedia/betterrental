@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
 import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
+import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
+
+const SURREY_LOCATION_ID = "a1b2c3d4-1111-4000-8000-000000000001";
 
 const vehicleCards = [
   {
@@ -43,41 +46,6 @@ const vehicleCards = [
   },
 ];
 
-const faqItems = [
-  {
-    q: "What documents do I need to rent a car in Surrey with C2C Rental?",
-    a: "You'll need a valid driver's licence (BC or accepted international), a credit card in your name for the deposit hold, and sometimes a second piece of ID. International drivers from select countries also need an International Driving Permit alongside their home-country licence.",
-  },
-  {
-    q: "Is there a minimum age to rent a car in Surrey?",
-    a: "Yes — drivers must be at least 21. Drivers under 25 may be subject to a young driver surcharge. Premium and larger vehicles require drivers to be 25 or older. Contact us before booking if you're under 25 and we'll confirm what's available.",
-  },
-  {
-    q: "Do you offer long-term rentals in Surrey — weekly or monthly?",
-    a: "Yes. Weekly and monthly rentals are available and typically come with reduced daily rates. These are popular with newcomers, workers between vehicles, and anyone who needs a car while waiting on a purchase. Ask about our long-term options when booking.",
-  },
-  {
-    q: "Can I use a C2C rental for rideshare (Uber/Lyft) or delivery (DoorDash/Skip)?",
-    a: "Commercial use must be disclosed at booking. Whether it's permitted depends on the vehicle and applicable insurance. Do not use a C2C vehicle for rideshare or delivery without prior written approval — it could void your coverage.",
-  },
-  {
-    q: "What is the security deposit and when do I get it back?",
-    a: "A $350 hold is placed on your credit card at pickup. It is released within 3–5 business days of return, provided the vehicle comes back in the same condition with no outstanding charges. The hold is not a charge — it never leaves your account unless a claim is made.",
-  },
-  {
-    q: "Can I drive a C2C rental to the US from Surrey?",
-    a: "Cross-border travel is allowed for most standard vehicles but must be approved in advance. We'll provide the necessary insurance documentation (non-resident inter-province motor vehicle liability card). Let us know your destination when booking — don't cross without confirming first.",
-  },
-  {
-    q: "What happens if I return the car late?",
-    a: "Late returns are charged at your daily rate pro-rated by the hour (minimum 1 hour). If you know you'll be late, contact us as early as possible — we can often extend your booking if the vehicle isn't needed for another rental.",
-  },
-  {
-    q: "Do you offer airport pickup or drop-off at YVR?",
-    a: "We don't operate from YVR directly, but our Newton location is 20–25 minutes from the airport. Many customers prefer picking up with us over the airport counters — there are no airport surcharges, rates are more competitive, and check-in is faster.",
-  },
-];
-
 const renterPersonas = [
   {
     title: "Insurance Replacement Drivers",
@@ -101,30 +69,63 @@ const renterPersonas = [
   },
 ];
 
+const faqItems = [
+  {
+    q: "What documents do I need to rent a car in Surrey with C2C Rental?",
+    a: "You'll need a valid driver's licence (BC or accepted international), a credit card in your name for the deposit hold, and sometimes a second piece of ID. International drivers from select countries also need an International Driving Permit alongside their home-country licence.",
+  },
+  {
+    q: "Is there a minimum age to rent a car in Surrey?",
+    a: "Yes — drivers must be at least 21. Drivers under 25 may be subject to a young driver surcharge. Premium and larger vehicles require drivers to be 25 or older. Contact us before booking if you're under 25 and we'll confirm what's available.",
+  },
+  {
+    q: "Do you offer long-term rentals in Surrey — weekly or monthly?",
+    a: "Yes. Weekly and monthly rentals are available and typically come with reduced daily rates. These are popular with newcomers, workers between vehicles, and anyone waiting on a vehicle purchase. Ask about long-term options when booking.",
+  },
+  {
+    q: "Can I use a C2C rental for rideshare (Uber/Lyft) or delivery (DoorDash/Skip)?",
+    a: "Commercial use must be disclosed at booking. Whether it's permitted depends on the vehicle and applicable insurance. Do not use a C2C vehicle for rideshare or delivery without prior written approval — it could void your coverage.",
+  },
+  {
+    q: "What is the security deposit and when do I get it back?",
+    a: "A $350 hold is placed on your credit card at pickup. It is released within 3–5 business days of return, provided the vehicle comes back in the same condition with no outstanding charges. It's a hold, not a charge — it never leaves your account unless a claim is made.",
+  },
+  {
+    q: "Can I drive a C2C rental to the US from Surrey?",
+    a: "Cross-border travel is allowed for most standard vehicles but must be approved in advance. We provide the necessary insurance documentation. Let us know your destination at booking — don't cross without confirming first.",
+  },
+  {
+    q: "What happens if I return the car late?",
+    a: "Late returns are charged at your daily rate pro-rated by the hour (minimum 1 hour). If you know you'll be late, contact us as early as possible — we can often extend your booking if the vehicle isn't needed.",
+  },
+  {
+    q: "Do you offer airport pickup or drop-off at YVR?",
+    a: "We don't operate from YVR directly, but our Newton location is 20–25 minutes from the airport. Many customers prefer picking up with us over airport counters — no airport surcharges, more competitive rates, and faster check-in.",
+  },
+];
+
 const bookingSteps = [
-  "Search available vehicles at c2crental.com/search — filter by date, category, and pickup location",
-  "Select your vehicle and review pricing: daily rate, deposit amount, included km, and optional add-ons",
-  "Enter your driver details: licence number, date of birth, and any additional drivers",
-  "Complete checkout securely — deposit is held on your credit card, not charged",
-  "Receive your digital rental agreement by email — review and sign before pickup",
-  "Arrive at 6786 King George Blvd in Newton — we complete a walk-around with photos together",
-  "Drive away — keys in hand, agreement signed, vehicle inspected and documented",
+  "Select your dates and Surrey Newton as your pickup location in the search card above",
+  "Choose your vehicle category and review the daily rate, included km, and add-ons",
+  "Enter your driver details — licence number, date of birth, any additional drivers",
+  "Complete checkout — the $350 deposit is held, not charged, until return",
+  "Sign your digital rental agreement by email before pickup day",
+  "Arrive at 6786 King George Blvd — we complete a walk-around with photos together",
+  "Drive away — keys in hand, vehicle inspected, agreement signed",
 ];
 
 const SurreyPage = () => {
   useEffect(() => {
     document.title = "Car Rental in Surrey, BC | Affordable & Local – C2C Rental";
 
-    // Set meta description
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
       metaDesc = document.createElement("meta");
       metaDesc.setAttribute("name", "description");
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute("content", "C2C Rental offers affordable car rentals in Surrey, BC from $45/day. Economy cars, SUVs, and minivans. Serving Newton, Guildford, Whalley, Cloverdale, South Surrey. Book online today.");
+    metaDesc.setAttribute("content", "C2C Rental offers affordable car rentals in Surrey, BC from $30/day. Economy cars, SUVs, and minivans. Serving Newton, Guildford, Whalley, Cloverdale, South Surrey. Book online today.");
 
-    // Set canonical
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonical) {
       canonical = document.createElement("link");
@@ -133,7 +134,6 @@ const SurreyPage = () => {
     }
     canonical.setAttribute("href", "https://c2crental.com/surrey");
 
-    // Open Graph tags
     const ogTags = [
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "C2C Rental" },
@@ -153,7 +153,6 @@ const SurreyPage = () => {
       tag.setAttribute("content", content);
     });
 
-    // LocalBusiness + CarRental JSON-LD
     const localBusinessSchema = {
       "@context": "https://schema.org",
       "@type": ["LocalBusiness", "CarRental"],
@@ -161,8 +160,7 @@ const SurreyPage = () => {
       "name": "C2C Rental",
       "url": "https://c2crental.com",
       "logo": "https://c2crental.com/logo.png",
-      "image": "https://c2crental.com/og-image.jpg",
-      "description": "C2C Rental is a local car rental service based in Surrey, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees. Serving Surrey, Langley, and Abbotsford.",
+      "description": "C2C Rental is a local car rental service based in Surrey, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
       "telephone": "+1-604-763-4242",
       "address": {
         "@type": "PostalAddress",
@@ -172,40 +170,21 @@ const SurreyPage = () => {
         "postalCode": "V3W 4Z5",
         "addressCountry": "CA"
       },
-      "geo": {
-        "@type": "GeoCoordinates",
-        "latitude": 49.1565,
-        "longitude": -122.8487
-      },
+      "geo": { "@type": "GeoCoordinates", "latitude": 49.1565, "longitude": -122.8487 },
       "areaServed": [
         { "@type": "City", "name": "Surrey" },
         { "@type": "City", "name": "Langley" },
         { "@type": "City", "name": "Abbotsford" },
-        { "@type": "AdministrativeArea", "name": "Metro Vancouver" },
-        { "@type": "AdministrativeArea", "name": "Fraser Valley" }
+        { "@type": "AdministrativeArea", "name": "Metro Vancouver" }
       ],
       "priceRange": "$$",
       "openingHoursSpecification": [
-        {
-          "@type": "OpeningHoursSpecification",
-          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-          "opens": "08:00",
-          "closes": "18:00"
-        },
-        {
-          "@type": "OpeningHoursSpecification",
-          "dayOfWeek": "Sunday",
-          "opens": "11:00",
-          "closes": "17:00"
-        }
+        { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], "opens": "08:00", "closes": "18:00" },
+        { "@type": "OpeningHoursSpecification", "dayOfWeek": "Sunday", "opens": "11:00", "closes": "17:00" }
       ],
-      "sameAs": [
-        "https://www.instagram.com/c2crental",
-        "https://www.facebook.com/c2crental"
-      ]
+      "sameAs": ["https://www.instagram.com/c2crental", "https://www.facebook.com/c2crental"]
     };
 
-    // FAQPage JSON-LD
     const faqPageSchema = {
       "@context": "https://schema.org",
       "@type": "FAQPage",
@@ -246,17 +225,27 @@ const SurreyPage = () => {
   return (
     <CustomerLayout>
       <PageContainer className="max-w-4xl mx-auto space-y-16">
-        {/* H1 + Intro */}
+        {/* Hero with embedded booking card */}
         <section className="space-y-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
-            Car Rental in Surrey, BC – Affordable, Local &amp; Hassle-Free
-          </h1>
-          <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-            C2C Rental is a locally operated car rental service based right here in Surrey, BC. We offer transparent, no-surprise-fee pricing on daily, weekly, and monthly rentals — pick up from our Newton location on King George Blvd and drive away with confidence. Whether you're a commuter, a family needing a second car, a student at SFU Surrey, or a newcomer getting settled, we have you covered. We proudly serve Newton, Guildford, Fleetwood, Cloverdale, Whalley/Surrey Central, and South Surrey. Our renters regularly drive to YVR Airport (20 min), Downtown Vancouver (30 min), Whistler (2.5 hrs), and the US border via Peace Arch — all without airport surcharges or hidden costs.
-          </p>
-          <Button asChild size="lg">
-            <Link to="/search">Book your Surrey rental <ArrowRight className="ml-1 h-4 w-4" /></Link>
-          </Button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+            <div className="space-y-5">
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
+                Car Rental in Surrey, BC – Affordable, Local &amp; Hassle-Free
+              </h1>
+              <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                C2C Rental is a locally operated car rental service based right here in Surrey, BC. We offer transparent, no-surprise-fee pricing on daily, weekly, and monthly rentals — pick up from our Newton location on King George Blvd and drive away with confidence. Whether you're a commuter, a family needing a second car, a student at SFU Surrey, or a newcomer getting settled, we have you covered. We proudly serve Newton, Guildford, Fleetwood, Cloverdale, Whalley/Surrey Central, and South Surrey. Our renters regularly drive to YVR Airport (20 min), Downtown Vancouver (30 min), Whistler (2.5 hrs), and the US border via Peace Arch.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <RentalSearchCard
+                defaultLocationId={SURREY_LOCATION_ID}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground text-center">
+                📍 Pickup at 6786 King George Blvd, Surrey — Newton location
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* Why Choose C2C */}
@@ -267,7 +256,7 @@ const SurreyPage = () => {
           </h2>
           <ul className="space-y-3 text-muted-foreground">
             {[
-              "Local Surrey team familiar with King George corridor, 104 Ave, and Scott Rd traffic patterns",
+              "Local Surrey team familiar with King George corridor, 104 Ave, and Scott Rd traffic",
               "Transparent pricing — the rate you see online is what you pay at pickup",
               "Daily, weekly, and monthly terms with no long-term commitment required",
               "Fast digital contracts, walk-around photos, easy extensions by phone or online",
@@ -339,8 +328,8 @@ const SurreyPage = () => {
               "King George Blvd to US Border (Peace Arch / Pacific Highway): 15–20 min — confirm cross-border docs at booking",
               "Surrey to Whistler via Sea-to-Sky: 2.5 hrs — our AWD SUVs are built for this drive",
               "Fraser Valley day trips: Chilliwack, Harrison Hot Springs, Cultus Lake — 45–75 min east",
-              "Cloverdale / Langley: 15–20 min — convenient for events at Langley Events Centre or Cloverdale Fairgrounds",
-              "Body shop pickup/drop: We coordinate directly with repair shops in Newton, Whalley, and Guildford for seamless insurance replacements",
+              "Cloverdale / Langley: 15–20 min — great for events at Langley Events Centre or Cloverdale Fairgrounds",
+              "Body shop pickup/drop: We coordinate with repair shops in Newton, Whalley, and Guildford for seamless insurance replacements",
             ].map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
@@ -350,17 +339,17 @@ const SurreyPage = () => {
           </ul>
         </section>
 
-        {/* Pickup & Service Area */}
+        {/* Pickup Location */}
         <section className="space-y-5">
           <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <MapPin className="h-6 w-6 text-accent" />
             Surrey Pickup Location &amp; Delivery Area
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            C2C Rental is based at 6786 King George Blvd, Surrey, BC V3W 4Z5 — in the heart of Newton, minutes from Scott Rd Station and easy to reach from across South Surrey, Whalley, Cloverdale, and Fleetwood. Free on-site parking at pickup.
+            C2C Rental is based at 6786 King George Blvd, Surrey, BC V3W 4Z5 — in the heart of Newton, minutes from Scott Rd Station. Free on-site parking at pickup.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            We offer limited vehicle delivery to select Surrey neighbourhoods (subject to availability and delivery fee). Delivery coverage includes: Newton, Guildford, Surrey Central / Whalley, Fleetwood, and South Surrey / White Rock. Out-of-area delivery (Langley, Delta, Burnaby) available on request. Contact us to confirm before booking.
+            Limited vehicle delivery available to: Newton, Guildford, Surrey Central / Whalley, Fleetwood, and South Surrey / White Rock. Subject to availability and delivery fee. Contact us to confirm before booking.
           </p>
         </section>
 
@@ -382,7 +371,7 @@ const SurreyPage = () => {
           </ol>
         </section>
 
-        {/* Insurance, Deposits & Requirements */}
+        {/* Insurance & Requirements */}
         <section className="space-y-5">
           <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Shield className="h-6 w-6 text-accent" />
@@ -391,14 +380,14 @@ const SurreyPage = () => {
           <ul className="space-y-3 text-muted-foreground">
             {[
               "Valid full driver's licence required — BC Class 5/7, or accepted international licence",
-              "Minimum age: 21 (25 for premium and luxury vehicles)",
+              "Minimum age: 21 (25 for premium vehicles)",
               "Licence held for at least 2 years",
-              "Credit card required in the renter's name for the $350 security deposit hold",
+              "Credit card required for the $350 security deposit hold",
               "All C2C vehicles covered under ICBC owner's certificate — no gap in basic coverage",
-              "Optional Damage Waiver available at checkout to reduce your liability",
-              "Winter tires fitted on all AWD vehicles November–March at no extra charge",
+              "Optional Damage Waiver available at checkout",
+              "Winter tires on all AWD vehicles November–March at no extra charge",
               "US border crossings: notify C2C at booking — cross-border documents arranged in advance",
-              "Clear fuel policy: return at same level or pay a refuelling fee",
+              "Return vehicle at the same fuel level or pay a refuelling fee",
             ].map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
