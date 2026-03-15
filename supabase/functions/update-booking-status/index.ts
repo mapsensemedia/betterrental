@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     const user = await getUserOrThrow(req);
     await requireRoleOrThrow(user.id, ["admin", "staff"]);
 
-    const { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications } = await req.json();
+    const { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications, activationSource, activationReason, incompleteAtActivation } = await req.json();
 
     if (!bookingId || !newStatus) {
       return new Response(
@@ -108,8 +108,20 @@ Deno.serve(async (req) => {
 
     // Build update payload
     const updateData: Record<string, unknown> = { status: newStatus };
+    const now = new Date().toISOString();
     if (newStatus === "completed" || newStatus === "cancelled") {
-      updateData.actual_return_at = new Date().toISOString();
+      updateData.actual_return_at = now;
+    }
+    // When activating, set handover/activation timestamps
+    if (newStatus === "active" && !reopen) {
+      updateData.handed_over_at = now;
+      updateData.handed_over_by = user.id;
+      updateData.activated_at = now;
+      updateData.activated_by = user.id;
+      updateData.activation_source = activationSource || "counter";
+      if (activationReason) {
+        updateData.activation_reason = activationReason;
+      }
     }
     // Reopen: clear return workflow fields so the booking can be re-closed properly
     if (reopen && newStatus === "active") {
@@ -146,13 +158,19 @@ Deno.serve(async (req) => {
     }
 
     // Audit log
+    const auditNewData: Record<string, unknown> = { status: newStatus, notes, workflow_bypassed: !!bypassReason, reopened: !!reopen };
+    if (activationSource) auditNewData.activation_source = activationSource;
+    if (activationReason) auditNewData.activation_reason = activationReason;
+    if (incompleteAtActivation && Array.isArray(incompleteAtActivation) && incompleteAtActivation.length > 0) {
+      auditNewData.incomplete_at_activation = incompleteAtActivation;
+    }
     await admin.from("audit_logs").insert({
-      action: reopen ? "booking_reopened" : "booking_status_change",
+      action: activationSource === "ops_manual" ? "manual_activation" : reopen ? "booking_reopened" : "booking_status_change",
       entity_type: "booking",
       entity_id: bookingId,
       user_id: user.id,
       old_data: { status: currentStatus },
-      new_data: { status: newStatus, notes, workflow_bypassed: !!bypassReason, reopened: !!reopen },
+      new_data: auditNewData,
     });
 
     // Update vehicle unit status
@@ -188,12 +206,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Send notifications (skip when explicitly suppressed, e.g. reopen)
+    // Send notifications (skip when explicitly suppressed, e.g. reopen or manual activation)
+    const shouldSkipNotifications = skipNotifications || activationSource === "ops_manual";
     let notificationStage: string | null = null;
     if (newStatus === "active") notificationStage = "rental_activated";
     else if (newStatus === "completed") notificationStage = "return_completed";
 
-    if (notificationStage && !skipNotifications) {
+    if (notificationStage && !shouldSkipNotifications) {
       try {
         // Fetch names for admin notification
         const { data: categoryData } = booking.vehicle_id

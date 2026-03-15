@@ -150,6 +150,9 @@ export interface UpdateBookingStatusInput {
   newStatus: BookingStatus;
   notes?: string;
   panelSource?: "admin" | "ops";
+  activationSource?: string;
+  activationReason?: string;
+  incompleteAtActivation?: string[];
 }
 
 export interface VoidBookingInput {

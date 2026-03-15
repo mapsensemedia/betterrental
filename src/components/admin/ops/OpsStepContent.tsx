@@ -55,6 +55,7 @@ interface OpsStepContentProps {
   completion: StepCompletion;
   onCompleteStep: () => void;
   onActivate: () => void;
+  onManualActivate?: (reason: string, incompleteItems: string[]) => void;
   isRentalActive: boolean;
   isDelivery?: boolean;
   driverInfo?: { fullName: string; phone?: string | null } | null;
@@ -80,6 +81,7 @@ export function OpsStepContent({
   completion,
   onCompleteStep,
   onActivate,
+  onManualActivate,
   isRentalActive,
   isDelivery = false,
   driverInfo,
@@ -297,6 +299,7 @@ export function OpsStepContent({
                 booking={booking}
                 completion={completion}
                 onActivate={onActivate}
+                onManualActivate={onManualActivate}
                 isBookingCompleted={isBookingCompleted}
               />
               {/* Allow vehicle change and booking edits on the handover step for non-terminal bookings */}
