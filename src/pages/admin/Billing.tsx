@@ -103,6 +103,7 @@ interface Payment {
   status: string;
   transaction_id: string | null;
   created_at: string;
+  source: "worldline" | "manual";
   booking?: {
     booking_code: string;
     profile?: {
