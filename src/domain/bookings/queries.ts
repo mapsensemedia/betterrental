@@ -45,8 +45,26 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
     query = query.eq("vehicle_id", filters.vehicleId);
   }
 
+  // If searching by name/phone/email, find matching user IDs first
+  let searchUserIds: string[] | null = null;
   if (filters.search) {
-    query = query.or(`booking_code.ilike.%${filters.search}%`);
+    const term = filters.search.trim();
+    // Always filter by booking_code on the query
+    // But also search profiles for name/phone/email matches
+    const { data: matchingProfiles } = await supabase
+      .from("profiles")
+      .select("id")
+      .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`);
+    
+    searchUserIds = (matchingProfiles || []).map(p => p.id);
+    
+    if (searchUserIds.length > 0) {
+      // Match booking code OR user_id in matching profiles
+      query = query.or(`booking_code.ilike.%${term}%,user_id.in.(${searchUserIds.join(",")})`);
+    } else {
+      // No profile matches, just search by booking code
+      query = query.or(`booking_code.ilike.%${term}%`);
+    }
   }
 
   // Tab-based filtering
@@ -62,7 +80,7 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
     query = query.in("status", ["completed", "cancelled"]);
   }
 
-  const { data: bookingsData, error } = await query.limit(100);
+  const { data: bookingsData, error } = await query.limit(500);
 
   if (error) {
     console.error("Error fetching bookings:", error);
