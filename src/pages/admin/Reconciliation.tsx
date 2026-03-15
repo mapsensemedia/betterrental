@@ -63,6 +63,17 @@ interface BulkResult {
   matchStatus?: MatchStatus;
 }
 
+interface BamboraTxn {
+  transactionId: string;
+  amount: number;
+  cardLastFour: string;
+  cardType: string;
+  status: string;
+  dateTime: string;
+  orderNumber: string;
+  error?: string;
+}
+
 // ── Helpers ──
 
 function getMatchStatus(row: ReconciliationRow): MatchStatus {
