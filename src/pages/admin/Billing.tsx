@@ -844,12 +844,13 @@ export default function AdminBilling() {
               <div className="rounded-xl border border-border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                     <TableRow className="bg-muted/50">
                       <TableHead>Transaction ID</TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead>Booking</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Source</TableHead>
                       <TableHead>Method</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
@@ -882,6 +883,11 @@ export default function AdminBilling() {
                         <TableCell className="font-medium">${Number(payment.amount).toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">{payment.payment_type}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={payment.source === "worldline" ? "default" : "outline"} className="text-xs">
+                            {payment.source === "worldline" ? "Bambora" : "Manual"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="capitalize">{payment.payment_method || "—"}</TableCell>
                         <TableCell>{getStatusBadge(payment.status)}</TableCell>
