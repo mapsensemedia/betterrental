@@ -158,13 +158,19 @@ Deno.serve(async (req) => {
     }
 
     // Audit log
+    const auditNewData: Record<string, unknown> = { status: newStatus, notes, workflow_bypassed: !!bypassReason, reopened: !!reopen };
+    if (activationSource) auditNewData.activation_source = activationSource;
+    if (activationReason) auditNewData.activation_reason = activationReason;
+    if (incompleteAtActivation && Array.isArray(incompleteAtActivation) && incompleteAtActivation.length > 0) {
+      auditNewData.incomplete_at_activation = incompleteAtActivation;
+    }
     await admin.from("audit_logs").insert({
-      action: reopen ? "booking_reopened" : "booking_status_change",
+      action: activationSource === "ops_manual" ? "manual_activation" : reopen ? "booking_reopened" : "booking_status_change",
       entity_type: "booking",
       entity_id: bookingId,
       user_id: user.id,
       old_data: { status: currentStatus },
-      new_data: { status: newStatus, notes, workflow_bypassed: !!bypassReason, reopened: !!reopen },
+      new_data: auditNewData,
     });
 
     // Update vehicle unit status
