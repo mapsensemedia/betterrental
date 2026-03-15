@@ -59,10 +59,17 @@ function RentalCard({ booking }: { booking: BookingSummary }) {
               )}
             </div>
 
-            {/* Vehicle */}
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Car className="w-3.5 h-3.5" />
-              <span>{booking.vehicle?.name || "Vehicle"}</span>
+            {/* Vehicle & Payment */}
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Car className="w-3.5 h-3.5" />
+                {booking.vehicle?.name || "Vehicle"}
+              </span>
+              {booking.totalAmount > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  ${booking.totalAmount.toFixed(0)} paid
+                </Badge>
+              )}
             </div>
 
             {/* Return time */}
