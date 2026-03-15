@@ -318,8 +318,21 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
 
           <Separator />
 
-          {/* Pricing Preview */}
-          {preview && (
+          {/* Time-only change indicator */}
+          {isTimeOnlyChange && hasChanges && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1">
+              <h4 className="text-sm font-medium flex items-center gap-2 text-emerald-700">
+                <Clock className="w-4 h-4" />
+                Time Adjustment Only
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Only the pickup/return time will change. Total price will <strong>NOT</strong> change.
+              </p>
+            </div>
+          )}
+
+          {/* Pricing Preview (only for full edits) */}
+          {preview && !isTimeOnlyChange && (
             <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -381,7 +394,7 @@ export function BookingEditPanel({ booking }: BookingEditPanelProps) {
             disabled={!hasChanges || editBooking.isPending}
             onClick={() => setConfirmOpen(true)}
           >
-            {editBooking.isPending ? "Saving..." : "Save Changes"}
+            {editBooking.isPending ? "Saving..." : isTimeOnlyChange ? "Update Time" : "Save Changes"}
           </Button>
 
           <Separator />
