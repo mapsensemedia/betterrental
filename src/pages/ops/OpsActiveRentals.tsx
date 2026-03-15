@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listBookings, BookingSummary } from "@/domain/bookings";
-import { format, parseISO, differenceInHours, isPast, isToday, isTomorrow } from "date-fns";
+import { format, parseISO, differenceInHours, isPast } from "date-fns";
 import { useState } from "react";
 
 function RentalCard({ booking }: { booking: BookingSummary }) {
@@ -59,10 +59,17 @@ function RentalCard({ booking }: { booking: BookingSummary }) {
               )}
             </div>
 
-            {/* Vehicle */}
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Car className="w-3.5 h-3.5" />
-              <span>{booking.vehicle?.name || "Vehicle"}</span>
+            {/* Vehicle & Payment */}
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Car className="w-3.5 h-3.5" />
+                {booking.vehicle?.name || "Vehicle"}
+              </span>
+              {booking.totalAmount > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  ${booking.totalAmount.toFixed(0)} paid
+                </Badge>
+              )}
             </div>
 
             {/* Return time */}
@@ -104,14 +111,8 @@ export default function OpsActiveRentals() {
     queryFn: () => listBookings({ tab: "active" }),
   });
 
-  // Exclude bookings that belong in Returns (due today/tomorrow/overdue)
-  const activeOnlyBookings = (bookings || []).filter((b) => {
-    const d = parseISO(b.endAt);
-    return !isToday(d) && !isTomorrow(d) && !isPast(d);
-  });
-
   // Filter by search
-  const filteredBookings = activeOnlyBookings.filter((b) => {
+  const filteredBookings = (bookings || []).filter((b) => {
     if (!search) return true;
     return (
       b.bookingCode.toLowerCase().includes(search.toLowerCase()) ||
