@@ -265,6 +265,36 @@ export default function BookingOps() {
     setConfirmDialog({ open: true, action: "activate" });
   };
   
+  const handleManualActivateRental = (reason: string, incompleteItems: string[]) => {
+    if (!bookingId || !booking?.assigned_unit_id) {
+      toast.error("Assign a vehicle unit (VIN) before activation");
+      return;
+    }
+    
+    updateStatus.mutate(
+      { 
+        bookingId, 
+        newStatus: "active",
+        activationSource: "ops_manual",
+        activationReason: reason,
+        incompleteAtActivation: incompleteItems,
+        skipNotifications: true,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Rental manually activated", {
+            description: "Complete the missing items from the active rental page.",
+            duration: 4000,
+          });
+          const isOpsContext = location.pathname.startsWith("/ops");
+          setTimeout(() => {
+            navigate(isOpsContext ? `/ops/rental/${bookingId}` : `/admin/active-rentals/${bookingId}`);
+          }, 1500);
+        },
+      }
+    );
+  };
+  
   const handleCancelBooking = () => {
     setShowCancelDialog(true);
   };
