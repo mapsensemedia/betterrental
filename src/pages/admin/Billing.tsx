@@ -103,6 +103,7 @@ interface Payment {
   status: string;
   transaction_id: string | null;
   created_at: string;
+  source: "worldline" | "manual";
   booking?: {
     booking_code: string;
     profile?: {
@@ -300,29 +301,101 @@ export default function AdminBilling() {
     },
   });
 
-  // ==================== PAYMENTS ====================
+  // ==================== PAYMENTS (combined: Worldline bookings + payments table) ====================
   const { data: payments = [], isLoading: paymentsLoading } = useQuery({
     queryKey: ["admin-payments"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Fetch payments table records
+      const { data: manualPayments, error: pErr } = await supabase
         .from("payments")
         .select(`*, booking:bookings(booking_code, user_id)`)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
+      if (pErr) throw pErr;
 
-      if (error) throw error;
-      
-      const userIds = [...new Set(data.map(p => p.booking?.user_id).filter(Boolean))];
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+      // 2. Fetch Worldline bookings (have wl_transaction_id)
+      const { data: wlBookings, error: wlErr } = await supabase
+        .from("bookings")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id")
+        .not("wl_transaction_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (wlErr) throw wlErr;
+
+      // 3. Fetch Worldline deposit bookings (have wl_deposit_transaction_id)
+      const { data: wlDepositBookings, error: wlDErr } = await supabase
+        .from("bookings")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id")
+        .not("wl_deposit_transaction_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (wlDErr) throw wlDErr;
+
+      // Gather all user IDs for profile lookup
+      const allUserIds = [
+        ...manualPayments.map(p => p.booking?.user_id),
+        ...wlBookings.map(b => b.user_id),
+        ...(wlDepositBookings || []).map(b => b.user_id),
+      ].filter(Boolean) as string[];
+      const uniqueUserIds = [...new Set(allUserIds)];
+      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", uniqueUserIds);
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      
-      return data.map(payment => ({
+
+      // Build a set of Worldline txn IDs already in payments table to avoid duplicates
+      const existingTxnIds = new Set(manualPayments.filter(p => p.transaction_id).map(p => p.transaction_id));
+
+      // Map manual payments
+      const manual: Payment[] = manualPayments.map(payment => ({
         ...payment,
+        source: "manual" as const,
         booking: payment.booking ? {
           ...payment.booking,
           profile: profileMap.get(payment.booking.user_id) || null,
         } : null,
-      })) as Payment[];
+      }));
+
+      // Map Worldline rental bookings (skip if already in payments table)
+      const wlRental: Payment[] = (wlBookings || [])
+        .filter(b => !existingTxnIds.has(b.wl_transaction_id!))
+        .map(b => ({
+          id: `wl-rental-${b.id}`,
+          booking_id: b.id,
+          amount: Number(b.total_amount),
+          payment_type: "rental",
+          payment_method: b.card_type ? `card (${b.card_type})` : "card",
+          status: b.wl_auth_status === "completed" ? "completed" : b.wl_auth_status || "pending",
+          transaction_id: b.wl_transaction_id,
+          created_at: b.created_at,
+          source: "worldline" as const,
+          booking: {
+            booking_code: b.booking_code,
+            profile: profileMap.get(b.user_id) || null,
+          },
+        }));
+
+      // Map Worldline deposit bookings (skip if already in payments table)
+      const wlDeposit: Payment[] = (wlDepositBookings || [])
+        .filter(b => !existingTxnIds.has(b.wl_deposit_transaction_id!))
+        .map(b => ({
+          id: `wl-deposit-${b.id}`,
+          booking_id: b.id,
+          amount: Number(b.deposit_amount || 0),
+          payment_type: "deposit",
+          payment_method: b.card_type ? `card (${b.card_type})` : "card",
+          status: b.wl_deposit_auth_status === "authorized" ? "authorized" : b.deposit_status || "pending",
+          transaction_id: b.wl_deposit_transaction_id,
+          created_at: b.deposit_authorized_at || b.created_at,
+          source: "worldline" as const,
+          booking: {
+            booking_code: b.booking_code,
+            profile: profileMap.get(b.user_id) || null,
+          },
+        }));
+
+      // Combine and sort by date
+      const combined = [...manual, ...wlRental, ...wlDeposit];
+      combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return combined;
     },
   });
 
@@ -390,16 +463,22 @@ export default function AdminBilling() {
         return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Pending</Badge>;
       case "failed":
         return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Failed</Badge>;
+      case "authorized":
+        return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Authorized</Badge>;
+      case "released":
+        return <Badge className="bg-muted text-muted-foreground">Released</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-  // Stats
+  // Stats — combined from all sources
   const totalRevenue = payments.filter(p => p.status === "completed").reduce((sum, p) => sum + Number(p.amount), 0);
   const pendingAmount = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
   const depositPayments = payments.filter(p => p.payment_type === "deposit");
   const totalDeposits = depositPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const worldlineCount = payments.filter(p => p.source === "worldline").length;
+  const manualCount = payments.filter(p => p.source === "manual").length;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -540,7 +619,7 @@ export default function AdminBilling() {
             </TabsTrigger>
             <TabsTrigger value="payments" className="gap-1.5">
               <CreditCard className="w-3.5 h-3.5" />
-              Payments
+              Payments ({payments.length})
             </TabsTrigger>
             <TabsTrigger value="deposits" className="gap-1.5">
               <Banknote className="w-3.5 h-3.5" />
@@ -765,12 +844,13 @@ export default function AdminBilling() {
               <div className="rounded-xl border border-border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                     <TableRow className="bg-muted/50">
                       <TableHead>Transaction ID</TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead>Booking</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Source</TableHead>
                       <TableHead>Method</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
@@ -803,6 +883,11 @@ export default function AdminBilling() {
                         <TableCell className="font-medium">${Number(payment.amount).toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">{payment.payment_type}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={payment.source === "worldline" ? "default" : "outline"} className="text-xs">
+                            {payment.source === "worldline" ? "Bambora" : "Manual"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="capitalize">{payment.payment_method || "—"}</TableCell>
                         <TableCell>{getStatusBadge(payment.status)}</TableCell>
