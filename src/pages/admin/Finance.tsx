@@ -260,7 +260,8 @@ function OverviewTab() {
 
   const { start, end } = useMemo(() => getDateRange(dateRange), [dateRange]);
 
-  const { data: payments = [], isLoading, refetch } = useQuery({
+  // Source A — payments table (primary, renders immediately)
+  const { data: paymentsOnly = [], isLoading, refetch } = useQuery({
     queryKey: ["payment-dashboard", dateRange],
     queryFn: async () => {
       const { data: paymentRows, error } = await supabase
@@ -299,6 +300,115 @@ function OverviewTab() {
     },
   });
 
+  // Source B — Worldline bookings not yet in payments (async supplement, never blocks)
+  const { data: wlSupplement = [] } = useQuery({
+    queryKey: ["payment-dashboard-wl", dateRange],
+    queryFn: async () => {
+      // 1. Fetch all booking_ids already in payments table for this range to exclude
+      const { data: existingPayments } = await supabase
+        .from("payments")
+        .select("booking_id, transaction_id")
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString());
+
+      const paidBookingIds = new Set((existingPayments || []).map((p) => p.booking_id));
+      const paidTxnIds = new Set((existingPayments || []).filter((p) => p.transaction_id).map((p) => p.transaction_id));
+
+      // 2. Fetch Worldline rental bookings in date range
+      const { data: wlRentals } = await supabase
+        .from("bookings")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id")
+        .not("wl_transaction_id", "is", null)
+        .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
+        .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
+        .order("created_at", { ascending: false });
+
+      // 3. Fetch Worldline deposit bookings in date range
+      const { data: wlDeposits } = await supabase
+        .from("bookings")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id")
+        .not("wl_deposit_transaction_id", "is", null)
+        .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
+        .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
+        .order("created_at", { ascending: false });
+
+      // Filter to only those NOT already in payments
+      const rentalEntries = (wlRentals || []).filter(
+        (b) => !paidBookingIds.has(b.id) && !paidTxnIds.has(b.wl_transaction_id!)
+      );
+      const depositEntries = (wlDeposits || []).filter(
+        (b) => !paidBookingIds.has(b.id) && !paidTxnIds.has(b.wl_deposit_transaction_id!)
+      );
+
+      // Resolve profiles
+      const allUserIds = [...new Set([
+        ...rentalEntries.map((b) => b.user_id),
+        ...depositEntries.map((b) => b.user_id),
+      ])];
+      const { data: profiles } = allUserIds.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", allUserIds)
+        : { data: [] };
+      const profileMap = new Map((profiles || []).map((p) => [p.id, p.full_name || "Unknown"]));
+
+      const records: OverviewPaymentRecord[] = [];
+
+      // Rental entries
+      for (const b of rentalEntries) {
+        const effectiveDate = b.start_at || b.created_at;
+        const d = new Date(effectiveDate);
+        if (d < start || d > end) continue;
+        records.push({
+          id: `wl-ov-rental-${b.id}`,
+          booking_id: b.id,
+          amount: Number(b.total_amount),
+          payment_type: "rental",
+          payment_method: b.card_type ? `card (${b.card_type})` : "Online (Bambora)",
+          status: b.wl_auth_status === "completed" ? "completed" : b.wl_auth_status || "pending",
+          transaction_id: b.wl_transaction_id,
+          created_at: effectiveDate,
+          booking_code: b.booking_code,
+          customer_name: profileMap.get(b.user_id) || "Unknown",
+          unreconciled: true,
+        });
+      }
+
+      // Deposit entries
+      for (const b of depositEntries) {
+        const effectiveDate = b.deposit_authorized_at || b.start_at || b.created_at;
+        const d = new Date(effectiveDate);
+        if (d < start || d > end) continue;
+        records.push({
+          id: `wl-ov-deposit-${b.id}`,
+          booking_id: b.id,
+          amount: Number(b.deposit_amount || 0),
+          payment_type: "deposit",
+          payment_method: b.card_type ? `card (${b.card_type})` : "Online (Bambora)",
+          status: b.wl_deposit_auth_status === "authorized" ? "completed" : b.deposit_status || "pending",
+          transaction_id: b.wl_deposit_transaction_id,
+          created_at: effectiveDate,
+          booking_code: b.booking_code,
+          customer_name: profileMap.get(b.user_id) || "Unknown",
+          unreconciled: true,
+        });
+      }
+
+      return records;
+    },
+    // Never block the primary render; silently fail
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  // Merge both sources — deduplicate by booking_id+payment_type
+  const payments = useMemo(() => {
+    if (!wlSupplement.length) return paymentsOnly;
+    const existingKeys = new Set(paymentsOnly.map((p) => `${p.booking_id}::${p.payment_type}`));
+    const unique = wlSupplement.filter((w) => !existingKeys.has(`${w.booking_id}::${w.payment_type}`));
+    const merged = [...paymentsOnly, ...unique];
+    merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return merged;
+  }, [paymentsOnly, wlSupplement]);
+
   const { data: prevPayments = [] } = useQuery({
     queryKey: ["payment-dashboard-prev", dateRange],
     queryFn: async () => {
@@ -313,6 +423,8 @@ function OverviewTab() {
       return (data || []).map((p) => ({ amount: Number(p.amount), status: p.status }));
     },
   });
+
+  const unreconciledCount = useMemo(() => payments.filter((p) => p.unreconciled).length, [payments]);
 
   const metrics = useMemo(() => {
     const collected = payments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
@@ -386,6 +498,11 @@ function OverviewTab() {
         <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => refetch()}>
           <RefreshCw className="w-4 h-4" />
         </Button>
+        {unreconciledCount > 0 && (
+          <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/20">
+            +{unreconciledCount} unreconciled
+          </Badge>
+        )}
       </div>
 
       {isLoading ? (
@@ -544,7 +661,16 @@ function OverviewTab() {
                           </TableCell>
                           <TableCell className="text-sm">{p.customer_name}</TableCell>
                           <TableCell className="text-sm font-medium">${p.amount.toFixed(2)}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground capitalize">{p.payment_type}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground capitalize">
+                            <span className="flex items-center gap-1.5">
+                              {p.payment_type}
+                              {p.unreconciled && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                                  Unreconciled
+                                </Badge>
+                              )}
+                            </span>
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{normalizeMethod(p.payment_method)}</TableCell>
                           <TableCell>
                             <PaymentStatusBadge status={p.status} />
