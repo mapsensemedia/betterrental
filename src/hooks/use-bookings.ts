@@ -297,7 +297,7 @@ export function useUpdateBookingStatus() {
       queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
       queryClient.invalidateQueries({ queryKey: ["ops-fleet-units"] });
-      toast.success("Booking status updated - customer notified");
+      toast.success("Booking status updated");
     },
     onError: (error) => {
       console.error("Failed to update booking:", error);
