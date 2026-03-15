@@ -2,8 +2,6 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
-  Bell, 
-  Receipt, 
   Car, 
   Calendar, 
   MessageSquare, 
@@ -20,7 +18,14 @@ import {
   ClipboardList,
   ArrowRightLeft,
   FileText,
-  Activity,
+  CheckCircle,
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+  TrendingUp,
+  CreditCard,
+  Building2,
+  RotateCcw,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -38,118 +43,178 @@ import { useGlobalRealtime } from "@/hooks/use-global-realtime";
 
 type BadgeKey = keyof SidebarCounts;
 
-/**
- * Admin Navigation - Strategic/Configuration Focus
- * Day-to-day operations moved to Ops Panel (/ops/*)
- */
-const navItems: {
+interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
   badgeKey?: BadgeKey;
   description: string;
+}
+
+interface NavGroup {
+  title: string;
   priority?: boolean;
-}[] = [
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
   {
-    href: "/admin/alerts",
-    label: "Alerts",
-    icon: Bell,
-    badgeKey: "alerts",
-    description: "Action required",
+    title: "ACTIVE WORK",
     priority: true,
+    items: [
+      {
+        href: "/admin/alerts",
+        label: "Alerts",
+        icon: AlertCircle,
+        badgeKey: "alerts",
+        description: "Issues & action items",
+      },
+      {
+        href: "/admin",
+        label: "Workboard",
+        icon: LayoutDashboard,
+        description: "Quick overview",
+      },
+      {
+        href: "/admin/active-rentals",
+        label: "Active Rentals",
+        icon: Car,
+        badgeKey: "active",
+        description: "Vehicles on road",
+      },
+    ],
   },
   {
-    href: "/admin",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    description: "Overview & quick actions",
+    title: "TODAY'S OPERATIONS",
+    items: [
+      {
+        href: "/admin/pickups",
+        label: "Pickups",
+        icon: CheckCircle,
+        badgeKey: "pickups",
+        description: "Upcoming handovers",
+      },
+      {
+        href: "/admin/returns",
+        label: "Returns",
+        icon: RotateCcw,
+        badgeKey: "returns",
+        description: "Incoming vehicles",
+      },
+      {
+        href: "/admin/bookings",
+        label: "Bookings",
+        icon: ClipboardList,
+        description: "All reservations",
+      },
+    ],
   },
   {
-    href: "/admin/bookings",
-    label: "Bookings",
-    icon: ClipboardList,
-    description: "Reservations & history",
+    title: "FLEET & ASSETS",
+    items: [
+      {
+        href: "/admin/fleet",
+        label: "Inventory",
+        icon: Car,
+        description: "Vehicle catalog",
+      },
+      {
+        href: "/admin/fleet-costs",
+        label: "Fleet Costs",
+        icon: TrendingUp,
+        description: "Vehicle economics",
+      },
+      {
+        href: "/admin/fleet-analytics",
+        label: "Maintenance",
+        icon: Wrench,
+        description: "Service schedule",
+      },
+      {
+        href: "/admin/incidents",
+        label: "Incidents",
+        icon: AlertTriangle,
+        badgeKey: "incidents",
+        description: "Damages & accidents",
+      },
+    ],
   },
   {
-    href: "/admin/agreements",
-    label: "Agreements",
-    icon: FileText,
-    description: "Rental agreements",
+    title: "MONEY & BILLING",
+    items: [
+      {
+        href: "/admin/billing",
+        label: "Payments",
+        icon: CreditCard,
+        badgeKey: "billing",
+        description: "Income & outflow",
+      },
+      {
+        href: "/admin/agreements",
+        label: "Agreements",
+        icon: FileText,
+        description: "Rental contracts",
+      },
+      {
+        href: "/admin/reconciliation",
+        label: "Reconciliation",
+        icon: CheckCircle2,
+        description: "Payment matching",
+      },
+      {
+        href: "/admin/offers",
+        label: "Offers",
+        icon: Gift,
+        description: "Rewards & incentives",
+      },
+    ],
   },
   {
-    href: "/admin/fleet",
-    label: "Fleet",
-    icon: Car,
-    description: "Categories & vehicles",
+    title: "INSIGHTS & REPORTS",
+    items: [
+      {
+        href: "/admin/reports",
+        label: "Analytics",
+        icon: TrendingUp,
+        description: "Metrics & KPIs",
+      },
+      {
+        href: "/admin/calendar",
+        label: "Calendar",
+        icon: Calendar,
+        description: "Schedule view",
+      },
+      {
+        href: "/admin/reports",
+        label: "Reports",
+        icon: BarChart3,
+        description: "Custom exports",
+      },
+    ],
   },
   {
-    href: "/admin/incidents",
-    label: "Incidents",
-    icon: Wrench,
-    badgeKey: "incidents",
-    description: "Accidents & damages",
-  },
-  {
-    href: "/admin/fleet-costs",
-    label: "Fleet Costs",
-    icon: BarChart3,
-    description: "Vehicle costs & value",
-  },
-  {
-    href: "/admin/fleet-analytics",
-    label: "Fleet Analytics",
-    icon: Activity,
-    description: "Utilization & profitability",
-  },
-  {
-    href: "/admin/reports",
-    label: "Analytics",
-    icon: BarChart3,
-    description: "Metrics & reports",
-  },
-  {
-    href: "/admin/calendar",
-    label: "Calendar",
-    icon: Calendar,
-    description: "Schedule view",
-  },
-  {
-    href: "/admin/billing",
-    label: "Billing",
-    icon: Receipt,
-    badgeKey: "billing",
-    description: "Payments & receipts",
-  },
-  {
-    href: "/admin/reconciliation",
-    label: "Reconciliation",
-    icon: ClipboardList,
-    description: "Payment matching",
-  },
-  {
-    href: "/admin/tickets",
-    label: "Support",
-    icon: MessageSquare,
-    badgeKey: "support",
-    description: "Customer tickets",
-  },
-  {
-    href: "/admin/offers",
-    label: "Offers",
-    icon: Gift,
-    description: "Points-based rewards",
-  },
-  {
-    href: "/admin/vendors",
-    label: "Vendors",
-    icon: ArrowRightLeft,
-    description: "Vendor directory",
-  },
-  {
-    href: "/admin/settings",
-    label: "Settings",
-    icon: Settings,
-    description: "Pricing & configuration",
+    title: "ADMINISTRATION",
+    items: [
+      {
+        href: "/admin/vendors",
+        label: "Vendors",
+        icon: Building2,
+        description: "Partner directory",
+      },
+      {
+        href: "/admin/tickets",
+        label: "Support",
+        icon: MessageSquare,
+        badgeKey: "support",
+        description: "Customer tickets",
+      },
+      {
+        href: "/admin/settings",
+        label: "Settings",
+        icon: Settings,
+        description: "Configuration",
+      },
+    ],
   },
 ];
 interface AdminShellProps {
