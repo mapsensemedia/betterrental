@@ -133,6 +133,7 @@ export default function Reconciliation() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bamboraData, setBamboraData] = useState<BamboraTxn[] | null>(null);
   const [bamboraLoading, setBamboraLoading] = useState(false);
+  const [manualTxnInput, setManualTxnInput] = useState("");
 
   // Fetch bookings with Bambora refs + payments
   const { data: rows = [], isLoading } = useQuery({
