@@ -128,3 +128,6 @@ verify_jwt = false
 
 [functions.wl-query-txn]
 verify_jwt = false
+
+[functions.log-terminal-payment]
+verify_jwt = false
