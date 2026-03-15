@@ -81,6 +81,7 @@ export function OpsStepContent({
   completion,
   onCompleteStep,
   onActivate,
+  onManualActivate,
   isRentalActive,
   isDelivery = false,
   driverInfo,
