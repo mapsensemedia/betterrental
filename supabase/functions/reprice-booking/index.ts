@@ -388,9 +388,9 @@ Deno.serve(async (req) => {
     return jsonResp({
       bookingId,
       operation,
-      subtotal: updateData.subtotal,
-      taxAmount: updateData.tax_amount,
-      total: updateData.total_amount,
+      subtotal: updateData.subtotal ?? booking.subtotal,
+      taxAmount: updateData.tax_amount ?? booking.tax_amount,
+      total: updateData.total_amount ?? booking.total_amount,
       oldTotal: booking.total_amount,
     }, 200, corsHeaders);
 
