@@ -3,12 +3,13 @@
  *
  * Mobile strategy:
  * - On mobile (Android/iOS) we redirect straight to the raw PDF URL so the
- *   browser opens it natively. This avoids:
- *   • Android "Open with…" intent chooser (triggered by iframes serving PDFs)
- *   • iOS showing only the first page inside a constrained iframe
+ *   browser opens it natively.
  * - On desktop the iframe renders inline as before.
  */
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface PdfViewerPageProps {
   pdfPath: string;
@@ -16,9 +17,9 @@ interface PdfViewerPageProps {
 }
 
 function PdfViewerPage({ pdfPath, title }: PdfViewerPageProps) {
+  const navigate = useNavigate();
+
   useEffect(() => {
-    // On mobile, redirect directly to the PDF so the native browser viewer
-    // handles it (avoids Android chooser + iOS page-clipping bugs).
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isMobile) {
       window.location.replace(pdfPath);
@@ -26,17 +27,36 @@ function PdfViewerPage({ pdfPath, title }: PdfViewerPageProps) {
   }, [pdfPath]);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#fff" }}>
+    <div style={{ position: "fixed", inset: 0, background: "hsl(var(--background))" }}>
+      {/* Fixed top bar */}
+      <div
+        className="fixed top-0 left-0 right-0 z-50 flex items-center gap-2 border-b border-border bg-background px-4"
+        style={{ height: 56 }}
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          className="-ml-2"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-base font-semibold text-foreground truncate">
+          {title}
+        </h1>
+      </div>
+
+      {/* Iframe with top padding to clear the bar */}
       <iframe
         src={pdfPath}
         title={title}
         style={{
           width: "100%",
-          height: "100%",
+          height: "calc(100% - 56px)",
+          marginTop: 56,
           border: "none",
           display: "block",
         }}
-        // Allow range requests so iOS can paginate correctly
         allow="fullscreen"
       />
     </div>
