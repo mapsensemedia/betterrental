@@ -23,7 +23,9 @@ import {
   AlertOctagon,
   Clock,
   Loader2,
+  Download,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // ── Types ──
 
@@ -59,6 +61,17 @@ interface BulkResult {
   amount?: number;
   bookingStatus?: string;
   matchStatus?: MatchStatus;
+}
+
+interface BamboraTxn {
+  transactionId: string;
+  amount: number;
+  cardLastFour: string;
+  cardType: string;
+  status: string;
+  dateTime: string;
+  orderNumber: string;
+  error?: string;
 }
 
 // ── Helpers ──
@@ -117,6 +130,8 @@ export default function Reconciliation() {
   const [bulkInput, setBulkInput] = useState("");
   const [bulkResults, setBulkResults] = useState<BulkResult[] | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bamboraData, setBamboraData] = useState<BamboraTxn[] | null>(null);
+  const [bamboraLoading, setBamboraLoading] = useState(false);
 
   // Fetch bookings with Bambora refs + payments
   const { data: rows = [], isLoading } = useQuery({
@@ -278,6 +293,81 @@ export default function Reconciliation() {
 
   const bulkMatched = bulkResults?.filter((r) => r.found).length ?? 0;
   const bulkNotFound = bulkResults?.filter((r) => !r.found).length ?? 0;
+
+  // Fetch live Bambora data for all transaction IDs
+  const handleFetchBambora = async () => {
+    const txnIds = new Set<string>();
+    rows.forEach((r) => {
+      if (r.wlTransactionId) txnIds.add(r.wlTransactionId);
+      if (r.wlDepositTransactionId) txnIds.add(r.wlDepositTransactionId);
+    });
+
+    if (txnIds.size === 0) {
+      toast.error("No transaction IDs to query");
+      return;
+    }
+
+    setBamboraLoading(true);
+    setBamboraData(null);
+
+    try {
+      const results: BamboraTxn[] = [];
+      const ids = Array.from(txnIds);
+
+      // Process in batches of 5 to avoid overwhelming the API
+      for (let i = 0; i < ids.length; i += 5) {
+        const batch = ids.slice(i, i + 5);
+        const batchResults = await Promise.allSettled(
+          batch.map(async (txnId) => {
+            const { data, error } = await supabase.functions.invoke("wl-query-txn", {
+              body: { transactionId: txnId },
+            });
+
+            if (error) {
+              return { transactionId: txnId, error: "Function error" } as BamboraTxn;
+            }
+
+            if (!data?.ok || !data?.data) {
+              return {
+                transactionId: txnId,
+                amount: 0,
+                cardLastFour: "",
+                cardType: "",
+                status: "error",
+                dateTime: "",
+                orderNumber: "",
+                error: data?.data?.message || "Not found at gateway",
+              } as BamboraTxn;
+            }
+
+            const txn = data.data;
+            return {
+              transactionId: String(txn.id),
+              amount: Number(txn.amount || 0),
+              cardLastFour: txn.card?.last_four || "",
+              cardType: txn.card?.card_type || "",
+              status: txn.approved === 1 ? "Approved" : txn.message || "Declined",
+              dateTime: txn.created || "",
+              orderNumber: txn.order_number || "",
+            } as BamboraTxn;
+          })
+        );
+
+        batchResults.forEach((r) => {
+          if (r.status === "fulfilled") results.push(r.value);
+          else results.push({ transactionId: "unknown", error: "Request failed" } as BamboraTxn);
+        });
+      }
+
+      setBamboraData(results);
+      toast.success(`Fetched ${results.length} transactions from Bambora`);
+    } catch (err) {
+      toast.error("Failed to fetch Bambora data");
+      console.error(err);
+    } finally {
+      setBamboraLoading(false);
+    }
+  };
 
   // Find rental payment for a row
   const getRentalPayment = (row: ReconciliationRow) =>
@@ -542,6 +632,81 @@ export default function Reconciliation() {
                     </TableBody>
                   </Table>
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        {/* ── SECTION 3: LIVE BAMBORA DATA ── */}
+        <Card>
+          <CardContent className="p-0">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold">Live Bambora Transactions</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Fetch real-time transaction data directly from the payment gateway
+                </p>
+              </div>
+              <Button onClick={handleFetchBambora} disabled={bamboraLoading || rows.length === 0}>
+                {bamboraLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Fetch from Bambora
+              </Button>
+            </div>
+
+            {bamboraData && (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead>Transaction ID</TableHead>
+                      <TableHead>Order Ref</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Card</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date/Time</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bamboraData.map((txn, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-mono text-sm">{txn.transactionId}</TableCell>
+                        <TableCell className="font-mono text-sm">{txn.orderNumber || "—"}</TableCell>
+                        <TableCell className="text-sm font-medium">
+                          {txn.error ? "—" : `$${txn.amount.toFixed(2)}`}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {txn.cardLastFour ? (
+                            <span>{txn.cardType} •••• {txn.cardLastFour}</span>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {txn.error ? (
+                            <Badge variant="destructive" className="text-xs">{txn.error}</Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className={
+                                txn.status === "Approved"
+                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                  : "bg-destructive/10 text-destructive border-destructive/20"
+                              }
+                            >
+                              {txn.status}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {txn.dateTime
+                            ? format(new Date(txn.dateTime), "MMM d, yyyy h:mm a")
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
