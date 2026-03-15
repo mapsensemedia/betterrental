@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+
 import {
   Table,
   TableBody,
@@ -72,6 +72,7 @@ interface BamboraTxn {
   status: string;
   dateTime: string;
   orderNumber: string;
+  type: string;
   error?: string;
 }
 
@@ -133,7 +134,7 @@ export default function Reconciliation() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bamboraData, setBamboraData] = useState<BamboraTxn[] | null>(null);
   const [bamboraLoading, setBamboraLoading] = useState(false);
-  const [manualTxnInput, setManualTxnInput] = useState("");
+  // manualTxnInput removed — range is auto-computed
 
   // Fetch bookings with Bambora refs + payments
   const { data: rows = [], isLoading } = useQuery({
@@ -296,76 +297,68 @@ export default function Reconciliation() {
   const bulkMatched = bulkResults?.filter((r) => r.found).length ?? 0;
   const bulkNotFound = bulkResults?.filter((r) => !r.found).length ?? 0;
 
-  // Fetch live Bambora data for all transaction IDs
+  // Fetch all Bambora transactions via auto-range scan
   const handleFetchBambora = async () => {
-    const txnIds = new Set<string>();
-    rows.forEach((r) => {
-      if (r.wlTransactionId) txnIds.add(r.wlTransactionId);
-      if (r.wlDepositTransactionId) txnIds.add(r.wlDepositTransactionId);
-    });
-
-    // Add manually entered IDs
-    manualTxnInput.split(/[\n,\s]+/).map(s => s.trim()).filter(Boolean).forEach(id => txnIds.add(id));
-
-    if (txnIds.size === 0) {
-      toast.error("No transaction IDs to query");
-      return;
-    }
-
     setBamboraLoading(true);
     setBamboraData(null);
 
     try {
-      const results: BamboraTxn[] = [];
-      const ids = Array.from(txnIds);
+      // Collect all numeric transaction IDs from bookings to determine range
+      const allNumericIds: number[] = [];
+      rows.forEach((r) => {
+        if (r.wlTransactionId) {
+          const n = parseInt(r.wlTransactionId, 10);
+          if (!isNaN(n)) allNumericIds.push(n);
+        }
+        if (r.wlDepositTransactionId) {
+          const n = parseInt(r.wlDepositTransactionId, 10);
+          if (!isNaN(n)) allNumericIds.push(n);
+        }
+      });
 
-      // Process in batches of 5 to avoid overwhelming the API
-      for (let i = 0; i < ids.length; i += 5) {
-        const batch = ids.slice(i, i + 5);
-        const batchResults = await Promise.allSettled(
-          batch.map(async (txnId) => {
-            const { data, error } = await supabase.functions.invoke("wl-query-txn", {
-              body: { transactionId: txnId },
-            });
-
-            if (error) {
-              return { transactionId: txnId, error: "Function error" } as BamboraTxn;
-            }
-
-            if (!data?.ok || !data?.data) {
-              return {
-                transactionId: txnId,
-                amount: 0,
-                cardLastFour: "",
-                cardType: "",
-                status: "error",
-                dateTime: "",
-                orderNumber: "",
-                error: data?.data?.message || "Not found at gateway",
-              } as BamboraTxn;
-            }
-
-            const txn = data.data;
-            return {
-              transactionId: String(txn.id),
-              amount: Number(txn.amount || 0),
-              cardLastFour: txn.card?.last_four || "",
-              cardType: txn.card?.card_type || "",
-              status: txn.approved === 1 ? "Approved" : txn.message || "Declined",
-              dateTime: txn.created || "",
-              orderNumber: txn.order_number || "",
-            } as BamboraTxn;
-          })
-        );
-
-        batchResults.forEach((r) => {
-          if (r.status === "fulfilled") results.push(r.value);
-          else results.push({ transactionId: "unknown", error: "Request failed" } as BamboraTxn);
-        });
+      if (allNumericIds.length === 0) {
+        toast.error("No transaction IDs found in bookings to determine range");
+        setBamboraLoading(false);
+        return;
       }
 
-      setBamboraData(results);
-      toast.success(`Fetched ${results.length} transactions from Bambora`);
+      const minId = Math.min(...allNumericIds) - 2;
+      const maxId = Math.max(...allNumericIds) + 5;
+
+      // Call the range-scan edge function
+      const { data, error } = await supabase.functions.invoke("wl-search-txns", {
+        body: { startId: minId, endId: maxId },
+      });
+
+      if (error) {
+        toast.error("Failed to fetch from Bambora");
+        console.error(error);
+        setBamboraLoading(false);
+        return;
+      }
+
+      const TXN_TYPE_MAP: Record<string, string> = {
+        P: "Purchase",
+        PA: "Pre-Auth",
+        PAC: "Pre-Auth Capture",
+        VP: "Void Purchase",
+        R: "Return/Refund",
+        VR: "Void Return",
+      };
+
+      const txns: BamboraTxn[] = (data?.transactions || []).map((txn: any) => ({
+        transactionId: String(txn.id),
+        amount: Number(txn.amount || 0),
+        cardLastFour: txn.card?.last_four || "",
+        cardType: txn.card?.card_type || "",
+        status: txn.approved === 1 ? "Approved" : txn.message || "Declined",
+        dateTime: txn.created || "",
+        orderNumber: txn.order_number || "",
+        type: TXN_TYPE_MAP[txn.type] || txn.type || "—",
+      }));
+
+      setBamboraData(txns);
+      toast.success(`Found ${txns.length} transactions (scanned IDs ${data?.scanned?.startId}–${data?.scanned?.endId})`);
     } catch (err) {
       toast.error("Failed to fetch Bambora data");
       console.error(err);
@@ -661,14 +654,6 @@ export default function Reconciliation() {
                   Fetch from Bambora
                 </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Additional transaction IDs (comma or newline separated)"
-                  value={manualTxnInput}
-                  onChange={(e) => setManualTxnInput(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
             </div>
 
             {bamboraData && (
@@ -678,6 +663,7 @@ export default function Reconciliation() {
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
                       <TableHead>Transaction ID</TableHead>
                       <TableHead>Order Ref</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Card</TableHead>
                       <TableHead>Status</TableHead>
@@ -689,6 +675,7 @@ export default function Reconciliation() {
                       <TableRow key={i}>
                         <TableCell className="font-mono text-sm">{txn.transactionId}</TableCell>
                         <TableCell className="font-mono text-sm">{txn.orderNumber || "—"}</TableCell>
+                        <TableCell className="text-sm">{txn.type}</TableCell>
                         <TableCell className="text-sm font-medium">
                           {txn.error ? "—" : `$${txn.amount.toFixed(2)}`}
                         </TableCell>

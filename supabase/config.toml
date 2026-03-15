@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.log-terminal-payment]
 verify_jwt = false
+
+[functions.wl-search-txns]
+verify_jwt = false
