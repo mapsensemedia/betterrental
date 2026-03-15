@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, CheckCircle2, Terminal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,15 +11,19 @@ import { toast } from "sonner";
 interface TerminalPaymentFormProps {
   bookingId: string;
   amount: number;
+  depositAmount?: number;
   onUpdated: () => void;
 }
 
-export function TerminalPaymentForm({ bookingId, amount, onUpdated }: TerminalPaymentFormProps) {
+export function TerminalPaymentForm({ bookingId, amount, depositAmount = 350, onUpdated }: TerminalPaymentFormProps) {
   const [receiptNumber, setReceiptNumber] = useState("");
   const [cardLastFour, setCardLastFour] = useState("");
   const [authCode, setAuthCode] = useState("");
+  const [includeDeposit, setIncludeDeposit] = useState(false);
+  const [depositReceiptNumber, setDepositReceiptNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [depositIncluded, setDepositIncluded] = useState(false);
 
   const isValid = /^[A-Za-z0-9\-_]{3,50}$/.test(receiptNumber.trim()) && /^\d{4}$/.test(cardLastFour);
 
@@ -27,12 +32,20 @@ export function TerminalPaymentForm({ bookingId, amount, onUpdated }: TerminalPa
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("log-terminal-payment", {
-        body: { bookingId, receiptNumber: receiptNumber.trim(), cardLastFour, authCode: authCode.trim() || undefined },
+        body: {
+          bookingId,
+          receiptNumber: receiptNumber.trim(),
+          cardLastFour,
+          authCode: authCode.trim() || undefined,
+          includeDeposit,
+          depositReceiptNumber: includeDeposit ? (depositReceiptNumber.trim() || undefined) : undefined,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setSuccess(true);
-      toast.success("Terminal payment logged — booking confirmed");
+      setDepositIncluded(includeDeposit);
+      toast.success(includeDeposit ? "Terminal payment & deposit hold logged" : "Terminal payment logged — booking confirmed");
       onUpdated();
     } catch (err: any) {
       toast.error(err.message || "Failed to log terminal payment");
@@ -46,7 +59,11 @@ export function TerminalPaymentForm({ bookingId, amount, onUpdated }: TerminalPa
       <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30">
         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
         <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-          Terminal payment of <span className="font-mono font-medium">${amount.toFixed(2)}</span> logged successfully. Booking is now confirmed.
+          Terminal payment of <span className="font-mono font-medium">${amount.toFixed(2)}</span> logged successfully.
+          {depositIncluded && (
+            <> Deposit hold of <span className="font-mono font-medium">${depositAmount.toFixed(2)}</span> also recorded.</>
+          )}
+          {" "}Booking is now confirmed.
         </AlertDescription>
       </Alert>
     );
@@ -102,6 +119,38 @@ export function TerminalPaymentForm({ bookingId, amount, onUpdated }: TerminalPa
         </div>
       </div>
 
+      {/* Deposit hold checkbox */}
+      <div className="flex items-start gap-2 pt-1">
+        <Checkbox
+          id="include-deposit"
+          checked={includeDeposit}
+          onCheckedChange={(checked) => setIncludeDeposit(checked === true)}
+          disabled={isSubmitting}
+        />
+        <div className="space-y-0.5">
+          <Label htmlFor="include-deposit" className="text-xs font-medium cursor-pointer">
+            Deposit hold also taken on terminal
+          </Label>
+          <p className="text-[11px] text-muted-foreground">
+            Record a ${depositAmount.toFixed(2)} security deposit authorization
+          </p>
+        </div>
+      </div>
+
+      {includeDeposit && (
+        <div className="space-y-1.5 pl-6">
+          <Label htmlFor="deposit-receipt" className="text-xs">Deposit Receipt Number</Label>
+          <Input
+            id="deposit-receipt"
+            placeholder={`Defaults to ${receiptNumber.trim() || "receipt"}-DEP`}
+            value={depositReceiptNumber}
+            onChange={(e) => setDepositReceiptNumber(e.target.value)}
+            maxLength={50}
+            disabled={isSubmitting}
+          />
+        </div>
+      )}
+
       <Button
         onClick={handleSubmit}
         disabled={!isValid || isSubmitting}
@@ -113,7 +162,7 @@ export function TerminalPaymentForm({ bookingId, amount, onUpdated }: TerminalPa
         ) : (
           <CheckCircle2 className="h-4 w-4 mr-1" />
         )}
-        Log Payment & Confirm Booking
+        {includeDeposit ? "Log Payment + Deposit Hold" : "Log Payment & Confirm Booking"}
       </Button>
     </div>
   );

@@ -12,6 +12,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const DEFAULT_DEPOSIT_AMOUNT = 350;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -22,7 +24,7 @@ Deno.serve(async (req) => {
     const { userId } = await getUserOrThrow(req, corsHeaders);
     await requireRoleOrThrow(userId, ["admin", "staff"], corsHeaders);
 
-    const { bookingId, receiptNumber, cardLastFour, authCode } = await req.json();
+    const { bookingId, receiptNumber, cardLastFour, authCode, includeDeposit, depositReceiptNumber } = await req.json();
 
     // --- Input validation ---
     if (!bookingId || typeof bookingId !== "string") {
@@ -59,7 +61,7 @@ Deno.serve(async (req) => {
     // --- Fetch booking ---
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
-      .select("id, total_amount, status, user_id, location_id")
+      .select("id, total_amount, status, user_id, location_id, deposit_amount")
       .eq("id", bookingId)
       .single();
 
@@ -105,15 +107,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    // --- Update booking status + card info ---
+    // --- Build booking update ---
+    const bookingUpdate: Record<string, unknown> = {
+      status: "confirmed",
+      wl_transaction_id: txnId,
+      wl_auth_status: "completed",
+      card_last_four: cardLastFour,
+    };
+
+    // --- Deposit hold (if requested) ---
+    let depositTxnId: string | null = null;
+    const depositAmount = Number(booking.deposit_amount) || DEFAULT_DEPOSIT_AMOUNT;
+
+    if (includeDeposit) {
+      const depReceipt = depositReceiptNumber?.trim() || `${trimmedReceipt}-DEP`;
+      depositTxnId = `TERM-DEP-${depReceipt}`;
+
+      bookingUpdate.wl_deposit_transaction_id = depositTxnId;
+      bookingUpdate.wl_deposit_auth_status = "authorized";
+      bookingUpdate.deposit_status = "authorized";
+
+      // Insert deposit ledger entry
+      const { error: ledgerErr } = await supabase.from("deposit_ledger").insert({
+        booking_id: bookingId,
+        action: "hold",
+        amount: depositAmount,
+        reason: `Terminal deposit hold (receipt: ${depReceipt})`,
+        created_by: userId,
+      });
+
+      if (ledgerErr) {
+        console.error("Deposit ledger insert error:", ledgerErr);
+        // Non-fatal — payment is already recorded
+      }
+    }
+
+    // --- Update booking ---
     const { error: bookingUpdateErr } = await supabase
       .from("bookings")
-      .update({
-        status: "confirmed",
-        wl_transaction_id: txnId,
-        wl_auth_status: "completed",
-        card_last_four: cardLastFour,
-      })
+      .update(bookingUpdate)
       .eq("id", bookingId);
 
     if (bookingUpdateErr) {
@@ -125,18 +157,26 @@ Deno.serve(async (req) => {
     }
 
     // --- Audit log ---
+    const auditData: Record<string, unknown> = {
+      receipt_number: trimmedReceipt,
+      card_last_four: cardLastFour,
+      auth_code: authCode || null,
+      amount: booking.total_amount,
+      transaction_id: txnId,
+    };
+
+    if (includeDeposit) {
+      auditData.deposit_hold = true;
+      auditData.deposit_amount = depositAmount;
+      auditData.deposit_transaction_id = depositTxnId;
+    }
+
     await supabase.from("audit_logs").insert({
       action: "terminal_payment_logged",
       entity_type: "booking",
       entity_id: bookingId,
       user_id: userId,
-      new_data: {
-        receipt_number: trimmedReceipt,
-        card_last_four: cardLastFour,
-        auth_code: authCode || null,
-        amount: booking.total_amount,
-        transaction_id: txnId,
-      },
+      new_data: auditData,
     });
 
     return new Response(
@@ -145,6 +185,7 @@ Deno.serve(async (req) => {
         transactionId: txnId,
         amount: booking.total_amount,
         bookingStatus: "confirmed",
+        depositHold: includeDeposit ? { transactionId: depositTxnId, amount: depositAmount } : null,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
