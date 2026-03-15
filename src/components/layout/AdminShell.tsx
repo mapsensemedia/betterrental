@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   TrendingUp,
   CreditCard,
+  DollarSign,
   Building2,
   RotateCcw,
 } from "lucide-react";
