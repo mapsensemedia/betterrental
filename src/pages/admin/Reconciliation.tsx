@@ -663,6 +663,7 @@ export default function Reconciliation() {
                     <TableRow className="bg-muted/30 hover:bg-muted/30">
                       <TableHead>Transaction ID</TableHead>
                       <TableHead>Order Ref</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Card</TableHead>
                       <TableHead>Status</TableHead>
