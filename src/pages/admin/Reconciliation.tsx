@@ -119,6 +119,8 @@ export default function Reconciliation() {
   const [bulkInput, setBulkInput] = useState("");
   const [bulkResults, setBulkResults] = useState<BulkResult[] | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bamboraData, setBamboraData] = useState<BamboraTxn[] | null>(null);
+  const [bamboraLoading, setBamboraLoading] = useState(false);
 
   // Fetch bookings with Bambora refs + payments
   const { data: rows = [], isLoading } = useQuery({
