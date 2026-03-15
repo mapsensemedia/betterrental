@@ -50,6 +50,21 @@ Authorization: Bearer <staff_jwt>
 }
 ```
 
+### Update Time Only (No Repricing)
+
+```
+POST /reprice-booking
+Authorization: Bearer <staff_jwt>
+{
+  "bookingId": "<booking_id>",
+  "operation": "update_time_only",
+  "newStartAt": "2026-03-15T14:30:00Z",  // optional
+  "newEndAt": "2026-03-15T18:00:00Z"      // optional
+}
+```
+
+Updates pickup/return timestamps WITHOUT recalculating any financial fields. Use when ops adjusts time on the same calendar date.
+
 ## What It Does
 
 1. Fetches current booking from DB
