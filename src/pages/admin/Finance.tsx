@@ -85,6 +85,7 @@ interface OverviewPaymentRecord {
   created_at: string;
   booking_code?: string;
   customer_name?: string;
+  unreconciled?: boolean;
 }
 
 interface DailyAggregate {
