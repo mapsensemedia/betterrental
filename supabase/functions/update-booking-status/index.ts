@@ -39,8 +39,8 @@ Deno.serve(async (req) => {
   if (preflightResponse) return preflightResponse;
 
   try {
-    const user = await getUserOrThrow(req);
-    await requireRoleOrThrow(user.id, ["admin", "staff"]);
+    const user = await getUserOrThrow(req, corsHeaders);
+    await requireRoleOrThrow(user.userId, ["admin", "staff"], corsHeaders);
 
     const { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications, activationSource, activationReason, incompleteAtActivation } = await req.json();
 
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
             action: "workflow_bypass",
             entity_type: "booking",
             entity_id: bookingId,
-            user_id: user.id,
+            user_id: user.userId,
             new_data: {
               from_status: currentStatus,
               to_status: newStatus,
@@ -115,9 +115,9 @@ Deno.serve(async (req) => {
     // When activating, set handover/activation timestamps
     if (newStatus === "active" && !reopen) {
       updateData.handed_over_at = now;
-      updateData.handed_over_by = user.id;
+      updateData.handed_over_by = user.userId;
       updateData.activated_at = now;
-      updateData.activated_by = user.id;
+      updateData.activated_by = user.userId;
       updateData.activation_source = activationSource || "counter";
       if (activationReason) {
         updateData.activation_reason = activationReason;
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
       action: activationSource === "ops_manual" ? "manual_activation" : reopen ? "booking_reopened" : "booking_status_change",
       entity_type: "booking",
       entity_id: bookingId,
-      user_id: user.id,
+      user_id: user.userId,
       old_data: { status: currentStatus },
       new_data: auditNewData,
     });
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
     }
 
     // Handle deposit on status change
-    await handleDeposit(admin, bookingId, newStatus, user.id);
+    await handleDeposit(admin, bookingId, newStatus, user.userId);
 
     // Handle points
     await handlePoints(admin, bookingId, newStatus, booking.user_id);
