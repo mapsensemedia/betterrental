@@ -297,6 +297,9 @@ export function useUpdateBookingStatus() {
       queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
       queryClient.invalidateQueries({ queryKey: ["ops-fleet-units"] });
+      queryClient.invalidateQueries({ queryKey: ["ops-pickups"] });
+      queryClient.invalidateQueries({ queryKey: ["ops-active-rentals"] });
+      queryClient.invalidateQueries({ queryKey: ["ops-returns"] });
       toast.success("Booking status updated");
     },
     onError: (error) => {
