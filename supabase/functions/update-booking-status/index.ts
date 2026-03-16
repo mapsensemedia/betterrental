@@ -115,9 +115,9 @@ Deno.serve(async (req) => {
     // When activating, set handover/activation timestamps
     if (newStatus === "active" && !reopen) {
       updateData.handed_over_at = now;
-      updateData.handed_over_by = user.id;
+      updateData.handed_over_by = user.userId;
       updateData.activated_at = now;
-      updateData.activated_by = user.id;
+      updateData.activated_by = user.userId;
       updateData.activation_source = activationSource || "counter";
       if (activationReason) {
         updateData.activation_reason = activationReason;
