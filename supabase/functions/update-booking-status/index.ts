@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
       action: activationSource === "ops_manual" ? "manual_activation" : reopen ? "booking_reopened" : "booking_status_change",
       entity_type: "booking",
       entity_id: bookingId,
-      user_id: user.id,
+      user_id: user.userId,
       old_data: { status: currentStatus },
       new_data: auditNewData,
     });
