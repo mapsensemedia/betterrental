@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
     }
 
     // Handle deposit on status change
-    await handleDeposit(admin, bookingId, newStatus, user.id);
+    await handleDeposit(admin, bookingId, newStatus, user.userId);
 
     // Handle points
     await handlePoints(admin, bookingId, newStatus, booking.user_id);
