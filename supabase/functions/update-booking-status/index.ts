@@ -39,8 +39,8 @@ Deno.serve(async (req) => {
   if (preflightResponse) return preflightResponse;
 
   try {
-    const user = await getUserOrThrow(req);
-    await requireRoleOrThrow(user.id, ["admin", "staff"]);
+    const user = await getUserOrThrow(req, corsHeaders);
+    await requireRoleOrThrow(user.userId, ["admin", "staff"], corsHeaders);
 
     const { bookingId, newStatus, notes, bypassReason, reopen, skipNotifications, activationSource, activationReason, incompleteAtActivation } = await req.json();
 
