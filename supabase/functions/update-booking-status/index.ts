@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
             action: "workflow_bypass",
             entity_type: "booking",
             entity_id: bookingId,
-            user_id: user.id,
+            user_id: user.userId,
             new_data: {
               from_status: currentStatus,
               to_status: newStatus,
