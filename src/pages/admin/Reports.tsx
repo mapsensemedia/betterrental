@@ -576,11 +576,11 @@ export default function AdminReports() {
             {/* Revenue Trend Chart */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Weekly Revenue Trend</CardTitle>
-                <CardDescription>Revenue over the last 8 weeks</CardDescription>
+                <CardTitle className="text-base">Revenue Trend</CardTitle>
+                <CardDescription>Revenue over {periodLabel}</CardDescription>
               </CardHeader>
               <CardContent>
-                {weeklyRevenueTrend.every(d => d.revenue === 0) ? (
+                {revenueTrend.every(d => d.revenue === 0) ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <DollarSign className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No revenue data for this period</p>
@@ -588,8 +588,8 @@ export default function AdminReports() {
                 ) : (
                   <ChartContainer config={chartConfig} className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={weeklyRevenueTrend}>
-                        <XAxis dataKey="week" fontSize={10} />
+                      <LineChart data={revenueTrend}>
+                        <XAxis dataKey="date" fontSize={10} />
                         <YAxis fontSize={10} tickFormatter={(v) => `$${v}`} />
                         <ChartTooltip
                           content={<ChartTooltipContent formatter={(value) => `$${Number(value).toLocaleString()}`} />}
