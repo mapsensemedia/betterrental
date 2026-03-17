@@ -360,10 +360,6 @@ export default function AdminReports() {
 
   const periodLabel = DATE_PRESET_LABELS[datePreset];
 
-  // Avg days from revenue analytics hook (filtered)
-  const avgDays = rentalMetrics.totalBookings > 0
-    ? revenueStats.avgDuration
-    : 0;
 
   return (
     <AdminShell>
