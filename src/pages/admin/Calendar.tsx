@@ -78,10 +78,7 @@ export default function AdminCalendar() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: calendarData, isLoading } = useCalendarData(
-    weekOffset, 
-    locationFilter || undefined
-  );
+  const { data: calendarData, isLoading } = useCalendarData(weekOffset);
   const { data: locations } = useLocations();
 
   const handlePrevWeek = () => setWeekOffset(prev => prev - 1);
