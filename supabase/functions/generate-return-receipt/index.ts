@@ -231,7 +231,7 @@ serve(async (req) => {
         line_items_json: lineItems,
         totals_json: totals,
         notes: withholdReason ? `Deposit withheld: ${withholdReason}` : null,
-        created_by: booking.user_id, // System-generated but linked to customer
+        created_by: staffUserId || booking.user_id,
         status: "issued",
         issued_at: new Date().toISOString(),
       })
