@@ -2,6 +2,9 @@
  * Analytics Dashboard - Clean, minimal layout matching admin style
  */
 import { useState, useMemo } from "react";
+import { subDays as subDaysFn, startOfMonth as startOfMonthFn } from "date-fns";
+import { type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
+import { type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
 import { AdminShell } from "@/components/layout/AdminShell";
 import {
   BarChart3,
