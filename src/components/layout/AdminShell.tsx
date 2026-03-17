@@ -253,6 +253,10 @@ export function AdminShell({
     if (href === "/admin") {
       return location.pathname === "/admin";
     }
+    const [hrefPath, hrefSearch] = href.split("?");
+    if (hrefSearch) {
+      return location.pathname === hrefPath && location.search.includes(hrefSearch);
+    }
     return location.pathname.startsWith(href);
   };
 

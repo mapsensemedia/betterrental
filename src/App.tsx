@@ -238,14 +238,9 @@ const App = () => (
                 <Route path="/ops/return/:bookingId" element={<OpsProtectedRoute><ReturnOps /></OpsProtectedRoute>} />
 
                 {/* Redirects for consolidated nav items - all go to Operations hub */}
-                <Route path="/admin/pickups" element={<Navigate to="/admin/bookings?tab=pickups" replace />} />
-                <Route path="/admin/active-rentals" element={<Navigate to="/admin/bookings?tab=active" replace />} />
-                <Route path="/admin/returns" element={<Navigate to="/admin/bookings?tab=returns" replace />} />
                 <Route path="/admin/history" element={<Navigate to="/admin/bookings?tab=completed" replace />} />
                 <Route path="/admin/handovers" element={<Navigate to="/admin/bookings" replace />} />
-                <Route path="/admin/damages" element={<Navigate to="/admin/fleet" replace />} />
                 <Route path="/admin/photos" element={<Navigate to="/admin/fleet" replace />} />
-                <Route path="/admin/photos" element={<Navigate to="/admin/inventory" replace />} />
                 <Route path="/admin/verifications" element={<Navigate to="/admin/alerts?type=verification_pending" replace />} />
                 <Route path="/admin/analytics" element={<AdminProtectedRoute><AdminReports /></AdminProtectedRoute>} />
                 <Route path="/admin/audit-logs" element={<Navigate to="/admin/reports" replace />} />
