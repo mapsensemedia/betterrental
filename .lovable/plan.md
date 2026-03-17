@@ -1,22 +1,50 @@
 
 
-## Close Booking 76SH95PZ
+## Findings: Booking 26HDD44Y Not Showing in Active Rentals
 
-**Booking found**: `c1a94307-138b-444d-919e-6c6eacd2ec20`, currently `active`, with deposit status `authorized` (terminal deposit `TERM-DEP-0010020020`).
+### Database State
 
-### Actions
+The booking `26HDD44Y` is **still in `confirmed` status** — it was never activated. There are zero `booking_status_change` audit logs for this booking, and no edge function calls to `update-booking-status` were recorded. The staff may have believed they activated it, but the mutation never executed against the database.
 
-1. **Call `force-close-booking` edge function** with:
-   - `bookingId`: `c1a94307-138b-444d-919e-6c6eacd2ec20`
-   - `actualReturnAt`: `2026-03-15T17:00:00-04:00` (Sunday March 15, 5:00 PM Eastern)
-   - `adminNote`: "Payment received via terminal. Deposit hold (TERM-DEP-0010020020) authorized — release manually via Bambora portal. Closed outside standard return flow."
+### Two Distinct Issues
 
-2. This will:
-   - Set status to `completed`
-   - Set `return_state` to `closeout_done`
-   - Release vehicle unit `3c813c12-0082-4063-96e1-b6520016f78d` back to `available`
-   - Write audit log entry
-   - **NOT** trigger deposit release or payment processing (as intended)
+**Issue 1: The activation never persisted**
 
-The deposit remains in `authorized` state for manual release through the Bambora portal.
+The staff likely clicked "Activate Rental" but the status change didn't go through. This could have been a network error, a dialog dismiss race, or the confirmation button not firing `confirmAction`. Without browser logs from that moment, we can't determine the exact cause. The booking needs to be activated now.
+
+**Issue 2: Ops Active Rentals query is too narrow**
+
+There's a query mismatch between the two Active Rentals views:
+
+| View | Query | Includes confirmed past start? |
+|------|-------|-------------------------------|
+| Admin `ActiveRentalsMonitor` | `status = active` OR `(status = confirmed AND start_at <= now)` | Yes |
+| Ops `OpsActiveRentals` | `status = active` only (via `listBookings({ tab: "active" })`) | **No** |
+
+The admin view acts as a safety net by surfacing confirmed bookings past their start time (showing them as "Needs Activation"). The ops view does not — so if activation fails silently, the booking disappears from the ops workflow entirely.
+
+### Proposed Fix
+
+#### Immediate: Activate booking 26HDD44Y
+
+Call `update-booking-status` edge function to set status to `active`.
+
+#### Code Fix: Align the ops query with admin
+
+In `src/domain/bookings/queries.ts`, update the `tab === "active"` filter to also include confirmed bookings past their start date, matching the admin monitor's behavior:
+
+```typescript
+} else if (filters.tab === "active") {
+  const nowIso = new Date().toISOString();
+  query = query.or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${nowIso})`);
+}
+```
+
+This ensures bookings that should have been activated but weren't still appear in the ops view with their "Needs Activation" badge (which the `RentalCard` component already renders for `status === "confirmed"`).
+
+### Files to Change
+
+| File | Change |
+|------|--------|
+| `src/domain/bookings/queries.ts` | Line 73-74: Expand `tab === "active"` filter to include confirmed bookings past start time |
 
