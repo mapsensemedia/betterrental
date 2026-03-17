@@ -26,7 +26,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { bookingId, depositReleased, depositWithheld, withholdReason }: ReceiptRequest = await req.json();
+    const { bookingId, depositReleased, depositWithheld, withholdReason, staffUserId }: ReceiptRequest = await req.json();
 
     if (!bookingId) {
       return new Response(
