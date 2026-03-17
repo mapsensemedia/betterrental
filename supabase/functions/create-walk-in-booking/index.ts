@@ -8,6 +8,13 @@
  * - Staff can set arbitrary pricing (daily rate, totals)
  * - Creates/finds a customers record for the real-world customer
  * - Creates guest auth user if needed (for backward compat with payment pipelines)
+ *
+ * CUSTOMER IDENTITY:
+ * - Matches existing customer by email AND full_name (case-insensitive)
+ * - If email matches but name differs: returns customer_match_conflict for staff to decide
+ * - Never updates/overwrites existing customer records
+ * - Accepts forceNewCustomer=true to skip matching and always create new record
+ * - Accepts useCustomerId to link to a staff-confirmed existing customer
  */
 import {
   getCorsHeaders,
@@ -40,6 +47,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Hard guard: created_by must always be traceable
+    if (!auth.userId) {
+      return new Response(
+        JSON.stringify({ error: "Cannot create walk-in booking without staff user ID" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // 2. Role check — staff only
     const staffCheck = await isAdminOrStaff(auth.userId);
     if (!staffCheck) {
@@ -68,6 +83,9 @@ Deno.serve(async (req) => {
       taxAmount,
       totalAmount,
       depositAmount,
+      // New identity params
+      forceNewCustomer,
+      useCustomerId,
     } = body;
 
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
@@ -114,18 +132,26 @@ Deno.serve(async (req) => {
     }
 
     // 5. Find or create a customers record (auth-independent identity)
-    let customerId: string;
-    const { data: existingCustomer } = await supabaseAdmin
-      .from("customers")
-      .select("id, full_name")
-      .eq("email", email)
-      .limit(1)
-      .maybeSingle();
+    let customerId: string | null = null;
 
-    if (existingCustomer) {
-      customerId = existingCustomer.id;
-      console.log(`[walkin] Reusing existing customer record ${customerId} (${existingCustomer.full_name}) for email ${email}`);
-    } else {
+    if (useCustomerId) {
+      // Staff explicitly confirmed to use an existing customer
+      const { data: confirmedCustomer } = await supabaseAdmin
+        .from("customers")
+        .select("id")
+        .eq("id", useCustomerId)
+        .maybeSingle();
+
+      if (!confirmedCustomer) {
+        return new Response(
+          JSON.stringify({ error: "Specified customer record not found" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      customerId = confirmedCustomer.id;
+      console.log(`[walkin] Staff confirmed existing customer ${customerId}`);
+    } else if (forceNewCustomer) {
+      // Staff explicitly chose to create a new customer (even if email matches)
       const { data: newCustomer, error: custErr } = await supabaseAdmin
         .from("customers")
         .insert({
@@ -144,7 +170,72 @@ Deno.serve(async (req) => {
         );
       }
       customerId = newCustomer.id;
-      console.log(`[walkin] Created new customer record ${customerId} for ${sanitizedName} (${email})`);
+      console.log(`[walkin] Force-created new customer ${customerId} for ${sanitizedName} (${email})`);
+    } else {
+      // Default: match by email AND full_name (case-insensitive)
+      const { data: exactMatch } = await supabaseAdmin
+        .from("customers")
+        .select("id, full_name, email, phone")
+        .eq("email", email)
+        .limit(10);
+
+      const nameMatch = exactMatch?.find(
+        (c) => c.full_name?.toLowerCase().trim() === sanitizedName.toLowerCase(),
+      );
+
+      if (nameMatch) {
+        // Email + name match — same person, reuse
+        customerId = nameMatch.id;
+        console.log(`[walkin] Reusing customer ${customerId} (${nameMatch.full_name}) — email+name match`);
+      } else if (exactMatch && exactMatch.length > 0) {
+        // Email matches but name differs — ask staff to decide
+        const existing = exactMatch[0];
+        console.log(`[walkin] Email match but name mismatch: existing="${existing.full_name}" vs new="${sanitizedName}"`);
+        return new Response(
+          JSON.stringify({
+            customer_match_conflict: true,
+            existingCustomer: {
+              id: existing.id,
+              fullName: existing.full_name,
+              email: existing.email,
+              phone: existing.phone,
+            },
+            newName: sanitizedName,
+            message: `An existing customer "${existing.full_name}" uses email ${email}. Is this the same person?`,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } else {
+        // No match at all — create new customer
+        const { data: newCustomer, error: custErr } = await supabaseAdmin
+          .from("customers")
+          .insert({
+            full_name: sanitizedName,
+            email,
+            phone: sanitizedPhoneVal,
+          })
+          .select("id")
+          .single();
+
+        if (custErr || !newCustomer) {
+          console.error("[walkin] Failed to create customer record:", custErr);
+          return new Response(
+            JSON.stringify({ error: "Failed to create customer record", details: custErr?.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        customerId = newCustomer.id;
+        console.log(`[walkin] Created new customer ${customerId} for ${sanitizedName} (${email})`);
+      }
+    }
+
+    // Hard guard: every walk-in booking MUST have a customer_id
+    if (!customerId) {
+      console.error("[walkin] CRITICAL: No customer_id resolved — aborting booking creation");
+      return new Response(
+        JSON.stringify({ error: "Cannot create walk-in booking without a valid customer_id" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // 6. Resolve or create auth user (backward compat for payment/notification pipelines)
