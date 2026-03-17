@@ -207,7 +207,7 @@ export default function BookingDetail() {
     if (!bookingId) return;
     setIsGeneratingInvoice(true);
     try {
-      const { error } = await supabase.functions.invoke("close-account", {
+      const { data, error } = await supabase.functions.invoke("close-account", {
         body: { bookingId },
       });
       if (error) throw error;
