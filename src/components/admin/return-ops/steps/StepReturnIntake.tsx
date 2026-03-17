@@ -319,16 +319,16 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
             Return Time
           </CardTitle>
           <CardDescription>
-            Record when the vehicle was returned
+            Set the actual time the vehicle was returned
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-sm">
-              {format(new Date(), "PPpp")}
-            </Badge>
-            <span className="text-muted-foreground text-sm">(Current time will be used)</span>
-          </div>
+          <Input
+            type="datetime-local"
+            value={returnTime}
+            onChange={(e) => setReturnTime(e.target.value)}
+            disabled={isLocked}
+          />
         </CardContent>
       </Card>
 
