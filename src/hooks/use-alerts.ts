@@ -21,6 +21,47 @@ export interface AdminAlert {
   acknowledgedBy: string | null;
   resolvedAt: string | null;
   resolvedBy: string | null;
+  expiresAt: string | null;
+}
+
+// Priority tiers for alert grouping
+export const ALERT_PRIORITY: Record<string, "critical" | "action" | "info"> = {
+  damage_reported: "critical",
+  emergency: "critical",
+  payment_pending: "critical",
+  verification_pending: "action",
+  overdue: "action",
+  late_return: "action",
+  return_due_soon: "action",
+  customer_issue: "info",
+  cleaning_required: "info",
+  hold_expiring: "info",
+};
+
+export function getAlertPriority(alertType: string): "critical" | "action" | "info" {
+  return ALERT_PRIORITY[alertType] || "info";
+}
+
+// Expiry durations by alert type (in days)
+const ALERT_EXPIRY_DAYS: Record<string, number | null> = {
+  verification_pending: 7,
+  return_due_soon: 2,
+  overdue: 7,
+  customer_issue: 3,
+  late_return: 7,
+  hold_expiring: 3,
+  cleaning_required: 2,
+  damage_reported: null, // never expires
+  emergency: null,
+  payment_pending: null,
+};
+
+export function getExpiresAt(alertType: string): string | null {
+  const days = ALERT_EXPIRY_DAYS[alertType];
+  if (days === null || days === undefined) return null;
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
 }
 
 interface AlertFilters {
@@ -28,6 +69,7 @@ interface AlertFilters {
   alertType?: AlertType;
   dateFrom?: string;
   dateTo?: string;
+  includeResolved?: boolean;
 }
 
 /**
@@ -44,7 +86,11 @@ export function useAdminAlerts(filters?: AlertFilters) {
 
       if (filters?.status) {
         query = query.eq("status", filters.status);
+      } else if (!filters?.includeResolved) {
+        // Default: exclude resolved
+        query = query.in("status", ["pending", "acknowledged"]);
       }
+
       if (filters?.alertType) {
         query = query.eq("alert_type", filters.alertType);
       }
@@ -54,6 +100,9 @@ export function useAdminAlerts(filters?: AlertFilters) {
       if (filters?.dateTo) {
         query = query.lte("created_at", filters.dateTo);
       }
+
+      // Exclude expired alerts
+      query = query.or("expires_at.is.null,expires_at.gt.now()");
 
       const { data, error } = await query.limit(100);
 
@@ -76,10 +125,11 @@ export function useAdminAlerts(filters?: AlertFilters) {
         acknowledgedBy: a.acknowledged_by,
         resolvedAt: a.resolved_at,
         resolvedBy: a.resolved_by,
+        expiresAt: a.expires_at,
       })) as AdminAlert[];
     },
-    staleTime: 10000, // 10 seconds - reduced for faster updates
-    refetchInterval: 15000, // Poll every 15s as fallback for realtime
+    staleTime: 10000,
+    refetchInterval: 15000,
   });
 }
 
@@ -104,14 +154,12 @@ export function useResolveAlert() {
         .eq("id", alertId);
 
       if (error) throw error;
-
-      // Create audit log
       await createAuditLog("resolve_alert", "admin_alerts", alertId);
-
       return alertId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
     },
   });
 }
@@ -137,15 +185,72 @@ export function useAcknowledgeAlert() {
         .eq("id", alertId);
 
       if (error) throw error;
-
       await createAuditLog("acknowledge_alert", "admin_alerts", alertId);
-
       return alertId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
     },
   });
+}
+
+/**
+ * Bulk-resolve all resolved alerts (clear them)
+ */
+export function useBulkResolveAlerts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (alertIds: string[]) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("admin_alerts")
+        .update({
+          status: "resolved",
+          resolved_at: new Date().toISOString(),
+          resolved_by: user.id,
+        })
+        .in("id", alertIds);
+
+      if (error) throw error;
+      return alertIds;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
+    },
+  });
+}
+
+/**
+ * Auto-resolve non-critical alerts when a booking is completed
+ */
+export async function autoResolveBookingAlerts(bookingId: string, userId: string) {
+  const autoResolveTypes: AlertType[] = [
+    "verification_pending",
+    "return_due_soon",
+    "overdue",
+    "customer_issue",
+    "late_return",
+  ];
+
+  const { error } = await supabase
+    .from("admin_alerts")
+    .update({
+      status: "resolved",
+      resolved_at: new Date().toISOString(),
+      resolved_by: userId,
+    })
+    .eq("booking_id", bookingId)
+    .in("alert_type", autoResolveTypes)
+    .in("status", ["pending", "acknowledged"]);
+
+  if (error) {
+    console.error("Error auto-resolving alerts:", error);
+  }
 }
 
 /**
@@ -173,6 +278,7 @@ export function useCreateAlert() {
           vehicle_id: alert.vehicleId || null,
           user_id: alert.userId || null,
           status: "pending",
+          expires_at: getExpiresAt(alert.alertType),
         }])
         .select()
         .single();
@@ -191,7 +297,6 @@ export function useCreateAlert() {
       ];
       
       if (notifiableTypes.includes(alert.alertType)) {
-        // Map alert types to notification event types
         const eventTypeMap: Record<string, AdminNotifyEventType> = {
           emergency: "issue_reported",
           damage_reported: "damage_reported",
@@ -213,6 +318,7 @@ export function useCreateAlert() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
     },
   });
 }

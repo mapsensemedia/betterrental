@@ -10,16 +10,16 @@ import {
   Car,
   BookOpen,
   User,
-  Filter,
   X,
   ChevronRight,
+  ChevronDown,
   Eye,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -48,11 +48,20 @@ import {
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { useAdminAlerts, useResolveAlert, useAcknowledgeAlert, type AdminAlert } from "@/hooks/use-alerts";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  useAdminAlerts,
+  useResolveAlert,
+  useAcknowledgeAlert,
+  useBulkResolveAlerts,
+  getAlertPriority,
+  type AdminAlert,
+} from "@/hooks/use-alerts";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { PendingVerificationsCard } from "@/components/admin/alerts/PendingVerificationsCard";
-import { useQueryClient } from "@tanstack/react-query";
+import { CollapsibleSection } from "@/components/admin/ops/sections/CollapsibleSection";
 
 const alertTypeLabels: Record<string, string> = {
   verification_pending: "Verification Pending",
@@ -82,25 +91,113 @@ const alertTypeIcons: Record<string, typeof AlertTriangle> = {
 
 const statusColors: Record<string, string> = {
   pending: "bg-destructive/10 text-destructive border-destructive/20",
-  acknowledged: "bg-warning/10 text-warning border-warning/20",
-  resolved: "bg-success/10 text-success border-success/20",
+  acknowledged: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  resolved: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
 };
 
+const priorityConfig = {
+  critical: { label: "Critical", icon: AlertTriangle, color: "text-destructive" },
+  action: { label: "Action Needed", icon: Clock, color: "text-amber-500" },
+  info: { label: "Informational", icon: Info, color: "text-muted-foreground" },
+};
+
+function AlertRow({
+  alert,
+  onView,
+  onAcknowledge,
+  onResolve,
+  isAcknowledging,
+  isResolving,
+}: {
+  alert: AdminAlert;
+  onView: (a: AdminAlert) => void;
+  onAcknowledge: (id: string) => void;
+  onResolve: (id: string) => void;
+  isAcknowledging: boolean;
+  isResolving: boolean;
+}) {
+  const TypeIcon = alertTypeIcons[alert.alertType] || Info;
+  return (
+    <TableRow className="cursor-pointer hover:bg-muted/50">
+      <TableCell>
+        <Badge variant="outline" className={statusColors[alert.status]}>
+          {alert.status}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+            <TypeIcon className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="font-medium">{alert.title}</p>
+            {alert.message && (
+              <p className="text-sm text-muted-foreground line-clamp-1">{alert.message}</p>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        <span className="text-sm">{alertTypeLabels[alert.alertType] || alert.alertType}</span>
+      </TableCell>
+      <TableCell>
+        <span className="text-sm text-muted-foreground">
+          {formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true })}
+        </span>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={() => onView(alert)}>
+                <Eye className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>View details</TooltipContent>
+          </Tooltip>
+          {alert.status === "pending" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={() => onAcknowledge(alert.id)} disabled={isAcknowledging}>
+                  Ack
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Acknowledge alert</TooltipContent>
+            </Tooltip>
+          )}
+          {alert.status !== "resolved" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="default" size="sm" onClick={() => onResolve(alert.id)} disabled={isResolving}>
+                  <Check className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Mark as resolved</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export default function AdminAlerts() {
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedAlert, setSelectedAlert] = useState<AdminAlert | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") || "");
   const [typeFilter, setTypeFilter] = useState<string>(searchParams.get("type") || "");
+  const [showResolved, setShowResolved] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data: alerts = [], isLoading, refetch } = useAdminAlerts({
     status: statusFilter as any || undefined,
     alertType: typeFilter as any || undefined,
+    includeResolved: showResolved,
   });
 
   const resolveAlert = useResolveAlert();
   const acknowledgeAlert = useAcknowledgeAlert();
+  const bulkResolve = useBulkResolveAlerts();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -113,10 +210,8 @@ export default function AdminAlerts() {
     try {
       await resolveAlert.mutateAsync(alertId);
       toast({ title: "Alert resolved" });
-      if (selectedAlert?.id === alertId) {
-        setSelectedAlert(null);
-      }
-    } catch (error) {
+      if (selectedAlert?.id === alertId) setSelectedAlert(null);
+    } catch {
       toast({ title: "Failed to resolve alert", variant: "destructive" });
     }
   };
@@ -125,8 +220,19 @@ export default function AdminAlerts() {
     try {
       await acknowledgeAlert.mutateAsync(alertId);
       toast({ title: "Alert acknowledged" });
-    } catch (error) {
+    } catch {
       toast({ title: "Failed to acknowledge", variant: "destructive" });
+    }
+  };
+
+  const handleBulkResolve = async () => {
+    const unresolvedIds = alerts.filter((a) => a.status !== "resolved").map((a) => a.id);
+    if (unresolvedIds.length === 0) return;
+    try {
+      await bulkResolve.mutateAsync(unresolvedIds);
+      toast({ title: `${unresolvedIds.length} alert(s) resolved` });
+    } catch {
+      toast({ title: "Failed to bulk resolve", variant: "destructive" });
     }
   };
 
@@ -137,9 +243,44 @@ export default function AdminAlerts() {
   };
 
   const hasFilters = statusFilter || typeFilter;
-  const pendingCount = alerts.filter(a => a.status === "pending").length;
+  const pendingCount = alerts.filter((a) => a.status === "pending").length;
 
-return (
+  // Group alerts by priority
+  const criticalAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "critical");
+  const actionAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "action");
+  const infoAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "info");
+
+  const renderAlertTable = (groupAlerts: AdminAlert[]) => {
+    if (groupAlerts.length === 0) return null;
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[100px]">Status</TableHead>
+            <TableHead>Alert</TableHead>
+            <TableHead className="w-[140px]">Type</TableHead>
+            <TableHead className="w-[140px]">Created</TableHead>
+            <TableHead className="w-[160px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {groupAlerts.map((alert) => (
+            <AlertRow
+              key={alert.id}
+              alert={alert}
+              onView={setSelectedAlert}
+              onAcknowledge={handleAcknowledge}
+              onResolve={handleResolve}
+              isAcknowledging={acknowledgeAlert.isPending}
+              isResolving={resolveAlert.isPending}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    );
+  };
+
+  return (
     <AdminShell>
       <div className="space-y-6">
         {/* Header */}
@@ -147,19 +288,32 @@ return (
           <div>
             <h1 className="heading-2">Alerts</h1>
             <p className="text-muted-foreground">
-              {pendingCount > 0 
+              {pendingCount > 0
                 ? `${pendingCount} pending alert${pendingCount > 1 ? "s" : ""} require attention`
                 : "No pending alerts"}
             </p>
           </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          <div className="flex items-center gap-2">
+            {alerts.filter((a) => a.status !== "resolved").length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkResolve}
+                disabled={bulkResolve.isPending}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Clear All
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>Refresh alerts</TooltipContent>
-          </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh alerts</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
 
         {/* Pending Verifications Card */}
@@ -195,126 +349,87 @@ return (
               Clear
             </Button>
           )}
+
+          <div className="flex items-center gap-2 ml-auto">
+            <Switch id="show-resolved" checked={showResolved} onCheckedChange={setShowResolved} />
+            <Label htmlFor="show-resolved" className="text-sm text-muted-foreground">
+              Show resolved
+            </Label>
+          </div>
         </div>
 
-        {/* Table */}
-        <div className="border border-border rounded-2xl overflow-hidden bg-card">
-          {isLoading ? (
-            <div className="p-8 space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : alerts.length === 0 ? (
-            <div className="p-12 text-center">
-              <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold mb-2">No alerts found</h3>
-              <p className="text-sm text-muted-foreground">
-                {hasFilters ? "Try adjusting your filters" : "All caught up!"}
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Status</TableHead>
-                  <TableHead>Alert</TableHead>
-                  <TableHead className="w-[140px]">Type</TableHead>
-                  <TableHead className="w-[140px]">Created</TableHead>
-                  <TableHead className="w-[160px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {alerts.map((alert) => {
-                  const TypeIcon = alertTypeIcons[alert.alertType] || Info;
-                  return (
-                    <TableRow key={alert.id} className="cursor-pointer hover:bg-muted/50">
-                      <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={statusColors[alert.status]}
-                        >
-                          {alert.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                            <TypeIcon className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{alert.title}</p>
-                            {alert.message && (
-                              <p className="text-sm text-muted-foreground line-clamp-1">
-                                {alert.message}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {alertTypeLabels[alert.alertType] || alert.alertType}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true })}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setSelectedAlert(alert)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>View details</TooltipContent>
-                          </Tooltip>
-                          {alert.status === "pending" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleAcknowledge(alert.id)}
-                                  disabled={acknowledgeAlert.isPending}
-                                >
-                                  Ack
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Acknowledge alert</TooltipContent>
-                            </Tooltip>
-                          )}
-                          {alert.status !== "resolved" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => handleResolve(alert.id)}
-                                  disabled={resolveAlert.isPending}
-                                >
-                                  <Check className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Mark as resolved</TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+        {/* Grouped Alerts */}
+        {isLoading ? (
+          <div className="border border-border rounded-2xl overflow-hidden bg-card p-8 space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : alerts.length === 0 ? (
+          <div className="border border-border rounded-2xl overflow-hidden bg-card p-12 text-center">
+            <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-semibold mb-2">No alerts found</h3>
+            <p className="text-sm text-muted-foreground">
+              {hasFilters ? "Try adjusting your filters" : "All caught up!"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Critical */}
+            {criticalAlerts.length > 0 && (
+              <div className="border border-destructive/20 rounded-2xl overflow-hidden bg-card">
+                <CollapsibleSection
+                  title={`Critical (${criticalAlerts.length})`}
+                  icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
+                  defaultOpen={true}
+                  badge={
+                    <Badge variant="destructive" className="text-xs">
+                      {criticalAlerts.length}
+                    </Badge>
+                  }
+                >
+                  {renderAlertTable(criticalAlerts)}
+                </CollapsibleSection>
+              </div>
+            )}
+
+            {/* Action Needed */}
+            {actionAlerts.length > 0 && (
+              <div className="border border-amber-500/20 rounded-2xl overflow-hidden bg-card">
+                <CollapsibleSection
+                  title={`Action Needed (${actionAlerts.length})`}
+                  icon={<Clock className="h-4 w-4 text-amber-500" />}
+                  defaultOpen={true}
+                  badge={
+                    <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      {actionAlerts.length}
+                    </Badge>
+                  }
+                >
+                  {renderAlertTable(actionAlerts)}
+                </CollapsibleSection>
+              </div>
+            )}
+
+            {/* Informational */}
+            {infoAlerts.length > 0 && (
+              <div className="border border-border rounded-2xl overflow-hidden bg-card">
+                <CollapsibleSection
+                  title={`Informational (${infoAlerts.length})`}
+                  icon={<Info className="h-4 w-4 text-muted-foreground" />}
+                  defaultOpen={false}
+                  badge={
+                    <Badge variant="outline" className="text-xs">
+                      {infoAlerts.length}
+                    </Badge>
+                  }
+                >
+                  {renderAlertTable(infoAlerts)}
+                </CollapsibleSection>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Alert Detail Sheet */}
@@ -324,10 +439,7 @@ return (
             <>
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-3">
-                  <Badge 
-                    variant="outline" 
-                    className={statusColors[selectedAlert.status]}
-                  >
+                  <Badge variant="outline" className={statusColors[selectedAlert.status]}>
                     {selectedAlert.status}
                   </Badge>
                   <span>{alertTypeLabels[selectedAlert.alertType]}</span>
@@ -335,7 +447,6 @@ return (
               </SheetHeader>
 
               <div className="mt-6 space-y-6">
-                {/* Alert Info */}
                 <div>
                   <h3 className="font-semibold mb-2">{selectedAlert.title}</h3>
                   {selectedAlert.message && (
@@ -345,7 +456,6 @@ return (
 
                 <Separator />
 
-                {/* Metadata */}
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Created</span>
@@ -363,15 +473,20 @@ return (
                       <span>{format(new Date(selectedAlert.resolvedAt), "PPp")}</span>
                     </div>
                   )}
+                  {selectedAlert.expiresAt && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Expires</span>
+                      <span>{format(new Date(selectedAlert.expiresAt), "PPp")}</span>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
 
-                {/* Related Entities */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium">Related</h4>
                   {selectedAlert.bookingId && (
-                    <Link 
+                    <Link
                       to={`/admin/bookings/${selectedAlert.bookingId}/ops`}
                       className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
                     >
@@ -383,7 +498,7 @@ return (
                     </Link>
                   )}
                   {selectedAlert.vehicleId && (
-                    <Link 
+                    <Link
                       to={`/admin/fleet?vehicle=${selectedAlert.vehicleId}`}
                       className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
                     >
@@ -398,7 +513,6 @@ return (
 
                 <Separator />
 
-                {/* Actions */}
                 <div className="flex gap-3">
                   {selectedAlert.status === "pending" && (
                     <Button
