@@ -76,21 +76,29 @@ serve(async (req) => {
       return rateLimitResponse(rateLimit.resetAt, corsHeaders);
     }
 
-    // Validate authentication
+    // Validate authentication — allow service_role JWTs (server-to-server)
     const auth = await validateAuth(req);
-    if (!auth.authenticated) {
-      const authHeader = req.headers.get("Authorization");
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!authHeader?.includes(serviceKey || "no-match")) {
-        return new Response(
-          JSON.stringify({ error: "Authentication required" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    const authHeader = req.headers.get("Authorization");
+    let isServiceRole = false;
+    if (!auth.authenticated && authHeader) {
+      // Check if this is a service_role JWT by decoding claims
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.role === "service_role") {
+          isServiceRole = true;
+        }
+      } catch (_) { /* not a valid JWT */ }
+    }
+    if (!auth.authenticated && !isServiceRole) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const body = await req.json();
-    const { bookingId } = body;
+    const { bookingId, suppressNotifications } = body;
 
     // Input validation
     if (!bookingId || typeof bookingId !== "string") {
@@ -540,14 +548,18 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
       new_data: { booking_id: bookingId, booking_code: booking.booking_code },
     });
 
-    // Send notification to customer
-    try {
-      console.log(`Sending agreement_ready notification for booking: ${bookingId}`);
-      await supabase.functions.invoke("send-agreement-notification", {
-        body: { bookingId, notificationType: "agreement_ready" },
-      });
-    } catch (notifyError) {
-      console.error("Failed to send agreement notification (non-blocking):", notifyError);
+    // Send notification to customer (unless suppressed for backfill)
+    if (!suppressNotifications) {
+      try {
+        console.log(`Sending agreement_ready notification for booking: ${bookingId}`);
+        await supabase.functions.invoke("send-agreement-notification", {
+          body: { bookingId, notificationType: "agreement_ready" },
+        });
+      } catch (notifyError) {
+        console.error("Failed to send agreement notification (non-blocking):", notifyError);
+      }
+    } else {
+      console.log(`Notifications suppressed for booking: ${bookingId}`);
     }
 
     return new Response(

@@ -18,6 +18,10 @@ interface CloseAccountRequest {
     type: "late_fee" | "damage" | "fee" | "other";
   }>;
   notes?: string;
+  /** Backfill mode: skip account_closed_at guard, skip booking status update, skip receipt generation */
+  backfillMode?: boolean;
+  /** Suppress all outbound notifications (SMS, email, admin alerts) */
+  suppressNotifications?: boolean;
 }
 
 function roundCents(v: number): number {
@@ -37,22 +41,38 @@ Deno.serve(async (req) => {
 
   try {
     const authResult = await validateAuth(req);
+    let isServiceRole = false;
     if (!authResult.authenticated) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Check for service_role JWT (server-to-server backfill calls)
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        try {
+          const token = authHeader.replace("Bearer ", "");
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          if (payload.role === "service_role") {
+            isServiceRole = true;
+          }
+        } catch (_) { /* not valid JWT */ }
+      }
+      if (!isServiceRole) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    const hasAccess = await isAdminOrStaff(authResult.userId!);
-    if (!hasAccess) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden - Admin/Staff only" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!isServiceRole) {
+      const hasAccess = await isAdminOrStaff(authResult.userId!);
+      if (!hasAccess) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden - Admin/Staff only" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    const { bookingId, additionalCharges, notes }: CloseAccountRequest = await req.json();
+    const { bookingId, additionalCharges, notes, backfillMode, suppressNotifications }: CloseAccountRequest = await req.json();
 
     if (!bookingId) {
       return new Response(
@@ -100,7 +120,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (booking.account_closed_at) {
+    if (booking.account_closed_at && !backfillMode) {
       return new Response(
         JSON.stringify({ error: "Account already closed", closedAt: booking.account_closed_at }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -314,7 +334,7 @@ Deno.serve(async (req) => {
         notes: notes || null,
         status: "issued",
         issued_at: new Date().toISOString(),
-        created_by: authResult.userId,
+        created_by: authResult.userId || null,
       })
       .select()
       .single();
@@ -324,42 +344,53 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to create invoice: ${invoiceError.message}`);
     }
 
-    // Update booking as closed
-    await supabase.from("bookings").update({
-      status: "completed",
-      account_closed_at: new Date().toISOString(),
-      account_closed_by: authResult.userId,
-      final_invoice_generated: true,
-      final_invoice_id: invoice.invoice_number,
-    }).eq("id", bookingId);
+    // Update booking as closed (skip in backfill mode — already completed)
+    if (!backfillMode) {
+      await supabase.from("bookings").update({
+        status: "completed",
+        account_closed_at: new Date().toISOString(),
+        account_closed_by: authResult.userId || null,
+        final_invoice_generated: true,
+        final_invoice_id: invoice.invoice_number,
+      }).eq("id", bookingId);
+    } else {
+      // In backfill mode, only update invoice reference fields
+      await supabase.from("bookings").update({
+        final_invoice_generated: true,
+        final_invoice_id: invoice.invoice_number,
+      }).eq("id", bookingId);
+    }
 
     // Audit log
     await supabase.from("audit_logs").insert({
-      action: "account_closed",
+      action: backfillMode ? "invoice_backfilled" : "account_closed",
       entity_type: "booking",
       entity_id: bookingId,
-      user_id: authResult.userId,
+      user_id: authResult.userId || null,
       new_data: {
         invoice_number: invoice.invoice_number,
         total_charges: totalCharges,
         payments_received: paymentsReceived,
         amount_due: Math.max(0, amountDue),
         line_items_count: lineItems.length,
+        backfillMode: backfillMode || false,
       },
     });
 
-    // Send final receipt
-    try {
-      await supabase.functions.invoke("generate-return-receipt", {
-        body: {
-          bookingId,
-          depositReleased: 0,
-          depositWithheld: 0,
-          staffUserId: authResult.userId,
-        },
-      });
-    } catch (receiptErr) {
-      console.warn("Failed to generate return receipt:", receiptErr);
+    // Send final receipt (skip in backfill or when notifications suppressed)
+    if (!backfillMode && !suppressNotifications) {
+      try {
+        await supabase.functions.invoke("generate-return-receipt", {
+          body: {
+            bookingId,
+            depositReleased: 0,
+            depositWithheld: 0,
+            staffUserId: authResult.userId || null,
+          },
+        });
+      } catch (receiptErr) {
+        console.warn("Failed to generate return receipt:", receiptErr);
+      }
     }
 
     console.log(`Account closed for booking ${bookingId}, invoice ${invoice.invoice_number}`);
