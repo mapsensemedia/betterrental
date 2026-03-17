@@ -96,6 +96,20 @@ export default function FleetManagement() {
 
   const selectedCategory = categories?.find(c => c.id === selectedCategoryId);
 
+  // Auto-select category when navigated with vehicle param from Alerts
+  useEffect(() => {
+    if (vehicleParam && categories?.length && !selectedCategoryId) {
+      // vehicleParam is a vehicle_categories ID — select it directly
+      const match = categories.find(c => c.id === vehicleParam);
+      if (match) {
+        setSelectedCategoryId(match.id);
+      } else {
+        // Fallback: set as search term so it's visible
+        setSearchTerm(vehicleParam);
+      }
+    }
+  }, [vehicleParam, categories, selectedCategoryId]);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ["fleet-categories"] });
