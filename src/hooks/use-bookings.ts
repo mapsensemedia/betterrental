@@ -219,6 +219,17 @@ export function useBookingById(id: string | null) {
         .eq("id", data.user_id)
         .maybeSingle();
 
+      // Fetch customer record if customer_id is set (prefer over profile for display)
+      let customerData: { full_name: string; email: string | null; phone: string | null } | null = null;
+      if (data.customer_id) {
+        const { data: cust } = await supabase
+          .from("customers")
+          .select("full_name, email, phone")
+          .eq("id", data.customer_id)
+          .maybeSingle();
+        customerData = cust;
+      }
+
       // Fetch related data
       const [paymentsRes, addOnsRes, verificationsRes, inspectionsRes, photosRes, auditRes, notificationsRes, additionalDriversRes] = await Promise.all([
         supabase.from("payments").select("*").eq("booking_id", id),
@@ -244,10 +255,28 @@ export function useBookingById(id: string | null) {
         seats: categoryData.seats,
       } : null;
 
+      // Merge customer data over profile data for display fields, keep profile's license data
+      const mergedProfile = profileData ? {
+        ...profileData,
+        full_name: customerData?.full_name || profileData.full_name,
+        email: customerData?.email || profileData.email,
+        phone: customerData?.phone || profileData.phone,
+      } : customerData ? {
+        id: data.user_id,
+        full_name: customerData.full_name,
+        email: customerData.email,
+        phone: customerData.phone,
+        is_verified: false,
+        driver_license_status: null,
+        driver_license_expiry: null,
+        driver_license_front_url: null,
+        driver_license_back_url: null,
+      } : null;
+
       return {
         ...data,
-        vehicles: vehiclesField, // Add backward-compatible vehicles field
-        profiles: profileData,
+        vehicles: vehiclesField,
+        profiles: mergedProfile,
         payments: paymentsRes.data || [],
         addOns: addOnsRes.data || [],
         additionalDrivers: additionalDriversRes.data || [],

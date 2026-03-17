@@ -334,7 +334,7 @@ export default function AdminBilling() {
       // 2. Fetch Worldline bookings (have wl_transaction_id)
       const { data: wlBookings, error: wlErr } = await supabase
         .from("bookings")
-        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id, customer_id")
         .not("wl_transaction_id", "is", null)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -343,7 +343,7 @@ export default function AdminBilling() {
       // 3. Fetch Worldline deposit bookings (have wl_deposit_transaction_id)
       const { data: wlDepositBookings, error: wlDErr } = await supabase
         .from("bookings")
-        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id, customer_id")
         .not("wl_deposit_transaction_id", "is", null)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -359,8 +359,28 @@ export default function AdminBilling() {
       const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", uniqueUserIds);
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
+      // Fetch customers for bookings with customer_id
+      const allCustomerIds = [
+        ...(wlBookings || []).map(b => b.customer_id),
+        ...(wlDepositBookings || []).map(b => b.customer_id),
+      ].filter(Boolean) as string[];
+      const uniqueCustomerIds = [...new Set(allCustomerIds)];
+      const { data: pcustomersData } = uniqueCustomerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name").in("id", uniqueCustomerIds)
+        : { data: [] };
+      const pcustomersMap = new Map((pcustomersData || []).map(c => [c.id, c]) || []);
+
       // Build a set of Worldline txn IDs already in payments table to avoid duplicates
       const existingTxnIds = new Set(manualPayments.filter(p => p.transaction_id).map(p => p.transaction_id));
+
+      // Helper to resolve profile preferring customer
+      const resolveProfile = (userId: string, customerId: string | null) => {
+        if (customerId) {
+          const cust = pcustomersMap.get(customerId);
+          if (cust) return { id: customerId, full_name: cust.full_name };
+        }
+        return profileMap.get(userId) || null;
+      };
 
       // Map manual payments
       const manual: Payment[] = manualPayments.map(payment => ({
@@ -387,7 +407,7 @@ export default function AdminBilling() {
           source: "worldline" as const,
           booking: {
             booking_code: b.booking_code,
-            profile: profileMap.get(b.user_id) || null,
+            profile: resolveProfile(b.user_id, b.customer_id),
           },
         }));
 
@@ -406,7 +426,7 @@ export default function AdminBilling() {
           source: "worldline" as const,
           booking: {
             booking_code: b.booking_code,
-            profile: profileMap.get(b.user_id) || null,
+            profile: resolveProfile(b.user_id, b.customer_id),
           },
         }));
 

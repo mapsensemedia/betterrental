@@ -143,7 +143,7 @@ export default function Reconciliation() {
       const { data: bookings, error: bErr } = await supabase
         .from("bookings")
         .select(
-          "id, booking_code, status, total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_deposit_transaction_id, user_id, vehicle_id, created_at"
+          "id, booking_code, status, total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_deposit_transaction_id, user_id, customer_id, vehicle_id, created_at"
         )
         .or("wl_transaction_id.not.is.null,wl_deposit_transaction_id.not.is.null")
         .order("created_at", { ascending: false });
@@ -160,6 +160,13 @@ export default function Reconciliation() {
       const profileMap = new Map(
         (profiles || []).map((p) => [p.id, p.full_name || "Unknown"])
       );
+
+      // Fetch customers for bookings with customer_id
+      const customerIds = [...new Set(bookings.map((b) => b.customer_id).filter(Boolean))] as string[];
+      const { data: customersData } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name").in("id", customerIds)
+        : { data: [] };
+      const customersMap = new Map((customersData || []).map((c) => [c.id, c.full_name || "Unknown"]));
 
       // Fetch payments
       const bookingIds = bookings.map((b) => b.id);
@@ -185,7 +192,7 @@ export default function Reconciliation() {
       return bookings.map((b): ReconciliationRow => ({
         bookingId: b.id,
         bookingCode: b.booking_code,
-        customerName: profileMap.get(b.user_id) || "Unknown",
+        customerName: (b.customer_id ? customersMap.get(b.customer_id) : null) || profileMap.get(b.user_id) || "Unknown",
         bookingStatus: b.status,
         totalAmount: Number(b.total_amount),
         depositAmount: Number(b.deposit_amount || 0),
