@@ -304,7 +304,20 @@ export default function AdminAnalytics() {
 
           {/* Revenue & Add-On Analytics Tab */}
           <TabsContent value="revenue">
-            <RevenueAnalyticsTab />
+            <RevenueAnalyticsTab
+              filters={revenueFilters}
+              datePreset={datePreset}
+              onDatePresetChange={setDatePreset}
+              onChannelChange={setChannel}
+              onLocationIdChange={setLocationId}
+              onCategoryIdChange={setCategoryId}
+              onBookingTypeChange={setBookingType}
+              onPaymentTypeChange={setPaymentType}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomStartDateChange={setCustomStartDate}
+              onCustomEndDateChange={setCustomEndDate}
+            />
           </TabsContent>
 
           {/* Conversion Funnel Tab */}
