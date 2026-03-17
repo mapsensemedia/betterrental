@@ -299,71 +299,15 @@ export default function AdminReports() {
     return first > 0 ? (last / first) * 100 : 0;
   }, [funnelStats]);
 
-  // Revenue stats for Overview tab — computed from the unified filtered bookings
+  // Revenue stats for Overview tab — derived from the unified hook
   const revenueStats = useMemo(() => {
-    const completedBookings = bookings.filter(b =>
-      (b.status === "completed" || b.status === "active" || b.status === "confirmed") &&
-      isAfter(parseISO(b.startAt), dateRange.start) &&
-      !isAfter(parseISO(b.startAt), dateRange.end)
-    );
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
-    const avgBookingValue = completedBookings.length > 0
-      ? totalRevenue / completedBookings.length
-      : 0;
-    const avgDuration = completedBookings.length > 0
-      ? completedBookings.reduce((sum, b) => sum + b.totalDays, 0) / completedBookings.length
-      : 0;
-
     return {
-      totalRevenue,
-      avgBookingValue,
-      avgDuration,
-      totalBookings: completedBookings.length,
+      totalRevenue: rentalMetrics.totalRentalBaseRevenue,
+      avgBookingValue: rentalMetrics.averageRentalPrice,
+      avgDuration: rentalMetrics.averageDays,
+      totalBookings: rentalMetrics.totalBookings,
     };
-  }, [bookings, dateRange]);
-
-  // Daily booking trend
-  const dailyBookingTrend = useMemo(() => {
-    const interval = eachDayOfInterval({ start: dateRange.start, end: dateRange.end });
-    return interval.map((date) => {
-      const dayStart = startOfDay(date);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
-      const dayBookings = bookings.filter((b) => {
-        const bookingDate = parseISO(b.startAt);
-        return bookingDate >= dayStart && bookingDate < dayEnd;
-      });
-      const completedBookings = dayBookings.filter(b => b.status === "completed" || b.status === "active");
-      const revenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
-      return {
-        date: format(date, "MMM d"),
-        bookings: dayBookings.length,
-        revenue: revenue,
-      };
-    });
-  }, [bookings, dateRange]);
-
-  // Weekly revenue trend
-  const weeklyRevenueTrend = useMemo(() => {
-    const weeks = 8;
-    const result = [];
-    for (let i = weeks - 1; i >= 0; i--) {
-      const wStart = startOfWeek(subDays(new Date(), i * 7), { weekStartsOn: 1 });
-      const wEnd = new Date(wStart);
-      wEnd.setDate(wEnd.getDate() + 7);
-      const weekBookings = bookings.filter(b => {
-        const startDate = parseISO(b.startAt);
-        return startDate >= wStart && startDate < wEnd &&
-               (b.status === "completed" || b.status === "active" || b.status === "confirmed");
-      });
-      result.push({
-        week: format(wStart, "MMM d"),
-        revenue: weekBookings.reduce((sum, b) => sum + b.totalAmount, 0),
-        bookings: weekBookings.length,
-      });
-    }
-    return result;
-  }, [bookings]);
+  }, [rentalMetrics]);
 
   // Analytics daily trend (from localStorage)
   const dailyTrend = useMemo(() => {
