@@ -799,7 +799,7 @@ function TransactionsTab() {
     queryFn: async () => {
       let query = supabase
         .from("receipts")
-        .select(`*, booking:bookings(booking_code, total_amount, daily_rate, total_days, start_at, end_at, deposit_amount, user_id, vehicle_id)`)
+        .select(`*, booking:bookings(booking_code, total_amount, daily_rate, total_days, start_at, end_at, deposit_amount, user_id, customer_id, vehicle_id)`)
         .order("created_at", { ascending: false });
 
       if (statusFilter !== "all") {
@@ -812,6 +812,12 @@ function TransactionsTab() {
       const userIds = [...new Set(data.map(r => (r.booking as any)?.user_id).filter(Boolean))];
       const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", userIds);
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      const rCustIds = [...new Set(data.map(r => (r.booking as any)?.customer_id).filter(Boolean))];
+      const { data: rCusts } = rCustIds.length > 0
+        ? await supabase.from("customers").select("id, full_name, email").in("id", rCustIds)
+        : { data: [] };
+      const rCustsMap = new Map((rCusts || []).map(c => [c.id, c]) || []);
 
       const categoryIds = [...new Set(data.map(r => (r.booking as any)?.vehicle_id).filter(Boolean))];
       const { data: categories } = await supabase.from("vehicle_categories").select("id, name").in("id", categoryIds);
@@ -831,6 +837,7 @@ function TransactionsTab() {
 
       return data.map(receipt => {
         const b = receipt.booking as any;
+        const cust = b?.customer_id ? rCustsMap.get(b.customer_id) : null;
         return {
           ...receipt,
           totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number },
@@ -838,7 +845,7 @@ function TransactionsTab() {
           booking: b ? {
             booking_code: b.booking_code, total_amount: b.total_amount, daily_rate: b.daily_rate,
             total_days: b.total_days, start_at: b.start_at, end_at: b.end_at, deposit_amount: b.deposit_amount,
-            profile: profileMap.get(b.user_id) || null,
+            profile: cust ? { id: b.customer_id, full_name: cust.full_name, email: cust.email } : profileMap.get(b.user_id) || null,
             vehicleName: categoryMap.get(b.vehicle_id)?.name || null,
             addOns: addOnsMap.get(receipt.booking_id) || [],
           } : null,
