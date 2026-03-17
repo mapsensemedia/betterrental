@@ -189,7 +189,7 @@ export function StepReturnIssues({
         title: `Return issue flagged for ${booking.booking_code}`,
         message: flagMessage,
         bookingId: booking.id,
-        vehicleId: booking.vehicle_id,
+        vehicleId: booking.assigned_unit_id || undefined,
         userId: booking.user_id,
       });
       toast.success("Issue flagged successfully");

@@ -36,7 +36,7 @@ export function useReturnStateTransition() {
       // Get current state from database (server-side validation)
       const { data: booking, error: fetchError } = await supabase
         .from("bookings")
-        .select("return_state, status")
+        .select("return_state, status, actual_return_at")
         .eq("id", bookingId)
         .single();
 

@@ -133,7 +133,7 @@ export function StepReturnCloseout({
           bookingId: booking.id,
           scheduledEndAt: booking.end_at,
           dailyRate: Number(booking.daily_rate),
-          actualReturnAt: new Date().toISOString(),
+          actualReturnAt: booking.actual_return_at || new Date().toISOString(),
         });
       }
       setLateFeeApproved(true);

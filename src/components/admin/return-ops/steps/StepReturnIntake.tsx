@@ -217,6 +217,17 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
         if (error) throw error;
       }
 
+      // Persist the staff-selected return time to the booking
+      if (returnTime) {
+        const { error: timeError } = await supabase
+          .from("bookings")
+          .update({ actual_return_at: new Date(returnTime).toISOString() })
+          .eq("id", bookingId);
+        if (timeError) {
+          console.error("Failed to save return time:", timeError);
+        }
+      }
+
       // Auto-update vehicle unit mileage if assigned
       if (booking?.assigned_unit_id && odometer) {
         const { error: unitError } = await supabase
