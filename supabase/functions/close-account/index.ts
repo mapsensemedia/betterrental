@@ -333,7 +333,7 @@ Deno.serve(async (req) => {
         notes: notes || null,
         status: "issued",
         issued_at: new Date().toISOString(),
-        created_by: authResult.userId,
+        created_by: authResult.userId || null,
       })
       .select()
       .single();
