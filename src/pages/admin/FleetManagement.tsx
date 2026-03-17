@@ -71,8 +71,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
 
 export default function FleetManagement() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const vehicleParam = searchParams.get("vehicle");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   
   // Dialogs
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
