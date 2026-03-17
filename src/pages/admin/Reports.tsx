@@ -190,8 +190,8 @@ export default function AdminReports() {
     
     // Filter bookings by period
     const completedBookings = bookings.filter(b => b.status === "completed" || b.status === "active" || b.status === "confirmed");
-    const thisWeek = completedBookings.filter(b => isAfter(parseISO(b.createdAt), weekStart));
-    const thisMonth = completedBookings.filter(b => isAfter(parseISO(b.createdAt), monthStart));
+    const thisWeek = completedBookings.filter(b => isAfter(parseISO(b.startAt), weekStart));
+    const thisMonth = completedBookings.filter(b => isAfter(parseISO(b.startAt), monthStart));
     
     // Calculate totals
     const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
