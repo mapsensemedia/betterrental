@@ -288,21 +288,22 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                 </Button>
               </div>
 
-              {payMode === "card" ? (
+              <div className={payMode === "card" ? "" : "hidden"}>
                 <OpsPaymentAndDeposit
                   bookingId={bookingId}
                   rentalAmount={paymentStatus?.totalDue || 0}
                   depositAmount={DEFAULT_DEPOSIT_AMOUNT}
                   onUpdated={refreshData}
                 />
-              ) : (
+              </div>
+              <div className={payMode === "terminal" ? "" : "hidden"}>
                 <TerminalPaymentForm
                   bookingId={bookingId}
                   amount={paymentStatus?.totalDue || 0}
                   depositAmount={DEFAULT_DEPOSIT_AMOUNT}
                   onUpdated={refreshData}
                 />
-              )}
+              </div>
             </div>
           )}
 
