@@ -77,7 +77,7 @@ const navGroups: NavGroup[] = [
         description: "Quick overview",
       },
       {
-        href: "/admin/active-rentals",
+        href: "/admin/bookings?tab=active",
         label: "Active Rentals",
         icon: Car,
         badgeKey: "active",
