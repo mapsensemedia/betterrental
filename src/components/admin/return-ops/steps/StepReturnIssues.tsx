@@ -70,9 +70,9 @@ export function StepReturnIssues({
   const createAlert = useCreateAlert();
   
   const endDate = new Date(booking.end_at);
-  const now = new Date();
-  const isLateReturn = now > endDate && booking.status === "active";
-  const minutesLate = isLateReturn ? differenceInMinutes(now, endDate) : 0;
+  const returnDate = booking.actual_return_at ? new Date(booking.actual_return_at) : new Date();
+  const isLateReturn = returnDate > endDate && booking.status === "active";
+  const minutesLate = isLateReturn ? differenceInMinutes(returnDate, endDate) : 0;
   const hoursLate = Math.floor(minutesLate / 60);
   const minsLate = minutesLate % 60;
   
