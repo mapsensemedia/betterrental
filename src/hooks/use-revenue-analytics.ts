@@ -88,7 +88,16 @@ interface PaymentRow {
 export function useRevenueAnalytics(filters: RevenueFilters) {
   // Fetch all bookings within the date range
   const bookingsQuery = useQuery({
-    queryKey: ["revenue-analytics-bookings", filters.startDate.toISOString(), filters.endDate.toISOString()],
+    queryKey: [
+      "revenue-analytics-bookings",
+      filters.startDate.toISOString(),
+      filters.endDate.toISOString(),
+      filters.channel,
+      filters.locationId,
+      filters.categoryId,
+      filters.bookingType,
+      filters.paymentType,
+    ],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
@@ -140,20 +149,6 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     enabled: !!bookingsQuery.data,
   });
 
-  // Fetch vehicles to get category info
-  const vehiclesQuery = useQuery({
-    queryKey: ["revenue-analytics-vehicles"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vehicles")
-        .select("id, category");
-
-      if (error) throw error;
-      return new Map((data || []).map(v => [v.id, v.category]));
-    },
-    staleTime: 300000,
-  });
-
   // Calculate all metrics
   const metrics = useMemo(() => {
     if (!bookingsQuery.data) {
@@ -171,7 +166,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     const bookings = bookingsQuery.data;
     const addOns = addOnsQuery.data || [];
     const payments = paymentsQuery.data || [];
-    const vehicleCategories = vehiclesQuery.data || new Map();
+    
 
     // Create payment lookup
     const paymentByBooking = new Map<string, string>();
@@ -193,11 +188,8 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       // Location filter
       if (filters.locationId && b.location_id !== filters.locationId) return false;
 
-      // Category filter
-      if (filters.categoryId) {
-        const category = vehicleCategories.get(b.vehicle_id);
-        if (category !== filters.categoryId) return false;
-      }
+      // Category filter — vehicle_id IS the category ID directly
+      if (filters.categoryId && b.vehicle_id !== filters.categoryId) return false;
 
       // Booking type (pickup vs delivery)
       if (filters.bookingType !== "all") {
@@ -208,9 +200,9 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
 
       // Payment type
       if (filters.paymentType !== "all") {
-        const paymentType = paymentByBooking.get(b.id);
-        if (filters.paymentType === "pay_now" && paymentType !== "deposit") return false;
-        if (filters.paymentType === "pay_later" && paymentType === "deposit") return false;
+        const hasCompletedRentalPayment = paymentByBooking.has(b.id) && paymentByBooking.get(b.id) === "rental";
+        if (filters.paymentType === "pay_now" && !hasCompletedRentalPayment) return false;
+        if (filters.paymentType === "pay_later" && hasCompletedRentalPayment) return false;
       }
 
       return true;
@@ -402,7 +394,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       addOnTrend,
       exportData,
     };
-  }, [bookingsQuery.data, addOnsQuery.data, paymentsQuery.data, vehiclesQuery.data, filters]);
+  }, [bookingsQuery.data, addOnsQuery.data, paymentsQuery.data, filters]);
 
   return {
     ...metrics,

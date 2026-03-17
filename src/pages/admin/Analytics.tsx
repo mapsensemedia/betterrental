@@ -34,8 +34,7 @@ import {
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
-import { useLocations } from "@/hooks/use-locations";
-import { format, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth } from "date-fns";
 import { RevenueAnalyticsTab } from "@/components/admin/analytics/RevenueAnalyticsTab";
 
 // Full funnel stages
@@ -63,9 +62,6 @@ export default function AdminAnalytics() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dateFilter, setDateFilter] = useState<DateFilter>("week");
-  const [locationFilter, setLocationFilter] = useState<string>("all");
-
-  const { data: locations } = useLocations();
 
   const data = useMemo(() => {
     return getAnalyticsData();
@@ -100,9 +96,8 @@ export default function AdminAnalytics() {
       events = events.filter((e) => isAfter(new Date(e.timestamp), monthStart));
     }
     
-    // Location filter would apply here if events had location data
     return events;
-  }, [data.events, dateFilter, locationFilter]);
+  }, [data.events, dateFilter]);
 
   // Calculate funnel stats
   const funnelStats = useMemo(() => {
@@ -193,20 +188,6 @@ export default function AdminAnalytics() {
                 <SelectItem value="week">This Week</SelectItem>
                 <SelectItem value="month">This Month</SelectItem>
                 <SelectItem value="all">All Time</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-[160px]">
-                <MapPin className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations?.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
               </SelectContent>
             </Select>
             <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
@@ -458,18 +439,29 @@ export default function AdminAnalytics() {
                   <CardTitle className="text-base">Top Pages</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {data.topPages.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No page views</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {data.topPages.slice(0, 8).map((page, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
-                          <span className="truncate max-w-[200px] text-muted-foreground">{page.page}</span>
-                          <Badge variant="secondary" className="text-xs">{page.views}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const pageViews = filteredEvents.filter((e) => e.event === "page_view");
+                    const pageCounts: Record<string, number> = {};
+                    pageViews.forEach((e) => {
+                      pageCounts[e.page] = (pageCounts[e.page] || 0) + 1;
+                    });
+                    const topPages = Object.entries(pageCounts)
+                      .map(([page, views]) => ({ page, views }))
+                      .sort((a, b) => b.views - a.views)
+                      .slice(0, 8);
+                    return topPages.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No page views</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {topPages.map((page, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+                            <span className="truncate max-w-[200px] text-muted-foreground">{page.page}</span>
+                            <Badge variant="secondary" className="text-xs">{page.views}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
@@ -478,18 +470,28 @@ export default function AdminAnalytics() {
                   <CardTitle className="text-base">Event Counts</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {data.eventsByType.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No events</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {data.eventsByType.slice(0, 8).map((item) => (
-                        <div key={item.event} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
-                          <span className="capitalize text-muted-foreground">{item.event.replace(/_/g, " ")}</span>
-                          <Badge variant="secondary" className="text-xs">{item.count}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const eventCounts: Record<string, number> = {};
+                    filteredEvents.forEach((e) => {
+                      eventCounts[e.event] = (eventCounts[e.event] || 0) + 1;
+                    });
+                    const eventsByType = Object.entries(eventCounts)
+                      .map(([event, count]) => ({ event, count }))
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 8);
+                    return eventsByType.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No events</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {eventsByType.map((item) => (
+                          <div key={item.event} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+                            <span className="capitalize text-muted-foreground">{item.event.replace(/_/g, " ")}</span>
+                            <Badge variant="secondary" className="text-xs">{item.count}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </div>
@@ -503,32 +505,38 @@ export default function AdminAnalytics() {
                 <CardDescription>JavaScript errors from user sessions</CardDescription>
               </CardHeader>
               <CardContent>
-                {data.recentErrors.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                    <p className="text-muted-foreground">No errors recorded</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {data.recentErrors.slice(0, 10).map((error, idx) => (
-                      <div key={idx} className="p-3 bg-destructive/5 rounded-lg border border-destructive/10">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-destructive truncate">
-                              {error.properties?.error_message as string || "Unknown error"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {error.properties?.error_name as string || "Error"} • {format(new Date(error.timestamp), "MMM d, h:mm a")}
-                            </p>
-                            {error.page && (
-                              <p className="text-xs text-muted-foreground truncate">{error.page}</p>
-                            )}
+                {(() => {
+                  const recentErrors = filteredEvents
+                    .filter((e) => e.event === "error")
+                    .slice(-10)
+                    .reverse();
+                  return recentErrors.length === 0 ? (
+                    <div className="text-center py-8">
+                      <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                      <p className="text-muted-foreground">No errors recorded</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentErrors.slice(0, 10).map((error, idx) => (
+                        <div key={idx} className="p-3 bg-destructive/5 rounded-lg border border-destructive/10">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-destructive truncate">
+                                {error.properties?.error_message as string || "Unknown error"}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {error.properties?.error_name as string || "Error"} • {format(new Date(error.timestamp), "MMM d, h:mm a")}
+                              </p>
+                              {error.page && (
+                                <p className="text-xs text-muted-foreground truncate">{error.page}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

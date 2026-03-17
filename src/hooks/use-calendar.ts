@@ -33,9 +33,9 @@ export interface CalendarData {
   days: Date[];
 }
 
-export function useCalendarData(weekOffset: number = 0, locationId?: string) {
+export function useCalendarData(weekOffset: number = 0) {
   return useQuery<CalendarData>({
-    queryKey: ["admin-calendar", weekOffset, locationId],
+    queryKey: ["admin-calendar", weekOffset],
     queryFn: async () => {
       const baseDate = addDays(new Date(), weekOffset * 7);
       const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 });
@@ -46,25 +46,18 @@ export function useCalendarData(weekOffset: number = 0, locationId?: string) {
         days.push(addDays(weekStart, i));
       }
 
-      // Fetch vehicles
-      let vehiclesQuery = supabase
-        .from("vehicles")
-        .select(`
-          id, make, model, year, category, image_url, location_id, cleaning_buffer_hours,
-          locations (name)
-        `)
-        .eq("is_available", true)
-        .order("make");
+      // Fetch vehicle categories (bookings.vehicle_id points to vehicle_categories)
+      let categoriesQuery = supabase
+        .from("vehicle_categories")
+        .select("id, name, image_url, daily_rate, seats, fuel_type, transmission")
+        .eq("is_active", true)
+        .order("name");
 
-      if (locationId) {
-        vehiclesQuery = vehiclesQuery.eq("location_id", locationId);
-      }
+      const { data: categoriesData, error: categoriesError } = await categoriesQuery;
 
-      const { data: vehiclesData, error: vehiclesError } = await vehiclesQuery.limit(50);
-
-      if (vehiclesError) {
-        console.error("Error fetching vehicles:", vehiclesError);
-        throw vehiclesError;
+      if (categoriesError) {
+        console.error("Error fetching categories:", categoriesError);
+        throw categoriesError;
       }
 
       // Fetch bookings for the week
@@ -89,16 +82,16 @@ export function useCalendarData(weekOffset: number = 0, locationId?: string) {
 
       const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
 
-      const vehicles: CalendarVehicle[] = (vehiclesData || []).map((v: any) => ({
-        id: v.id,
-        make: v.make,
-        model: v.model,
-        year: v.year,
-        category: v.category || "Other",
-        imageUrl: v.image_url,
-        locationId: v.location_id,
-        locationName: v.locations?.name || null,
-        cleaningBufferHours: v.cleaning_buffer_hours || 2,
+      const vehicles: CalendarVehicle[] = (categoriesData || []).map((c: any) => ({
+        id: c.id,
+        make: "",
+        model: c.name,
+        year: new Date().getFullYear(),
+        category: c.name,
+        imageUrl: c.image_url,
+        locationId: null,
+        locationName: null,
+        cleaningBufferHours: 2,
       }));
 
       const bookings: CalendarBooking[] = (bookingsData || []).map((b: any) => {
