@@ -759,7 +759,7 @@ function TransactionsTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("final_invoices")
-        .select(`*, booking:bookings(booking_code, start_at, end_at, total_days, user_id, vehicle_id)`)
+        .select(`*, booking:bookings(booking_code, start_at, end_at, total_days, user_id, customer_id, vehicle_id)`)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -767,18 +767,25 @@ function TransactionsTab() {
       const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", userIds);
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
+      const invCustIds = [...new Set(data.map(i => (i.booking as any)?.customer_id).filter(Boolean))];
+      const { data: invCusts } = invCustIds.length > 0
+        ? await supabase.from("customers").select("id, full_name, email").in("id", invCustIds)
+        : { data: [] };
+      const invCustsMap = new Map((invCusts || []).map(c => [c.id, c]) || []);
+
       const categoryIds = [...new Set(data.map(i => (i.booking as any)?.vehicle_id).filter(Boolean))];
       const { data: categories } = await supabase.from("vehicle_categories").select("id, name").in("id", categoryIds);
       const categoryMap = new Map(categories?.map(c => [c.id, c]) || []);
 
       return data.map(inv => {
         const b = inv.booking as any;
+        const cust = b?.customer_id ? invCustsMap.get(b.customer_id) : null;
         return {
           ...inv,
           line_items_json: inv.line_items_json as any,
           booking: b ? {
             booking_code: b.booking_code, start_at: b.start_at, end_at: b.end_at, total_days: b.total_days,
-            profile: profileMap.get(b.user_id) || null,
+            profile: cust ? { id: b.customer_id, full_name: cust.full_name, email: cust.email } : profileMap.get(b.user_id) || null,
             vehicleName: categoryMap.get(b.vehicle_id)?.name || null,
           } : null,
         };
