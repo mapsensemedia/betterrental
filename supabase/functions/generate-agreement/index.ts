@@ -90,7 +90,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { bookingId } = body;
+    const { bookingId, suppressNotifications } = body;
 
     // Input validation
     if (!bookingId || typeof bookingId !== "string") {
