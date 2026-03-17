@@ -215,7 +215,7 @@ export default function BookingDetail() {
       queryClient.invalidateQueries({ queryKey: ["booking-final-invoices", bookingId] });
       refetch();
     } catch (err: any) {
-      const msg = await extractEdgeFunctionError(err);
+      const msg = await extractEdgeFunctionError(null, err);
       toast.error("Failed to generate invoice: " + msg);
     } finally {
       setIsGeneratingInvoice(false);
