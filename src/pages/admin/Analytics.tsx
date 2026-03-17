@@ -2,6 +2,9 @@
  * Analytics Dashboard - Clean, minimal layout matching admin style
  */
 import { useState, useMemo } from "react";
+import { subDays as subDaysFn, startOfMonth as startOfMonthFn } from "date-fns";
+import { type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
+import { type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
 import { AdminShell } from "@/components/layout/AdminShell";
 import {
   BarChart3,
@@ -62,6 +65,38 @@ export default function AdminAnalytics() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dateFilter, setDateFilter] = useState<DateFilter>("week");
+
+  // Unified filter state for Revenue tab
+  const [datePreset, setDatePreset] = useState<DatePreset>("30d");
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
+  const [channel, setChannel] = useState<BookingChannel>("all");
+  const [locationId, setLocationId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [bookingType, setBookingType] = useState<BookingType>("all");
+  const [paymentType, setPaymentType] = useState<PaymentType>("all");
+
+  const revenueDateRange = useMemo(() => {
+    const now = new Date();
+    switch (datePreset) {
+      case "7d": return { start: subDaysFn(now, 7), end: now };
+      case "30d": return { start: subDaysFn(now, 30), end: now };
+      case "90d": return { start: subDaysFn(now, 90), end: now };
+      case "mtd": return { start: startOfMonthFn(now), end: now };
+      case "custom": return { start: customStartDate || subDaysFn(now, 30), end: customEndDate || now };
+      default: return { start: subDaysFn(now, 30), end: now };
+    }
+  }, [datePreset, customStartDate, customEndDate]);
+
+  const revenueFilters: RevenueFilters = useMemo(() => ({
+    startDate: revenueDateRange.start,
+    endDate: revenueDateRange.end,
+    channel,
+    locationId,
+    categoryId,
+    bookingType,
+    paymentType,
+  }), [revenueDateRange, channel, locationId, categoryId, bookingType, paymentType]);
 
   const data = useMemo(() => {
     return getAnalyticsData();
@@ -269,7 +304,20 @@ export default function AdminAnalytics() {
 
           {/* Revenue & Add-On Analytics Tab */}
           <TabsContent value="revenue">
-            <RevenueAnalyticsTab />
+            <RevenueAnalyticsTab
+              filters={revenueFilters}
+              datePreset={datePreset}
+              onDatePresetChange={setDatePreset}
+              onChannelChange={setChannel}
+              onLocationIdChange={setLocationId}
+              onCategoryIdChange={setCategoryId}
+              onBookingTypeChange={setBookingType}
+              onPaymentTypeChange={setPaymentType}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomStartDateChange={setCustomStartDate}
+              onCustomEndDateChange={setCustomEndDate}
+            />
           </TabsContent>
 
           {/* Conversion Funnel Tab */}
