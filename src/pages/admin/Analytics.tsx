@@ -195,20 +195,6 @@ export default function AdminAnalytics() {
                 <SelectItem value="all">All Time</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-[160px]">
-                <MapPin className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations?.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
             </Button>
