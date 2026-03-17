@@ -46,25 +46,18 @@ export function useCalendarData(weekOffset: number = 0, locationId?: string) {
         days.push(addDays(weekStart, i));
       }
 
-      // Fetch vehicles
-      let vehiclesQuery = supabase
-        .from("vehicles")
-        .select(`
-          id, make, model, year, category, image_url, location_id, cleaning_buffer_hours,
-          locations (name)
-        `)
-        .eq("is_available", true)
-        .order("make");
+      // Fetch vehicle categories (bookings.vehicle_id points to vehicle_categories)
+      let categoriesQuery = supabase
+        .from("vehicle_categories")
+        .select("id, name, image_url, daily_rate, seats, fuel_type, transmission")
+        .eq("is_active", true)
+        .order("name");
 
-      if (locationId) {
-        vehiclesQuery = vehiclesQuery.eq("location_id", locationId);
-      }
+      const { data: categoriesData, error: categoriesError } = await categoriesQuery;
 
-      const { data: vehiclesData, error: vehiclesError } = await vehiclesQuery.limit(50);
-
-      if (vehiclesError) {
-        console.error("Error fetching vehicles:", vehiclesError);
-        throw vehiclesError;
+      if (categoriesError) {
+        console.error("Error fetching categories:", categoriesError);
+        throw categoriesError;
       }
 
       // Fetch bookings for the week
