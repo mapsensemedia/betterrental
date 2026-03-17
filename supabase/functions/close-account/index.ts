@@ -365,7 +365,7 @@ Deno.serve(async (req) => {
       action: backfillMode ? "invoice_backfilled" : "account_closed",
       entity_type: "booking",
       entity_id: bookingId,
-      user_id: authResult.userId,
+      user_id: authResult.userId || null,
       new_data: {
         invoice_number: invoice.invoice_number,
         total_charges: totalCharges,
