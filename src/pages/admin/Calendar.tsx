@@ -307,7 +307,7 @@ export default function AdminCalendar() {
                 {/* Day Headers */}
                 <div className="flex border-b border-border sticky top-0 bg-card z-10">
                   <div className="w-44 flex-shrink-0 p-3 font-medium text-sm border-r border-border">
-                    Vehicle
+                    Category
                   </div>
                   <div className="flex-1 flex">
                     {calendarData?.days.map((day) => (
