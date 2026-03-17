@@ -64,6 +64,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   const { data: allVehicles } = useVehicles();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const createdBookingRef = useRef<{ id: string; bookingCode: string } | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
