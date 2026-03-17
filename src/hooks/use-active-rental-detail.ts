@@ -125,6 +125,17 @@ export function useActiveRentalDetail(bookingId: string | null) {
         .eq("id", booking.user_id)
         .maybeSingle();
 
+      // Fetch customer record if customer_id is set (prefer over profile for display)
+      let customerData: { full_name: string; email: string | null; phone: string | null } | null = null;
+      if (booking.customer_id) {
+        const { data: cust } = await supabase
+          .from("customers")
+          .select("full_name, email, phone")
+          .eq("id", booking.customer_id)
+          .maybeSingle();
+        customerData = cust;
+      }
+
       // Fetch related data in parallel
       const [
         paymentsRes,
