@@ -221,7 +221,7 @@ export default function AdminReports() {
   const { data: locations } = useLocations();
   const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useAuditLogs({ limit: 100 });
   const { data: auditStats } = useAuditStats();
-  const { data: bookings = [] } = useAdminBookings({});
+  const { data: bookings = [] } = { data: [] as any[] }; // Legacy — fleet tab only
   const { data: vehicles = [] } = useAdminVehicles();
 
   // Page-level revenue analytics — powers the 4 metric cards
