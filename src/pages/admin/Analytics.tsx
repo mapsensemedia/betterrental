@@ -444,18 +444,29 @@ export default function AdminAnalytics() {
                   <CardTitle className="text-base">Top Pages</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {data.topPages.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No page views</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {data.topPages.slice(0, 8).map((page, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
-                          <span className="truncate max-w-[200px] text-muted-foreground">{page.page}</span>
-                          <Badge variant="secondary" className="text-xs">{page.views}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const pageViews = filteredEvents.filter((e) => e.event === "page_view");
+                    const pageCounts: Record<string, number> = {};
+                    pageViews.forEach((e) => {
+                      pageCounts[e.page] = (pageCounts[e.page] || 0) + 1;
+                    });
+                    const topPages = Object.entries(pageCounts)
+                      .map(([page, views]) => ({ page, views }))
+                      .sort((a, b) => b.views - a.views)
+                      .slice(0, 8);
+                    return topPages.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No page views</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {topPages.map((page, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+                            <span className="truncate max-w-[200px] text-muted-foreground">{page.page}</span>
+                            <Badge variant="secondary" className="text-xs">{page.views}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
@@ -464,18 +475,28 @@ export default function AdminAnalytics() {
                   <CardTitle className="text-base">Event Counts</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {data.eventsByType.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No events</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {data.eventsByType.slice(0, 8).map((item) => (
-                        <div key={item.event} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
-                          <span className="capitalize text-muted-foreground">{item.event.replace(/_/g, " ")}</span>
-                          <Badge variant="secondary" className="text-xs">{item.count}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const eventCounts: Record<string, number> = {};
+                    filteredEvents.forEach((e) => {
+                      eventCounts[e.event] = (eventCounts[e.event] || 0) + 1;
+                    });
+                    const eventsByType = Object.entries(eventCounts)
+                      .map(([event, count]) => ({ event, count }))
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 8);
+                    return eventsByType.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No events</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {eventsByType.map((item) => (
+                          <div key={item.event} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+                            <span className="capitalize text-muted-foreground">{item.event.replace(/_/g, " ")}</span>
+                            <Badge variant="secondary" className="text-xs">{item.count}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </div>
