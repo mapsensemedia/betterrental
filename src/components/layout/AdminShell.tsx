@@ -96,7 +96,7 @@ const navGroups: NavGroup[] = [
         description: "Upcoming handovers",
       },
       {
-        href: "/admin/returns",
+        href: "/admin/bookings?tab=returns",
         label: "Returns",
         icon: RotateCcw,
         badgeKey: "returns",
