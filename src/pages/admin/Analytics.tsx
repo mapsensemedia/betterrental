@@ -510,32 +510,38 @@ export default function AdminAnalytics() {
                 <CardDescription>JavaScript errors from user sessions</CardDescription>
               </CardHeader>
               <CardContent>
-                {data.recentErrors.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                    <p className="text-muted-foreground">No errors recorded</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {data.recentErrors.slice(0, 10).map((error, idx) => (
-                      <div key={idx} className="p-3 bg-destructive/5 rounded-lg border border-destructive/10">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-destructive truncate">
-                              {error.properties?.error_message as string || "Unknown error"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {error.properties?.error_name as string || "Error"} • {format(new Date(error.timestamp), "MMM d, h:mm a")}
-                            </p>
-                            {error.page && (
-                              <p className="text-xs text-muted-foreground truncate">{error.page}</p>
-                            )}
+                {(() => {
+                  const recentErrors = filteredEvents
+                    .filter((e) => e.event === "error")
+                    .slice(-10)
+                    .reverse();
+                  return recentErrors.length === 0 ? (
+                    <div className="text-center py-8">
+                      <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                      <p className="text-muted-foreground">No errors recorded</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentErrors.slice(0, 10).map((error, idx) => (
+                        <div key={idx} className="p-3 bg-destructive/5 rounded-lg border border-destructive/10">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-destructive truncate">
+                                {error.properties?.error_message as string || "Unknown error"}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {error.properties?.error_name as string || "Error"} • {format(new Date(error.timestamp), "MMM d, h:mm a")}
+                              </p>
+                              {error.page && (
+                                <p className="text-xs text-muted-foreground truncate">{error.page}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

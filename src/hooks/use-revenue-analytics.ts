@@ -166,7 +166,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     const bookings = bookingsQuery.data;
     const addOns = addOnsQuery.data || [];
     const payments = paymentsQuery.data || [];
-    const vehicleCategories = vehiclesQuery.data || new Map();
+    
 
     // Create payment lookup
     const paymentByBooking = new Map<string, string>();
