@@ -116,13 +116,13 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
     },
   });
 
-  // Fetch booking to get assigned unit ID
+  // Fetch booking to get assigned unit ID and end_at
   const { data: booking } = useQuery({
     queryKey: ["booking-for-return", bookingId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("assigned_unit_id")
+        .select("assigned_unit_id, end_at, actual_return_at")
         .eq("id", bookingId)
         .single();
       
@@ -130,6 +130,20 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
       return data;
     },
   });
+
+  // Editable return time — default to scheduled end or previously saved value
+  const [returnTime, setReturnTime] = useState("");
+
+  useEffect(() => {
+    if (booking) {
+      if (booking.actual_return_at) {
+        // Already saved — use that
+        setReturnTime(formatDatetimeLocal(new Date(booking.actual_return_at)));
+      } else if (booking.end_at) {
+        setReturnTime(formatDatetimeLocal(new Date(booking.end_at)));
+      }
+    }
+  }, [booking]);
 
   // Pre-fill form with existing data
   useEffect(() => {
