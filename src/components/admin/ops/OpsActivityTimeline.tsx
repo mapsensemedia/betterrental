@@ -140,6 +140,16 @@ function getActionLabel(action: string, newData?: Record<string, unknown> | null
   }
 }
 
+// Actions performed by ops staff — if attributed to a non-staff user, flag as "Staff (unrecorded)"
+const OPS_ACTIONS = new Set([
+  "deposit_held", "deposit_released", "deposit_status_change",
+  "receipt_generated", "receipt_emailed",
+  "account_closed", "return_step_change",
+  "booking_status_change", "rental_activated", "rental_returned",
+  "walkaround_admin_override", "agreement_confirmed",
+  "checkin_completed", "vehicle_assigned", "unit_assigned",
+]);
+
 export function OpsActivityTimeline({ bookingId, className }: OpsActivityTimelineProps) {
   const { data: events, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["booking-activity-timeline", bookingId],
@@ -157,30 +167,50 @@ export function OpsActivityTimeline({ bookingId, className }: OpsActivityTimelin
       // Fetch user profiles
       const userIds = [...new Set((data || []).map(log => log.user_id).filter(Boolean))];
       let profiles: Record<string, string> = {};
+      let staffUserIds = new Set<string>();
       
       if (userIds.length > 0) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds);
+        // Fetch profiles and roles in parallel
+        const [profileResult, rolesResult] = await Promise.all([
+          supabase.from("profiles").select("id, full_name").in("id", userIds),
+          supabase.from("user_roles").select("user_id, role").in("user_id", userIds)
+            .in("role", ["admin", "staff", "cleaner", "finance"]),
+        ]);
         
-        profiles = (profileData || []).reduce((acc, p) => {
+        profiles = (profileResult.data || []).reduce((acc, p) => {
           acc[p.id] = p.full_name || "Staff";
           return acc;
         }, {} as Record<string, string>);
+
+        (rolesResult.data || []).forEach(r => staffUserIds.add(r.user_id));
       }
 
-      return (data || []).map((log) => ({
-        id: log.id,
-        action: log.action,
-        entityType: log.entity_type,
-        entityId: log.entity_id,
-        userId: log.user_id,
-        createdAt: log.created_at,
-        oldData: log.old_data as Record<string, unknown> | null,
-        newData: log.new_data as Record<string, unknown> | null,
-        userName: log.user_id ? profiles[log.user_id] : undefined,
-      })) as ActivityEvent[];
+      return (data || []).map((log) => {
+        const isOpsAction = OPS_ACTIONS.has(log.action);
+        const isStaff = log.user_id ? staffUserIds.has(log.user_id) : false;
+        
+        let userName: string | undefined;
+        if (log.user_id) {
+          if (isOpsAction && !isStaff) {
+            // Customer user_id recorded for an ops action — data bug
+            userName = "Staff (unrecorded)";
+          } else {
+            userName = profiles[log.user_id];
+          }
+        }
+
+        return {
+          id: log.id,
+          action: log.action,
+          entityType: log.entity_type,
+          entityId: log.entity_id,
+          userId: log.user_id,
+          createdAt: log.created_at,
+          oldData: log.old_data as Record<string, unknown> | null,
+          newData: log.new_data as Record<string, unknown> | null,
+          userName,
+        };
+      }) as ActivityEvent[];
     },
     staleTime: 30000,
   });

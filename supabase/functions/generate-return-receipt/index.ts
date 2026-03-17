@@ -11,6 +11,7 @@ interface ReceiptRequest {
   depositReleased: number;
   depositWithheld: number;
   withholdReason?: string;
+  staffUserId?: string;
 }
 
 serve(async (req) => {
@@ -25,7 +26,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { bookingId, depositReleased, depositWithheld, withholdReason }: ReceiptRequest = await req.json();
+    const { bookingId, depositReleased, depositWithheld, withholdReason, staffUserId }: ReceiptRequest = await req.json();
 
     if (!bookingId) {
       return new Response(
@@ -230,7 +231,7 @@ serve(async (req) => {
         line_items_json: lineItems,
         totals_json: totals,
         notes: withholdReason ? `Deposit withheld: ${withholdReason}` : null,
-        created_by: booking.user_id, // System-generated but linked to customer
+        created_by: staffUserId || booking.user_id,
         status: "issued",
         issued_at: new Date().toISOString(),
       })
@@ -246,13 +247,13 @@ serve(async (req) => {
     await supabase.from("receipt_events").insert({
       receipt_id: receipt.id,
       action: "auto_generated",
-      actor_user_id: booking.user_id,
+      actor_user_id: staffUserId || booking.user_id,
       meta_json: { trigger: "return_deposit_processed" },
     });
 
     // Log audit entry
     await supabase.from("audit_logs").insert({
-      user_id: booking.user_id,
+      user_id: staffUserId || booking.user_id,
       action: "receipt_generated",
       entity_type: "receipt",
       entity_id: receipt.id,
@@ -441,7 +442,7 @@ serve(async (req) => {
           });
 
           await supabase.from("audit_logs").insert({
-            user_id: booking.user_id,
+            user_id: staffUserId || booking.user_id,
             action: "receipt_emailed",
             entity_type: "receipt",
             entity_id: receipt.id,
@@ -464,7 +465,7 @@ serve(async (req) => {
           });
 
           await supabase.from("audit_logs").insert({
-            user_id: booking.user_id,
+            user_id: staffUserId || booking.user_id,
             action: "receipt_emailed",
             entity_type: "receipt",
             entity_id: receipt.id,
