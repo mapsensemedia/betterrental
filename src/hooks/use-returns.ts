@@ -113,6 +113,13 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
       
       const categoriesMap = new Map((categoriesData || []).map(c => [c.id, c]));
 
+      // Batch fetch customers for walk-in bookings
+      const customerIds = [...new Set(bookings.map(b => b.customer_id).filter(Boolean))];
+      const { data: customersData } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name, email, phone").in("id", customerIds)
+        : { data: [] };
+      const customersMap = new Map((customersData || []).map(c => [c.id, c]));
+
       // Use batch utilities to prevent N+1 queries
       const userIds = [...new Set(bookings.map(b => b.user_id))];
       const bookingIds = bookings.map(b => b.id);
@@ -125,6 +132,7 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
       ]);
 
       return bookings.map((b: any) => {
+        const customer = b.customer_id ? customersMap.get(b.customer_id) : null;
         const profile = profilesMap.get(b.user_id);
         const photos = photosMap.get(b.id);
         const inspection = inspectionsMap.get(b.id);
