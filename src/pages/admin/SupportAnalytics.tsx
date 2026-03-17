@@ -150,7 +150,7 @@ export default function SupportAnalyticsPage() {
             <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
             </Button>
-            <Link to="/admin/support">
+            <Link to="/support">
               <Button>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 View Tickets
