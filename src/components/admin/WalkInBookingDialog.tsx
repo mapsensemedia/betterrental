@@ -129,6 +129,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       });
       prevVehicleIdRef.current = "";
       createdBookingRef.current = null;
+    }
   }, [open]);
 
   // Auto-set daily rate ONLY when vehicle selection changes (not on every render)
