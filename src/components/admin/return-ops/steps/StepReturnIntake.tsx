@@ -22,6 +22,12 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+/** Format a Date for <input type="datetime-local"> */
+function formatDatetimeLocal(d: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // Fuel level options - granular 8-step dropdown
 const FUEL_LEVELS = [
   { value: 0, label: "Empty" },
