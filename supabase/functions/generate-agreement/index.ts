@@ -413,7 +413,7 @@ serve(async (req) => {
     const agreementContent = `C2C CAR RENTAL — VEHICLE RENTAL AGREEMENT
 Booking: ${booking.booking_code} | Date: ${generatedDate}
 
-Renter: ${displayName} | Email: ${profile?.email || '—'}
+Renter: ${displayName} | Email: ${resolvedEmail || '—'}
 Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(s)
 Location: ${booking.locations?.name || '—'}, ${booking.locations?.address || '—'}, ${booking.locations?.city || '—'}
 Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
