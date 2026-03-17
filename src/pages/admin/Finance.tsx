@@ -725,12 +725,25 @@ function OverviewTab() {
 function TransactionsTab() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Read URL params for deep-linking from other pages
+  const urlStatus = searchParams.get("status");
+  const urlBooking = searchParams.get("booking");
+  const urlAdjustment = searchParams.get("adjustment");
+  const urlAmount = searchParams.get("amount");
+  
+  const [statusFilter, setStatusFilter] = useState<string>(urlStatus === "failed" ? "failed" : "all");
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
-  const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">("invoices");
+  const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">(
+    urlStatus === "failed" || urlAdjustment === "damage" ? "payments" : "invoices"
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Damage charge banner from Damages page
+  const showDamageBanner = urlAdjustment === "damage" && urlBooking;
 
   // Fetch full booking data for invoice detail dialog
   const selectedInvoiceBookingId = selectedInvoice?.booking_id;
@@ -1137,6 +1150,19 @@ function TransactionsTab() {
               <TooltipContent>Refresh data</TooltipContent>
             </Tooltip>
           </div>
+
+          {/* Damage charge banner from Damages page */}
+          {showDamageBanner && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5 mt-4">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+              <p className="text-sm">
+                <span className="font-medium">Damage charge pending:</span>{" "}
+                {urlAmount ? `$${urlAmount}` : "Amount TBD"} for booking{" "}
+                <span className="font-mono text-xs">{urlBooking}</span>.
+                Add as manual payment or adjustment.
+              </p>
+            </div>
+          )}
 
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4 mt-4">

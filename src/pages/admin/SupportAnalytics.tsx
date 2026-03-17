@@ -150,7 +150,7 @@ export default function SupportAnalyticsPage() {
             <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
             </Button>
-            <Link to="/admin/support">
+            <Link to="/support">
               <Button>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 View Tickets
@@ -522,7 +522,7 @@ function TicketTable({ tickets }: { tickets: any[] }) {
               {format(new Date(ticket.created_at), "MMM d, HH:mm")}
             </TableCell>
             <TableCell>
-              <Link to={`/admin/support?id=${ticket.id}`}>
+              <Link to={`/support?id=${ticket.id}`}>
                 <Button variant="ghost" size="sm">
                   <ExternalLink className="h-3.5 w-3.5" />
                 </Button>

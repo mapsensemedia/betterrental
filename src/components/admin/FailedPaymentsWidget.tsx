@@ -105,7 +105,7 @@ export function FailedPaymentsWidget() {
             Failed Payments
             <Badge variant="destructive">{failedPayments.length}</Badge>
           </CardTitle>
-          <Link to="/admin/billing?status=failed">
+          <Link to="/admin/finance?tab=transactions&status=failed">
             <Button variant="ghost" size="sm" className="gap-1">
               View all <ChevronRight className="w-4 h-4" />
             </Button>

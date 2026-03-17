@@ -2,7 +2,8 @@
  * Fleet Management - Category + VIN Pool System
  * Single source of truth for fleet inventory
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,8 +71,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
 
 export default function FleetManagement() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const vehicleParam = searchParams.get("vehicle");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   
   // Dialogs
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -91,6 +95,20 @@ export default function FleetManagement() {
   const deleteVin = useDeleteVin();
 
   const selectedCategory = categories?.find(c => c.id === selectedCategoryId);
+
+  // Auto-select category when navigated with vehicle param from Alerts
+  useEffect(() => {
+    if (vehicleParam && categories?.length && !selectedCategoryId) {
+      // vehicleParam is a vehicle_categories ID — select it directly
+      const match = categories.find(c => c.id === vehicleParam);
+      if (match) {
+        setSelectedCategoryId(match.id);
+      } else {
+        // Fallback: set as search term so it's visible
+        setSearchTerm(vehicleParam);
+      }
+    }
+  }, [vehicleParam, categories, selectedCategoryId]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

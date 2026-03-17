@@ -384,7 +384,7 @@ return (
                   )}
                   {selectedAlert.vehicleId && (
                     <Link 
-                      to={`/admin/inventory?vehicle=${selectedAlert.vehicleId}`}
+                      to={`/admin/fleet?vehicle=${selectedAlert.vehicleId}`}
                       className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
                     >
                       <div className="flex items-center gap-3">
