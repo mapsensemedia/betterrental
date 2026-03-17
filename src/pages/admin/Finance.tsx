@@ -453,7 +453,7 @@ function OverviewTab() {
   const unreconciledCount = useMemo(() => payments.filter((p) => p.unreconciled).length, [payments]);
 
   const metrics = useMemo(() => {
-    const collected = payments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
+    const collected = payments.filter((p) => p.status === "completed" && p.payment_type !== "deposit").reduce((s, p) => s + p.amount, 0);
     const pending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
     const failed = payments.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
     const total = payments.length;

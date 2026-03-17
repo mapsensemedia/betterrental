@@ -96,9 +96,8 @@ export default function AdminAnalytics() {
       events = events.filter((e) => isAfter(new Date(e.timestamp), monthStart));
     }
     
-    // Location filter would apply here if events had location data
     return events;
-  }, [data.events, dateFilter, locationFilter]);
+  }, [data.events, dateFilter]);
 
   // Calculate funnel stats
   const funnelStats = useMemo(() => {

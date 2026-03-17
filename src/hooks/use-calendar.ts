@@ -82,16 +82,16 @@ export function useCalendarData(weekOffset: number = 0, locationId?: string) {
 
       const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
 
-      const vehicles: CalendarVehicle[] = (vehiclesData || []).map((v: any) => ({
-        id: v.id,
-        make: v.make,
-        model: v.model,
-        year: v.year,
-        category: v.category || "Other",
-        imageUrl: v.image_url,
-        locationId: v.location_id,
-        locationName: v.locations?.name || null,
-        cleaningBufferHours: v.cleaning_buffer_hours || 2,
+      const vehicles: CalendarVehicle[] = (categoriesData || []).map((c: any) => ({
+        id: c.id,
+        make: "",
+        model: c.name,
+        year: new Date().getFullYear(),
+        category: c.name,
+        imageUrl: c.image_url,
+        locationId: null,
+        locationName: null,
+        cleaningBufferHours: 2,
       }));
 
       const bookings: CalendarBooking[] = (bookingsData || []).map((b: any) => {
