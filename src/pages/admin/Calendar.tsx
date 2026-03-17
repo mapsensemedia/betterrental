@@ -332,10 +332,10 @@ export default function AdminCalendar() {
                         {/* Vehicle Info */}
                         <div className="w-44 flex-shrink-0 p-3 border-r border-border">
                           <div className="font-medium text-sm truncate">
-                            {vehicle.make} {vehicle.model}
+                            {vehicle.model}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {vehicle.year} • {vehicle.locationName || "No location"}
+                            {vehicle.locationName || "All locations"}
                           </div>
                         </div>
 
