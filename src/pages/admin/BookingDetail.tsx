@@ -226,7 +226,7 @@ export default function BookingDetail() {
     if (!bookingId) return;
     setIsGeneratingAgreement(true);
     try {
-      const { error } = await supabase.functions.invoke("generate-agreement", {
+      const { data, error } = await supabase.functions.invoke("generate-agreement", {
         body: { bookingId },
       });
       if (error) throw error;
