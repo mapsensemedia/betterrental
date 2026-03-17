@@ -242,10 +242,24 @@ export function useFleetSummary(filters?: {
 }) {
   const { data: analytics, isLoading } = useFleetAnalytics(filters);
 
+  // Derive active rentals from actual bookings, not stale unit status
+  const { data: activeBookingCount } = useQuery({
+    queryKey: ["fleet-active-booking-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active")
+        .not("assigned_unit_id", "is", null);
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
   const summary: FleetSummary | null = analytics ? {
     totalVehicles: new Set(analytics.map(v => v.vehicleId)).size,
     totalUnits: analytics.filter(v => v.vehicleUnitId).length,
-    activeRentals: analytics.filter((v) => v.status === "rented").length,
+    activeRentals: activeBookingCount ?? 0,
     totalRevenue: analytics.reduce((sum, v) => sum + v.totalRevenue, 0),
     totalCosts: analytics.reduce((sum, v) => sum + v.totalExpenses, 0),
     totalProfit: analytics.reduce((sum, v) => sum + v.profit, 0),
