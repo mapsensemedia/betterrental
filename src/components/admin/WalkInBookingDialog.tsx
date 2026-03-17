@@ -107,6 +107,29 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   const taxAmount = pricing.taxAmount;
   const totalAmount = pricing.total;
 
+  // Reset form state when dialog opens to prevent stale customer data
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        locationId: "",
+        vehicleId: "",
+        startDate: new Date(),
+        endDate: addDays(new Date(), 1),
+        pickupTime: DEFAULT_PICKUP_TIME,
+        returnTime: DEFAULT_PICKUP_TIME,
+        driverAgeBand: "25_70",
+        dailyRate: 0,
+        depositAmount: DEFAULT_DEPOSIT_AMOUNT,
+        notes: "",
+      });
+      prevVehicleIdRef.current = "";
+    }
+  }, [open]);
+
   // Auto-set daily rate ONLY when vehicle selection changes (not on every render)
   const prevVehicleIdRef = useState({ current: "" })[0];
   useEffect(() => {
