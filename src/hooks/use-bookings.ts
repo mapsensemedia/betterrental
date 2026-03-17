@@ -114,6 +114,13 @@ export function useAdminBookings(filters: BookingFilters = {}) {
 
       const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
 
+      // Fetch customers for bookings that have customer_id
+      const customerIds = [...new Set((bookingsData || []).map((b: any) => b.customer_id).filter(Boolean))];
+      const { data: customersData } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name, email, phone").in("id", customerIds)
+        : { data: [] };
+      const customersMap = new Map((customersData || []).map(c => [c.id, c]));
+
       // Fetch categories separately (vehicle_id now points to categories)
       const categoryIds = [...new Set((bookingsData || []).map(b => b.vehicle_id).filter(Boolean))];
       const { data: categoriesData } = categoryIds.length > 0 
@@ -127,6 +134,7 @@ export function useAdminBookings(filters: BookingFilters = {}) {
 
       return (bookingsData || []).map((b: any) => {
         const userProfile = profilesMap.get(b.user_id);
+        const customer = b.customer_id ? customersMap.get(b.customer_id) : null;
         const category = categoriesMap.get(b.vehicle_id);
         return {
           id: b.id,
@@ -150,7 +158,7 @@ export function useAdminBookings(filters: BookingFilters = {}) {
           locationId: b.location_id,
           vehicle: category ? {
             id: category.id,
-            make: "", // Categories don't have make
+            make: "",
             model: category.name,
             year: new Date().getFullYear(),
             imageUrl: category.image_url,
@@ -162,12 +170,12 @@ export function useAdminBookings(filters: BookingFilters = {}) {
             city: b.locations.city,
             address: b.locations.address,
           } : null,
-          profile: userProfile ? {
-            id: userProfile.id,
-            fullName: userProfile.full_name,
-            email: userProfile.email,
-            phone: userProfile.phone,
-          } : null,
+          profile: {
+            id: userProfile?.id || b.user_id,
+            fullName: customer?.full_name || userProfile?.full_name || null,
+            email: customer?.email || userProfile?.email || null,
+            phone: customer?.phone || userProfile?.phone || null,
+          },
         };
       });
     },
@@ -211,6 +219,17 @@ export function useBookingById(id: string | null) {
         .eq("id", data.user_id)
         .maybeSingle();
 
+      // Fetch customer record if customer_id is set (prefer over profile for display)
+      let customerData: { full_name: string; email: string | null; phone: string | null } | null = null;
+      if (data.customer_id) {
+        const { data: cust } = await supabase
+          .from("customers")
+          .select("full_name, email, phone")
+          .eq("id", data.customer_id)
+          .maybeSingle();
+        customerData = cust;
+      }
+
       // Fetch related data
       const [paymentsRes, addOnsRes, verificationsRes, inspectionsRes, photosRes, auditRes, notificationsRes, additionalDriversRes] = await Promise.all([
         supabase.from("payments").select("*").eq("booking_id", id),
@@ -236,10 +255,28 @@ export function useBookingById(id: string | null) {
         seats: categoryData.seats,
       } : null;
 
+      // Merge customer data over profile data for display fields, keep profile's license data
+      const mergedProfile = profileData ? {
+        ...profileData,
+        full_name: customerData?.full_name || profileData.full_name,
+        email: customerData?.email || profileData.email,
+        phone: customerData?.phone || profileData.phone,
+      } : customerData ? {
+        id: data.user_id,
+        full_name: customerData.full_name,
+        email: customerData.email,
+        phone: customerData.phone,
+        is_verified: false,
+        driver_license_status: null,
+        driver_license_expiry: null,
+        driver_license_front_url: null,
+        driver_license_back_url: null,
+      } : null;
+
       return {
         ...data,
-        vehicles: vehiclesField, // Add backward-compatible vehicles field
-        profiles: profileData,
+        vehicles: vehiclesField,
+        profiles: mergedProfile,
         payments: paymentsRes.data || [],
         addOns: addOnsRes.data || [],
         additionalDrivers: additionalDriversRes.data || [],
