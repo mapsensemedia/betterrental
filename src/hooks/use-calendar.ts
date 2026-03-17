@@ -35,7 +35,7 @@ export interface CalendarData {
 
 export function useCalendarData(weekOffset: number = 0) {
   return useQuery<CalendarData>({
-    queryKey: ["admin-calendar", weekOffset, locationId],
+    queryKey: ["admin-calendar", weekOffset],
     queryFn: async () => {
       const baseDate = addDays(new Date(), weekOffset * 7);
       const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 });
