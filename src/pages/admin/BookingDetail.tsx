@@ -233,7 +233,7 @@ export default function BookingDetail() {
       toast.success("Agreement generated successfully");
       queryClient.invalidateQueries({ queryKey: ["booking-agreements-detail", bookingId] });
     } catch (err: any) {
-      const msg = await extractEdgeFunctionError(err);
+      const msg = await extractEdgeFunctionError(null, err);
       toast.error("Failed to generate agreement: " + msg);
     } finally {
       setIsGeneratingAgreement(false);
