@@ -45,26 +45,35 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
     query = query.eq("vehicle_id", filters.vehicleId);
   }
 
-  // If searching by name/phone/email, find matching user IDs first
+  // If searching by name/phone/email, find matching user IDs AND customer IDs
   let searchUserIds: string[] | null = null;
+  let searchCustomerIds: string[] | null = null;
   if (filters.search) {
     const term = filters.search.trim();
-    // Always filter by booking_code on the query
-    // But also search profiles for name/phone/email matches
-    const { data: matchingProfiles } = await supabase
-      .from("profiles")
-      .select("id")
-      .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`);
     
-    searchUserIds = (matchingProfiles || []).map(p => p.id);
+    // Search profiles for name/phone/email matches
+    const [profilesRes, customersRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id")
+        .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`),
+      supabase
+        .from("customers")
+        .select("id")
+        .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`),
+    ]);
     
+    searchUserIds = (profilesRes.data || []).map(p => p.id);
+    searchCustomerIds = (customersRes.data || []).map(c => c.id);
+    
+    const orClauses: string[] = [`booking_code.ilike.%${term}%`];
     if (searchUserIds.length > 0) {
-      // Match booking code OR user_id in matching profiles
-      query = query.or(`booking_code.ilike.%${term}%,user_id.in.(${searchUserIds.join(",")})`);
-    } else {
-      // No profile matches, just search by booking code
-      query = query.or(`booking_code.ilike.%${term}%`);
+      orClauses.push(`user_id.in.(${searchUserIds.join(",")})`);
     }
+    if (searchCustomerIds.length > 0) {
+      orClauses.push(`customer_id.in.(${searchCustomerIds.join(",")})`);
+    }
+    query = query.or(orClauses.join(","));
   }
 
   // Tab-based filtering
@@ -95,6 +104,17 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
 
   const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
 
+  // Fetch customers records for walk-in bookings
+  const customerIds = [...new Set((bookingsData || []).map(b => b.customer_id).filter(Boolean))] as string[];
+  const customersMap = new Map<string, { id: string; full_name: string; email: string | null; phone: string | null }>();
+  if (customerIds.length > 0) {
+    const { data: customersData } = await supabase
+      .from("customers")
+      .select("id, full_name, email, phone")
+      .in("id", customerIds);
+    (customersData || []).forEach(c => customersMap.set(c.id, c));
+  }
+
   // Fetch categories
   const categoryIds = [...new Set((bookingsData || []).map(b => b.vehicle_id).filter(Boolean))];
   const { data: categoriesData } = categoryIds.length > 0
@@ -108,7 +128,25 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
 
   return (bookingsData || []).map((b): BookingSummary => {
     const profile = profilesMap.get(b.user_id);
+    const customer = b.customer_id ? customersMap.get(b.customer_id) : null;
     const category = categoriesMap.get(b.vehicle_id);
+    
+    // Prefer customers table for display when customer_id is set (walk-in bookings)
+    const displayProfile = customer
+      ? {
+          id: customer.id,
+          fullName: customer.full_name,
+          email: customer.email,
+          phone: customer.phone,
+        }
+      : profile
+        ? {
+            id: profile.id,
+            fullName: profile.full_name,
+            email: profile.email,
+            phone: profile.phone,
+          }
+        : null;
     
     return {
       id: b.id,
@@ -132,6 +170,8 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
       locationId: b.location_id,
       returnLocationId: b.return_location_id,
       differentDropoffFee: Number(b.different_dropoff_fee || 0),
+      customerId: b.customer_id || null,
+      createdBy: b.created_by || null,
       vehicle: category ? {
         id: category.id,
         name: category.name,
@@ -147,13 +187,8 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
         city: (b as any).locations.city,
         address: (b as any).locations.address,
       } : null,
-      returnLocation: null, // Will be fetched separately if needed
-      profile: profile ? {
-        id: profile.id,
-        fullName: profile.full_name,
-        email: profile.email,
-        phone: profile.phone,
-      } : null,
+      returnLocation: null,
+      profile: displayProfile,
     };
   });
 }
@@ -185,12 +220,45 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
         .maybeSingle()
     : { data: null };
 
-  // Fetch profile
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, phone, is_verified, driver_license_status")
-    .eq("id", data.user_id)
-    .maybeSingle();
+  // Fetch profile and customer in parallel
+  const [profileRes, customerRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, phone, is_verified, driver_license_status")
+      .eq("id", data.user_id)
+      .maybeSingle(),
+    data.customer_id
+      ? supabase
+          .from("customers")
+          .select("id, full_name, email, phone")
+          .eq("id", data.customer_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const profileData = profileRes.data;
+  const customerData = customerRes.data;
+
+  // Prefer customers table for display when customer_id is set
+  const displayProfile = customerData
+    ? {
+        id: customerData.id,
+        fullName: customerData.full_name,
+        email: customerData.email,
+        phone: customerData.phone,
+        isVerified: undefined,
+        driverLicenseStatus: undefined,
+      }
+    : profileData
+      ? {
+          id: profileData.id,
+          fullName: profileData.full_name,
+          email: profileData.email,
+          phone: profileData.phone,
+          isVerified: profileData.is_verified,
+          driverLicenseStatus: profileData.driver_license_status,
+        }
+      : null;
 
   // Fetch related data in parallel
   const [paymentsRes, addOnsRes, auditRes] = await Promise.all([
@@ -253,6 +321,8 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
     locationId: data.location_id,
     returnLocationId: data.return_location_id,
     differentDropoffFee: Number(data.different_dropoff_fee || 0),
+    customerId: data.customer_id || null,
+    createdBy: data.created_by || null,
     assignedUnitId: data.assigned_unit_id,
     assignedDriverId: data.assigned_driver_id,
     handedOverAt: data.handed_over_at,
@@ -290,14 +360,7 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
       address: returnLocationData.address,
       phone: returnLocationData.phone,
     } : null,
-    profile: profileData ? {
-      id: profileData.id,
-      fullName: profileData.full_name,
-      email: profileData.email,
-      phone: profileData.phone,
-      isVerified: profileData.is_verified,
-      driverLicenseStatus: profileData.driver_license_status,
-    } : null,
+    profile: displayProfile,
     unit: data.vehicle_units ? {
       id: data.vehicle_units.id,
       vin: data.vehicle_units.vin,
@@ -343,12 +406,40 @@ export async function getBookingByCode(code: string): Promise<BookingSummary | n
   if (error) throw error;
   if (!data) return null;
 
-  // Fetch profile
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, phone")
-    .eq("id", data.user_id)
-    .maybeSingle();
+  // Fetch profile and customer in parallel
+  const [profileRes, customerRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, phone")
+      .eq("id", data.user_id)
+      .maybeSingle(),
+    data.customer_id
+      ? supabase
+          .from("customers")
+          .select("id, full_name, email, phone")
+          .eq("id", data.customer_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const profileData = profileRes.data;
+  const customerData = customerRes.data;
+
+  const displayProfile = customerData
+    ? {
+        id: customerData.id,
+        fullName: customerData.full_name,
+        email: customerData.email,
+        phone: customerData.phone,
+      }
+    : profileData
+      ? {
+          id: profileData.id,
+          fullName: profileData.full_name,
+          email: profileData.email,
+          phone: profileData.phone,
+        }
+      : null;
 
   // Fetch category
   const { data: categoryData } = data.vehicle_id
@@ -381,6 +472,8 @@ export async function getBookingByCode(code: string): Promise<BookingSummary | n
     locationId: data.location_id,
     returnLocationId: data.return_location_id,
     differentDropoffFee: Number(data.different_dropoff_fee || 0),
+    customerId: data.customer_id || null,
+    createdBy: data.created_by || null,
     vehicle: categoryData ? {
       id: categoryData.id,
       name: categoryData.name,
@@ -394,11 +487,6 @@ export async function getBookingByCode(code: string): Promise<BookingSummary | n
       address: (data as any).locations.address,
     } : null,
     returnLocation: null,
-    profile: profileData ? {
-      id: profileData.id,
-      fullName: profileData.full_name,
-      email: profileData.email,
-      phone: profileData.phone,
-    } : null,
+    profile: displayProfile,
   };
 }
