@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format, addDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -64,6 +64,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   const { data: allVehicles } = useVehicles();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const createdBookingRef = useRef<{ id: string; bookingCode: string } | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -127,6 +128,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
         notes: "",
       });
       prevVehicleIdRef.current = "";
+      createdBookingRef.current = null;
     }
   }, [open]);
 
@@ -152,6 +154,13 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   };
 
   const handleSubmit = async () => {
+    // Guard: if a booking was already created in this dialog session, navigate to it
+    if (createdBookingRef.current) {
+      onOpenChange(false);
+      navigate(`/admin/bookings/${createdBookingRef.current.id}/ops?returnTo=/admin/bookings`);
+      return;
+    }
+
     if (!user) {
       toast.error("You must be logged in");
       return;
@@ -227,7 +236,14 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       }
 
       if (data?.booking?.id) {
-        toast.success(`Walk-in booking created: ${data.booking.bookingCode || data.booking.booking_code}`);
+        const code = data.booking.bookingCode || data.booking.booking_code;
+        createdBookingRef.current = { id: data.booking.id, bookingCode: code };
+        
+        if (data.existing) {
+          toast.info(`Existing walk-in booking found (${code}). Resuming payment.`);
+        } else {
+          toast.success(`Walk-in booking created: ${code}`);
+        }
         onOpenChange(false);
         navigate(`/admin/bookings/${data.booking.id}/ops?returnTo=/admin/bookings`);
       } else {
