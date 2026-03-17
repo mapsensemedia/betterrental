@@ -250,11 +250,14 @@ export default function AdminCalendar() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {VEHICLE_CATEGORIES.map((cat) => (
-                <SelectItem key={cat} value={cat.toLowerCase()}>
-                  {cat}
-                </SelectItem>
-              ))}
+              {calendarData?.vehicles
+                .map(v => v.category)
+                .filter((val, idx, arr) => arr.indexOf(val) === idx)
+                .map((cat) => (
+                  <SelectItem key={cat} value={cat.toLowerCase()}>
+                    {cat}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
