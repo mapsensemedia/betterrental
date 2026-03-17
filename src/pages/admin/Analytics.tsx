@@ -34,8 +34,7 @@ import {
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
-import { useLocations } from "@/hooks/use-locations";
-import { format, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth } from "date-fns";
 import { RevenueAnalyticsTab } from "@/components/admin/analytics/RevenueAnalyticsTab";
 
 // Full funnel stages
