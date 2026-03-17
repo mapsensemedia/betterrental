@@ -9,7 +9,6 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { ConversionFunnel } from "@/components/admin/ConversionFunnel";
-import { useAdminBookings } from "@/hooks/use-bookings";
 import { useAdminVehicles } from "@/hooks/use-inventory";
 import {
   BarChart3,

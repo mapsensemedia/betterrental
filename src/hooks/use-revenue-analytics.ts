@@ -26,6 +26,7 @@ export interface RentalPriceMetrics {
   totalBookings: number;
   totalRentalBaseRevenue: number;
   medianRentalPrice: number;
+  averageDays: number;
 }
 
 export interface AddOnMetrics {
@@ -42,7 +43,7 @@ export interface AddOnBreakdown {
   attachRate: number;
   totalRevenue: number;
   avgPrice: number;
-  last30DaysTrend: number; // percentage change
+  last30DaysTrend: number;
 }
 
 export interface ChannelComparison {
@@ -64,12 +65,15 @@ interface BookingRow {
   id: string;
   daily_rate: number;
   total_days: number;
+  total_amount: number;
   booking_source: string | null;
+  start_at: string;
   created_at: string;
   location_id: string;
   vehicle_id: string;
   pickup_address: string | null;
   status: string;
+  wl_transaction_id: string | null;
 }
 
 interface BookingAddOnRow {
@@ -80,13 +84,8 @@ interface BookingAddOnRow {
   add_ons: { id: string; name: string } | null;
 }
 
-interface PaymentRow {
-  booking_id: string;
-  payment_type: string;
-}
-
 export function useRevenueAnalytics(filters: RevenueFilters) {
-  // Fetch all bookings within the date range
+  // Fetch all bookings within the date range (by start_at)
   const bookingsQuery = useQuery({
     queryKey: [
       "revenue-analytics-bookings",
@@ -101,9 +100,9 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, daily_rate, total_days, booking_source, created_at, location_id, vehicle_id, pickup_address, status")
-        .gte("created_at", startOfDay(filters.startDate).toISOString())
-        .lte("created_at", endOfDay(filters.endDate).toISOString())
+        .select("id, daily_rate, total_days, total_amount, booking_source, start_at, created_at, location_id, vehicle_id, pickup_address, status, wl_transaction_id")
+        .gte("start_at", startOfDay(filters.startDate).toISOString())
+        .lte("start_at", endOfDay(filters.endDate).toISOString())
         .in("status", ["confirmed", "active", "completed"]);
 
       if (error) throw error;
@@ -133,27 +132,11 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     enabled: !!bookingsQuery.data,
   });
 
-  // Fetch payments to determine pay now vs pay later
-  const paymentsQuery = useQuery({
-    queryKey: ["revenue-analytics-payments", filters.startDate.toISOString(), filters.endDate.toISOString()],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("booking_id, payment_type")
-        .eq("status", "completed");
-
-      if (error) throw error;
-      return (data || []) as PaymentRow[];
-    },
-    staleTime: 60000,
-    enabled: !!bookingsQuery.data,
-  });
-
   // Calculate all metrics
   const metrics = useMemo(() => {
     if (!bookingsQuery.data) {
       return {
-        rentalMetrics: { averageRentalPrice: 0, totalBookings: 0, totalRentalBaseRevenue: 0, medianRentalPrice: 0 },
+        rentalMetrics: { averageRentalPrice: 0, totalBookings: 0, totalRentalBaseRevenue: 0, medianRentalPrice: 0, averageDays: 0 },
         addOnMetrics: { averageAddOnSpend: 0, attachRate: 0, bookingsWithAddOns: 0, totalAddOnRevenue: 0 },
         addOnBreakdown: [] as AddOnBreakdown[],
         channelComparison: [] as ChannelComparison[],
@@ -165,16 +148,6 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
 
     const bookings = bookingsQuery.data;
     const addOns = addOnsQuery.data || [];
-    const payments = paymentsQuery.data || [];
-    
-
-    // Create payment lookup
-    const paymentByBooking = new Map<string, string>();
-    payments.forEach(p => {
-      if (!paymentByBooking.has(p.booking_id)) {
-        paymentByBooking.set(p.booking_id, p.payment_type);
-      }
-    });
 
     // Filter bookings based on filters
     let filteredBookings = bookings.filter(b => {
@@ -198,11 +171,11 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
         if (filters.bookingType === "pickup" && isDelivery) return false;
       }
 
-      // Payment type
+      // Payment type — pay_now = paid via gateway (has wl_transaction_id), pay_later = pay at counter
       if (filters.paymentType !== "all") {
-        const hasCompletedRentalPayment = paymentByBooking.has(b.id) && paymentByBooking.get(b.id) === "rental";
-        if (filters.paymentType === "pay_now" && !hasCompletedRentalPayment) return false;
-        if (filters.paymentType === "pay_later" && hasCompletedRentalPayment) return false;
+        const isPaidViaGateway = !!b.wl_transaction_id;
+        if (filters.paymentType === "pay_now" && !isPaidViaGateway) return false;
+        if (filters.paymentType === "pay_later" && isPaidViaGateway) return false;
       }
 
       return true;
@@ -216,8 +189,8 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       addOnsByBooking.set(ao.booking_id, existing);
     });
 
-    // Calculate rental base amounts
-    const rentalBases = filteredBookings.map(b => b.daily_rate * b.total_days);
+    // Calculate revenue using total_amount (includes protection, fees, tax)
+    const rentalBases = filteredBookings.map(b => b.total_amount);
     const totalRentalBaseRevenue = rentalBases.reduce((sum, v) => sum + v, 0);
     const averageRentalPrice = filteredBookings.length > 0 ? totalRentalBaseRevenue / filteredBookings.length : 0;
 
@@ -227,6 +200,11 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       ? sortedBases.length % 2 === 0
         ? (sortedBases[sortedBases.length / 2 - 1] + sortedBases[sortedBases.length / 2]) / 2
         : sortedBases[Math.floor(sortedBases.length / 2)]
+      : 0;
+
+    // Calculate average days
+    const averageDays = filteredBookings.length > 0
+      ? filteredBookings.reduce((sum, b) => sum + b.total_days, 0) / filteredBookings.length
       : 0;
 
     // Calculate add-on metrics
@@ -258,7 +236,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       existing.revenue += ao.price;
       existing.bookings.add(ao.booking_id);
 
-      const bookingDate = new Date(booking.created_at);
+      const bookingDate = new Date(booking.start_at);
       if (bookingDate >= thirtyDaysAgo) {
         existing.last30Revenue += ao.price;
       } else if (bookingDate >= sixtyDaysAgo) {
@@ -286,8 +264,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     filteredBookings.forEach(b => {
       const channel = (b.booking_source || "online") as "online" | "walk_in";
       const key = channel === "walk_in" ? "walk_in" : "online";
-      const rentalBase = b.daily_rate * b.total_days;
-      channelStats[key].revenue += rentalBase;
+      channelStats[key].revenue += b.total_amount;
       channelStats[key].bookings++;
 
       const bookingAddOns = addOnsByBooking.get(b.id) || [];
@@ -316,7 +293,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       },
     ];
 
-    // Revenue trend (daily or weekly based on date range)
+    // Revenue trend (daily or weekly based on date range) — bucket by start_at
     const daysDiff = Math.ceil((filters.endDate.getTime() - filters.startDate.getTime()) / (1000 * 60 * 60 * 24));
     const useWeekly = daysDiff > 30;
 
@@ -328,10 +305,10 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       weeks.forEach(weekStart => {
         const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
         const weekBookings = filteredBookings.filter(b => {
-          const d = new Date(b.created_at);
+          const d = new Date(b.start_at);
           return d >= weekStart && d <= weekEnd;
         });
-        const weekRevenue = weekBookings.reduce((s, b) => s + b.daily_rate * b.total_days, 0);
+        const weekRevenue = weekBookings.reduce((s, b) => s + b.total_amount, 0);
         const weekAddOnRevenue = relevantAddOns
           .filter(ao => weekBookings.some(b => b.id === ao.booking_id))
           .reduce((s, ao) => s + ao.price, 0);
@@ -345,10 +322,10 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
         const dayStart = startOfDay(day);
         const dayEnd = endOfDay(day);
         const dayBookings = filteredBookings.filter(b => {
-          const d = new Date(b.created_at);
+          const d = new Date(b.start_at);
           return d >= dayStart && d <= dayEnd;
         });
-        const dayRevenue = dayBookings.reduce((s, b) => s + b.daily_rate * b.total_days, 0);
+        const dayRevenue = dayBookings.reduce((s, b) => s + b.total_amount, 0);
         const dayAddOnRevenue = relevantAddOns
           .filter(ao => dayBookings.some(b => b.id === ao.booking_id))
           .reduce((s, ao) => s + ao.price, 0);
@@ -364,11 +341,11 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       const addOnTotal = bookingAddOns.reduce((s, ao) => s + ao.price, 0);
       return {
         booking_id: b.id,
-        created_at: b.created_at,
+        start_at: b.start_at,
         channel: b.booking_source || "online",
         daily_rate: b.daily_rate,
         total_days: b.total_days,
-        rental_base: b.daily_rate * b.total_days,
+        total_amount: b.total_amount,
         addon_count: bookingAddOns.length,
         addon_total: addOnTotal,
         addons: bookingAddOns.map(ao => ao.add_ons?.name).filter(Boolean).join(", "),
@@ -381,6 +358,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
         totalBookings: filteredBookings.length,
         totalRentalBaseRevenue,
         medianRentalPrice,
+        averageDays,
       },
       addOnMetrics: {
         averageAddOnSpend,
@@ -394,7 +372,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       addOnTrend,
       exportData,
     };
-  }, [bookingsQuery.data, addOnsQuery.data, paymentsQuery.data, filters]);
+  }, [bookingsQuery.data, addOnsQuery.data, filters]);
 
   return {
     ...metrics,
