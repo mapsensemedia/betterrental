@@ -188,11 +188,8 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       // Location filter
       if (filters.locationId && b.location_id !== filters.locationId) return false;
 
-      // Category filter
-      if (filters.categoryId) {
-        const category = vehicleCategories.get(b.vehicle_id);
-        if (category !== filters.categoryId) return false;
-      }
+      // Category filter — vehicle_id IS the category ID directly
+      if (filters.categoryId && b.vehicle_id !== filters.categoryId) return false;
 
       // Booking type (pickup vs delivery)
       if (filters.bookingType !== "all") {
@@ -203,9 +200,9 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
 
       // Payment type
       if (filters.paymentType !== "all") {
-        const paymentType = paymentByBooking.get(b.id);
-        if (filters.paymentType === "pay_now" && paymentType !== "deposit") return false;
-        if (filters.paymentType === "pay_later" && paymentType === "deposit") return false;
+        const hasCompletedRentalPayment = paymentByBooking.has(b.id) && paymentByBooking.get(b.id) === "rental";
+        if (filters.paymentType === "pay_now" && !hasCompletedRentalPayment) return false;
+        if (filters.paymentType === "pay_later" && hasCompletedRentalPayment) return false;
       }
 
       return true;
