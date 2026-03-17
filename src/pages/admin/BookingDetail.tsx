@@ -188,6 +188,58 @@ export default function BookingDetail() {
     enabled: !!bookingId,
   });
 
+  // Fetch rental agreements
+  const { data: rentalAgreements = [] } = useQuery({
+    queryKey: ["booking-agreements-detail", bookingId],
+    queryFn: async () => {
+      if (!bookingId) return [];
+      const { data } = await supabase
+        .from("rental_agreements")
+        .select("id, status, customer_signed_at, signature_png_url, created_at")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!bookingId,
+  });
+
+  const handleGenerateInvoice = async () => {
+    if (!bookingId) return;
+    setIsGeneratingInvoice(true);
+    try {
+      const { error } = await supabase.functions.invoke("close-account", {
+        body: { bookingId },
+      });
+      if (error) throw error;
+      toast.success("Invoice generated successfully");
+      queryClient.invalidateQueries({ queryKey: ["booking-final-invoices", bookingId] });
+      refetch();
+    } catch (err: any) {
+      const msg = await extractEdgeFunctionError(err);
+      toast.error("Failed to generate invoice: " + msg);
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
+  };
+
+  const handleGenerateAgreement = async () => {
+    if (!bookingId) return;
+    setIsGeneratingAgreement(true);
+    try {
+      const { error } = await supabase.functions.invoke("generate-agreement", {
+        body: { bookingId },
+      });
+      if (error) throw error;
+      toast.success("Agreement generated successfully");
+      queryClient.invalidateQueries({ queryKey: ["booking-agreements-detail", bookingId] });
+    } catch (err: any) {
+      const msg = await extractEdgeFunctionError(err);
+      toast.error("Failed to generate agreement: " + msg);
+    } finally {
+      setIsGeneratingAgreement(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <PanelShell>
