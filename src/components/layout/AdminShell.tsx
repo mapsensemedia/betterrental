@@ -122,8 +122,14 @@ const navGroups: NavGroup[] = [
       {
         href: "/admin/fleet-costs",
         label: "Fleet Costs",
-        icon: TrendingUp,
-        description: "Vehicle economics",
+        icon: DollarSign,
+        description: "Expenses & depreciation",
+      },
+      {
+        href: "/admin/fleet-costs?tab=units",
+        label: "Fleet Units",
+        icon: Car,
+        description: "Vehicles & VIN management",
       },
       {
         href: "/admin/fleet-analytics",

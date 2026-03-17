@@ -145,11 +145,28 @@ export async function getCategoryById(id: string): Promise<FleetCategory | null>
   // Get unit counts
   const { data: units } = await supabase
     .from("vehicle_units")
-    .select("status")
+    .select("id, status")
     .eq("category_id", id);
 
+  // Derive on-rent from active bookings, not stale unit status
+  const unitIds = (units || []).map(u => u.id);
+  const { data: activeBookings } = unitIds.length > 0
+    ? await supabase
+        .from("bookings")
+        .select("assigned_unit_id")
+        .eq("status", "active")
+        .not("assigned_unit_id", "is", null)
+        .in("assigned_unit_id", unitIds)
+    : { data: [] };
+
+  const activeUnitIds = new Set((activeBookings || []).map(b => b.assigned_unit_id));
+
   const total = units?.length || 0;
-  const available = units?.filter((u) => u.status === "available").length || 0;
+  const available = (units || []).filter((u) => {
+    const isOnRent = activeUnitIds.has(u.id);
+    const isMaintenance = u.status === "maintenance" || u.status === "damage";
+    return !isOnRent && !isMaintenance;
+  }).length;
 
   return {
     id: data.id,
