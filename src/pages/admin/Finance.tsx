@@ -277,7 +277,7 @@ function OverviewTab() {
       const bookingIds = [...new Set(paymentRows.map((p) => p.booking_id))];
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, booking_code, user_id")
+        .select("id, booking_code, user_id, customer_id")
         .in("id", bookingIds);
 
       const userIds = [...new Set((bookings || []).map((b) => b.user_id))];
@@ -285,16 +285,24 @@ function OverviewTab() {
         ? await supabase.from("profiles").select("id, full_name").in("id", userIds)
         : { data: [] };
 
+      // Fetch customers
+      const customerIds = [...new Set((bookings || []).map((b) => b.customer_id).filter(Boolean))] as string[];
+      const { data: customersData } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name").in("id", customerIds)
+        : { data: [] };
+      const customersMap = new Map((customersData || []).map((c) => [c.id, c.full_name || "Unknown"]));
+
       const bookingMap = new Map((bookings || []).map((b) => [b.id, b]));
       const profileMap = new Map((profiles || []).map((p) => [p.id, p.full_name || "Unknown"]));
 
       return paymentRows.map((p): OverviewPaymentRecord => {
         const booking = bookingMap.get(p.booking_id);
+        const custName = booking?.customer_id ? customersMap.get(booking.customer_id) : null;
         return {
           ...p,
           amount: Number(p.amount),
           booking_code: booking?.booking_code || "—",
-          customer_name: booking ? profileMap.get(booking.user_id) || "Unknown" : "Unknown",
+          customer_name: custName || (booking ? profileMap.get(booking.user_id) || "Unknown" : "Unknown"),
         };
       });
     },
