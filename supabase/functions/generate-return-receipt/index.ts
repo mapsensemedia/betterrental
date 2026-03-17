@@ -11,6 +11,7 @@ interface ReceiptRequest {
   depositReleased: number;
   depositWithheld: number;
   withholdReason?: string;
+  staffUserId?: string;
 }
 
 serve(async (req) => {
