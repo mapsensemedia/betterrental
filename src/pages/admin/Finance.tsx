@@ -725,12 +725,25 @@ function OverviewTab() {
 function TransactionsTab() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Read URL params for deep-linking from other pages
+  const urlStatus = searchParams.get("status");
+  const urlBooking = searchParams.get("booking");
+  const urlAdjustment = searchParams.get("adjustment");
+  const urlAmount = searchParams.get("amount");
+  
+  const [statusFilter, setStatusFilter] = useState<string>(urlStatus === "failed" ? "failed" : "all");
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
-  const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">("invoices");
+  const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">(
+    urlStatus === "failed" || urlAdjustment === "damage" ? "payments" : "invoices"
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Damage charge banner from Damages page
+  const showDamageBanner = urlAdjustment === "damage" && urlBooking;
 
   // Fetch full booking data for invoice detail dialog
   const selectedInvoiceBookingId = selectedInvoice?.booking_id;
