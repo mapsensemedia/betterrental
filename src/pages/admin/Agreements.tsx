@@ -308,6 +308,11 @@ export default function AdminAgreements() {
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                           {format(new Date(row.createdAt), "MMM d, yyyy")}
                         </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {row.bookingStatus}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge variant={statusInfo.variant} className={statusInfo.className}>
                             {statusInfo.label}
