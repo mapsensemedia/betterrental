@@ -63,7 +63,7 @@ function useAgreements() {
       const bookingIds = [...new Set(data.map((a) => a.booking_id))];
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, booking_code, start_at, end_at, user_id, vehicle_id, customer_id")
+        .select("id, booking_code, start_at, end_at, user_id, vehicle_id, customer_id, status")
         .in("id", bookingIds);
 
       // Batch fetch customers for walk-in bookings
