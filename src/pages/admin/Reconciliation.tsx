@@ -129,13 +129,6 @@ interface Alert {
 // ── Page ──
 
 export default function Reconciliation() {
-  const [bulkInput, setBulkInput] = useState("");
-  const [bulkResults, setBulkResults] = useState<BulkResult[] | null>(null);
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [bamboraData, setBamboraData] = useState<BamboraTxn[] | null>(null);
-  const [bamboraLoading, setBamboraLoading] = useState(false);
-  // manualTxnInput removed — range is auto-computed
-
   // Fetch bookings with Bambora refs + payments
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["reconciliation-ledger"],
