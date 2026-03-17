@@ -242,13 +242,13 @@ export function useActiveRentalDetail(bookingId: string | null) {
               address: booking.return_locations.address,
             }
           : null,
-        customer: profile
+        customer: profile || customerData
           ? {
-              id: profile.id,
-              fullName: profile.full_name,
-              email: profile.email,
-              phone: profile.phone,
-              isVerified: profile.is_verified || false,
+              id: profile?.id || booking.user_id,
+              fullName: customerData?.full_name || profile?.full_name || null,
+              email: customerData?.email || profile?.email || null,
+              phone: customerData?.phone || profile?.phone || null,
+              isVerified: profile?.is_verified || false,
             }
           : null,
         hasPaymentCompleted: (paymentsRes.data || []).length > 0,

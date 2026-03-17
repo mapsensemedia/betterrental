@@ -148,12 +148,12 @@ export function useActiveRentals() {
             name: b.locations.name,
             city: b.locations.city,
           } : null,
-          customer: profile ? {
-            id: profile.id,
-            fullName: profile.full_name,
-            email: profile.email,
-            phone: profile.phone,
-          } : null,
+          customer: {
+            id: customer?.id || profile?.id || b.user_id,
+            fullName: customer?.full_name || profile?.full_name || null,
+            email: customer?.email || profile?.email || null,
+            phone: customer?.phone || profile?.phone || null,
+          },
         };
       });
     },

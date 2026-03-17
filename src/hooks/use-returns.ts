@@ -181,10 +181,10 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
             city: b.locations.city,
             address: b.locations.address,
           } : null,
-          profile: profile ? {
-            fullName: profile.full_name,
-            email: profile.email,
-          } : null,
+          profile: {
+            fullName: customer?.full_name || profile?.full_name || null,
+            email: customer?.email || profile?.email || null,
+          },
           hasReturnPhotos,
           hasFuelOdometerPhotos,
           hasDamageReport,
