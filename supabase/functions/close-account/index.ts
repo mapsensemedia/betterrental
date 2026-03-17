@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { bookingId, additionalCharges, notes }: CloseAccountRequest = await req.json();
+    const { bookingId, additionalCharges, notes, backfillMode, suppressNotifications }: CloseAccountRequest = await req.json();
 
     if (!bookingId) {
       return new Response(
