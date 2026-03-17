@@ -236,7 +236,14 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       }
 
       if (data?.booking?.id) {
-        toast.success(`Walk-in booking created: ${data.booking.bookingCode || data.booking.booking_code}`);
+        const code = data.booking.bookingCode || data.booking.booking_code;
+        createdBookingRef.current = { id: data.booking.id, bookingCode: code };
+        
+        if (data.existing) {
+          toast.info(`Existing walk-in booking found (${code}). Resuming payment.`);
+        } else {
+          toast.success(`Walk-in booking created: ${code}`);
+        }
         onOpenChange(false);
         navigate(`/admin/bookings/${data.booking.id}/ops?returnTo=/admin/bookings`);
       } else {
