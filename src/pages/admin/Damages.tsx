@@ -101,7 +101,7 @@ export default function AdminDamages() {
 
   const handleAddToBilling = () => {
     if (!selectedDamage?.booking_id) return;
-    navigate(`/admin/billing?booking=${selectedDamage.booking_id}&adjustment=damage&amount=${estimatedCost || selectedDamage.estimated_cost || ""}`);
+    navigate(`/admin/finance?tab=transactions&booking=${selectedDamage.booking_id}&adjustment=damage&amount=${estimatedCost || selectedDamage.estimated_cost || ""}`);
   };
 
   // Group photos by phase

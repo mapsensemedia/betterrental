@@ -270,7 +270,7 @@ export default function BookingDetail() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => navigate(`/ops/bookings/${bookingId}?returnTo=${returnTo}`)}
+                  onClick={() => navigate(`/ops/booking/${bookingId}?returnTo=${returnTo}`)}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Open in Operations

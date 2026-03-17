@@ -186,8 +186,8 @@ export default function ActiveRentalDetail() {
   )?.new_data as Record<string, unknown> | null)?.incomplete_at_activation as string[] | undefined;
 
   const opsRoute = isOpsContext 
-    ? `/ops/booking-ops/${rental?.id}` 
-    : `/admin/booking-ops/${rental?.id}`;
+    ? `/ops/booking/${rental?.id}/handover` 
+    : `/admin/bookings/${rental?.id}/ops`;
 
   return (
     <PanelShell>

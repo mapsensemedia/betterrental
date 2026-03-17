@@ -522,7 +522,7 @@ function TicketTable({ tickets }: { tickets: any[] }) {
               {format(new Date(ticket.created_at), "MMM d, HH:mm")}
             </TableCell>
             <TableCell>
-              <Link to={`/admin/support?id=${ticket.id}`}>
+              <Link to={`/support?id=${ticket.id}`}>
                 <Button variant="ghost" size="sm">
                   <ExternalLink className="h-3.5 w-3.5" />
                 </Button>
