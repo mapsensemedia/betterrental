@@ -272,6 +272,7 @@ Deno.serve(async (req) => {
         upgrade_daily_fee: 0,
         upgrade_category_label: null,
         upgrade_visible_to_customer: false,
+        total_days: serverTotals.days,
         subtotal: serverTotals.subtotal,
         tax_amount: serverTotals.taxAmount,
         total_amount: serverTotals.total,
