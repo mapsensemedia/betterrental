@@ -18,6 +18,10 @@ interface CloseAccountRequest {
     type: "late_fee" | "damage" | "fee" | "other";
   }>;
   notes?: string;
+  /** Backfill mode: skip account_closed_at guard, skip booking status update, skip receipt generation */
+  backfillMode?: boolean;
+  /** Suppress all outbound notifications (SMS, email, admin alerts) */
+  suppressNotifications?: boolean;
 }
 
 function roundCents(v: number): number {
