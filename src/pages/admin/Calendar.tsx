@@ -44,7 +44,7 @@ const EVENT_TYPE_COLORS: Record<CalendarEventType, { bg: string; label: string; 
 
 const BUFFER_COLOR = "bg-muted-foreground/30";
 
-const VEHICLE_CATEGORIES = ["Sedan", "SUV", "Sports", "Luxury", "Electric", "Convertible", "Compact"];
+// Dynamic categories derived from calendarData below
 
 // Helper to determine event type for a booking
 function getEventType(booking: { status: string; startAt: string; endAt: string }): CalendarEventType {
@@ -239,6 +239,7 @@ export default function AdminCalendar() {
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
 
@@ -249,11 +250,14 @@ export default function AdminCalendar() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {VEHICLE_CATEGORIES.map((cat) => (
-                <SelectItem key={cat} value={cat.toLowerCase()}>
-                  {cat}
-                </SelectItem>
-              ))}
+              {calendarData?.vehicles
+                .map(v => v.category)
+                .filter((val, idx, arr) => arr.indexOf(val) === idx)
+                .map((cat) => (
+                  <SelectItem key={cat} value={cat.toLowerCase()}>
+                    {cat}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -303,7 +307,7 @@ export default function AdminCalendar() {
                 {/* Day Headers */}
                 <div className="flex border-b border-border sticky top-0 bg-card z-10">
                   <div className="w-44 flex-shrink-0 p-3 font-medium text-sm border-r border-border">
-                    Vehicle
+                    Category
                   </div>
                   <div className="flex-1 flex">
                     {calendarData?.days.map((day) => (
@@ -328,10 +332,10 @@ export default function AdminCalendar() {
                         {/* Vehicle Info */}
                         <div className="w-44 flex-shrink-0 p-3 border-r border-border">
                           <div className="font-medium text-sm truncate">
-                            {vehicle.make} {vehicle.model}
+                            {vehicle.model}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {vehicle.year} • {vehicle.locationName || "No location"}
+                            {vehicle.locationName || "All locations"}
                           </div>
                         </div>
 
