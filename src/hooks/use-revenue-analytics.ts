@@ -394,7 +394,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       addOnTrend,
       exportData,
     };
-  }, [bookingsQuery.data, addOnsQuery.data, paymentsQuery.data, vehiclesQuery.data, filters]);
+  }, [bookingsQuery.data, addOnsQuery.data, paymentsQuery.data, filters]);
 
   return {
     ...metrics,
