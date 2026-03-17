@@ -116,12 +116,15 @@ Deno.serve(async (req) => {
 
     const { data: existingProfile } = await supabaseAdmin
       .from("profiles")
-      .select("id")
+      .select("id, full_name")
       .eq("email", email)
+      .limit(1)
       .maybeSingle();
 
     if (existingProfile) {
       userId = existingProfile.id;
+      // DO NOT overwrite existing customer's name/phone — this profile belongs to them
+      console.log(`[walkin] Reusing existing profile ${userId} (${existingProfile.full_name}) for email ${email}. Walk-in customer name: ${sanitizedName}`);
     }
 
     if (!userId) {
@@ -147,23 +150,24 @@ Deno.serve(async (req) => {
       }
 
       userId = newUser.user.id;
-    }
 
-    const { error: profileUpsertError } = await supabaseAdmin.from("profiles").upsert({
-      id: userId,
-      email,
-      full_name: sanitizedName,
-      phone: sanitizedPhone,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "id" });
+      // Only create profile for NEW users — never overwrite existing profiles
+      const { error: profileUpsertError } = await supabaseAdmin.from("profiles").upsert({
+        id: userId,
+        email,
+        full_name: sanitizedName,
+        phone: sanitizedPhone,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "id" });
 
-    if (profileUpsertError) {
-      console.error("[create-walk-in-booking] Failed to upsert customer profile:", profileUpsertError);
-      return new Response(
-        JSON.stringify({ error: "Walk-in bookings require a valid customer email. We couldn't save the customer profile for this email." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      if (profileUpsertError) {
+        console.error("[create-walk-in-booking] Failed to create customer profile:", profileUpsertError);
+        return new Response(
+          JSON.stringify({ error: "Walk-in bookings require a valid customer email. We couldn't save the customer profile for this email." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     }
 
     // 5. Compute pricing — trust staff input; compute young driver fee server-side
