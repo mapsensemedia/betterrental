@@ -325,7 +325,7 @@ function OverviewTab() {
       // 2. Fetch Worldline rental bookings in date range
       const { data: wlRentals } = await supabase
         .from("bookings")
-        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id, customer_id")
         .not("wl_transaction_id", "is", null)
         .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
         .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
@@ -334,7 +334,7 @@ function OverviewTab() {
       // 3. Fetch Worldline deposit bookings in date range
       const { data: wlDeposits } = await supabase
         .from("bookings")
-        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id, customer_id")
         .not("wl_deposit_transaction_id", "is", null)
         .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
         .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
@@ -358,6 +358,24 @@ function OverviewTab() {
         : { data: [] };
       const profileMap = new Map((profiles || []).map((p) => [p.id, p.full_name || "Unknown"]));
 
+      // Resolve customers
+      const wlCustomerIds = [...new Set([
+        ...rentalEntries.map((b) => b.customer_id),
+        ...depositEntries.map((b) => b.customer_id),
+      ].filter(Boolean))] as string[];
+      const { data: wlCustomersData } = wlCustomerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name").in("id", wlCustomerIds)
+        : { data: [] };
+      const wlCustomersMap = new Map((wlCustomersData || []).map((c) => [c.id, c.full_name || "Unknown"]));
+
+      const resolveName = (userId: string, customerId: string | null) => {
+        if (customerId) {
+          const n = wlCustomersMap.get(customerId);
+          if (n) return n;
+        }
+        return profileMap.get(userId) || "Unknown";
+      };
+
       const records: OverviewPaymentRecord[] = [];
 
       // Rental entries
@@ -375,7 +393,7 @@ function OverviewTab() {
           transaction_id: b.wl_transaction_id,
           created_at: effectiveDate,
           booking_code: b.booking_code,
-          customer_name: profileMap.get(b.user_id) || "Unknown",
+          customer_name: resolveName(b.user_id, b.customer_id),
           unreconciled: true,
         });
       }
@@ -395,7 +413,7 @@ function OverviewTab() {
           transaction_id: b.wl_deposit_transaction_id,
           created_at: effectiveDate,
           booking_code: b.booking_code,
-          customer_name: profileMap.get(b.user_id) || "Unknown",
+          customer_name: resolveName(b.user_id, b.customer_id),
           unreconciled: true,
         });
       }
