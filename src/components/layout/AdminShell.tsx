@@ -127,9 +127,9 @@ const navGroups: NavGroup[] = [
       },
       {
         href: "/admin/fleet-analytics",
-        label: "Maintenance",
+        label: "Fleet Analytics",
         icon: Wrench,
-        description: "Service schedule",
+        description: "Utilization & costs",
       },
       {
         href: "/admin/incidents",
