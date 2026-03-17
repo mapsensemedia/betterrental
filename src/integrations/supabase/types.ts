@@ -412,6 +412,8 @@ export type Database = {
           card_last_four: string | null
           card_type: string | null
           created_at: string
+          created_by: string | null
+          customer_id: string | null
           customer_marked_returned_at: string | null
           customer_return_address: string | null
           customer_return_lat: number | null
@@ -510,6 +512,8 @@ export type Database = {
           card_last_four?: string | null
           card_type?: string | null
           created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
           customer_marked_returned_at?: string | null
           customer_return_address?: string | null
           customer_return_lat?: number | null
@@ -608,6 +612,8 @@ export type Database = {
           card_last_four?: string | null
           card_type?: string | null
           created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
           customer_marked_returned_at?: string | null
           customer_return_address?: string | null
           customer_return_lat?: number | null
@@ -696,6 +702,13 @@ export type Database = {
             columns: ["assigned_unit_id"]
             isOneToOne: false
             referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
@@ -891,6 +904,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      customers: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       damage_reports: {
         Row: {
