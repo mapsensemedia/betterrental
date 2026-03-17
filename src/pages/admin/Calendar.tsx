@@ -44,7 +44,7 @@ const EVENT_TYPE_COLORS: Record<CalendarEventType, { bg: string; label: string; 
 
 const BUFFER_COLOR = "bg-muted-foreground/30";
 
-const VEHICLE_CATEGORIES = ["Sedan", "SUV", "Sports", "Luxury", "Electric", "Convertible", "Compact"];
+// Dynamic categories derived from calendarData below
 
 // Helper to determine event type for a booking
 function getEventType(booking: { status: string; startAt: string; endAt: string }): CalendarEventType {
