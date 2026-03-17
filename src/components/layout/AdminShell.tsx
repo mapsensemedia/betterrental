@@ -162,12 +162,6 @@ const navGroups: NavGroup[] = [
         description: "Rental contracts",
       },
       {
-        href: "/admin/reconciliation",
-        label: "Reconciliation",
-        icon: CheckCircle2,
-        description: "Payment matching",
-      },
-      {
         href: "/admin/offers",
         label: "Offers",
         icon: Gift,
