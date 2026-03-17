@@ -6,7 +6,8 @@
  * - Requires admin/staff role (403 if not)
  * - Inserts via service_role client (bypasses RLS + INSERT seatbelt trigger)
  * - Staff can set arbitrary pricing (daily rate, totals)
- * - Creates guest user if customer email provided and no account exists
+ * - Creates/finds a customers record for the real-world customer
+ * - Creates guest auth user if needed (for backward compat with payment pipelines)
  */
 import {
   getCorsHeaders,
@@ -86,9 +87,9 @@ Deno.serve(async (req) => {
     console.log("[walkin] role mode", { hasServiceKey: !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") });
     const supabaseAdmin = getAdminClient();
 
-    // 4. Resolve or create a dedicated auth-backed customer identity for this walk-in
+    // 4. Validate & sanitize customer input
     const sanitizedName = customerName.trim();
-    const sanitizedPhone = sanitizePhone(customerPhone);
+    const sanitizedPhoneVal = sanitizePhone(customerPhone);
     const email = customerEmail ? sanitizeEmail(customerEmail) : null;
 
     if (!sanitizedName) {
@@ -98,7 +99,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!isValidPhone(sanitizedPhone)) {
+    if (!isValidPhone(sanitizedPhoneVal)) {
       return new Response(
         JSON.stringify({ error: "Invalid customer phone" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -112,6 +113,41 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 5. Find or create a customers record (auth-independent identity)
+    let customerId: string;
+    const { data: existingCustomer } = await supabaseAdmin
+      .from("customers")
+      .select("id, full_name")
+      .eq("email", email)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingCustomer) {
+      customerId = existingCustomer.id;
+      console.log(`[walkin] Reusing existing customer record ${customerId} (${existingCustomer.full_name}) for email ${email}`);
+    } else {
+      const { data: newCustomer, error: custErr } = await supabaseAdmin
+        .from("customers")
+        .insert({
+          full_name: sanitizedName,
+          email,
+          phone: sanitizedPhoneVal,
+        })
+        .select("id")
+        .single();
+
+      if (custErr || !newCustomer) {
+        console.error("[walkin] Failed to create customer record:", custErr);
+        return new Response(
+          JSON.stringify({ error: "Failed to create customer record", details: custErr?.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      customerId = newCustomer.id;
+      console.log(`[walkin] Created new customer record ${customerId} for ${sanitizedName} (${email})`);
+    }
+
+    // 6. Resolve or create auth user (backward compat for payment/notification pipelines)
     let userId: string | null = null;
 
     const { data: existingProfile } = await supabaseAdmin
@@ -123,7 +159,6 @@ Deno.serve(async (req) => {
 
     if (existingProfile) {
       userId = existingProfile.id;
-      // DO NOT overwrite existing customer's name/phone — this profile belongs to them
       console.log(`[walkin] Reusing existing profile ${userId} (${existingProfile.full_name}) for email ${email}. Walk-in customer name: ${sanitizedName}`);
     }
 
@@ -135,7 +170,7 @@ Deno.serve(async (req) => {
         email_confirm: false,
         user_metadata: {
           full_name: sanitizedName,
-          phone: sanitizedPhone,
+          phone: sanitizedPhoneVal,
           is_guest: true,
           created_via: "walk_in",
         },
@@ -151,12 +186,11 @@ Deno.serve(async (req) => {
 
       userId = newUser.user.id;
 
-      // Only create profile for NEW users — never overwrite existing profiles
       const { error: profileUpsertError } = await supabaseAdmin.from("profiles").upsert({
         id: userId,
         email,
         full_name: sanitizedName,
-        phone: sanitizedPhone,
+        phone: sanitizedPhoneVal,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: "id" });
@@ -170,17 +204,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. Compute pricing — trust staff input; compute young driver fee server-side
+    // 7. Compute pricing — trust staff input; compute young driver fee server-side
     const resolvedAgeBand = driverAgeBand || "25_70";
     const computedDays = totalDays || Math.max(1, Math.ceil(
       (new Date(endAt).getTime() - new Date(startAt).getTime()) / (1000 * 60 * 60 * 24),
     ));
     const youngDriverFee = resolvedAgeBand === "20_24" ? 15 * computedDays : 0;
     const computedSubtotal = subtotal ?? (dailyRate * computedDays + youngDriverFee);
-    const computedTax = taxAmount ?? Math.round(computedSubtotal * 0.12 * 100) / 100; // 12% default
+    const computedTax = taxAmount ?? Math.round(computedSubtotal * 0.12 * 100) / 100;
     const computedTotal = totalAmount ?? computedSubtotal + computedTax;
 
-    // 5b. Duplicate detection — check for recent walk-in with same user/category/dates
+    // 7b. Duplicate detection — check for recent walk-in with same user/category/dates
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: existingBooking } = await supabaseAdmin
       .from("bookings")
@@ -209,11 +243,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6. Insert booking via service_role (bypasses RLS + INSERT seatbelt)
+    // 8. Insert booking via service_role (bypasses RLS + INSERT seatbelt)
     const { data: booking, error: insertError } = await supabaseAdmin
       .from("bookings")
       .insert({
         user_id: userId,
+        customer_id: customerId,
+        created_by: auth.userId,
         vehicle_id: categoryId,
         location_id: locationId,
         start_at: new Date(startAt).toISOString(),
@@ -229,7 +265,7 @@ Deno.serve(async (req) => {
         booking_source: "walk_in",
         deposit_amount: depositAmount ?? 350,
         pickup_contact_name: customerName.trim(),
-        pickup_contact_phone: sanitizedPhone,
+        pickup_contact_phone: sanitizedPhoneVal,
         notes: notes || null,
         assigned_driver_id: auth.userId,
       })
@@ -244,7 +280,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7. Create initial delivery status
+    // 9. Create initial delivery status
     await supabaseAdmin.from("delivery_statuses").insert({
       booking_id: booking.id,
       status: "assigned",
@@ -252,21 +288,23 @@ Deno.serve(async (req) => {
       updated_by: auth.userId,
     });
 
-    // 8. Audit log
+    // 10. Audit log — use customer name from customers record for accuracy
     await supabaseAdmin.from("audit_logs").insert({
       action: "walk_in_booking_created",
       entity_type: "booking",
       entity_id: booking.id,
       user_id: auth.userId,
       new_data: {
-        customer_name: customerName,
+        customer_name: sanitizedName,
+        customer_id: customerId,
+        created_by: auth.userId,
         daily_rate: dailyRate,
         total_amount: computedTotal,
         booking_source: "walk_in",
       },
     });
 
-    console.log(`[create-walk-in-booking] Created booking ${booking.id} by staff ${auth.userId}`);
+    console.log(`[create-walk-in-booking] Created booking ${booking.id} (customer_id=${customerId}) by staff ${auth.userId}`);
 
     return new Response(
       JSON.stringify({
@@ -275,6 +313,7 @@ Deno.serve(async (req) => {
           id: booking.id,
           bookingCode: booking.booking_code,
           status: booking.status,
+          customerId,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },

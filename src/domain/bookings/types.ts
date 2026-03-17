@@ -71,6 +71,9 @@ export interface BookingSummary {
   locationId: string;
   returnLocationId: string | null;
   differentDropoffFee: number;
+  // Walk-in customer identity (auth-independent)
+  customerId: string | null;
+  createdBy: string | null;
   // Joined data
   vehicle: BookingVehicle | null;
   location: BookingLocation | null;
