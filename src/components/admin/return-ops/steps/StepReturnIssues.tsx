@@ -260,7 +260,7 @@ export function StepReturnIssues({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Actual Return</span>
-            <span>{format(now, "PPp")}</span>
+            <span>{format(returnDate, "PPp")}</span>
           </div>
           {isLateReturn && (
             <>
