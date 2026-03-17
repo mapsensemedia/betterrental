@@ -41,17 +41,32 @@ Deno.serve(async (req) => {
 
   try {
     const authResult = await validateAuth(req);
+    let isServiceRole = false;
     if (!authResult.authenticated) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Check for service_role JWT (server-to-server backfill calls)
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        try {
+          const token = authHeader.replace("Bearer ", "");
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          if (payload.role === "service_role") {
+            isServiceRole = true;
+          }
+        } catch (_) { /* not valid JWT */ }
+      }
+      if (!isServiceRole) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    const hasAccess = await isAdminOrStaff(authResult.userId!);
-    if (!hasAccess) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden - Admin/Staff only" }),
+    if (!isServiceRole) {
+      const hasAccess = await isAdminOrStaff(authResult.userId!);
+      if (!hasAccess) {
+        return new Response(
+          JSON.stringify({ error: "Forbidden - Admin/Staff only" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
