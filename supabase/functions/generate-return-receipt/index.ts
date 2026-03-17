@@ -253,7 +253,7 @@ serve(async (req) => {
 
     // Log audit entry
     await supabase.from("audit_logs").insert({
-      user_id: booking.user_id,
+      user_id: staffUserId || booking.user_id,
       action: "receipt_generated",
       entity_type: "receipt",
       entity_id: receipt.id,
