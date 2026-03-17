@@ -80,18 +80,34 @@ export function useFleetCategories() {
       // Get unit counts per category
       const { data: units } = await supabase
         .from("vehicle_units")
-        .select("category_id, status")
+        .select("id, category_id, status")
         .not("category_id", "is", null);
 
-      const countMap = new Map<string, { total: number; available: number }>();
+      // Fetch active bookings to derive real on_rent status
+      const { data: activeBookings } = await supabase
+        .from("bookings")
+        .select("assigned_unit_id")
+        .eq("status", "active")
+        .not("assigned_unit_id", "is", null);
+
+      const activeUnitIds = new Set((activeBookings || []).map(b => b.assigned_unit_id));
+
+      const countMap = new Map<string, { total: number; available: number; onRent: number; maintenance: number }>();
       (units || []).forEach((u) => {
         const catId = u.category_id!;
         if (!countMap.has(catId)) {
-          countMap.set(catId, { total: 0, available: 0 });
+          countMap.set(catId, { total: 0, available: 0, onRent: 0, maintenance: 0 });
         }
         const entry = countMap.get(catId)!;
         entry.total++;
-        if (u.status === 'available') {
+        // Derive on_rent from active bookings, not unit status
+        const isOnRent = activeUnitIds.has(u.id);
+        const isMaintenance = u.status === 'maintenance' || u.status === 'damage';
+        if (isOnRent) {
+          entry.onRent++;
+        } else if (isMaintenance) {
+          entry.maintenance++;
+        } else {
           entry.available++;
         }
       });

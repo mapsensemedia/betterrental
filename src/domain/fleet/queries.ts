@@ -20,8 +20,17 @@ export async function listCategories(): Promise<FleetCategory[]> {
   // Get unit counts per category
   const { data: units } = await supabase
     .from("vehicle_units")
-    .select("category_id, status")
+    .select("id, category_id, status")
     .not("category_id", "is", null);
+
+  // Fetch active bookings to derive real on_rent status
+  const { data: activeBookings } = await supabase
+    .from("bookings")
+    .select("assigned_unit_id")
+    .eq("status", "active")
+    .not("assigned_unit_id", "is", null);
+
+  const activeUnitIds = new Set((activeBookings || []).map(b => b.assigned_unit_id));
 
   const countMap = new Map<string, { total: number; available: number }>();
   (units || []).forEach((u) => {
@@ -31,7 +40,9 @@ export async function listCategories(): Promise<FleetCategory[]> {
     }
     const entry = countMap.get(catId)!;
     entry.total++;
-    if (u.status === "available") {
+    const isOnRent = activeUnitIds.has(u.id);
+    const isMaintenance = u.status === "maintenance" || u.status === "damage";
+    if (!isOnRent && !isMaintenance) {
       entry.available++;
     }
   });

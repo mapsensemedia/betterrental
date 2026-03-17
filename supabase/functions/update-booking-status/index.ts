@@ -180,6 +180,8 @@ Deno.serve(async (req) => {
       } else if (newStatus === "completed" || newStatus === "cancelled") {
         await admin.from("vehicle_units").update({ status: "available" }).eq("id", booking.assigned_unit_id);
       }
+    } else if (newStatus === "active") {
+      console.warn(`[update-booking-status] Booking ${bookingId} (${booking.booking_code}) activated without assigned_unit_id — unit status not updated`);
     }
 
     // Handle deposit on status change

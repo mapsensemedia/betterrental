@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listAllUnits, listCategories } from "@/domain/fleet";
+import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }> = {
