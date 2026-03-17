@@ -62,13 +62,18 @@ function useAgreements() {
       const bookingIds = [...new Set(data.map((a) => a.booking_id))];
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, booking_code, start_at, end_at, user_id, vehicle_id")
+        .select("id, booking_code, start_at, end_at, user_id, vehicle_id, customer_id")
         .in("id", bookingIds);
 
+      // Batch fetch customers for walk-in bookings
+      const customerIds = [...new Set((bookings || []).map((b) => b.customer_id).filter(Boolean))];
       const userIds = [...new Set((bookings || []).map((b) => b.user_id))];
       const categoryIds = [...new Set((bookings || []).map((b) => b.vehicle_id).filter(Boolean))];
 
-      const [profilesRes, categoriesRes] = await Promise.all([
+      const [customersRes, profilesRes, categoriesRes] = await Promise.all([
+        customerIds.length > 0
+          ? supabase.from("customers").select("id, full_name, email").in("id", customerIds)
+          : { data: [] },
         userIds.length > 0
           ? supabase.from("profiles").select("id, full_name, email").in("id", userIds)
           : { data: [] },
@@ -78,19 +83,21 @@ function useAgreements() {
       ]);
 
       const bookingsMap = new Map((bookings || []).map((b) => [b.id, b]));
+      const customersMap = new Map((customersRes.data || []).map((c) => [c.id, c]));
       const profilesMap = new Map((profilesRes.data || []).map((p) => [p.id, p]));
       const categoriesMap = new Map((categoriesRes.data || []).map((c) => [c.id, c]));
 
       return data.map((a) => {
         const booking = bookingsMap.get(a.booking_id);
+        const customer = booking?.customer_id ? customersMap.get(booking.customer_id) : null;
         const profile = booking ? profilesMap.get(booking.user_id) : null;
         const category = booking ? categoriesMap.get(booking.vehicle_id) : null;
         return {
           id: a.id,
           bookingId: a.booking_id,
           bookingCode: booking?.booking_code || "—",
-          customerName: profile?.full_name || null,
-          customerEmail: profile?.email || null,
+          customerName: customer?.full_name || profile?.full_name || null,
+          customerEmail: customer?.email || profile?.email || null,
           vehicleName: category?.name || null,
           startAt: booking?.start_at || "",
           endAt: booking?.end_at || "",
