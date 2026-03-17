@@ -34,6 +34,7 @@ interface AgreementRow {
   id: string;
   bookingId: string;
   bookingCode: string;
+  bookingStatus: string;
   customerName: string | null;
   customerEmail: string | null;
   vehicleName: string | null;
