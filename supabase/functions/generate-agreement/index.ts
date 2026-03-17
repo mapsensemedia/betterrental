@@ -323,11 +323,12 @@ serve(async (req) => {
     const upgradeName = booking.upgrade_category_label || "Vehicle Upgrade";
     const upgradeFee = hasUpgrade ? Number(booking.upgrade_daily_fee) * (booking.total_days || 1) : 0;
 
-    // Check if agreement already exists
+    // Check if a non-voided agreement already exists
     const { data: existingAgreement } = await supabase
       .from("rental_agreements")
       .select("id, status")
       .eq("booking_id", bookingId)
+      .neq("status", "voided")
       .maybeSingle();
 
     if (existingAgreement) {
