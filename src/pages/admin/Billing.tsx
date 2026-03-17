@@ -196,6 +196,7 @@ export default function AdminBilling() {
             end_at,
             total_days,
             user_id,
+            customer_id,
             vehicle_id
           )
         `)
@@ -207,12 +208,20 @@ export default function AdminBilling() {
       const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", userIds);
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
+      // Fetch customers for bookings with customer_id
+      const customerIds = [...new Set(data.map(i => (i.booking as any)?.customer_id).filter(Boolean))];
+      const { data: customersData } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name, email").in("id", customerIds)
+        : { data: [] };
+      const customersMap = new Map((customersData || []).map(c => [c.id, c]) || []);
+
       const categoryIds = [...new Set(data.map(i => (i.booking as any)?.vehicle_id).filter(Boolean))];
       const { data: categories } = await supabase.from("vehicle_categories").select("id, name").in("id", categoryIds);
       const categoryMap = new Map(categories?.map(c => [c.id, c]) || []);
 
       return data.map(inv => {
         const b = inv.booking as any;
+        const customer = b?.customer_id ? customersMap.get(b.customer_id) : null;
         return {
           ...inv,
           line_items_json: inv.line_items_json as any,
@@ -221,7 +230,7 @@ export default function AdminBilling() {
             start_at: b.start_at,
             end_at: b.end_at,
             total_days: b.total_days,
-            profile: profileMap.get(b.user_id) || null,
+            profile: customer ? { id: b.customer_id, full_name: customer.full_name, email: customer.email } : profileMap.get(b.user_id) || null,
             vehicleName: categoryMap.get(b.vehicle_id)?.name || null,
           } : null,
         };
