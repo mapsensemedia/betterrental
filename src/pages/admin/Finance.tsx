@@ -1151,6 +1151,19 @@ function TransactionsTab() {
             </Tooltip>
           </div>
 
+          {/* Damage charge banner from Damages page */}
+          {showDamageBanner && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5 mt-4">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+              <p className="text-sm">
+                <span className="font-medium">Damage charge pending:</span>{" "}
+                {urlAmount ? `$${urlAmount}` : "Amount TBD"} for booking{" "}
+                <span className="font-mono text-xs">{urlBooking}</span>.
+                Add as manual payment or adjustment.
+              </p>
+            </div>
+          )}
+
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4 mt-4">
             <div className="relative flex-1 max-w-sm">

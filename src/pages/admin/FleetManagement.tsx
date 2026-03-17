@@ -2,7 +2,8 @@
  * Fleet Management - Category + VIN Pool System
  * Single source of truth for fleet inventory
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
