@@ -107,6 +107,9 @@ export function useRentalAgreement(bookingId: string | null) {
           .from("rental_agreements")
           .select("*")
           .eq("booking_id", bookingId)
+          .neq("status", "voided")
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle(),
         supabase
           .from("inspection_metrics")
