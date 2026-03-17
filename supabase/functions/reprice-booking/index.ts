@@ -221,6 +221,7 @@ Deno.serve(async (req) => {
         upgrade_reason: upgradeReason || null,
         upgraded_at: new Date().toISOString(),
         upgraded_by: authResult.userId,
+        total_days: serverTotals.days,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,
