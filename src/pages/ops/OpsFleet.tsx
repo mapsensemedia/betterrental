@@ -46,11 +46,34 @@ export default function OpsFleet() {
     queryFn: listCategories,
   });
 
+  // Fetch active bookings to derive real on_rent status
+  const { data: activeBookings } = useQuery({
+    queryKey: ["ops-fleet-active-bookings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("assigned_unit_id")
+        .eq("status", "active")
+        .not("assigned_unit_id", "is", null);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const activeUnitIds = new Set((activeBookings || []).map(b => b.assigned_unit_id));
+
   // Create category name map
   const categoryMap = new Map(categories?.map(c => [c.id, c]) || []);
 
+  // Derive effective status for each unit
+  const unitsWithEffectiveStatus = (units || []).map(u => {
+    const isOnRent = activeUnitIds.has(u.id);
+    const effectiveStatus = isOnRent ? "on_rent" : (u.status === "on_rent" && !isOnRent ? "available" : u.status);
+    return { ...u, status: effectiveStatus as typeof u.status };
+  });
+
   // Filter units
-  const filteredUnits = (units || []).filter((u) => {
+  const filteredUnits = unitsWithEffectiveStatus.filter((u) => {
     if (statusFilter !== "all" && u.status !== statusFilter) return false;
     if (!search) return true;
     const cat = u.categoryId ? categoryMap.get(u.categoryId) : null;
@@ -61,13 +84,13 @@ export default function OpsFleet() {
     );
   });
 
-  // Calculate summary counts
+  // Calculate summary counts from effective status
   const statusCounts = {
-    available: units?.filter(u => u.status === "available").length || 0,
-    on_rent: units?.filter(u => u.status === "on_rent").length || 0,
-    maintenance: units?.filter(u => u.status === "maintenance").length || 0,
-    other: units?.filter(u => !["available", "on_rent", "maintenance"].includes(u.status)).length || 0,
-    total: units?.length || 0,
+    available: unitsWithEffectiveStatus.filter(u => u.status === "available").length,
+    on_rent: unitsWithEffectiveStatus.filter(u => u.status === "on_rent").length,
+    maintenance: unitsWithEffectiveStatus.filter(u => u.status === "maintenance").length,
+    other: unitsWithEffectiveStatus.filter(u => !["available", "on_rent", "maintenance"].includes(u.status)).length,
+    total: unitsWithEffectiveStatus.length,
   };
 
   const isLoading = unitsLoading;
