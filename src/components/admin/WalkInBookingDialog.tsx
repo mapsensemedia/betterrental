@@ -153,6 +153,13 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   };
 
   const handleSubmit = async () => {
+    // Guard: if a booking was already created in this dialog session, navigate to it
+    if (createdBookingRef.current) {
+      onOpenChange(false);
+      navigate(`/admin/bookings/${createdBookingRef.current.id}/ops?returnTo=/admin/bookings`);
+      return;
+    }
+
     if (!user) {
       toast.error("You must be logged in");
       return;
