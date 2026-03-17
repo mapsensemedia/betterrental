@@ -384,7 +384,7 @@ Deno.serve(async (req) => {
             bookingId,
             depositReleased: 0,
             depositWithheld: 0,
-            staffUserId: authResult.userId,
+            staffUserId: authResult.userId || null,
           },
         });
       } catch (receiptErr) {
