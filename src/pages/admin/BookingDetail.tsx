@@ -9,9 +9,11 @@ import { format, parseISO, differenceInHours } from "date-fns";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { useBookingById } from "@/hooks/use-bookings";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
+import { PaymentDepositPanel } from "@/components/admin/PaymentDepositPanel";
+import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 import { buildInvoicePdfData } from "@/lib/pdf/invoice-data-builder";
 import {
   PVRT_DAILY_FEE,
@@ -88,7 +90,10 @@ export default function BookingDetail() {
   const returnTo = searchParams.get("returnTo") || (isOpsContext ? "/ops/bookings" : "/admin/bookings");
   const [showVoidDialog, setShowVoidDialog] = useState(false);
   const [showActivateDialog, setShowActivateDialog] = useState(false);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
+  const [isGeneratingAgreement, setIsGeneratingAgreement] = useState(false);
   const updateStatus = useUpdateBookingStatus();
+  const queryClient = useQueryClient();
 
   const { data: booking, isLoading, refetch } = useBookingById(bookingId || null);
   const { data: photos, isLoading: photosLoading } = useBookingConditionPhotos(bookingId || "");
@@ -182,6 +187,58 @@ export default function BookingDetail() {
     },
     enabled: !!bookingId,
   });
+
+  // Fetch rental agreements
+  const { data: rentalAgreements = [] } = useQuery({
+    queryKey: ["booking-agreements-detail", bookingId],
+    queryFn: async () => {
+      if (!bookingId) return [];
+      const { data } = await supabase
+        .from("rental_agreements")
+        .select("id, status, customer_signed_at, signature_png_url, created_at")
+        .eq("booking_id", bookingId)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!bookingId,
+  });
+
+  const handleGenerateInvoice = async () => {
+    if (!bookingId) return;
+    setIsGeneratingInvoice(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("close-account", {
+        body: { bookingId },
+      });
+      if (error) throw error;
+      toast.success("Invoice generated successfully");
+      queryClient.invalidateQueries({ queryKey: ["booking-final-invoices", bookingId] });
+      refetch();
+    } catch (err: any) {
+      const msg = await extractEdgeFunctionError(null, err);
+      toast.error("Failed to generate invoice: " + msg);
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
+  };
+
+  const handleGenerateAgreement = async () => {
+    if (!bookingId) return;
+    setIsGeneratingAgreement(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-agreement", {
+        body: { bookingId },
+      });
+      if (error) throw error;
+      toast.success("Agreement generated successfully");
+      queryClient.invalidateQueries({ queryKey: ["booking-agreements-detail", bookingId] });
+    } catch (err: any) {
+      const msg = await extractEdgeFunctionError(null, err);
+      toast.error("Failed to generate agreement: " + msg);
+    } finally {
+      setIsGeneratingAgreement(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -1123,7 +1180,24 @@ export default function BookingDetail() {
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">No invoice generated</p>
+                      <div className="text-center py-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">No invoice generated</p>
+                        {(booking.status === "completed" || booking.status === "active") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGenerateInvoice}
+                            disabled={isGeneratingInvoice}
+                          >
+                            {isGeneratingInvoice ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4 mr-2" />
+                            )}
+                            Generate Invoice
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -1176,6 +1250,59 @@ export default function BookingDetail() {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Payment Collection */}
+                {bookingId && (
+                  <PaymentDepositPanel bookingId={bookingId} bookingStatus={booking.status} />
+                )}
+
+                {/* Rental Agreement */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileCheck className="h-4 w-4" />
+                      Rental Agreement
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {rentalAgreements.length > 0 ? (
+                      rentalAgreements.map((agreement: any) => (
+                        <div key={agreement.id} className="flex items-center justify-between text-sm gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium">
+                              {agreement.customer_signed_at ? "Signed" : "Pending signature"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(parseISO(agreement.created_at), "PP")}
+                            </p>
+                          </div>
+                          <Badge variant={agreement.customer_signed_at ? "default" : "secondary"}>
+                            {agreement.status}
+                          </Badge>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">No agreement generated</p>
+                        {(booking.status === "confirmed" || booking.status === "active" || booking.status === "completed") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGenerateAgreement}
+                            disabled={isGeneratingAgreement}
+                          >
+                            {isGeneratingAgreement ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4 mr-2" />
+                            )}
+                            Generate Agreement
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 

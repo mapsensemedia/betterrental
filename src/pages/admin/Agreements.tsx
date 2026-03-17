@@ -34,6 +34,7 @@ interface AgreementRow {
   id: string;
   bookingId: string;
   bookingCode: string;
+  bookingStatus: string;
   customerName: string | null;
   customerEmail: string | null;
   vehicleName: string | null;
@@ -62,7 +63,7 @@ function useAgreements() {
       const bookingIds = [...new Set(data.map((a) => a.booking_id))];
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, booking_code, start_at, end_at, user_id, vehicle_id, customer_id")
+        .select("id, booking_code, start_at, end_at, user_id, vehicle_id, customer_id, status")
         .in("id", bookingIds);
 
       // Batch fetch customers for walk-in bookings
@@ -96,6 +97,7 @@ function useAgreements() {
           id: a.id,
           bookingId: a.booking_id,
           bookingCode: booking?.booking_code || "—",
+          bookingStatus: booking?.status || "unknown",
           customerName: customer?.full_name || profile?.full_name || null,
           customerEmail: customer?.email || profile?.email || null,
           vehicleName: category?.name || null,
@@ -269,7 +271,8 @@ export default function AdminAgreements() {
                     <TableHead className="hidden md:table-cell">Vehicle</TableHead>
                     <TableHead className="hidden lg:table-cell">Rental Period</TableHead>
                     <TableHead className="hidden md:table-cell">Generated</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Booking Status</TableHead>
+                    <TableHead>Agreement</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -304,6 +307,11 @@ export default function AdminAgreements() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                           {format(new Date(row.createdAt), "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {row.bookingStatus}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant={statusInfo.variant} className={statusInfo.className}>
