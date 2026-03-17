@@ -88,7 +88,16 @@ interface PaymentRow {
 export function useRevenueAnalytics(filters: RevenueFilters) {
   // Fetch all bookings within the date range
   const bookingsQuery = useQuery({
-    queryKey: ["revenue-analytics-bookings", filters.startDate.toISOString(), filters.endDate.toISOString()],
+    queryKey: [
+      "revenue-analytics-bookings",
+      filters.startDate.toISOString(),
+      filters.endDate.toISOString(),
+      filters.channel,
+      filters.locationId,
+      filters.categoryId,
+      filters.bookingType,
+      filters.paymentType,
+    ],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
@@ -138,20 +147,6 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     },
     staleTime: 60000,
     enabled: !!bookingsQuery.data,
-  });
-
-  // Fetch vehicles to get category info
-  const vehiclesQuery = useQuery({
-    queryKey: ["revenue-analytics-vehicles"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vehicles")
-        .select("id, category");
-
-      if (error) throw error;
-      return new Map((data || []).map(v => [v.id, v.category]));
-    },
-    staleTime: 300000,
   });
 
   // Calculate all metrics
