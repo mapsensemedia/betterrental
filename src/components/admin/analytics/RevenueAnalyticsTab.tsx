@@ -1,12 +1,12 @@
 /**
  * Revenue & Add-On Analytics Tab
  * Comprehensive analytics for rental pricing, add-ons, and channel comparison
+ * Filter state is managed by parent — this component receives filters as props.
  */
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,7 +21,6 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, Cart
 import {
   DollarSign,
   TrendingUp,
-  TrendingDown,
   Package,
   Users,
   Download,
@@ -33,48 +32,52 @@ import {
   Globe,
   Store,
 } from "lucide-react";
-import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
-import { useRevenueAnalytics, exportToCSV, BookingChannel, PaymentType, BookingType } from "@/hooks/use-revenue-analytics";
+import { format } from "date-fns";
+import { useRevenueAnalytics, exportToCSV, type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
 import { useLocations } from "@/hooks/use-locations";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { cn } from "@/lib/utils";
+
+export type DatePreset = "7d" | "30d" | "90d" | "mtd" | "custom";
 
 const chartConfig = {
   revenue: { label: "Revenue", color: "hsl(var(--primary))" },
   bookings: { label: "Bookings", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig;
 
-type DatePreset = "7d" | "30d" | "90d" | "mtd" | "custom";
+export interface RevenueAnalyticsTabProps {
+  filters: RevenueFilters;
+  datePreset: DatePreset;
+  onDatePresetChange: (preset: DatePreset) => void;
+  onChannelChange: (channel: BookingChannel) => void;
+  onLocationIdChange: (id: string | null) => void;
+  onCategoryIdChange: (id: string | null) => void;
+  onBookingTypeChange: (type: BookingType) => void;
+  onPaymentTypeChange: (type: PaymentType) => void;
+  customStartDate?: Date;
+  customEndDate?: Date;
+  onCustomStartDateChange: (d: Date | undefined) => void;
+  onCustomEndDateChange: (d: Date | undefined) => void;
+}
 
-export function RevenueAnalyticsTab() {
-  const [datePreset, setDatePreset] = useState<DatePreset>("30d");
-  const [customStartDate, setCustomStartDate] = useState<Date>();
-  const [customEndDate, setCustomEndDate] = useState<Date>();
-  const [channel, setChannel] = useState<BookingChannel>("all");
-  const [locationId, setLocationId] = useState<string | null>(null);
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [bookingType, setBookingType] = useState<BookingType>("all");
-  const [paymentType, setPaymentType] = useState<PaymentType>("all");
+export function RevenueAnalyticsTab({
+  filters,
+  datePreset,
+  onDatePresetChange,
+  onChannelChange,
+  onLocationIdChange,
+  onCategoryIdChange,
+  onBookingTypeChange,
+  onPaymentTypeChange,
+  customStartDate,
+  customEndDate,
+  onCustomStartDateChange,
+  onCustomEndDateChange,
+}: RevenueAnalyticsTabProps) {
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: locations } = useLocations();
   const { data: categories } = useFleetCategories();
-
-  // Calculate date range based on preset
-  const dateRange = useMemo(() => {
-    const now = new Date();
-    switch (datePreset) {
-      case "7d": return { start: subDays(now, 7), end: now };
-      case "30d": return { start: subDays(now, 30), end: now };
-      case "90d": return { start: subDays(now, 90), end: now };
-      case "mtd": return { start: startOfMonth(now), end: now };
-      case "custom": return { 
-        start: customStartDate || subDays(now, 30), 
-        end: customEndDate || now 
-      };
-      default: return { start: subDays(now, 30), end: now };
-    }
-  }, [datePreset, customStartDate, customEndDate]);
 
   const {
     rentalMetrics,
@@ -85,15 +88,7 @@ export function RevenueAnalyticsTab() {
     addOnTrend,
     exportData,
     isLoading,
-  } = useRevenueAnalytics({
-    startDate: dateRange.start,
-    endDate: dateRange.end,
-    channel,
-    locationId,
-    categoryId,
-    bookingType,
-    paymentType,
-  });
+  } = useRevenueAnalytics(filters);
 
   const handleExportBookings = () => {
     exportToCSV(exportData, "revenue-report");
@@ -110,7 +105,7 @@ export function RevenueAnalyticsTab() {
     })), "addon-breakdown");
   };
 
-  const formatCurrency = (value: number) => 
+  const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
   const TrendIndicator = ({ value }: { value: number }) => {
@@ -146,7 +141,7 @@ export function RevenueAnalyticsTab() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Date Preset */}
-        <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+        <Select value={datePreset} onValueChange={(v) => onDatePresetChange(v as DatePreset)}>
           <SelectTrigger className="w-[130px]">
             <CalendarIcon className="w-4 h-4 mr-2" />
             <SelectValue />
@@ -169,7 +164,7 @@ export function RevenueAnalyticsTab() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={customStartDate} onSelect={setCustomStartDate} />
+                <Calendar mode="single" selected={customStartDate} onSelect={onCustomStartDateChange} />
               </PopoverContent>
             </Popover>
             <span className="text-muted-foreground">to</span>
@@ -180,14 +175,14 @@ export function RevenueAnalyticsTab() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={customEndDate} onSelect={setCustomEndDate} />
+                <Calendar mode="single" selected={customEndDate} onSelect={onCustomEndDateChange} />
               </PopoverContent>
             </Popover>
           </div>
         )}
 
         {/* Channel Filter */}
-        <Select value={channel} onValueChange={(v) => setChannel(v as BookingChannel)}>
+        <Select value={filters.channel} onValueChange={(v) => onChannelChange(v as BookingChannel)}>
           <SelectTrigger className="w-[130px]">
             <SelectValue />
           </SelectTrigger>
@@ -199,9 +194,9 @@ export function RevenueAnalyticsTab() {
         </Select>
 
         {/* Toggle Additional Filters */}
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setShowFilters(!showFilters)}
           className={cn(showFilters && "bg-muted")}
         >
@@ -229,7 +224,7 @@ export function RevenueAnalyticsTab() {
             <div className="flex flex-wrap gap-4">
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Location</label>
-                <Select value={locationId || "all"} onValueChange={(v) => setLocationId(v === "all" ? null : v)}>
+                <Select value={filters.locationId || "all"} onValueChange={(v) => onLocationIdChange(v === "all" ? null : v)}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="All Locations" />
                   </SelectTrigger>
@@ -243,7 +238,7 @@ export function RevenueAnalyticsTab() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Category</label>
-                <Select value={categoryId || "all"} onValueChange={(v) => setCategoryId(v === "all" ? null : v)}>
+                <Select value={filters.categoryId || "all"} onValueChange={(v) => onCategoryIdChange(v === "all" ? null : v)}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
@@ -257,7 +252,7 @@ export function RevenueAnalyticsTab() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Booking Type</label>
-                <Select value={bookingType} onValueChange={(v) => setBookingType(v as BookingType)}>
+                <Select value={filters.bookingType} onValueChange={(v) => onBookingTypeChange(v as BookingType)}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue />
                   </SelectTrigger>
@@ -270,7 +265,7 @@ export function RevenueAnalyticsTab() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Payment Type</label>
-                <Select value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)}>
+                <Select value={filters.paymentType} onValueChange={(v) => onPaymentTypeChange(v as PaymentType)}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue />
                   </SelectTrigger>
@@ -379,8 +374,8 @@ export function RevenueAnalyticsTab() {
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
             {channelComparison.map(ch => (
-              <div 
-                key={ch.channel} 
+              <div
+                key={ch.channel}
                 className={cn(
                   "p-4 rounded-lg border",
                   ch.channel === "online" ? "bg-chart-1/5 border-chart-1/30" : "bg-chart-5/5 border-chart-5/30"

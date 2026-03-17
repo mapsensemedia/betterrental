@@ -1,6 +1,9 @@
 /**
  * Comprehensive Analytics & Reports Page
  * Covers: Conversion Funnel, Revenue, Fleet Utilization, Audit Logs
+ * 
+ * Unified filter state: date range + channel + location + category + booking type + payment type
+ * is managed here and passed down to all tabs and metric cards.
  */
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
@@ -63,9 +66,10 @@ import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
 import { useLocations } from "@/hooks/use-locations";
 import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
 import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth, parseISO, differenceInDays } from "date-fns";
-import { RevenueAnalyticsTab } from "@/components/admin/analytics/RevenueAnalyticsTab";
+import { RevenueAnalyticsTab, type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
 import { QuarterlyReportGenerator } from "@/components/admin/QuarterlyReportGenerator";
 import { DemandForecastingTab } from "@/components/admin/DemandForecastingTab";
+import { useRevenueAnalytics, type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
 
 const chartConfig = {
   views: { label: "Views", color: "hsl(var(--primary))" },
@@ -87,6 +91,14 @@ const FUNNEL_STAGES = [
   { key: "checkout_payment_method_selected", label: "Payment" },
   { key: "booking_completed", label: "Completed" },
 ] as const;
+
+const DATE_PRESET_LABELS: Record<DatePreset, string> = {
+  "7d": "Last 7 Days",
+  "30d": "Last 30 Days",
+  "90d": "Last 90 Days",
+  "mtd": "This Month",
+  "custom": "Custom Range",
+};
 
 // Audit log action config
 const ACTION_CONFIG: Record<string, { icon: typeof History; color: string; bgColor: string }> = {
@@ -163,86 +175,89 @@ function AuditLogItem({ log }: { log: AuditLog }) {
   );
 }
 
-type DateFilter = "today" | "week" | "month" | "all";
-
 export default function AdminReports() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isQuarterlyOpen, setIsQuarterlyOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [dateFilter, setDateFilter] = useState<DateFilter>("week");
-  const [locationFilter, setLocationFilter] = useState<string>("all");
   const [auditSearch, setAuditSearch] = useState("");
   const [entityFilter, setEntityFilter] = useState<string>("all");
 
+  // ── Unified filter state (shared across all tabs + metric cards) ──
+  const [datePreset, setDatePreset] = useState<DatePreset>("30d");
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
+  const [channel, setChannel] = useState<BookingChannel>("all");
+  const [locationId, setLocationId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [bookingType, setBookingType] = useState<BookingType>("all");
+  const [paymentType, setPaymentType] = useState<PaymentType>("all");
+
+  // Compute date range from preset
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    switch (datePreset) {
+      case "7d": return { start: subDays(now, 7), end: now };
+      case "30d": return { start: subDays(now, 30), end: now };
+      case "90d": return { start: subDays(now, 90), end: now };
+      case "mtd": return { start: startOfMonth(now), end: now };
+      case "custom": return {
+        start: customStartDate || subDays(now, 30),
+        end: customEndDate || now,
+      };
+      default: return { start: subDays(now, 30), end: now };
+    }
+  }, [datePreset, customStartDate, customEndDate]);
+
+  const filters: RevenueFilters = useMemo(() => ({
+    startDate: dateRange.start,
+    endDate: dateRange.end,
+    channel,
+    locationId,
+    categoryId,
+    bookingType,
+    paymentType,
+  }), [dateRange, channel, locationId, categoryId, bookingType, paymentType]);
+
+  // ── Data hooks ──
   const { data: locations } = useLocations();
   const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useAuditLogs({ limit: 100 });
   const { data: auditStats } = useAuditStats();
   const { data: bookings = [] } = useAdminBookings({});
   const { data: vehicles = [] } = useAdminVehicles();
 
+  // Page-level revenue analytics — powers the 4 metric cards
+  const {
+    rentalMetrics,
+    addOnMetrics,
+    isLoading: revenueLoading,
+  } = useRevenueAnalytics(filters);
+
   const data = useMemo(() => getAnalyticsData(), [refreshKey]);
 
-  // Revenue calculations
-  const revenueStats = useMemo(() => {
-    const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const monthStart = startOfMonth(now);
-    
-    // Filter bookings by period
-    const completedBookings = bookings.filter(b => b.status === "completed" || b.status === "active" || b.status === "confirmed");
-    const thisWeek = completedBookings.filter(b => isAfter(parseISO(b.startAt), weekStart));
-    const thisMonth = completedBookings.filter(b => isAfter(parseISO(b.startAt), monthStart));
-    
-    // Calculate totals
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
-    const weekRevenue = thisWeek.reduce((sum, b) => sum + b.totalAmount, 0);
-    const monthRevenue = thisMonth.reduce((sum, b) => sum + b.totalAmount, 0);
-    
-    // Average booking value
-    const avgBookingValue = completedBookings.length > 0 
-      ? totalRevenue / completedBookings.length 
-      : 0;
-    
-    // Average rental duration
-    const avgDuration = completedBookings.length > 0
-      ? completedBookings.reduce((sum, b) => sum + b.totalDays, 0) / completedBookings.length
-      : 0;
-    
-    return {
-      totalRevenue,
-      weekRevenue,
-      monthRevenue,
-      avgBookingValue,
-      avgDuration,
-      totalBookings: completedBookings.length,
-      weekBookings: thisWeek.length,
-      monthBookings: thisMonth.length,
-    };
-  }, [bookings]);
-
-  // Fleet utilization
+  // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
     const activeRentals = bookings.filter(b => b.status === "active").length;
     const availableVehicles = vehicles.filter(v => v.isAvailable).length;
     const totalVehicles = vehicles.length;
-    
-    const utilizationRate = totalVehicles > 0 
-      ? (activeRentals / totalVehicles) * 100 
+
+    const utilizationRate = totalVehicles > 0
+      ? (activeRentals / totalVehicles) * 100
       : 0;
-    
-    // Revenue per vehicle
+
+    const totalRevenue = rentalMetrics.totalRentalBaseRevenue;
     const revenuePerVehicle = totalVehicles > 0
-      ? revenueStats.totalRevenue / totalVehicles
+      ? totalRevenue / totalVehicles
       : 0;
-    
+
     return {
       activeRentals,
       availableVehicles,
       totalVehicles,
       utilizationRate,
       revenuePerVehicle,
+      totalRevenue,
     };
-  }, [bookings, vehicles, revenueStats]);
+  }, [bookings, vehicles, rentalMetrics]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -260,20 +275,15 @@ export default function AdminReports() {
     }
   };
 
-  // Filter analytics events
+  // Filter analytics events by the unified date range
   const filteredEvents = useMemo(() => {
     let events = data.events;
-    if (dateFilter === "today") {
-      events = events.filter((e) => isToday(new Date(e.timestamp)));
-    } else if (dateFilter === "week") {
-      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-      events = events.filter((e) => isAfter(new Date(e.timestamp), weekStart));
-    } else if (dateFilter === "month") {
-      const monthStart = startOfMonth(new Date());
-      events = events.filter((e) => isAfter(new Date(e.timestamp), monthStart));
-    }
+    events = events.filter((e) => {
+      const ts = new Date(e.timestamp);
+      return ts >= dateRange.start && ts <= dateRange.end;
+    });
     return events;
-  }, [data.events, dateFilter]);
+  }, [data.events, dateRange]);
 
   // Funnel stats
   const funnelStats = useMemo(() => {
@@ -289,62 +299,75 @@ export default function AdminReports() {
     return first > 0 ? (last / first) * 100 : 0;
   }, [funnelStats]);
 
-  // Daily booking trend - based on actual booking data
+  // Revenue stats for Overview tab — computed from the unified filtered bookings
+  const revenueStats = useMemo(() => {
+    const completedBookings = bookings.filter(b =>
+      (b.status === "completed" || b.status === "active" || b.status === "confirmed") &&
+      isAfter(parseISO(b.startAt), dateRange.start) &&
+      !isAfter(parseISO(b.startAt), dateRange.end)
+    );
+    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
+    const avgBookingValue = completedBookings.length > 0
+      ? totalRevenue / completedBookings.length
+      : 0;
+    const avgDuration = completedBookings.length > 0
+      ? completedBookings.reduce((sum, b) => sum + b.totalDays, 0) / completedBookings.length
+      : 0;
+
+    return {
+      totalRevenue,
+      avgBookingValue,
+      avgDuration,
+      totalBookings: completedBookings.length,
+    };
+  }, [bookings, dateRange]);
+
+  // Daily booking trend
   const dailyBookingTrend = useMemo(() => {
-    const days = dateFilter === "today" ? 1 : dateFilter === "week" ? 7 : dateFilter === "month" ? 30 : 14;
-    const interval = eachDayOfInterval({ start: subDays(new Date(), days - 1), end: new Date() });
-    
+    const interval = eachDayOfInterval({ start: dateRange.start, end: dateRange.end });
     return interval.map((date) => {
       const dayStart = startOfDay(date);
       const dayEnd = new Date(dayStart);
       dayEnd.setDate(dayEnd.getDate() + 1);
-      
       const dayBookings = bookings.filter((b) => {
-        const bookingDate = parseISO(b.createdAt);
+        const bookingDate = parseISO(b.startAt);
         return bookingDate >= dayStart && bookingDate < dayEnd;
       });
-      
       const completedBookings = dayBookings.filter(b => b.status === "completed" || b.status === "active");
       const revenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
-      
       return {
         date: format(date, "MMM d"),
         bookings: dayBookings.length,
         revenue: revenue,
       };
     });
-  }, [bookings, dateFilter]);
+  }, [bookings, dateRange]);
 
   // Weekly revenue trend
   const weeklyRevenueTrend = useMemo(() => {
-    const weeks = 8; // Last 8 weeks
+    const weeks = 8;
     const result = [];
-    
     for (let i = weeks - 1; i >= 0; i--) {
-      const weekStart = startOfWeek(subDays(new Date(), i * 7), { weekStartsOn: 1 });
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
-      
+      const wStart = startOfWeek(subDays(new Date(), i * 7), { weekStartsOn: 1 });
+      const wEnd = new Date(wStart);
+      wEnd.setDate(wEnd.getDate() + 7);
       const weekBookings = bookings.filter(b => {
         const startDate = parseISO(b.startAt);
-        return startDate >= weekStart && startDate < weekEnd && 
+        return startDate >= wStart && startDate < wEnd &&
                (b.status === "completed" || b.status === "active" || b.status === "confirmed");
       });
-      
       result.push({
-        week: format(weekStart, "MMM d"),
+        week: format(wStart, "MMM d"),
         revenue: weekBookings.reduce((sum, b) => sum + b.totalAmount, 0),
         bookings: weekBookings.length,
       });
     }
-    
     return result;
   }, [bookings]);
 
   // Analytics daily trend (from localStorage)
   const dailyTrend = useMemo(() => {
-    const days = dateFilter === "today" ? 1 : dateFilter === "week" ? 7 : dateFilter === "month" ? 30 : 7;
-    const interval = eachDayOfInterval({ start: subDays(new Date(), days - 1), end: new Date() });
+    const interval = eachDayOfInterval({ start: dateRange.start, end: dateRange.end });
     return interval.map((date) => {
       const dayStart = startOfDay(date);
       const dayEnd = new Date(dayStart);
@@ -359,7 +382,7 @@ export default function AdminReports() {
         conversions: dayEvents.filter((e) => e.event === "booking_completed").length,
       };
     });
-  }, [filteredEvents, dateFilter]);
+  }, [filteredEvents, dateRange]);
 
   // Event distribution
   const eventDistribution = useMemo(() => {
@@ -391,12 +414,17 @@ export default function AdminReports() {
     return Array.from(types).sort();
   }, [logs]);
 
-  const bookingCount = funnelStats.find(s => s.key === "booking_completed")?.count || 0;
+  const periodLabel = DATE_PRESET_LABELS[datePreset];
+
+  // Avg days from revenue analytics hook (filtered)
+  const avgDays = rentalMetrics.totalBookings > 0
+    ? revenueStats.avgDuration
+    : 0;
 
   return (
     <AdminShell>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header — no global date dropdown; filters live inside Revenue tab */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
@@ -409,24 +437,13 @@ export default function AdminReports() {
               <FileText className="w-4 h-4 mr-2" />
               Quarterly Report
             </Button>
-            <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="all">All Time</SelectItem>
-              </SelectContent>
-            </Select>
             <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
             </Button>
           </div>
         </div>
 
-        {/* Key Business Metrics */}
+        {/* Key Business Metrics — powered by unified filters */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card>
             <CardContent className="p-4">
@@ -435,8 +452,10 @@ export default function AdminReports() {
                   <DollarSign className="w-5 h-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">${revenueStats.weekRevenue.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">This Week</p>
+                  <p className="text-2xl font-bold">
+                    ${rentalMetrics.totalRentalBaseRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{periodLabel}</p>
                 </div>
               </div>
             </CardContent>
@@ -512,7 +531,20 @@ export default function AdminReports() {
 
           {/* Revenue & Add-On Analytics Tab - Primary */}
           <TabsContent value="revenue-addons">
-            <RevenueAnalyticsTab />
+            <RevenueAnalyticsTab
+              filters={filters}
+              datePreset={datePreset}
+              onDatePresetChange={setDatePreset}
+              onChannelChange={setChannel}
+              onLocationIdChange={setLocationId}
+              onCategoryIdChange={setCategoryId}
+              onBookingTypeChange={setBookingType}
+              onPaymentTypeChange={setPaymentType}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomStartDateChange={setCustomStartDate}
+              onCustomEndDateChange={setCustomEndDate}
+            />
           </TabsContent>
 
           {/* Revenue Tab */}
@@ -524,20 +556,16 @@ export default function AdminReports() {
                     <Wallet className="w-4 h-4 text-muted-foreground" />
                     Billed Revenue
                   </CardTitle>
-                  <CardDescription>Total invoiced amount (includes outstanding balances)</CardDescription>
+                  <CardDescription>Total invoiced amount ({periodLabel})</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">This Week</span>
-                      <span className="text-lg font-bold">${revenueStats.weekRevenue.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">This Month</span>
-                      <span className="text-lg font-bold">${revenueStats.monthRevenue.toLocaleString()}</span>
+                      <span className="text-sm text-muted-foreground">Total Bookings</span>
+                      <span className="text-lg font-bold">{revenueStats.totalBookings}</span>
                     </div>
                     <div className="flex items-center justify-between border-t pt-3">
-                      <span className="text-sm text-muted-foreground">All Time</span>
+                      <span className="text-sm text-muted-foreground">Revenue</span>
                       <span className="text-xl font-bold text-primary">${revenueStats.totalRevenue.toLocaleString()}</span>
                     </div>
                   </div>
@@ -590,8 +618,8 @@ export default function AdminReports() {
                       <span className="text-sm text-muted-foreground">Cart Abandonment</span>
                       <span className="text-lg font-bold text-destructive">
                         {funnelStats.find(s => s.key === "checkout_started")?.count || 0 > 0
-                          ? (((funnelStats.find(s => s.key === "checkout_started")?.count || 0) - 
-                             (funnelStats.find(s => s.key === "booking_completed")?.count || 0)) / 
+                          ? (((funnelStats.find(s => s.key === "checkout_started")?.count || 0) -
+                             (funnelStats.find(s => s.key === "booking_completed")?.count || 0)) /
                              (funnelStats.find(s => s.key === "checkout_started")?.count || 1) * 100).toFixed(0)
                           : 0}%
                       </span>
@@ -601,7 +629,7 @@ export default function AdminReports() {
               </Card>
             </div>
 
-            {/* Revenue Trend Chart - Using actual booking data */}
+            {/* Revenue Trend Chart */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Weekly Revenue Trend</CardTitle>
@@ -619,14 +647,14 @@ export default function AdminReports() {
                       <LineChart data={weeklyRevenueTrend}>
                         <XAxis dataKey="week" fontSize={10} />
                         <YAxis fontSize={10} tickFormatter={(v) => `$${v}`} />
-                        <ChartTooltip 
-                          content={<ChartTooltipContent formatter={(value) => `$${Number(value).toLocaleString()}`} />} 
+                        <ChartTooltip
+                          content={<ChartTooltipContent formatter={(value) => `$${Number(value).toLocaleString()}`} />}
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="revenue" 
-                          stroke="hsl(var(--chart-1))" 
-                          strokeWidth={2} 
+                        <Line
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="hsl(var(--chart-1))"
+                          strokeWidth={2}
                           dot={{ fill: "hsl(var(--chart-1))", r: 4 }}
                         />
                       </LineChart>
@@ -640,7 +668,7 @@ export default function AdminReports() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Daily Bookings</CardTitle>
-                <CardDescription>New bookings and revenue per day</CardDescription>
+                <CardDescription>New bookings and revenue per day ({periodLabel})</CardDescription>
               </CardHeader>
               <CardContent>
                 {dailyBookingTrend.every(d => d.bookings === 0) ? (
@@ -657,11 +685,11 @@ export default function AdminReports() {
                         <YAxis yAxisId="right" fontSize={10} orientation="right" tickFormatter={(v) => `$${v}`} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Bar yAxisId="left" dataKey="bookings" fill="hsl(var(--primary))" radius={3} />
-                        <Line 
-                          yAxisId="right" 
-                          type="monotone" 
-                          dataKey="revenue" 
-                          stroke="hsl(var(--chart-2))" 
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="hsl(var(--chart-2))"
                           strokeWidth={2}
                           dot={false}
                         />
@@ -765,7 +793,7 @@ export default function AdminReports() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-muted-foreground" />
-                    Fleet Revenue
+                    Fleet Revenue ({periodLabel})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -776,7 +804,7 @@ export default function AdminReports() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Total Revenue</span>
-                      <span className="text-lg font-bold">${revenueStats.totalRevenue.toLocaleString()}</span>
+                      <span className="text-lg font-bold">${fleetStats.totalRevenue.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Fleet Size</span>
