@@ -67,8 +67,9 @@ Deno.serve(async (req) => {
       if (!hasAccess) {
         return new Response(
           JSON.stringify({ error: "Forbidden - Admin/Staff only" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const { bookingId, additionalCharges, notes, backfillMode, suppressNotifications }: CloseAccountRequest = await req.json();
