@@ -174,8 +174,8 @@ const navGroups: NavGroup[] = [
     items: [
       {
         href: "/admin/reports",
-        label: "Analytics",
-        icon: TrendingUp,
+        label: "Reports",
+        icon: BarChart3,
         description: "Metrics & KPIs",
       },
       {
