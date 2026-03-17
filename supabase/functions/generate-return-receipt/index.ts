@@ -247,7 +247,7 @@ serve(async (req) => {
     await supabase.from("receipt_events").insert({
       receipt_id: receipt.id,
       action: "auto_generated",
-      actor_user_id: booking.user_id,
+      actor_user_id: staffUserId || booking.user_id,
       meta_json: { trigger: "return_deposit_processed" },
     });
 
