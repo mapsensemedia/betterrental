@@ -540,7 +540,7 @@ function OverviewTab() {
           {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <SummaryCard
-              title="Collected"
+              title="Collected Revenue"
               value={`$${metrics.collected.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
               subtitle={metrics.changePercent !== 0 ? `${metrics.changePercent > 0 ? "↑" : "↓"} ${Math.abs(metrics.changePercent)}% vs prev period` : undefined}
               icon={DollarSign}

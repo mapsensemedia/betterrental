@@ -522,8 +522,9 @@ export default function AdminReports() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Wallet className="w-4 h-4 text-muted-foreground" />
-                    Revenue Summary
+                    Billed Revenue
                   </CardTitle>
+                  <CardDescription>Total invoiced amount (includes outstanding balances)</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">

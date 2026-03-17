@@ -47,39 +47,42 @@ export function useCalendarData(weekOffset: number = 0) {
       }
 
       // Fetch vehicle categories (bookings.vehicle_id points to vehicle_categories)
-      let categoriesQuery = supabase
+      const { data: categoriesData, error: categoriesError } = await supabase
         .from("vehicle_categories")
         .select("id, name, image_url, daily_rate, seats, fuel_type, transmission")
         .eq("is_active", true)
         .order("name");
-
-      const { data: categoriesData, error: categoriesError } = await categoriesQuery;
 
       if (categoriesError) {
         console.error("Error fetching categories:", categoriesError);
         throw categoriesError;
       }
 
-      // Fetch bookings for the week
+      // Fetch bookings for the week — include completed for past weeks
       const { data: bookingsData, error: bookingsError } = await supabase
         .from("bookings")
-        .select("id, booking_code, status, start_at, end_at, vehicle_id, user_id")
+        .select("id, booking_code, status, start_at, end_at, vehicle_id, user_id, customer_id")
         .gte("end_at", weekStart.toISOString())
         .lte("start_at", weekEnd.toISOString())
-        .in("status", ["pending", "confirmed", "active"]);
+        .in("status", ["pending", "confirmed", "active", "completed"]);
 
       if (bookingsError) {
         console.error("Error fetching bookings:", bookingsError);
         throw bookingsError;
       }
 
-      // Fetch profiles for customer names
-      const userIds = [...new Set((bookingsData || []).map(b => b.user_id))];
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, full_name, email")
-        .in("id", userIds);
+      // Batch-fetch customers for bookings with customer_id
+      const customerIds = [...new Set((bookingsData || []).filter(b => b.customer_id).map(b => b.customer_id!))];
+      const { data: customersData } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name, email").in("id", customerIds)
+        : { data: [] };
+      const customersMap = new Map((customersData || []).map(c => [c.id, c]));
 
+      // Fetch profiles as fallback for bookings without customer_id
+      const userIds = [...new Set((bookingsData || []).filter(b => !b.customer_id).map(b => b.user_id))];
+      const { data: profilesData } = userIds.length > 0
+        ? await supabase.from("profiles").select("id, full_name, email").in("id", userIds)
+        : { data: [] };
       const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
 
       const vehicles: CalendarVehicle[] = (categoriesData || []).map((c: any) => ({
@@ -95,7 +98,9 @@ export function useCalendarData(weekOffset: number = 0) {
       }));
 
       const bookings: CalendarBooking[] = (bookingsData || []).map((b: any) => {
-        const profile = profilesMap.get(b.user_id);
+        // Prefer customers table over profiles
+        const customer = b.customer_id ? customersMap.get(b.customer_id) : null;
+        const profile = !customer ? profilesMap.get(b.user_id) : null;
         return {
           id: b.id,
           bookingCode: b.booking_code,
@@ -103,8 +108,8 @@ export function useCalendarData(weekOffset: number = 0) {
           startAt: b.start_at,
           endAt: b.end_at,
           vehicleId: b.vehicle_id,
-          customerName: profile?.full_name || null,
-          customerEmail: profile?.email || null,
+          customerName: customer?.full_name || profile?.full_name || null,
+          customerEmail: customer?.email || profile?.email || null,
         };
       });
 

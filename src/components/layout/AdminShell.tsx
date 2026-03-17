@@ -184,12 +184,6 @@ const navGroups: NavGroup[] = [
         icon: Calendar,
         description: "Schedule view",
       },
-      {
-        href: "/admin/reports",
-        label: "Reports",
-        icon: BarChart3,
-        description: "Custom exports",
-      },
     ],
   },
   {
