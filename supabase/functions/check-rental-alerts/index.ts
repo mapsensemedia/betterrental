@@ -21,6 +21,25 @@ Deno.serve(async (req) => {
     const now = new Date();
     const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
 
+    // Expiry helper
+    function getExpiresAt(alertType: string): string | null {
+      const expiryDays: Record<string, number | null> = {
+        verification_pending: 7,
+        return_due_soon: 2,
+        overdue: 7,
+        customer_issue: 3,
+        late_return: 7,
+        damage_reported: null,
+        emergency: null,
+        payment_pending: null,
+      };
+      const days = expiryDays[alertType];
+      if (days === null || days === undefined) return null;
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      return d.toISOString();
+    }
+
     // Fetch active bookings
     const { data: activeBookings, error: bookingsError } = await supabase
       .from("bookings")
