@@ -348,7 +348,7 @@ Deno.serve(async (req) => {
       await supabase.from("bookings").update({
         status: "completed",
         account_closed_at: new Date().toISOString(),
-        account_closed_by: authResult.userId,
+        account_closed_by: authResult.userId || null,
         final_invoice_generated: true,
         final_invoice_id: invoice.invoice_number,
       }).eq("id", bookingId);
