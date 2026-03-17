@@ -41,6 +41,7 @@ import {
   MapPin,
   DollarSign,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { 
   PICKUP_TIME_SLOTS, 
@@ -51,6 +52,13 @@ import {
   DEFAULT_DEPOSIT_AMOUNT, 
   TOTAL_TAX_RATE 
 } from "@/lib/pricing";
+
+interface CustomerMatchConflict {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+}
 
 interface WalkInBookingDialogProps {
   open: boolean;
@@ -65,6 +73,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createdBookingRef = useRef<{ id: string; bookingCode: string } | null>(null);
+  const [customerConflict, setCustomerConflict] = useState<CustomerMatchConflict | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -129,6 +138,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       });
       prevVehicleIdRef.current = "";
       createdBookingRef.current = null;
+      setCustomerConflict(null);
     }
   }, [open]);
 
@@ -153,14 +163,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     return code;
   };
 
-  const handleSubmit = async () => {
-    // Guard: if a booking was already created in this dialog session, navigate to it
-    if (createdBookingRef.current) {
-      onOpenChange(false);
-      navigate(`/admin/bookings/${createdBookingRef.current.id}/ops?returnTo=/admin/bookings`);
-      return;
-    }
-
+  const submitBooking = async (overrides?: { forceNewCustomer?: boolean; useCustomerId?: string }) => {
     if (!user) {
       toast.error("You must be logged in");
       return;
@@ -189,10 +192,9 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     }
 
     setIsSubmitting(true);
+    setCustomerConflict(null);
     
     try {
-      // Route ALL walk-in creation through the edge function (service_role)
-      // Never insert directly into bookings from client — triggers block financial fields
       const { data, error } = await supabase.functions.invoke("create-walk-in-booking", {
         body: {
           locationId: formData.locationId,
@@ -210,11 +212,12 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
           taxAmount,
           totalAmount,
           depositAmount: formData.depositAmount,
+          ...(overrides?.forceNewCustomer && { forceNewCustomer: true }),
+          ...(overrides?.useCustomerId && { useCustomerId: overrides.useCustomerId }),
         },
       });
 
       if (error) {
-        // Parse meaningful error from edge function response
         let errorMessage = "Failed to create booking";
         try {
           const body = await (error as any)?.context?.json?.();
@@ -226,6 +229,13 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
         }
         console.error("[walk-in] Edge function error:", errorMessage, error);
         toast.error(errorMessage);
+        return;
+      }
+
+      // Handle customer_match_conflict — staff must decide
+      if (data?.customer_match_conflict) {
+        setCustomerConflict(data.existingCustomer);
+        setIsSubmitting(false);
         return;
       }
 
@@ -257,6 +267,16 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     }
   };
 
+  const handleSubmit = async () => {
+    // Guard: if a booking was already created in this dialog session, navigate to it
+    if (createdBookingRef.current) {
+      onOpenChange(false);
+      navigate(`/admin/bookings/${createdBookingRef.current.id}/ops?returnTo=/admin/bookings`);
+      return;
+    }
+    await submitBooking();
+  };
+
   const selectedVehicle = availableVehicles?.find(v => v.id === formData.vehicleId);
   const selectedLocation = locations?.find(l => l.id === formData.locationId);
 
@@ -272,6 +292,53 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
             Create a new booking for a walk-in customer at the rental location.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Customer Match Conflict Panel */}
+        {customerConflict && (
+          <div className="rounded-lg border border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="font-medium text-sm">Existing customer found with this email</p>
+                <p className="text-sm text-muted-foreground">
+                  <strong>{customerConflict.fullName}</strong> ({customerConflict.email}
+                  {customerConflict.phone ? `, ${customerConflict.phone}` : ""})
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  You entered: <strong>{formData.firstName} {formData.lastName}</strong>
+                </p>
+                <p className="text-sm text-muted-foreground">Is this the same person?</p>
+              </div>
+            </div>
+            <div className="flex gap-2 ml-7">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => submitBooking({ useCustomerId: customerConflict.id })}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                Yes, use this customer
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => submitBooking({ forceNewCustomer: true })}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                No, create new customer
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setCustomerConflict(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-6 py-4">
           {/* Customer Information */}
