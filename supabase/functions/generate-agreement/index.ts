@@ -258,6 +258,19 @@ serve(async (req) => {
       .eq("id", booking.user_id)
       .maybeSingle();
 
+    // Fetch customer record if customer_id is set (preferred over profile)
+    let customerRecord: { full_name: string; email: string | null; phone: string | null } | null = null;
+    if (booking.customer_id) {
+      const { data: customer } = await supabase
+        .from("customers")
+        .select("full_name, email, phone")
+        .eq("id", booking.customer_id)
+        .maybeSingle();
+      if (customer) {
+        customerRecord = customer;
+      }
+    }
+
     // Validate driver's license expiry against rental return date
     if (profile?.driver_license_expiry) {
       const licenseExpiry = new Date(profile.driver_license_expiry);
@@ -274,14 +287,18 @@ serve(async (req) => {
       }
     }
 
+    // Resolve customer identity: prefer customers table, fall back to profiles
+    const resolvedName = customerRecord?.full_name || profile?.full_name || null;
+    const resolvedEmail = customerRecord?.email || profile?.email || null;
+
     // Handle customer name: avoid displaying raw email as name
-    let customerName = profile?.full_name || null;
+    let customerName = resolvedName;
     if (customerName && customerName.includes("@")) {
       customerName = null; // Email used as name — fall back
     }
     const displayName = customerName || "Valued Customer";
 
-    console.log(`Found profile: ${displayName}`);
+    console.log(`Found customer: ${displayName} (source: ${customerRecord ? 'customers' : 'profiles'})`);
 
     // Fetch add-ons and additional drivers for this booking
     const [{ data: bookingAddOns }, { data: bookingDrivers }] = await Promise.all([
@@ -306,11 +323,12 @@ serve(async (req) => {
     const upgradeName = booking.upgrade_category_label || "Vehicle Upgrade";
     const upgradeFee = hasUpgrade ? Number(booking.upgrade_daily_fee) * (booking.total_days || 1) : 0;
 
-    // Check if agreement already exists
+    // Check if a non-voided agreement already exists
     const { data: existingAgreement } = await supabase
       .from("rental_agreements")
       .select("id, status")
       .eq("booking_id", bookingId)
+      .neq("status", "voided")
       .maybeSingle();
 
     if (existingAgreement) {
@@ -396,7 +414,7 @@ serve(async (req) => {
     const agreementContent = `C2C CAR RENTAL — VEHICLE RENTAL AGREEMENT
 Booking: ${booking.booking_code} | Date: ${generatedDate}
 
-Renter: ${displayName} | Email: ${profile?.email || '—'}
+Renter: ${displayName} | Email: ${resolvedEmail || '—'}
 Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(s)
 Location: ${booking.locations?.name || '—'}, ${booking.locations?.address || '—'}, ${booking.locations?.city || '—'}
 Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
@@ -474,7 +492,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
       },
       customer: {
         name: displayName,
-        email: profile?.email,
+        email: resolvedEmail,
       },
       protection: {
         planId: protectionPlanId,
