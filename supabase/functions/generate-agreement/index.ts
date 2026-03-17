@@ -258,6 +258,19 @@ serve(async (req) => {
       .eq("id", booking.user_id)
       .maybeSingle();
 
+    // Fetch customer record if customer_id is set (preferred over profile)
+    let customerRecord: { full_name: string; email: string | null; phone: string | null } | null = null;
+    if (booking.customer_id) {
+      const { data: customer } = await supabase
+        .from("customers")
+        .select("full_name, email, phone")
+        .eq("id", booking.customer_id)
+        .maybeSingle();
+      if (customer) {
+        customerRecord = customer;
+      }
+    }
+
     // Validate driver's license expiry against rental return date
     if (profile?.driver_license_expiry) {
       const licenseExpiry = new Date(profile.driver_license_expiry);
@@ -274,14 +287,18 @@ serve(async (req) => {
       }
     }
 
+    // Resolve customer identity: prefer customers table, fall back to profiles
+    const resolvedName = customerRecord?.full_name || profile?.full_name || null;
+    const resolvedEmail = customerRecord?.email || profile?.email || null;
+
     // Handle customer name: avoid displaying raw email as name
-    let customerName = profile?.full_name || null;
+    let customerName = resolvedName;
     if (customerName && customerName.includes("@")) {
       customerName = null; // Email used as name — fall back
     }
     const displayName = customerName || "Valued Customer";
 
-    console.log(`Found profile: ${displayName}`);
+    console.log(`Found customer: ${displayName} (source: ${customerRecord ? 'customers' : 'profiles'})`);
 
     // Fetch add-ons and additional drivers for this booking
     const [{ data: bookingAddOns }, { data: bookingDrivers }] = await Promise.all([
