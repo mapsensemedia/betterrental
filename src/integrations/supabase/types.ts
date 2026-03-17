@@ -144,6 +144,7 @@ export type Database = {
           alert_type: Database["public"]["Enums"]["alert_type"]
           booking_id: string | null
           created_at: string
+          expires_at: string | null
           id: string
           message: string | null
           resolved_at: string | null
@@ -159,6 +160,7 @@ export type Database = {
           alert_type: Database["public"]["Enums"]["alert_type"]
           booking_id?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           message?: string | null
           resolved_at?: string | null
@@ -174,6 +176,7 @@ export type Database = {
           alert_type?: Database["public"]["Enums"]["alert_type"]
           booking_id?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           message?: string | null
           resolved_at?: string | null
