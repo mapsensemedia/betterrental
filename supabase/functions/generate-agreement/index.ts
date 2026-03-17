@@ -76,17 +76,25 @@ serve(async (req) => {
       return rateLimitResponse(rateLimit.resetAt, corsHeaders);
     }
 
-    // Validate authentication
+    // Validate authentication — allow service_role JWTs (server-to-server)
     const auth = await validateAuth(req);
-    if (!auth.authenticated) {
-      const authHeader = req.headers.get("Authorization");
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (!authHeader?.includes(serviceKey || "no-match")) {
-        return new Response(
-          JSON.stringify({ error: "Authentication required" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    const authHeader = req.headers.get("Authorization");
+    let isServiceRole = false;
+    if (!auth.authenticated && authHeader) {
+      // Check if this is a service_role JWT by decoding claims
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.role === "service_role") {
+          isServiceRole = true;
+        }
+      } catch (_) { /* not a valid JWT */ }
+    }
+    if (!auth.authenticated && !isServiceRole) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const body = await req.json();
