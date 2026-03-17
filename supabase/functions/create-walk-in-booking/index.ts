@@ -180,6 +180,35 @@ Deno.serve(async (req) => {
     const computedTax = taxAmount ?? Math.round(computedSubtotal * 0.12 * 100) / 100; // 12% default
     const computedTotal = totalAmount ?? computedSubtotal + computedTax;
 
+    // 5b. Duplicate detection — check for recent walk-in with same user/category/dates
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const { data: existingBooking } = await supabaseAdmin
+      .from("bookings")
+      .select("id, booking_code, status")
+      .eq("user_id", userId)
+      .eq("vehicle_id", categoryId)
+      .eq("booking_source", "walk_in")
+      .in("status", ["confirmed", "pending"])
+      .gte("created_at", twoHoursAgo)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingBooking) {
+      console.log(`[walkin] Found existing walk-in booking ${existingBooking.id} for user ${userId}, returning instead of creating duplicate`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          existing: true,
+          booking: {
+            id: existingBooking.id,
+            bookingCode: existingBooking.booking_code,
+            status: existingBooking.status,
+          },
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // 6. Insert booking via service_role (bypasses RLS + INSERT seatbelt)
     const { data: booking, error: insertError } = await supabaseAdmin
       .from("bookings")
