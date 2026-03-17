@@ -326,9 +326,9 @@ export default function AdminReports() {
       weekEnd.setDate(weekEnd.getDate() + 7);
       
       const weekBookings = bookings.filter(b => {
-        const bookingDate = parseISO(b.createdAt);
-        return bookingDate >= weekStart && bookingDate < weekEnd && 
-               (b.status === "completed" || b.status === "active");
+        const startDate = parseISO(b.startAt);
+        return startDate >= weekStart && startDate < weekEnd && 
+               (b.status === "completed" || b.status === "active" || b.status === "confirmed");
       });
       
       result.push({
