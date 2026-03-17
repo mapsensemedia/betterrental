@@ -33,7 +33,7 @@ export interface CalendarData {
   days: Date[];
 }
 
-export function useCalendarData(weekOffset: number = 0, locationId?: string) {
+export function useCalendarData(weekOffset: number = 0) {
   return useQuery<CalendarData>({
     queryKey: ["admin-calendar", weekOffset, locationId],
     queryFn: async () => {
