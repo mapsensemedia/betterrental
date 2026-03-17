@@ -705,6 +705,7 @@ export default function AdminReports() {
                     <Car className="w-4 h-4 text-muted-foreground" />
                     Fleet Utilization
                   </CardTitle>
+                  <CardDescription>Current Fleet Status (live)</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="text-center py-4">
