@@ -1250,6 +1250,59 @@ export default function BookingDetail() {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Payment Collection */}
+                {bookingId && (
+                  <PaymentDepositPanel bookingId={bookingId} bookingStatus={booking.status} />
+                )}
+
+                {/* Rental Agreement */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileCheck className="h-4 w-4" />
+                      Rental Agreement
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {rentalAgreements.length > 0 ? (
+                      rentalAgreements.map((agreement: any) => (
+                        <div key={agreement.id} className="flex items-center justify-between text-sm gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium">
+                              {agreement.customer_signed_at ? "Signed" : "Pending signature"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(parseISO(agreement.created_at), "PP")}
+                            </p>
+                          </div>
+                          <Badge variant={agreement.customer_signed_at ? "default" : "secondary"}>
+                            {agreement.status}
+                          </Badge>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">No agreement generated</p>
+                        {(booking.status === "confirmed" || booking.status === "active" || booking.status === "completed") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGenerateAgreement}
+                            disabled={isGeneratingAgreement}
+                          >
+                            {isGeneratingAgreement ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4 mr-2" />
+                            )}
+                            Generate Agreement
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 
