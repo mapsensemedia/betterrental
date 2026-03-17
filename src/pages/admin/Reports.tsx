@@ -611,11 +611,11 @@ export default function AdminReports() {
             {/* Daily Bookings Chart */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Daily Bookings</CardTitle>
-                <CardDescription>New bookings and revenue per day ({periodLabel})</CardDescription>
+                <CardTitle className="text-base">Bookings by Period</CardTitle>
+                <CardDescription>Bookings and revenue per period ({periodLabel})</CardDescription>
               </CardHeader>
               <CardContent>
-                {dailyBookingTrend.every(d => d.bookings === 0) ? (
+                {revenueTrend.every(d => d.bookings === 0) ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No booking data for this period</p>
@@ -623,7 +623,7 @@ export default function AdminReports() {
                 ) : (
                   <ChartContainer config={chartConfig} className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dailyBookingTrend}>
+                      <BarChart data={revenueTrend}>
                         <XAxis dataKey="date" fontSize={10} />
                         <YAxis yAxisId="left" fontSize={10} orientation="left" />
                         <YAxis yAxisId="right" fontSize={10} orientation="right" tickFormatter={(v) => `$${v}`} />
