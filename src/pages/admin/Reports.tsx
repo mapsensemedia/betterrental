@@ -224,10 +224,11 @@ export default function AdminReports() {
   const { data: bookings = [] } = { data: [] as any[] }; // Legacy — fleet tab only
   const { data: vehicles = [] } = useAdminVehicles();
 
-  // Page-level revenue analytics — powers the 4 metric cards
+  // Page-level revenue analytics — powers all metric cards and charts
   const {
     rentalMetrics,
     addOnMetrics,
+    revenueTrend,
     isLoading: revenueLoading,
   } = useRevenueAnalytics(filters);
 
