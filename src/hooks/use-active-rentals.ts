@@ -76,7 +76,14 @@ export function useActiveRentals() {
 
       const categoriesMap = new Map((categoriesData || []).map(c => [c.id, c]));
 
-      // Fetch customer profiles
+      // Batch fetch customers for walk-in bookings
+      const customerIds = [...new Set((data || []).map(b => b.customer_id).filter(Boolean))];
+      const { data: customersData } = customerIds.length > 0
+        ? await supabase.from("customers").select("id, full_name, email, phone").in("id", customerIds)
+        : { data: [] };
+      const customersMap = new Map((customersData || []).map(c => [c.id, c]));
+
+      // Fetch profiles as fallback
       const userIds = [...new Set((data || []).map(b => b.user_id))];
       const { data: profilesData } = await supabase
         .from("profiles")
@@ -89,6 +96,7 @@ export function useActiveRentals() {
       return (data || []).map((b: any) => {
         const startAt = new Date(b.start_at);
         const endAt = new Date(b.end_at);
+        const customer = b.customer_id ? customersMap.get(b.customer_id) : null;
         const profile = profilesMap.get(b.user_id);
         const category = categoriesMap.get(b.vehicle_id);
 
