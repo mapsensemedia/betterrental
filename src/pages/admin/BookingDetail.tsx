@@ -1180,7 +1180,24 @@ export default function BookingDetail() {
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">No invoice generated</p>
+                      <div className="text-center py-4 space-y-3">
+                        <p className="text-sm text-muted-foreground">No invoice generated</p>
+                        {(booking.status === "completed" || booking.status === "active") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGenerateInvoice}
+                            disabled={isGeneratingInvoice}
+                          >
+                            {isGeneratingInvoice ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4 mr-2" />
+                            )}
+                            Generate Invoice
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
