@@ -77,7 +77,7 @@ const navGroups: NavGroup[] = [
         description: "Quick overview",
       },
       {
-        href: "/admin/active-rentals",
+        href: "/admin/bookings?tab=active",
         label: "Active Rentals",
         icon: Car,
         badgeKey: "active",
@@ -89,14 +89,14 @@ const navGroups: NavGroup[] = [
     title: "TODAY'S OPERATIONS",
     items: [
       {
-        href: "/admin/pickups",
+        href: "/admin/bookings?tab=pickups",
         label: "Pickups",
         icon: CheckCircle,
         badgeKey: "pickups",
         description: "Upcoming handovers",
       },
       {
-        href: "/admin/returns",
+        href: "/admin/bookings?tab=returns",
         label: "Returns",
         icon: RotateCcw,
         badgeKey: "returns",
@@ -127,9 +127,9 @@ const navGroups: NavGroup[] = [
       },
       {
         href: "/admin/fleet-analytics",
-        label: "Maintenance",
+        label: "Fleet Analytics",
         icon: Wrench,
-        description: "Service schedule",
+        description: "Utilization & costs",
       },
       {
         href: "/admin/incidents",
@@ -174,8 +174,8 @@ const navGroups: NavGroup[] = [
     items: [
       {
         href: "/admin/reports",
-        label: "Analytics",
-        icon: TrendingUp,
+        label: "Reports",
+        icon: BarChart3,
         description: "Metrics & KPIs",
       },
       {
@@ -252,6 +252,10 @@ export function AdminShell({
   const isActive = (href: string) => {
     if (href === "/admin") {
       return location.pathname === "/admin";
+    }
+    const [hrefPath, hrefSearch] = href.split("?");
+    if (hrefSearch) {
+      return location.pathname === hrefPath && location.search.includes(hrefSearch);
     }
     return location.pathname.startsWith(href);
   };
