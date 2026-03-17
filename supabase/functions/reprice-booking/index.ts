@@ -352,6 +352,7 @@ Deno.serve(async (req) => {
 
       updateData = {
         protection_plan: newProtectionPlan === "none" ? null : newProtectionPlan,
+        total_days: serverTotals.days,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,
