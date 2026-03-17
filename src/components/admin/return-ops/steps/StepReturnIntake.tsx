@@ -22,6 +22,12 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+/** Format a Date for <input type="datetime-local"> */
+function formatDatetimeLocal(d: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // Fuel level options - granular 8-step dropdown
 const FUEL_LEVELS = [
   { value: 0, label: "Empty" },
@@ -116,13 +122,13 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
     },
   });
 
-  // Fetch booking to get assigned unit ID
+  // Fetch booking to get assigned unit ID and end_at
   const { data: booking } = useQuery({
     queryKey: ["booking-for-return", bookingId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("assigned_unit_id")
+        .select("assigned_unit_id, end_at, actual_return_at")
         .eq("id", bookingId)
         .single();
       
@@ -130,6 +136,20 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
       return data;
     },
   });
+
+  // Editable return time — default to scheduled end or previously saved value
+  const [returnTime, setReturnTime] = useState("");
+
+  useEffect(() => {
+    if (booking) {
+      if (booking.actual_return_at) {
+        // Already saved — use that
+        setReturnTime(formatDatetimeLocal(new Date(booking.actual_return_at)));
+      } else if (booking.end_at) {
+        setReturnTime(formatDatetimeLocal(new Date(booking.end_at)));
+      }
+    }
+  }, [booking]);
 
   // Pre-fill form with existing data
   useEffect(() => {
@@ -195,6 +215,17 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
           .from("inspection_metrics")
           .insert(metricsData);
         if (error) throw error;
+      }
+
+      // Persist the staff-selected return time to the booking
+      if (returnTime) {
+        const { error: timeError } = await supabase
+          .from("bookings")
+          .update({ actual_return_at: new Date(returnTime).toISOString() })
+          .eq("id", bookingId);
+        if (timeError) {
+          console.error("Failed to save return time:", timeError);
+        }
       }
 
       // Auto-update vehicle unit mileage if assigned
@@ -299,16 +330,16 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
             Return Time
           </CardTitle>
           <CardDescription>
-            Record when the vehicle was returned
+            Set the actual time the vehicle was returned
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-sm">
-              {format(new Date(), "PPpp")}
-            </Badge>
-            <span className="text-muted-foreground text-sm">(Current time will be used)</span>
-          </div>
+          <Input
+            type="datetime-local"
+            value={returnTime}
+            onChange={(e) => setReturnTime(e.target.value)}
+            disabled={isLocked}
+          />
         </CardContent>
       </Card>
 

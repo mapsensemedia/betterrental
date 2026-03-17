@@ -70,9 +70,9 @@ export function StepReturnIssues({
   const createAlert = useCreateAlert();
   
   const endDate = new Date(booking.end_at);
-  const now = new Date();
-  const isLateReturn = now > endDate && booking.status === "active";
-  const minutesLate = isLateReturn ? differenceInMinutes(now, endDate) : 0;
+  const returnDate = booking.actual_return_at ? new Date(booking.actual_return_at) : new Date();
+  const isLateReturn = returnDate > endDate && booking.status === "active";
+  const minutesLate = isLateReturn ? differenceInMinutes(returnDate, endDate) : 0;
   const hoursLate = Math.floor(minutesLate / 60);
   const minsLate = minutesLate % 60;
   
@@ -189,7 +189,7 @@ export function StepReturnIssues({
         title: `Return issue flagged for ${booking.booking_code}`,
         message: flagMessage,
         bookingId: booking.id,
-        vehicleId: booking.vehicle_id,
+        vehicleId: booking.assigned_unit_id || undefined,
         userId: booking.user_id,
       });
       toast.success("Issue flagged successfully");
@@ -260,7 +260,7 @@ export function StepReturnIssues({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Actual Return</span>
-            <span>{format(now, "PPp")}</span>
+            <span>{format(returnDate, "PPp")}</span>
           </div>
           {isLateReturn && (
             <>
