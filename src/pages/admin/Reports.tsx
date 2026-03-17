@@ -420,8 +420,8 @@ export default function AdminReports() {
                   <Car className="w-5 h-5 text-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{fleetStats.utilizationRate.toFixed(0)}%</p>
-                  <p className="text-xs text-muted-foreground">Utilization</p>
+                  <p className="text-2xl font-bold">{rentalMetrics.totalBookings}</p>
+                  <p className="text-xs text-muted-foreground">Total Bookings</p>
                 </div>
               </div>
             </CardContent>
@@ -433,7 +433,7 @@ export default function AdminReports() {
                   <CalendarDays className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{revenueStats.avgDuration.toFixed(1)}</p>
+                  <p className="text-2xl font-bold">{rentalMetrics.averageDays.toFixed(1)}</p>
                   <p className="text-xs text-muted-foreground">Avg Days</p>
                 </div>
               </div>
