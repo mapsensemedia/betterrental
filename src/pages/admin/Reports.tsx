@@ -190,8 +190,8 @@ export default function AdminReports() {
     
     // Filter bookings by period
     const completedBookings = bookings.filter(b => b.status === "completed" || b.status === "active" || b.status === "confirmed");
-    const thisWeek = completedBookings.filter(b => isAfter(parseISO(b.createdAt), weekStart));
-    const thisMonth = completedBookings.filter(b => isAfter(parseISO(b.createdAt), monthStart));
+    const thisWeek = completedBookings.filter(b => isAfter(parseISO(b.startAt), weekStart));
+    const thisMonth = completedBookings.filter(b => isAfter(parseISO(b.startAt), monthStart));
     
     // Calculate totals
     const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
@@ -326,9 +326,9 @@ export default function AdminReports() {
       weekEnd.setDate(weekEnd.getDate() + 7);
       
       const weekBookings = bookings.filter(b => {
-        const bookingDate = parseISO(b.createdAt);
-        return bookingDate >= weekStart && bookingDate < weekEnd && 
-               (b.status === "completed" || b.status === "active");
+        const startDate = parseISO(b.startAt);
+        return startDate >= weekStart && startDate < weekEnd && 
+               (b.status === "completed" || b.status === "active" || b.status === "confirmed");
       });
       
       result.push({
@@ -522,8 +522,9 @@ export default function AdminReports() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Wallet className="w-4 h-4 text-muted-foreground" />
-                    Revenue Summary
+                    Billed Revenue
                   </CardTitle>
+                  <CardDescription>Total invoiced amount (includes outstanding balances)</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
