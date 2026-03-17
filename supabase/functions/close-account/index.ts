@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (booking.account_closed_at) {
+    if (booking.account_closed_at && !backfillMode) {
       return new Response(
         JSON.stringify({ error: "Account already closed", closedAt: booking.account_closed_at }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
