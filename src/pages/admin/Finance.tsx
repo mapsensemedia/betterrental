@@ -867,14 +867,14 @@ function TransactionsTab() {
 
       const { data: wlBookings, error: wlErr } = await supabase
         .from("bookings")
-        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id, customer_id")
         .not("wl_transaction_id", "is", null)
         .order("created_at", { ascending: false });
       if (wlErr) throw wlErr;
 
       const { data: wlDepositBookings, error: wlDErr } = await supabase
         .from("bookings")
-        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id, customer_id")
         .not("wl_deposit_transaction_id", "is", null)
         .order("created_at", { ascending: false });
       if (wlDErr) throw wlDErr;
@@ -887,6 +887,25 @@ function TransactionsTab() {
       const uniqueUserIds = [...new Set(allUserIds)];
       const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", uniqueUserIds);
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      // Fetch customers
+      const combCustIds = [
+        ...(wlBookings || []).map(b => b.customer_id),
+        ...(wlDepositBookings || []).map(b => b.customer_id),
+      ].filter(Boolean) as string[];
+      const uniqCustIds = [...new Set(combCustIds)];
+      const { data: combCusts } = uniqCustIds.length > 0
+        ? await supabase.from("customers").select("id, full_name").in("id", uniqCustIds)
+        : { data: [] };
+      const combCustsMap = new Map((combCusts || []).map(c => [c.id, c]) || []);
+
+      const resolveProf = (userId: string, customerId: string | null) => {
+        if (customerId) {
+          const c = combCustsMap.get(customerId);
+          if (c) return { id: customerId, full_name: c.full_name };
+        }
+        return profileMap.get(userId) || null;
+      };
 
       const existingTxnIds = new Set(manualPayments.filter(p => p.transaction_id).map(p => p.transaction_id));
 
@@ -908,7 +927,7 @@ function TransactionsTab() {
           transaction_id: b.wl_transaction_id,
           created_at: b.created_at,
           source: "worldline" as const,
-          booking: { booking_code: b.booking_code, profile: profileMap.get(b.user_id) || null },
+          booking: { booking_code: b.booking_code, profile: resolveProf(b.user_id, b.customer_id) },
         }));
 
       const wlDeposit: Payment[] = (wlDepositBookings || [])
@@ -923,7 +942,7 @@ function TransactionsTab() {
           transaction_id: b.wl_deposit_transaction_id,
           created_at: b.deposit_authorized_at || b.created_at,
           source: "worldline" as const,
-          booking: { booking_code: b.booking_code, profile: profileMap.get(b.user_id) || null },
+          booking: { booking_code: b.booking_code, profile: resolveProf(b.user_id, b.customer_id) },
         }));
 
       const combined = [...manual, ...wlRental, ...wlDeposit];
