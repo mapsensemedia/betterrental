@@ -9,7 +9,6 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { ConversionFunnel } from "@/components/admin/ConversionFunnel";
-import { useAdminBookings } from "@/hooks/use-bookings";
 import { useAdminVehicles } from "@/hooks/use-inventory";
 import {
   BarChart3,
@@ -222,13 +221,14 @@ export default function AdminReports() {
   const { data: locations } = useLocations();
   const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useAuditLogs({ limit: 100 });
   const { data: auditStats } = useAuditStats();
-  const { data: bookings = [] } = useAdminBookings({});
+  const { data: bookings = [] } = { data: [] as any[] }; // Legacy — fleet tab only
   const { data: vehicles = [] } = useAdminVehicles();
 
-  // Page-level revenue analytics — powers the 4 metric cards
+  // Page-level revenue analytics — powers all metric cards and charts
   const {
     rentalMetrics,
     addOnMetrics,
+    revenueTrend,
     isLoading: revenueLoading,
   } = useRevenueAnalytics(filters);
 
@@ -299,71 +299,15 @@ export default function AdminReports() {
     return first > 0 ? (last / first) * 100 : 0;
   }, [funnelStats]);
 
-  // Revenue stats for Overview tab — computed from the unified filtered bookings
+  // Revenue stats for Overview tab — derived from the unified hook
   const revenueStats = useMemo(() => {
-    const completedBookings = bookings.filter(b =>
-      (b.status === "completed" || b.status === "active" || b.status === "confirmed") &&
-      isAfter(parseISO(b.startAt), dateRange.start) &&
-      !isAfter(parseISO(b.startAt), dateRange.end)
-    );
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
-    const avgBookingValue = completedBookings.length > 0
-      ? totalRevenue / completedBookings.length
-      : 0;
-    const avgDuration = completedBookings.length > 0
-      ? completedBookings.reduce((sum, b) => sum + b.totalDays, 0) / completedBookings.length
-      : 0;
-
     return {
-      totalRevenue,
-      avgBookingValue,
-      avgDuration,
-      totalBookings: completedBookings.length,
+      totalRevenue: rentalMetrics.totalRentalBaseRevenue,
+      avgBookingValue: rentalMetrics.averageRentalPrice,
+      avgDuration: rentalMetrics.averageDays,
+      totalBookings: rentalMetrics.totalBookings,
     };
-  }, [bookings, dateRange]);
-
-  // Daily booking trend
-  const dailyBookingTrend = useMemo(() => {
-    const interval = eachDayOfInterval({ start: dateRange.start, end: dateRange.end });
-    return interval.map((date) => {
-      const dayStart = startOfDay(date);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
-      const dayBookings = bookings.filter((b) => {
-        const bookingDate = parseISO(b.startAt);
-        return bookingDate >= dayStart && bookingDate < dayEnd;
-      });
-      const completedBookings = dayBookings.filter(b => b.status === "completed" || b.status === "active");
-      const revenue = completedBookings.reduce((sum, b) => sum + b.totalAmount, 0);
-      return {
-        date: format(date, "MMM d"),
-        bookings: dayBookings.length,
-        revenue: revenue,
-      };
-    });
-  }, [bookings, dateRange]);
-
-  // Weekly revenue trend
-  const weeklyRevenueTrend = useMemo(() => {
-    const weeks = 8;
-    const result = [];
-    for (let i = weeks - 1; i >= 0; i--) {
-      const wStart = startOfWeek(subDays(new Date(), i * 7), { weekStartsOn: 1 });
-      const wEnd = new Date(wStart);
-      wEnd.setDate(wEnd.getDate() + 7);
-      const weekBookings = bookings.filter(b => {
-        const startDate = parseISO(b.startAt);
-        return startDate >= wStart && startDate < wEnd &&
-               (b.status === "completed" || b.status === "active" || b.status === "confirmed");
-      });
-      result.push({
-        week: format(wStart, "MMM d"),
-        revenue: weekBookings.reduce((sum, b) => sum + b.totalAmount, 0),
-        bookings: weekBookings.length,
-      });
-    }
-    return result;
-  }, [bookings]);
+  }, [rentalMetrics]);
 
   // Analytics daily trend (from localStorage)
   const dailyTrend = useMemo(() => {
@@ -416,10 +360,6 @@ export default function AdminReports() {
 
   const periodLabel = DATE_PRESET_LABELS[datePreset];
 
-  // Avg days from revenue analytics hook (filtered)
-  const avgDays = rentalMetrics.totalBookings > 0
-    ? revenueStats.avgDuration
-    : 0;
 
   return (
     <AdminShell>
@@ -480,8 +420,8 @@ export default function AdminReports() {
                   <Car className="w-5 h-5 text-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{fleetStats.utilizationRate.toFixed(0)}%</p>
-                  <p className="text-xs text-muted-foreground">Utilization</p>
+                  <p className="text-2xl font-bold">{rentalMetrics.totalBookings}</p>
+                  <p className="text-xs text-muted-foreground">Total Bookings</p>
                 </div>
               </div>
             </CardContent>
@@ -493,7 +433,7 @@ export default function AdminReports() {
                   <CalendarDays className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{revenueStats.avgDuration.toFixed(1)}</p>
+                  <p className="text-2xl font-bold">{rentalMetrics.averageDays.toFixed(1)}</p>
                   <p className="text-xs text-muted-foreground">Avg Days</p>
                 </div>
               </div>
@@ -632,11 +572,11 @@ export default function AdminReports() {
             {/* Revenue Trend Chart */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Weekly Revenue Trend</CardTitle>
-                <CardDescription>Revenue over the last 8 weeks</CardDescription>
+                <CardTitle className="text-base">Revenue Trend</CardTitle>
+                <CardDescription>Revenue over {periodLabel}</CardDescription>
               </CardHeader>
               <CardContent>
-                {weeklyRevenueTrend.every(d => d.revenue === 0) ? (
+                {revenueTrend.every(d => d.revenue === 0) ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <DollarSign className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No revenue data for this period</p>
@@ -644,8 +584,8 @@ export default function AdminReports() {
                 ) : (
                   <ChartContainer config={chartConfig} className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={weeklyRevenueTrend}>
-                        <XAxis dataKey="week" fontSize={10} />
+                      <LineChart data={revenueTrend}>
+                        <XAxis dataKey="date" fontSize={10} />
                         <YAxis fontSize={10} tickFormatter={(v) => `$${v}`} />
                         <ChartTooltip
                           content={<ChartTooltipContent formatter={(value) => `$${Number(value).toLocaleString()}`} />}
@@ -667,11 +607,11 @@ export default function AdminReports() {
             {/* Daily Bookings Chart */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Daily Bookings</CardTitle>
-                <CardDescription>New bookings and revenue per day ({periodLabel})</CardDescription>
+                <CardTitle className="text-base">Bookings by Period</CardTitle>
+                <CardDescription>Bookings and revenue per period ({periodLabel})</CardDescription>
               </CardHeader>
               <CardContent>
-                {dailyBookingTrend.every(d => d.bookings === 0) ? (
+                {revenueTrend.every(d => d.bookings === 0) ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No booking data for this period</p>
@@ -679,7 +619,7 @@ export default function AdminReports() {
                 ) : (
                   <ChartContainer config={chartConfig} className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dailyBookingTrend}>
+                      <BarChart data={revenueTrend}>
                         <XAxis dataKey="date" fontSize={10} />
                         <YAxis yAxisId="left" fontSize={10} orientation="left" />
                         <YAxis yAxisId="right" fontSize={10} orientation="right" tickFormatter={(v) => `$${v}`} />
@@ -765,6 +705,7 @@ export default function AdminReports() {
                     <Car className="w-4 h-4 text-muted-foreground" />
                     Fleet Utilization
                   </CardTitle>
+                  <CardDescription>Current Fleet Status (live)</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="text-center py-4">
