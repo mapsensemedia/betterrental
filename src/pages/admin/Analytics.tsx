@@ -62,9 +62,6 @@ export default function AdminAnalytics() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dateFilter, setDateFilter] = useState<DateFilter>("week");
-  const [locationFilter, setLocationFilter] = useState<string>("all");
-
-  const { data: locations } = useLocations();
 
   const data = useMemo(() => {
     return getAnalyticsData();
