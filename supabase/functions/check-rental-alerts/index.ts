@@ -111,6 +111,7 @@ Deno.serve(async (req) => {
               vehicle_id: booking.vehicle_id,
               user_id: booking.user_id,
               status: "pending",
+              expires_at: getExpiresAt("overdue"),
             });
 
           if (!alertError) {
