@@ -271,7 +271,8 @@ export default function AdminAgreements() {
                     <TableHead className="hidden md:table-cell">Vehicle</TableHead>
                     <TableHead className="hidden lg:table-cell">Rental Period</TableHead>
                     <TableHead className="hidden md:table-cell">Generated</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Booking Status</TableHead>
+                    <TableHead>Agreement</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
