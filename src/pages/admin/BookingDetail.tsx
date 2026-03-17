@@ -9,9 +9,11 @@ import { format, parseISO, differenceInHours } from "date-fns";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { useBookingById } from "@/hooks/use-bookings";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
+import { PaymentDepositPanel } from "@/components/admin/PaymentDepositPanel";
+import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 import { buildInvoicePdfData } from "@/lib/pdf/invoice-data-builder";
 import {
   PVRT_DAILY_FEE,
