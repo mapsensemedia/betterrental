@@ -89,7 +89,7 @@ const navGroups: NavGroup[] = [
     title: "TODAY'S OPERATIONS",
     items: [
       {
-        href: "/admin/pickups",
+        href: "/admin/bookings?tab=pickups",
         label: "Pickups",
         icon: CheckCircle,
         badgeKey: "pickups",
