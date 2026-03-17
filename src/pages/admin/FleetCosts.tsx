@@ -77,7 +77,9 @@ import { VehicleHealthCard, VehicleHealthData } from "@/components/admin/fleet/V
 import { useFleetCostAnalysisEnhanced } from "@/hooks/use-fleet-cost-enhanced";
 
 export default function FleetCosts() {
-  const [activeTab, setActiveTab] = useState("units");
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") || "units";
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [vehicleFilter, setVehicleFilter] = useState("all");
