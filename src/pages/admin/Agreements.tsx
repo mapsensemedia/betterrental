@@ -97,6 +97,7 @@ function useAgreements() {
           id: a.id,
           bookingId: a.booking_id,
           bookingCode: booking?.booking_code || "—",
+          bookingStatus: booking?.status || "unknown",
           customerName: customer?.full_name || profile?.full_name || null,
           customerEmail: customer?.email || profile?.email || null,
           vehicleName: category?.name || null,
