@@ -221,6 +221,7 @@ Deno.serve(async (req) => {
         upgrade_reason: upgradeReason || null,
         upgraded_at: new Date().toISOString(),
         upgraded_by: authResult.userId,
+        total_days: serverTotals.days,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,
@@ -271,6 +272,7 @@ Deno.serve(async (req) => {
         upgrade_daily_fee: 0,
         upgrade_category_label: null,
         upgrade_visible_to_customer: false,
+        total_days: serverTotals.days,
         subtotal: serverTotals.subtotal,
         tax_amount: serverTotals.taxAmount,
         total_amount: serverTotals.total,
@@ -350,6 +352,7 @@ Deno.serve(async (req) => {
 
       updateData = {
         protection_plan: newProtectionPlan === "none" ? null : newProtectionPlan,
+        total_days: serverTotals.days,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,

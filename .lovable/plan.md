@@ -1,60 +1,167 @@
 
 
-## Root Cause: `total_days` Not Persisted in Most Reprice Operations
+# Production Bug Fix Plan — 4 Critical Issues
 
-### Investigation Summary
+## Evidence Summary
 
-**DB state for E6MA7C5T** (`cb721f90-6100-4369-a206-1407ee19067c`):
+**DB state** (all 3 paid bookings):
+- `3RZW932M`: wl_auth_status=completed, deposit_status=none, txn=10000000
+- `FZH86F8W`: wl_auth_status=completed, deposit_status=none, txn=10000001
+- `4HL5K9QV`: wl_auth_status=completed, deposit_status=none, txn=10000003
 
-| Field | Value |
-|-------|-------|
-| daily_rate | 55.00 |
-| total_days | **8** (wrong) |
-| subtotal | 967.18 (correct, computed for 9 days) |
-| tax_amount | 116.06 |
-| total_amount | 1083.24 |
-| protection_plan | basic |
-| vehicle category | STANDARD SUV (Group 2 → basic = $52.99/day) |
+All payments are `payment_type=rental`, zero deposit payment records exist. No edge function logs available for `wl-authorize`, `wl-pay`, or `create-walk-in-booking` (logging gap is itself a concern).
 
-**What happened** (from audit logs):
-1. Walk-in created with 8 days, total_days=8
-2. End time adjusted via `update_time_only` (Mar 24 → Mar 25) — no financial recalc by design, `total_days` stays 8
-3. Upgrade operation called → `computeBookingTotals` computed **9 days** from the new dates and wrote correct `subtotal`/`tax_amount`/`total_amount` — but **did NOT write `total_days`** to the DB
+---
 
-**The bug** is in `supabase/functions/reprice-booking/index.ts`. Only the `modify` operation (line 153) persists `total_days: serverTotals.days`. Three other operations that also call `computeBookingTotals` do NOT:
+## P1 — Deposit Hold Not Created
 
-- **`upgrade`** (line 217-228) — missing `total_days`
-- **`remove_upgrade`** (line 270-278) — missing `total_days`
-- **`change_protection`** (line 351-358) — missing `total_days`
+**Proven**: `wl-authorize` never succeeds — zero deposit payment records in DB, zero logs.
 
-**How this causes the mismatch**: Both portals use the shared `FinancialBreakdown` component which computes line items using `booking.total_days` (8) but shows the DB-stored subtotal/total (computed for 9 days). Protection ($52.99 × 8d vs 9d = $52.99 difference), PVRT ($1.50 difference), ACSRCH ($1.00 difference) — these per-day items computed with the wrong day count don't sum to the DB subtotal.
+**Most likely cause**: `wl-authorize` uses `order_number: booking.booking_code` (line 53), same as `wl-pay` (line 60 in wl-pay). Bambora may reject duplicate order numbers. Additionally, the token lifecycle after first tokenization is uncertain.
+
+**Not yet proven without logs**: exact gateway rejection reason.
+
+### Fix (requires 1-line edge function change — justified)
+
+**File: `supabase/functions/wl-authorize/index.ts`** line 53:
+- Change `order_number: booking.booking_code` → `order_number: booking.booking_code + "-DEP"`
+- This is the only way to fix this; the frontend cannot control order_number.
+
+**File: `src/pages/NewCheckout.tsx`** lines 867-891 (onSuccess callback):
+- Add structured console logging: `console.log("[checkout] deposit hold attempt", { bookingId, hasToken })` and `console.log("[checkout] deposit hold result", { error })`
+- After deposit failure, show a non-blocking info toast: "Rental paid. Deposit hold will be arranged separately."
+
+**Rollout**: Deploy edge function change first, then frontend. Rollback: revert the 1-line change.
+
+---
+
+## P2 — Customer Sees "Payment Failed" But Payment Succeeded
+
+**Root cause**: When `supabase.functions.invoke()` encounters a network timeout, CORS issue, or response parsing failure, it sets `error` (FunctionsHttpError) even though the server successfully processed the payment. The UI at `WorldlineCheckout.tsx` line 233 immediately shows the error without verifying server state.
 
 ### Fix
 
-#### 1. Add `total_days` to all reprice operations in `supabase/functions/reprice-booking/index.ts`
+**File: `src/components/payments/WorldlineCheckout.tsx`** lines 231-252 (the `if (error)` block):
 
-Add `total_days: serverTotals.days` to the `updateData` object in three places:
+Before displaying an error to the user, add a server-side verification step:
 
-- **Line ~218** (upgrade operation `updateData`): Add `total_days: serverTotals.days`
-- **Line ~271** (remove_upgrade operation `updateData`): Add `total_days: serverTotals.days`
-- **Line ~352** (change_protection operation `updateData`): Add `total_days: serverTotals.days`
-
-#### 2. Fix booking E6MA7C5T data
-
-Update `total_days` from 8 to 9 via database update:
-```sql
-UPDATE bookings SET total_days = 9, updated_at = now()
-WHERE id = 'cb721f90-6100-4369-a206-1407ee19067c';
+```typescript
+if (error) {
+  // Before showing error, verify if payment actually succeeded server-side
+  if (bookingIdRef.current && bookingIdRef.current !== "pending") {
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("status, wl_transaction_id")
+      .eq("id", bookingIdRef.current)
+      .single();
+    
+    if (booking?.wl_transaction_id && booking.status === "confirmed") {
+      // Payment succeeded server-side despite client error
+      console.warn("[WorldlineCheckout] Payment succeeded server-side despite client error");
+      onSuccess({ transactionId: booking.wl_transaction_id, lastFour: "" });
+      setIsProcessing(false);
+      resolve();
+      return;
+    }
+  }
+  // ... existing error display logic
+}
 ```
 
-#### 3. Deploy the fixed edge function
+This is idempotent, race-safe (worst case shows success slightly late), and adds observability via the console.warn.
 
-No other files need changes — both portals already use the same `FinancialBreakdown` component which reads `total_days` from the DB. Once the DB value is correct, both portals will show matching numbers.
+**Rollback**: Revert the verification block; error display returns to current behavior.
 
-### Files Changed
+---
 
-| File | Change |
-|------|--------|
-| `supabase/functions/reprice-booking/index.ts` | Add `total_days: serverTotals.days` to upgrade, remove_upgrade, change_protection updateData |
-| Database (data update) | Set total_days=9 for E6MA7C5T |
+## P3 — Walk-in Booking Fails
+
+**Root cause**: At `DeliveryWalkIn.tsx` line 96, `if (error) throw error` fires for any non-2xx response from the edge function. The throw jumps to the catch block at line 109, which shows the generic message "Failed to create booking". The meaningful error message (e.g., "staff role required") in the response body is never shown.
+
+With Supabase JS SDK, when `error` is a `FunctionsHttpError`, the response body is in `error.context`, NOT in `data`. So `data?.error` at line 98 may never be reachable.
+
+### Fix
+
+**File: `src/pages/delivery/DeliveryWalkIn.tsx`** lines 96-111:
+
+Replace the error handling with proper FunctionsHttpError parsing:
+
+```typescript
+if (error) {
+  // Parse meaningful error from edge function response
+  let errorMessage = "Failed to create booking";
+  try {
+    const body = await (error as any)?.context?.json?.();
+    if (body?.error) {
+      errorMessage = body.error === "Forbidden: staff role required"
+        ? "Access denied: staff role required"
+        : body.error;
+    }
+  } catch {
+    // Fall through to generic message
+  }
+  toast.error(errorMessage);
+  return;
+}
+
+if (data?.error) {
+  toast.error(data.error === "Forbidden: staff role required"
+    ? "Access denied: staff role required"
+    : data.error);
+  return;
+}
+```
+
+**Rollback**: Revert to `if (error) throw error`.
+
+---
+
+## P4 — Vehicle Exchange Broken After Fleet Updates
+
+**Root cause**: `useAvailableVehicles()` in `use-vehicle-assignment.ts` line 76 queries the **legacy `vehicles` table** (30 stale rows). The modern fleet is managed via `vehicle_units` (11 active rows). When staff adds/removes vehicles through `UnifiedVehicleManager`, the legacy table is never updated.
+
+Additionally, `useAssignVehicle()` at line 143 updates `bookings.vehicle_id` (category-level), not `bookings.assigned_unit_id` (unit-level). This is a category assignment, which is correct for category changes but wrong for unit-level vehicle exchange.
+
+### Fix
+
+**File: `src/hooks/use-vehicle-assignment.ts`**:
+
+1. **`useAvailableVehicles`** (lines 62-104): Replace the `vehicles` table query with `vehicle_units` joined to `vehicle_categories`:
+   ```typescript
+   const { data: units } = await supabase
+     .from('vehicle_units')
+     .select('id, vin, license_plate, color, status, category_id, location_id, vehicle_categories(id, name, daily_rate, image_url)')
+     .eq('location_id', locationId)
+     .in('status', ['available']);
+   ```
+   Then filter by conflict check using `bookings.assigned_unit_id` instead of `bookings.vehicle_id`.
+
+2. **`useCheckVehicleAvailability`** (lines 20-60): This checks category-level availability via `bookings.vehicle_id` — this is correct for category checks. No change needed here.
+
+3. **`useAssignVehicle`** (lines 107-176): The conflict check at line 127 uses `bookings.vehicle_id` (category). For unit-level assignment, add a parallel check on `bookings.assigned_unit_id`. The update at line 143 should set `assigned_unit_id` in addition to `vehicle_id` when assigning a specific unit.
+
+**Rollback**: Revert query changes.
+
+---
+
+## Deployment Order
+
+1. **P3** (walk-in error handling) — zero risk, error display only
+2. **P4** (vehicle assignment query migration) — low risk, only affects assignment UI
+3. **P2** (payment verification fallback) — adds resilience, no behavior change for success path
+4. **P1** (edge function order_number + frontend logging) — enables deposit holds
+
+## Files Changed
+
+| File | Bug |
+|------|-----|
+| `supabase/functions/wl-authorize/index.ts` | P1 (1 line) |
+| `src/pages/NewCheckout.tsx` | P1 (logging) |
+| `src/components/payments/WorldlineCheckout.tsx` | P2 |
+| `src/pages/delivery/DeliveryWalkIn.tsx` | P3 |
+| `src/hooks/use-vehicle-assignment.ts` | P4 |
+
+## Open Item
+
+Edge function logs showing "No logs found" for all payment functions. This must be investigated separately — either the functions are not being invoked (unlikely given DB records), or log retention/routing is misconfigured. After P1 fix is deployed, the first test booking should confirm logs appear.
 
