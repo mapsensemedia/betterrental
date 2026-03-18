@@ -273,15 +273,16 @@ export default function AdminReports() {
     // Data is now in Supabase — clearing not supported from client
   };
 
-  // Filter analytics events by the unified date range
+  // Map analytics events to expected shape
   const filteredEvents = useMemo(() => {
-    let events = data.events;
-    events = events.filter((e) => {
-      const ts = new Date(e.timestamp);
-      return ts >= dateRange.start && ts <= dateRange.end;
-    });
-    return events;
-  }, [data.events, dateRange]);
+    return analyticsEventsRaw.map((e) => ({
+      event: e.event,
+      timestamp: e.created_at,
+      page: e.page ?? "",
+      sessionId: e.session_id ?? "",
+      properties: e.properties,
+    }));
+  }, [analyticsEventsRaw]);
 
   // Funnel stats
   const funnelStats = useMemo(() => {
