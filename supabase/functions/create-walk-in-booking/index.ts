@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
       // New identity params
       forceNewCustomer,
       useCustomerId,
+      // Optional add-ons array: [{ addOnId, quantity }]
+      addOns,
     } = body;
 
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
