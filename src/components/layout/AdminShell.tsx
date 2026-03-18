@@ -255,7 +255,13 @@ export function AdminShell({
     }
     const [hrefPath, hrefSearch] = href.split("?");
     if (hrefSearch) {
+      // Items with query params: match path AND query param
       return location.pathname === hrefPath && location.search.includes(hrefSearch);
+    }
+    // Items without query params: only match if the URL also has no tab/query param
+    // This prevents /admin/bookings from highlighting when on /admin/bookings?tab=pickups
+    if (hrefPath === "/admin/bookings" || hrefPath === "/admin/fleet-costs") {
+      return location.pathname === hrefPath && !location.search.includes("tab=");
     }
     return location.pathname.startsWith(href);
   };
