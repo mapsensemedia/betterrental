@@ -432,7 +432,7 @@ export function RevenueAnalyticsTab({
                   <BarChart data={revenueTrend}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="date" fontSize={12} />
-                    <YAxis fontSize={12} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                    <YAxis fontSize={12} tickFormatter={(v) => v >= 1000 ? `$${(v/1000).toFixed(1)}k` : `$${v}`} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
                   </BarChart>
