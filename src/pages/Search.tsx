@@ -168,6 +168,9 @@ export default function Search() {
       return;
     }
 
+    // Track vehicle viewed event
+    funnelEvents.vehicleViewed(category.id, category.name, category.name);
+
     // Store category ID and clear stale add-ons/drivers from any previous session
     setSelectedVehicle(category.id);
     setSelectedAddOns([]);
