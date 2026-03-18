@@ -148,7 +148,7 @@ export function useDemandForecasting(months: number = 12) {
       seasonalTrend,
       totalBookings: bookings.length,
     };
-  }, [bookingsQuery.data, locationsQuery.data, categoriesQuery.data, vehiclesQuery.data, startDate, endDate]);
+  }, [bookingsQuery.data, locationsQuery.data, categoriesQuery.data, startDate, endDate]);
 
   return {
     ...metrics,
