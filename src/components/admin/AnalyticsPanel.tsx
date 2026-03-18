@@ -1,113 +1,54 @@
 /**
  * Analytics Panel for Admin Dashboard
- * Displays conversion funnel, top pages, events, and errors
+ * Displays conversion funnel, top pages, events, and errors from Supabase.
  */
 import { useState, useMemo } from "react";
 import {
   BarChart3,
-  TrendingUp,
-  TrendingDown,
   Eye,
   MousePointerClick,
   ShoppingCart,
   CheckCircle,
-  AlertTriangle,
   RefreshCw,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
-import { format, subDays, isAfter } from "date-fns";
+import { useAnalyticsEvents } from "@/hooks/use-analytics-events";
+import { subDays } from "date-fns";
 
 export function AnalyticsPanel() {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [errorsOpen, setErrorsOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  const data = useMemo(() => {
-    // Re-fetch when refreshKey changes
-    return getAnalyticsData();
-  }, [refreshKey]);
+  const dateRange = useMemo(() => ({
+    start: subDays(new Date(), 7),
+    end: new Date(),
+  }), []);
+
+  const { data: events = [], refetch } = useAnalyticsEvents({
+    startDate: dateRange.start,
+    endDate: dateRange.end,
+  });
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setRefreshKey((k) => k + 1);
-      setIsRefreshing(false);
-    }, 300);
+    refetch();
+    setTimeout(() => setIsRefreshing(false), 300);
   };
 
-  const handleClearData = () => {
-    if (confirm("Are you sure you want to clear all analytics data?")) {
-      clearAnalyticsData();
-      setRefreshKey((k) => k + 1);
-    }
-  };
-
-  // Filter to last 7 days for stats
-  const last7Days = useMemo(() => {
-    const cutoff = subDays(new Date(), 7);
-    return data.events.filter((e) => isAfter(new Date(e.timestamp), cutoff));
-  }, [data.events]);
-
-  const last7DaysStats = useMemo(() => {
-    const vehicleViews = last7Days.filter((e) => e.event === "vehicle_viewed").length;
-    const vehicleSelections = last7Days.filter((e) => e.event === "vehicle_selected").length;
-    const checkoutStarts = last7Days.filter((e) => e.event === "checkout_started").length;
-    const bookingsCompleted = last7Days.filter((e) => e.event === "booking_completed").length;
-    return { vehicleViews, vehicleSelections, checkoutStarts, bookingsCompleted };
-  }, [last7Days]);
-
-  const funnelSteps = [
-    {
-      label: "Vehicle Views",
-      value: last7DaysStats.vehicleViews,
-      icon: Eye,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-    },
-    {
-      label: "Selections",
-      value: last7DaysStats.vehicleSelections,
-      icon: MousePointerClick,
-      color: "text-purple-500",
-      bgColor: "bg-purple-500/10",
-    },
-    {
-      label: "Checkout Started",
-      value: last7DaysStats.checkoutStarts,
-      icon: ShoppingCart,
-      color: "text-orange-500",
-      bgColor: "bg-orange-500/10",
-    },
-    {
-      label: "Bookings",
-      value: last7DaysStats.bookingsCompleted,
-      icon: CheckCircle,
-      color: "text-green-500",
-      bgColor: "bg-green-500/10",
-    },
-  ];
-
-  const conversionRate =
-    last7DaysStats.vehicleViews > 0
-      ? ((last7DaysStats.bookingsCompleted / last7DaysStats.vehicleViews) * 100).toFixed(1)
-      : "0.0";
-
-  const dropoffRate =
-    last7DaysStats.checkoutStarts > 0
-      ? (((last7DaysStats.checkoutStarts - last7DaysStats.bookingsCompleted) / last7DaysStats.checkoutStarts) * 100).toFixed(1)
-      : "0.0";
+  const funnelSteps = useMemo(() => {
+    const vehicleViews = events.filter((e) => e.event === "vehicle_viewed").length;
+    const vehicleSelections = events.filter((e) => e.event === "vehicle_selected").length;
+    const checkoutStarts = events.filter((e) => e.event === "checkout_started").length;
+    const bookingsCompleted = events.filter((e) => e.event === "booking_completed").length;
+    return [
+      { label: "Vehicle Views", value: vehicleViews, icon: Eye, color: "text-blue-500", bgColor: "bg-blue-500/10" },
+      { label: "Selections", value: vehicleSelections, icon: MousePointerClick, color: "text-purple-500", bgColor: "bg-purple-500/10" },
+      { label: "Checkout Started", value: checkoutStarts, icon: ShoppingCart, color: "text-orange-500", bgColor: "bg-orange-500/10" },
+      { label: "Bookings", value: bookingsCompleted, icon: CheckCircle, color: "text-green-500", bgColor: "bg-green-500/10" },
+    ];
+  }, [events]);
 
   return (
     <Card>
@@ -120,19 +61,14 @@ export function AnalyticsPanel() {
             </CardTitle>
             <CardDescription>Last 7 days conversion funnel</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleClearData}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -157,30 +93,10 @@ export function AnalyticsPanel() {
           ))}
         </div>
 
-        {/* Conversion Metrics */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg border bg-muted/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Conversion Rate</span>
-              <TrendingUp className="w-4 h-4 text-green-500" />
-            </div>
-            <p className="text-2xl font-bold text-green-600">{conversionRate}%</p>
-            <p className="text-xs text-muted-foreground">Views → Bookings</p>
-          </div>
-          <div className="p-4 rounded-lg border bg-muted/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">Checkout Drop-off</span>
-              <TrendingDown className="w-4 h-4 text-destructive" />
-            </div>
-            <p className="text-2xl font-bold text-destructive">{dropoffRate}%</p>
-            <p className="text-xs text-muted-foreground">Started → Abandoned</p>
-          </div>
-        </div>
-
         {/* Visual Funnel */}
         <div className="space-y-2">
           <p className="text-sm font-medium">Conversion Funnel</p>
-          {funnelSteps.map((step, idx) => {
+          {funnelSteps.map((step) => {
             const maxValue = Math.max(...funnelSteps.map((s) => s.value), 1);
             const percentage = (step.value / maxValue) * 100;
             return (
@@ -193,65 +109,10 @@ export function AnalyticsPanel() {
           })}
         </div>
 
-        {/* Top Pages */}
-        {data.topPages.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Top Pages</p>
-            <div className="space-y-1">
-              {data.topPages.slice(0, 5).map((page) => (
-                <div
-                  key={page.page}
-                  className="flex items-center justify-between text-sm py-1.5 px-2 rounded hover:bg-muted/50"
-                >
-                  <span className="truncate text-muted-foreground">{page.page}</span>
-                  <Badge variant="secondary">{page.views}</Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Recent Errors */}
-        {data.recentErrors.length > 0 && (
-          <Collapsible open={errorsOpen} onOpenChange={setErrorsOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-2 h-auto">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-destructive" />
-                  <span className="text-sm font-medium">Recent Errors</span>
-                  <Badge variant="destructive" className="text-xs">
-                    {data.recentErrors.length}
-                  </Badge>
-                </div>
-                {errorsOpen ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 pt-2">
-              {data.recentErrors.slice(0, 5).map((error, idx) => (
-                <div
-                  key={idx}
-                  className="p-2 rounded-lg border border-destructive/20 bg-destructive/5 text-xs"
-                >
-                  <p className="font-medium text-destructive truncate">
-                    {error.properties?.error_message as string}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {format(new Date(error.timestamp), "MMM d, h:mm a")} • {error.page}
-                  </p>
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
         {/* Event Summary */}
         <div className="pt-2 border-t">
           <p className="text-xs text-muted-foreground text-center">
-            {data.events.length} total events tracked • {last7Days.length} in last 7 days
+            {events.length} events tracked in last 7 days
           </p>
         </div>
       </CardContent>

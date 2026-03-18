@@ -98,41 +98,40 @@ export default function AdminAnalytics() {
     paymentType,
   }), [revenueDateRange, channel, locationId, categoryId, bookingType, paymentType]);
 
-  const data = useMemo(() => {
-    return getAnalyticsData();
-  }, [refreshKey]);
+  // Compute date range for analytics events query
+  const analyticsDateRange = useMemo(() => {
+    const now = new Date();
+    const days = dateFilter === "today" ? 1 : dateFilter === "week" ? 7 : dateFilter === "month" ? 30 : 90;
+    return { start: subDays(now, days), end: now };
+  }, [dateFilter]);
+
+  const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({
+    startDate: analyticsDateRange.start,
+    endDate: analyticsDateRange.end,
+  });
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    refetchAnalytics();
     setTimeout(() => {
-      setRefreshKey((k) => k + 1);
       setIsRefreshing(false);
     }, 300);
   };
 
   const handleClearData = () => {
-    if (confirm("Clear all analytics data? This cannot be undone.")) {
-      clearAnalyticsData();
-      setRefreshKey((k) => k + 1);
-    }
+    // Data is now in Supabase — clearing not supported from client
   };
 
-  // Filter events by date range
+  // Map analytics events to expected shape
   const filteredEvents = useMemo(() => {
-    let events = data.events;
-    
-    if (dateFilter === "today") {
-      events = events.filter((e) => isToday(new Date(e.timestamp)));
-    } else if (dateFilter === "week") {
-      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-      events = events.filter((e) => isAfter(new Date(e.timestamp), weekStart));
-    } else if (dateFilter === "month") {
-      const monthStart = startOfMonth(new Date());
-      events = events.filter((e) => isAfter(new Date(e.timestamp), monthStart));
-    }
-    
-    return events;
-  }, [data.events, dateFilter]);
+    return analyticsEventsRaw.map((e) => ({
+      event: e.event,
+      timestamp: e.created_at,
+      page: e.page ?? "",
+      sessionId: e.session_id ?? "",
+      properties: e.properties,
+    }));
+  }, [analyticsEventsRaw]);
 
   // Calculate funnel stats
   const funnelStats = useMemo(() => {
