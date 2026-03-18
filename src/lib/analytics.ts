@@ -51,12 +51,12 @@ export function trackEvent(event: AnalyticsEvent, properties?: EventProperties):
   // Fire-and-forget insert to Supabase
   supabase
     .from('analytics_events')
-    .insert({
+    .insert([{
       event,
       properties: properties ? (properties as Record<string, unknown>) : {},
       page,
       session_id: sessionId,
-    })
+    }])
     .then(({ error }) => {
       if (error && import.meta.env.DEV) {
         console.warn('[Analytics] Insert error:', error.message);
