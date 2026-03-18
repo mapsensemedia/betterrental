@@ -1,11 +1,8 @@
 /**
  * Analytics utility for tracking events across the application
- * Supports PostHog for analytics and error tracking
+ * Persists events to Supabase analytics_events table for centralized tracking.
  */
-
-// PostHog configuration - using Lovable Cloud-hosted analytics
-const POSTHOG_API_KEY = 'phc_c2c_rental_analytics';
-const POSTHOG_HOST = 'https://app.posthog.com';
+import { supabase } from "@/integrations/supabase/client";
 
 // Event types for the booking funnel
 export type AnalyticsEvent =
@@ -31,14 +28,6 @@ interface EventProperties {
   [key: string]: string | number | boolean | undefined | null;
 }
 
-interface AnalyticsEventData {
-  event: AnalyticsEvent;
-  properties?: EventProperties;
-  timestamp: string;
-  page: string;
-  sessionId: string;
-}
-
 // Generate a session ID for the current browser session
 const getSessionId = (): string => {
   let sessionId = sessionStorage.getItem('analytics_session_id');
@@ -49,40 +38,30 @@ const getSessionId = (): string => {
   return sessionId;
 };
 
-// Event queue for batching (stored in memory)
-let eventQueue: AnalyticsEventData[] = [];
-
-// Track an analytics event
+// Track an analytics event — persists to Supabase
 export function trackEvent(event: AnalyticsEvent, properties?: EventProperties): void {
-  const eventData: AnalyticsEventData = {
-    event,
-    properties,
-    timestamp: new Date().toISOString(),
-    page: window.location.pathname,
-    sessionId: getSessionId(),
-  };
+  const sessionId = getSessionId();
+  const page = window.location.pathname;
 
-  // Add to queue
-  eventQueue.push(eventData);
-
-  // Also log to console in development
+  // Log in dev
   if (import.meta.env.DEV) {
     console.log('[Analytics]', event, properties);
   }
 
-  // Persist to localStorage for admin dashboard
-  try {
-    const stored = localStorage.getItem('c2c_analytics_events') || '[]';
-    const events = JSON.parse(stored) as AnalyticsEventData[];
-    events.push(eventData);
-    // Keep only last 1000 events
-    if (events.length > 1000) {
-      events.splice(0, events.length - 1000);
-    }
-    localStorage.setItem('c2c_analytics_events', JSON.stringify(events));
-  } catch (e) {
-    // Ignore storage errors
-  }
+  // Fire-and-forget insert to Supabase
+  supabase
+    .from('analytics_events')
+    .insert({
+      event,
+      properties: properties ? (properties as Record<string, unknown>) : {},
+      page,
+      session_id: sessionId,
+    })
+    .then(({ error }) => {
+      if (error && import.meta.env.DEV) {
+        console.warn('[Analytics] Insert error:', error.message);
+      }
+    });
 }
 
 // Track page views automatically
@@ -133,91 +112,3 @@ export const funnelEvents = {
   searchPerformed: (filters: EventProperties) =>
     trackEvent('search_performed', filters),
 };
-
-// Get analytics data for admin dashboard
-export function getAnalyticsData(): {
-  events: AnalyticsEventData[];
-  funnelStats: {
-    vehicleViews: number;
-    vehicleSelections: number;
-    checkoutStarts: number;
-    bookingsCompleted: number;
-    conversionRate: number;
-  };
-  topPages: { page: string; views: number }[];
-  eventsByType: { event: string; count: number }[];
-  recentErrors: AnalyticsEventData[];
-} {
-  try {
-    const stored = localStorage.getItem('c2c_analytics_events') || '[]';
-    const events = JSON.parse(stored) as AnalyticsEventData[];
-
-    // Calculate funnel stats
-    const vehicleViews = events.filter((e) => e.event === 'vehicle_viewed').length;
-    const vehicleSelections = events.filter((e) => e.event === 'vehicle_selected').length;
-    const checkoutStarts = events.filter((e) => e.event === 'checkout_started').length;
-    const bookingsCompleted = events.filter((e) => e.event === 'booking_completed').length;
-    const conversionRate = vehicleViews > 0 ? (bookingsCompleted / vehicleViews) * 100 : 0;
-
-    // Top pages
-    const pageViews = events.filter((e) => e.event === 'page_view');
-    const pageCounts: Record<string, number> = {};
-    pageViews.forEach((e) => {
-      const page = e.page;
-      pageCounts[page] = (pageCounts[page] || 0) + 1;
-    });
-    const topPages = Object.entries(pageCounts)
-      .map(([page, views]) => ({ page, views }))
-      .sort((a, b) => b.views - a.views)
-      .slice(0, 10);
-
-    // Events by type
-    const eventCounts: Record<string, number> = {};
-    events.forEach((e) => {
-      eventCounts[e.event] = (eventCounts[e.event] || 0) + 1;
-    });
-    const eventsByType = Object.entries(eventCounts)
-      .map(([event, count]) => ({ event, count }))
-      .sort((a, b) => b.count - a.count);
-
-    // Recent errors
-    const recentErrors = events
-      .filter((e) => e.event === 'error')
-      .slice(-10)
-      .reverse();
-
-    return {
-      events,
-      funnelStats: {
-        vehicleViews,
-        vehicleSelections,
-        checkoutStarts,
-        bookingsCompleted,
-        conversionRate,
-      },
-      topPages,
-      eventsByType,
-      recentErrors,
-    };
-  } catch (e) {
-    return {
-      events: [],
-      funnelStats: {
-        vehicleViews: 0,
-        vehicleSelections: 0,
-        checkoutStarts: 0,
-        bookingsCompleted: 0,
-        conversionRate: 0,
-      },
-      topPages: [],
-      eventsByType: [],
-      recentErrors: [],
-    };
-  }
-}
-
-// Clear analytics data (for admin)
-export function clearAnalyticsData(): void {
-  localStorage.removeItem('c2c_analytics_events');
-  eventQueue = [];
-}
