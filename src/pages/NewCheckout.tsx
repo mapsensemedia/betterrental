@@ -66,6 +66,7 @@ import {
 import { useLocations } from "@/hooks/use-locations";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
+import { funnelEvents } from "@/lib/analytics";
 
 const FEATURE_TOOLTIPS: Record<string, string> = {
   "Third party insurance": "Mandatory third-party liability insurance is included with every rental at no extra cost.",
@@ -137,6 +138,13 @@ export default function NewCheckout() {
       navigate("/search");
     }
   }, [searchData.ageConfirmed, searchData.ageRange, navigate]);
+
+  // Track checkout started
+  useEffect(() => {
+    if (searchData.selectedVehicleId) {
+      funnelEvents.checkoutStarted(searchData.selectedVehicleId, 0, 0);
+    }
+  }, [searchData.selectedVehicleId]);
 
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -804,7 +812,7 @@ export default function NewCheckout() {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod("pay-now")}
+                        onClick={() => { setPaymentMethod("pay-now"); funnelEvents.paymentMethodSelected("pay-now"); }}
                         className={cn(
                           "p-3 rounded-lg border-2 text-left transition-all",
                           paymentMethod === "pay-now"
@@ -817,7 +825,7 @@ export default function NewCheckout() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod("pay-later")}
+                        onClick={() => { setPaymentMethod("pay-later"); funnelEvents.paymentMethodSelected("pay-later"); }}
                         className={cn(
                           "p-3 rounded-lg border-2 text-left transition-all",
                           paymentMethod === "pay-later"
