@@ -139,6 +139,13 @@ export default function NewCheckout() {
     }
   }, [searchData.ageConfirmed, searchData.ageRange, navigate]);
 
+  // Track checkout started
+  useEffect(() => {
+    if (searchData.selectedVehicle) {
+      funnelEvents.checkoutStarted(searchData.selectedVehicle, 0, 0);
+    }
+  }, [searchData.selectedVehicle]);
+
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingBooking, setPendingBooking] = useState<{ id: string; booking_code: string; user_id?: string; accessToken?: string } | null>(null);
