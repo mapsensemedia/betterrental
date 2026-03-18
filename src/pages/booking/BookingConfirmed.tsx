@@ -1,7 +1,7 @@
 /**
  * BookingConfirmed - Landing page after checkout showing booking confirmation
  */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { CheckCircle, MapPin, Calendar, Car, ArrowRight, Loader2 } from "lucide-react";
@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { funnelEvents } from "@/lib/analytics";
 
 export default function BookingConfirmed() {
   const [searchParams] = useSearchParams();

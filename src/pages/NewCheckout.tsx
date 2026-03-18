@@ -825,7 +825,7 @@ export default function NewCheckout() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod("pay-later")}
+                        onClick={() => { setPaymentMethod("pay-later"); funnelEvents.paymentMethodSelected("pay-later"); }}
                         className={cn(
                           "p-3 rounded-lg border-2 text-left transition-all",
                           paymentMethod === "pay-later"
