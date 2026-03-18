@@ -126,7 +126,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     queryKey: ["revenue-analytics-categories"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vehicles")
+        .from("vehicle_categories")
         .select("id, name");
       if (error) throw error;
       return (data || []) as VehicleCategoryRow[];
