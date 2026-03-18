@@ -444,8 +444,8 @@ export function RevenueAnalyticsTab({
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Add-On Revenue Trend</CardTitle>
-            <CardDescription>Add-on revenue over time</CardDescription>
+            <CardTitle className="text-base">Extras Revenue Trend</CardTitle>
+            <CardDescription>Protection, upgrades, fees & add-ons over time</CardDescription>
           </CardHeader>
           <CardContent>
             {addOnTrend.length === 0 ? (
@@ -472,13 +472,13 @@ export function RevenueAnalyticsTab({
       {/* Add-On Breakdown Table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Add-On Breakdown</CardTitle>
-          <CardDescription>Performance by individual add-on</CardDescription>
+          <CardTitle className="text-base">Extras Breakdown</CardTitle>
+          <CardDescription>Revenue by protection plans, upgrades, fees & add-ons</CardDescription>
         </CardHeader>
         <CardContent>
           {addOnBreakdown.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No add-on data for selected period
+              No extras data for selected period
             </div>
           ) : (
             <div className="overflow-x-auto">

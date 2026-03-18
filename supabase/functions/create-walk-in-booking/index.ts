@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
       // New identity params
       forceNewCustomer,
       useCustomerId,
+      // Optional add-ons array: [{ addOnId, quantity }]
+      addOns,
     } = body;
 
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
@@ -371,7 +373,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 9. Create initial delivery status
+    // 9. Persist optional add-ons if provided
+    if (Array.isArray(addOns) && addOns.length > 0) {
+      // Fetch add-on details for price calculation
+      const addOnIds = addOns.map((a: { addOnId: string }) => a.addOnId).filter(Boolean);
+      if (addOnIds.length > 0) {
+        const { data: addOnRecords } = await supabaseAdmin
+          .from("add_ons")
+          .select("id, daily_rate, one_time_fee, name")
+          .in("id", addOnIds)
+          .eq("is_active", true);
+
+        if (addOnRecords && addOnRecords.length > 0) {
+          const addOnRows = addOnRecords.map(ao => {
+            const input = addOns.find((a: { addOnId: string; quantity?: number }) => a.addOnId === ao.id);
+            const qty = input?.quantity || 1;
+            const price = (Number(ao.daily_rate) * computedDays + (Number(ao.one_time_fee) || 0)) * qty;
+            return {
+              booking_id: booking.id,
+              add_on_id: ao.id,
+              quantity: qty,
+              price,
+            };
+          });
+
+          const { error: addOnInsertError } = await supabaseAdmin
+            .from("booking_add_ons")
+            .insert(addOnRows);
+
+          if (addOnInsertError) {
+            console.error("[walkin] Failed to insert add-ons:", addOnInsertError);
+            // Non-fatal — booking was created successfully
+          } else {
+            console.log(`[walkin] Inserted ${addOnRows.length} add-on(s) for booking ${booking.id}`);
+          }
+        }
+      }
+    }
+
+    // 10. Create initial delivery status
     await supabaseAdmin.from("delivery_statuses").insert({
       booking_id: booking.id,
       status: "assigned",
@@ -379,7 +419,7 @@ Deno.serve(async (req) => {
       updated_by: auth.userId,
     });
 
-    // 10. Audit log — use customer name from customers record for accuracy
+    // 11. Audit log — use customer name from customers record for accuracy
     await supabaseAdmin.from("audit_logs").insert({
       action: "walk_in_booking_created",
       entity_type: "booking",
@@ -392,6 +432,7 @@ Deno.serve(async (req) => {
         daily_rate: dailyRate,
         total_amount: computedTotal,
         booking_source: "walk_in",
+        add_ons_count: Array.isArray(addOns) ? addOns.length : 0,
       },
     });
 
