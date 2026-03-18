@@ -16,28 +16,25 @@ export interface EnhancedVehicleAnalytics {
   status: string;
   dailyRate: number;
   locationName?: string;
-  // Fuel & Specs
   fuelType?: string;
   transmission?: string;
-  // Utilization
   rentalCount: number;
   totalRentalDays: number;
-  // Financials
   acquisitionCost: number;
   totalExpenses: number;
   totalRevenue: number;
   profit: number;
   profitMargin: number;
-  // Lifecycle
   acquisitionDate?: string;
   expectedDisposalDate?: string;
   depreciationMethod?: string;
   annualDepreciation: number;
   currentValue: number;
-  // Vendor
   vendorName?: string;
   vendorContact?: string;
 }
+
+const REVENUE_STATUSES = ["confirmed", "active", "completed"] as const;
 
 export function useFleetAnalyticsEnhanced(filters?: {
   locationId?: string;
@@ -48,31 +45,25 @@ export function useFleetAnalyticsEnhanced(filters?: {
   return useQuery({
     queryKey: ["fleet-analytics-enhanced", filters],
     queryFn: async (): Promise<EnhancedVehicleAnalytics[]> => {
-      // Get all vehicle units with their parent vehicles and categories
       const { data: units, error: unitsError } = await supabase
         .from("vehicle_units")
         .select(`
           *,
           category:vehicle_categories(id, name, fuel_type, transmission),
           vehicle:vehicles (
-            id,
-            make,
-            model,
-            year,
-            daily_rate,
-            status,
-            location_id,
+            id, make, model, year, daily_rate, status, location_id,
             locations (name)
           )
         `);
 
       if (unitsError) throw unitsError;
 
-      // Get completed and active bookings for revenue and utilization
+      // Only count bookings with assigned_unit_id for per-unit analytics
       let bookingsQuery = supabase
         .from("bookings")
         .select("vehicle_id, assigned_unit_id, total_amount, total_days, status")
-        .in("status", ["completed", "active"]);
+        .in("status", REVENUE_STATUSES)
+        .not("assigned_unit_id", "is", null);
 
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("end_at", filters.dateFrom);
@@ -83,7 +74,6 @@ export function useFleetAnalyticsEnhanced(filters?: {
 
       const { data: bookings } = await bookingsQuery;
 
-      // Get expenses per unit
       const { data: expenses } = await supabase
         .from("vehicle_expenses")
         .select("vehicle_unit_id, amount");
@@ -92,37 +82,24 @@ export function useFleetAnalyticsEnhanced(filters?: {
 
       (units || []).forEach((unit: any) => {
         if (!unit.vehicle) return;
-
-        // Filter by location/status if specified
         if (filters?.locationId && unit.vehicle.location_id !== filters.locationId) return;
         if (filters?.status && unit.status !== filters.status) return;
 
-        // Get bookings assigned to this specific unit
         const unitBookings = bookings?.filter((b) => b.assigned_unit_id === unit.id) || [];
-        // For bookings without unit assignment, match via category_id
-        const categoryBookings = bookings?.filter(
-          (b) => !b.assigned_unit_id && b.vehicle_id === unit.category_id
-        ) || [];
-        const allBookings = [...unitBookings, ...categoryBookings];
-
         const unitExpenses = expenses?.filter((e) => e.vehicle_unit_id === unit.id) || [];
 
-        const rentalCount = allBookings.length;
-        const totalRentalDays = allBookings.reduce((sum, b) => sum + (b.total_days || 0), 0);
-        const totalRevenue = allBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        const rentalCount = unitBookings.length;
+        const totalRentalDays = unitBookings.reduce((sum, b) => sum + (b.total_days || 0), 0);
+        const totalRevenue = unitBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
         const acquisitionCost = unit.acquisition_cost || 0;
         const totalExpenses = unitExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
         const profit = totalRevenue - totalExpenses;
         const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
-        // Calculate depreciation
         const annualDepreciation = unit.annual_depreciation_amount || 0;
-        const acquisitionDate = unit.acquisition_date
-          ? new Date(unit.acquisition_date)
-          : new Date();
+        const acquisitionDate = unit.acquisition_date ? new Date(unit.acquisition_date) : new Date();
         const yearsOwned = (Date.now() - acquisitionDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-        const totalDepreciation = annualDepreciation * yearsOwned;
-        const currentValue = Math.max(0, acquisitionCost - totalDepreciation);
+        const currentValue = Math.max(0, acquisitionCost - annualDepreciation * yearsOwned);
 
         analytics.push({
           vehicleId: unit.vehicle_id,

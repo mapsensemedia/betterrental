@@ -17,23 +17,18 @@ export interface VehicleAnalytics {
   status: string;
   dailyRate: number;
   locationName?: string;
-  // Utilization
   rentalCount: number;
   totalRentalDays: number;
-  // Financials
   acquisitionCost: number;
   totalExpenses: number;
   totalRevenue: number;
   profit: number;
   profitMargin: number;
-  // Depreciation
   depreciationMethod?: string;
   annualDepreciation: number;
   currentValue: number;
-  // Vendor
   vendorName?: string;
   vendorContact?: string;
-  // Downtime tracking
   downtimeDays?: number;
 }
 
@@ -49,6 +44,8 @@ export interface FleetSummary {
   underperformers: VehicleAnalytics[];
 }
 
+const REVENUE_STATUSES = ["confirmed", "active", "completed"] as const;
+
 export function useFleetAnalytics(filters?: {
   locationId?: string;
   status?: string;
@@ -58,30 +55,25 @@ export function useFleetAnalytics(filters?: {
   return useQuery({
     queryKey: ["fleet-analytics", filters],
     queryFn: async (): Promise<VehicleAnalytics[]> => {
-      // Get all vehicle units with their parent vehicles
       const { data: units, error: unitsError } = await supabase
         .from("vehicle_units")
         .select(`
           *,
           vehicle:vehicles (
-            id,
-            make,
-            model,
-            year,
-            daily_rate,
-            status,
-            location_id,
+            id, make, model, year, daily_rate, status, location_id,
             locations (name)
           )
         `);
 
       if (unitsError) throw unitsError;
 
-      // Get completed and active bookings for revenue and utilization
+      // Only count bookings with assigned_unit_id for per-unit analytics
+      // This prevents double-counting when multiple units share a category
       let bookingsQuery = supabase
         .from("bookings")
         .select("vehicle_id, assigned_unit_id, total_amount, total_days, status")
-        .in("status", ["completed", "active"]);
+        .in("status", REVENUE_STATUSES)
+        .not("assigned_unit_id", "is", null);
 
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("end_at", filters.dateFrom);
@@ -92,47 +84,32 @@ export function useFleetAnalytics(filters?: {
 
       const { data: bookings } = await bookingsQuery;
 
-      // Get expenses per unit
       const { data: expenses } = await supabase
         .from("vehicle_expenses")
         .select("vehicle_unit_id, amount");
 
-      // Build analytics array from vehicle units only
       const analytics: VehicleAnalytics[] = [];
 
       (units || []).forEach((unit: any) => {
         if (!unit.vehicle) return;
-
-        // Filter by location/status if specified
         if (filters?.locationId && unit.vehicle.location_id !== filters.locationId) return;
         if (filters?.status && unit.status !== filters.status) return;
 
-        // Get bookings assigned to this specific unit
         const unitBookings = bookings?.filter((b) => b.assigned_unit_id === unit.id) || [];
-        // For bookings without unit assignment, match via category_id (bookings.vehicle_id stores category UUID)
-        const categoryBookings = bookings?.filter(
-          (b) => !b.assigned_unit_id && b.vehicle_id === unit.category_id
-        ) || [];
-        const allBookings = [...unitBookings, ...categoryBookings];
-
         const unitExpenses = expenses?.filter((e) => e.vehicle_unit_id === unit.id) || [];
 
-        const rentalCount = allBookings.length;
-        const totalRentalDays = allBookings.reduce((sum, b) => sum + (b.total_days || 0), 0);
-        const totalRevenue = allBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        const rentalCount = unitBookings.length;
+        const totalRentalDays = unitBookings.reduce((sum, b) => sum + (b.total_days || 0), 0);
+        const totalRevenue = unitBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
         const acquisitionCost = unit.acquisition_cost || 0;
         const totalExpenses = unitExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
         const profit = totalRevenue - totalExpenses;
         const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
-        // Calculate depreciation
         const annualDepreciation = unit.annual_depreciation_amount || 0;
-        const acquisitionDate = unit.acquisition_date
-          ? new Date(unit.acquisition_date)
-          : new Date();
+        const acquisitionDate = unit.acquisition_date ? new Date(unit.acquisition_date) : new Date();
         const yearsOwned = (Date.now() - acquisitionDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-        const totalDepreciation = annualDepreciation * yearsOwned;
-        const currentValue = Math.max(0, acquisitionCost - totalDepreciation);
+        const currentValue = Math.max(0, acquisitionCost - annualDepreciation * yearsOwned);
 
         analytics.push({
           vehicleId: unit.vehicle_id,
@@ -173,7 +150,28 @@ export function useFleetSummary(filters?: {
 }) {
   const { data: analytics, isLoading } = useFleetAnalytics(filters);
 
-  // Derive active rentals from actual bookings, not stale unit status
+  // Fleet-level revenue: query bookings directly to avoid double-counting
+  const { data: fleetRevenue } = useQuery({
+    queryKey: ["fleet-total-revenue", filters],
+    queryFn: async () => {
+      let query = supabase
+        .from("bookings")
+        .select("total_amount")
+        .in("status", REVENUE_STATUSES);
+
+      if (filters?.dateFrom) {
+        query = query.gte("end_at", filters.dateFrom);
+      }
+      if (filters?.dateTo) {
+        query = query.lte("end_at", filters.dateTo);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []).reduce((sum, b) => sum + (b.total_amount || 0), 0);
+    },
+  });
+
   const { data: activeBookingCount } = useQuery({
     queryKey: ["fleet-active-booking-count"],
     queryFn: async () => {
@@ -191,9 +189,9 @@ export function useFleetSummary(filters?: {
     totalVehicles: analytics.length,
     totalUnits: analytics.length,
     activeRentals: activeBookingCount ?? 0,
-    totalRevenue: analytics.reduce((sum, v) => sum + v.totalRevenue, 0),
+    totalRevenue: fleetRevenue ?? 0,
     totalCosts: analytics.reduce((sum, v) => sum + v.totalExpenses, 0),
-    totalProfit: analytics.reduce((sum, v) => sum + v.profit, 0),
+    totalProfit: (fleetRevenue ?? 0) - analytics.reduce((sum, v) => sum + v.totalExpenses, 0),
     avgUtilization: analytics.length > 0
       ? analytics.reduce((sum, v) => sum + v.rentalCount, 0) / analytics.length
       : 0,
@@ -206,8 +204,6 @@ export function useFleetSummary(filters?: {
 
 export function useVehiclePerformanceComparison(vehicleIds: string[]) {
   const { data: analytics } = useFleetAnalytics();
-
   const comparison = analytics?.filter((v) => vehicleIds.includes(v.vehicleId)) || [];
-
   return { comparison };
 }
