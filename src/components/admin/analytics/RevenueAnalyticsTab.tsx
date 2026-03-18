@@ -444,8 +444,8 @@ export function RevenueAnalyticsTab({
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Add-On Revenue Trend</CardTitle>
-            <CardDescription>Add-on revenue over time</CardDescription>
+            <CardTitle className="text-base">Extras Revenue Trend</CardTitle>
+            <CardDescription>Protection, upgrades, fees & add-ons over time</CardDescription>
           </CardHeader>
           <CardContent>
             {addOnTrend.length === 0 ? (
