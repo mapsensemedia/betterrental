@@ -478,7 +478,7 @@ export function RevenueAnalyticsTab({
         <CardContent>
           {addOnBreakdown.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No add-on data for selected period
+              No extras data for selected period
             </div>
           ) : (
             <div className="overflow-x-auto">

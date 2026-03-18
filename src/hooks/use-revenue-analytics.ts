@@ -1,11 +1,13 @@
 /**
  * Revenue & Add-On Analytics Hook
  * Fetches and calculates rental pricing and add-on metrics
+ * Includes booking-level extras (protection, upgrades, young driver fees)
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
-import { subDays, startOfDay, endOfDay, format, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from "date-fns";
+import { subDays, startOfDay, endOfDay, format, eachDayOfInterval, eachWeekOfInterval, endOfWeek } from "date-fns";
+import { getProtectionRateForCategory } from "@/lib/protection-groups";
 
 export type BookingChannel = "all" | "online" | "walk_in";
 export type PaymentType = "all" | "pay_now" | "pay_later";
@@ -74,6 +76,9 @@ interface BookingRow {
   pickup_address: string | null;
   status: string;
   wl_transaction_id: string | null;
+  protection_plan: string | null;
+  young_driver_fee: number | null;
+  upgrade_daily_fee: number | null;
 }
 
 interface BookingAddOnRow {
@@ -82,6 +87,11 @@ interface BookingAddOnRow {
   add_on_id: string;
   price: number;
   add_ons: { id: string; name: string } | null;
+}
+
+interface VehicleCategoryRow {
+  id: string;
+  name: string;
 }
 
 export function useRevenueAnalytics(filters: RevenueFilters) {
@@ -100,7 +110,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id, daily_rate, total_days, total_amount, booking_source, start_at, created_at, location_id, vehicle_id, pickup_address, status, wl_transaction_id")
+        .select("id, daily_rate, total_days, total_amount, booking_source, start_at, created_at, location_id, vehicle_id, pickup_address, status, wl_transaction_id, protection_plan, young_driver_fee, upgrade_daily_fee")
         .gte("start_at", startOfDay(filters.startDate).toISOString())
         .lte("start_at", endOfDay(filters.endDate).toISOString())
         .in("status", ["confirmed", "active", "completed"]);
@@ -109,6 +119,19 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       return (data || []) as BookingRow[];
     },
     staleTime: 60000,
+  });
+
+  // Fetch vehicle categories for protection rate lookups
+  const categoriesQuery = useQuery({
+    queryKey: ["revenue-analytics-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vehicles")
+        .select("id, name");
+      if (error) throw error;
+      return (data || []) as VehicleCategoryRow[];
+    },
+    staleTime: 300000,
   });
 
   // Fetch all booking add-ons for the bookings
@@ -148,36 +171,31 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
 
     const bookings = bookingsQuery.data;
     const addOns = addOnsQuery.data || [];
+    const categories = categoriesQuery.data || [];
+
+    // Build category name lookup
+    const categoryNameMap = new Map<string, string>();
+    categories.forEach(c => categoryNameMap.set(c.id, c.name));
 
     // Filter bookings based on filters
-    let filteredBookings = bookings.filter(b => {
-      // Channel filter
+    const filteredBookings = bookings.filter(b => {
       if (filters.channel !== "all") {
         const source = b.booking_source || "online";
         if (filters.channel === "online" && source !== "online") return false;
         if (filters.channel === "walk_in" && source !== "walk_in") return false;
       }
-
-      // Location filter
       if (filters.locationId && b.location_id !== filters.locationId) return false;
-
-      // Category filter — vehicle_id IS the category ID directly
       if (filters.categoryId && b.vehicle_id !== filters.categoryId) return false;
-
-      // Booking type (pickup vs delivery)
       if (filters.bookingType !== "all") {
         const isDelivery = !!b.pickup_address;
         if (filters.bookingType === "delivery" && !isDelivery) return false;
         if (filters.bookingType === "pickup" && isDelivery) return false;
       }
-
-      // Payment type — pay_now = paid via gateway (has wl_transaction_id), pay_later = pay at counter
       if (filters.paymentType !== "all") {
         const isPaidViaGateway = !!b.wl_transaction_id;
         if (filters.paymentType === "pay_now" && !isPaidViaGateway) return false;
         if (filters.paymentType === "pay_later" && isPaidViaGateway) return false;
       }
-
       return true;
     });
 
@@ -189,61 +207,114 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       addOnsByBooking.set(ao.booking_id, existing);
     });
 
-    // Calculate revenue using total_amount (includes protection, fees, tax)
+    // --- Rental Revenue Metrics ---
     const rentalBases = filteredBookings.map(b => b.total_amount);
     const totalRentalBaseRevenue = rentalBases.reduce((sum, v) => sum + v, 0);
     const averageRentalPrice = filteredBookings.length > 0 ? totalRentalBaseRevenue / filteredBookings.length : 0;
-
-    // Calculate median
     const sortedBases = [...rentalBases].sort((a, b) => a - b);
     const medianRentalPrice = sortedBases.length > 0
       ? sortedBases.length % 2 === 0
         ? (sortedBases[sortedBases.length / 2 - 1] + sortedBases[sortedBases.length / 2]) / 2
         : sortedBases[Math.floor(sortedBases.length / 2)]
       : 0;
-
-    // Calculate average days
     const averageDays = filteredBookings.length > 0
       ? filteredBookings.reduce((sum, b) => sum + b.total_days, 0) / filteredBookings.length
       : 0;
 
-    // Calculate add-on metrics
+    // --- Compute booking-level extras as "virtual" add-on revenue ---
+    // Track which bookings have ANY extras (booking_add_ons OR booking-level fields)
     const bookingIds = new Set(filteredBookings.map(b => b.id));
     const relevantAddOns = addOns.filter(ao => bookingIds.has(ao.booking_id));
-    const totalAddOnRevenue = relevantAddOns.reduce((sum, ao) => sum + ao.price, 0);
-    const bookingsWithAddOns = new Set(relevantAddOns.map(ao => ao.booking_id)).size;
-    const averageAddOnSpend = filteredBookings.length > 0 ? totalAddOnRevenue / filteredBookings.length : 0;
-    const attachRate = filteredBookings.length > 0 ? (bookingsWithAddOns / filteredBookings.length) * 100 : 0;
 
-    // Add-on breakdown
+    // Compute per-booking extras revenue from booking-level fields
+    interface BookingExtras {
+      protectionRevenue: number;
+      protectionName: string;
+      upgradeRevenue: number;
+      youngDriverRevenue: number;
+    }
+    const bookingExtrasMap = new Map<string, BookingExtras>();
+    const bookingsWithAnyExtras = new Set<string>();
+
+    filteredBookings.forEach(b => {
+      let protectionRevenue = 0;
+      let protectionName = "";
+      const upgradeRevenue = (b.upgrade_daily_fee || 0) * b.total_days;
+      const youngDriverRevenue = b.young_driver_fee || 0;
+
+      if (b.protection_plan && b.protection_plan !== "none") {
+        const categoryName = categoryNameMap.get(b.vehicle_id) || "";
+        const { name, rate } = getProtectionRateForCategory(b.protection_plan, categoryName);
+        protectionRevenue = rate * b.total_days;
+        protectionName = name;
+      }
+
+      const hasExtras = protectionRevenue > 0 || upgradeRevenue > 0 || youngDriverRevenue > 0;
+      if (hasExtras) bookingsWithAnyExtras.add(b.id);
+
+      bookingExtrasMap.set(b.id, { protectionRevenue, protectionName, upgradeRevenue, youngDriverRevenue });
+    });
+
+    // Also mark bookings that have booking_add_ons rows
+    relevantAddOns.forEach(ao => bookingsWithAnyExtras.add(ao.booking_id));
+
+    // Total add-on revenue = booking_add_ons + booking-level extras
+    const tableAddOnRevenue = relevantAddOns.reduce((sum, ao) => sum + ao.price, 0);
+    let totalProtectionRevenue = 0;
+    let totalUpgradeRevenue = 0;
+    let totalYoungDriverRevenue = 0;
+    bookingExtrasMap.forEach(ext => {
+      totalProtectionRevenue += ext.protectionRevenue;
+      totalUpgradeRevenue += ext.upgradeRevenue;
+      totalYoungDriverRevenue += ext.youngDriverRevenue;
+    });
+    const totalExtrasRevenue = tableAddOnRevenue + totalProtectionRevenue + totalUpgradeRevenue + totalYoungDriverRevenue;
+
+    const averageAddOnSpend = filteredBookings.length > 0 ? totalExtrasRevenue / filteredBookings.length : 0;
+    const attachRate = filteredBookings.length > 0 ? (bookingsWithAnyExtras.size / filteredBookings.length) * 100 : 0;
+
+    // --- Add-on Breakdown: combine booking_add_ons rows + virtual extras ---
     const addOnStats = new Map<string, { name: string; count: number; revenue: number; bookings: Set<string>; last30Revenue: number; prior30Revenue: number }>();
     const thirtyDaysAgo = subDays(new Date(), 30);
     const sixtyDaysAgo = subDays(new Date(), 60);
 
+    // Helper to upsert stats
+    const upsertStat = (key: string, name: string, bookingId: string, revenue: number, bookingDate: Date) => {
+      const existing = addOnStats.get(key) || { name, count: 0, revenue: 0, bookings: new Set<string>(), last30Revenue: 0, prior30Revenue: 0 };
+      existing.count++;
+      existing.revenue += revenue;
+      existing.bookings.add(bookingId);
+      if (bookingDate >= thirtyDaysAgo) existing.last30Revenue += revenue;
+      else if (bookingDate >= sixtyDaysAgo) existing.prior30Revenue += revenue;
+      addOnStats.set(key, existing);
+    };
+
+    // From booking_add_ons table
     relevantAddOns.forEach(ao => {
       const booking = filteredBookings.find(b => b.id === ao.booking_id);
       if (!booking || !ao.add_ons) return;
+      upsertStat(ao.add_on_id, ao.add_ons.name, ao.booking_id, ao.price, new Date(booking.start_at));
+    });
 
-      const existing = addOnStats.get(ao.add_on_id) || { 
-        name: ao.add_ons.name, 
-        count: 0, 
-        revenue: 0, 
-        bookings: new Set<string>(),
-        last30Revenue: 0,
-        prior30Revenue: 0
-      };
-      existing.count++;
-      existing.revenue += ao.price;
-      existing.bookings.add(ao.booking_id);
+    // Virtual: Protection Plans
+    filteredBookings.forEach(b => {
+      const ext = bookingExtrasMap.get(b.id);
+      if (!ext || ext.protectionRevenue <= 0) return;
+      upsertStat("virtual-protection", ext.protectionName || "Protection Plan", b.id, ext.protectionRevenue, new Date(b.start_at));
+    });
 
-      const bookingDate = new Date(booking.start_at);
-      if (bookingDate >= thirtyDaysAgo) {
-        existing.last30Revenue += ao.price;
-      } else if (bookingDate >= sixtyDaysAgo) {
-        existing.prior30Revenue += ao.price;
-      }
+    // Virtual: Vehicle Upgrades
+    filteredBookings.forEach(b => {
+      const ext = bookingExtrasMap.get(b.id);
+      if (!ext || ext.upgradeRevenue <= 0) return;
+      upsertStat("virtual-upgrade", "Vehicle Upgrade", b.id, ext.upgradeRevenue, new Date(b.start_at));
+    });
 
-      addOnStats.set(ao.add_on_id, existing);
+    // Virtual: Young Driver Fee
+    filteredBookings.forEach(b => {
+      const ext = bookingExtrasMap.get(b.id);
+      if (!ext || ext.youngDriverRevenue <= 0) return;
+      upsertStat("virtual-young-driver", "Young Driver Fee", b.id, ext.youngDriverRevenue, new Date(b.start_at));
     });
 
     const addOnBreakdown: AddOnBreakdown[] = Array.from(addOnStats.entries()).map(([id, stats]) => ({
@@ -253,24 +324,28 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       attachRate: filteredBookings.length > 0 ? (stats.bookings.size / filteredBookings.length) * 100 : 0,
       totalRevenue: stats.revenue,
       avgPrice: stats.count > 0 ? stats.revenue / stats.count : 0,
-      last30DaysTrend: stats.prior30Revenue > 0 
-        ? ((stats.last30Revenue - stats.prior30Revenue) / stats.prior30Revenue) * 100 
+      last30DaysTrend: stats.prior30Revenue > 0
+        ? ((stats.last30Revenue - stats.prior30Revenue) / stats.prior30Revenue) * 100
         : stats.last30Revenue > 0 ? 100 : 0,
     })).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-    // Channel comparison
-    const channelStats = { online: { revenue: 0, addOnRevenue: 0, bookings: 0, withAddOns: 0 }, walk_in: { revenue: 0, addOnRevenue: 0, bookings: 0, withAddOns: 0 } };
-    
+    // --- Channel Comparison (including booking-level extras) ---
+    const channelStats = { online: { revenue: 0, extrasRevenue: 0, bookings: 0, withExtras: 0 }, walk_in: { revenue: 0, extrasRevenue: 0, bookings: 0, withExtras: 0 } };
+
     filteredBookings.forEach(b => {
       const channel = (b.booking_source || "online") as "online" | "walk_in";
       const key = channel === "walk_in" ? "walk_in" : "online";
       channelStats[key].revenue += b.total_amount;
       channelStats[key].bookings++;
 
-      const bookingAddOns = addOnsByBooking.get(b.id) || [];
-      if (bookingAddOns.length > 0) {
-        channelStats[key].withAddOns++;
-        channelStats[key].addOnRevenue += bookingAddOns.reduce((s, ao) => s + ao.price, 0);
+      const tableAddOns = addOnsByBooking.get(b.id) || [];
+      const ext = bookingExtrasMap.get(b.id);
+      const bookingExtrasTotal = (ext?.protectionRevenue || 0) + (ext?.upgradeRevenue || 0) + (ext?.youngDriverRevenue || 0)
+        + tableAddOns.reduce((s, ao) => s + ao.price, 0);
+
+      if (bookingExtrasTotal > 0) {
+        channelStats[key].withExtras++;
+        channelStats[key].extrasRevenue += bookingExtrasTotal;
       }
     });
 
@@ -278,24 +353,34 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       {
         channel: "online",
         avgRentalPrice: channelStats.online.bookings > 0 ? channelStats.online.revenue / channelStats.online.bookings : 0,
-        avgAddOnSpend: channelStats.online.bookings > 0 ? channelStats.online.addOnRevenue / channelStats.online.bookings : 0,
-        attachRate: channelStats.online.bookings > 0 ? (channelStats.online.withAddOns / channelStats.online.bookings) * 100 : 0,
-        totalRevenue: channelStats.online.revenue + channelStats.online.addOnRevenue,
+        avgAddOnSpend: channelStats.online.bookings > 0 ? channelStats.online.extrasRevenue / channelStats.online.bookings : 0,
+        attachRate: channelStats.online.bookings > 0 ? (channelStats.online.withExtras / channelStats.online.bookings) * 100 : 0,
+        totalRevenue: channelStats.online.revenue + channelStats.online.extrasRevenue,
         bookingCount: channelStats.online.bookings,
       },
       {
         channel: "walk_in",
         avgRentalPrice: channelStats.walk_in.bookings > 0 ? channelStats.walk_in.revenue / channelStats.walk_in.bookings : 0,
-        avgAddOnSpend: channelStats.walk_in.bookings > 0 ? channelStats.walk_in.addOnRevenue / channelStats.walk_in.bookings : 0,
-        attachRate: channelStats.walk_in.bookings > 0 ? (channelStats.walk_in.withAddOns / channelStats.walk_in.bookings) * 100 : 0,
-        totalRevenue: channelStats.walk_in.revenue + channelStats.walk_in.addOnRevenue,
+        avgAddOnSpend: channelStats.walk_in.bookings > 0 ? channelStats.walk_in.extrasRevenue / channelStats.walk_in.bookings : 0,
+        attachRate: channelStats.walk_in.bookings > 0 ? (channelStats.walk_in.withExtras / channelStats.walk_in.bookings) * 100 : 0,
+        totalRevenue: channelStats.walk_in.revenue + channelStats.walk_in.extrasRevenue,
         bookingCount: channelStats.walk_in.bookings,
       },
     ];
 
-    // Revenue trend (daily or weekly based on date range) — bucket by start_at
+    // --- Revenue trend (daily or weekly) ---
     const daysDiff = Math.ceil((filters.endDate.getTime() - filters.startDate.getTime()) / (1000 * 60 * 60 * 24));
     const useWeekly = daysDiff > 30;
+
+    const computeExtrasForBookings = (bks: BookingRow[]) => {
+      let total = 0;
+      bks.forEach(b => {
+        const ext = bookingExtrasMap.get(b.id);
+        total += (ext?.protectionRevenue || 0) + (ext?.upgradeRevenue || 0) + (ext?.youngDriverRevenue || 0);
+        total += relevantAddOns.filter(ao => ao.booking_id === b.id).reduce((s, ao) => s + ao.price, 0);
+      });
+      return total;
+    };
 
     let revenueTrend: TrendDataPoint[] = [];
     let addOnTrend: TrendDataPoint[] = [];
@@ -303,18 +388,13 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     if (useWeekly) {
       const weeks = eachWeekOfInterval({ start: filters.startDate, end: filters.endDate }, { weekStartsOn: 1 });
       weeks.forEach(weekStart => {
-        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+        const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 });
         const weekBookings = filteredBookings.filter(b => {
           const d = new Date(b.start_at);
-          return d >= weekStart && d <= weekEnd;
+          return d >= weekStart && d <= weekEndDate;
         });
-        const weekRevenue = weekBookings.reduce((s, b) => s + b.total_amount, 0);
-        const weekAddOnRevenue = relevantAddOns
-          .filter(ao => weekBookings.some(b => b.id === ao.booking_id))
-          .reduce((s, ao) => s + ao.price, 0);
-
-        revenueTrend.push({ date: format(weekStart, "MMM d"), revenue: weekRevenue, bookings: weekBookings.length });
-        addOnTrend.push({ date: format(weekStart, "MMM d"), revenue: weekAddOnRevenue, bookings: weekBookings.length });
+        revenueTrend.push({ date: format(weekStart, "MMM d"), revenue: weekBookings.reduce((s, b) => s + b.total_amount, 0), bookings: weekBookings.length });
+        addOnTrend.push({ date: format(weekStart, "MMM d"), revenue: computeExtrasForBookings(weekBookings), bookings: weekBookings.length });
       });
     } else {
       const days = eachDayOfInterval({ start: filters.startDate, end: filters.endDate });
@@ -325,20 +405,23 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
           const d = new Date(b.start_at);
           return d >= dayStart && d <= dayEnd;
         });
-        const dayRevenue = dayBookings.reduce((s, b) => s + b.total_amount, 0);
-        const dayAddOnRevenue = relevantAddOns
-          .filter(ao => dayBookings.some(b => b.id === ao.booking_id))
-          .reduce((s, ao) => s + ao.price, 0);
-
-        revenueTrend.push({ date: format(day, "MMM d"), revenue: dayRevenue, bookings: dayBookings.length });
-        addOnTrend.push({ date: format(day, "MMM d"), revenue: dayAddOnRevenue, bookings: dayBookings.length });
+        revenueTrend.push({ date: format(day, "MMM d"), revenue: dayBookings.reduce((s, b) => s + b.total_amount, 0), bookings: dayBookings.length });
+        addOnTrend.push({ date: format(day, "MMM d"), revenue: computeExtrasForBookings(dayBookings), bookings: dayBookings.length });
       });
     }
 
     // Export data
     const exportData = filteredBookings.map(b => {
-      const bookingAddOns = addOnsByBooking.get(b.id) || [];
-      const addOnTotal = bookingAddOns.reduce((s, ao) => s + ao.price, 0);
+      const tableAOs = addOnsByBooking.get(b.id) || [];
+      const ext = bookingExtrasMap.get(b.id);
+      const addOnTotal = tableAOs.reduce((s, ao) => s + ao.price, 0)
+        + (ext?.protectionRevenue || 0) + (ext?.upgradeRevenue || 0) + (ext?.youngDriverRevenue || 0);
+      const addonNames = [
+        ...tableAOs.map(ao => ao.add_ons?.name).filter(Boolean),
+        ...(ext?.protectionRevenue ? [ext.protectionName] : []),
+        ...(ext?.upgradeRevenue ? ["Vehicle Upgrade"] : []),
+        ...(ext?.youngDriverRevenue ? ["Young Driver Fee"] : []),
+      ].join(", ");
       return {
         booking_id: b.id,
         start_at: b.start_at,
@@ -346,38 +429,27 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
         daily_rate: b.daily_rate,
         total_days: b.total_days,
         total_amount: b.total_amount,
-        addon_count: bookingAddOns.length,
+        addon_count: tableAOs.length + (ext?.protectionRevenue ? 1 : 0) + (ext?.upgradeRevenue ? 1 : 0) + (ext?.youngDriverRevenue ? 1 : 0),
         addon_total: addOnTotal,
-        addons: bookingAddOns.map(ao => ao.add_ons?.name).filter(Boolean).join(", "),
+        addons: addonNames,
       };
     });
 
     return {
-      rentalMetrics: {
-        averageRentalPrice,
-        totalBookings: filteredBookings.length,
-        totalRentalBaseRevenue,
-        medianRentalPrice,
-        averageDays,
-      },
-      addOnMetrics: {
-        averageAddOnSpend,
-        attachRate,
-        bookingsWithAddOns,
-        totalAddOnRevenue,
-      },
+      rentalMetrics: { averageRentalPrice, totalBookings: filteredBookings.length, totalRentalBaseRevenue, medianRentalPrice, averageDays },
+      addOnMetrics: { averageAddOnSpend, attachRate, bookingsWithAddOns: bookingsWithAnyExtras.size, totalAddOnRevenue: totalExtrasRevenue },
       addOnBreakdown,
       channelComparison,
       revenueTrend,
       addOnTrend,
       exportData,
     };
-  }, [bookingsQuery.data, addOnsQuery.data, filters]);
+  }, [bookingsQuery.data, addOnsQuery.data, categoriesQuery.data, filters]);
 
   return {
     ...metrics,
-    isLoading: bookingsQuery.isLoading || addOnsQuery.isLoading,
-    error: bookingsQuery.error || addOnsQuery.error,
+    isLoading: bookingsQuery.isLoading || addOnsQuery.isLoading || categoriesQuery.isLoading,
+    error: bookingsQuery.error || addOnsQuery.error || categoriesQuery.error,
   };
 }
 
