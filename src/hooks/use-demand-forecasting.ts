@@ -72,15 +72,6 @@ export function useDemandForecasting(months: number = 12) {
     staleTime: 600000,
   });
 
-  const vehiclesQuery = useQuery({
-    queryKey: ["demand-vehicles-map"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, category");
-      if (error) throw error;
-      return new Map((data || []).map((v) => [v.id, v.category]));
-    },
-    staleTime: 600000,
-  });
 
   const metrics = useMemo(() => {
     const bookings = bookingsQuery.data || [];
