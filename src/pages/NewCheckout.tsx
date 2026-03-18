@@ -812,7 +812,7 @@ export default function NewCheckout() {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod("pay-now")}
+                        onClick={() => { setPaymentMethod("pay-now"); funnelEvents.paymentMethodSelected("pay-now"); }}
                         className={cn(
                           "p-3 rounded-lg border-2 text-left transition-all",
                           paymentMethod === "pay-now"
