@@ -265,9 +265,9 @@ export default function AdminReports() {
 
   // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
-    const activeRentals = bookings.filter(b => b.status === "active").length;
-    const availableVehicles = vehicles.filter(v => v.isAvailable).length;
-    const totalVehicles = vehicles.length;
+    const activeRentals = activeBookingsCount;
+    const totalVehicles = vehicleUnits.length;
+    const availableVehicles = vehicleUnits.filter(u => u.status === "available").length;
 
     const utilizationRate = totalVehicles > 0
       ? (activeRentals / totalVehicles) * 100
@@ -286,7 +286,7 @@ export default function AdminReports() {
       revenuePerVehicle,
       totalRevenue,
     };
-  }, [bookings, vehicles, rentalMetrics]);
+  }, [activeBookingsCount, vehicleUnits, rentalMetrics]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
