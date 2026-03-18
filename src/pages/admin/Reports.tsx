@@ -61,7 +61,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
+import { useAnalyticsEvents } from "@/hooks/use-analytics-events";
 import { useLocations } from "@/hooks/use-locations";
 import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
 import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth, parseISO, differenceInDays } from "date-fns";
@@ -177,7 +177,7 @@ function AuditLogItem({ log }: { log: AuditLog }) {
 export default function AdminReports() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isQuarterlyOpen, setIsQuarterlyOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  
   const [auditSearch, setAuditSearch] = useState("");
   const [entityFilter, setEntityFilter] = useState<string>("all");
 
@@ -232,7 +232,8 @@ export default function AdminReports() {
     isLoading: revenueLoading,
   } = useRevenueAnalytics(filters);
 
-  const data = useMemo(() => getAnalyticsData(), [refreshKey]);
+  // Analytics events from Supabase
+  const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
 
   // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
@@ -262,28 +263,26 @@ export default function AdminReports() {
   const handleRefresh = () => {
     setIsRefreshing(true);
     refetchLogs();
+    refetchAnalytics();
     setTimeout(() => {
-      setRefreshKey((k) => k + 1);
       setIsRefreshing(false);
     }, 300);
   };
 
   const handleClearData = () => {
-    if (confirm("Clear all analytics data? This cannot be undone.")) {
-      clearAnalyticsData();
-      setRefreshKey((k) => k + 1);
-    }
+    // Data is now in Supabase — clearing not supported from client
   };
 
-  // Filter analytics events by the unified date range
+  // Map analytics events to expected shape
   const filteredEvents = useMemo(() => {
-    let events = data.events;
-    events = events.filter((e) => {
-      const ts = new Date(e.timestamp);
-      return ts >= dateRange.start && ts <= dateRange.end;
-    });
-    return events;
-  }, [data.events, dateRange]);
+    return analyticsEventsRaw.map((e) => ({
+      event: e.event,
+      timestamp: e.created_at,
+      page: e.page ?? "",
+      sessionId: e.session_id ?? "",
+      properties: e.properties,
+    }));
+  }, [analyticsEventsRaw]);
 
   // Funnel stats
   const funnelStats = useMemo(() => {
