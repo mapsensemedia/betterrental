@@ -74,6 +74,15 @@ export default function BookingConfirmed() {
     enabled: !!bookingId && !!user,
   });
   
+  // Track booking completed event (fire once per booking)
+  const trackedRef = useRef(false);
+  useEffect(() => {
+    if (booking && !trackedRef.current) {
+      trackedRef.current = true;
+      funnelEvents.bookingCompleted(booking.id, booking.total_amount, "online");
+    }
+  }, [booking]);
+  
   if (authLoading || isLoading) {
     return (
       <CustomerLayout>
