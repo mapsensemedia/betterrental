@@ -123,7 +123,7 @@ export default function ActiveRentalDetail() {
 
   // Context-aware navigation
   const isOpsContext = location.pathname.startsWith("/ops");
-  const backRoute = isOpsContext ? "/ops/active" : "/admin/active-rentals";
+  const backRoute = isOpsContext ? "/ops/active" : "/admin/bookings?tab=active";
   const returnRoute = isOpsContext ? `/ops/return/${rental?.id}` : `/admin/returns/${rental?.id}`;
 
   if (isLoading) {

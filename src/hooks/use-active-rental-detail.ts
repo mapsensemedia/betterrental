@@ -186,10 +186,16 @@ export function useActiveRentalDetail(bookingId: string | null) {
       const isOverdue = isPast(endAt);
       const overdueHours = isOverdue ? differenceInHours(now, endAt) : 0;
 
-      // Check for deposit payment
-      const hasDepositPayment = (paymentsRes.data || []).some(
-        (p: any) => p.payment_type === "deposit"
-      );
+      // Check for deposit payment — deposits use 'authorized' status, not 'completed',
+      // so we check the booking's own deposit fields rather than relying solely on payment records
+      const hasDepositPayment =
+        booking.deposit_status === "authorized" ||
+        booking.deposit_status === "captured" ||
+        booking.deposit_status === "released" ||
+        (paymentsRes.data || []).some(
+          (p: any) => p.payment_type === "deposit"
+        ) ||
+        !!booking.wl_deposit_transaction_id;
 
       return {
         id: booking.id,
