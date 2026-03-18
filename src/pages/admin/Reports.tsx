@@ -177,7 +177,7 @@ function AuditLogItem({ log }: { log: AuditLog }) {
 export default function AdminReports() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isQuarterlyOpen, setIsQuarterlyOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  
   const [auditSearch, setAuditSearch] = useState("");
   const [entityFilter, setEntityFilter] = useState<string>("all");
 
