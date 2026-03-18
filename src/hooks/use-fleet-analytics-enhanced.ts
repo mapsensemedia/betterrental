@@ -4,7 +4,6 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { differenceInDays } from "date-fns";
 
 export interface EnhancedVehicleAnalytics {
   vehicleId: string;
@@ -69,35 +68,11 @@ export function useFleetAnalyticsEnhanced(filters?: {
 
       if (unitsError) throw unitsError;
 
-      // Also get vehicles without units (fallback for legacy data)
-      let vehicleQuery = supabase
-        .from("vehicles")
-        .select(`
-          id,
-          make,
-          model,
-          year,
-          daily_rate,
-          status,
-          location_id,
-          locations (name)
-        `);
-
-      if (filters?.locationId) {
-        vehicleQuery = vehicleQuery.eq("location_id", filters.locationId);
-      }
-      if (filters?.status) {
-        vehicleQuery = vehicleQuery.eq("status", filters.status);
-      }
-
-      const { data: vehicles, error: vehiclesError } = await vehicleQuery;
-      if (vehiclesError) throw vehiclesError;
-
-      // Get completed bookings for revenue and utilization
+      // Get completed and active bookings for revenue and utilization
       let bookingsQuery = supabase
         .from("bookings")
         .select("vehicle_id, assigned_unit_id, total_amount, total_days, status")
-        .eq("status", "completed");
+        .in("status", ["completed", "active"]);
 
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("end_at", filters.dateFrom);
@@ -113,27 +88,23 @@ export function useFleetAnalyticsEnhanced(filters?: {
         .from("vehicle_expenses")
         .select("vehicle_unit_id, amount");
 
-      const now = new Date();
       const analytics: EnhancedVehicleAnalytics[] = [];
-      const processedVehicleIds = new Set<string>();
 
-      // First process vehicle units (VIN-level tracking)
       (units || []).forEach((unit: any) => {
         if (!unit.vehicle) return;
-        
-        processedVehicleIds.add(unit.vehicle_id);
-        
+
         // Filter by location/status if specified
         if (filters?.locationId && unit.vehicle.location_id !== filters.locationId) return;
         if (filters?.status && unit.status !== filters.status) return;
-        
+
         // Get bookings assigned to this specific unit
         const unitBookings = bookings?.filter((b) => b.assigned_unit_id === unit.id) || [];
-        const vehicleLevelBookings = bookings?.filter(
-          (b) => b.vehicle_id === unit.vehicle_id && !b.assigned_unit_id
+        // For bookings without unit assignment, match via category_id
+        const categoryBookings = bookings?.filter(
+          (b) => !b.assigned_unit_id && b.vehicle_id === unit.category_id
         ) || [];
-        const allBookings = [...unitBookings, ...vehicleLevelBookings];
-        
+        const allBookings = [...unitBookings, ...categoryBookings];
+
         const unitExpenses = expenses?.filter((e) => e.vehicle_unit_id === unit.id) || [];
 
         const rentalCount = allBookings.length;
@@ -146,8 +117,8 @@ export function useFleetAnalyticsEnhanced(filters?: {
 
         // Calculate depreciation
         const annualDepreciation = unit.annual_depreciation_amount || 0;
-        const acquisitionDate = unit.acquisition_date 
-          ? new Date(unit.acquisition_date) 
+        const acquisitionDate = unit.acquisition_date
+          ? new Date(unit.acquisition_date)
           : new Date();
         const yearsOwned = (Date.now() - acquisitionDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
         const totalDepreciation = annualDepreciation * yearsOwned;
@@ -164,69 +135,22 @@ export function useFleetAnalyticsEnhanced(filters?: {
           status: unit.status || unit.vehicle.status || "available",
           dailyRate: unit.vehicle.daily_rate,
           locationName: unit.vehicle.locations?.name,
-          // Fuel & Specs from category
           fuelType: unit.category?.fuel_type,
           transmission: unit.category?.transmission,
-          // Utilization
           rentalCount,
           totalRentalDays,
-          // Financials
           acquisitionCost,
           totalExpenses,
           totalRevenue,
           profit,
           profitMargin,
-          // Lifecycle
           acquisitionDate: unit.acquisition_date,
           expectedDisposalDate: unit.expected_disposal_date,
           depreciationMethod: unit.depreciation_method,
           annualDepreciation,
           currentValue,
-          // Vendor
           vendorName: unit.vendor_name,
           vendorContact: unit.vendor_contact,
-        });
-      });
-
-      // Add vehicles without units (fallback)
-      (vehicles || []).forEach((vehicle) => {
-        if (processedVehicleIds.has(vehicle.id)) return;
-        
-        const vehicleBookings = bookings?.filter((b) => b.vehicle_id === vehicle.id) || [];
-        
-        const rentalCount = vehicleBookings.length;
-        const totalRentalDays = vehicleBookings.reduce((sum, b) => sum + (b.total_days || 0), 0);
-        const totalRevenue = vehicleBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
-        const profit = totalRevenue;
-        const profitMargin = totalRevenue > 0 ? 100 : 0;
-
-        analytics.push({
-          vehicleId: vehicle.id,
-          vehicleUnitId: undefined,
-          make: vehicle.make,
-          model: vehicle.model,
-          year: vehicle.year,
-          vin: undefined,
-          licensePlate: undefined,
-          status: vehicle.status || "available",
-          dailyRate: vehicle.daily_rate,
-          locationName: (vehicle.locations as any)?.name,
-          fuelType: undefined,
-          transmission: undefined,
-          rentalCount,
-          totalRentalDays,
-          acquisitionCost: 0,
-          totalExpenses: 0,
-          totalRevenue,
-          profit,
-          profitMargin,
-          acquisitionDate: undefined,
-          expectedDisposalDate: undefined,
-          depreciationMethod: undefined,
-          annualDepreciation: 0,
-          currentValue: 0,
-          vendorName: undefined,
-          vendorContact: undefined,
         });
       });
 
