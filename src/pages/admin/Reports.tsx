@@ -10,6 +10,8 @@ import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { ConversionFunnel } from "@/components/admin/ConversionFunnel";
 import { useAdminVehicles } from "@/hooks/use-inventory";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   BarChart3,
   TrendingUp,
