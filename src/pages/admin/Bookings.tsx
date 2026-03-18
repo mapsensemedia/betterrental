@@ -260,7 +260,15 @@ function BookingWorkflowCard({
 export default function AdminBookings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "all");
+  // Derive active tab directly from URL to stay in sync with sidebar navigation
+  const activeTab = searchParams.get("tab") || "all";
+  const setActiveTab = (tab: string) => {
+    if (tab !== "all") {
+      setSearchParams({ tab });
+    } else {
+      setSearchParams({});
+    }
+  };
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
   const [filters, setFilters] = useState<BookingFilters>({
     status: "all",
@@ -277,27 +285,6 @@ export default function AdminBookings() {
   // Get license status for all booking users
   const userIds = useMemo(() => [...new Set(bookings.map(b => b.userId))], [bookings]);
   const { data: licenseStatusMap = new Map() } = useLicenseStatus(userIds);
-
-  // Handle booking code from URL (scan-to-open)
-  useEffect(() => {
-    const code = searchParams.get("code");
-    if (code && bookings) {
-      const booking = bookings.find(b => b.bookingCode.toLowerCase() === code.toLowerCase());
-      if (booking) {
-        navigate(`/admin/bookings/${booking.id}/ops?returnTo=/admin/bookings`);
-        setSearchParams({});
-      }
-    }
-  }, [searchParams, bookings, setSearchParams, navigate]);
-
-  // Update URL when tab changes
-  useEffect(() => {
-    if (activeTab !== "all") {
-      setSearchParams({ tab: activeTab });
-    } else {
-      setSearchParams({});
-    }
-  }, [activeTab, setSearchParams]);
 
   const handleOpenBooking = (bookingId: string, _status?: BookingStatus) => {
     // Admin panel always goes to view-only BookingDetail page
