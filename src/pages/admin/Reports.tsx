@@ -232,7 +232,8 @@ export default function AdminReports() {
     isLoading: revenueLoading,
   } = useRevenueAnalytics(filters);
 
-  const data = useMemo(() => getAnalyticsData(), [refreshKey]);
+  // Analytics events from Supabase
+  const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
 
   // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
