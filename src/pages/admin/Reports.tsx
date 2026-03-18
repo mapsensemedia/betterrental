@@ -10,6 +10,8 @@ import { Link } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { ConversionFunnel } from "@/components/admin/ConversionFunnel";
 import { useAdminVehicles } from "@/hooks/use-inventory";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   BarChart3,
   TrendingUp,
@@ -221,7 +223,33 @@ export default function AdminReports() {
   const { data: locations } = useLocations();
   const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useAuditLogs({ limit: 100 });
   const { data: auditStats } = useAuditStats();
-  const { data: bookings = [] } = { data: [] as any[] }; // Legacy — fleet tab only
+  // Fleet: query vehicle_units for real fleet size
+  const { data: vehicleUnits = [] } = useQuery({
+    queryKey: ["fleet-units-for-reports"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vehicle_units")
+        .select("id, status")
+        .in("status", ["available", "on_rent", "maintenance"]);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+
+  // Fleet: query active bookings count
+  const { data: activeBookingsCount = 0 } = useQuery({
+    queryKey: ["active-bookings-count-for-reports"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 60_000,
+  });
   const { data: vehicles = [] } = useAdminVehicles();
 
   // Page-level revenue analytics — powers all metric cards and charts
@@ -237,9 +265,9 @@ export default function AdminReports() {
 
   // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
-    const activeRentals = bookings.filter(b => b.status === "active").length;
-    const availableVehicles = vehicles.filter(v => v.isAvailable).length;
-    const totalVehicles = vehicles.length;
+    const activeRentals = activeBookingsCount;
+    const totalVehicles = vehicleUnits.length;
+    const availableVehicles = vehicleUnits.filter(u => u.status === "available").length;
 
     const utilizationRate = totalVehicles > 0
       ? (activeRentals / totalVehicles) * 100
@@ -258,7 +286,7 @@ export default function AdminReports() {
       revenuePerVehicle,
       totalRevenue,
     };
-  }, [bookings, vehicles, rentalMetrics]);
+  }, [activeBookingsCount, vehicleUnits, rentalMetrics]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
