@@ -270,10 +270,7 @@ export default function AdminReports() {
   };
 
   const handleClearData = () => {
-    if (confirm("Clear all analytics data? This cannot be undone.")) {
-      clearAnalyticsData();
-      setRefreshKey((k) => k + 1);
-    }
+    // Data is now in Supabase — clearing not supported from client
   };
 
   // Filter analytics events by the unified date range
