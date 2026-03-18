@@ -72,21 +72,12 @@ export function useDemandForecasting(months: number = 12) {
     staleTime: 600000,
   });
 
-  const vehiclesQuery = useQuery({
-    queryKey: ["demand-vehicles-map"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, category");
-      if (error) throw error;
-      return new Map((data || []).map((v) => [v.id, v.category]));
-    },
-    staleTime: 600000,
-  });
 
   const metrics = useMemo(() => {
     const bookings = bookingsQuery.data || [];
     const locations = locationsQuery.data || [];
     const categories = categoriesQuery.data || [];
-    const vehicleCategoryMap = vehiclesQuery.data || new Map();
+    
 
     // Day-of-week heatmap (0=Sun, 6=Sat)
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -127,7 +118,7 @@ export function useDemandForecasting(months: number = 12) {
 
     // Category demand
     const categoryDemand: CategoryDemand[] = categories.map((cat) => {
-      const catBookings = bookings.filter((b) => vehicleCategoryMap.get(b.vehicle_id) === cat.id);
+      const catBookings = bookings.filter((b) => b.vehicle_id === cat.id);
       return {
         categoryId: cat.id,
         categoryName: cat.name,
@@ -157,7 +148,7 @@ export function useDemandForecasting(months: number = 12) {
       seasonalTrend,
       totalBookings: bookings.length,
     };
-  }, [bookingsQuery.data, locationsQuery.data, categoriesQuery.data, vehiclesQuery.data, startDate, endDate]);
+  }, [bookingsQuery.data, locationsQuery.data, categoriesQuery.data, startDate, endDate]);
 
   return {
     ...metrics,
