@@ -53,7 +53,7 @@ export function trackEvent(event: AnalyticsEvent, properties?: EventProperties):
     .from('analytics_events')
     .insert([{
       event,
-      properties: properties ? (properties as Record<string, unknown>) : {},
+      properties: (properties ?? {}) as unknown as Record<string, never>,
       page,
       session_id: sessionId,
     }])
