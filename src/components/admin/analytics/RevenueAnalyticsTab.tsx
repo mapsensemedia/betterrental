@@ -472,8 +472,8 @@ export function RevenueAnalyticsTab({
       {/* Add-On Breakdown Table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Add-On Breakdown</CardTitle>
-          <CardDescription>Performance by individual add-on</CardDescription>
+          <CardTitle className="text-base">Extras Breakdown</CardTitle>
+          <CardDescription>Revenue by protection plans, upgrades, fees & add-ons</CardDescription>
         </CardHeader>
         <CardContent>
           {addOnBreakdown.length === 0 ? (
