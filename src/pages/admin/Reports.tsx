@@ -263,8 +263,8 @@ export default function AdminReports() {
   const handleRefresh = () => {
     setIsRefreshing(true);
     refetchLogs();
+    refetchAnalytics();
     setTimeout(() => {
-      setRefreshKey((k) => k + 1);
       setIsRefreshing(false);
     }, 300);
   };
