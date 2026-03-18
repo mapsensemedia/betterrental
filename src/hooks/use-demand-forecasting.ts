@@ -118,7 +118,7 @@ export function useDemandForecasting(months: number = 12) {
 
     // Category demand
     const categoryDemand: CategoryDemand[] = categories.map((cat) => {
-      const catBookings = bookings.filter((b) => vehicleCategoryMap.get(b.vehicle_id) === cat.id);
+      const catBookings = bookings.filter((b) => b.vehicle_id === cat.id);
       return {
         categoryId: cat.id,
         categoryName: cat.name,
