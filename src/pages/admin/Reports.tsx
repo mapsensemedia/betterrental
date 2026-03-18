@@ -61,7 +61,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
+import { useAnalyticsEvents } from "@/hooks/use-analytics-events";
 import { useLocations } from "@/hooks/use-locations";
 import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
 import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth, parseISO, differenceInDays } from "date-fns";

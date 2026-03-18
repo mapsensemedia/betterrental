@@ -36,7 +36,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { getAnalyticsData, clearAnalyticsData } from "@/lib/analytics";
+import { useAnalyticsEvents } from "@/hooks/use-analytics-events";
 import { format, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth } from "date-fns";
 import { RevenueAnalyticsTab } from "@/components/admin/analytics/RevenueAnalyticsTab";
 
