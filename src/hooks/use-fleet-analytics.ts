@@ -1,7 +1,7 @@
 /**
  * Fleet Analytics Hook
  * Provides utilization, cost, and profitability data for vehicle units (VINs)
- * Now tracks analytics per VIN instead of just per vehicle model
+ * Tracks analytics per VIN using vehicle_units table only
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,7 +59,7 @@ export function useFleetAnalytics(filters?: {
     queryKey: ["fleet-analytics", filters],
     queryFn: async (): Promise<VehicleAnalytics[]> => {
       // Get all vehicle units with their parent vehicles
-      let unitsQuery = supabase
+      const { data: units, error: unitsError } = await supabase
         .from("vehicle_units")
         .select(`
           *,
@@ -75,39 +75,13 @@ export function useFleetAnalytics(filters?: {
           )
         `);
 
-      const { data: units, error: unitsError } = await unitsQuery;
       if (unitsError) throw unitsError;
 
-      // Also get vehicles without units (fallback for legacy data)
-      let vehicleQuery = supabase
-        .from("vehicles")
-        .select(`
-          id,
-          make,
-          model,
-          year,
-          daily_rate,
-          status,
-          location_id,
-          locations (name)
-        `);
-
-      if (filters?.locationId) {
-        vehicleQuery = vehicleQuery.eq("location_id", filters.locationId);
-      }
-      if (filters?.status) {
-        vehicleQuery = vehicleQuery.eq("status", filters.status);
-      }
-
-      const { data: vehicles, error: vehiclesError } = await vehicleQuery;
-      if (vehiclesError) throw vehiclesError;
-
-      // Get completed bookings for revenue and utilization
-      // Track by assigned_unit_id for unit-level analytics
+      // Get completed and active bookings for revenue and utilization
       let bookingsQuery = supabase
         .from("bookings")
         .select("vehicle_id, assigned_unit_id, total_amount, total_days, status")
-        .eq("status", "completed");
+        .in("status", ["completed", "active"]);
 
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("end_at", filters.dateFrom);
@@ -123,28 +97,24 @@ export function useFleetAnalytics(filters?: {
         .from("vehicle_expenses")
         .select("vehicle_unit_id, amount");
 
-      // Build analytics array - prefer unit-level data
+      // Build analytics array from vehicle units only
       const analytics: VehicleAnalytics[] = [];
-      const processedVehicleIds = new Set<string>();
 
-      // First process vehicle units (VIN-level tracking)
       (units || []).forEach((unit: any) => {
         if (!unit.vehicle) return;
-        
-        processedVehicleIds.add(unit.vehicle_id);
-        
+
         // Filter by location/status if specified
         if (filters?.locationId && unit.vehicle.location_id !== filters.locationId) return;
         if (filters?.status && unit.status !== filters.status) return;
-        
+
         // Get bookings assigned to this specific unit
         const unitBookings = bookings?.filter((b) => b.assigned_unit_id === unit.id) || [];
-        // Also count vehicle-level bookings without unit assignment (legacy)
-        const vehicleLevelBookings = bookings?.filter(
-          (b) => b.vehicle_id === unit.vehicle_id && !b.assigned_unit_id
+        // For bookings without unit assignment, match via category_id (bookings.vehicle_id stores category UUID)
+        const categoryBookings = bookings?.filter(
+          (b) => !b.assigned_unit_id && b.vehicle_id === unit.category_id
         ) || [];
-        const allBookings = [...unitBookings, ...vehicleLevelBookings];
-        
+        const allBookings = [...unitBookings, ...categoryBookings];
+
         const unitExpenses = expenses?.filter((e) => e.vehicle_unit_id === unit.id) || [];
 
         const rentalCount = allBookings.length;
@@ -157,8 +127,8 @@ export function useFleetAnalytics(filters?: {
 
         // Calculate depreciation
         const annualDepreciation = unit.annual_depreciation_amount || 0;
-        const acquisitionDate = unit.acquisition_date 
-          ? new Date(unit.acquisition_date) 
+        const acquisitionDate = unit.acquisition_date
+          ? new Date(unit.acquisition_date)
           : new Date();
         const yearsOwned = (Date.now() - acquisitionDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
         const totalDepreciation = annualDepreciation * yearsOwned;
@@ -187,45 +157,6 @@ export function useFleetAnalytics(filters?: {
           currentValue,
           vendorName: unit.vendor_name,
           vendorContact: unit.vendor_contact,
-          downtimeDays: 0, // Downtime tracking not implemented yet
-        });
-      });
-
-      // Add vehicles without units (fallback)
-      (vehicles || []).forEach((vehicle) => {
-        if (processedVehicleIds.has(vehicle.id)) return;
-        
-        const vehicleBookings = bookings?.filter((b) => b.vehicle_id === vehicle.id) || [];
-        
-        const rentalCount = vehicleBookings.length;
-        const totalRentalDays = vehicleBookings.reduce((sum, b) => sum + (b.total_days || 0), 0);
-        const totalRevenue = vehicleBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
-        const profit = totalRevenue;
-        const profitMargin = totalRevenue > 0 ? 100 : 0;
-
-        analytics.push({
-          vehicleId: vehicle.id,
-          vehicleUnitId: undefined,
-          make: vehicle.make,
-          model: vehicle.model,
-          year: vehicle.year,
-          vin: undefined,
-          licensePlate: undefined,
-          status: vehicle.status || "available",
-          dailyRate: vehicle.daily_rate,
-          locationName: (vehicle.locations as any)?.name,
-          rentalCount,
-          totalRentalDays,
-          acquisitionCost: 0,
-          totalExpenses: 0,
-          totalRevenue,
-          profit,
-          profitMargin,
-          depreciationMethod: undefined,
-          annualDepreciation: 0,
-          currentValue: 0,
-          vendorName: undefined,
-          vendorContact: undefined,
           downtimeDays: 0,
         });
       });
@@ -257,8 +188,8 @@ export function useFleetSummary(filters?: {
   });
 
   const summary: FleetSummary | null = analytics ? {
-    totalVehicles: new Set(analytics.map(v => v.vehicleId)).size,
-    totalUnits: analytics.filter(v => v.vehicleUnitId).length,
+    totalVehicles: analytics.length,
+    totalUnits: analytics.length,
     activeRentals: activeBookingCount ?? 0,
     totalRevenue: analytics.reduce((sum, v) => sum + v.totalRevenue, 0),
     totalCosts: analytics.reduce((sum, v) => sum + v.totalExpenses, 0),
@@ -277,6 +208,6 @@ export function useVehiclePerformanceComparison(vehicleIds: string[]) {
   const { data: analytics } = useFleetAnalytics();
 
   const comparison = analytics?.filter((v) => vehicleIds.includes(v.vehicleId)) || [];
-  
+
   return { comparison };
 }
