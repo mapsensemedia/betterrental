@@ -141,10 +141,10 @@ export default function NewCheckout() {
 
   // Track checkout started
   useEffect(() => {
-    if (searchData.selectedVehicle) {
-      funnelEvents.checkoutStarted(searchData.selectedVehicle, 0, 0);
+    if (searchData.selectedVehicleId) {
+      funnelEvents.checkoutStarted(searchData.selectedVehicleId, 0, 0);
     }
-  }, [searchData.selectedVehicle]);
+  }, [searchData.selectedVehicleId]);
 
   const [paymentMethod, setPaymentMethod] = useState<"pay-now" | "pay-later">("pay-now");
   const [isSubmitting, setIsSubmitting] = useState(false);
