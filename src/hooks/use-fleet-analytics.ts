@@ -44,7 +44,7 @@ export interface FleetSummary {
   underperformers: VehicleAnalytics[];
 }
 
-const REVENUE_STATUSES = ["confirmed", "active", "completed"];
+const REVENUE_STATUSES = ["confirmed", "active", "completed"] as const;
 
 export function useFleetAnalytics(filters?: {
   locationId?: string;

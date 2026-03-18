@@ -34,7 +34,7 @@ export interface EnhancedVehicleAnalytics {
   vendorContact?: string;
 }
 
-const REVENUE_STATUSES = ["confirmed", "active", "completed"];
+const REVENUE_STATUSES = ["confirmed", "active", "completed"] as const;
 
 export function useFleetAnalyticsEnhanced(filters?: {
   locationId?: string;
