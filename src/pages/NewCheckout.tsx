@@ -66,6 +66,7 @@ import {
 import { useLocations } from "@/hooks/use-locations";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
+import { funnelEvents } from "@/lib/analytics";
 
 const FEATURE_TOOLTIPS: Record<string, string> = {
   "Third party insurance": "Mandatory third-party liability insurance is included with every rental at no extra cost.",
