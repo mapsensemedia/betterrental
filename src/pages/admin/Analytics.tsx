@@ -63,7 +63,7 @@ type DateFilter = "today" | "week" | "month" | "all";
 
 export default function AdminAnalytics() {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  
   const [dateFilter, setDateFilter] = useState<DateFilter>("week");
 
   // Unified filter state for Revenue tab
