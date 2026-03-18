@@ -77,7 +77,7 @@ export function useDemandForecasting(months: number = 12) {
     const bookings = bookingsQuery.data || [];
     const locations = locationsQuery.data || [];
     const categories = categoriesQuery.data || [];
-    const vehicleCategoryMap = vehiclesQuery.data || new Map();
+    
 
     // Day-of-week heatmap (0=Sun, 6=Sat)
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
