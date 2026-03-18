@@ -1,56 +1,148 @@
 /**
- * Fleet Revenue vs Cost Chart
- * Visualizes revenue vs costs over time
+ * Fleet Revenue vs Cost Chart & Net Profit Trend
+ * Uses real booking data grouped by month
  */
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { useFleetCostAnalysisByVehicle } from "@/hooks/use-fleet-cost-analysis";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, subMonths, startOfMonth, eachMonthOfInterval } from "date-fns";
+import { format, parseISO } from "date-fns";
+
+const REVENUE_STATUSES = ["confirmed", "active", "completed"] as const;
 
 interface FleetChartsProps {
   dateFrom?: string;
   dateTo?: string;
 }
 
+function useMonthlyRevenueData(dateFrom?: string, dateTo?: string) {
+  return useQuery({
+    queryKey: ["fleet-monthly-revenue", dateFrom, dateTo],
+    queryFn: async () => {
+      let query = supabase
+        .from("bookings")
+        .select("start_at, total_amount, status")
+        .in("status", [...REVENUE_STATUSES]);
+
+      if (dateFrom) query = query.gte("start_at", dateFrom);
+      if (dateTo) query = query.lte("start_at", dateTo);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+function useMonthlyDamageCosts(dateFrom?: string, dateTo?: string) {
+  return useQuery({
+    queryKey: ["fleet-monthly-damage", dateFrom, dateTo],
+    queryFn: async () => {
+      let query = supabase
+        .from("damage_reports")
+        .select("created_at, estimated_cost");
+
+      if (dateFrom) query = query.gte("created_at", dateFrom);
+      if (dateTo) query = query.lte("created_at", dateTo);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+function useMonthlyMaintenanceCosts(dateFrom?: string, dateTo?: string) {
+  return useQuery({
+    queryKey: ["fleet-monthly-maintenance", dateFrom, dateTo],
+    queryFn: async () => {
+      let query = supabase
+        .from("fleet_cost_cache")
+        .select("calculation_period_start, total_maintenance_cost")
+        .eq("cache_type", "vehicle_unit");
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+
+const formatYAxis = (value: number) => {
+  if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`;
+  return `$${value}`;
+};
+
 export function FleetRevenueVsCostChart({ dateFrom, dateTo }: FleetChartsProps) {
-  const { data: vehicleMetrics, isLoading } = useFleetCostAnalysisByVehicle({ dateFrom, dateTo });
+  const { data: bookings, isLoading: loadingBookings } = useMonthlyRevenueData(dateFrom, dateTo);
+  const { data: damages, isLoading: loadingDamages } = useMonthlyDamageCosts(dateFrom, dateTo);
+  const { data: maintenance, isLoading: loadingMaint } = useMonthlyMaintenanceCosts(dateFrom, dateTo);
 
-  // Generate monthly data for the last 6 months
   const chartData = useMemo(() => {
-    if (!vehicleMetrics) return [];
+    if (!bookings) return [];
 
-    const now = new Date();
-    const months = eachMonthOfInterval({
-      start: subMonths(startOfMonth(now), 5),
-      end: startOfMonth(now),
-    });
+    const monthMap = new Map<string, { revenue: number; damage: number; maintenance: number }>();
 
-    // Aggregate totals (since we don't have per-month breakdown, we'll distribute evenly as example)
-    const totalRevenue = vehicleMetrics.reduce((sum, v) => sum + v.totalRentalRevenue, 0);
-    const totalDamage = vehicleMetrics.reduce((sum, v) => sum + v.totalDamageCost, 0);
-    const totalMaintenance = vehicleMetrics.reduce((sum, v) => sum + v.totalMaintenanceCost, 0);
-    const totalProfit = vehicleMetrics.reduce((sum, v) => sum + v.netProfit, 0);
+    // Bucket revenue by month using start_at
+    for (const b of bookings) {
+      const key = format(parseISO(b.start_at), "yyyy-MM");
+      const entry = monthMap.get(key) || { revenue: 0, damage: 0, maintenance: 0 };
+      entry.revenue += b.total_amount || 0;
+      monthMap.set(key, entry);
+    }
 
-    // Simulate monthly distribution (in real app, would query by month)
-    return months.map((month, index) => {
-      const factor = 0.7 + Math.random() * 0.6; // Random variation
-      return {
-        month: format(month, "MMM yyyy"),
-        revenue: Math.round((totalRevenue / 6) * factor),
-        damage: Math.round((totalDamage / 6) * factor),
-        maintenance: Math.round((totalMaintenance / 6) * factor),
-        profit: Math.round((totalProfit / 6) * factor),
-      };
-    });
-  }, [vehicleMetrics]);
+    // Bucket damage costs
+    for (const d of damages || []) {
+      const key = format(parseISO(d.created_at), "yyyy-MM");
+      const entry = monthMap.get(key) || { revenue: 0, damage: 0, maintenance: 0 };
+      entry.damage += d.estimated_cost || 0;
+      monthMap.set(key, entry);
+    }
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+    // Bucket maintenance costs
+    for (const m of maintenance || []) {
+      if (m.calculation_period_start) {
+        const key = format(parseISO(m.calculation_period_start), "yyyy-MM");
+        const entry = monthMap.get(key) || { revenue: 0, damage: 0, maintenance: 0 };
+        entry.maintenance += m.total_maintenance_cost || 0;
+        monthMap.set(key, entry);
+      }
+    }
 
-  if (isLoading) {
+    return Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, values]) => ({
+        month: format(parseISO(`${key}-01`), "MMM yyyy"),
+        revenue: Math.round(values.revenue),
+        damage: Math.round(values.damage),
+        maintenance: Math.round(values.maintenance),
+      }));
+  }, [bookings, damages, maintenance]);
+
+  if (loadingBookings || loadingDamages || loadingMaint) {
     return <Skeleton className="h-80" />;
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Revenue vs Costs Over Time</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+          No booking data available for the selected period
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -63,8 +155,8 @@ export function FleetRevenueVsCostChart({ dateFrom, dateTo }: FleetChartsProps) 
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="month" className="text-xs" />
-            <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} className="text-xs" />
-            <Tooltip 
+            <YAxis tickFormatter={formatYAxis} className="text-xs" />
+            <Tooltip
               formatter={(value: number) => formatCurrency(value)}
               contentStyle={{ backgroundColor: "hsl(var(--background))", border: "1px solid hsl(var(--border))" }}
             />
@@ -80,37 +172,67 @@ export function FleetRevenueVsCostChart({ dateFrom, dateTo }: FleetChartsProps) 
 }
 
 export function FleetProfitTrendChart({ dateFrom, dateTo }: FleetChartsProps) {
-  const { data: vehicleMetrics, isLoading } = useFleetCostAnalysisByVehicle({ dateFrom, dateTo });
+  const { data: bookings, isLoading: loadingBookings } = useMonthlyRevenueData(dateFrom, dateTo);
+  const { data: damages, isLoading: loadingDamages } = useMonthlyDamageCosts(dateFrom, dateTo);
+  const { data: maintenance, isLoading: loadingMaint } = useMonthlyMaintenanceCosts(dateFrom, dateTo);
 
-  // Generate profit trend data
   const chartData = useMemo(() => {
-    if (!vehicleMetrics) return [];
+    if (!bookings) return [];
 
-    const now = new Date();
-    const months = eachMonthOfInterval({
-      start: subMonths(startOfMonth(now), 5),
-      end: startOfMonth(now),
-    });
+    const monthMap = new Map<string, { revenue: number; costs: number }>();
 
-    const totalProfit = vehicleMetrics.reduce((sum, v) => sum + v.netProfit, 0);
+    for (const b of bookings) {
+      const key = format(parseISO(b.start_at), "yyyy-MM");
+      const entry = monthMap.get(key) || { revenue: 0, costs: 0 };
+      entry.revenue += b.total_amount || 0;
+      monthMap.set(key, entry);
+    }
+
+    for (const d of damages || []) {
+      const key = format(parseISO(d.created_at), "yyyy-MM");
+      const entry = monthMap.get(key) || { revenue: 0, costs: 0 };
+      entry.costs += d.estimated_cost || 0;
+      monthMap.set(key, entry);
+    }
+
+    for (const m of maintenance || []) {
+      if (m.calculation_period_start) {
+        const key = format(parseISO(m.calculation_period_start), "yyyy-MM");
+        const entry = monthMap.get(key) || { revenue: 0, costs: 0 };
+        entry.costs += m.total_maintenance_cost || 0;
+        monthMap.set(key, entry);
+      }
+    }
+
     let cumulative = 0;
+    return Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, values]) => {
+        const profit = Math.round(values.revenue - values.costs);
+        cumulative += profit;
+        return {
+          month: format(parseISO(`${key}-01`), "MMM yyyy"),
+          profit,
+          cumulative: Math.round(cumulative),
+        };
+      });
+  }, [bookings, damages, maintenance]);
 
-    return months.map((month, index) => {
-      const monthlyProfit = (totalProfit / 6) * (0.8 + Math.random() * 0.4);
-      cumulative += monthlyProfit;
-      return {
-        month: format(month, "MMM"),
-        profit: Math.round(monthlyProfit),
-        cumulative: Math.round(cumulative),
-      };
-    });
-  }, [vehicleMetrics]);
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
-
-  if (isLoading) {
+  if (loadingBookings || loadingDamages || loadingMaint) {
     return <Skeleton className="h-80" />;
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Net Profit Trend</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+          No booking data available for the selected period
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -123,23 +245,23 @@ export function FleetProfitTrendChart({ dateFrom, dateTo }: FleetChartsProps) {
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="month" className="text-xs" />
-            <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} className="text-xs" />
-            <Tooltip 
+            <YAxis tickFormatter={formatYAxis} className="text-xs" />
+            <Tooltip
               formatter={(value: number) => formatCurrency(value)}
               contentStyle={{ backgroundColor: "hsl(var(--background))", border: "1px solid hsl(var(--border))" }}
             />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="profit" 
-              stroke="hsl(var(--chart-2))" 
+            <Line
+              type="monotone"
+              dataKey="profit"
+              stroke="hsl(var(--chart-2))"
               strokeWidth={2}
               name="Monthly Profit"
             />
-            <Line 
-              type="monotone" 
-              dataKey="cumulative" 
-              stroke="hsl(var(--primary))" 
+            <Line
+              type="monotone"
+              dataKey="cumulative"
+              stroke="hsl(var(--primary))"
               strokeWidth={2}
               strokeDasharray="5 5"
               name="Cumulative"
