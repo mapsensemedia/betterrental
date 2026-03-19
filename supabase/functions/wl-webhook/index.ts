@@ -39,12 +39,23 @@ Deno.serve(async (req) => {
     const supabase = getAdminClient();
     const transactionId = String(body.transaction_id || body.id);
 
-    // Find booking by transaction ID
-    const { data: booking } = await supabase
+    // Find booking by transaction ID (rental payment) or deposit transaction ID
+    let isDepositMatch = false;
+    let { data: booking } = await supabase
       .from("bookings")
-      .select("id, status, deposit_status, wl_auth_status")
+      .select("id, status, deposit_status, wl_auth_status, wl_deposit_auth_status")
       .eq("wl_transaction_id", transactionId)
       .maybeSingle();
+
+    if (!booking) {
+      const { data: depositBooking } = await supabase
+        .from("bookings")
+        .select("id, status, deposit_status, wl_auth_status, wl_deposit_auth_status")
+        .eq("wl_deposit_transaction_id", transactionId)
+        .maybeSingle();
+      booking = depositBooking;
+      isDepositMatch = !!depositBooking;
+    }
 
     if (!booking) {
       log.warn("No booking found for transaction", { transaction_id: transactionId });
