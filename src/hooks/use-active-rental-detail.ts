@@ -260,6 +260,11 @@ export function useActiveRentalDetail(bookingId: string | null) {
               email: customerData?.email || profile?.email || null,
               phone: customerData?.phone || profile?.phone || null,
               isVerified: profile?.is_verified || false,
+              driverLicenseNumber: profile?.driver_license_number || null,
+              driverLicenseFrontUrl: profile?.driver_license_front_url || null,
+              driverLicenseBackUrl: profile?.driver_license_back_url || null,
+              driverLicenseStatus: profile?.driver_license_status || null,
+              driverLicenseExpiry: profile?.driver_license_expiry || null,
             }
           : null,
         hasPaymentCompleted: (paymentsRes.data || []).length > 0,
