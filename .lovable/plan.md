@@ -1,31 +1,29 @@
 
 
-## Plan: Activate Booking VJU2QNQ6 & Verify Fix
+## Plan: Add Driver's License to Active Rental Customer Card
 
-### Investigation Results
+### Problem
+The Customer Card on the Active Rental Detail page only shows name, phone, and email. License data exists on `profiles` table (`driver_license_number`, `driver_license_front_url`, `driver_license_back_url`) but isn't fetched or displayed.
 
-The booking VJU2QNQ6 (`b150f746-3b2f-4b4c-9d38-b5fabf717fec`) is genuinely still `confirmed` — no activation was ever recorded in audit logs or edge function logs. The "Needs Activation" badge is correct behavior for a `confirmed` booking. The operator's click likely failed silently (network/auth timeout).
+### Changes
 
-The code is working correctly:
-- The `update-booking-status` edge function properly handles `confirmed → active`
-- The query invalidation fix (adding `active-rental-detail` key) from the previous change is already in place
-- The `ActiveRentalDetail` page reads `rental.status` from the database and displays the appropriate badge
+#### 1. Expand profile query (`src/hooks/use-active-rental-detail.ts`)
+- Line 124: Add `driver_license_number, driver_license_front_url, driver_license_back_url, driver_license_status, driver_license_expiry` to the profile select
+- Update the `ActiveRentalDetail` interface's `customer` type to include these fields
 
-### Actions
+#### 2. Update Customer Card UI (`src/pages/admin/ActiveRentalDetail.tsx`)
+- After the phone/email section, add:
+  - **DL number** as a labeled field with `CreditCard` icon (always shown, "Not provided" if missing)
+  - **DL image thumbnails** (front + back if available) using `SignedStorageImage` component from `driver-licenses` bucket
+  - Click thumbnails to open a **full-size preview dialog** (same pattern as `OpsBookingSummary`)
+  - **"No license on file"** placeholder in muted text when no license URL exists
+- Add state for `showLicenseDialog` and a `Dialog` component
 
-#### 1. Activate the booking via the edge function
-Call `update-booking-status` edge function with:
-- `bookingId: "b150f746-3b2f-4b4c-9d38-b5fabf717fec"`
-- `newStatus: "active"`
-- `activationSource: "ops_manual"`
-- `activationReason: "Admin activated — original activation click failed silently"`
-- `skipNotifications: true`
+#### 3. No other files need changes
+The `BookingCustomerCard` (used in BookingOps) already shows `driver_license_number`. The `OpsBookingSummary` sidebar already has the license dialog. This change targets the `ActiveRentalDetail` page specifically, completing coverage across all booking detail views.
 
-This will set `status = 'active'`, `activated_at`, `handed_over_at`, update the assigned vehicle unit to `on_rent`, create an audit log, and create an admin alert.
-
-#### 2. Verify the page updates
-After the edge function call succeeds, the page should show the "Active" badge instead of "Needs Activation" on next data fetch.
-
-### No Code Changes Needed
-The activation flow and query invalidation are already correct. This is a data issue (booking was never activated), not a code bug.
+### Technical Notes
+- Reuse `SignedStorageImage` component already used in `OpsBookingSummary`
+- License images are in the private `driver-licenses` bucket — signed URLs handled by the component
+- The profile data mapping at ~line 200 needs to pass the new fields through to the `customer` object
 
