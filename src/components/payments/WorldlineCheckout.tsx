@@ -45,6 +45,8 @@ interface WorldlineCheckoutProps {
   headless?: boolean;
   /** Called when processing state changes */
   onProcessingChange?: (processing: boolean) => void;
+  /** Called whenever card readiness changes (fields valid + name entered + SDK loaded) */
+  onReadyChange?: (ready: boolean) => void;
 }
 
 interface FieldState {
