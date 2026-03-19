@@ -126,7 +126,7 @@ export function useActiveRentalDetail(bookingId: string | null) {
       // Fetch customer profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, full_name, email, phone, is_verified")
+        .select("id, full_name, email, phone, is_verified, driver_license_number, driver_license_front_url, driver_license_back_url, driver_license_status, driver_license_expiry")
         .eq("id", booking.user_id)
         .maybeSingle();
 
