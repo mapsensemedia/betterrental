@@ -72,26 +72,54 @@ Deno.serve(async (req) => {
     const paymentStatus = body.approved;
     const paymentType = body.type; // "P" = purchase, "PA" = pre-auth, "PAC" = capture, "VP" = void
 
-    if (paymentType === "P" && paymentStatus === 1) {
-      // Purchase completed
-      await supabase.from("bookings").update({
-        wl_auth_status: "completed",
-        status: "confirmed",
-      }).eq("id", booking.id);
-    } else if (paymentType === "VP") {
-      // Void processed
-      await supabase.from("bookings").update({
-        wl_auth_status: "voided",
-        deposit_status: "released",
-        deposit_released_at: new Date().toISOString(),
-      }).eq("id", booking.id);
+    if (isDepositMatch) {
+      // Deposit transaction callbacks
+      if (paymentType === "PA" && paymentStatus === 1) {
+        // Pre-auth confirmed
+        await supabase.from("bookings").update({
+          wl_deposit_auth_status: "authorized",
+          deposit_status: "authorized",
+          deposit_authorized_at: new Date().toISOString(),
+        }).eq("id", booking.id);
+
+        // Insert deposit ledger hold record for audit trail
+        await supabase.from("deposit_ledger").insert({
+          booking_id: booking.id,
+          action: "hold",
+          amount: body.amount ? Number(body.amount) / 100 : 0,
+          reason: "Webhook: pre-auth confirmed",
+          created_by: "00000000-0000-0000-0000-000000000000",
+        });
+      } else if (paymentType === "PAC" && paymentStatus === 1) {
+        // Deposit capture confirmed
+        await supabase.from("bookings").update({
+          wl_deposit_auth_status: "captured",
+          deposit_status: "captured",
+          deposit_captured_at: new Date().toISOString(),
+        }).eq("id", booking.id);
+      } else if (paymentType === "VP") {
+        // Deposit void/release
+        await supabase.from("bookings").update({
+          wl_deposit_auth_status: "released",
+          deposit_status: "released",
+          deposit_released_at: new Date().toISOString(),
+        }).eq("id", booking.id);
+      }
+    } else {
+      // Rental payment callbacks
+      if (paymentType === "P" && paymentStatus === 1) {
+        await supabase.from("bookings").update({
+          wl_auth_status: "completed",
+          status: "confirmed",
+        }).eq("id", booking.id);
+      } else if (paymentType === "VP") {
+        await supabase.from("bookings").update({
+          wl_auth_status: "voided",
+          deposit_status: "released",
+          deposit_released_at: new Date().toISOString(),
+        }).eq("id", booking.id);
+      }
     }
-
-    await markEventProcessed("wl_webhook", String(eventId), {
-      bookingId: booking.id,
-    });
-
-    log.info("Webhook processed", { event_type: paymentType, approved: paymentStatus });
 
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
