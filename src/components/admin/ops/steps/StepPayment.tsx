@@ -301,6 +301,7 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                 <TerminalPaymentForm
                   bookingId={bookingId}
                   amount={paymentStatus?.totalDue || 0}
+                  outstandingBalance={paymentStatus?.balance || 0}
                   depositAmount={DEFAULT_DEPOSIT_AMOUNT}
                   onUpdated={refreshData}
                 />
