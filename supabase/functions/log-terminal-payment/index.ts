@@ -1,4 +1,3 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   getUserOrThrow,
   requireRoleOrThrow,
@@ -14,51 +13,67 @@ const corsHeaders = {
 
 const DEFAULT_DEPOSIT_AMOUNT = 350;
 
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Auth: staff/admin only
     const { userId } = await getUserOrThrow(req, corsHeaders);
     await requireRoleOrThrow(userId, ["admin", "staff"], corsHeaders);
 
-    const { bookingId, receiptNumber, cardLastFour, authCode, includeDeposit, depositReceiptNumber } = await req.json();
+    const body = await req.json();
+    const {
+      bookingId,
+      cardLastFour,
+      authCode,
+      includeDeposit,
+      depositReceiptNumber,
+      // New multi-transaction field
+      transactions: txnArray,
+      // Legacy single-entry fields
+      receiptNumber: legacyReceipt,
+    } = body;
 
-    // --- Input validation ---
     if (!bookingId || typeof bookingId !== "string") {
-      return new Response(
-        JSON.stringify({ error: "bookingId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "bookingId is required" }, 400);
     }
-
-    if (!receiptNumber || typeof receiptNumber !== "string") {
-      return new Response(
-        JSON.stringify({ error: "receiptNumber is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const trimmedReceipt = receiptNumber.trim();
-    if (!/^[A-Za-z0-9\-_]{3,50}$/.test(trimmedReceipt)) {
-      return new Response(
-        JSON.stringify({ error: "Receipt number must be 3-50 alphanumeric characters" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     if (!cardLastFour || !/^\d{4}$/.test(cardLastFour)) {
-      return new Response(
-        JSON.stringify({ error: "cardLastFour must be exactly 4 digits" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "cardLastFour must be exactly 4 digits" }, 400);
+    }
+
+    // Normalize into transactions array (backward compat)
+    interface Txn { receiptNumber: string; amount: number }
+    let transactions: Txn[];
+
+    if (Array.isArray(txnArray) && txnArray.length > 0) {
+      transactions = txnArray;
+    } else if (legacyReceipt) {
+      // Legacy single-entry: amount will be set to remaining balance below
+      transactions = [{ receiptNumber: legacyReceipt, amount: 0 }];
+    } else {
+      return jsonResponse({ error: "transactions array or receiptNumber is required" }, 400);
+    }
+
+    // Validate each receipt format
+    for (const txn of transactions) {
+      const trimmed = typeof txn.receiptNumber === "string" ? txn.receiptNumber.trim() : "";
+      if (!/^[A-Za-z0-9\-_]{3,50}$/.test(trimmed)) {
+        return jsonResponse({ error: `Invalid receipt number: "${trimmed}"` }, 400);
+      }
+      txn.receiptNumber = trimmed;
     }
 
     const supabase = getAdminClient();
 
-    // --- Fetch booking ---
+    // Fetch booking
     const { data: booking, error: bookingErr } = await supabase
       .from("bookings")
       .select("id, total_amount, status, user_id, location_id, deposit_amount")
@@ -66,68 +81,97 @@ Deno.serve(async (req) => {
       .single();
 
     if (bookingErr || !booking) {
-      return new Response(
-        JSON.stringify({ error: "Booking not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Booking not found" }, 404);
     }
 
-    // --- Check duplicate receipt ---
-    const txnId = `TERM-${trimmedReceipt}`;
-    const { data: existing } = await supabase
+    // Calculate remaining balance
+    const { data: existingPayments } = await supabase
       .from("payments")
-      .select("id")
-      .eq("transaction_id", txnId)
-      .maybeSingle();
+      .select("amount")
+      .eq("booking_id", bookingId)
+      .eq("status", "completed")
+      .eq("payment_type", "rental");
 
-    if (existing) {
-      return new Response(
-        JSON.stringify({ error: "A payment with this receipt number already exists" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    const existingTotal = (existingPayments || []).reduce(
+      (sum: number, p: { amount: number }) => sum + Number(p.amount), 0
+    );
+    const remainingBalance = Number(booking.total_amount) - existingTotal;
+
+    // For legacy single-entry with no explicit amount, use full remaining balance
+    if (!Array.isArray(txnArray) && transactions.length === 1 && transactions[0].amount === 0) {
+      transactions[0].amount = remainingBalance;
     }
 
-    // --- Insert payment record ---
-    const { error: payErr } = await supabase.from("payments").insert({
+    // Validate amounts
+    const requestTotal = transactions.reduce((s, t) => s + Number(t.amount), 0);
+    for (const txn of transactions) {
+      if (typeof txn.amount !== "number" || txn.amount <= 0) {
+        return jsonResponse({ error: `Amount must be positive for receipt ${txn.receiptNumber}` }, 400);
+      }
+    }
+    if (requestTotal > remainingBalance + 0.01) {
+      return jsonResponse({
+        error: `Total $${requestTotal.toFixed(2)} exceeds remaining balance $${remainingBalance.toFixed(2)}`,
+      }, 400);
+    }
+
+    // Check for duplicate receipts
+    const txnIds = transactions.map(t => `TERM-${t.receiptNumber}`);
+    const { data: dupes } = await supabase
+      .from("payments")
+      .select("transaction_id")
+      .in("transaction_id", txnIds);
+
+    if (dupes && dupes.length > 0) {
+      const dupeIds = dupes.map((d: { transaction_id: string }) => d.transaction_id);
+      return jsonResponse({
+        error: `Duplicate receipt(s): ${dupeIds.join(", ")}`,
+      }, 409);
+    }
+
+    // Insert payment records
+    const paymentRows = transactions.map(txn => ({
       booking_id: bookingId,
-      amount: booking.total_amount,
+      amount: txn.amount,
       payment_type: "rental",
       payment_method: "terminal",
       status: "completed",
-      transaction_id: txnId,
+      transaction_id: `TERM-${txn.receiptNumber}`,
       user_id: booking.user_id,
       location_id: booking.location_id,
-    });
+    }));
 
+    const { error: payErr } = await supabase.from("payments").insert(paymentRows);
     if (payErr) {
       console.error("Payment insert error:", payErr);
-      return new Response(
-        JSON.stringify({ error: "Failed to record payment" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Failed to record payment(s)" }, 500);
     }
 
-    // --- Build booking update ---
+    // Determine if fully paid now
+    const newTotal = existingTotal + requestTotal;
+    const fullyPaid = newTotal >= Number(booking.total_amount) - 0.01;
+
+    // Build booking update
     const bookingUpdate: Record<string, unknown> = {
-      status: "confirmed",
-      wl_transaction_id: txnId,
+      wl_transaction_id: txnIds[0],
       wl_auth_status: "completed",
       card_last_four: cardLastFour,
     };
+    if (fullyPaid) {
+      bookingUpdate.status = "confirmed";
+    }
 
-    // --- Deposit hold (if requested) ---
+    // Deposit hold
     let depositTxnId: string | null = null;
     const depositAmount = Number(booking.deposit_amount) || DEFAULT_DEPOSIT_AMOUNT;
 
     if (includeDeposit) {
-      const depReceipt = depositReceiptNumber?.trim() || `${trimmedReceipt}-DEP`;
+      const depReceipt = depositReceiptNumber?.trim() || `${transactions[0].receiptNumber}-DEP`;
       depositTxnId = `TERM-DEP-${depReceipt}`;
-
       bookingUpdate.wl_deposit_transaction_id = depositTxnId;
       bookingUpdate.wl_deposit_auth_status = "authorized";
       bookingUpdate.deposit_status = "authorized";
 
-      // Insert deposit ledger entry
       const { error: ledgerErr } = await supabase.from("deposit_ledger").insert({
         booking_id: bookingId,
         action: "hold",
@@ -135,14 +179,10 @@ Deno.serve(async (req) => {
         reason: `Terminal deposit hold (receipt: ${depReceipt})`,
         created_by: userId,
       });
-
-      if (ledgerErr) {
-        console.error("Deposit ledger insert error:", ledgerErr);
-        // Non-fatal — payment is already recorded
-      }
+      if (ledgerErr) console.error("Deposit ledger insert error:", ledgerErr);
     }
 
-    // --- Update booking ---
+    // Update booking
     const { error: bookingUpdateErr } = await supabase
       .from("bookings")
       .update(bookingUpdate)
@@ -150,54 +190,43 @@ Deno.serve(async (req) => {
 
     if (bookingUpdateErr) {
       console.error("Booking update error:", bookingUpdateErr);
-      return new Response(
-        JSON.stringify({ error: "Payment recorded but booking update failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Payment(s) recorded but booking update failed" }, 500);
     }
 
-    // --- Audit log ---
-    const auditData: Record<string, unknown> = {
-      receipt_number: trimmedReceipt,
-      card_last_four: cardLastFour,
-      auth_code: authCode || null,
-      amount: booking.total_amount,
-      transaction_id: txnId,
-    };
-
-    if (includeDeposit) {
-      auditData.deposit_hold = true;
-      auditData.deposit_amount = depositAmount;
-      auditData.deposit_transaction_id = depositTxnId;
-    }
-
+    // Audit log
     await supabase.from("audit_logs").insert({
       action: "terminal_payment_logged",
       entity_type: "booking",
       entity_id: bookingId,
       user_id: userId,
-      new_data: auditData,
+      new_data: {
+        transactions: transactions.map(t => ({
+          receipt_number: t.receiptNumber,
+          amount: t.amount,
+          transaction_id: `TERM-${t.receiptNumber}`,
+        })),
+        card_last_four: cardLastFour,
+        auth_code: authCode || null,
+        total_amount: requestTotal,
+        fully_paid: fullyPaid,
+        ...(includeDeposit ? { deposit_hold: true, deposit_amount: depositAmount, deposit_transaction_id: depositTxnId } : {}),
+      },
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        transactionId: txnId,
-        amount: booking.total_amount,
-        bookingStatus: "confirmed",
-        depositHold: includeDeposit ? { transactionId: depositTxnId, amount: depositAmount } : null,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return jsonResponse({
+      success: true,
+      transactions: txnIds,
+      totalRecorded: requestTotal,
+      fullyPaid,
+      bookingStatus: fullyPaid ? "confirmed" : booking.status,
+      depositHold: includeDeposit ? { transactionId: depositTxnId, amount: depositAmount } : null,
+    });
   } catch (err) {
     try {
       return authErrorResponse(err, corsHeaders);
     } catch {
       console.error("Unhandled error:", err);
-      return new Response(
-        JSON.stringify({ error: "Internal server error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Internal server error" }, 500);
     }
   }
 });
