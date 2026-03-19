@@ -158,7 +158,7 @@ export function OpsPaymentAndDeposit({
     setStep("done");
     setStatusMessage(null);
     onUpdated();
-  }, [bookingId, onUpdated, verifyServerState]);
+  }, [bookingId, onUpdated, verifyServerState, isCardReady]);
 
   /* ------------------------------------------------------------------ */
   /*  Deposit-only callbacks (standard non-headless mode)                */
