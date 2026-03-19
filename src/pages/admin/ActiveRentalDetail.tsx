@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { useActiveRentalDetail, calculateDuration } from "@/hooks/use-active-rental-detail";
@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
+import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
 import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
@@ -83,6 +84,10 @@ export default function ActiveRentalDetail() {
   
   // Incident dialog
   const [showIncidentDialog, setShowIncidentDialog] = useState(false);
+
+  // License preview dialog
+  const [showLicenseDialog, setShowLicenseDialog] = useState(false);
+  const [licensePreviewUrl, setLicensePreviewUrl] = useState<string | null>(null);
 
   // Update duration every second
   useEffect(() => {
@@ -450,6 +455,62 @@ export default function ActiveRentalDetail() {
                   </a>
                 )}
               </div>
+
+              <Separator />
+
+              {/* Driver's License Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Driver's License</p>
+                    <p className="font-medium">
+                      {rental.customer?.driverLicenseNumber || "Not provided"}
+                    </p>
+                  </div>
+                </div>
+
+                {rental.customer?.driverLicenseFrontUrl || rental.customer?.driverLicenseBackUrl ? (
+                  <div className="flex gap-2">
+                    {rental.customer.driverLicenseFrontUrl && (
+                      <button
+                        onClick={() => {
+                          setLicensePreviewUrl(rental.customer!.driverLicenseFrontUrl);
+                          setShowLicenseDialog(true);
+                        }}
+                        className="relative w-20 h-14 rounded-md overflow-hidden border border-border hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer"
+                      >
+                        <SignedStorageImage
+                          bucket="driver-licenses"
+                          path={rental.customer.driverLicenseFrontUrl}
+                          alt="License front"
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[10px] text-white text-center py-0.5">Front</span>
+                      </button>
+                    )}
+                    {rental.customer.driverLicenseBackUrl && (
+                      <button
+                        onClick={() => {
+                          setLicensePreviewUrl(rental.customer!.driverLicenseBackUrl);
+                          setShowLicenseDialog(true);
+                        }}
+                        className="relative w-20 h-14 rounded-md overflow-hidden border border-border hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer"
+                      >
+                        <SignedStorageImage
+                          bucket="driver-licenses"
+                          path={rental.customer.driverLicenseBackUrl}
+                          alt="License back"
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[10px] text-white text-center py-0.5">Back</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">No license images on file</p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -756,6 +817,30 @@ export default function ActiveRentalDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* License Preview Dialog */}
+      <Dialog open={showLicenseDialog} onOpenChange={setShowLicenseDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Driver's License</DialogTitle>
+            <DialogDescription>
+              {rental.customer?.driverLicenseNumber
+                ? `License #${rental.customer.driverLicenseNumber}`
+                : "License image preview"}
+            </DialogDescription>
+          </DialogHeader>
+          {licensePreviewUrl && (
+            <div className="flex justify-center">
+              <SignedStorageImage
+                bucket="driver-licenses"
+                path={licensePreviewUrl}
+                alt="Driver's license"
+                className="max-h-[60vh] w-auto rounded-lg object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PanelShell>
   );
 }

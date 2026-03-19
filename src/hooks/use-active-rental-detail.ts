@@ -55,6 +55,11 @@ export interface ActiveRentalDetail {
     email: string | null;
     phone: string | null;
     isVerified: boolean;
+    driverLicenseNumber: string | null;
+    driverLicenseFrontUrl: string | null;
+    driverLicenseBackUrl: string | null;
+    driverLicenseStatus: string | null;
+    driverLicenseExpiry: string | null;
   } | null;
   // Status checks
   hasPaymentCompleted: boolean;
@@ -121,7 +126,7 @@ export function useActiveRentalDetail(bookingId: string | null) {
       // Fetch customer profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, full_name, email, phone, is_verified")
+        .select("id, full_name, email, phone, is_verified, driver_license_number, driver_license_front_url, driver_license_back_url, driver_license_status, driver_license_expiry")
         .eq("id", booking.user_id)
         .maybeSingle();
 
@@ -255,6 +260,11 @@ export function useActiveRentalDetail(bookingId: string | null) {
               email: customerData?.email || profile?.email || null,
               phone: customerData?.phone || profile?.phone || null,
               isVerified: profile?.is_verified || false,
+              driverLicenseNumber: profile?.driver_license_number || null,
+              driverLicenseFrontUrl: profile?.driver_license_front_url || null,
+              driverLicenseBackUrl: profile?.driver_license_back_url || null,
+              driverLicenseStatus: profile?.driver_license_status || null,
+              driverLicenseExpiry: profile?.driver_license_expiry || null,
             }
           : null,
         hasPaymentCompleted: (paymentsRes.data || []).length > 0,
