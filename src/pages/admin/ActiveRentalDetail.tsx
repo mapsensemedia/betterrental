@@ -85,6 +85,10 @@ export default function ActiveRentalDetail() {
   // Incident dialog
   const [showIncidentDialog, setShowIncidentDialog] = useState(false);
 
+  // License preview dialog
+  const [showLicenseDialog, setShowLicenseDialog] = useState(false);
+  const [licensePreviewUrl, setLicensePreviewUrl] = useState<string | null>(null);
+
   // Update duration every second
   useEffect(() => {
     if (!rental) return;
