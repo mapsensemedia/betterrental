@@ -603,6 +603,51 @@ export function OpsBookingSummary({
         open={showUpgradeDialog}
         onOpenChange={setShowUpgradeDialog}
       />
+      
+      {/* License Preview Dialog */}
+      <Dialog open={showLicenseDialog} onOpenChange={setShowLicenseDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Driver's License</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {booking.profiles?.driver_license_front_url && (
+              <div className="rounded-lg overflow-hidden border">
+                <SignedStorageImage
+                  bucket="driver-licenses"
+                  path={booking.profiles.driver_license_front_url}
+                  alt="Driver's License Front"
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+            )}
+            {booking.profiles?.driver_license_back_url && (
+              <div className="rounded-lg overflow-hidden border">
+                <SignedStorageImage
+                  bucket="driver-licenses"
+                  path={booking.profiles.driver_license_back_url}
+                  alt="Driver's License Back"
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {booking.profiles?.driver_license_number && (
+                <div>
+                  <p className="text-xs text-muted-foreground">License Number</p>
+                  <p className="font-mono font-medium">{booking.profiles.driver_license_number}</p>
+                </div>
+              )}
+              {booking.profiles?.driver_license_expiry && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Expiry</p>
+                  <p className="font-medium">{booking.profiles.driver_license_expiry}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
