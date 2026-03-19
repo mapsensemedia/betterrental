@@ -742,8 +742,7 @@ export default function ActiveRentalDetail() {
                   {
                     onSuccess: () => {
                       toast.success("Rental activated successfully");
-                      refetchBooking();
-                      window.location.reload();
+                      setShowActivateDialog(false);
                     },
                     onError: (err: any) => {
                       toast.error(err?.message || "Failed to activate rental");
