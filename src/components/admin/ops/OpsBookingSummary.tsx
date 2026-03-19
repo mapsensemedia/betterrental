@@ -291,17 +291,27 @@ export function OpsBookingSummary({
               </div>
             )}
             {booking.profiles?.driver_license_status && (
-              <div className="flex justify-between text-xs mt-1">
+              <div 
+                className={cn(
+                  "flex justify-between text-xs mt-1",
+                  booking.profiles.driver_license_front_url && "cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 py-0.5"
+                )}
+                onClick={() => {
+                  if (booking.profiles?.driver_license_front_url) {
+                    setShowLicenseDialog(true);
+                  }
+                }}
+              >
                 <span className="text-muted-foreground">License</span>
                 <Badge 
                   variant="outline" 
                   className={cn("text-[10px]",
-                    booking.profiles.driver_license_status === "verified" && "border-emerald-500 text-emerald-600",
+                    (booking.profiles.driver_license_status === "verified" || booking.profiles.driver_license_status === "on_file") && "border-emerald-500 text-emerald-600",
                     booking.profiles.driver_license_status === "pending" && "border-amber-500 text-amber-600",
                     booking.profiles.driver_license_status === "rejected" && "border-destructive text-destructive",
                   )}
                 >
-                  {booking.profiles.driver_license_status}
+                  {booking.profiles.driver_license_status === "on_file" ? "On File ↗" : booking.profiles.driver_license_status}
                 </Badge>
               </div>
             )}
