@@ -90,6 +90,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
       inlineError,
       headless = false,
       onProcessingChange,
+      onReadyChange,
     },
     ref
   ) {
