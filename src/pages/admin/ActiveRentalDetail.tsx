@@ -817,6 +817,30 @@ export default function ActiveRentalDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* License Preview Dialog */}
+      <Dialog open={showLicenseDialog} onOpenChange={setShowLicenseDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Driver's License</DialogTitle>
+            <DialogDescription>
+              {rental.customer?.driverLicenseNumber
+                ? `License #${rental.customer.driverLicenseNumber}`
+                : "License image preview"}
+            </DialogDescription>
+          </DialogHeader>
+          {licensePreviewUrl && (
+            <div className="flex justify-center">
+              <SignedStorageImage
+                bucket="driver-licenses"
+                path={licensePreviewUrl}
+                alt="Driver's license"
+                className="max-h-[60vh] w-auto rounded-lg object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PanelShell>
   );
 }
