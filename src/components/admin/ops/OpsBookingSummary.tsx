@@ -64,6 +64,7 @@ export function OpsBookingSummary({
 }: OpsBookingSummaryProps) {
   const [allExpanded, setAllExpanded] = useState(true);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [showLicenseDialog, setShowLicenseDialog] = useState(false);
   
   // Track section states for controlled expand/collapse
   const [sectionStates, setSectionStates] = useState({
