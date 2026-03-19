@@ -281,7 +281,7 @@ export function OpsPaymentAndDeposit({
 
       <Button
         onClick={handlePayAndHold}
-        disabled={step === "processing" || !checkoutRef.current?.isReady()}
+        disabled={step === "processing" || !isCardReady}
         className="w-full h-14 text-lg"
         size="lg"
       >
