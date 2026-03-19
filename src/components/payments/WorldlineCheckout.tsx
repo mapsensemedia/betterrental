@@ -209,6 +209,12 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
     const allFieldsValid = fieldStates["card-number"].isValid && fieldStates.cvv.isValid && fieldStates.expiry.isValid;
     const canSubmit = allFieldsValid && cardholderName.trim().length > 0 && !isProcessing && !disabled;
 
+    // Notify parent of readiness changes
+    const readyForSubmit = canSubmit && sdkReady;
+    useEffect(() => {
+      onReadyChange?.(readyForSubmit);
+    }, [readyForSubmit, onReadyChange]);
+
     const verifyServerSuccess = useCallback(async (): Promise<{ transactionId: string | null }> => {
       if (!bookingIdRef.current || bookingIdRef.current === "pending") {
         return { transactionId: null };
