@@ -6,6 +6,8 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { displayName, formatPhone } from "@/lib/format-customer";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";

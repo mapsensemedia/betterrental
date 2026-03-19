@@ -330,6 +330,7 @@ export function useUpdateBookingStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["booking"] });
+      queryClient.invalidateQueries({ queryKey: ["active-rental-detail"] });
       queryClient.invalidateQueries({ queryKey: ["alerts"] });
       queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
