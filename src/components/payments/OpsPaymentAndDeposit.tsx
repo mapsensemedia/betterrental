@@ -32,6 +32,7 @@ export function OpsPaymentAndDeposit({
   const [step, setStep] = useState<FlowStep>("idle");
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isCardReady, setIsCardReady] = useState(false);
   const checkoutRef = useRef<WorldlineCheckoutHandle>(null);
 
   const isPayAndHold = rentalAmount > 0;
