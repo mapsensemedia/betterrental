@@ -63,7 +63,12 @@ export function OpsPaymentAndDeposit({
   /*  Pay + Hold sequential flow (single card entry)                     */
   /* ------------------------------------------------------------------ */
   const handlePayAndHold = useCallback(async () => {
-    if (!checkoutRef.current) return;
+    console.log("[OpsPayment] Charge click received", { hasRef: !!checkoutRef.current, isCardReady });
+    if (!checkoutRef.current) {
+      setError("Payment form not ready. Please wait for the card form to load.");
+      toast.error("Payment form not ready");
+      return;
+    }
     setError(null);
     setStep("processing");
 
