@@ -55,6 +55,11 @@ export interface ActiveRentalDetail {
     email: string | null;
     phone: string | null;
     isVerified: boolean;
+    driverLicenseNumber: string | null;
+    driverLicenseFrontUrl: string | null;
+    driverLicenseBackUrl: string | null;
+    driverLicenseStatus: string | null;
+    driverLicenseExpiry: string | null;
   } | null;
   // Status checks
   hasPaymentCompleted: boolean;
