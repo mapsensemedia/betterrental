@@ -266,6 +266,7 @@ export function OpsPaymentAndDeposit({
         bookingId={bookingId}
         amount={rentalAmount}
         headless
+        onReadyChange={setIsCardReady}
         onSuccess={() => {}}
         onError={() => {}}
       />
