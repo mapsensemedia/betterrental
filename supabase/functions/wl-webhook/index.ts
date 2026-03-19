@@ -121,6 +121,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    await markEventProcessed("wl_webhook", String(eventId), {
+      bookingId: booking.id,
+      isDepositMatch,
+    });
+
+    log.info("Webhook processed", { event_type: paymentType, approved: paymentStatus, isDepositMatch });
+
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
