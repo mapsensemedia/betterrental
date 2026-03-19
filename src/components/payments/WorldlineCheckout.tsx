@@ -45,6 +45,8 @@ interface WorldlineCheckoutProps {
   headless?: boolean;
   /** Called when processing state changes */
   onProcessingChange?: (processing: boolean) => void;
+  /** Called whenever card readiness changes (fields valid + name entered + SDK loaded) */
+  onReadyChange?: (ready: boolean) => void;
 }
 
 interface FieldState {
@@ -88,6 +90,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
       inlineError,
       headless = false,
       onProcessingChange,
+      onReadyChange,
     },
     ref
   ) {
@@ -205,6 +208,12 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
 
     const allFieldsValid = fieldStates["card-number"].isValid && fieldStates.cvv.isValid && fieldStates.expiry.isValid;
     const canSubmit = allFieldsValid && cardholderName.trim().length > 0 && !isProcessing && !disabled;
+
+    // Notify parent of readiness changes
+    const readyForSubmit = canSubmit && sdkReady;
+    useEffect(() => {
+      onReadyChange?.(readyForSubmit);
+    }, [readyForSubmit, onReadyChange]);
 
     const verifyServerSuccess = useCallback(async (): Promise<{ transactionId: string | null }> => {
       if (!bookingIdRef.current || bookingIdRef.current === "pending") {

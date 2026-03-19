@@ -32,6 +32,7 @@ export function OpsPaymentAndDeposit({
   const [step, setStep] = useState<FlowStep>("idle");
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isCardReady, setIsCardReady] = useState(false);
   const checkoutRef = useRef<WorldlineCheckoutHandle>(null);
 
   const isPayAndHold = rentalAmount > 0;
@@ -62,7 +63,12 @@ export function OpsPaymentAndDeposit({
   /*  Pay + Hold sequential flow (single card entry)                     */
   /* ------------------------------------------------------------------ */
   const handlePayAndHold = useCallback(async () => {
-    if (!checkoutRef.current) return;
+    console.log("[OpsPayment] Charge click received", { hasRef: !!checkoutRef.current, isCardReady });
+    if (!checkoutRef.current) {
+      setError("Payment form not ready. Please wait for the card form to load.");
+      toast.error("Payment form not ready");
+      return;
+    }
     setError(null);
     setStep("processing");
 
@@ -152,7 +158,7 @@ export function OpsPaymentAndDeposit({
     setStep("done");
     setStatusMessage(null);
     onUpdated();
-  }, [bookingId, onUpdated, verifyServerState]);
+  }, [bookingId, onUpdated, verifyServerState, isCardReady]);
 
   /* ------------------------------------------------------------------ */
   /*  Deposit-only callbacks (standard non-headless mode)                */
@@ -260,6 +266,7 @@ export function OpsPaymentAndDeposit({
         bookingId={bookingId}
         amount={rentalAmount}
         headless
+        onReadyChange={setIsCardReady}
         onSuccess={() => {}}
         onError={() => {}}
       />
@@ -274,7 +281,7 @@ export function OpsPaymentAndDeposit({
 
       <Button
         onClick={handlePayAndHold}
-        disabled={step === "processing" || !checkoutRef.current?.isReady()}
+        disabled={step === "processing" || !isCardReady}
         className="w-full h-14 text-lg"
         size="lg"
       >
