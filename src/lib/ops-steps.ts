@@ -12,9 +12,11 @@ export type OpsStepId =
   | "photos"
   | "handover"
   | "dispatch"
-  | "intake"      // Delivery: Ops reviews booking
-  | "ready_line"  // Delivery: enforce prep + photos + fuel/odo
-  | "ops_activate"; // Delivery: Ops backup activation
+  | "intake"        // Delivery: Ops reviews booking
+  | "ready_line"    // Delivery: enforce prep + photos + fuel/odo
+  | "ops_activate"  // Delivery: Ops backup activation
+  | "en_route"      // Delivery Portal: driver en route
+  | "arrived";      // Delivery Portal: driver arrived
 
 // Enhanced status types - simplified without locked state
 export type OpsStepStatus = "ready" | "in_progress" | "complete" | "needs_attention";
@@ -100,22 +102,29 @@ export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
     icon: "file-text",
   },
   {
-    id: "ready_line",
+    id: "walkaround",
     number: 4,
+    title: "Vehicle Walkaround",
+    description: "Staff-only pre-delivery inspection of vehicle condition",
+    icon: "eye",
+  },
+  {
+    id: "ready_line",
+    number: 5,
     title: "Ready Line",
     description: "Prep checklist, photos, fuel/odometer, maintenance check, lock pricing",
     icon: "wrench",
   },
   {
     id: "dispatch",
-    number: 5,
+    number: 6,
     title: "Dispatch to Driver",
     description: "Assign driver, schedule window, dispatch vehicle for delivery",
     icon: "truck",
   },
   {
     id: "ops_activate",
-    number: 6,
+    number: 7,
     title: "Ops Backup Activation",
     description: "Activate rental from Ops if driver cannot (requires evidence + reason)",
     icon: "shield",
@@ -126,29 +135,43 @@ export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
 // These steps are done by driver at customer location
 export const DELIVERY_PORTAL_STEPS: OpsStep[] = [
   {
-    id: "agreement",
+    id: "en_route",
     number: 1,
+    title: "En Route",
+    description: "Drive to customer delivery location",
+    icon: "navigation",
+  },
+  {
+    id: "arrived",
+    number: 2,
+    title: "Arrived",
+    description: "Confirm arrival at customer location",
+    icon: "map-pin",
+  },
+  {
+    id: "agreement",
+    number: 3,
     title: "Rental Agreement",
     description: "Customer signs agreement at delivery location",
     icon: "file-text",
   },
   {
     id: "walkaround",
-    number: 2,
+    number: 4,
     title: "Vehicle Walkaround",
     description: "Complete vehicle inspection with customer",
     icon: "eye",
   },
   {
     id: "photos",
-    number: 3,
+    number: 5,
     title: "Handover Photos",
     description: "Capture final photos at delivery location",
     icon: "camera",
   },
   {
     id: "handover",
-    number: 4,
+    number: 6,
     title: "Complete Delivery",
     description: "Hand over keys and activate rental",
     icon: "key",

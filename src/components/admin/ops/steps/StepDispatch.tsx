@@ -75,11 +75,13 @@ export function StepDispatch({
         .eq("id", bookingId);
       if (error) throw error;
 
-      // Update delivery task
+      // Upsert delivery task (create if missing)
       await supabase
         .from("delivery_tasks")
-        .update({ assigned_driver_id: driverId })
-        .eq("booking_id", bookingId);
+        .upsert(
+          { booking_id: bookingId, assigned_driver_id: driverId, status: "pending" },
+          { onConflict: "booking_id" }
+        );
 
       // Create/update delivery status
       await supabase
