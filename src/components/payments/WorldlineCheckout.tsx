@@ -126,21 +126,44 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
     useEffect(() => { onSuccessRef.current = onSuccess; }, [onSuccess]);
     useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
-    // Load SDK script
+    // Load SDK script — handles race where tag exists but SDK hasn't evaluated yet
     useEffect(() => {
-      if (document.querySelector(`script[src="${SDK_URL}"]`)) {
-        if (window.customcheckout) {
-          setSdkReady(true);
-        }
+      if (window.customcheckout) {
+        console.log("[WorldlineCheckout] SDK already available");
+        setSdkReady(true);
         return;
       }
 
-      const script = document.createElement("script");
-      script.src = SDK_URL;
-      script.async = true;
-      script.onload = () => setSdkReady(true);
-      script.onerror = () => onErrorRef.current("Failed to load payment SDK");
-      document.head.appendChild(script);
+      let script = document.querySelector(`script[src="${SDK_URL}"]`) as HTMLScriptElement | null;
+      if (!script) {
+        script = document.createElement("script");
+        script.src = SDK_URL;
+        script.async = true;
+        script.onerror = () => onErrorRef.current("Failed to load payment SDK");
+        document.head.appendChild(script);
+      }
+
+      const onLoad = () => {
+        if (window.customcheckout) {
+          console.log("[WorldlineCheckout] SDK ready via load event");
+          setSdkReady(true);
+        }
+      };
+      script.addEventListener("load", onLoad);
+
+      // Fallback poll — covers edge case where load event already fired
+      const interval = setInterval(() => {
+        if (window.customcheckout) {
+          console.log("[WorldlineCheckout] SDK ready via poll");
+          setSdkReady(true);
+          clearInterval(interval);
+        }
+      }, 200);
+
+      return () => {
+        script!.removeEventListener("load", onLoad);
+        clearInterval(interval);
+      };
     }, []);
 
     // Initialize hosted fields once SDK is ready
