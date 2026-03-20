@@ -35,8 +35,9 @@ function isStateAtLeast(current: string, required: string): boolean {
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  const preflightResponse = handleCorsPreflightRequest(req, corsHeaders);
-  if (preflightResponse) return preflightResponse;
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
     const user = await getUserOrThrow(req, corsHeaders);
