@@ -66,21 +66,19 @@ export function OpsBackupActivation({
   const [showDialog, setShowDialog] = useState(false);
   const activation = useOpsBackupActivation();
 
-  // Evidence checks
+  // Evidence checks — all optional for ops backup
   const isDriverAtLocation = deliveryStatus === "arrived" || deliveryStatus === "delivered";
   const hasPhotos = handoverPhotosCount >= 1;
-  const hasIdCheck = !idCheckRequired || idCheckResult === "passed";
 
   const prerequisites = [
-    { label: "Driver Arrived at Location", met: isDriverAtLocation, required: true },
-    { label: "Handover Photos Captured", met: hasPhotos, required: true },
+    { label: "Driver Arrived at Location", met: isDriverAtLocation, required: false },
+    { label: "Handover Photos Captured", met: hasPhotos, required: false },
     { label: "Fuel Level Recorded", met: fuelRecorded, required: false },
     { label: "Odometer Recorded", met: odometerRecorded, required: false },
-    { label: "ID Check Passed", met: hasIdCheck, required: idCheckRequired },
   ];
 
-  const requiredMet = prerequisites.filter(p => p.required).every(p => p.met);
-  const canActivate = requiredMet && reason.trim().length >= 10;
+  // Only hard requirement: activation reason (min 10 chars)
+  const canActivate = reason.trim().length >= 10;
 
   if (isAlreadyActive) {
     const source = deliveryTask?.activationSource;
