@@ -12,9 +12,11 @@ export type OpsStepId =
   | "photos"
   | "handover"
   | "dispatch"
-  | "intake"      // Delivery: Ops reviews booking
-  | "ready_line"  // Delivery: enforce prep + photos + fuel/odo
-  | "ops_activate"; // Delivery: Ops backup activation
+  | "intake"        // Delivery: Ops reviews booking
+  | "ready_line"    // Delivery: enforce prep + photos + fuel/odo
+  | "ops_activate"  // Delivery: Ops backup activation
+  | "en_route"      // Delivery Portal: driver en route
+  | "arrived";      // Delivery Portal: driver arrived
 
 // Enhanced status types - simplified without locked state
 export type OpsStepStatus = "ready" | "in_progress" | "complete" | "needs_attention";
