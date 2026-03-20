@@ -38,7 +38,7 @@ export function useAssignDriver() {
         .from("condition_photos")
         .select("id", { count: "exact", head: true })
         .eq("booking_id", bookingId)
-        .eq("phase", "pre_delivery");
+        .eq("phase", "pickup");
 
       const bookingData: BookingForDispatchCheck = {
         id: booking.id,

@@ -99,7 +99,7 @@ export function OpsStepContent({
         .from("condition_photos")
         .select("id", { count: "exact", head: true })
         .eq("booking_id", booking.id)
-        .eq("phase", "pre_delivery");
+        .eq("phase", "pickup");
       return count || 0;
     },
     enabled: isDelivery && !!booking?.id,

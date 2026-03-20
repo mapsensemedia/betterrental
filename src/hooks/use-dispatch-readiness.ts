@@ -57,7 +57,7 @@ export function useDispatchReadiness({ bookingId, enabled = true }: UseDispatchR
         .from("condition_photos")
         .select("id", { count: "exact", head: true })
         .eq("booking_id", bookingId)
-        .eq("phase", "pre_delivery");
+        .eq("phase", "pickup");
 
       const bookingData: BookingForDispatchCheck = {
         id: booking.id,
@@ -95,7 +95,7 @@ export function useBatchDispatchReadiness(bookingIds: string[]) {
         .from("condition_photos")
         .select("booking_id")
         .in("booking_id", bookingIds)
-        .eq("phase", "pre_delivery");
+        .eq("phase", "pickup");
 
       // Count photos per booking
       const photoCountMap = new Map<string, number>();
