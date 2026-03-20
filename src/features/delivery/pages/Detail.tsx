@@ -5,6 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { RentalAgreementPanel } from "@/components/admin/RentalAgreementPanel";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { StepWalkaround } from "@/components/admin/ops/steps/StepWalkaround";
@@ -20,8 +32,11 @@ import {
   Building2,
   Navigation,
   Check,
+  CheckCircle2,
   AlertTriangle,
   Loader2,
+  Key,
+  ShieldAlert,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -302,15 +317,14 @@ export default function DeliveryDetail() {
               </CardContent>
             </Card>
           )}
-          {activeStepId === "handover" && (
-            <div className="space-y-4">
-              <HandoverChecklist checklist={checklist} />
-              <DeliveryActions
-                bookingId={delivery.id}
-                currentStatus={delivery.deliveryStatus}
-                onComplete={() => navigate("/delivery")}
-              />
-            </div>
+          {activeStepId === "handover" && bookingId && (
+            <StepHandoverActivation
+              delivery={delivery}
+              bookingId={bookingId}
+              checklist={checklist}
+              allPriorStepsComplete={agreementSigned && walkaroundDone && photosUploaded}
+              onComplete={() => navigate("/delivery")}
+            />
           )}
         </div>
 
@@ -525,6 +539,159 @@ function StepArrivedContent({ delivery }: { delivery: any }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HANDOVER & ACTIVATION STEP (PRIMARY ACTIVATION PATH)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StepHandoverActivation({
+  delivery,
+  bookingId,
+  checklist,
+  allPriorStepsComplete,
+  onComplete,
+}: {
+  delivery: any;
+  bookingId: string;
+  checklist: any;
+  allPriorStepsComplete: boolean;
+  onComplete: () => void;
+}) {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const isDelivered = delivery.deliveryStatus === "delivered";
+
+  const handleActivate = async () => {
+    setActivating(true);
+    setActivationError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-booking-status", {
+        body: {
+          bookingId,
+          status: "active",
+          handedOverAt: new Date().toISOString(),
+          activatedAt: new Date().toISOString(),
+          activationSource: "delivery_portal",
+        },
+      });
+      if (error) throw error;
+
+      // Update delivery status to delivered
+      await supabase
+        .from("delivery_statuses")
+        .update({ status: "delivered", updated_at: new Date().toISOString() })
+        .eq("booking_id", bookingId);
+
+      // Update delivery task
+      await supabase
+        .from("delivery_tasks")
+        .upsert({
+          booking_id: bookingId,
+          status: "activated",
+          activated_at: new Date().toISOString(),
+          activation_source: "delivery_portal",
+          handover_completed_at: new Date().toISOString(),
+        }, { onConflict: "booking_id" });
+
+      toast.success("Rental activated successfully!");
+      setTimeout(onComplete, 1500);
+    } catch (err: any) {
+      console.error("Activation failed:", err);
+      setActivationError(err?.message || "Activation failed. Contact Operations for backup activation.");
+    } finally {
+      setActivating(false);
+      setShowConfirm(false);
+    }
+  };
+
+  if (isDelivered) {
+    return (
+      <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30">
+        <CardContent className="py-8 flex flex-col items-center gap-3">
+          <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+          <h3 className="text-lg font-semibold text-emerald-700 dark:text-emerald-400">
+            Rental Activated
+          </h3>
+          <p className="text-sm text-emerald-600 dark:text-emerald-500">
+            Delivery complete. The customer's rental is now active.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <HandoverChecklist checklist={checklist} />
+
+      {activationError && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-2">
+              <ShieldAlert className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-destructive">Activation Failed</p>
+                <p className="text-sm text-destructive/80">{activationError}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Contact Operations for backup activation.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!allPriorStepsComplete && (
+        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Complete Agreement, Walkaround, and Photos steps before activating the rental.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogTrigger asChild>
+          <Button
+            size="lg"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            disabled={!allPriorStepsComplete || activating}
+          >
+            {activating ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Key className="h-4 w-4 mr-2" />
+            )}
+            Activate Rental & Complete Delivery
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Rental?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will activate the customer's rental and mark the delivery as complete.
+              The customer will have full use of the vehicle from this point.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleActivate}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              Confirm Activation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
 

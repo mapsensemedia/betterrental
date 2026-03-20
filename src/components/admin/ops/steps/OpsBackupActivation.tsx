@@ -66,21 +66,19 @@ export function OpsBackupActivation({
   const [showDialog, setShowDialog] = useState(false);
   const activation = useOpsBackupActivation();
 
-  // Evidence checks
+  // Evidence checks — all optional for ops backup
   const isDriverAtLocation = deliveryStatus === "arrived" || deliveryStatus === "delivered";
   const hasPhotos = handoverPhotosCount >= 1;
-  const hasIdCheck = !idCheckRequired || idCheckResult === "passed";
 
   const prerequisites = [
-    { label: "Driver Arrived at Location", met: isDriverAtLocation, required: true },
-    { label: "Handover Photos Captured", met: hasPhotos, required: true },
+    { label: "Driver Arrived at Location", met: isDriverAtLocation, required: false },
+    { label: "Handover Photos Captured", met: hasPhotos, required: false },
     { label: "Fuel Level Recorded", met: fuelRecorded, required: false },
     { label: "Odometer Recorded", met: odometerRecorded, required: false },
-    { label: "ID Check Passed", met: hasIdCheck, required: idCheckRequired },
   ];
 
-  const requiredMet = prerequisites.filter(p => p.required).every(p => p.met);
-  const canActivate = requiredMet && reason.trim().length >= 10;
+  // Only hard requirement: activation reason (min 10 chars)
+  const canActivate = reason.trim().length >= 10;
 
   if (isAlreadyActive) {
     const source = deliveryTask?.activationSource;
@@ -116,8 +114,8 @@ export function OpsBackupActivation({
           <CardTitle className="text-base">Activate from Ops (Backup)</CardTitle>
         </div>
         <CardDescription>
-          Use only if the driver cannot activate from the Delivery Portal (e.g., app issue).
-          A mandatory reason is required for audit.
+          This is only needed if the driver cannot activate from the Delivery Portal.
+          Check delivery portal status first. A mandatory reason is required for audit.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -166,12 +164,12 @@ export function OpsBackupActivation({
         </div>
 
         {/* Activation Button */}
-        {!requiredMet && (
+        {!canActivate && reason.trim().length < 10 && (
           <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-700">Cannot Activate Yet</AlertTitle>
+            <AlertTitle className="text-amber-700">Reason Required</AlertTitle>
             <AlertDescription className="text-amber-600">
-              Required evidence is missing. Complete all required items above.
+              Provide an activation reason (min 10 characters) to enable backup activation.
             </AlertDescription>
           </Alert>
         )}
