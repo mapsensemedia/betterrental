@@ -114,8 +114,8 @@ export function OpsBackupActivation({
           <CardTitle className="text-base">Activate from Ops (Backup)</CardTitle>
         </div>
         <CardDescription>
-          Use only if the driver cannot activate from the Delivery Portal (e.g., app issue).
-          A mandatory reason is required for audit.
+          This is only needed if the driver cannot activate from the Delivery Portal.
+          Check delivery portal status first. A mandatory reason is required for audit.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
