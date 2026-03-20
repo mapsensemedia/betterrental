@@ -169,6 +169,7 @@ export const WorldlineCheckout = forwardRef<WorldlineCheckoutHandle, WorldlineCh
     // Initialize hosted fields once SDK is ready
     useEffect(() => {
       if (!sdkReady || mountedRef.current || !window.customcheckout) return;
+      console.log("[WorldlineCheckout] Initializing hosted fields");
       mountedRef.current = true;
 
       const customCheckout = window.customcheckout();
