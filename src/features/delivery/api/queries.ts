@@ -275,6 +275,17 @@ export async function fetchDeliveryDetail(
     }
   }
 
+  // Get driver name
+  let assignedDriverName: string | null = null;
+  if (row.assigned_driver_id) {
+    const { data: driverProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", row.assigned_driver_id)
+      .maybeSingle();
+    assignedDriverName = driverProfile?.full_name || null;
+  }
+
   // Fetch customer info: prefer customers table, then profiles
   let customer: { id: string; fullName: string | null; email: string | null; phone: string | null } | null = null;
   if (row.customer_id) {
