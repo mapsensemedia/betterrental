@@ -108,7 +108,7 @@ export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
   },
   {
     id: "dispatch",
-    number: 4,
+    number: 5,
     title: "Dispatch to Driver",
     description: "Assign driver, schedule window, dispatch vehicle for delivery",
     icon: "truck",
