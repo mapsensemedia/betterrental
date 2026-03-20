@@ -275,15 +275,27 @@ export async function fetchDeliveryDetail(
     }
   }
 
-  // Get driver name
-  let assignedDriverName: string | null = null;
-  if (row.assigned_driver_id) {
-    const { data: driverProfile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", row.assigned_driver_id)
+  // Fetch customer info: prefer customers table, then profiles
+  let customer: { id: string; fullName: string | null; email: string | null; phone: string | null } | null = null;
+  if (row.customer_id) {
+    const { data: cust } = await supabase
+      .from("customers")
+      .select("id, full_name, email, phone")
+      .eq("id", row.customer_id)
       .maybeSingle();
-    assignedDriverName = driverProfile?.full_name || null;
+    if (cust) {
+      customer = { id: cust.id, fullName: cust.full_name, email: cust.email, phone: cust.phone };
+    }
+  }
+  if (!customer) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, phone")
+      .eq("id", row.user_id)
+      .maybeSingle();
+    if (prof) {
+      customer = { id: prof.id, fullName: prof.full_name, email: prof.email, phone: prof.phone };
+    }
   }
 
   // Fetch status history from log table
@@ -319,12 +331,7 @@ export async function fetchDeliveryDetail(
       color: (row.assigned_unit as any).color,
       currentMileage: (row.assigned_unit as any).current_mileage,
     } : null,
-    customer: row.profiles ? {
-      id: (row.profiles as any).id,
-      fullName: (row.profiles as any).full_name,
-      email: (row.profiles as any).email,
-      phone: (row.profiles as any).phone,
-    } : null,
+    customer,
     dispatchLocation: row.locations ? {
       id: (row.locations as any).id,
       name: (row.locations as any).name,
