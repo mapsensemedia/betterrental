@@ -347,11 +347,7 @@ export function useOpsBackupActivation() {
         {
           body: {
             bookingId,
-            status: "active",
-            handedOverAt: now,
-            handedOverBy: user.id,
-            activatedAt: now,
-            activatedBy: user.id,
+            newStatus: "active",
             activationSource: "ops_backup",
             activationReason: activationReason,
           },
