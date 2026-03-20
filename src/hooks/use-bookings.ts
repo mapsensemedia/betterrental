@@ -342,7 +342,7 @@ export function useUpdateBookingStatus() {
     },
     onError: (error) => {
       console.error("Failed to update booking:", error);
-      toast.error("Failed to update booking status");
+      toast.error(error?.message || "Failed to update booking status");
     },
   });
 }

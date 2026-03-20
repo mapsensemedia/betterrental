@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
         title: `Booking ${statusLabel} - ${booking.booking_code}`,
         message: `Booking ${booking.booking_code} status changed to ${newStatus}`,
         booking_id: bookingId,
-        status: "new",
+        status: "pending",
       });
     }
 
