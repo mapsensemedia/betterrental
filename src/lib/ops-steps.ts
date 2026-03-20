@@ -93,6 +93,13 @@ export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
     icon: "credit-card",
   },
   {
+    id: "agreement",
+    number: 3,
+    title: "Rental Agreement",
+    description: "Generate and sign rental agreement before dispatch",
+    icon: "file-text",
+  },
+  {
     id: "ready_line",
     number: 3,
     title: "Ready Line",
