@@ -263,17 +263,7 @@ export function OpsStepContent({
           )}
           {/* NEW: Ops Backup Activation for delivery */}
           {stepId === "ops_activate" && isDelivery && (
-            <OpsBackupActivation
-              bookingId={booking.id}
-              deliveryTask={null}
-              deliveryStatus={booking.delivery_statuses?.status || null}
-              handoverPhotosCount={0}
-              fuelRecorded={false}
-              odometerRecorded={false}
-              idCheckResult={null}
-              idCheckRequired={true}
-              isAlreadyActive={booking.status === "active" || booking.status === "completed"}
-            />
+            <OpsBackupActivationWrapper booking={booking} />
           )}
           {stepId === "agreement" && (
             <StepAgreement 
