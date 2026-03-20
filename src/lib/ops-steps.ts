@@ -115,7 +115,7 @@ export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
   },
   {
     id: "ops_activate",
-    number: 5,
+    number: 6,
     title: "Ops Backup Activation",
     description: "Activate rental from Ops if driver cannot (requires evidence + reason)",
     icon: "shield",
