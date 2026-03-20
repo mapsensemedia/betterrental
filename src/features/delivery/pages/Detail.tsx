@@ -214,6 +214,12 @@ export default function DeliveryDetail() {
           </CardContent>
         </Card>
 
+        {/* Rental Agreement */}
+        <RentalAgreementPanel
+          bookingId={delivery.id}
+          customerName={displayName(delivery.customer?.fullName)}
+        />
+
         {/* Special Instructions */}
         {delivery.specialInstructions && (
           <Card className="border-amber-200 bg-amber-50/50">
