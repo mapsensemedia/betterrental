@@ -277,7 +277,7 @@ export function OpsStepContent({
           {stepId === "agreement" && (
             <StepAgreement 
               bookingId={booking.id}
-              customerName={displayName(booking.profiles?.full_name)}
+              customerName={displayName(booking.customers?.full_name || booking.profiles?.full_name)}
               completion={completion.agreement}
             />
           )}
