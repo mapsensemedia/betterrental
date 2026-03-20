@@ -101,7 +101,7 @@ export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
   },
   {
     id: "ready_line",
-    number: 3,
+    number: 4,
     title: "Ready Line",
     description: "Prep checklist, photos, fuel/odometer, maintenance check, lock pricing",
     icon: "wrench",
