@@ -44,18 +44,14 @@ export async function fetchDeliveryList(
       assigned_driver_id,
       vehicle_id,
       location_id,
+      user_id,
+      customer_id,
       assigned_unit:assigned_unit_id (
         id,
         vin,
         license_plate,
         color,
         current_mileage
-      ),
-      profiles:user_id (
-        id,
-        full_name,
-        email,
-        phone
       ),
       locations:location_id (
         id,
