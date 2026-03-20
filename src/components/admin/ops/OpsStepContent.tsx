@@ -1,6 +1,7 @@
 import { displayName } from "@/lib/format-customer";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useDeliveryTask } from "@/hooks/use-delivery-task";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -262,17 +263,7 @@ export function OpsStepContent({
           )}
           {/* NEW: Ops Backup Activation for delivery */}
           {stepId === "ops_activate" && isDelivery && (
-            <OpsBackupActivation
-              bookingId={booking.id}
-              deliveryTask={null}
-              deliveryStatus={booking.delivery_statuses?.status || null}
-              handoverPhotosCount={0}
-              fuelRecorded={false}
-              odometerRecorded={false}
-              idCheckResult={null}
-              idCheckRequired={true}
-              isAlreadyActive={booking.status === "active" || booking.status === "completed"}
-            />
+            <OpsBackupActivationWrapper booking={booking} />
           )}
           {stepId === "agreement" && (
             <StepAgreement 
@@ -329,5 +320,40 @@ export function OpsStepContent({
         </div>
       )}
     </div>
+  );
+}
+
+/** Wrapper that fetches real delivery task + photo data for OpsBackupActivation */
+function OpsBackupActivationWrapper({ booking }: { booking: any }) {
+  const { data: deliveryTask } = useDeliveryTask(booking?.id);
+
+  const { data: handoverPhotoCount = 0 } = useQuery({
+    queryKey: ["handover-photo-count", booking?.id],
+    queryFn: async () => {
+      if (!booking?.id) return 0;
+      const { count } = await supabase
+        .from("condition_photos")
+        .select("id", { count: "exact", head: true })
+        .eq("booking_id", booking.id);
+      return count || 0;
+    },
+    enabled: !!booking?.id,
+    staleTime: 10_000,
+  });
+
+  const deliveryStatus = deliveryTask?.status || booking.delivery_statuses?.status || null;
+
+  return (
+    <OpsBackupActivation
+      bookingId={booking.id}
+      deliveryTask={deliveryTask || null}
+      deliveryStatus={deliveryStatus}
+      handoverPhotosCount={handoverPhotoCount}
+      fuelRecorded={deliveryTask?.fuelLevelRecorded || false}
+      odometerRecorded={deliveryTask?.odometerRecorded || false}
+      idCheckResult={deliveryTask?.idCheckResult || null}
+      idCheckRequired={deliveryTask?.idCheckRequired ?? true}
+      isAlreadyActive={booking.status === "active" || booking.status === "completed"}
+    />
   );
 }
