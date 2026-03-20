@@ -165,15 +165,31 @@ export function useUpdateDeliveryTask() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase
+      // Try update first
+      let { data, error } = await supabase
         .from("delivery_tasks")
         .update(updates)
         .eq("booking_id", bookingId)
         .select()
         .maybeSingle();
 
+      // If no row exists, create one with the updates applied
+      if (!error && !data) {
+        const upsertResult = await supabase
+          .from("delivery_tasks")
+          .upsert({
+            booking_id: bookingId,
+            status: "pending",
+            ...updates,
+          }, { onConflict: "booking_id" })
+          .select()
+          .maybeSingle();
+        data = upsertResult.data;
+        error = upsertResult.error;
+      }
+
       if (error) throw error;
-      if (!data) throw new Error("No delivery task found for this booking");
+      if (!data) throw new Error("Failed to create or update delivery task");
 
       // Audit log
       if (auditAction) {
