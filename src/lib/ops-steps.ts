@@ -135,29 +135,43 @@ export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
 // These steps are done by driver at customer location
 export const DELIVERY_PORTAL_STEPS: OpsStep[] = [
   {
-    id: "agreement",
+    id: "en_route",
     number: 1,
+    title: "En Route",
+    description: "Drive to customer delivery location",
+    icon: "navigation",
+  },
+  {
+    id: "arrived",
+    number: 2,
+    title: "Arrived",
+    description: "Confirm arrival at customer location",
+    icon: "map-pin",
+  },
+  {
+    id: "agreement",
+    number: 3,
     title: "Rental Agreement",
     description: "Customer signs agreement at delivery location",
     icon: "file-text",
   },
   {
     id: "walkaround",
-    number: 2,
+    number: 4,
     title: "Vehicle Walkaround",
     description: "Complete vehicle inspection with customer",
     icon: "eye",
   },
   {
     id: "photos",
-    number: 3,
+    number: 5,
     title: "Handover Photos",
     description: "Capture final photos at delivery location",
     icon: "camera",
   },
   {
     id: "handover",
-    number: 4,
+    number: 6,
     title: "Complete Delivery",
     description: "Hand over keys and activate rental",
     icon: "key",
