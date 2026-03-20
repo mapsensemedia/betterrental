@@ -246,7 +246,7 @@ export async function fetchDeliveryDetail(
         updated_by
       ),
       rental_agreements (
-        signed_at
+        customer_signed_at
       )
     `)
     .eq("id", bookingId)
@@ -347,7 +347,7 @@ export async function fetchDeliveryDetail(
     } : null,
     isUrgent: isDeliveryUrgent(row.start_at),
     portalStatus: getPortalStatus(deliveryStatus),
-    agreementSignedAt: (row.rental_agreements as any)?.signed_at || null,
+    agreementSignedAt: (row.rental_agreements as any)?.customer_signed_at || null,
     walkaroundAcknowledgedAt: null, // walkaround_records table does not exist yet
     handedOverAt: row.handed_over_at,
     statusHistory,
