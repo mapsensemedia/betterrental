@@ -1,58 +1,24 @@
 
 
-## Root Cause
+## Problem
 
-The `update-booking-status` edge function **never processes any POST requests**. Every request (including POST) returns an empty 204 response because of a broken CORS handler pattern.
+The delivery detail page (`src/features/delivery/pages/Detail.tsx`) is a **standalone page** — it does NOT use the standard ops panel step system (`OpsStepContent`, `ops-steps.ts`). The agreement step was added to `ops-steps.ts`, which only affects the admin ops panel, not the delivery detail page.
 
-### The Bug (Line 36-39 of `update-booking-status/index.ts`)
+Currently, the delivery detail page only has a small "Agreement" button buried in the Handover Requirements section (line 237-241) that links to `/booking/:id/agreement`. There is no inline agreement generation/signing panel.
 
-```text
-Current (broken):
-  const preflightResponse = handleCorsPreflightRequest(req, corsHeaders);
-  if (preflightResponse) return preflightResponse;
-  // ← never reached for ANY request
+## Fix
 
-Correct pattern (used by all other 18+ edge functions):
-  if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
-```
+Add a dedicated **Rental Agreement section** directly into the delivery detail page, using the existing `RentalAgreementPanel` component (same one used by the standard ops panel). This will be placed as a prominent card between the Customer Contact section and Special Instructions, giving staff full agreement functionality inline.
 
-`handleCorsPreflightRequest()` always returns a Response object (never null/undefined), so the `if (preflightResponse)` check is always truthy. Every POST request gets a 204 empty body. The client SDK receives `data = null`, tries to read `data.booking`, throws a TypeError, and the user sees a generic "Failed to update booking status" toast.
+### Changes
 
-### Secondary Bug (Line 207)
+**`src/features/delivery/pages/Detail.tsx`**
+1. Import `RentalAgreementPanel` from `@/components/admin/RentalAgreementPanel`
+2. Import `useRentalAgreement` from `@/hooks/use-rental-agreement` to show signed/pending status
+3. Add a new "Rental Agreement" card section after Customer Contact (before Special Instructions) containing:
+   - A header with status badge (Signed / Awaiting Signature)
+   - The `RentalAgreementPanel` component with `bookingId={delivery.id}` and `customerName` resolved from delivery data
+4. Keep the existing small Agreement button in Handover Requirements as a secondary access point
 
-The function inserts `status: "new"` into `admin_alerts`, but the `alert_status` enum only has: `pending`, `acknowledged`, `resolved`. This would cause a silent DB error when creating the activation alert. Fix: change `"new"` → `"pending"`.
-
-## Fix Plan
-
-### 1. Fix CORS handler in `update-booking-status/index.ts`
-Replace the broken pattern on lines 36-39 with the standard method check used by all other functions:
-```typescript
-if (req.method === "OPTIONS") {
-  return new Response(null, { status: 204, headers: corsHeaders });
-}
-```
-
-### 2. Fix alert status enum value
-Change line 207 from `status: "new"` to `status: "pending"`.
-
-### 3. Deploy the edge function
-Deploy `update-booking-status` immediately after the fix.
-
-### 4. Improve error message in `onError`
-In `src/hooks/use-bookings.ts`, surface the actual error message in the toast instead of a generic string, so staff can see what went wrong:
-```typescript
-onError: (error) => {
-  toast.error(error?.message || "Failed to update booking status");
-}
-```
-
-## Impact
-- **All booking status transitions** via the ops panel and active rental detail page are broken (not just activation)
-- Confirming, cancelling, completing, and reopening bookings are all affected
-- This is a critical fix that restores the entire booking lifecycle
-
-## Verification
-- After deploy, staff can activate the booking from either the BookingOps handover step or the ActiveRentalDetail page
-- Edge function logs will show successful invocations
-- The booking status will transition from `confirmed` → `active`
+This reuses the exact same agreement generation, signing, and display logic as the standard ops panel — no edge function changes needed.
 
