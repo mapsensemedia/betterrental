@@ -223,18 +223,14 @@ export async function fetchDeliveryDetail(
       total_amount,
       notes,
       handed_over_at,
+      user_id,
+      customer_id,
       assigned_unit:assigned_unit_id (
         id,
         vin,
         license_plate,
         color,
         current_mileage
-      ),
-      profiles:user_id (
-        id,
-        full_name,
-        email,
-        phone
       ),
       locations:location_id (
         id,
