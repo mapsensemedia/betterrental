@@ -44,18 +44,14 @@ export async function fetchDeliveryList(
       assigned_driver_id,
       vehicle_id,
       location_id,
+      user_id,
+      customer_id,
       assigned_unit:assigned_unit_id (
         id,
         vin,
         license_plate,
         color,
         current_mileage
-      ),
-      profiles:user_id (
-        id,
-        full_name,
-        email,
-        phone
       ),
       locations:location_id (
         id,
@@ -111,12 +107,45 @@ export async function fetchDeliveryList(
     (drivers || []).forEach(d => driverMap.set(d.id, d.full_name || "Unknown"));
   }
 
+  // Batch lookup profiles by user_id for customer info
+  const userIds = [...new Set((data || []).map(r => r.user_id).filter(Boolean))] as string[];
+  const profilesMap = new Map<string, { id: string; full_name: string | null; email: string | null; phone: string | null }>();
+
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, phone")
+      .in("id", userIds);
+    (profiles || []).forEach(p => profilesMap.set(p.id, p));
+  }
+
+  // Batch lookup customers by customer_id (for walk-in bookings)
+  const customerIds = [...new Set((data || []).map(r => r.customer_id).filter(Boolean))] as string[];
+  const customersMap = new Map<string, { id: string; full_name: string; email: string | null; phone: string | null }>();
+
+  if (customerIds.length > 0) {
+    const { data: customers } = await supabase
+      .from("customers")
+      .select("id, full_name, email, phone")
+      .in("id", customerIds);
+    (customers || []).forEach(c => customersMap.set(c.id, c));
+  }
+
   // Map to application types
   const deliveries: DeliveryBooking[] = (data || []).map((row) => {
     const assignedDriverName = row.assigned_driver_id ? driverMap.get(row.assigned_driver_id) || null : null;
     const cat = categoryMap.get(row.vehicle_id);
     const deliveryStatus = (row.delivery_statuses?.status as DeliveryStatus) || DELIVERY_STATUSES.UNASSIGNED;
     
+    // Resolve customer: prefer customers table (walk-in), then profiles
+    const customerRecord = row.customer_id ? customersMap.get(row.customer_id) : null;
+    const profileRecord = profilesMap.get(row.user_id);
+    const customer = customerRecord
+      ? { id: customerRecord.id, fullName: customerRecord.full_name, email: customerRecord.email, phone: customerRecord.phone }
+      : profileRecord
+        ? { id: profileRecord.id, fullName: profileRecord.full_name, email: profileRecord.email, phone: profileRecord.phone }
+        : null;
+
     return {
       id: row.id,
       bookingCode: row.booking_code,
@@ -145,12 +174,7 @@ export async function fetchDeliveryList(
         color: (row.assigned_unit as any).color,
         currentMileage: (row.assigned_unit as any).current_mileage,
       } : null,
-      customer: row.profiles ? {
-        id: (row.profiles as any).id,
-        fullName: (row.profiles as any).full_name,
-        email: (row.profiles as any).email,
-        phone: (row.profiles as any).phone,
-      } : null,
+      customer,
       dispatchLocation: row.locations ? {
         id: (row.locations as any).id,
         name: (row.locations as any).name,
@@ -199,18 +223,14 @@ export async function fetchDeliveryDetail(
       total_amount,
       notes,
       handed_over_at,
+      user_id,
+      customer_id,
       assigned_unit:assigned_unit_id (
         id,
         vin,
         license_plate,
         color,
         current_mileage
-      ),
-      profiles:user_id (
-        id,
-        full_name,
-        email,
-        phone
       ),
       locations:location_id (
         id,
@@ -266,6 +286,29 @@ export async function fetchDeliveryDetail(
     assignedDriverName = driverProfile?.full_name || null;
   }
 
+  // Fetch customer info: prefer customers table, then profiles
+  let customer: { id: string; fullName: string | null; email: string | null; phone: string | null } | null = null;
+  if (row.customer_id) {
+    const { data: cust } = await supabase
+      .from("customers")
+      .select("id, full_name, email, phone")
+      .eq("id", row.customer_id)
+      .maybeSingle();
+    if (cust) {
+      customer = { id: cust.id, fullName: cust.full_name, email: cust.email, phone: cust.phone };
+    }
+  }
+  if (!customer) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, phone")
+      .eq("id", row.user_id)
+      .maybeSingle();
+    if (prof) {
+      customer = { id: prof.id, fullName: prof.full_name, email: prof.email, phone: prof.phone };
+    }
+  }
+
   // Fetch status history from log table
   const statusHistory = await fetchDeliveryHistory(supabase, bookingId);
 
@@ -299,12 +342,7 @@ export async function fetchDeliveryDetail(
       color: (row.assigned_unit as any).color,
       currentMileage: (row.assigned_unit as any).current_mileage,
     } : null,
-    customer: row.profiles ? {
-      id: (row.profiles as any).id,
-      fullName: (row.profiles as any).full_name,
-      email: (row.profiles as any).email,
-      phone: (row.profiles as any).phone,
-    } : null,
+    customer,
     dispatchLocation: row.locations ? {
       id: (row.locations as any).id,
       name: (row.locations as any).name,
