@@ -247,9 +247,6 @@ export async function fetchDeliveryDetail(
       ),
       rental_agreements (
         signed_at
-      ),
-      walkaround_records (
-        acknowledged_at
       )
     `)
     .eq("id", bookingId)
