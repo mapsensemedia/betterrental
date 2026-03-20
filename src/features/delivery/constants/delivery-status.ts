@@ -113,7 +113,7 @@ export const STATUS_CONFIG: Record<DeliveryStatus, StatusConfig> = {
     badgeVariant: 'secondary',
     icon: MapPin,
     stepNumber: 4,
-    actionLabel: 'Complete Handover',
+    actionLabel: 'Activate Rental & Complete Delivery',
     confirmationRequired: true,
     description: 'At customer location, ready for handover',
   },

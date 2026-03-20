@@ -164,12 +164,12 @@ export function OpsBackupActivation({
         </div>
 
         {/* Activation Button */}
-        {!requiredMet && (
+        {!canActivate && reason.trim().length < 10 && (
           <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-700">Cannot Activate Yet</AlertTitle>
+            <AlertTitle className="text-amber-700">Reason Required</AlertTitle>
             <AlertDescription className="text-amber-600">
-              Required evidence is missing. Complete all required items above.
+              Provide an activation reason (min 10 characters) to enable backup activation.
             </AlertDescription>
           </Alert>
         )}

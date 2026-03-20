@@ -316,15 +316,14 @@ export default function DeliveryDetail() {
               </CardContent>
             </Card>
           )}
-          {activeStepId === "handover" && (
-            <div className="space-y-4">
-              <HandoverChecklist checklist={checklist} />
-              <DeliveryActions
-                bookingId={delivery.id}
-                currentStatus={delivery.deliveryStatus}
-                onComplete={() => navigate("/delivery")}
-              />
-            </div>
+          {activeStepId === "handover" && bookingId && (
+            <StepHandoverActivation
+              delivery={delivery}
+              bookingId={bookingId}
+              checklist={checklist}
+              allPriorStepsComplete={agreementSigned && walkaroundDone && photosUploaded}
+              onComplete={() => navigate("/delivery")}
+            />
           )}
         </div>
 
