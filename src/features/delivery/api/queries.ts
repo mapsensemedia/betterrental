@@ -348,7 +348,7 @@ export async function fetchDeliveryDetail(
     isUrgent: isDeliveryUrgent(row.start_at),
     portalStatus: getPortalStatus(deliveryStatus),
     agreementSignedAt: (row.rental_agreements as any)?.signed_at || null,
-    walkaroundAcknowledgedAt: (row.walkaround_records as any)?.acknowledged_at || null,
+    walkaroundAcknowledgedAt: null, // walkaround_records table does not exist yet
     handedOverAt: row.handed_over_at,
     statusHistory,
   };
