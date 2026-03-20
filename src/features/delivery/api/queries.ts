@@ -246,7 +246,7 @@ export async function fetchDeliveryDetail(
         updated_by
       ),
       rental_agreements (
-        signed_at
+        customer_signed_at
       )
     `)
     .eq("id", bookingId)
