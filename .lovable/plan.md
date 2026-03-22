@@ -1,30 +1,52 @@
 
 
-## Fix Delivery Activation Architecture — COMPLETED
+## Finance Page Total Revenue Fix
 
-### Changes Made
+### Problem
 
-#### 1. Delivery Portal Handover Step → Primary Activation Path
-**File**: `src/features/delivery/pages/Detail.tsx`
-- Added `StepHandoverActivation` component with prominent "Activate Rental & Complete Delivery" button
-- Button disabled until all prior steps (Agreement, Walkaround, Photos) complete
-- Confirmation dialog before activation
-- Calls `update-booking-status` edge function for activation
-- Shows success state when already delivered
-- Shows error with "Contact Operations" fallback on failure
+The Finance page (line 1018) calculates total revenue as:
+```
+payments.filter(p => p.status === "completed").reduce(sum + amount)
+```
 
-#### 2. Relaxed Ops Backup Activation Prerequisites
-**File**: `src/components/admin/ops/steps/OpsBackupActivation.tsx`
-- All evidence checks (arrived, photos, ID) changed to **optional**
-- Only hard requirement: activation reason (min 10 chars)
-- Updated description to clarify this is a fallback only
+This has multiple issues:
+1. **Worldline duplicate counting**: The `payments` array combines three sources — `payments` table records, Worldline rental entries (from `bookings.wl_transaction_id`), and Worldline deposit entries (from `bookings.wl_deposit_transaction_id`). Deduplication only checks `existingTxnIds` against the payments table's `transaction_id`, but if a booking has both a `payments` table record AND a `wl_transaction_id` with different IDs, both get counted.
+2. **Authorized deposits included**: Worldline deposits with `wl_deposit_auth_status = "authorized"` get status mapped to `"authorized"` (line 954), so they're excluded from the "completed" filter — this is correct. BUT the manually inserted deposit for WL6GWEGZ (status "completed") IS included, which the user wants.
+3. **Name resolution bug**: Worldline entries resolve names via `customer_id` first, then `user_id`. If `customer_id` maps to the wrong customer record, wrong names appear.
 
-#### 3. Fixed Ops Backup Backend Validation
-**File**: `src/hooks/use-delivery-task.ts`
-- Removed delivery status and photo evidence checks
-- Changed from direct `.update()` to `supabase.functions.invoke("update-booking-status")` to bypass database trigger
-- Uses `.upsert()` for delivery_tasks to handle missing rows
+### Plan
 
-#### 4. Updated Action Label
-**File**: `src/features/delivery/constants/delivery-status.ts`
-- Changed arrived status actionLabel to "Activate Rental & Complete Delivery"
+**File: `src/pages/admin/Finance.tsx`** (line 1018 area)
+
+Replace the simple `totalRevenue` calculation with logic that:
+
+1. **Deduplicates by `transaction_id`** — if multiple entries share the same `transaction_id`, count only once
+2. **Deduplicates by `booking_id + payment_type`** — for Worldline synthetic entries, prevent counting both a `payments` table record and a Worldline-derived record for the same booking's rental payment
+3. **Includes all `status === "completed"` payments** regardless of `payment_type` (rental, deposit, PAC, etc.)
+4. **Excludes `status === "authorized"`** payments (deposit holds)
+
+```typescript
+// Deduplicated total: prefer payments-table records, skip WL duplicates
+const totalRevenue = (() => {
+  const seen = new Set<string>();
+  let total = 0;
+  for (const p of payments) {
+    if (p.status !== "completed") continue;
+    // Deduplicate by transaction_id
+    const dedupeKey = p.transaction_id || p.id;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    total += Number(p.amount);
+  }
+  return total;
+})();
+```
+
+Also update the Worldline rental dedup logic (lines 931-944) to also check for duplicate `booking_id` entries already in the payments table, not just `transaction_id` matches. This prevents double-counting when a payment was recorded in the `payments` table with a different `transaction_id` than the booking's `wl_transaction_id`.
+
+**Dedup fix in query (lines 923-944)**:
+- Build a `Set<string>` of `booking_id` values from `manualPayments` where `payment_type` is `"rental"` or `"PAC"`
+- Filter out Worldline rental entries whose `booking_id` is already represented in the payments table
+
+This ensures the verified total of **$5,308.87** is shown correctly.
+
