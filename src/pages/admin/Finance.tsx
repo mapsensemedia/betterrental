@@ -1021,7 +1021,18 @@ function TransactionsTab() {
     }
   };
 
-  const totalRevenue = payments.filter(p => p.status === "completed").reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalRevenue = (() => {
+    const seen = new Set<string>();
+    let total = 0;
+    for (const p of payments) {
+      if (p.status !== "completed") continue;
+      const dedupeKey = p.transaction_id || p.id;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      total += Number(p.amount);
+    }
+    return total;
+  })();
   const pendingAmount = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
   const depositPayments = payments.filter(p => p.payment_type === "deposit");
   const totalDeposits = depositPayments.reduce((sum, p) => sum + Number(p.amount), 0);
