@@ -987,7 +987,7 @@ function TransactionsTab() {
         }));
 
       const wlDeposit: Payment[] = (wlDepositBookings || [])
-        .filter(b => !existingTxnIds.has(b.wl_deposit_transaction_id!))
+        .filter(b => !existingDepositTxnIds.has(b.wl_deposit_transaction_id!) && !manualDepositBookingIds.has(b.id))
         .map(b => ({
           id: `wl-deposit-${b.id}`,
           booking_id: b.id,
