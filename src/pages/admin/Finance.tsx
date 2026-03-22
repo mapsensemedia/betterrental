@@ -493,7 +493,7 @@ function OverviewTab() {
 
   const typeBreakdown = useMemo(() => {
     const rental = payments.filter((p) => p.status === "completed" && (p.payment_type === "rental" || p.payment_type === "P" || p.payment_type === "PAC")).reduce((s, p) => s + p.amount, 0);
-    const deposit = payments.filter((p) => p.status === "completed" && (p.payment_type === "deposit" || p.payment_type === "PA")).reduce((s, p) => s + p.amount, 0);
+    const deposit = payments.filter((p) => p.status === "completed" && p.payment_type === "deposit").reduce((s, p) => s + p.amount, 0);
     const other = metrics.collected - rental - deposit;
     return { rental, deposit, other };
   }, [payments, metrics.collected]);
