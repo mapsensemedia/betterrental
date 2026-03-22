@@ -453,11 +453,24 @@ function OverviewTab() {
   const unreconciledCount = useMemo(() => payments.filter((p) => p.unreconciled).length, [payments]);
 
   const metrics = useMemo(() => {
-    const collected = payments.filter((p) => p.status === "completed" && p.payment_type !== "deposit").reduce((s, p) => s + p.amount, 0);
+    // Deduplicated collected revenue: include all completed payments (rental, PAC, captured deposits)
+    // Exclude authorized deposit holds (status !== "completed")
+    const seen = new Set<string>();
+    let collected = 0;
+    let completedCount = 0;
+    for (const p of payments) {
+      if (p.status === "completed") {
+        const dedupeKey = p.transaction_id || p.id;
+        if (!seen.has(dedupeKey)) {
+          seen.add(dedupeKey);
+          collected += p.amount;
+          completedCount++;
+        }
+      }
+    }
     const pending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
     const failed = payments.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
     const total = payments.length;
-    const completedCount = payments.filter((p) => p.status === "completed").length;
     const successRate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
     const prevCollected = prevPayments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
     const changePercent = prevCollected > 0 ? Math.round(((collected - prevCollected) / prevCollected) * 100) : 0;
