@@ -921,6 +921,12 @@ function TransactionsTab() {
       };
 
       const existingTxnIds = new Set(manualPayments.filter(p => p.transaction_id).map(p => p.transaction_id));
+      // Also track booking_ids that already have a manual rental/PAC payment to prevent WL duplication
+      const manualRentalBookingIds = new Set(
+        manualPayments
+          .filter(p => ["rental", "PAC", "P"].includes(p.payment_type))
+          .map(p => p.booking_id)
+      );
 
       const manual: Payment[] = manualPayments.map(payment => ({
         ...payment,
@@ -929,7 +935,7 @@ function TransactionsTab() {
       }));
 
       const wlRental: Payment[] = (wlBookings || [])
-        .filter(b => !existingTxnIds.has(b.wl_transaction_id!))
+        .filter(b => !existingTxnIds.has(b.wl_transaction_id!) && !manualRentalBookingIds.has(b.id))
         .map(b => ({
           id: `wl-rental-${b.id}`,
           booking_id: b.id,
@@ -1015,7 +1021,18 @@ function TransactionsTab() {
     }
   };
 
-  const totalRevenue = payments.filter(p => p.status === "completed").reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalRevenue = (() => {
+    const seen = new Set<string>();
+    let total = 0;
+    for (const p of payments) {
+      if (p.status !== "completed") continue;
+      const dedupeKey = p.transaction_id || p.id;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      total += Number(p.amount);
+    }
+    return total;
+  })();
   const pendingAmount = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
   const depositPayments = payments.filter(p => p.payment_type === "deposit");
   const totalDeposits = depositPayments.reduce((sum, p) => sum + Number(p.amount), 0);
