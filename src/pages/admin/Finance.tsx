@@ -951,11 +951,17 @@ function TransactionsTab() {
         return profileMap.get(userId) || null;
       };
 
-      const existingTxnIds = new Set(manualPayments.filter(p => p.transaction_id).map(p => p.transaction_id));
+      const existingRentalTxnIds = new Set(manualPayments.filter(p => p.transaction_id && ["rental", "PAC", "P"].includes(p.payment_type)).map(p => p.transaction_id));
+      const existingDepositTxnIds = new Set(manualPayments.filter(p => p.transaction_id && p.payment_type === "deposit").map(p => p.transaction_id));
       // Also track booking_ids that already have a manual rental/PAC payment to prevent WL duplication
       const manualRentalBookingIds = new Set(
         manualPayments
           .filter(p => ["rental", "PAC", "P"].includes(p.payment_type))
+          .map(p => p.booking_id)
+      );
+      const manualDepositBookingIds = new Set(
+        manualPayments
+          .filter(p => p.payment_type === "deposit")
           .map(p => p.booking_id)
       );
 
