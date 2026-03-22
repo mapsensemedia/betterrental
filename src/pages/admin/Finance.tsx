@@ -994,7 +994,7 @@ function TransactionsTab() {
           amount: Number(b.deposit_amount || 0),
           payment_type: "deposit",
           payment_method: b.card_type ? `card (${b.card_type})` : "card",
-          status: b.wl_deposit_auth_status === "authorized" ? "authorized" : b.deposit_status || "pending",
+          status: b.deposit_status === "captured" ? "completed" : b.wl_deposit_auth_status === "authorized" ? "authorized" : b.deposit_status || "pending",
           transaction_id: b.wl_deposit_transaction_id,
           created_at: b.deposit_authorized_at || b.created_at,
           source: "worldline" as const,
