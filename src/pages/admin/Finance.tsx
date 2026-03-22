@@ -312,15 +312,33 @@ function OverviewTab() {
   const { data: wlSupplement = [] } = useQuery({
     queryKey: ["payment-dashboard-wl", dateRange],
     queryFn: async () => {
-      // 1. Fetch all booking_ids already in payments table for this range to exclude
+      // 1. Fetch all payments in range with type info for dedup
       const { data: existingPayments } = await supabase
         .from("payments")
-        .select("booking_id, transaction_id")
+        .select("booking_id, transaction_id, payment_type")
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString());
 
-      const paidBookingIds = new Set((existingPayments || []).map((p) => p.booking_id));
-      const paidTxnIds = new Set((existingPayments || []).filter((p) => p.transaction_id).map((p) => p.transaction_id));
+      const paidRentalBookingIds = new Set(
+        (existingPayments || [])
+          .filter((p) => ["rental", "PAC", "P"].includes(p.payment_type))
+          .map((p) => p.booking_id)
+      );
+      const paidDepositBookingIds = new Set(
+        (existingPayments || [])
+          .filter((p) => p.payment_type === "deposit")
+          .map((p) => p.booking_id)
+      );
+      const paidRentalTxnIds = new Set(
+        (existingPayments || [])
+          .filter((p) => p.transaction_id && ["rental", "PAC", "P"].includes(p.payment_type))
+          .map((p) => p.transaction_id)
+      );
+      const paidDepositTxnIds = new Set(
+        (existingPayments || [])
+          .filter((p) => p.transaction_id && p.payment_type === "deposit")
+          .map((p) => p.transaction_id)
+      );
 
       // 2. Fetch Worldline rental bookings in date range
       const { data: wlRentals } = await supabase
@@ -340,12 +358,12 @@ function OverviewTab() {
         .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
         .order("created_at", { ascending: false });
 
-      // Filter to only those NOT already in payments
+      // Filter: use type-specific dedup to prevent PA txn IDs from blocking deposit entries
       const rentalEntries = (wlRentals || []).filter(
-        (b) => !paidBookingIds.has(b.id) && !paidTxnIds.has(b.wl_transaction_id!)
+        (b) => !paidRentalBookingIds.has(b.id) && !paidRentalTxnIds.has(b.wl_transaction_id!)
       );
       const depositEntries = (wlDeposits || []).filter(
-        (b) => !paidBookingIds.has(b.id) && !paidTxnIds.has(b.wl_deposit_transaction_id!)
+        (b) => !paidDepositBookingIds.has(b.id) && !paidDepositTxnIds.has(b.wl_deposit_transaction_id!)
       );
 
       // Resolve profiles
@@ -409,7 +427,7 @@ function OverviewTab() {
           amount: Number(b.deposit_amount || 0),
           payment_type: "deposit",
           payment_method: b.card_type ? `card (${b.card_type})` : "Online (Bambora)",
-          status: b.wl_deposit_auth_status === "authorized" ? "authorized" : b.deposit_status === "captured" ? "completed" : b.deposit_status || "pending",
+          status: b.deposit_status === "captured" ? "completed" : b.wl_deposit_auth_status === "authorized" ? "authorized" : b.deposit_status || "pending",
           transaction_id: b.wl_deposit_transaction_id,
           created_at: effectiveDate,
           booking_code: b.booking_code,
@@ -933,11 +951,17 @@ function TransactionsTab() {
         return profileMap.get(userId) || null;
       };
 
-      const existingTxnIds = new Set(manualPayments.filter(p => p.transaction_id).map(p => p.transaction_id));
+      const existingRentalTxnIds = new Set(manualPayments.filter(p => p.transaction_id && ["rental", "PAC", "P"].includes(p.payment_type)).map(p => p.transaction_id));
+      const existingDepositTxnIds = new Set(manualPayments.filter(p => p.transaction_id && p.payment_type === "deposit").map(p => p.transaction_id));
       // Also track booking_ids that already have a manual rental/PAC payment to prevent WL duplication
       const manualRentalBookingIds = new Set(
         manualPayments
           .filter(p => ["rental", "PAC", "P"].includes(p.payment_type))
+          .map(p => p.booking_id)
+      );
+      const manualDepositBookingIds = new Set(
+        manualPayments
+          .filter(p => p.payment_type === "deposit")
           .map(p => p.booking_id)
       );
 
@@ -948,7 +972,7 @@ function TransactionsTab() {
       }));
 
       const wlRental: Payment[] = (wlBookings || [])
-        .filter(b => !existingTxnIds.has(b.wl_transaction_id!) && !manualRentalBookingIds.has(b.id))
+        .filter(b => !existingRentalTxnIds.has(b.wl_transaction_id!) && !manualRentalBookingIds.has(b.id))
         .map(b => ({
           id: `wl-rental-${b.id}`,
           booking_id: b.id,
@@ -963,14 +987,14 @@ function TransactionsTab() {
         }));
 
       const wlDeposit: Payment[] = (wlDepositBookings || [])
-        .filter(b => !existingTxnIds.has(b.wl_deposit_transaction_id!))
+        .filter(b => !existingDepositTxnIds.has(b.wl_deposit_transaction_id!) && !manualDepositBookingIds.has(b.id))
         .map(b => ({
           id: `wl-deposit-${b.id}`,
           booking_id: b.id,
           amount: Number(b.deposit_amount || 0),
           payment_type: "deposit",
           payment_method: b.card_type ? `card (${b.card_type})` : "card",
-          status: b.wl_deposit_auth_status === "authorized" ? "authorized" : b.deposit_status || "pending",
+          status: b.deposit_status === "captured" ? "completed" : b.wl_deposit_auth_status === "authorized" ? "authorized" : b.deposit_status || "pending",
           transaction_id: b.wl_deposit_transaction_id,
           created_at: b.deposit_authorized_at || b.created_at,
           source: "worldline" as const,
