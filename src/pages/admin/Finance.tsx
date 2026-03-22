@@ -921,6 +921,12 @@ function TransactionsTab() {
       };
 
       const existingTxnIds = new Set(manualPayments.filter(p => p.transaction_id).map(p => p.transaction_id));
+      // Also track booking_ids that already have a manual rental/PAC payment to prevent WL duplication
+      const manualRentalBookingIds = new Set(
+        manualPayments
+          .filter(p => ["rental", "PAC", "P"].includes(p.payment_type))
+          .map(p => p.booking_id)
+      );
 
       const manual: Payment[] = manualPayments.map(payment => ({
         ...payment,
