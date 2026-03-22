@@ -972,7 +972,7 @@ function TransactionsTab() {
       }));
 
       const wlRental: Payment[] = (wlBookings || [])
-        .filter(b => !existingTxnIds.has(b.wl_transaction_id!) && !manualRentalBookingIds.has(b.id))
+        .filter(b => !existingRentalTxnIds.has(b.wl_transaction_id!) && !manualRentalBookingIds.has(b.id))
         .map(b => ({
           id: `wl-rental-${b.id}`,
           booking_id: b.id,
