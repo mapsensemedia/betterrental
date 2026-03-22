@@ -312,15 +312,33 @@ function OverviewTab() {
   const { data: wlSupplement = [] } = useQuery({
     queryKey: ["payment-dashboard-wl", dateRange],
     queryFn: async () => {
-      // 1. Fetch all booking_ids already in payments table for this range to exclude
+      // 1. Fetch all payments in range with type info for dedup
       const { data: existingPayments } = await supabase
         .from("payments")
-        .select("booking_id, transaction_id")
+        .select("booking_id, transaction_id, payment_type")
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString());
 
-      const paidBookingIds = new Set((existingPayments || []).map((p) => p.booking_id));
-      const paidTxnIds = new Set((existingPayments || []).filter((p) => p.transaction_id).map((p) => p.transaction_id));
+      const paidRentalBookingIds = new Set(
+        (existingPayments || [])
+          .filter((p) => ["rental", "PAC", "P"].includes(p.payment_type))
+          .map((p) => p.booking_id)
+      );
+      const paidDepositBookingIds = new Set(
+        (existingPayments || [])
+          .filter((p) => p.payment_type === "deposit")
+          .map((p) => p.booking_id)
+      );
+      const paidRentalTxnIds = new Set(
+        (existingPayments || [])
+          .filter((p) => p.transaction_id && ["rental", "PAC", "P"].includes(p.payment_type))
+          .map((p) => p.transaction_id)
+      );
+      const paidDepositTxnIds = new Set(
+        (existingPayments || [])
+          .filter((p) => p.transaction_id && p.payment_type === "deposit")
+          .map((p) => p.transaction_id)
+      );
 
       // 2. Fetch Worldline rental bookings in date range
       const { data: wlRentals } = await supabase
@@ -340,12 +358,12 @@ function OverviewTab() {
         .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
         .order("created_at", { ascending: false });
 
-      // Filter to only those NOT already in payments
+      // Filter: use type-specific dedup to prevent PA txn IDs from blocking deposit entries
       const rentalEntries = (wlRentals || []).filter(
-        (b) => !paidBookingIds.has(b.id) && !paidTxnIds.has(b.wl_transaction_id!)
+        (b) => !paidRentalBookingIds.has(b.id) && !paidRentalTxnIds.has(b.wl_transaction_id!)
       );
       const depositEntries = (wlDeposits || []).filter(
-        (b) => !paidBookingIds.has(b.id) && !paidTxnIds.has(b.wl_deposit_transaction_id!)
+        (b) => !paidDepositBookingIds.has(b.id) && !paidDepositTxnIds.has(b.wl_deposit_transaction_id!)
       );
 
       // Resolve profiles
