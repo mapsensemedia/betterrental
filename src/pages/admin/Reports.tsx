@@ -263,6 +263,22 @@ export default function AdminReports() {
   // Analytics events from Supabase
   const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
 
+  // Real bookings count for the funnel (confirmed, active, completed within date range)
+  const { data: realBookingsCount = 0 } = useQuery({
+    queryKey: ["funnel-bookings-count", dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["confirmed", "active", "completed"])
+        .gte("created_at", dateRange.start.toISOString())
+        .lte("created_at", dateRange.end.toISOString());
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 60_000,
+  });
+
   // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
     const activeRentals = activeBookingsCount;
@@ -699,7 +715,7 @@ export default function AdminReports() {
 
           {/* Funnel Tab */}
           <TabsContent value="funnel" className="space-y-4">
-            <ConversionFunnel events={filteredEvents} />
+            <ConversionFunnel events={filteredEvents} bookingsCount={realBookingsCount} />
 
             <Card>
               <CardHeader className="pb-3">
