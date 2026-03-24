@@ -1,46 +1,38 @@
 
 
-## Fix Conversion Funnel Showing Wrong Data
+## Fix: Booking 26HDD44Y Showing Wrong Customer Name
 
-### Root Cause
+### Root Cause (Data Issue, Not Code Bug)
 
-The conversion funnel counts `booking_completed` events from the `analytics_events` table. There are **zero** `booking_completed` events in the last 7 days — despite 3 active rentals, 14 completed bookings, and 5 ready for pickup. This happens because:
+Both bookings 26HDD44Y and ZM87GULY have the same `user_id` pointing to BABRU SINGH MAAN's auth account. Booking 26HDD44Y was created under the wrong user account and has no `customer_id` set.
 
-1. `booking_completed` is only fired client-side on the `BookingConfirmed` page
-2. Admin-created, walk-in, and delivery bookings never trigger this event
-3. If a customer closes the browser before the confirmation page loads, no event is recorded
+Database state:
+```text
+26HDD44Y: user_id = BABRU SINGH MAAN, customer_id = NULL  ← wrong
+ZM87GULY: user_id = BABRU SINGH MAAN, customer_id = BABRU ← correct
+```
 
-The database confirms: 0 `booking_completed` events in last 7 days, yet 9 bookings were created in that period (1 pending, 2 confirmed, 2 active, 3 completed, 1 cancelled).
+MALKEET SINGH SOHAL exists as a customer record (`0c2234a3-77fe-4c85-8d98-f63f0c19f2cf`, email: malkeetsohal134@gmail.com) but is not linked to this booking.
 
-### Fix — Two changes, no disruption to existing flows
+### Fix
 
-#### 1. Hybrid funnel: use real bookings count for the "Bookings" step
+Set `customer_id` on booking 26HDD44Y to MALKEET SINGH SOHAL's customer record. The existing display logic throughout the system (booking detail, ops panel, finance) already prioritizes `customer_id` over `user_id` for name/email/phone display.
 
-**Files**: `src/components/admin/AnalyticsPanel.tsx` and `src/components/admin/ConversionFunnel.tsx`
+**Database migration** (single UPDATE via edge function or migration tool):
+```sql
+UPDATE bookings 
+SET customer_id = '0c2234a3-77fe-4c85-8d98-f63f0c19f2cf'
+WHERE id = '706b4358-113b-4f9c-b457-500414e14f8a';
+```
 
-Instead of relying solely on `booking_completed` analytics events, query the actual `bookings` table for bookings created in the date range with status `confirmed`, `active`, or `completed`. This gives an accurate count regardless of how the booking was created.
+Note: The `trg_block_sensitive_booking_updates` trigger blocks direct client-side updates to bookings. `customer_id` may or may not be in the blocked columns list. If blocked, this needs to go through a migration (service_role) rather than client-side update.
 
-- **AnalyticsPanel**: Add a query to count bookings from the `bookings` table where `status IN ('confirmed', 'active', 'completed')` and `created_at` within the date range. Use this count for the "Bookings" funnel step instead of filtering analytics events.
-- **ConversionFunnel**: Accept an optional `bookingsCount` prop that overrides the `booking_completed` event count. The Reports page will pass actual booking counts the same way.
+### No Code Changes Needed
 
-#### 2. Add server-side `booking_completed` event tracking (future-proofing)
+The display logic in `useAdminBookings`, `useBookingById`, `BookingCustomerCard`, and the Finance page all already check `customer_id` first and fall back to `user_id`. Once the data is corrected, the name will display correctly everywhere.
 
-**File**: `supabase/functions/update-booking-status/index.ts`
-
-When a booking status transitions to `confirmed`, insert a `booking_completed` event into `analytics_events`. This ensures future funnel data is accurate from the analytics table alone, while the hybrid approach provides immediate accuracy.
-
-- Fire-and-forget insert — does not affect the status update response
-- Properties include `booking_id`, `source: "server"`, `total_amount`
-
-### What does NOT change
-- No changes to any business logic, edge functions, or payment flows
-- The existing client-side tracking in `BookingConfirmed.tsx` stays as supplementary data
-- ConversionFunnel component logic for all other steps (search, views, selections, checkout) remains unchanged
-- No database schema changes needed
-
-### Files modified
-1. `src/components/admin/AnalyticsPanel.tsx` — query bookings table for accurate count
-2. `src/components/admin/ConversionFunnel.tsx` — accept optional `bookingsCount` override prop
-3. `src/pages/admin/Reports.tsx` — pass bookings count to ConversionFunnel
-4. `supabase/functions/update-booking-status/index.ts` — add analytics insert on confirmation
+### Verification
+- Booking 26HDD44Y shows MALKEET SINGH SOHAL
+- Booking ZM87GULY still shows BABRU SINGH MAAN
+- Finance, ops panel, and booking detail all reflect correct names
 
