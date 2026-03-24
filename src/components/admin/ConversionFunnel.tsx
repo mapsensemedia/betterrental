@@ -39,6 +39,8 @@ interface FunnelStage {
 interface ConversionFunnelProps {
   events: Array<{ event: string; timestamp: string; [key: string]: any }>;
   className?: string;
+  /** Override the booking_completed event count with a real bookings query */
+  bookingsCount?: number;
 }
 
 export function ConversionFunnel({ events, className }: ConversionFunnelProps) {
