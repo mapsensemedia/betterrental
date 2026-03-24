@@ -174,6 +174,26 @@ Deno.serve(async (req) => {
       new_data: auditNewData,
     });
 
+    // Track booking_completed analytics event server-side for funnel accuracy
+    if (newStatus === "confirmed") {
+      try {
+        await admin.from("analytics_events").insert({
+          event: "booking_completed",
+          properties: {
+            booking_id: bookingId,
+            booking_code: booking.booking_code,
+            source: "server",
+            total_amount: updated?.total_amount,
+          },
+          page: "/api/update-booking-status",
+          session_id: "server",
+          user_id: booking.user_id,
+        });
+      } catch (e) {
+        console.error("Failed to insert booking_completed analytics event:", e);
+      }
+    }
+
     // Update vehicle unit status
     if (booking.assigned_unit_id) {
       if (newStatus === "active") {
