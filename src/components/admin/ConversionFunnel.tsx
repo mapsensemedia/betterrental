@@ -43,14 +43,16 @@ interface ConversionFunnelProps {
   bookingsCount?: number;
 }
 
-export function ConversionFunnel({ events, className }: ConversionFunnelProps) {
-  // Calculate funnel stats
+export function ConversionFunnel({ events, className, bookingsCount }: ConversionFunnelProps) {
+  // Calculate funnel stats — use bookingsCount override for booking_completed if provided
   const funnelStats = useMemo(() => {
     return FUNNEL_STAGES.map((stage) => ({
       ...stage,
-      count: events.filter((e) => e.event === stage.key).length,
+      count: stage.key === "booking_completed" && bookingsCount !== undefined
+        ? bookingsCount
+        : events.filter((e) => e.event === stage.key).length,
     }));
-  }, [events]);
+  }, [events, bookingsCount]);
 
   // Find max count for scaling
   const maxCount = Math.max(...funnelStats.map((s) => s.count), 1);

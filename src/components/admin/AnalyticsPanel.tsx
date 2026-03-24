@@ -33,9 +33,26 @@ export function AnalyticsPanel() {
     endDate: dateRange.end,
   });
 
+  // Real bookings count from bookings table (confirmed, active, completed in last 7 days)
+  const { data: realBookingsCount = 0, refetch: refetchBookings } = useQuery({
+    queryKey: ["analytics-panel-bookings-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["confirmed", "active", "completed"])
+        .gte("created_at", dateRange.start.toISOString())
+        .lte("created_at", dateRange.end.toISOString());
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 60_000,
+  });
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     refetch();
+    refetchBookings();
     setTimeout(() => setIsRefreshing(false), 300);
   };
 
@@ -43,14 +60,13 @@ export function AnalyticsPanel() {
     const vehicleViews = events.filter((e) => e.event === "vehicle_viewed").length;
     const vehicleSelections = events.filter((e) => e.event === "vehicle_selected").length;
     const checkoutStarts = events.filter((e) => e.event === "checkout_started").length;
-    const bookingsCompleted = events.filter((e) => e.event === "booking_completed").length;
     return [
       { label: "Vehicle Views", value: vehicleViews, icon: Eye, color: "text-blue-500", bgColor: "bg-blue-500/10" },
       { label: "Selections", value: vehicleSelections, icon: MousePointerClick, color: "text-purple-500", bgColor: "bg-purple-500/10" },
       { label: "Checkout Started", value: checkoutStarts, icon: ShoppingCart, color: "text-orange-500", bgColor: "bg-orange-500/10" },
-      { label: "Bookings", value: bookingsCompleted, icon: CheckCircle, color: "text-green-500", bgColor: "bg-green-500/10" },
+      { label: "Bookings", value: realBookingsCount, icon: CheckCircle, color: "text-green-500", bgColor: "bg-green-500/10" },
     ];
-  }, [events]);
+  }, [events, realBookingsCount]);
 
   return (
     <Card>
