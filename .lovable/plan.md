@@ -1,38 +1,50 @@
 
 
-## Fix: Booking 26HDD44Y Showing Wrong Customer Name
+## Fix: Booking 26HDD44Y Showing Wrong User Data
 
-### Root Cause (Data Issue, Not Code Bug)
+### Root Cause
 
-Both bookings 26HDD44Y and ZM87GULY have the same `user_id` pointing to BABRU SINGH MAAN's auth account. Booking 26HDD44Y was created under the wrong user account and has no `customer_id` set.
+Booking `26HDD44Y` has `user_id = 1e297685` (Babru Singh Maan's auth account) instead of `user_id = 8b1f8a54` (Malkeet Singh Sohal's auth account). Both bookings share the same `user_id`, so all profile-sourced data (name fallback, driver's license, verification status) shows Babru's information on Malkeet's booking.
 
-Database state:
+The `customer_id` was previously fixed to point to Malkeet's customer record, which corrected the name display in some views. However, the license data, verification status, and any profile-dependent queries still pull from Babru's profile because they use `user_id`.
+
+**Database state:**
 ```text
-26HDD44Y: user_id = BABRU SINGH MAAN, customer_id = NULL  ← wrong
-ZM87GULY: user_id = BABRU SINGH MAAN, customer_id = BABRU ← correct
+26HDD44Y: user_id = 1e297685 (Babru) ← WRONG
+          customer_id = 0c2234a3 (Malkeet) ← correct
+          
+Malkeet's actual profile: 8b1f8a54 (license #7740521, status on_file)
+Babru's profile:          1e297685 (license #09592452, status on_file)
 ```
 
-MALKEET SINGH SOHAL exists as a customer record (`0c2234a3-77fe-4c85-8d98-f63f0c19f2cf`, email: malkeetsohal134@gmail.com) but is not linked to this booking.
+### Fix — Single Data Correction
 
-### Fix
+**Database migration** to update the `user_id` on booking 26HDD44Y to Malkeet's correct profile:
 
-Set `customer_id` on booking 26HDD44Y to MALKEET SINGH SOHAL's customer record. The existing display logic throughout the system (booking detail, ops panel, finance) already prioritizes `customer_id` over `user_id` for name/email/phone display.
-
-**Database migration** (single UPDATE via edge function or migration tool):
 ```sql
 UPDATE bookings 
-SET customer_id = '0c2234a3-77fe-4c85-8d98-f63f0c19f2cf'
-WHERE id = '706b4358-113b-4f9c-b457-500414e14f8a';
+SET user_id = '8b1f8a54-4639-4c28-b4f2-b09465c66363'
+WHERE id = '706b4358-113b-4f9c-b457-500414e14f8a'
+  AND booking_code = '26HDD44Y';
 ```
 
-Note: The `trg_block_sensitive_booking_updates` trigger blocks direct client-side updates to bookings. `customer_id` may or may not be in the blocked columns list. If blocked, this needs to go through a migration (service_role) rather than client-side update.
+`user_id` is not in the trigger's blocked columns list, so this update is safe. Using a migration ensures it runs as `service_role`.
 
-### No Code Changes Needed
+### What This Fixes
 
-The display logic in `useAdminBookings`, `useBookingById`, `BookingCustomerCard`, and the Finance page all already check `customer_id` first and fall back to `user_id`. Once the data is corrected, the name will display correctly everywhere.
+- **Name display**: All views (active rental detail, ops panel, finance) will now resolve Malkeet's profile name correctly
+- **Driver's license**: License number changes from `09592452` (Babru) to `7740521` (Malkeet), and license front image shows Malkeet's document
+- **Verification status**: Profile verification reflects Malkeet's actual status
+- **No code changes needed**: All hooks (`use-active-rental-detail`, `use-bookings`, `StepCheckin`, `OpsBookingSummary`) already query `profiles` by `booking.user_id` — correcting the `user_id` fixes everything downstream
+
+### No Code Changes
+
+No frontend or backend code needs modification. The existing display logic correctly uses `user_id` for profile/license lookups and `customer_id` for name fallback. The issue is purely a data linkage error.
 
 ### Verification
-- Booking 26HDD44Y shows MALKEET SINGH SOHAL
-- Booking ZM87GULY still shows BABRU SINGH MAAN
-- Finance, ops panel, and booking detail all reflect correct names
+- Booking 26HDD44Y shows MALKEET SINGH SOHAL everywhere
+- License number shows 7740521 (Malkeet's)
+- License image shows Malkeet's document, not Babru's
+- Booking ZM87GULY still shows BABRU SINGH MAAN correctly
+- No other bookings are affected
 
