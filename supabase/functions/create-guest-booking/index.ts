@@ -278,6 +278,7 @@ Deno.serve(async (req) => {
     // Create booking with SERVER-COMPUTED totals
     const bookingResult = await createBookingRecord({
       userId: userId!,
+      customerId: customerId || undefined,
       vehicleId,
       locationId,
       startAt,
