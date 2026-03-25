@@ -348,7 +348,7 @@ Deno.serve(async (req) => {
     await sendBookingNotifications({
       bookingId: booking.id,
       bookingCode: booking.bookingCode,
-      customerName: `${firstName} ${lastName}`,
+      customerName: guestFullName,
       isGuest: true,
     });
 
