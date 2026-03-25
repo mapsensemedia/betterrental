@@ -525,8 +525,6 @@ function OverviewTab() {
   const unreconciledCount = useMemo(() => payments.filter((p) => p.unreconciled).length, [payments]);
 
   const metrics = useMemo(() => {
-    // Deduplicated collected revenue: include all completed payments (rental, PAC, captured deposits)
-    // Exclude authorized deposit holds (status !== "completed")
     const seen = new Set<string>();
     let collected = 0;
     let completedCount = 0;
@@ -540,6 +538,8 @@ function OverviewTab() {
         }
       }
     }
+    // Add unrecorded revenue (confirmed bookings with no payment records)
+    collected += unrecordedTotal;
     const pending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
     const failed = payments.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
     const total = payments.length;
@@ -547,7 +547,7 @@ function OverviewTab() {
     const prevCollected = prevPayments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
     const changePercent = prevCollected > 0 ? Math.round(((collected - prevCollected) / prevCollected) * 100) : 0;
     return { collected, pending, failed, total, completedCount, successRate, changePercent, pendingCount: payments.filter((p) => p.status === "pending").length, failedCount: payments.filter((p) => p.status === "failed").length };
-  }, [payments, prevPayments]);
+  }, [payments, prevPayments, unrecordedTotal]);
 
   const methodBreakdown = useMemo(() => {
     const map = new Map<string, { count: number; total: number }>();
