@@ -1,50 +1,39 @@
 
 
-## Fix: Booking 26HDD44Y Showing Wrong User Data
+## Fix Booking F6WHEWHJ Data Linkage
 
-### Root Cause
+### Current State
 
-Booking `26HDD44Y` has `user_id = 1e297685` (Babru Singh Maan's auth account) instead of `user_id = 8b1f8a54` (Malkeet Singh Sohal's auth account). Both bookings share the same `user_id`, so all profile-sourced data (name fallback, driver's license, verification status) shows Babru's information on Malkeet's booking.
+| Booking | user_id points to | customer_id | Status |
+|---------|-------------------|-------------|--------|
+| 26HDD44Y | MALKEET SINGH SOHAL | MALKEET SINGH SOHAL | Already correct |
+| ZM87GULY | BABRU SINGH MAAN | BABRU SINGH MAAN | Already correct |
+| F6WHEWHJ | BABRU SINGH MAAN | NULL | **Wrong — should be AERISH MEHNDIRATTA** |
 
-The `customer_id` was previously fixed to point to Malkeet's customer record, which corrected the name display in some views. However, the license data, verification status, and any profile-dependent queries still pull from Babru's profile because they use `user_id`.
+Booking F6WHEWHJ was created under Babru's auth account but actually belongs to AERISH MEHNDIRATTA (aerishmehndiratta2004@gmail.com). It has no `customer_id` set, so all name/license/profile data falls back to Babru.
 
-**Database state:**
-```text
-26HDD44Y: user_id = 1e297685 (Babru) ← WRONG
-          customer_id = 0c2234a3 (Malkeet) ← correct
-          
-Malkeet's actual profile: 8b1f8a54 (license #7740521, status on_file)
-Babru's profile:          1e297685 (license #09592452, status on_file)
-```
+### Fix — Two database updates on F6WHEWHJ
 
-### Fix — Single Data Correction
+1. Set `user_id` to Aerish's profile ID (`caa64717-40be-4e03-8c14-0648642fc8fd`) so license, verification, and profile data resolve correctly.
 
-**Database migration** to update the `user_id` on booking 26HDD44Y to Malkeet's correct profile:
+2. Set `customer_id` to Aerish's customer record (`f731bf96-89af-4d68-8fe1-1cb8bb4303e0`) so name/email/phone display correctly across all views.
 
 ```sql
 UPDATE bookings 
-SET user_id = '8b1f8a54-4639-4c28-b4f2-b09465c66363'
-WHERE id = '706b4358-113b-4f9c-b457-500414e14f8a'
-  AND booking_code = '26HDD44Y';
+SET user_id = 'caa64717-40be-4e03-8c14-0648642fc8fd',
+    customer_id = 'f731bf96-89af-4d68-8fe1-1cb8bb4303e0'
+WHERE id = 'b201f55f-3669-4606-be11-4e7973ab9449'
+  AND booking_code = 'F6WHEWHJ';
 ```
 
-`user_id` is not in the trigger's blocked columns list, so this update is safe. Using a migration ensures it runs as `service_role`.
+### No Code Changes Needed
 
-### What This Fixes
-
-- **Name display**: All views (active rental detail, ops panel, finance) will now resolve Malkeet's profile name correctly
-- **Driver's license**: License number changes from `09592452` (Babru) to `7740521` (Malkeet), and license front image shows Malkeet's document
-- **Verification status**: Profile verification reflects Malkeet's actual status
-- **No code changes needed**: All hooks (`use-active-rental-detail`, `use-bookings`, `StepCheckin`, `OpsBookingSummary`) already query `profiles` by `booking.user_id` — correcting the `user_id` fixes everything downstream
-
-### No Code Changes
-
-No frontend or backend code needs modification. The existing display logic correctly uses `user_id` for profile/license lookups and `customer_id` for name fallback. The issue is purely a data linkage error.
+The display logic throughout the system (booking detail, ops panel, finance, active rentals) already prioritizes `customer_id` for name and `user_id` for license/profile. Correcting these two fields fixes everything downstream.
 
 ### Verification
-- Booking 26HDD44Y shows MALKEET SINGH SOHAL everywhere
-- License number shows 7740521 (Malkeet's)
-- License image shows Malkeet's document, not Babru's
-- Booking ZM87GULY still shows BABRU SINGH MAAN correctly
-- No other bookings are affected
+- F6WHEWHJ shows AERISH MEHNDIRATTA everywhere (booking list, ops panel, finance)
+- Driver's license shows Aerish's license (#30165003), not Babru's
+- 26HDD44Y still shows MALKEET SINGH SOHAL (unchanged)
+- ZM87GULY still shows BABRU SINGH MAAN (unchanged)
+- No other bookings affected
 
