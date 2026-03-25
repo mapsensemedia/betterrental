@@ -251,8 +251,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingProfile) {
-      userId = existingProfile.id;
-      console.log(`[walkin] Reusing existing profile ${userId} (${existingProfile.full_name}) for email ${email}. Walk-in customer name: ${sanitizedName}`);
+      // Only reuse profile if the name actually matches (same person)
+      const profileName = existingProfile.full_name?.toLowerCase().trim();
+      const walkinName = sanitizedName.toLowerCase().trim();
+      if (profileName === walkinName) {
+        userId = existingProfile.id;
+        console.log(`[walkin] Reusing existing profile ${userId} (${existingProfile.full_name}) for email ${email}`);
+      } else {
+        console.log(`[walkin] Profile name mismatch: profile="${existingProfile.full_name}" vs walk-in="${sanitizedName}" — creating new auth user`);
+      }
     }
 
     if (!userId) {

@@ -789,6 +789,7 @@ export async function createBookingRecord(
     .from("bookings")
     .insert({
       user_id: input.userId,
+      customer_id: input.customerId || null,
       vehicle_id: input.vehicleId,
       location_id: input.locationId,
       start_at: input.startAt,
