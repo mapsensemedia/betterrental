@@ -58,6 +58,7 @@ function computeFuelCost(tankLiters: number): number {
 
 export interface BookingInput {
   userId: string;
+  customerId?: string;
   vehicleId: string;
   locationId: string;
   startAt: string;
