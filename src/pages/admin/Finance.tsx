@@ -564,11 +564,25 @@ function OverviewTab() {
   }, [payments, metrics.collected]);
 
   const typeBreakdown = useMemo(() => {
-    const rental = payments.filter((p) => p.status === "completed" && (p.payment_type === "rental" || p.payment_type === "P" || p.payment_type === "PAC")).reduce((s, p) => s + p.amount, 0);
-    const deposit = payments.filter((p) => p.status === "completed" && p.payment_type === "deposit").reduce((s, p) => s + p.amount, 0);
-    const other = metrics.collected - rental - deposit;
+    const seenRental = new Set<string>();
+    const seenDeposit = new Set<string>();
+    const seenOther = new Set<string>();
+    let rental = 0;
+    let deposit = 0;
+    let other = 0;
+    for (const p of payments) {
+      if (p.status !== "completed") continue;
+      const key = p.transaction_id || p.id;
+      if (p.payment_type === "rental" || p.payment_type === "P" || p.payment_type === "PAC") {
+        if (!seenRental.has(key)) { seenRental.add(key); rental += p.amount; }
+      } else if (p.payment_type === "deposit") {
+        if (!seenDeposit.has(key)) { seenDeposit.add(key); deposit += p.amount; }
+      } else {
+        if (!seenOther.has(key)) { seenOther.add(key); other += p.amount; }
+      }
+    }
     return { rental, deposit, other };
-  }, [payments, metrics.collected]);
+  }, [payments]);
 
   const dailyTrend = useMemo(() => {
     const days: DailyAggregate[] = [];
