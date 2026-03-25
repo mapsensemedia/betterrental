@@ -308,6 +308,60 @@ function OverviewTab() {
     },
   });
 
+  // Source C — Unrecorded revenue: confirmed/active/completed bookings with no payment record and no WL transaction
+  const { data: unrecordedBookings = [] } = useQuery({
+    queryKey: ["payment-dashboard-unrecorded", dateRange],
+    queryFn: async () => {
+      // Get all bookings in the date range that are confirmed/active/completed
+      const { data: allBookings, error: bErr } = await supabase
+        .from("bookings")
+        .select("id, booking_code, total_amount, user_id, customer_id, start_at, status, wl_transaction_id")
+        .in("status", ["confirmed", "active", "completed"])
+        .gte("start_at", start.toISOString())
+        .lte("start_at", end.toISOString());
+      if (bErr) throw bErr;
+      if (!allBookings?.length) return [];
+
+      // Filter to bookings with no WL transaction
+      const noWl = allBookings.filter((b) => !b.wl_transaction_id);
+      if (!noWl.length) return [];
+
+      // Check which of these have completed payments
+      const ids = noWl.map((b) => b.id);
+      const { data: paidRows } = await supabase
+        .from("payments")
+        .select("booking_id")
+        .in("booking_id", ids)
+        .eq("status", "completed");
+      const paidSet = new Set((paidRows || []).map((p) => p.booking_id));
+
+      const unrecorded = noWl.filter((b) => !paidSet.has(b.id));
+      if (!unrecorded.length) return [];
+
+      // Resolve names
+      const userIds = [...new Set(unrecorded.map((b) => b.user_id))];
+      const customerIds = [...new Set(unrecorded.map((b) => b.customer_id).filter(Boolean))] as string[];
+      const [{ data: profiles }, { data: customers }] = await Promise.all([
+        userIds.length ? supabase.from("profiles").select("id, full_name").in("id", userIds) : { data: [] as any[] },
+        customerIds.length ? supabase.from("customers").select("id, full_name").in("id", customerIds) : { data: [] as any[] },
+      ]);
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name || "Unknown"]));
+      const customerMap = new Map((customers || []).map((c: any) => [c.id, c.full_name || "Unknown"]));
+
+      return unrecorded.map((b) => ({
+        id: b.id,
+        booking_code: b.booking_code,
+        total_amount: Number(b.total_amount),
+        customer_name: (b.customer_id ? customerMap.get(b.customer_id) : null) || profileMap.get(b.user_id) || "Unknown",
+        start_at: b.start_at,
+      }));
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const unrecordedTotal = useMemo(() => unrecordedBookings.reduce((s, b) => s + b.total_amount, 0), [unrecordedBookings]);
+
   // Source B — Worldline bookings not yet in payments (async supplement, never blocks)
   const { data: wlSupplement = [] } = useQuery({
     queryKey: ["payment-dashboard-wl", dateRange],
