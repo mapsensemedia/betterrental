@@ -698,6 +698,46 @@ function OverviewTab() {
             </Card>
           </div>
 
+          {/* Unrecorded Revenue Warning */}
+          {unrecordedBookings.length > 0 && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <h3 className="text-sm font-semibold text-amber-700">
+                    {unrecordedBookings.length} Booking{unrecordedBookings.length !== 1 ? "s" : ""} Without Payment Records
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  These confirmed bookings have no logged payment. Use "Log Terminal Payment" on each booking to record the transaction.
+                </p>
+                <div className="space-y-1.5">
+                  {unrecordedBookings.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs font-mono">{b.booking_code}</Badge>
+                        <span className="text-muted-foreground">{b.customer_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">${b.total_amount.toLocaleString("en-CA", { minimumFractionDigits: 2 })}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                          <a href={`/admin/ops/${b.id}`} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between text-sm font-semibold">
+                  <span>Total Unrecorded</span>
+                  <span>${unrecordedTotal.toLocaleString("en-CA", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Payment Status */}
           <Card>
             <CardContent className="p-4 space-y-3">
