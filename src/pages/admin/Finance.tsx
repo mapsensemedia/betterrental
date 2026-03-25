@@ -308,6 +308,60 @@ function OverviewTab() {
     },
   });
 
+  // Source C — Unrecorded revenue: confirmed/active/completed bookings with no payment record and no WL transaction
+  const { data: unrecordedBookings = [] } = useQuery({
+    queryKey: ["payment-dashboard-unrecorded", dateRange],
+    queryFn: async () => {
+      // Get all bookings in the date range that are confirmed/active/completed
+      const { data: allBookings, error: bErr } = await supabase
+        .from("bookings")
+        .select("id, booking_code, total_amount, user_id, customer_id, start_at, status, wl_transaction_id")
+        .in("status", ["confirmed", "active", "completed"])
+        .gte("start_at", start.toISOString())
+        .lte("start_at", end.toISOString());
+      if (bErr) throw bErr;
+      if (!allBookings?.length) return [];
+
+      // Filter to bookings with no WL transaction
+      const noWl = allBookings.filter((b) => !b.wl_transaction_id);
+      if (!noWl.length) return [];
+
+      // Check which of these have completed payments
+      const ids = noWl.map((b) => b.id);
+      const { data: paidRows } = await supabase
+        .from("payments")
+        .select("booking_id")
+        .in("booking_id", ids)
+        .eq("status", "completed");
+      const paidSet = new Set((paidRows || []).map((p) => p.booking_id));
+
+      const unrecorded = noWl.filter((b) => !paidSet.has(b.id));
+      if (!unrecorded.length) return [];
+
+      // Resolve names
+      const userIds = [...new Set(unrecorded.map((b) => b.user_id))];
+      const customerIds = [...new Set(unrecorded.map((b) => b.customer_id).filter(Boolean))] as string[];
+      const [{ data: profiles }, { data: customers }] = await Promise.all([
+        userIds.length ? supabase.from("profiles").select("id, full_name").in("id", userIds) : { data: [] as any[] },
+        customerIds.length ? supabase.from("customers").select("id, full_name").in("id", customerIds) : { data: [] as any[] },
+      ]);
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name || "Unknown"]));
+      const customerMap = new Map((customers || []).map((c: any) => [c.id, c.full_name || "Unknown"]));
+
+      return unrecorded.map((b) => ({
+        id: b.id,
+        booking_code: b.booking_code,
+        total_amount: Number(b.total_amount),
+        customer_name: (b.customer_id ? customerMap.get(b.customer_id) : null) || profileMap.get(b.user_id) || "Unknown",
+        start_at: b.start_at,
+      }));
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const unrecordedTotal = useMemo(() => unrecordedBookings.reduce((s, b) => s + b.total_amount, 0), [unrecordedBookings]);
+
   // Source B — Worldline bookings not yet in payments (async supplement, never blocks)
   const { data: wlSupplement = [] } = useQuery({
     queryKey: ["payment-dashboard-wl", dateRange],
@@ -471,8 +525,6 @@ function OverviewTab() {
   const unreconciledCount = useMemo(() => payments.filter((p) => p.unreconciled).length, [payments]);
 
   const metrics = useMemo(() => {
-    // Deduplicated collected revenue: include all completed payments (rental, PAC, captured deposits)
-    // Exclude authorized deposit holds (status !== "completed")
     const seen = new Set<string>();
     let collected = 0;
     let completedCount = 0;
@@ -486,6 +538,8 @@ function OverviewTab() {
         }
       }
     }
+    // Add unrecorded revenue (confirmed bookings with no payment records)
+    collected += unrecordedTotal;
     const pending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
     const failed = payments.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
     const total = payments.length;
@@ -493,7 +547,7 @@ function OverviewTab() {
     const prevCollected = prevPayments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
     const changePercent = prevCollected > 0 ? Math.round(((collected - prevCollected) / prevCollected) * 100) : 0;
     return { collected, pending, failed, total, completedCount, successRate, changePercent, pendingCount: payments.filter((p) => p.status === "pending").length, failedCount: payments.filter((p) => p.status === "failed").length };
-  }, [payments, prevPayments]);
+  }, [payments, prevPayments, unrecordedTotal]);
 
   const methodBreakdown = useMemo(() => {
     const map = new Map<string, { count: number; total: number }>();
@@ -510,11 +564,25 @@ function OverviewTab() {
   }, [payments, metrics.collected]);
 
   const typeBreakdown = useMemo(() => {
-    const rental = payments.filter((p) => p.status === "completed" && (p.payment_type === "rental" || p.payment_type === "P" || p.payment_type === "PAC")).reduce((s, p) => s + p.amount, 0);
-    const deposit = payments.filter((p) => p.status === "completed" && p.payment_type === "deposit").reduce((s, p) => s + p.amount, 0);
-    const other = metrics.collected - rental - deposit;
+    const seenRental = new Set<string>();
+    const seenDeposit = new Set<string>();
+    const seenOther = new Set<string>();
+    let rental = 0;
+    let deposit = 0;
+    let other = 0;
+    for (const p of payments) {
+      if (p.status !== "completed") continue;
+      const key = p.transaction_id || p.id;
+      if (p.payment_type === "rental" || p.payment_type === "P" || p.payment_type === "PAC") {
+        if (!seenRental.has(key)) { seenRental.add(key); rental += p.amount; }
+      } else if (p.payment_type === "deposit") {
+        if (!seenDeposit.has(key)) { seenDeposit.add(key); deposit += p.amount; }
+      } else {
+        if (!seenOther.has(key)) { seenOther.add(key); other += p.amount; }
+      }
+    }
     return { rental, deposit, other };
-  }, [payments, metrics.collected]);
+  }, [payments]);
 
   const dailyTrend = useMemo(() => {
     const days: DailyAggregate[] = [];
@@ -609,6 +677,7 @@ function OverviewTab() {
                 <div className="space-y-2">
                   <BreakdownRow label="Rental Payments" amount={typeBreakdown.rental} total={metrics.collected} />
                   <BreakdownRow label="Deposit Payments" amount={typeBreakdown.deposit} total={metrics.collected} />
+                  {unrecordedTotal > 0 && <BreakdownRow label="Unrecorded Revenue" amount={unrecordedTotal} total={metrics.collected} />}
                   {typeBreakdown.other > 0 && <BreakdownRow label="Other" amount={typeBreakdown.other} total={metrics.collected} />}
                 </div>
               </CardContent>
@@ -628,6 +697,46 @@ function OverviewTab() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Unrecorded Revenue Warning */}
+          {unrecordedBookings.length > 0 && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <h3 className="text-sm font-semibold text-amber-700">
+                    {unrecordedBookings.length} Booking{unrecordedBookings.length !== 1 ? "s" : ""} Without Payment Records
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  These confirmed bookings have no logged payment. Use "Log Terminal Payment" on each booking to record the transaction.
+                </p>
+                <div className="space-y-1.5">
+                  {unrecordedBookings.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs font-mono">{b.booking_code}</Badge>
+                        <span className="text-muted-foreground">{b.customer_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">${b.total_amount.toLocaleString("en-CA", { minimumFractionDigits: 2 })}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                          <a href={`/admin/ops/${b.id}`} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between text-sm font-semibold">
+                  <span>Total Unrecorded</span>
+                  <span>${unrecordedTotal.toLocaleString("en-CA", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Payment Status */}
           <Card>
