@@ -191,22 +191,32 @@ Deno.serve(async (req) => {
     let userId: string | null = null;
     let isNewUser = false;
     
+    const guestFullName = `${firstName} ${lastName}`;
     const { data: existingProfile } = await supabaseAdmin
       .from("profiles")
-      .select("id")
+      .select("id, full_name")
       .eq("email", email)
       .maybeSingle();
     
     if (existingProfile) {
-      userId = existingProfile.id;
-    } else {
+      // Only reuse profile if the name actually matches (same person)
+      const profileName = existingProfile.full_name?.toLowerCase().trim();
+      const guestName = guestFullName.toLowerCase().trim();
+      if (profileName === guestName) {
+        userId = existingProfile.id;
+      } else {
+        console.log(`[guest-booking] Profile name mismatch: profile="${existingProfile.full_name}" vs guest="${guestFullName}" — creating new auth user`);
+      }
+    }
+    
+    if (!userId) {
       const randomPassword = crypto.randomUUID() + crypto.randomUUID().slice(0, 8) + "Aa1!";
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: randomPassword,
         email_confirm: false,
         user_metadata: {
-          full_name: `${firstName} ${lastName}`,
+          full_name: guestFullName,
           phone,
           is_guest: true,
           created_via: "guest_checkout",
@@ -227,11 +237,42 @@ Deno.serve(async (req) => {
       await supabaseAdmin.from("profiles").upsert({
         id: userId,
         email,
-        full_name: `${firstName} ${lastName}`,
+        full_name: guestFullName,
         phone,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: "id" });
+    }
+
+    // Resolve or create customer record for identity integrity
+    let customerId: string | null = null;
+    const { data: existingCustomer } = await supabaseAdmin
+      .from("customers")
+      .select("id, full_name")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (existingCustomer) {
+      // Only reuse if name matches; otherwise create a new customer record
+      if (existingCustomer.full_name?.toLowerCase().trim() === guestFullName.toLowerCase().trim()) {
+        customerId = existingCustomer.id;
+      } else {
+        // Different person, same email — create separate customer record
+        const { data: newCust } = await supabaseAdmin
+          .from("customers")
+          .insert({ full_name: guestFullName, email, phone })
+          .select("id")
+          .single();
+        if (newCust) customerId = newCust.id;
+        console.log(`[guest-booking] Customer name mismatch: existing="${existingCustomer.full_name}" vs guest="${guestFullName}" — created new customer ${customerId}`);
+      }
+    } else {
+      const { data: newCust } = await supabaseAdmin
+        .from("customers")
+        .insert({ full_name: guestFullName, email, phone })
+        .select("id")
+        .single();
+      if (newCust) customerId = newCust.id;
     }
 
     // Create booking with SERVER-COMPUTED totals
