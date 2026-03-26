@@ -154,16 +154,21 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
     },
   });
 
-  // Editable return time — default to scheduled end or previously saved value
-  const [returnTime, setReturnTime] = useState("");
+  // Split return time state
+  const [returnDate, setReturnDate] = useState("");
+  const [returnHour, setReturnHour] = useState("12");
+  const [returnMinute, setReturnMinute] = useState("00");
+  const [returnAmpm, setReturnAmpm] = useState<"AM" | "PM">("AM");
 
   useEffect(() => {
     if (booking) {
-      if (booking.actual_return_at) {
-        // Already saved — use that
-        setReturnTime(formatDatetimeLocal(new Date(booking.actual_return_at)));
-      } else if (booking.end_at) {
-        setReturnTime(formatDatetimeLocal(new Date(booking.end_at)));
+      const src = booking.actual_return_at || booking.end_at;
+      if (src) {
+        const parsed = parseReturnTime(new Date(src));
+        setReturnDate(parsed.date);
+        setReturnHour(parsed.hour);
+        setReturnMinute(parsed.minute);
+        setReturnAmpm(parsed.ampm);
       }
     }
   }, [booking]);
