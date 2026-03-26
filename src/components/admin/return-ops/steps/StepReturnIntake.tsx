@@ -22,10 +22,27 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-/** Format a Date for <input type="datetime-local"> */
-function formatDatetimeLocal(d: Date): string {
+/** Parse a Date into split return-time state */
+function parseReturnTime(d: Date): { date: string; hour: string; minute: string; ampm: "AM" | "PM" } {
   const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const h24 = d.getHours();
+  const ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    hour: h12.toString(),
+    minute: pad(d.getMinutes()),
+    ampm,
+  };
+}
+
+/** Compose split state back into an ISO string */
+function buildReturnTimeISO(date: string, hour: string, minute: string, ampm: "AM" | "PM"): string {
+  let h24 = parseInt(hour);
+  if (ampm === "AM" && h24 === 12) h24 = 0;
+  else if (ampm === "PM" && h24 !== 12) h24 += 12;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${date}T${pad(h24)}:${pad(parseInt(minute))}:00`;
 }
 
 // Fuel level options - granular 8-step dropdown
