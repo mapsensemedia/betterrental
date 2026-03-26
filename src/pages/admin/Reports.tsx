@@ -306,7 +306,7 @@ export default function AdminReports() {
       revenuePerVehicle,
       totalRevenue,
     };
-  }, [activeBookingsCount, vehicleUnits, rentalMetrics]);
+  }, [activeBookingsCount, vehicleUnits, collectedRevenue]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
