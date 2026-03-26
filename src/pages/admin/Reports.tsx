@@ -71,6 +71,7 @@ import { RevenueAnalyticsTab, type DatePreset } from "@/components/admin/analyti
 import { QuarterlyReportGenerator } from "@/components/admin/QuarterlyReportGenerator";
 import { DemandForecastingTab } from "@/components/admin/DemandForecastingTab";
 import { useRevenueAnalytics, type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
+import { useCollectedRevenue } from "@/hooks/use-collected-revenue";
 
 const chartConfig = {
   views: { label: "Views", color: "hsl(var(--primary))" },
