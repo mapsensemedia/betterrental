@@ -349,12 +349,13 @@ export default function AdminReports() {
   // Revenue stats for Overview tab — derived from the unified hook
   const revenueStats = useMemo(() => {
     return {
-      totalRevenue: rentalMetrics.totalRentalBaseRevenue,
+      totalRevenue: collectedRevenue,
+      billedRevenue: rentalMetrics.totalRentalBaseRevenue,
       avgBookingValue: rentalMetrics.averageRentalPrice,
       avgDuration: rentalMetrics.averageDays,
       totalBookings: rentalMetrics.totalBookings,
     };
-  }, [rentalMetrics]);
+  }, [rentalMetrics, collectedRevenue]);
 
   // Analytics daily trend (from localStorage)
   const dailyTrend = useMemo(() => {
