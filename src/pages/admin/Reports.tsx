@@ -261,6 +261,9 @@ export default function AdminReports() {
     isLoading: revenueLoading,
   } = useRevenueAnalytics(filters);
 
+  // Collected revenue — single source of truth from payments table
+  const { collected: collectedRevenue, isLoading: collectedLoading } = useCollectedRevenue(dateRange.start, dateRange.end);
+
   // Analytics events from Supabase
   const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
 
