@@ -82,12 +82,24 @@ Deno.serve(async (req) => {
     );
 
     if (!res.ok) {
-      const errMsg = parseWorldlineError(res.data);
-      log.error("Void failed", undefined, { response: res.data, status: res.status });
-      return new Response(
-        JSON.stringify({ success: false, error: errMsg }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      const gwData = res.data as Record<string, unknown> | null;
+      const gwCode = gwData && typeof gwData === "object" ? (gwData as { code?: number }).code : undefined;
+
+      // Codes that mean the hold is already gone at the gateway — treat as successful release
+      const HOLD_GONE_CODES = [319, 16]; // 319 = settled/expired, 16 = not found
+      const isHoldGone = HOLD_GONE_CODES.includes(gwCode as number) || res.status === 404;
+
+      if (!isHoldGone) {
+        const errMsg = parseWorldlineError(res.data);
+        log.error("Void failed", undefined, { response: res.data, status: res.status });
+        return new Response(
+          JSON.stringify({ success: false, error: errMsg }),
+          { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      // Hold is already gone — proceed to mark as released in our DB
+      log.info("Hold already expired/settled at gateway, marking as released", { gwCode, status: res.status });
     }
 
     // Update booking status
