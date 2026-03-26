@@ -441,9 +441,9 @@ export default function AdminReports() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    ${rentalMetrics.totalRentalBaseRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    ${collectedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-muted-foreground">{periodLabel}</p>
+                  <p className="text-xs text-muted-foreground">Collected — {periodLabel}</p>
                 </div>
               </div>
             </CardContent>
