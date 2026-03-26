@@ -22,10 +22,27 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-/** Format a Date for <input type="datetime-local"> */
-function formatDatetimeLocal(d: Date): string {
+/** Parse a Date into split return-time state */
+function parseReturnTime(d: Date): { date: string; hour: string; minute: string; ampm: "AM" | "PM" } {
   const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const h24 = d.getHours();
+  const ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    hour: h12.toString(),
+    minute: pad(d.getMinutes()),
+    ampm,
+  };
+}
+
+/** Compose split state back into an ISO string */
+function buildReturnTimeISO(date: string, hour: string, minute: string, ampm: "AM" | "PM"): string {
+  let h24 = parseInt(hour);
+  if (ampm === "AM" && h24 === 12) h24 = 0;
+  else if (ampm === "PM" && h24 !== 12) h24 += 12;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${date}T${pad(h24)}:${pad(parseInt(minute))}:00`;
 }
 
 // Fuel level options - granular 8-step dropdown
@@ -137,16 +154,21 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
     },
   });
 
-  // Editable return time — default to scheduled end or previously saved value
-  const [returnTime, setReturnTime] = useState("");
+  // Split return time state
+  const [returnDate, setReturnDate] = useState("");
+  const [returnHour, setReturnHour] = useState("12");
+  const [returnMinute, setReturnMinute] = useState("00");
+  const [returnAmpm, setReturnAmpm] = useState<"AM" | "PM">("AM");
 
   useEffect(() => {
     if (booking) {
-      if (booking.actual_return_at) {
-        // Already saved — use that
-        setReturnTime(formatDatetimeLocal(new Date(booking.actual_return_at)));
-      } else if (booking.end_at) {
-        setReturnTime(formatDatetimeLocal(new Date(booking.end_at)));
+      const src = booking.actual_return_at || booking.end_at;
+      if (src) {
+        const parsed = parseReturnTime(new Date(src));
+        setReturnDate(parsed.date);
+        setReturnHour(parsed.hour);
+        setReturnMinute(parsed.minute);
+        setReturnAmpm(parsed.ampm);
       }
     }
   }, [booking]);
@@ -218,10 +240,11 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
       }
 
       // Persist the staff-selected return time to the booking
-      if (returnTime) {
+      if (returnDate) {
+        const isoStr = buildReturnTimeISO(returnDate, returnHour, returnMinute, returnAmpm);
         const { error: timeError } = await supabase
           .from("bookings")
-          .update({ actual_return_at: new Date(returnTime).toISOString() })
+          .update({ actual_return_at: new Date(isoStr).toISOString() })
           .eq("id", bookingId);
         if (timeError) {
           console.error("Failed to save return time:", timeError);
@@ -333,13 +356,50 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
             Set the actual time the vehicle was returned
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Input
-            type="datetime-local"
-            value={returnTime}
-            onChange={(e) => setReturnTime(e.target.value)}
-            disabled={isLocked}
-          />
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* Date */}
+            <div className="col-span-2 sm:col-span-1">
+              <Input
+                type="date"
+                value={returnDate}
+                onChange={(e) => setReturnDate(e.target.value)}
+                disabled={isLocked}
+              />
+            </div>
+            {/* Hour */}
+            <Select value={returnHour} onValueChange={setReturnHour} disabled={isLocked}>
+              <SelectTrigger><SelectValue placeholder="Hr" /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                  <SelectItem key={h} value={h.toString()}>{h}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Minute */}
+            <Select value={returnMinute} onValueChange={setReturnMinute} disabled={isLocked}>
+              <SelectTrigger><SelectValue placeholder="Min" /></SelectTrigger>
+              <SelectContent>
+                {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* AM/PM */}
+            <Select value={returnAmpm} onValueChange={(v) => setReturnAmpm(v as "AM" | "PM")} disabled={isLocked}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AM">AM</SelectItem>
+                <SelectItem value="PM">PM</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Human-readable summary */}
+          {returnDate && (
+            <p className="text-sm text-muted-foreground">
+              {format(new Date(buildReturnTimeISO(returnDate, returnHour, returnMinute, returnAmpm)), "MMMM d, yyyy")} at {returnHour}:{returnMinute} {returnAmpm}
+            </p>
+          )}
         </CardContent>
       </Card>
 
