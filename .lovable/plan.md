@@ -1,31 +1,62 @@
 
 
-## Fix: Correct Return Time for Booking ZM87GULY
+## Fix: Unified Revenue Source of Truth
 
-### Current State
+### Problem
 
-| Field | Current Value | Correct Value |
-|-------|--------------|---------------|
-| `actual_return_at` | `2026-03-27 04:30:00+00` (9:30 PM PDT) | `2026-03-26 16:30:00+00` (9:30 AM PDT) |
-| `late_return_fee` | 0 | 0 (already correct) |
-| `late_return_fee_override` | NULL | NULL (already correct) |
+Reports and Finance show different "total revenue" numbers because they use **two different data sources**:
 
-The AM/PM bug we just fixed in the time picker caused this — 9:30 AM was saved as 9:30 PM (21:30 → UTC 04:30 next day).
+| Page | Source | What It Counts |
+|------|--------|----------------|
+| **Finance** | `payments` table + WL supplement | Actual collected money ($6,229.76) |
+| **Reports** | `bookings.total_amount` | Billed/invoiced amount ($5,962.38) |
 
-### What Needs to Change
+These will always diverge because:
+- Some bookings have payments not yet recorded (unrecorded revenue)
+- Some payments include deposit captures that aren't in `total_amount`
+- Partial payments mean collected != billed
+- The WL supplement in Finance catches payments that `bookings.total_amount` doesn't reflect
 
-**One data update** — set `actual_return_at` to `2026-03-26 16:30:00+00` (9:30 AM PDT on March 26).
+### Solution
 
-### What Does NOT Need to Change
+Make the **Finance module's payment-based calculation** the single source of truth for "collected revenue" across the entire platform. The Reports page should query the same `payments` table (with the same dedup logic) instead of summing `bookings.total_amount`.
 
-- `late_return_fee` is already 0
-- No late fee payment records exist (only a rental payment of $207.18 and a deposit authorization of $350)
-- No late fee override fields are set
-- `return_state` is `evidence_done` — correct for the current return flow position
-- No code changes needed
+### Changes
 
-### Verification After Fix
-- `actual_return_at` = 9:30 AM (before the 6 PM `end_at`) → on-time/early return
-- No late return fee or charges
-- Booking timeline reflects early return
+**1. Create a shared revenue hook** — `src/hooks/use-collected-revenue.ts`
+
+Extract the Finance page's payment-fetching + dedup + WL supplement logic into a reusable hook that returns:
+- `collected` (total completed payments, deduplicated)
+- `pending`, `failed` counts
+- `typeBreakdown` (rental/deposit/other)
+- `isLoading`
+
+This hook will accept date range filters and apply the same dedup logic currently in Finance.tsx (lines 527-549).
+
+**2. Update Finance.tsx**
+
+Replace the inline `metrics` calculation with the new shared hook. No change to the numbers — just refactoring the logic out.
+
+**3. Update Reports.tsx + `useRevenueAnalytics`**
+
+- Add a `collectedRevenue` field to the Reports page by calling the new shared hook
+- The top-level metric card labeled with the dollar sign should show collected revenue from the shared hook, not `totalRentalBaseRevenue`
+- Keep `totalRentalBaseRevenue` available as "Billed Revenue" for the Overview tab's "Billed Revenue" card (it's a valid metric — just different from collected)
+- Label clearly: "Collected Revenue" vs "Billed Revenue" so there's no confusion
+
+**4. Update RevenueAnalyticsTab**
+
+The Revenue & Add-Ons tab's summary cards should also use the shared hook for the primary revenue number, with a clear "Collected" label.
+
+### What Does NOT Change
+- The `useRevenueAnalytics` hook itself (still useful for booking-level analytics like avg days, add-on attach rates, channel comparison)
+- Finance page numbers (just refactored into shared hook)
+- Any payment recording, dedup, or WL supplement logic
+- Late fee, deposit, or pricing calculations
+
+### Files Modified
+1. `src/hooks/use-collected-revenue.ts` — **new** shared hook
+2. `src/pages/admin/Finance.tsx` — refactor to use shared hook
+3. `src/pages/admin/Reports.tsx` — use shared hook for top metric card
+4. `src/components/admin/analytics/RevenueAnalyticsTab.tsx` — use shared hook for primary revenue display
 
