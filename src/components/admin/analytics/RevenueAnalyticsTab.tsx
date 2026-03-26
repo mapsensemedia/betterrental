@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useRevenueAnalytics, exportToCSV, type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
+import { useCollectedRevenue } from "@/hooks/use-collected-revenue";
 import { useLocations } from "@/hooks/use-locations";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { cn } from "@/lib/utils";
