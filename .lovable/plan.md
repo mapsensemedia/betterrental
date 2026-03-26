@@ -1,45 +1,36 @@
 
 
-## Fix: Revenue Breakdown Undercounting
+## Fix: Return Time Picker Cannot Switch Between AM/PM
 
-### Root Cause
+### Problem
 
-The Revenue Breakdown only counts revenue from two sources:
-1. Records in the `payments` table with `status = 'completed'`
-2. WL supplement entries (bookings with Worldline transaction IDs not yet in `payments`)
+The Return Intake step in `StepReturnIntake.tsx` uses a native `<input type="datetime-local">` for setting the actual return time. This input's AM/PM behavior is browser-dependent and unreliable — staff cannot switch from PM to AM when the default value (from `end_at` at 23:59) initializes in PM. This causes returns recorded at 9:30 AM to be saved as 9:30 PM (21:30), triggering false late-return flags.
 
-**Two confirmed bookings have collected payments that are completely invisible to the finance module:**
+### Fix
 
-| Booking | Amount | Status | Issue |
-|---------|--------|--------|-------|
-| U7CENCBP | $218.40 | confirmed | No payment record, no WL transaction |
-| EVUFSRKX | $322.56 | confirmed | No payment record, no WL transaction |
+Replace the single native `datetime-local` input with a split date + time + AM/PM picker using existing shadcn components:
 
-These are likely terminal/cash payments that were processed but never logged via the "Log Terminal Payment" form. Total missing: **$540.96**.
+- **Date**: Keep as `<input type="date">` (reliable across browsers)
+- **Hour**: `<Select>` dropdown (1–12)
+- **Minute**: `<Select>` dropdown (00, 15, 30, 45) with manual entry option
+- **AM/PM**: Explicit `<Select>` toggle — this is the critical fix
 
-Additionally, two more bookings have captured deposits ($350 each) where FZH86F8W's deposit is picked up by WL supplement but may have edge-case dedup issues.
+The component will compose these values back into a proper ISO string for saving to `actual_return_at`.
 
-### Fix — Two Parts
+### Scope
 
-#### Part 1: Add "Unrecorded Revenue" detection to the Overview tab
+**One file modified**: `src/components/admin/return-ops/steps/StepReturnIntake.tsx`
 
-In `src/pages/admin/Finance.tsx`, add a third data source query that finds confirmed/active/completed bookings with NO corresponding completed payment record AND no WL transaction. These represent revenue collected outside tracked channels.
+- Replace the `<Input type="datetime-local">` block (lines 326–343) with the split picker
+- Update the `formatDatetimeLocal` helper to a `parseReturnTime`/`buildReturnTime` pair
+- Update the `useEffect` that initializes `returnTime` to populate the split state (date, hour, minute, ampm)
+- Update the save mutation to compose the split values back into an ISO timestamp
+- Display a human-readable summary (e.g., "March 26, 2026 at 9:30 AM") below the inputs for confirmation
 
-Display these as a warning card in the Revenue Breakdown section:
-- Show count and total of unrecorded bookings
-- Link to each booking so staff can retroactively log the payment
-- Add their amounts to the collected revenue total
+### What does NOT change
 
-#### Part 2: Ensure `typeBreakdown` uses the same dedup as `metrics.collected`
-
-Currently `typeBreakdown` (line 512-516) sums with simple `.filter().reduce()` without `transaction_id` dedup, while `metrics.collected` (line 473-488) deduplicates via a `Set`. Apply the same dedup pattern to `typeBreakdown` to prevent any future double-counting edge cases.
-
-### Files Modified
-
-1. `src/pages/admin/Finance.tsx` — Add unrecorded-revenue query, warning card, fix typeBreakdown dedup
-
-### What Does NOT Change
-- Payment logging flows (terminal, Worldline)
-- Existing dedup between payments table and WL supplement
-- Invoice/receipt generation
+- No changes to late return calculation logic (`src/lib/late-return.ts`)
+- No changes to the save target (`actual_return_at` column)
+- No changes to other datetime-local inputs in `BookingEditPanel`, `BookingModificationPanel`, or `CreateIncidentDialog`
+- No changes to any other return flow steps
 
