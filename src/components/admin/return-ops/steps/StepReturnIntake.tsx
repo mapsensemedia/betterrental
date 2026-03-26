@@ -240,10 +240,11 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
       }
 
       // Persist the staff-selected return time to the booking
-      if (returnTime) {
+      if (returnDate) {
+        const isoStr = buildReturnTimeISO(returnDate, returnHour, returnMinute, returnAmpm);
         const { error: timeError } = await supabase
           .from("bookings")
-          .update({ actual_return_at: new Date(returnTime).toISOString() })
+          .update({ actual_return_at: new Date(isoStr).toISOString() })
           .eq("id", bookingId);
         if (timeError) {
           console.error("Failed to save return time:", timeError);
