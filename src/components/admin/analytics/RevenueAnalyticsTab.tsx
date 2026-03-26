@@ -91,6 +91,9 @@ export function RevenueAnalyticsTab({
     isLoading,
   } = useRevenueAnalytics(filters);
 
+  // Collected revenue — single source of truth
+  const { collected: collectedRevenue, isLoading: collectedLoading } = useCollectedRevenue(filters.startDate, filters.endDate);
+
   const handleExportBookings = () => {
     exportToCSV(exportData, "revenue-report");
   };
