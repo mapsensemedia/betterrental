@@ -345,14 +345,14 @@ export function RevenueAnalyticsTab({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-dashed">
           <CardContent className="p-3">
-            <p className="text-sm text-muted-foreground">Total Base Revenue</p>
-            <p className="text-lg font-semibold">{formatCurrency(rentalMetrics.totalRentalBaseRevenue)}</p>
+            <p className="text-sm text-muted-foreground">Collected Revenue</p>
+            <p className="text-lg font-semibold">{formatCurrency(collectedRevenue)}</p>
           </CardContent>
         </Card>
         <Card className="border-dashed">
           <CardContent className="p-3">
-            <p className="text-sm text-muted-foreground">Median Rental Price</p>
-            <p className="text-lg font-semibold">{formatCurrency(rentalMetrics.medianRentalPrice)}</p>
+            <p className="text-sm text-muted-foreground">Billed Revenue</p>
+            <p className="text-lg font-semibold">{formatCurrency(rentalMetrics.totalRentalBaseRevenue)}</p>
           </CardContent>
         </Card>
         <Card className="border-dashed">
