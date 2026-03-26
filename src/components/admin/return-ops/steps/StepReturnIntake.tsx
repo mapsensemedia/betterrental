@@ -356,13 +356,50 @@ export function StepReturnIntake({ bookingId, completion, onComplete, isLocked, 
             Set the actual time the vehicle was returned
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Input
-            type="datetime-local"
-            value={returnTime}
-            onChange={(e) => setReturnTime(e.target.value)}
-            disabled={isLocked}
-          />
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* Date */}
+            <div className="col-span-2 sm:col-span-1">
+              <Input
+                type="date"
+                value={returnDate}
+                onChange={(e) => setReturnDate(e.target.value)}
+                disabled={isLocked}
+              />
+            </div>
+            {/* Hour */}
+            <Select value={returnHour} onValueChange={setReturnHour} disabled={isLocked}>
+              <SelectTrigger><SelectValue placeholder="Hr" /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                  <SelectItem key={h} value={h.toString()}>{h}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Minute */}
+            <Select value={returnMinute} onValueChange={setReturnMinute} disabled={isLocked}>
+              <SelectTrigger><SelectValue placeholder="Min" /></SelectTrigger>
+              <SelectContent>
+                {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* AM/PM */}
+            <Select value={returnAmpm} onValueChange={(v) => setReturnAmpm(v as "AM" | "PM")} disabled={isLocked}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AM">AM</SelectItem>
+                <SelectItem value="PM">PM</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Human-readable summary */}
+          {returnDate && (
+            <p className="text-sm text-muted-foreground">
+              {format(new Date(buildReturnTimeISO(returnDate, returnHour, returnMinute, returnAmpm)), "MMMM d, yyyy")} at {returnHour}:{returnMinute} {returnAmpm}
+            </p>
+          )}
         </CardContent>
       </Card>
 
