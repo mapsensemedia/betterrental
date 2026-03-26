@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useRevenueAnalytics, exportToCSV, type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
+import { useCollectedRevenue } from "@/hooks/use-collected-revenue";
 import { useLocations } from "@/hooks/use-locations";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,9 @@ export function RevenueAnalyticsTab({
     exportData,
     isLoading,
   } = useRevenueAnalytics(filters);
+
+  // Collected revenue — single source of truth
+  const { collected: collectedRevenue, isLoading: collectedLoading } = useCollectedRevenue(filters.startDate, filters.endDate);
 
   const handleExportBookings = () => {
     exportToCSV(exportData, "revenue-report");
@@ -341,14 +345,14 @@ export function RevenueAnalyticsTab({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-dashed">
           <CardContent className="p-3">
-            <p className="text-sm text-muted-foreground">Total Base Revenue</p>
-            <p className="text-lg font-semibold">{formatCurrency(rentalMetrics.totalRentalBaseRevenue)}</p>
+            <p className="text-sm text-muted-foreground">Collected Revenue</p>
+            <p className="text-lg font-semibold">{formatCurrency(collectedRevenue)}</p>
           </CardContent>
         </Card>
         <Card className="border-dashed">
           <CardContent className="p-3">
-            <p className="text-sm text-muted-foreground">Median Rental Price</p>
-            <p className="text-lg font-semibold">{formatCurrency(rentalMetrics.medianRentalPrice)}</p>
+            <p className="text-sm text-muted-foreground">Billed Revenue</p>
+            <p className="text-lg font-semibold">{formatCurrency(rentalMetrics.totalRentalBaseRevenue)}</p>
           </CardContent>
         </Card>
         <Card className="border-dashed">

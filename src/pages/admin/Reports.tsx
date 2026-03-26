@@ -71,6 +71,7 @@ import { RevenueAnalyticsTab, type DatePreset } from "@/components/admin/analyti
 import { QuarterlyReportGenerator } from "@/components/admin/QuarterlyReportGenerator";
 import { DemandForecastingTab } from "@/components/admin/DemandForecastingTab";
 import { useRevenueAnalytics, type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
+import { useCollectedRevenue } from "@/hooks/use-collected-revenue";
 
 const chartConfig = {
   views: { label: "Views", color: "hsl(var(--primary))" },
@@ -260,6 +261,9 @@ export default function AdminReports() {
     isLoading: revenueLoading,
   } = useRevenueAnalytics(filters);
 
+  // Collected revenue — single source of truth from payments table
+  const { collected: collectedRevenue, isLoading: collectedLoading } = useCollectedRevenue(dateRange.start, dateRange.end);
+
   // Analytics events from Supabase
   const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
 
@@ -289,7 +293,7 @@ export default function AdminReports() {
       ? (activeRentals / totalVehicles) * 100
       : 0;
 
-    const totalRevenue = rentalMetrics.totalRentalBaseRevenue;
+    const totalRevenue = collectedRevenue;
     const revenuePerVehicle = totalVehicles > 0
       ? totalRevenue / totalVehicles
       : 0;
@@ -302,7 +306,7 @@ export default function AdminReports() {
       revenuePerVehicle,
       totalRevenue,
     };
-  }, [activeBookingsCount, vehicleUnits, rentalMetrics]);
+  }, [activeBookingsCount, vehicleUnits, collectedRevenue]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -345,12 +349,13 @@ export default function AdminReports() {
   // Revenue stats for Overview tab — derived from the unified hook
   const revenueStats = useMemo(() => {
     return {
-      totalRevenue: rentalMetrics.totalRentalBaseRevenue,
+      totalRevenue: collectedRevenue,
+      billedRevenue: rentalMetrics.totalRentalBaseRevenue,
       avgBookingValue: rentalMetrics.averageRentalPrice,
       avgDuration: rentalMetrics.averageDays,
       totalBookings: rentalMetrics.totalBookings,
     };
-  }, [rentalMetrics]);
+  }, [rentalMetrics, collectedRevenue]);
 
   // Analytics daily trend (from localStorage)
   const dailyTrend = useMemo(() => {
@@ -436,9 +441,9 @@ export default function AdminReports() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    ${rentalMetrics.totalRentalBaseRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    ${collectedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-muted-foreground">{periodLabel}</p>
+                  <p className="text-xs text-muted-foreground">Collected — {periodLabel}</p>
                 </div>
               </div>
             </CardContent>
