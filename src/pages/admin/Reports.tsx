@@ -293,7 +293,7 @@ export default function AdminReports() {
       ? (activeRentals / totalVehicles) * 100
       : 0;
 
-    const totalRevenue = rentalMetrics.totalRentalBaseRevenue;
+    const totalRevenue = collectedRevenue;
     const revenuePerVehicle = totalVehicles > 0
       ? totalRevenue / totalVehicles
       : 0;
