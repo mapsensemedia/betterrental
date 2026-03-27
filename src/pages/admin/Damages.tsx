@@ -74,8 +74,7 @@ export default function AdminDamages() {
     return (
       d.description.toLowerCase().includes(search) ||
       d.booking?.bookingCode.toLowerCase().includes(search) ||
-      d.vehicle?.make.toLowerCase().includes(search) ||
-      d.vehicle?.model.toLowerCase().includes(search)
+      d.vehicle?.name.toLowerCase().includes(search)
     );
   });
 
@@ -219,7 +218,7 @@ export default function AdminDamages() {
                         <TableCell>
                           {damage.vehicle ? (
                             <span className="font-medium">
-                              {damage.vehicle.make} {damage.vehicle.model}
+                              {damage.vehicle.name}
                             </span>
                           ) : (
                             "-"
@@ -292,7 +291,7 @@ export default function AdminDamages() {
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Vehicle</span>
                     <span className="font-medium">
-                      {selectedDamage.vehicles?.make} {selectedDamage.vehicles?.model} ({selectedDamage.vehicles?.year})
+                      {selectedDamage.vehicle_categories?.name || "Unknown vehicle"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

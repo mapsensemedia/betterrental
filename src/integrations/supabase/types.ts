@@ -1029,7 +1029,7 @@ export type Database = {
             foreignKeyName: "damage_reports_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
-            referencedRelation: "vehicles"
+            referencedRelation: "vehicle_categories"
             referencedColumns: ["id"]
           },
           {

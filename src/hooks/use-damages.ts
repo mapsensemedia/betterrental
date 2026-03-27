@@ -29,9 +29,7 @@ export interface DamageReport {
   } | null;
   vehicle: {
     id: string;
-    make: string;
-    model: string;
-    year: number;
+    name: string;
     imageUrl: string | null;
   } | null;
   reporter: {
@@ -56,7 +54,7 @@ export function useDamageReports(filters: DamageFilters = {}) {
         .select(`
           *,
           bookings (booking_code, start_at, end_at),
-          vehicles (id, make, model, year, image_url, location_id)
+          vehicle_categories (id, name, image_url)
         `)
         .order("created_at", { ascending: false });
 
@@ -115,12 +113,10 @@ export function useDamageReports(filters: DamageFilters = {}) {
             startAt: d.bookings.start_at,
             endAt: d.bookings.end_at,
           } : null,
-          vehicle: d.vehicles ? {
-            id: d.vehicles.id,
-            make: d.vehicles.make,
-            model: d.vehicles.model,
-            year: d.vehicles.year,
-            imageUrl: d.vehicles.image_url,
+          vehicle: d.vehicle_categories ? {
+            id: d.vehicle_categories.id,
+            name: d.vehicle_categories.name,
+            imageUrl: d.vehicle_categories.image_url,
           } : null,
           reporter: reporter ? {
             fullName: reporter.full_name,
@@ -144,7 +140,7 @@ export function useDamageById(id: string | null) {
         .select(`
           *,
           bookings (id, booking_code, start_at, end_at, user_id),
-          vehicles (id, make, model, year, image_url)
+          vehicle_categories (id, name, image_url)
         `)
         .eq("id", id)
         .maybeSingle();
@@ -244,6 +240,7 @@ export function useCreateDamage() {
     mutationFn: async (damageData: {
       bookingId: string;
       vehicleId: string;
+      vehicleUnitId?: string;
       description: string;
       locationOnVehicle: string;
       severity: DamageSeverity;
@@ -287,12 +284,24 @@ export function useCreateDamage() {
         }
       }
 
+      // Resolve vehicle_unit_id from booking if not provided
+      let vehicleUnitId = damageData.vehicleUnitId;
+      if (!vehicleUnitId) {
+        const { data: bookingUnit } = await supabase
+          .from("bookings")
+          .select("assigned_unit_id")
+          .eq("id", damageData.bookingId)
+          .maybeSingle();
+        vehicleUnitId = bookingUnit?.assigned_unit_id || undefined;
+      }
+
       // Create the damage report
       const { data, error } = await supabase
         .from("damage_reports")
         .insert([{
           booking_id: damageData.bookingId,
           vehicle_id: damageData.vehicleId,
+          vehicle_unit_id: vehicleUnitId || null,
           description: damageData.description,
           location_on_vehicle: damageData.locationOnVehicle,
           severity: damageData.severity,
