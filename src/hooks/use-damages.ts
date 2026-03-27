@@ -142,7 +142,7 @@ export function useDamageById(id: string | null) {
         .select(`
           *,
           bookings (id, booking_code, start_at, end_at, user_id),
-          vehicles (id, make, model, year, image_url)
+          vehicle_categories (id, name, image_url)
         `)
         .eq("id", id)
         .maybeSingle();
