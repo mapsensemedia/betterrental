@@ -29,9 +29,7 @@ export interface DamageReport {
   } | null;
   vehicle: {
     id: string;
-    make: string;
-    model: string;
-    year: number;
+    name: string;
     imageUrl: string | null;
   } | null;
   reporter: {
