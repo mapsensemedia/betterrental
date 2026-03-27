@@ -292,7 +292,7 @@ export default function AdminDamages() {
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Vehicle</span>
                     <span className="font-medium">
-                      {selectedDamage.vehicles?.make} {selectedDamage.vehicles?.model} ({selectedDamage.vehicles?.year})
+                      {selectedDamage.vehicle_categories?.name || "Unknown vehicle"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

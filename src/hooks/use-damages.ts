@@ -286,12 +286,24 @@ export function useCreateDamage() {
         }
       }
 
+      // Resolve vehicle_unit_id from booking if not provided
+      let vehicleUnitId = damageData.vehicleUnitId;
+      if (!vehicleUnitId) {
+        const { data: bookingUnit } = await supabase
+          .from("bookings")
+          .select("assigned_unit_id")
+          .eq("id", damageData.bookingId)
+          .maybeSingle();
+        vehicleUnitId = bookingUnit?.assigned_unit_id || undefined;
+      }
+
       // Create the damage report
       const { data, error } = await supabase
         .from("damage_reports")
         .insert([{
           booking_id: damageData.bookingId,
           vehicle_id: damageData.vehicleId,
+          vehicle_unit_id: vehicleUnitId || null,
           description: damageData.description,
           location_on_vehicle: damageData.locationOnVehicle,
           severity: damageData.severity,
