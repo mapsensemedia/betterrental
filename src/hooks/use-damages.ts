@@ -56,7 +56,7 @@ export function useDamageReports(filters: DamageFilters = {}) {
         .select(`
           *,
           bookings (booking_code, start_at, end_at),
-          vehicles (id, make, model, year, image_url, location_id)
+          vehicle_categories (id, name, image_url)
         `)
         .order("created_at", { ascending: false });
 
