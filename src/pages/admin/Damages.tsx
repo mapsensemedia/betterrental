@@ -74,8 +74,7 @@ export default function AdminDamages() {
     return (
       d.description.toLowerCase().includes(search) ||
       d.booking?.bookingCode.toLowerCase().includes(search) ||
-      d.vehicle?.make.toLowerCase().includes(search) ||
-      d.vehicle?.model.toLowerCase().includes(search)
+      d.vehicle?.name.toLowerCase().includes(search)
     );
   });
 
