@@ -1,62 +1,33 @@
 
 
-## Fix: Unified Revenue Source of Truth
+## Fix: Damage Report Trigger Using Invalid Enum Value
 
-### Problem
+### Root Cause
 
-Reports and Finance show different "total revenue" numbers because they use **two different data sources**:
+The `auto_create_damage_ticket` trigger function on the `damage_reports` table compares `NEW.severity = 'major'`, but `'major'` is not a valid value in the `damage_severity` enum (`minor`, `moderate`, `severe`). PostgreSQL attempts to cast `'major'` to the enum type for comparison, which throws error `22P02: invalid input value for enum damage_severity: "major"`.
 
-| Page | Source | What It Counts |
-|------|--------|----------------|
-| **Finance** | `payments` table + WL supplement | Actual collected money ($6,229.76) |
-| **Reports** | `bookings.total_amount` | Billed/invoiced amount ($5,962.38) |
+This blocks every damage report insert because the trigger fires before the row can be committed.
 
-These will always diverge because:
-- Some bookings have payments not yet recorded (unrecorded revenue)
-- Some payments include deposit captures that aren't in `total_amount`
-- Partial payments mean collected != billed
-- The WL supplement in Finance catches payments that `bookings.total_amount` doesn't reflect
+**Verified via browser test**: POST to `damage_reports` returns HTTP 400 with `{"code":"22P02","message":"invalid input value for enum damage_severity: \"major\""}`.
 
-### Solution
+### Fix
 
-Make the **Finance module's payment-based calculation** the single source of truth for "collected revenue" across the entire platform. The Reports page should query the same `payments` table (with the same dedup logic) instead of summing `bookings.total_amount`.
+**One database migration** to replace the trigger function `auto_create_damage_ticket`:
 
-### Changes
-
-**1. Create a shared revenue hook** — `src/hooks/use-collected-revenue.ts`
-
-Extract the Finance page's payment-fetching + dedup + WL supplement logic into a reusable hook that returns:
-- `collected` (total completed payments, deduplicated)
-- `pending`, `failed` counts
-- `typeBreakdown` (rental/deposit/other)
-- `isLoading`
-
-This hook will accept date range filters and apply the same dedup logic currently in Finance.tsx (lines 527-549).
-
-**2. Update Finance.tsx**
-
-Replace the inline `metrics` calculation with the new shared hook. No change to the numbers — just refactoring the logic out.
-
-**3. Update Reports.tsx + `useRevenueAnalytics`**
-
-- Add a `collectedRevenue` field to the Reports page by calling the new shared hook
-- The top-level metric card labeled with the dollar sign should show collected revenue from the shared hook, not `totalRentalBaseRevenue`
-- Keep `totalRentalBaseRevenue` available as "Billed Revenue" for the Overview tab's "Billed Revenue" card (it's a valid metric — just different from collected)
-- Label clearly: "Collected Revenue" vs "Billed Revenue" so there's no confusion
-
-**4. Update RevenueAnalyticsTab**
-
-The Revenue & Add-Ons tab's summary cards should also use the shared hook for the primary revenue number, with a clear "Collected" label.
+- Change `NEW.severity = 'major'` to `NEW.severity = 'severe'` (the actual highest severity value in the enum)
+- This affects two places in the function:
+  1. `priority` — `CASE WHEN NEW.severity = 'severe' THEN 'high' ELSE 'medium' END`
+  2. `is_urgent` — `NEW.severity = 'severe'`
 
 ### What Does NOT Change
-- The `useRevenueAnalytics` hook itself (still useful for booking-level analytics like avg days, add-on attach rates, channel comparison)
-- Finance page numbers (just refactored into shared hook)
-- Any payment recording, dedup, or WL supplement logic
-- Late fee, deposit, or pricing calculations
+
+- No application code changes needed
+- No changes to the `damage_severity` enum itself
+- No changes to the `damage_reports` table schema or RLS policies
+- No changes to the `DamageReportDialog` component or `useCreateDamage` hook
+- The `auto_create_incident_ticket` trigger (on a different table) is not affected
 
 ### Files Modified
-1. `src/hooks/use-collected-revenue.ts` — **new** shared hook
-2. `src/pages/admin/Finance.tsx` — refactor to use shared hook
-3. `src/pages/admin/Reports.tsx` — use shared hook for top metric card
-4. `src/components/admin/analytics/RevenueAnalyticsTab.tsx` — use shared hook for primary revenue display
+
+1. Database migration only — `CREATE OR REPLACE FUNCTION public.auto_create_damage_ticket()`
 
