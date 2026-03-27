@@ -242,6 +242,7 @@ export function useCreateDamage() {
     mutationFn: async (damageData: {
       bookingId: string;
       vehicleId: string;
+      vehicleUnitId?: string;
       description: string;
       locationOnVehicle: string;
       severity: DamageSeverity;
