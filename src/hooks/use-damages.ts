@@ -115,12 +115,10 @@ export function useDamageReports(filters: DamageFilters = {}) {
             startAt: d.bookings.start_at,
             endAt: d.bookings.end_at,
           } : null,
-          vehicle: d.vehicles ? {
-            id: d.vehicles.id,
-            make: d.vehicles.make,
-            model: d.vehicles.model,
-            year: d.vehicles.year,
-            imageUrl: d.vehicles.image_url,
+          vehicle: d.vehicle_categories ? {
+            id: d.vehicle_categories.id,
+            name: d.vehicle_categories.name,
+            imageUrl: d.vehicle_categories.image_url,
           } : null,
           reporter: reporter ? {
             fullName: reporter.full_name,
