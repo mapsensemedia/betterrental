@@ -218,7 +218,7 @@ export default function AdminDamages() {
                         <TableCell>
                           {damage.vehicle ? (
                             <span className="font-medium">
-                              {damage.vehicle.make} {damage.vehicle.model}
+                              {damage.vehicle.name}
                             </span>
                           ) : (
                             "-"
