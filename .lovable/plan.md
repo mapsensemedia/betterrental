@@ -1,33 +1,41 @@
 
 
-## Fix: Damage Report Trigger Using Invalid Enum Value
+## Fix: Missing Payment Record for Booking QJ8FV9BR
 
 ### Root Cause
 
-The `auto_create_damage_ticket` trigger function on the `damage_reports` table compares `NEW.severity = 'major'`, but `'major'` is not a valid value in the `damage_severity` enum (`minor`, `moderate`, `severe`). PostgreSQL attempts to cast `'major'` to the enum type for comparison, which throws error `22P02: invalid input value for enum damage_severity: "major"`.
+The booking has a total of $432.62 but only one payment of $220.92 was recorded (TERM-0010050020). The remaining $211.70 was collected at the terminal but never logged. The invoice correctly computed `amount_due = 432.62 - 220.92 = 211.70` — the invoice logic is not broken, the data is incomplete.
 
-This blocks every damage report insert because the trigger fires before the row can be committed.
+No damage charges are inflating the total — `damage_charges = 0` on the invoice.
 
-**Verified via browser test**: POST to `damage_reports` returns HTTP 400 with `{"code":"22P02","message":"invalid input value for enum damage_severity: \"major\""}`.
+### Fix Steps
 
-### Fix
+**1. Insert missing payment record** (data operation)
 
-**One database migration** to replace the trigger function `auto_create_damage_ticket`:
+Insert into `payments`:
+- `booking_id`: `b51b91d9-c1e0-4f5c-a57e-b4e3f7dd723d`
+- `amount`: 211.70
+- `payment_type`: rental
+- `payment_method`: terminal
+- `status`: completed
+- `transaction_id`: `TERM-MANUAL-QJ8FV9BR` (distinguishable as retroactive entry)
+- `user_id`: `3eaebda3-a6e3-4cb7-898c-9542976f3203`
+- `location_id`: from booking
 
-- Change `NEW.severity = 'major'` to `NEW.severity = 'severe'` (the actual highest severity value in the enum)
-- This affects two places in the function:
-  1. `priority` — `CASE WHEN NEW.severity = 'severe' THEN 'high' ELSE 'medium' END`
-  2. `is_urgent` — `NEW.severity = 'severe'`
+**2. Update invoice INV-2026-01019** (data operation)
+
+Update `final_invoices` where `id = 35452711-4800-4ebb-982f-b6d7ffe44112`:
+- `payments_received`: 432.62
+- `amount_due`: 0
 
 ### What Does NOT Change
+- No code changes needed
+- Grand total stays $432.62
+- No invoice regeneration needed — just update the two numeric fields
+- No damage charges to remove (already 0)
 
-- No application code changes needed
-- No changes to the `damage_severity` enum itself
-- No changes to the `damage_reports` table schema or RLS policies
-- No changes to the `DamageReportDialog` component or `useCreateDamage` hook
-- The `auto_create_incident_ticket` trigger (on a different table) is not affected
-
-### Files Modified
-
-1. Database migration only — `CREATE OR REPLACE FUNCTION public.auto_create_damage_ticket()`
+### Verification
+- Invoice shows $0.00 amount due
+- No red outstanding balance
+- Finance totals include the full $432.62
 
