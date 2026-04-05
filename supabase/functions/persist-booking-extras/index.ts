@@ -393,6 +393,180 @@ async function handleUpsellRemove(
 }
 
 
+// ── Staff upsell: add an additional driver ──────────────────────────
+async function handleUpsellDriverAdd(
+  supabaseAdmin: any,
+  booking: any,
+  body: any,
+  corsHeaders: Record<string, string>,
+  userId: string,
+  req: Request,
+): Promise<Response> {
+  const { bookingId, driverName, driverAgeBand } = body;
+  const ageBand = driverAgeBand || "25_70";
+
+  if (!["20_24", "25_70"].includes(ageBand)) {
+    return new Response(
+      JSON.stringify({ error: "Invalid driver age band", errorCode: "INVALID_AGE_BAND" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Read existing drivers
+  const { data: existingDrivers } = await supabaseAdmin
+    .from("booking_additional_drivers")
+    .select("driver_name, driver_age_band, young_driver_fee")
+    .eq("booking_id", bookingId);
+
+  if ((existingDrivers || []).length >= 5) {
+    return new Response(
+      JSON.stringify({ error: "Maximum 5 additional drivers allowed", errorCode: "MAX_DRIVERS" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const mergedDrivers = [
+    ...(existingDrivers || []).map((d: any) => ({
+      driverName: d.driver_name || null,
+      driverAgeBand: d.driver_age_band || "25_70",
+      youngDriverFee: 0,
+    })),
+    { driverName: driverName?.slice(0, 100) || null, driverAgeBand: ageBand, youngDriverFee: 0 },
+  ];
+
+  // Read existing add-ons for full context
+  const { data: existingAddOns } = await supabaseAdmin
+    .from("booking_add_ons")
+    .select("add_on_id, quantity")
+    .eq("booking_id", bookingId);
+
+  const addOnInputs = (existingAddOns || []).map((a: any) => ({
+    addOnId: a.add_on_id,
+    quantity: Number(a.quantity) || 1,
+  }));
+
+  const serverTotals = await computeBookingTotals({
+    vehicleId: booking.vehicle_id,
+    startAt: booking.start_at,
+    endAt: booking.end_at,
+    protectionPlan: booking.protection_plan || undefined,
+    addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
+    additionalDrivers: mergedDrivers,
+    driverAgeBand: booking.driver_age_band || undefined,
+    deliveryFee: Number(booking.delivery_fee) || 0,
+    locationId: booking.location_id,
+    returnLocationId: booking.return_location_id,
+  });
+
+  // Find the computed fee for the NEW driver (last record)
+  const newDriverRecord = serverTotals.additionalDriverRecords[serverTotals.additionalDriverRecords.length - 1];
+  if (!newDriverRecord) {
+    return new Response(
+      JSON.stringify({ error: "Driver fee computation failed", errorCode: "DRIVER_FEE_FAILED" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const { error: insertErr } = await supabaseAdmin
+    .from("booking_additional_drivers")
+    .insert({
+      booking_id: bookingId,
+      driver_name: newDriverRecord.driverName,
+      driver_age_band: newDriverRecord.driverAgeBand,
+      young_driver_fee: newDriverRecord.youngDriverFee,
+    });
+
+  if (insertErr) {
+    console.error("[persist-booking-extras] upsell-driver-add insert failed:", insertErr);
+    return new Response(
+      JSON.stringify({ error: "Failed to add driver", errorCode: "EXTRAS_PERSIST_FAILED" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  await supabaseAdmin.from("audit_logs").insert({
+    action: "booking_driver_upsell_add",
+    entity_type: "booking",
+    entity_id: bookingId,
+    user_id: userId,
+    old_data: null,
+    new_data: { driverName: newDriverRecord.driverName, driverAgeBand: newDriverRecord.driverAgeBand, computedFee: newDriverRecord.youngDriverFee },
+  });
+
+  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  if (repriceResult) return repriceResult;
+
+  return new Response(
+    JSON.stringify({ ok: true }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+
+// ── Staff upsell: remove an additional driver ───────────────────────
+async function handleUpsellDriverRemove(
+  supabaseAdmin: any,
+  booking: any,
+  body: any,
+  corsHeaders: Record<string, string>,
+  userId: string,
+  req: Request,
+): Promise<Response> {
+  const { bookingId, driverRowId } = body;
+
+  if (!driverRowId) {
+    return new Response(
+      JSON.stringify({ error: "driverRowId required", errorCode: "MISSING_DRIVER_ID" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const { data: existing } = await supabaseAdmin
+    .from("booking_additional_drivers")
+    .select("id, driver_name, driver_age_band, young_driver_fee")
+    .eq("id", driverRowId)
+    .eq("booking_id", bookingId)
+    .maybeSingle();
+
+  if (!existing) {
+    return new Response(
+      JSON.stringify({ error: "Driver not found on this booking", errorCode: "DRIVER_NOT_FOUND" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const { error: delErr } = await supabaseAdmin
+    .from("booking_additional_drivers")
+    .delete()
+    .eq("id", existing.id);
+
+  if (delErr) {
+    console.error("[persist-booking-extras] upsell-driver-remove delete failed:", delErr);
+    return new Response(
+      JSON.stringify({ error: "Failed to remove driver", errorCode: "EXTRAS_PERSIST_FAILED" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  await supabaseAdmin.from("audit_logs").insert({
+    action: "booking_driver_upsell_remove",
+    entity_type: "booking",
+    entity_id: bookingId,
+    user_id: userId,
+    old_data: { driverName: existing.driver_name, driverAgeBand: existing.driver_age_band, fee: Number(existing.young_driver_fee) },
+    new_data: null,
+  });
+
+  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  if (repriceResult) return repriceResult;
+
+  return new Response(
+    JSON.stringify({ ok: true }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+
 // ── Invoke reprice-booking edge function (canonical totals writer) ──
 async function invokeRepriceBooking(
   bookingId: string,
