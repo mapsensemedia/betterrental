@@ -1,12 +1,15 @@
 /**
- * CounterUpsellPanel - Add upgrades/add-ons at the counter before activating the rental.
+ * CounterUpsellPanel - Add upgrades/add-ons and additional drivers at the counter.
  * All mutations route through persist-booking-extras edge function (service_role).
  */
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Plus, X, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ShoppingCart, Plus, X, Loader2, Users, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useAddOns, type AddOn, isFuelAddOn, isAdditionalDriverAddOn } from "@/hooks/use-add-ons";
 
@@ -14,6 +17,8 @@ interface CounterUpsellPanelProps {
   bookingId: string;
   rentalDays: number;
 }
+
+// ── Hooks ────────────────────────────────────────────────────────────
 
 function useBookingAddOns(bookingId: string) {
   return useQuery({
@@ -30,17 +35,27 @@ function useBookingAddOns(bookingId: string) {
   });
 }
 
+function useBookingAdditionalDrivers(bookingId: string) {
+  return useQuery({
+    queryKey: ["booking-additional-drivers", bookingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_additional_drivers")
+        .select("id, driver_name, driver_age_band, young_driver_fee")
+        .eq("booking_id", bookingId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!bookingId,
+  });
+}
+
 function useAddBookingAddOn() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ bookingId, addOn }: { bookingId: string; addOn: AddOn }) => {
       const { data, error } = await supabase.functions.invoke("persist-booking-extras", {
-        body: {
-          bookingId,
-          action: "upsell-add",
-          addOnId: addOn.id,
-          quantity: 1,
-        },
+        body: { bookingId, action: "upsell-add", addOnId: addOn.id, quantity: 1 },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -50,9 +65,7 @@ function useAddBookingAddOn() {
       queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
       toast.success("Add-on added to booking");
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to add add-on. Please try again.");
-    },
+    onError: (err: Error) => toast.error(err.message || "Failed to add add-on."),
   });
 }
 
@@ -61,11 +74,7 @@ function useRemoveBookingAddOn() {
   return useMutation({
     mutationFn: async ({ id, bookingId }: { id: string; bookingId: string }) => {
       const { data, error } = await supabase.functions.invoke("persist-booking-extras", {
-        body: {
-          bookingId,
-          action: "upsell-remove",
-          bookingAddOnId: id,
-        },
+        body: { bookingId, action: "upsell-remove", bookingAddOnId: id },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -75,17 +84,62 @@ function useRemoveBookingAddOn() {
       queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
       toast.success("Add-on removed");
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to remove add-on. Please try again.");
-    },
+    onError: (err: Error) => toast.error(err.message || "Failed to remove add-on."),
   });
 }
+
+function useAddBookingDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ bookingId, driverName, driverAgeBand }: { bookingId: string; driverName: string; driverAgeBand: string }) => {
+      const { data, error } = await supabase.functions.invoke("persist-booking-extras", {
+        body: { bookingId, action: "upsell-driver-add", driverName, driverAgeBand },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["booking-additional-drivers", vars.bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
+      toast.success("Additional driver added");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to add driver."),
+  });
+}
+
+function useRemoveBookingDriver() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ driverRowId, bookingId }: { driverRowId: string; bookingId: string }) => {
+      const { data, error } = await supabase.functions.invoke("persist-booking-extras", {
+        body: { bookingId, action: "upsell-driver-remove", driverRowId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["booking-additional-drivers", vars.bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
+      toast.success("Driver removed");
+    },
+    onError: (err: Error) => toast.error(err.message || "Failed to remove driver."),
+  });
+}
+
+// ── Component ────────────────────────────────────────────────────────
 
 export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanelProps) {
   const { data: allAddOns = [] } = useAddOns();
   const { data: existingAddOns = [], isLoading } = useBookingAddOns(bookingId);
+  const { data: existingDrivers = [], isLoading: driversLoading } = useBookingAdditionalDrivers(bookingId);
   const addAddOn = useAddBookingAddOn();
   const removeAddOn = useRemoveBookingAddOn();
+  const addDriver = useAddBookingDriver();
+  const removeDriver = useRemoveBookingDriver();
+
+  const [showDriverForm, setShowDriverForm] = useState(false);
+  const [newDriverName, setNewDriverName] = useState("");
+  const [newDriverAgeBand, setNewDriverAgeBand] = useState("25_70");
 
   const existingAddOnIds = new Set(existingAddOns.map((a: any) => a.add_on_id));
   
@@ -94,13 +148,27 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
     a => !existingAddOnIds.has(a.id) && !isAdditionalDriverAddOn(a.name)
   );
 
-  const handleAdd = (addOn: AddOn) => {
-    addAddOn.mutate({ bookingId, addOn });
+  const handleAddAddOn = (addOn: AddOn) => addAddOn.mutate({ bookingId, addOn });
+  const handleRemoveAddOn = (id: string) => removeAddOn.mutate({ id, bookingId });
+
+  const handleAddDriver = () => {
+    if (!newDriverName.trim()) {
+      toast.error("Driver name is required");
+      return;
+    }
+    addDriver.mutate(
+      { bookingId, driverName: newDriverName.trim(), driverAgeBand: newDriverAgeBand },
+      {
+        onSuccess: () => {
+          setNewDriverName("");
+          setNewDriverAgeBand("25_70");
+          setShowDriverForm(false);
+        },
+      }
+    );
   };
 
-  const handleRemove = (id: string) => {
-    removeAddOn.mutate({ id, bookingId });
-  };
+  const handleRemoveDriver = (driverRowId: string) => removeDriver.mutate({ driverRowId, bookingId });
 
   return (
     <Card>
@@ -110,7 +178,7 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
           Counter Upsell
         </CardTitle>
         <CardDescription>
-          Add extras and upgrades before activating the rental
+          Add extras, upgrades, and additional drivers before or during the rental
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -128,7 +196,7 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
                   variant="ghost"
                   size="sm"
                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                  onClick={() => handleRemove(addon.id)}
+                  onClick={() => handleRemoveAddOn(addon.id)}
                   disabled={removeAddOn.isPending}
                 >
                   <X className="w-4 h-4" />
@@ -165,7 +233,7 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
                     variant="outline"
                     size="sm"
                     className="shrink-0 ml-2 h-8 text-xs gap-1"
-                    onClick={() => handleAdd(addon)}
+                    onClick={() => handleAddAddOn(addon)}
                     disabled={addAddOn.isPending}
                   >
                     {addAddOn.isPending ? (
@@ -186,6 +254,93 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
             No extras available
           </p>
         )}
+
+        {/* ── Additional Drivers Section ────────────────────────── */}
+        <div className="space-y-2 pt-2 border-t">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5" />
+              Additional Drivers
+            </p>
+            {!showDriverForm && existingDrivers.length < 5 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setShowDriverForm(true)}
+              >
+                <UserPlus className="w-3 h-3" />
+                Add Driver
+              </Button>
+            )}
+          </div>
+
+          {/* Existing drivers */}
+          {existingDrivers.map((driver: any) => (
+            <div key={driver.id} className="flex items-center justify-between p-2 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+              <div>
+                <p className="text-sm font-medium">{driver.driver_name || "Unnamed Driver"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {driver.driver_age_band === "20_24" ? "Young (20–24)" : "Standard (25–70)"} · ${Number(driver.young_driver_fee).toFixed(2)}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                onClick={() => handleRemoveDriver(driver.id)}
+                disabled={removeDriver.isPending}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+
+          {/* Inline add driver form */}
+          {showDriverForm && (
+            <div className="space-y-2 p-3 bg-muted/30 rounded-lg border">
+              <Input
+                placeholder="Driver full name"
+                value={newDriverName}
+                onChange={e => setNewDriverName(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <Select value={newDriverAgeBand} onValueChange={setNewDriverAgeBand}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25_70">Standard (25–70)</SelectItem>
+                  <SelectItem value="20_24">Young Driver (20–24)</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs flex-1 gap-1"
+                  onClick={handleAddDriver}
+                  disabled={addDriver.isPending}
+                >
+                  {addDriver.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                  Add Driver
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => { setShowDriverForm(false); setNewDriverName(""); }}
+                  disabled={addDriver.isPending}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {existingDrivers.length === 0 && !showDriverForm && !driversLoading && (
+            <p className="text-xs text-muted-foreground text-center py-2">No additional drivers</p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
