@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff upsell actions ──────────────────────────────────────
-    if (action === "upsell-add" || action === "upsell-remove") {
+    if (action === "upsell-add" || action === "upsell-remove" || action === "upsell-driver-add" || action === "upsell-driver-remove") {
       // Require admin/staff role
       const staffOk = await isAdminOrStaff(auth.userId);
       if (!staffOk) {
@@ -76,8 +76,12 @@ Deno.serve(async (req) => {
 
       if (action === "upsell-add") {
         return await handleUpsellAdd(supabaseAdmin, booking, body, corsHeaders, auth.userId, req);
-      } else {
+      } else if (action === "upsell-remove") {
         return await handleUpsellRemove(supabaseAdmin, booking, body, corsHeaders, auth.userId, req);
+      } else if (action === "upsell-driver-add") {
+        return await handleUpsellDriverAdd(supabaseAdmin, booking, body, corsHeaders, auth.userId, req);
+      } else {
+        return await handleUpsellDriverRemove(supabaseAdmin, booking, body, corsHeaders, auth.userId, req);
       }
     }
 
