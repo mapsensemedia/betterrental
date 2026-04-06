@@ -1,30 +1,37 @@
-## Match Admin Sidebar to TEST BACKEND — Updated Plan
 
-### What Changes
 
-**1. Update sidebar navigation in `AdminShell.tsx`**
+## Match Admin Sidebar to TEST BACKEND
 
-- **ACTIVE WORK group**: Remove "Workboard" item. Rename "Active Rentals" to **"Ops"** and change its href from `/admin/bookings?tab=active` to **`/admin/active-rentals`** — pointing to the existing dedicated Active Rentals page (with stats cards, filters, search, progress bars) instead of the bookings tab view.
-- **TODAY'S OPERATIONS group**: Empty its items array (Pickups, Returns, Bookings removed). Add `visibleGroups` filter so empty groups don't render.
-- **MONEY & BILLING → Payments**: Keep href as `/admin/finance` (existing route works), label already says "Payments".
-- **ADMINISTRATION → Support**: Change href from `/admin/tickets` to `/support`, remove `badgeKey`.
-- **Badge animation**: Add `animate-live-pulse` class on priority group badges.
-- **`isActive` logic**: Update to highlight "Ops" when on `/admin/active-rentals` or any sub-path like `/admin/active-rentals/:bookingId`.
-- Remove unused icon imports (`LayoutDashboard`, `CheckCircle`, `CheckCircle2`, `ClipboardList`, `RotateCcw`, `TrendingUp`). Add `HelpCircle`.
-- Add `helpOpen` state and `HelpGuideModal` import + render.
-- Add Help button (HelpCircle icon) in top bar between spacer and user menu.
+### Problem with Previous Plan
+The previous plan incorrectly routed "Ops" to a separate `/admin/active-rentals` page. The TEST BACKEND's "Ops" sidebar item points to **`/admin/bookings?tab=active`** — the unified Bookings page with tabs (New, All, Pickups, Active, Returns, Completed), stats cards, and the ActiveRentalsMonitor component on the Active tab. This project already has this exact Bookings page. No new routes are needed.
 
-**2. Add route for `/admin/active-rentals`**
+### Changes
 
-In `App.tsx`, add a route for the index path `/admin/active-rentals` pointing to the existing `ActiveRentals.tsx` page component (currently exists as a file but has no route).
+**1. `src/components/layout/AdminShell.tsx`** — Sidebar navigation update
 
-**3. Create `src/components/layout/HelpGuideModal.tsx`**
+| Current | TEST BACKEND Target |
+|---------|-------------------|
+| ACTIVE WORK: Alerts, Workboard, Active Rentals | ACTIVE WORK: Alerts, **Ops** (href stays `/admin/bookings?tab=active`) |
+| TODAY'S OPERATIONS: Pickups, Returns, Bookings | TODAY'S OPERATIONS: **empty** (filtered out) |
+| MONEY & BILLING: Payments (`/admin/finance`), Agreements, Offers | Same (keep `/admin/finance` route, label "Payments") |
+| ADMINISTRATION: Vendors, Support (`/admin/tickets` + badge), Settings | Support → **`/support`**, no badge |
 
-Copy from TEST BACKEND — an accordion-based help dialog with 4 sections: Customer Booking Guide, Admin Workflow Guide, Status Glossary, Important Notes.
+Additional changes:
+- Remove "Workboard" item entirely
+- Rename "Active Rentals" to **"Ops"** (keep same href `/admin/bookings?tab=active`)
+- Empty TODAY'S OPERATIONS items array — add `visibleGroups` filter to hide empty groups
+- Support: change href to `/support`, remove `badgeKey`
+- Update `isActive()`: when href is `/admin/bookings?tab=active`, also highlight when on `/admin/bookings` with any params or sub-paths (matching TEST BACKEND logic)
+- Add `animate-live-pulse` class on priority group badges
+- Add `helpOpen` state, HelpCircle button in header (between spacer and user menu), render `HelpGuideModal`
+- Clean up unused imports (`LayoutDashboard`, `CheckCircle`, `ClipboardList`, `RotateCcw`, `TrendingUp`), add `HelpCircle`
 
-**4. Add `animate-live-pulse` CSS animation**
+**2. `src/components/layout/HelpGuideModal.tsx`** — New file
 
-Add to `src/index.css`:
+Copy from TEST BACKEND: accordion-based help dialog with 4 sections (Customer Booking Guide, Admin Workflow Guide, Status Glossary, Important Notes).
+
+**3. `src/index.css`** — Add live-pulse animation
+
 ```css
 @keyframes live-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -33,18 +40,22 @@ Add to `src/index.css`:
 .animate-live-pulse {
   animation: live-pulse 2s ease-in-out infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+  .animate-live-pulse { animation: none; }
+}
 ```
-Plus a `prefers-reduced-motion` media query to disable it.
-
-### Files Modified
-1. `src/components/layout/AdminShell.tsx` — sidebar nav, isActive, help button
-2. `src/App.tsx` — add `/admin/active-rentals` index route
-3. `src/components/layout/HelpGuideModal.tsx` — new file
-4. `src/index.css` — add live-pulse animation
 
 ### What Does NOT Change
-- `ActiveRentals.tsx` page — used as-is (the full stats/filter/progress bar UI)
-- `ActiveRentalDetail.tsx` — existing detail route untouched
-- `OpsShell.tsx`, `PanelShell.tsx` — unchanged
+- `/admin/bookings` page (Bookings.tsx) — already has tabs, stats cards, ActiveRentalsMonitor on Active tab
+- No new routes needed
 - No backend, edge function, or database changes
-- All existing routes remain functional (bookings tabs still accessible via URL)
+- All existing routes remain functional
+- OpsShell, PanelShell unchanged
+
+### Files
+| File | Action |
+|------|--------|
+| `src/components/layout/AdminShell.tsx` | Update nav items, isActive, add help button |
+| `src/components/layout/HelpGuideModal.tsx` | Create new |
+| `src/index.css` | Add animation |
+
