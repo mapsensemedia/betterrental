@@ -1,52 +1,57 @@
 
 
-## Plan: Replace Active Tab with TEST BACKEND's ActiveRentalsMonitor
+## Plan: Remove Verification Alerts & Keep Only Critical Alerts
 
 ### Problem
-The Active tab currently uses generic `BookingWorkflowCard` components. The screenshot shows the TEST BACKEND's `ActiveRentalsMonitor` with progress bars, time remaining/overdue display, elapsed time, and a "Live" indicator. Need to replace the existing `ActiveRentalsMonitor.tsx` with the TEST BACKEND version and use it in the Active tab.
+The alerts system creates noise with non-critical alerts like "Booking Active", "Booking Completed", "Verification Pending", etc. The user wants only truly critical alerts (damage, emergency, late return, overdue, payment issues).
 
 ### Changes
 
-**1. Replace `src/components/admin/ActiveRentalsMonitor.tsx`**
+**1. Stop creating non-critical alerts in `src/domain/bookings/mutations.ts`** (lines 104-115)
+- Remove the block that creates alerts for every booking status change (active→`return_due_soon`, completed→`verification_pending`, cancelled→`customer_issue`). These are informational, not critical.
 
-Replace the current self-contained component (which uses `useActiveRentalStats` hook internally) with the TEST BACKEND version that accepts props:
-- `bookings: ActiveBooking[]` — array with `id`, `bookingCode`, `startAt`, `endAt`, `status`, `profile`, `location`, `vehicle`
-- `onOpen: (id: string) => void` — click handler
-- `className?: string`
+**2. Stop creating verification_pending alerts in `src/hooks/use-checkin.ts`** (line 246-251)
+- Remove the `admin_alerts` insert for check-in "needs_review" — this is a verification alert.
 
-The component includes:
-- `RentalRow` sub-component with progress bar, time remaining/overdue, elapsed time
-- Header with Car icon, "Active Rentals Monitor" title, green "Live" dot, total count
-- Overdue count warning badge
-- Sorts overdue first (earliest endAt), then on-schedule (soonest due first)
-- Red border + background for overdue rows
+**3. Stop creating verification_pending alerts in `src/hooks/use-assign-driver.ts`** (lines 82-86)
+- Remove the "Dispatch bypass used" alert that incorrectly uses `verification_pending` type.
 
-This is a direct copy from the TEST BACKEND — the `BookingSummary` type already has matching fields (`startAt`, `endAt`, `bookingCode`, `profile.fullName`, `location.name`, `vehicle.name`).
+**4. Remove `PendingVerificationsCard` from Alerts page** (`src/pages/admin/Alerts.tsx`, line 320)
+- Remove the import and `<PendingVerificationsCard />` render.
 
-**2. Update Active tab in `src/pages/admin/Bookings.tsx`** (lines 827-883)
+**5. Remove verification references from Overview** (`src/pages/admin/Overview.tsx`)
+- Remove the `verification_requests` query (lines 232-236)
+- Remove `pendingVerifications` variable and all its UI references (lines 572-588)
+- Simplify the "no alerts" check to only use `pendingAlerts`
+- Remove verification count from the Alerts quick-action badge
 
-Replace the current Active tab content (separate Overdue card + Active Rentals card using `BookingWorkflowCard`) with:
-```tsx
-<ActiveRentalsMonitor
-  bookings={applyOpsFilters([...categorizedBookings.overdue, ...categorizedBookings.active])}
-  onOpen={(id) => handleOpenBooking(id, "active")}
-/>
-```
+**6. Remove `verification_pending` from RealtimeAlertsPanel config** (`src/components/admin/RealtimeAlertsPanel.tsx`)
+- Remove the `verification_pending` entry from `ALERT_TYPE_CONFIG`
 
-The monitor component handles overdue/on-schedule sorting internally, so we pass both overdue and active bookings combined. Keep the `OperationsFilters` above it.
-
-Add import: `import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";`
+**7. Clean up Alerts page** (`src/pages/admin/Alerts.tsx`)
+- Remove `verification_pending` from `alertTypeLabels` and `alertTypeIcons`
 
 ### Files
 
 | File | Action |
 |------|--------|
-| `src/components/admin/ActiveRentalsMonitor.tsx` | Replace with TEST BACKEND version (props-based) |
-| `src/pages/admin/Bookings.tsx` | Import ActiveRentalsMonitor, replace Active tab content (lines 837-882) |
+| `src/domain/bookings/mutations.ts` | Remove lines 104-115 (status change alert creation) |
+| `src/hooks/use-checkin.ts` | Remove verification alert insert |
+| `src/hooks/use-assign-driver.ts` | Remove dispatch bypass alert insert |
+| `src/pages/admin/Alerts.tsx` | Remove PendingVerificationsCard import/render, remove verification_pending from config maps |
+| `src/pages/admin/Overview.tsx` | Remove verification_requests query, pendingVerifications variable and UI |
+| `src/components/admin/RealtimeAlertsPanel.tsx` | Remove verification_pending from ALERT_TYPE_CONFIG |
+
+### What Stays (Critical Alerts)
+- `damage_reported` — from `use-damages.ts`
+- `emergency` — via `useCreateAlert`
+- `late_return` / `overdue` — from return ops
+- `payment_pending` — from deposit automation
+- `customer_issue` — from support ticket escalation (this is legitimate)
 
 ### What Does NOT Change
 - No backend, edge function, or database changes
-- All other tabs unchanged
-- `use-active-rentals.ts` hook remains (used elsewhere)
-- Filters still work via `applyOpsFilters`
+- Alert table schema unchanged
+- `useCreateAlert` hook stays (used for legitimate critical alerts)
+- Existing critical alert creation paths untouched
 
