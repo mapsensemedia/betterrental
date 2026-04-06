@@ -272,7 +272,7 @@ export default function AdminOverview() {
   }).length;
 
   const pendingAlerts = alerts.filter(a => a.status === "pending").length;
-  const pendingVerifications = verifications.filter(v => v.status === "pending").length;
+  
 
   // Simplified: 5 key stats including new bookings
   const stats = [
