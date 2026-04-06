@@ -64,7 +64,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import { CollapsibleSection } from "@/components/admin/ops/sections/CollapsibleSection";
 
 const alertTypeLabels: Record<string, string> = {
-  verification_pending: "Verification Pending",
+  payment_pending: "Payment Pending",
   payment_pending: "Payment Pending",
   cleaning_required: "Cleaning Required",
   damage_reported: "Damage Reported",
