@@ -1,7 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
-  LayoutDashboard, 
   Car, 
   Calendar, 
   MessageSquare, 
@@ -15,18 +14,14 @@ import {
   BarChart3,
   Wrench,
   Gift,
-  ClipboardList,
   ArrowRightLeft,
   FileText,
-  CheckCircle,
-  CheckCircle2,
   AlertCircle,
   AlertTriangle,
-  TrendingUp,
   CreditCard,
   DollarSign,
   Building2,
-  RotateCcw,
+  HelpCircle,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -41,6 +36,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts, type SidebarCounts } from "@/hooks/use-sidebar-counts";
 import { useCapabilities } from "@/auth/capabilities";
 import { useGlobalRealtime } from "@/hooks/use-global-realtime";
+import { HelpGuideModal } from "./HelpGuideModal";
 
 type BadgeKey = keyof SidebarCounts;
 
@@ -71,42 +67,11 @@ const navGroups: NavGroup[] = [
         description: "Issues & action items",
       },
       {
-        href: "/admin",
-        label: "Workboard",
-        icon: LayoutDashboard,
-        description: "Quick overview",
-      },
-      {
         href: "/admin/bookings?tab=active",
-        label: "Active Rentals",
+        label: "Ops",
         icon: Car,
         badgeKey: "active",
         description: "Vehicles on road",
-      },
-    ],
-  },
-  {
-    title: "TODAY'S OPERATIONS",
-    items: [
-      {
-        href: "/admin/bookings?tab=pickups",
-        label: "Pickups",
-        icon: CheckCircle,
-        badgeKey: "pickups",
-        description: "Upcoming handovers",
-      },
-      {
-        href: "/admin/bookings?tab=returns",
-        label: "Returns",
-        icon: RotateCcw,
-        badgeKey: "returns",
-        description: "Incoming vehicles",
-      },
-      {
-        href: "/admin/bookings",
-        label: "Bookings",
-        icon: ClipboardList,
-        description: "All reservations",
       },
     ],
   },
@@ -190,10 +155,9 @@ const navGroups: NavGroup[] = [
         description: "Partner directory",
       },
       {
-        href: "/admin/tickets",
+        href: "/support",
         label: "Support",
         icon: MessageSquare,
-        badgeKey: "support",
         description: "Customer tickets",
       },
       {
@@ -205,6 +169,10 @@ const navGroups: NavGroup[] = [
     ],
   },
 ];
+
+// Filter out groups with no items
+const visibleGroups = navGroups.filter((g) => g.items.length > 0);
+
 interface AdminShellProps {
   children: ReactNode;
   dateFilter?: string;
@@ -222,6 +190,7 @@ export function AdminShell({
   const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [bookingCode, setBookingCode] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
   const { counts } = useSidebarCounts();
   const { data: caps } = useCapabilities("admin");
   useGlobalRealtime();
@@ -249,11 +218,13 @@ export function AdminShell({
     }
     const [hrefPath, hrefSearch] = href.split("?");
     if (hrefSearch) {
-      // Items with query params: match path AND query param
+      // For Ops (/admin/bookings?tab=active): highlight when on /admin/bookings with any params or sub-paths
+      if (hrefPath === "/admin/bookings") {
+        return location.pathname === hrefPath && location.search.includes(hrefSearch);
+      }
       return location.pathname === hrefPath && location.search.includes(hrefSearch);
     }
     // Items without query params: only match if the URL also has no tab/query param
-    // This prevents /admin/bookings from highlighting when on /admin/bookings?tab=pickups
     if (hrefPath === "/admin/bookings" || hrefPath === "/admin/fleet-costs") {
       return location.pathname === hrefPath && !location.search.includes("tab=");
     }
@@ -277,7 +248,7 @@ export function AdminShell({
         </div>
         
         <nav className="flex-1 p-2 lg:p-3 space-y-0.5 overflow-y-auto scrollbar-thin">
-          {navGroups.map((group, index) => (
+          {visibleGroups.map((group, index) => (
             <div key={group.title}>
               {index > 0 && <div className="py-2"><div className="h-px bg-border/40" /></div>}
               <p className={cn(
@@ -306,7 +277,10 @@ export function AdminShell({
                       {badgeCount > 0 && (
                         <Badge 
                           variant={group.priority ? "destructive" : "secondary"} 
-                          className="ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center shrink-0"
+                          className={cn(
+                            "ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center shrink-0",
+                            group.priority && "animate-live-pulse"
+                          )}
                         >
                           {badgeCount > 99 ? "99+" : badgeCount}
                         </Badge>
@@ -348,7 +322,7 @@ export function AdminShell({
               </Button>
             </div>
             <nav className="space-y-0.5">
-              {navGroups.map((group, index) => (
+              {visibleGroups.map((group, index) => (
                 <div key={group.title}>
                   {index > 0 && <div className="py-2"><div className="h-px bg-border/40" /></div>}
                   <p className={cn(
@@ -378,7 +352,10 @@ export function AdminShell({
                           {badgeCount > 0 && (
                             <Badge 
                               variant={group.priority ? "destructive" : "secondary"} 
-                              className="ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center"
+                              className={cn(
+                                "ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center",
+                                group.priority && "animate-live-pulse"
+                              )}
                             >
                               {badgeCount > 99 ? "99+" : badgeCount}
                             </Badge>
@@ -448,6 +425,17 @@ export function AdminShell({
           {/* Spacer */}
           <div className="flex-1" />
 
+          {/* Help Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setHelpOpen(true)}
+            title="Admin Guide"
+            className="shrink-0"
+          >
+            <HelpCircle className="w-5 h-5 text-muted-foreground" />
+          </Button>
+
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -482,5 +470,8 @@ export function AdminShell({
           {children}
         </main>
       </div>
+
+      {/* Help Guide Modal */}
+      <HelpGuideModal open={helpOpen} onOpenChange={setHelpOpen} />
     </div>;
 }
