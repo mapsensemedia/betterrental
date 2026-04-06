@@ -1,220 +1,195 @@
-import { useActiveRentalStats } from "@/hooks/use-active-rentals";
-import { useRealtimeBookings } from "@/hooks/use-realtime-subscriptions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+/**
+ * Active Rentals Monitor — real-time dashboard for active bookings
+ * Shows progress bars, overdue highlighting, and time-remaining display
+ */
+import { useMemo } from "react";
+import { parseISO, isBefore, formatDistanceToNow, differenceInHours, differenceInMinutes, format } from "date-fns";
+import { Car, MapPin, User, ChevronRight, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Car, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle, 
-  ChevronRight,
-  Timer,
-  User,
-  MapPin,
-  Radio,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
-export function ActiveRentalsMonitor() {
-  const { stats, rentals, isLoading } = useActiveRentalStats();
-  const navigate = useNavigate();
-  
-  // Enable real-time updates
-  useRealtimeBookings();
+interface ActiveBooking {
+  id: string;
+  bookingCode: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  profile?: { fullName?: string | null } | null;
+  location?: { name?: string } | null;
+  vehicle?: { name?: string; [key: string]: any } | null;
+}
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Car className="h-5 w-5" />
-            Active Rentals
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+interface ActiveRentalsMonitorProps {
+  bookings: ActiveBooking[];
+  onOpen: (id: string) => void;
+  className?: string;
+}
+
+function getTimeLabel(endAt: string, now: Date): { text: string; isOverdue: boolean } {
+  const end = parseISO(endAt);
+  const isOverdue = isBefore(end, now);
+
+  const totalMinutes = Math.abs(differenceInMinutes(end, now));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+  return {
+    text: isOverdue ? `${timeStr} overdue` : `${timeStr} left`,
+    isOverdue,
+  };
+}
+
+function getElapsedLabel(startAt: string): { started: string; elapsed: string } {
+  const start = parseISO(startAt);
+  const now = new Date();
+  const started = `Started ${formatDistanceToNow(start, { addSuffix: false })} ago`;
+  const elapsedH = differenceInHours(now, start);
+  return { started, elapsed: `${elapsedH}h elapsed` };
+}
+
+function getProgress(startAt: string, endAt: string): number {
+  const start = parseISO(startAt).getTime();
+  const end = parseISO(endAt).getTime();
+  const now = Date.now();
+  if (now >= end) return 100;
+  if (now <= start) return 0;
+  return Math.round(((now - start) / (end - start)) * 100);
+}
+
+function RentalRow({ booking, onOpen }: { booking: ActiveBooking; onOpen: (id: string) => void }) {
+  const now = useMemo(() => new Date(), []);
+  const { text: timeText, isOverdue } = getTimeLabel(booking.endAt, now);
+  const { started, elapsed } = getElapsedLabel(booking.startAt);
+  const progress = getProgress(booking.startAt, booking.endAt);
+  const dueDate = format(parseISO(booking.endAt), "h:mm a");
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Car className="h-5 w-5 text-primary" />
-            Active Rentals Monitor
-            <Badge variant="secondary" className="gap-1 text-xs font-normal">
-              <Radio className="h-2.5 w-2.5 text-emerald-500 animate-pulse" />
-              Live
+    <div
+      className={cn(
+        "relative rounded-lg border bg-card p-4 cursor-pointer transition-colors hover:bg-muted/40",
+        isOverdue && "border-destructive/60 bg-destructive/[0.03]"
+      )}
+      onClick={() => onOpen(booking.id)}
+    >
+      {/* Top row: booking code + customer + location  |  time remaining */}
+      <div className="flex items-start justify-between gap-4 mb-2.5">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="font-mono text-xs font-semibold px-2 py-0.5">
+              {booking.bookingCode}
             </Badge>
-          </CardTitle>
-          <Badge variant="outline">{stats.total} active</Badge>
-        </div>
-        
-        {/* Quick stats */}
-        <div className="flex gap-3 mt-3">
-          {stats.overdue > 0 && (
-            <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              {stats.overdue} overdue
-            </Badge>
-          )}
-          {stats.approaching > 0 && (
-            <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1">
-              <Timer className="h-3 w-3" />
-              {stats.approaching} due soon
-            </Badge>
-          )}
-          {stats.warning > 0 && (
-            <Badge variant="secondary" className="gap-1">
-              <Clock className="h-3 w-3" />
-              {stats.warning} in 6h
-            </Badge>
-          )}
-          {stats.healthy > 0 && stats.overdue === 0 && stats.approaching === 0 && (
-            <Badge className="bg-green-500/10 text-green-600 border-green-500/30 gap-1">
-              <CheckCircle className="h-3 w-3" />
-              All on schedule
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-
-      <CardContent className="pt-0">
-        {rentals.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Car className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No active rentals</p>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {/* Sort: overdue first, then approaching, then by end time */}
-            {rentals
-              .sort((a, b) => {
-                if (a.isOverdue && !b.isOverdue) return -1;
-                if (!a.isOverdue && b.isOverdue) return 1;
-                if (a.isApproachingReturn && !b.isApproachingReturn) return -1;
-                if (!a.isApproachingReturn && b.isApproachingReturn) return 1;
-                return new Date(a.endAt).getTime() - new Date(b.endAt).getTime();
-              })
-              .slice(0, 10)
-              .map((rental) => (
-                <div
-                  key={rental.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50 ${
-                    rental.isOverdue 
-                      ? "border-destructive/50 bg-destructive/5" 
-                      : rental.isApproachingReturn 
-                      ? "border-amber-500/50 bg-amber-500/5"
-                      : "border-border"
-                  }`}
-                  onClick={() => navigate(`/admin/active-rentals/${rental.id}`)}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      {/* Vehicle & Code */}
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium truncate">
-                          {rental.vehicle?.year} {rental.vehicle?.make} {rental.vehicle?.model}
-                        </span>
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {rental.bookingCode}
-                        </Badge>
-                      </div>
-                      
-                      {/* Customer & Location */}
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {rental.customer?.fullName || "Unknown"}
-                        </span>
-                        {rental.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {rental.location.city}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Time status */}
-                    <div className="text-right shrink-0">
-                      {rental.isOverdue ? (
-                        <div className="text-destructive">
-                          <p className="font-semibold text-sm">
-                            {rental.overdueHours}h overdue
-                          </p>
-                          <p className="text-xs">
-                            Due: {format(new Date(rental.endAt), "h:mm a")}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className={rental.isApproachingReturn ? "text-amber-600" : ""}>
-                          <p className="font-semibold text-sm">
-                            {rental.remainingHours > 0 
-                              ? `${rental.remainingHours}h ${rental.remainingMinutes % 60}m left`
-                              : `${rental.remainingMinutes}m left`
-                            }
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Due: {format(new Date(rental.endAt), "MMM d, h:mm a")}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-
-                  {/* Duration bar */}
-                  <div className="mt-2">
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${
-                          rental.isOverdue 
-                            ? "bg-destructive" 
-                            : rental.isApproachingReturn 
-                            ? "bg-amber-500"
-                            : "bg-primary"
-                        }`}
-                        style={{
-                          width: rental.isOverdue 
-                            ? "100%" 
-                            : `${Math.max(0, Math.min(100, 100 - (rental.remainingMinutes / (rental.durationHours * 60 + rental.remainingMinutes)) * 100))}%`
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Started {formatDistanceToNow(new Date(rental.startAt), { addSuffix: true })} • {rental.durationHours}h elapsed
-                    </p>
-                  </div>
-                </div>
-              ))}
-
-            {rentals.length > 10 && (
-              <>
-                <Separator />
-                <Button 
-                  variant="ghost" 
-                  className="w-full" 
-                  onClick={() => navigate("/admin/returns")}
-                >
-                  View all {rentals.length} active rentals
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <User className="w-3 h-3" />
+              {booking.profile?.fullName || "Customer"}
+            </span>
+            {booking.location?.name && (
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3" />
+                {booking.location.name}
+              </span>
             )}
           </div>
+        </div>
+        <div className="text-right shrink-0 flex items-center gap-1.5">
+          <div>
+            <p className={cn(
+              "text-sm font-semibold tabular-nums",
+              isOverdue ? "text-destructive" : "text-foreground"
+            )}>
+              {timeText}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Due: {dueDate}
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className={cn(
+        "h-1.5 rounded-full overflow-hidden mb-2",
+        isOverdue ? "bg-destructive/10" : "bg-muted"
+      )}>
+        <div
+          className={cn(
+            "h-full rounded-full transition-all",
+            isOverdue
+              ? "bg-destructive"
+              : progress > 75
+                ? "bg-foreground"
+                : "bg-foreground/70"
+          )}
+          style={{ width: `${Math.min(progress, 100)}%` }}
+        />
+      </div>
+
+      {/* Footer */}
+      <p className="text-[11px] text-muted-foreground">
+        {started} • {elapsed}
+      </p>
+    </div>
+  );
+}
+
+export function ActiveRentalsMonitor({ bookings, onOpen, className }: ActiveRentalsMonitorProps) {
+  const now = useMemo(() => new Date(), []);
+
+  const { overdue, onSchedule } = useMemo(() => {
+    const overdue: ActiveBooking[] = [];
+    const onSchedule: ActiveBooking[] = [];
+    for (const b of bookings) {
+      if (isBefore(parseISO(b.endAt), now)) {
+        overdue.push(b);
+      } else {
+        onSchedule.push(b);
+      }
+    }
+    overdue.sort((a, b) => parseISO(a.endAt).getTime() - parseISO(b.endAt).getTime());
+    onSchedule.sort((a, b) => parseISO(a.endAt).getTime() - parseISO(b.endAt).getTime());
+    return { overdue, onSchedule };
+  }, [bookings, now]);
+
+  const total = bookings.length;
+
+  return (
+    <Card className={cn("", className)}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Car className="w-5 h-5 text-muted-foreground" />
+            <CardTitle className="text-base">Active Rentals Monitor</CardTitle>
+            <div className="flex items-center gap-1.5 ml-1">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-xs font-medium text-green-600">Live</span>
+            </div>
+          </div>
+          <span className="text-sm text-muted-foreground">{total} active</span>
+        </div>
+        {overdue.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-1">
+            <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+            <span className="text-xs font-medium text-destructive">{overdue.length} overdue</span>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {total === 0 ? (
+          <p className="text-center py-6 text-sm text-muted-foreground">No active rentals</p>
+        ) : (
+          <>
+            {overdue.map((b) => (
+              <RentalRow key={b.id} booking={b} onOpen={onOpen} />
+            ))}
+            {onSchedule.map((b) => (
+              <RentalRow key={b.id} booking={b} onOpen={onOpen} />
+            ))}
+          </>
         )}
       </CardContent>
     </Card>

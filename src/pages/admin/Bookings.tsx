@@ -834,52 +834,10 @@ export default function AdminBookings() {
               vehicles={vehicles}
             />
 
-            {/* Overdue Warning */}
-            {applyOpsFilters(categorizedBookings.overdue).length > 0 && (
-              <Card className="border-destructive">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                    <AlertCircle className="w-4 h-4" />
-                    Overdue Returns
-                    <Badge variant="destructive">{applyOpsFilters(categorizedBookings.overdue).length}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {applyOpsFilters(categorizedBookings.overdue).map((booking) => (
-                    <BookingWorkflowCard 
-                      key={booking.id} 
-                      booking={booking} 
-                      onOpen={handleOpenBooking}
-                      showAction="return"
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Car className="w-4 h-4 text-primary" />
-                  Active Rentals
-                  <Badge variant="secondary">{applyOpsFilters(categorizedBookings.active).length}</Badge>
-                </CardTitle>
-                <CardDescription>Vehicles currently out with customers</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {applyOpsFilters(categorizedBookings.active).length === 0 ? (
-                  <p className="text-center py-4 text-muted-foreground text-sm">No active rentals</p>
-                ) : (
-                  applyOpsFilters(categorizedBookings.active).map((booking) => (
-                    <BookingWorkflowCard 
-                      key={booking.id} 
-                      booking={booking} 
-                      onOpen={handleOpenBooking}
-                    />
-                  ))
-                )}
-              </CardContent>
-            </Card>
+            <ActiveRentalsMonitor
+              bookings={applyOpsFilters([...categorizedBookings.overdue, ...categorizedBookings.active])}
+              onOpen={(id) => handleOpenBooking(id, "active")}
+            />
           </TabsContent>
 
           {/* Returns Tab */}
