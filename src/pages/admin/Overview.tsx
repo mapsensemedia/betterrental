@@ -226,19 +226,6 @@ export default function AdminOverview() {
   // Enable real-time updates for all admin data
   useAdminRealtimeSubscriptions();
   
-  // Fetch pending verifications
-  const { data: verifications = [] } = useQuery({
-    queryKey: ["admin-verifications-overview"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("verification_requests")
-        .select("id, status")
-        .eq("status", "pending")
-        .limit(50);
-      if (error) return [];
-      return data || [];
-    },
-  });
 
   // Calculate stats
   const now = new Date();
