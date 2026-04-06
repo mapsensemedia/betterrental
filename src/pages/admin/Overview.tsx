@@ -3,8 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useAdminBookings } from "@/hooks/use-bookings";
 import { useAdminAlerts } from "@/hooks/use-alerts";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { RealtimeAlertsPanel } from "@/components/admin/RealtimeAlertsPanel";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
