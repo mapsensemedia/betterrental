@@ -3,8 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useAdminBookings } from "@/hooks/use-bookings";
 import { useAdminAlerts } from "@/hooks/use-alerts";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { RealtimeAlertsPanel } from "@/components/admin/RealtimeAlertsPanel";
 import { AnalyticsPanel } from "@/components/admin/AnalyticsPanel";
@@ -18,7 +16,7 @@ import {
   ArrowRightLeft,
   RotateCcw,
   Receipt,
-  FileCheck,
+  
   AlertTriangle,
   BookOpen,
   KeyRound,
@@ -226,19 +224,6 @@ export default function AdminOverview() {
   // Enable real-time updates for all admin data
   useAdminRealtimeSubscriptions();
   
-  // Fetch pending verifications
-  const { data: verifications = [] } = useQuery({
-    queryKey: ["admin-verifications-overview"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("verification_requests")
-        .select("id, status")
-        .eq("status", "pending")
-        .limit(50);
-      if (error) return [];
-      return data || [];
-    },
-  });
 
   // Calculate stats
   const now = new Date();
@@ -285,7 +270,7 @@ export default function AdminOverview() {
   }).length;
 
   const pendingAlerts = alerts.filter(a => a.status === "pending").length;
-  const pendingVerifications = verifications.filter(v => v.status === "pending").length;
+  
 
   // Simplified: 5 key stats including new bookings
   const stats = [
@@ -300,7 +285,7 @@ export default function AdminOverview() {
     { label: "Bookings", href: "/admin/bookings", icon: BookOpen, description: "View all reservations" },
     { label: "Pickups", href: "/admin/pickups", icon: KeyRound, description: "Pickups & handovers" },
     { label: "Returns", href: "/admin/returns", icon: RotateCcw, description: "Due returns" },
-    { label: "Alerts", href: "/admin/alerts", icon: Bell, description: "Action required", badge: pendingAlerts + pendingVerifications },
+    { label: "Alerts", href: "/admin/alerts", icon: Bell, description: "Action required", badge: pendingAlerts },
     { label: "Finance", href: "/admin/finance", icon: Receipt, description: "Receipts & payments" },
     { label: "Fleet", href: "/admin/fleet", icon: Car, description: "Fleet management" },
     { label: "Calendar", href: "/admin/calendar", icon: Calendar, description: "Booking schedule" },
@@ -569,24 +554,7 @@ export default function AdminOverview() {
                       </div>
                     </Link>
                   )}
-                  {pendingVerifications > 0 && (
-                    <Link 
-                      to="/admin/alerts?type=verification_pending"
-                      className="flex items-center justify-between py-2 border-b border-border hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                          <FileCheck className="w-4 h-4 text-purple-500" />
-                        </div>
-                        <span className="text-sm">Pending Verifications</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-purple-500">{pendingVerifications}</Badge>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </Link>
-                  )}
-                  {pendingAlerts === 0 && pendingVerifications === 0 && (
+                  {pendingAlerts === 0 && (
                     <div className="flex items-center gap-3 py-4 text-muted-foreground">
                       <CheckCircle2 className="w-5 h-5 text-green-500" />
                       <span className="text-sm">All caught up! No pending actions.</span>

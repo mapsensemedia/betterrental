@@ -241,16 +241,6 @@ export function useCompleteCheckIn() {
         if (error) throw error;
       }
 
-      // Create alert if needs review (status won't be 'blocked' from the logic above, but kept for safety)
-      if (status === "needs_review") {
-        await supabase.from("admin_alerts").insert({
-          booking_id: bookingId,
-          alert_type: "verification_pending",
-          title: "Check-in needs review",
-          message: `Failed checks: ${blockedReason}`,
-          status: "pending",
-        });
-      }
 
       await logAction("checkin_completed", "booking", bookingId, {
         status,

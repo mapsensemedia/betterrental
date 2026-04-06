@@ -9,7 +9,7 @@ import {
   Clock,
   Car,
   BookOpen,
-  User,
+  
   X,
   ChevronRight,
   ChevronDown,
@@ -60,11 +60,10 @@ import {
 } from "@/hooks/use-alerts";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
-import { PendingVerificationsCard } from "@/components/admin/alerts/PendingVerificationsCard";
+
 import { CollapsibleSection } from "@/components/admin/ops/sections/CollapsibleSection";
 
 const alertTypeLabels: Record<string, string> = {
-  verification_pending: "Verification Pending",
   payment_pending: "Payment Pending",
   cleaning_required: "Cleaning Required",
   damage_reported: "Damage Reported",
@@ -77,7 +76,6 @@ const alertTypeLabels: Record<string, string> = {
 };
 
 const alertTypeIcons: Record<string, typeof AlertTriangle> = {
-  verification_pending: User,
   payment_pending: AlertCircle,
   cleaning_required: Car,
   damage_reported: AlertTriangle,
@@ -316,8 +314,6 @@ export default function AdminAlerts() {
           </div>
         </div>
 
-        {/* Pending Verifications Card */}
-        <PendingVerificationsCard />
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
