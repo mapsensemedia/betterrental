@@ -345,33 +345,39 @@ export default function AdminBookings() {
     // Pending and confirmed are treated the same for pickups
     const preRental = bookings.filter(b => b.status === "pending" || b.status === "confirmed");
     
+    const byStartAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+      parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime();
+    const byEndAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+      parseISO(a.endAt).getTime() - parseISO(b.endAt).getTime();
+    const byEndDesc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+      parseISO(b.endAt).getTime() - parseISO(a.endAt).getTime();
+
     return {
-      pending: bookings.filter(b => b.status === "pending"),
-      confirmed: bookings.filter(b => b.status === "confirmed"),
-      // All pre-rental bookings (pending + confirmed)
-      allPickups: preRental,
-      pickupsToday: preRental.filter(b => isToday(parseISO(b.startAt))),
-      pickupsTomorrow: preRental.filter(b => isTomorrow(parseISO(b.startAt))),
+      pending: bookings.filter(b => b.status === "pending").sort(byStartAsc),
+      confirmed: bookings.filter(b => b.status === "confirmed").sort(byStartAsc),
+      allPickups: [...preRental].sort(byStartAsc),
+      pickupsToday: preRental.filter(b => isToday(parseISO(b.startAt))).sort(byStartAsc),
+      pickupsTomorrow: preRental.filter(b => isTomorrow(parseISO(b.startAt))).sort(byStartAsc),
       pickupsUpcoming: preRental.filter(b => 
         !isToday(parseISO(b.startAt)) && 
         !isTomorrow(parseISO(b.startAt)) &&
         isAfter(parseISO(b.startAt), now)
-      ),
+      ).sort(byStartAsc),
       pickupsPast: preRental.filter(b => 
         isBefore(parseISO(b.startAt), startOfDay(now))
-      ),
-      active: bookings.filter(b => b.status === "active"),
+      ).sort(byStartAsc),
+      active: bookings.filter(b => b.status === "active").sort(byEndAsc),
       returnsToday: bookings.filter(b => 
         b.status === "active" && isToday(parseISO(b.endAt))
-      ),
+      ).sort(byEndAsc),
       returnsTomorrow: bookings.filter(b => 
         b.status === "active" && isTomorrow(parseISO(b.endAt))
-      ),
+      ).sort(byEndAsc),
       overdue: bookings.filter(b => 
         b.status === "active" && isBefore(parseISO(b.endAt), now)
-      ),
-      completed: bookings.filter(b => b.status === "completed" || b.status === "cancelled"),
-      cancelled: bookings.filter(b => b.status === "cancelled"),
+      ).sort(byEndAsc),
+      completed: bookings.filter(b => b.status === "completed" || b.status === "cancelled").sort(byEndDesc),
+      cancelled: bookings.filter(b => b.status === "cancelled").sort(byEndDesc),
     };
   }, [bookings]);
 
