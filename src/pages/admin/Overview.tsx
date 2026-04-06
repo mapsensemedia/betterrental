@@ -287,7 +287,7 @@ export default function AdminOverview() {
     { label: "Bookings", href: "/admin/bookings", icon: BookOpen, description: "View all reservations" },
     { label: "Pickups", href: "/admin/pickups", icon: KeyRound, description: "Pickups & handovers" },
     { label: "Returns", href: "/admin/returns", icon: RotateCcw, description: "Due returns" },
-    { label: "Alerts", href: "/admin/alerts", icon: Bell, description: "Action required", badge: pendingAlerts + pendingVerifications },
+    { label: "Alerts", href: "/admin/alerts", icon: Bell, description: "Action required", badge: pendingAlerts },
     { label: "Finance", href: "/admin/finance", icon: Receipt, description: "Receipts & payments" },
     { label: "Fleet", href: "/admin/fleet", icon: Car, description: "Fleet management" },
     { label: "Calendar", href: "/admin/calendar", icon: Calendar, description: "Booking schedule" },
