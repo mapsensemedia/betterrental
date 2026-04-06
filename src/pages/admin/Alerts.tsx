@@ -60,7 +60,7 @@ import {
 } from "@/hooks/use-alerts";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
-import { PendingVerificationsCard } from "@/components/admin/alerts/PendingVerificationsCard";
+
 import { CollapsibleSection } from "@/components/admin/ops/sections/CollapsibleSection";
 
 const alertTypeLabels: Record<string, string> = {
