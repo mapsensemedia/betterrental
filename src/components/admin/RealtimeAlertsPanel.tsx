@@ -23,7 +23,6 @@ import { Link, useNavigate } from "react-router-dom";
 
 const ALERT_TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string }> = {
   payment_pending: { icon: CreditCard, color: "text-blue-500" },
-  payment_pending: { icon: CreditCard, color: "text-blue-500" },
   overdue: { icon: AlertTriangle, color: "text-destructive" },
   return_due_soon: { icon: Clock, color: "text-amber-500" },
   damage_reported: { icon: AlertTriangle, color: "text-red-500" },

@@ -77,7 +77,6 @@ const alertTypeLabels: Record<string, string> = {
 
 const alertTypeIcons: Record<string, typeof AlertTriangle> = {
   payment_pending: AlertCircle,
-  payment_pending: AlertCircle,
   cleaning_required: Car,
   damage_reported: AlertTriangle,
   late_return: Clock,
