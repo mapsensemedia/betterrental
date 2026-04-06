@@ -65,7 +65,6 @@ import { CollapsibleSection } from "@/components/admin/ops/sections/CollapsibleS
 
 const alertTypeLabels: Record<string, string> = {
   payment_pending: "Payment Pending",
-  payment_pending: "Payment Pending",
   cleaning_required: "Cleaning Required",
   damage_reported: "Damage Reported",
   late_return: "Late Return",
