@@ -9,7 +9,7 @@ import {
   Clock,
   Car,
   BookOpen,
-  User,
+  
   X,
   ChevronRight,
   ChevronDown,

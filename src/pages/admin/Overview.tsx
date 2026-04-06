@@ -18,7 +18,7 @@ import {
   ArrowRightLeft,
   RotateCcw,
   Receipt,
-  FileCheck,
+  
   AlertTriangle,
   BookOpen,
   KeyRound,
