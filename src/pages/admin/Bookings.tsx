@@ -60,6 +60,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
+import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { OperationsFilters, defaultFilters, getDateRangeFromPreset, type OperationsFiltersState } from "@/components/admin/OperationsFilters";
 import type { Database } from "@/integrations/supabase/types";
 import { getBookingRoute } from "@/lib/booking-routes";
