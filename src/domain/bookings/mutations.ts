@@ -101,18 +101,6 @@ export async function updateBookingStatus(input: UpdateBookingStatusInput): Prom
     await reversePointsForCancellation(bookingId);
   }
 
-  // Create alert for significant status changes
-  if (["active", "completed", "cancelled"].includes(newStatus)) {
-    const alertType = newStatus === "active" ? "return_due_soon" : 
-                     newStatus === "cancelled" ? "customer_issue" : "verification_pending";
-    await supabase.from("admin_alerts").insert([{
-      alert_type: alertType,
-      title: `Booking ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)} - ${booking.booking_code}`,
-      message: `Booking ${booking.booking_code} status changed to ${newStatus}`,
-      booking_id: bookingId,
-      status: "pending" as const,
-    }]);
-  }
 
   // Send notifications
   await sendStatusNotification(bookingId, newStatus, booking);

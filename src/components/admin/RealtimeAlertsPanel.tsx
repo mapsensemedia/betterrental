@@ -15,7 +15,6 @@ import {
   CheckCircle, 
   ChevronRight,
   Radio,
-  FileCheck,
   Car,
   CreditCard,
 } from "lucide-react";

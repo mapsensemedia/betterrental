@@ -556,24 +556,7 @@ export default function AdminOverview() {
                       </div>
                     </Link>
                   )}
-                  {pendingVerifications > 0 && (
-                    <Link 
-                      to="/admin/alerts?type=verification_pending"
-                      className="flex items-center justify-between py-2 border-b border-border hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                          <FileCheck className="w-4 h-4 text-purple-500" />
-                        </div>
-                        <span className="text-sm">Pending Verifications</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-purple-500">{pendingVerifications}</Badge>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </Link>
-                  )}
-                  {pendingAlerts === 0 && pendingVerifications === 0 && (
+                  {pendingAlerts === 0 && (
                     <div className="flex items-center gap-3 py-4 text-muted-foreground">
                       <CheckCircle2 className="w-5 h-5 text-green-500" />
                       <span className="text-sm">All caught up! No pending actions.</span>

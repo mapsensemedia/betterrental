@@ -316,8 +316,6 @@ export default function AdminAlerts() {
           </div>
         </div>
 
-        {/* Pending Verifications Card */}
-        <PendingVerificationsCard />
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">

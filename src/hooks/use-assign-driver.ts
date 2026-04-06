@@ -79,13 +79,6 @@ export function useAssignDriver() {
           },
         });
         
-        // Create admin alert for bypass
-        await supabase.from("admin_alerts").insert({
-          alert_type: "verification_pending" as const,
-          title: "Dispatch bypass used",
-          message: `Booking dispatched without: ${readiness.missingRequirements.join(", ")}`,
-          booking_id: bookingId,
-        });
       }
 
       return { bookingId, driverId, readiness };
