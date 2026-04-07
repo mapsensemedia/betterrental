@@ -329,7 +329,12 @@ export default function AdminBookings() {
     return applyOpsFilters(bookings).sort((a, b) => parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime());
   }, [bookings, opsFilters]);
 
-  const allTabTotalValue = useMemo(() => allTabData.reduce((s, b) => s + b.totalAmount, 0), [allTabData]);
+  const allTabSummary = useMemo(() => {
+    const active = allTabData.filter(b => b.status !== 'cancelled');
+    const cancelled = allTabData.length - active.length;
+    const total = active.reduce((s, b) => s + b.totalAmount, 0);
+    return { activeCount: active.length, cancelledCount: cancelled, total };
+  }, [allTabData]);
 
   return (
     <AdminShell>
