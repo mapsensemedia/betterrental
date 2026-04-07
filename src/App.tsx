@@ -54,7 +54,7 @@ const BookingReturn = lazy(() => import("./pages/booking/BookingReturn"));
 const WalkaroundSign = lazy(() => import("./pages/booking/WalkaroundSign"));
 
 // Admin Pages - all lazy loaded
-const AdminOverview = lazy(() => import("./pages/admin/Overview"));
+
 const AdminAlerts = lazy(() => import("./pages/admin/Alerts"));
 const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
 const AdminBookingDetail = lazy(() => import("./pages/admin/BookingDetail"));
