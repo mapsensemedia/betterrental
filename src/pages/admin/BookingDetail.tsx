@@ -466,7 +466,7 @@ export default function BookingDetail() {
                       )}
                     </div>
                     {/* Assigned Unit (VIN / Plate) */}
-                    <AssignedUnitInfo unitId={booking.assigned_unit_id} />
+                    <AssignedUnitDisplay unitId={booking.assigned_unit_id} />
                   </CardContent>
                 </Card>
 
