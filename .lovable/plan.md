@@ -1,45 +1,48 @@
 
 
-## Fix Two Bugs in Finance Page Date Filter
+## Fix Conversion Funnel — Use Bookings as Single Source of Truth
 
-### Bug 1 — Method click ignores date range
+### Problem
+The funnel mixes analytics_events (browser tracking) with bookings table counts, producing impossible numbers (e.g., 35 completions from 15 checkout starts, >100% conversion rates, negative drop-offs).
 
-**Root cause**: `dateRange` state lives inside `OverviewTab` (line 274). When a method is clicked, `handleMethodClick` in `Finance` only sets `methodFilter` and switches to the transactions tab. The `TransactionsTab` fetches ALL payments (`queryKey: ["admin-payments"]`, line 1068) with no date filter, so it shows everything.
+### Approach
+Rewrite the `ConversionFunnel` component to accept pre-computed stage counts derived entirely from the bookings/booking_add_ons/payments tables. Move all data fetching to `Reports.tsx` and pass clean numbers down.
 
-**Fix**: Lift the `dateRange` (and `customStart`/`customEnd`) state from `OverviewTab` up to the `Finance` component. Pass it down to both tabs. In `TransactionsTab`, use the date range to filter the payments query (add `.gte`/`.lte` on `created_at`). Also pass the date range to `OverviewTab` as props instead of local state.
+### Changes
 
-### Bug 2 — Date range resets on navigation
+**1. `src/pages/admin/Reports.tsx` — Replace funnel data source**
 
-**Root cause**: `dateRange` is `useState("month")` — lost on unmount.
+- Add a new query (`funnel-bookings-data`) that fetches all bookings in the date range (excluding cancelled for stage 1, but including cancelled for checkout stage):
+  ```sql
+  SELECT id, status, protection_plan FROM bookings
+  WHERE created_at >= start AND created_at <= end
+  ```
+- Add a query for booking_add_ons: count distinct booking_ids that have at least one add-on row
+- Add a query for payments: count distinct booking_ids that have at least one payment row
+- Compute 8 stage counts in a `useMemo`:
+  - Stage 1-3 (Search/Viewed/Selected): all non-cancelled bookings
+  - Stage 4 (Protection): bookings where `protection_plan != 'none'`
+  - Stage 5 (Add-ons): bookings with ≥1 booking_add_on row
+  - Stage 6 (Checkout): bookings with status in confirmed/active/completed/cancelled
+  - Stage 7 (Payment Attempted): bookings with ≥1 payment row
+  - Stage 8 (Completed): bookings with status in confirmed/active/completed
+- Enforce monotonic decreasing after calculation
+- Pass the computed stages array to `ConversionFunnel` instead of raw events
+- Remove `realBookingsCount` query (no longer needed separately)
+- Keep `analyticsEventsRaw` / `useAnalyticsEvents` if used elsewhere (Event Distribution chart still needs it)
 
-**Fix**: Store `dateRange` in URL search params (e.g. `?range=month`). Since `Finance` already uses `useSearchParams` for `tab`, add `range` to the same params.
+**2. `src/components/admin/ConversionFunnel.tsx` — Simplify props and fix math**
 
-### Changes — `src/pages/admin/Finance.tsx`
-
-**1. Lift dateRange to Finance component (line 214-230)**
-- Read `range` from `searchParams` (default `"month"`)
-- Add `setDateRange` that updates the URL param
-- Compute `start`/`end` dates at this level
-- Pass `dateRange`, `setDateRange`, `start`, `end` as props to `OverviewTab`
-- Pass `start`, `end` as props to `TransactionsTab`
-
-**2. Update OverviewTab (line 273-276)**
-- Remove local `dateRange` useState
-- Accept `dateRange`, `setDateRange`, `start`, `end` as props
-- Remove local `useMemo` for start/end (use props)
-- Keep `customStart`/`customEnd` local (only relevant within overview)
-
-**3. Update TransactionsTab (line 920, 1066-1074)**
-- Accept `dateStart` and `dateEnd` props
-- Add `.gte("created_at", dateStart.toISOString())` and `.lte("created_at", dateEnd.toISOString())` to the payments query (line 1071-1074)
-- Also apply date filter to the WL bookings queries (lines 1077-1088)
-- Update `queryKey` to include the date range: `["admin-payments", dateStart.toISOString(), dateEnd.toISOString()]`
-
-**4. Update handleMethodClick (line 227-230)**
-- No change needed — date range is already in URL and shared
+- Change props from `events + bookingsCount` to a single `stages` array: `{ label, count, icon }[]`
+- Remove all internal event filtering logic
+- Fix bar width: `width = (stage.count / stages[0].count) * 100`
+- Clamp conversion rate to 0-100%: `Math.min(100, Math.max(0, rate))`
+- Clamp drop-off rate to 0-100%
+- Empty state: show when `stages[0].count === 0` instead of `events.length === 0`
 
 ### Files
 | File | Change |
 |------|--------|
-| `src/pages/admin/Finance.tsx` | Lift dateRange to URL params, pass to both tabs, add date filter to TransactionsTab queries |
+| `src/pages/admin/Reports.tsx` | Add bookings-based funnel queries, compute stages, pass to component |
+| `src/components/admin/ConversionFunnel.tsx` | Accept pre-computed stages, fix bar width and rate calculations |
 
