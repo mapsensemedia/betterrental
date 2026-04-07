@@ -240,6 +240,22 @@ export default function AdminReports() {
     },
     staleTime: 60_000,
   });
+
+  // Active bookings — source of truth for "on rent" (vehicle_units.status is stale)
+  const { data: activeRentalUnitIds = [] } = useQuery({
+    queryKey: ["active-rental-units-for-reports"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("assigned_unit_id")
+        .eq("status", "active")
+        .not("assigned_unit_id", "is", null);
+      if (error) throw error;
+      return (data || []).map(b => b.assigned_unit_id);
+    },
+    staleTime: 60_000,
+  });
+
   const { data: vehicles = [] } = useAdminVehicles();
 
   // Page-level revenue analytics — powers all metric cards and charts
@@ -275,17 +291,22 @@ export default function AdminReports() {
   // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
     const totalVehicles = vehicleUnits.length;
-    const rentedUnits = vehicleUnits.filter(u => u.status === "on_rent").length;
-    const availableUnits = vehicleUnits.filter(u => u.status === "available").length;
-    const maintenanceUnits = vehicleUnits.filter(u => u.status === "maintenance").length;
+    const activeRentalSet = new Set(activeRentalUnitIds);
+
+    // "On rent" = units with an active booking (source of truth)
+    const rentedUnits = vehicleUnits.filter(u => activeRentalSet.has(u.id)).length;
+    // Maintenance/damage from unit status (reliable — set manually)
+    const maintenanceUnits = vehicleUnits.filter(u =>
+      u.status === "maintenance" || u.status === "damage"
+    ).length;
+    // Available = total minus rented minus maintenance
+    const availableUnits = totalVehicles - rentedUnits - maintenanceUnits;
 
     const rentableUnits = rentedUnits + availableUnits;
     const utilizationRate = rentableUnits > 0
       ? (rentedUnits / rentableUnits) * 100
       : 0;
-
-    const activeVehiclesForRevenue = rentableUnits > 0 ? rentableUnits : 1;
-    const revenuePerVehicle = collectedRevenue / activeVehiclesForRevenue;
+    const revenuePerVehicle = collectedRevenue / (rentableUnits || 1);
 
     return {
       totalVehicles,
@@ -297,7 +318,7 @@ export default function AdminReports() {
       revenuePerVehicle,
       totalRevenue: collectedRevenue,
     };
-  }, [vehicleUnits, collectedRevenue]);
+  }, [vehicleUnits, activeRentalUnitIds, collectedRevenue]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
