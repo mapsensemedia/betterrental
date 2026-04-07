@@ -1500,6 +1500,70 @@ export default function BookingDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Agreement View Dialog */}
+      <Dialog open={!!viewingAgreement} onOpenChange={(open) => !open && setViewingAgreement(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Rental Agreement
+              {viewingAgreement?.status && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {viewingAgreement.status}
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 min-h-0">
+            {viewingAgreement?.terms_json ? (
+              <AgreementStructuredView
+                agreement={viewingAgreement as RentalAgreement}
+                bookingId={bookingId || ""}
+              />
+            ) : viewingAgreement?.agreement_content ? (
+              <div className="prose prose-sm max-w-none p-4" dangerouslySetInnerHTML={{ __html: viewingAgreement.agreement_content }} />
+            ) : (
+              <p className="text-sm text-muted-foreground p-4">No agreement content available.</p>
+            )}
+
+            <Separator className="my-4" />
+
+            {viewingAgreement?.customer_signed_at ? (
+              <div className="p-4 space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  Signed on {format(parseISO(viewingAgreement.customer_signed_at), "PPp")}
+                </p>
+                {viewingAgreement.signature_png_url && (
+                  <div className="border rounded-md p-3 bg-muted/30">
+                    <img
+                      src={viewingAgreement.signature_png_url}
+                      alt="Customer signature"
+                      className="max-h-24 mx-auto"
+                    />
+                  </div>
+                )}
+                {viewingAgreement.customer_signature && !viewingAgreement.signature_png_url && (
+                  <div className="border rounded-md p-3 bg-muted/30">
+                    <img
+                      src={viewingAgreement.customer_signature}
+                      alt="Customer signature"
+                      className="max-h-24 mx-auto"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4">
+                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Pending Signature
+                </Badge>
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </PanelShell>
   );
 }
