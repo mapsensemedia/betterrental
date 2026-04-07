@@ -117,6 +117,13 @@ export function useAdminBookings(filters: BookingFilters = {}) {
 
       const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
 
+      // Fetch payments to determine paid status
+      const bookingIds = (bookingsData || []).map(b => b.id);
+      const { data: paymentsData } = bookingIds.length > 0
+        ? await supabase.from("payments").select("booking_id, status").in("booking_id", bookingIds).in("status", ["completed", "captured"])
+        : { data: [] };
+      const paidBookingIds = new Set((paymentsData || []).map(p => p.booking_id));
+
       // Fetch customers for bookings that have customer_id
       const customerIds = [...new Set((bookingsData || []).map((b: any) => b.customer_id).filter(Boolean))];
       const { data: customersData } = customerIds.length > 0
@@ -161,6 +168,7 @@ export function useAdminBookings(filters: BookingFilters = {}) {
           wlTransactionId: b.wl_transaction_id || null,
           wlAuthStatus: b.wl_auth_status || null,
           depositStatus: b.deposit_status || null,
+          hasPaidPayment: paidBookingIds.has(b.id),
           locationId: b.location_id,
           vehicle: category ? {
             id: category.id,
