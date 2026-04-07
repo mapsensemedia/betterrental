@@ -329,7 +329,12 @@ export default function AdminBookings() {
     return applyOpsFilters(bookings).sort((a, b) => parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime());
   }, [bookings, opsFilters]);
 
-  const allTabTotalValue = useMemo(() => allTabData.reduce((s, b) => s + b.totalAmount, 0), [allTabData]);
+  const allTabSummary = useMemo(() => {
+    const active = allTabData.filter(b => b.status !== 'cancelled');
+    const cancelled = allTabData.length - active.length;
+    const total = active.reduce((s, b) => s + b.totalAmount, 0);
+    return { activeCount: active.length, cancelledCount: cancelled, total };
+  }, [allTabData]);
 
   return (
     <AdminShell>
@@ -463,10 +468,16 @@ export default function AdminBookings() {
 
               {/* Summary bar */}
               <div className="px-3 md:px-6 pb-3">
-                <div className="flex items-center gap-4 px-3 py-2 rounded-md bg-muted/50 text-sm">
-                  <span className="font-medium">{allTabData.length} booking{allTabData.length !== 1 ? "s" : ""}</span>
+              <div className="flex items-center gap-4 px-3 py-2 rounded-md bg-muted/50 text-sm">
+                  <span className="font-medium">{allTabSummary.activeCount} booking{allTabSummary.activeCount !== 1 ? "s" : ""}</span>
                   <span className="text-muted-foreground">•</span>
-                  <span className="text-muted-foreground">Total: <span className="font-medium text-foreground">${allTabTotalValue.toLocaleString("en-CA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></span>
+                  <span className="text-muted-foreground">Total: <span className="font-medium text-foreground">${allTabSummary.total.toLocaleString("en-CA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></span>
+                  {allTabSummary.cancelledCount > 0 && (
+                    <>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">{allTabSummary.cancelledCount} cancelled</span>
+                    </>
+                  )}
                 </div>
               </div>
 
