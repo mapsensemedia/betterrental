@@ -311,7 +311,7 @@ export default function AdminReports() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Revenue, conversions, fleet utilization & activity logs
+              Revenue, conversions & fleet utilization
             </p>
           </div>
           <div className="flex items-center gap-2">
