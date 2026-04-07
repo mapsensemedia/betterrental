@@ -1389,14 +1389,15 @@ export default function BookingDetail() {
                               {format(parseISO(agreement.created_at), "PP")}
                             </span>
                           </div>
-                          {agreement.signature_png_url && (
-                            <Button variant="outline" size="sm" className="w-full" asChild>
-                              <a href={agreement.signature_png_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="w-3 h-3 mr-2" />
-                                View Agreement
-                              </a>
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setViewingAgreement(agreement)}
+                          >
+                            <FileText className="w-3 h-3 mr-2" />
+                            View Agreement
+                          </Button>
                         </div>
                       ))
                     ) : (
