@@ -376,6 +376,11 @@ export default function AdminBookings() {
                 <span className="hidden xs:inline">Walk-In</span>
                 <span className="xs:hidden">New</span>
               </Button>
+              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 md:h-9" disabled={exporting}>
+                {exporting ? <Loader2 className="h-4 w-4 mr-1 md:mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-1 md:mr-2" />}
+                <span className="hidden xs:inline">Export Excel</span>
+                <span className="xs:hidden">Export</span>
+              </Button>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
