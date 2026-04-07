@@ -235,6 +235,17 @@ export default function AdminBookings() {
     }
   };
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportBookingsExcel();
+    } catch (err: any) {
+      toast.error(err?.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
   const [filters, setFilters] = useState<BookingFilters>({
     status: "all",
     search: searchParams.get("code") || "",
