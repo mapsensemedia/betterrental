@@ -53,17 +53,16 @@ const chartConfig = {
 
 const COLORS = ["hsl(var(--primary))", "#22c55e", "#f97316", "#8b5cf6", "#3b82f6", "#ec4899"];
 
-// Funnel stages for internal calculations
-const FUNNEL_STAGES = [
-  { key: "search_performed", label: "Search" },
-  { key: "vehicle_viewed", label: "Viewed" },
-  { key: "vehicle_selected", label: "Selected" },
-  { key: "protection_selected", label: "Protection" },
-  { key: "addons_selected", label: "Add-ons" },
-  { key: "checkout_started", label: "Checkout" },
-  { key: "checkout_payment_method_selected", label: "Payment" },
-  { key: "booking_completed", label: "Completed" },
-] as const;
+import {
+  Search,
+  Eye as EyeIcon2,
+  MousePointerClick,
+  Shield,
+  Gift,
+  ShoppingCart,
+  CreditCard,
+  CheckCircle,
+} from "lucide-react";
 
 const DATE_PRESET_LABELS: Record<DatePreset | "all", string> = {
   "7d": "Last 7 Days",
@@ -164,19 +163,53 @@ export default function AdminReports() {
   // Analytics events from Supabase
   const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
 
-  // Real bookings count for the funnel (confirmed, active, completed within date range)
-  const { data: realBookingsCount = 0 } = useQuery({
-    queryKey: ["funnel-bookings-count", dateRange.start.toISOString(), dateRange.end.toISOString()],
+  // ── Funnel data: bookings as single source of truth ──
+  const { data: funnelBookings = [] } = useQuery({
+    queryKey: ["funnel-bookings-data", dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .in("status", ["confirmed", "active", "completed"])
+        .select("id, status, protection_plan")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString());
       if (error) throw error;
-      return count ?? 0;
+      return data ?? [];
     },
+    staleTime: 60_000,
+  });
+
+  // Booking IDs that have at least one add-on
+  const { data: funnelAddOnBookingIds = [] } = useQuery({
+    queryKey: ["funnel-addon-ids", dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: async () => {
+      // Get booking_add_ons for bookings in range
+      const bookingIds = funnelBookings.map(b => b.id);
+      if (bookingIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("booking_add_ons")
+        .select("booking_id")
+        .in("booking_id", bookingIds);
+      if (error) throw error;
+      return [...new Set((data ?? []).map(r => r.booking_id))];
+    },
+    enabled: funnelBookings.length > 0,
+    staleTime: 60_000,
+  });
+
+  // Booking IDs that have at least one payment
+  const { data: funnelPaymentBookingIds = [] } = useQuery({
+    queryKey: ["funnel-payment-ids", dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: async () => {
+      const bookingIds = funnelBookings.map(b => b.id);
+      if (bookingIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("payments")
+        .select("booking_id")
+        .in("booking_id", bookingIds);
+      if (error) throw error;
+      return [...new Set((data ?? []).map(r => r.booking_id))];
+    },
+    enabled: funnelBookings.length > 0,
     staleTime: 60_000,
   });
 
@@ -235,24 +268,38 @@ export default function AdminReports() {
     }));
   }, [analyticsEventsRaw]);
 
-  // Funnel stats
-  const funnelStats = useMemo(() => {
-    const raw = FUNNEL_STAGES.map((stage) => ({
-      ...stage,
-      count: filteredEvents.filter((e) => e.event === stage.key).length,
-    }));
-    // Enforce monotonically decreasing: each stage count <= previous
-    for (let i = 1; i < raw.length; i++) {
-      raw[i] = { ...raw[i], count: Math.min(raw[i].count, raw[i - 1].count) };
+  // Funnel stages — derived entirely from bookings data
+  const funnelStages = useMemo(() => {
+    const nonCancelled = funnelBookings.filter(b => b.status !== "cancelled");
+    const allStatuses = new Set(["confirmed", "active", "completed", "cancelled"]);
+    const completedStatuses = new Set(["confirmed", "active", "completed"]);
+    const addOnSet = new Set(funnelAddOnBookingIds);
+    const paymentSet = new Set(funnelPaymentBookingIds);
+
+    const stages = [
+      { label: "Search", icon: Search, count: nonCancelled.length },
+      { label: "Vehicle Viewed", icon: EyeIcon2, count: nonCancelled.length },
+      { label: "Vehicle Selected", icon: MousePointerClick, count: nonCancelled.length },
+      { label: "Protection Added", icon: Shield, count: nonCancelled.filter(b => b.protection_plan && b.protection_plan !== "none").length },
+      { label: "Add-ons Added", icon: Gift, count: nonCancelled.filter(b => addOnSet.has(b.id)).length },
+      { label: "Checkout Started", icon: ShoppingCart, count: funnelBookings.filter(b => allStatuses.has(b.status)).length },
+      { label: "Payment Attempted", icon: CreditCard, count: funnelBookings.filter(b => paymentSet.has(b.id)).length },
+      { label: "Booking Completed", icon: CheckCircle, count: funnelBookings.filter(b => completedStatuses.has(b.status)).length },
+    ];
+
+    // Enforce monotonic decreasing
+    for (let i = 1; i < stages.length; i++) {
+      stages[i].count = Math.min(stages[i].count, stages[i - 1].count);
     }
-    return raw;
-  }, [filteredEvents]);
+
+    return stages;
+  }, [funnelBookings, funnelAddOnBookingIds, funnelPaymentBookingIds]);
 
   const overallConversion = useMemo(() => {
-    const first = funnelStats[0]?.count || 0;
-    const last = funnelStats[funnelStats.length - 1]?.count || 0;
+    const first = funnelStages[0]?.count || 0;
+    const last = funnelStages[funnelStages.length - 1]?.count || 0;
     return first > 0 ? (last / first) * 100 : 0;
-  }, [funnelStats]);
+  }, [funnelStages]);
 
   // Revenue stats for Overview tab — derived from the unified hook
   const revenueStats = useMemo(() => {
@@ -492,11 +539,13 @@ export default function AdminReports() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Cart Abandonment</span>
                       <span className="text-lg font-bold text-destructive">
-                        {funnelStats.find(s => s.key === "checkout_started")?.count || 0 > 0
-                          ? (((funnelStats.find(s => s.key === "checkout_started")?.count || 0) -
-                             (funnelStats.find(s => s.key === "booking_completed")?.count || 0)) /
-                             (funnelStats.find(s => s.key === "checkout_started")?.count || 1) * 100).toFixed(0)
-                          : 0}%
+                        {(() => {
+                          const checkoutCount = funnelStages[5]?.count || 0;
+                          const completedCount = funnelStages[7]?.count || 0;
+                          return checkoutCount > 0
+                            ? (((checkoutCount - completedCount) / checkoutCount) * 100).toFixed(0)
+                            : 0;
+                        })()}%
                       </span>
                     </div>
                   </div>
@@ -607,7 +656,7 @@ export default function AdminReports() {
 
           {/* Funnel Tab */}
           <TabsContent value="funnel" className="space-y-4">
-            <ConversionFunnel events={filteredEvents} bookingsCount={realBookingsCount} />
+            <ConversionFunnel stages={funnelStages} />
 
             <Card>
               <CardHeader className="pb-3">
