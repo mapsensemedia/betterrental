@@ -234,23 +234,9 @@ export default function AdminReports() {
       const { data, error } = await supabase
         .from("vehicle_units")
         .select("id, status")
-        .in("status", ["available", "on_rent", "maintenance"]);
+        .neq("status", "retired");
       if (error) throw error;
       return data ?? [];
-    },
-    staleTime: 60_000,
-  });
-
-  // Fleet: query active bookings count
-  const { data: activeBookingsCount = 0 } = useQuery({
-    queryKey: ["active-bookings-count-for-reports"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "active");
-      if (error) throw error;
-      return count ?? 0;
     },
     staleTime: 60_000,
   });
