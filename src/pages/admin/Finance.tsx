@@ -72,7 +72,7 @@ import { cn } from "@/lib/utils";
 // Types
 // ═══════════════════════════════════════════════════
 
-type DateRange = "today" | "yesterday" | "week" | "month" | "last30";
+type DateRange = "today" | "yesterday" | "week" | "month" | "last30" | "all" | "custom";
 
 interface OverviewPaymentRecord {
   id: string;
@@ -188,6 +188,10 @@ function getDateRange(range: DateRange): { start: Date; end: Date } {
       return { start: startOfMonth(now), end: endOfDay(now) };
     case "last30":
       return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
+    case "all":
+      return { start: new Date("2024-01-01T00:00:00"), end: endOfDay(now) };
+    case "custom":
+      return { start: startOfMonth(now), end: endOfDay(now) };
   }
 }
 
@@ -257,8 +261,15 @@ export default function Finance() {
 
 function OverviewTab() {
   const [dateRange, setDateRange] = useState<DateRange>("last30");
+  const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
+  const [customEnd, setCustomEnd] = useState<Date>(new Date());
 
-  const { start, end } = useMemo(() => getDateRange(dateRange), [dateRange]);
+  const { start, end } = useMemo(() =>
+    dateRange === "custom"
+      ? { start: startOfDay(customStart), end: endOfDay(customEnd) }
+      : getDateRange(dateRange),
+    [dateRange, customStart, customEnd]
+  );
 
   // Source A — payments table (primary, renders immediately)
   const { data: paymentsOnly = [], isLoading, refetch } = useQuery({
@@ -618,8 +629,27 @@ function OverviewTab() {
             <SelectItem value="week">This Week</SelectItem>
             <SelectItem value="month">This Month</SelectItem>
             <SelectItem value="last30">Last 30 Days</SelectItem>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
         </Select>
+        {dateRange === "custom" && (
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="date"
+              className="h-9 w-[140px]"
+              value={format(customStart, "yyyy-MM-dd")}
+              onChange={(e) => e.target.value && setCustomStart(new Date(e.target.value + "T00:00:00"))}
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input
+              type="date"
+              className="h-9 w-[140px]"
+              value={format(customEnd, "yyyy-MM-dd")}
+              onChange={(e) => e.target.value && setCustomEnd(new Date(e.target.value + "T00:00:00"))}
+            />
+          </div>
+        )}
         <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => refetch()}>
           <RefreshCw className="w-4 h-4" />
         </Button>
