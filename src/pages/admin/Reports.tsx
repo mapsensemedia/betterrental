@@ -268,24 +268,38 @@ export default function AdminReports() {
     }));
   }, [analyticsEventsRaw]);
 
-  // Funnel stats
-  const funnelStats = useMemo(() => {
-    const raw = FUNNEL_STAGES.map((stage) => ({
-      ...stage,
-      count: filteredEvents.filter((e) => e.event === stage.key).length,
-    }));
-    // Enforce monotonically decreasing: each stage count <= previous
-    for (let i = 1; i < raw.length; i++) {
-      raw[i] = { ...raw[i], count: Math.min(raw[i].count, raw[i - 1].count) };
+  // Funnel stages — derived entirely from bookings data
+  const funnelStages = useMemo(() => {
+    const nonCancelled = funnelBookings.filter(b => b.status !== "cancelled");
+    const allStatuses = new Set(["confirmed", "active", "completed", "cancelled"]);
+    const completedStatuses = new Set(["confirmed", "active", "completed"]);
+    const addOnSet = new Set(funnelAddOnBookingIds);
+    const paymentSet = new Set(funnelPaymentBookingIds);
+
+    const stages = [
+      { label: "Search", icon: Search, count: nonCancelled.length },
+      { label: "Vehicle Viewed", icon: EyeIcon2, count: nonCancelled.length },
+      { label: "Vehicle Selected", icon: MousePointerClick, count: nonCancelled.length },
+      { label: "Protection Added", icon: Shield, count: nonCancelled.filter(b => b.protection_plan && b.protection_plan !== "none").length },
+      { label: "Add-ons Added", icon: Gift, count: nonCancelled.filter(b => addOnSet.has(b.id)).length },
+      { label: "Checkout Started", icon: ShoppingCart, count: funnelBookings.filter(b => allStatuses.has(b.status)).length },
+      { label: "Payment Attempted", icon: CreditCard, count: funnelBookings.filter(b => paymentSet.has(b.id)).length },
+      { label: "Booking Completed", icon: CheckCircle, count: funnelBookings.filter(b => completedStatuses.has(b.status)).length },
+    ];
+
+    // Enforce monotonic decreasing
+    for (let i = 1; i < stages.length; i++) {
+      stages[i].count = Math.min(stages[i].count, stages[i - 1].count);
     }
-    return raw;
-  }, [filteredEvents]);
+
+    return stages;
+  }, [funnelBookings, funnelAddOnBookingIds, funnelPaymentBookingIds]);
 
   const overallConversion = useMemo(() => {
-    const first = funnelStats[0]?.count || 0;
-    const last = funnelStats[funnelStats.length - 1]?.count || 0;
+    const first = funnelStages[0]?.count || 0;
+    const last = funnelStages[funnelStages.length - 1]?.count || 0;
     return first > 0 ? (last / first) * 100 : 0;
-  }, [funnelStats]);
+  }, [funnelStages]);
 
   // Revenue stats for Overview tab — derived from the unified hook
   const revenueStats = useMemo(() => {
