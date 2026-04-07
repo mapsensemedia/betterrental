@@ -279,11 +279,16 @@ export async function buildInvoicePdfData(
     taxesTotal: fromCents(dbTaxCents),
     pstAmount: fromCents(pstCents),
     gstAmount: fromCents(gstCents),
+    // Calculate actual payments collected from payments table
+    const actualPaymentsCollected = (paymentRows || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
     lateFees: Number(invoice.late_fees || 0),
     damageCharges: Number(invoice.damage_charges || 0),
     grandTotal: fromCents(dbTotalCents),
-    paymentsReceived: Number(invoice.payments_received || 0),
-    amountDue: Number(invoice.amount_due || 0),
+    paymentsReceived: actualPaymentsCollected > 0 ? actualPaymentsCollected : Number(invoice.payments_received || 0),
+    amountDue: actualPaymentsCollected > 0
+      ? Math.max(0, fromCents(dbTotalCents) - actualPaymentsCollected)
+      : Number(invoice.amount_due || 0),
     depositHeld: Number(invoice.deposit_held || 0),
     depositReleased: Number(invoice.deposit_released || 0),
     depositCaptured: Number(invoice.deposit_captured || 0),
