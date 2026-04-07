@@ -261,8 +261,15 @@ export default function Finance() {
 
 function OverviewTab() {
   const [dateRange, setDateRange] = useState<DateRange>("last30");
+  const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
+  const [customEnd, setCustomEnd] = useState<Date>(new Date());
 
-  const { start, end } = useMemo(() => getDateRange(dateRange), [dateRange]);
+  const { start, end } = useMemo(() =>
+    dateRange === "custom"
+      ? { start: startOfDay(customStart), end: endOfDay(customEnd) }
+      : getDateRange(dateRange),
+    [dateRange, customStart, customEnd]
+  );
 
   // Source A — payments table (primary, renders immediately)
   const { data: paymentsOnly = [], isLoading, refetch } = useQuery({
