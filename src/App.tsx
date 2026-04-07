@@ -54,7 +54,7 @@ const BookingReturn = lazy(() => import("./pages/booking/BookingReturn"));
 const WalkaroundSign = lazy(() => import("./pages/booking/WalkaroundSign"));
 
 // Admin Pages - all lazy loaded
-const AdminOverview = lazy(() => import("./pages/admin/Overview"));
+
 const AdminAlerts = lazy(() => import("./pages/admin/Alerts"));
 const AdminBookings = lazy(() => import("./pages/admin/Bookings"));
 const AdminBookingDetail = lazy(() => import("./pages/admin/BookingDetail"));
@@ -186,7 +186,7 @@ const App = () => (
                 <Route path="/details/:id" element={<Navigate to="/search" replace />} />
 
                 {/* Admin Routes - Protected & Lazy */}
-                <Route path="/admin" element={<AdminProtectedRoute><AdminOverview /></AdminProtectedRoute>} />
+                <Route path="/admin" element={<Navigate to="/admin/alerts" replace />} />
                 <Route path="/admin/alerts" element={<AdminProtectedRoute><AdminAlerts /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings" element={<AdminProtectedRoute><AdminBookings /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings/:bookingId" element={<AdminProtectedRoute><AdminBookingDetail /></AdminProtectedRoute>} />
