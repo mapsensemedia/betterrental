@@ -153,6 +153,7 @@ export default function BookingDetail() {
   const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const [isGeneratingAgreement, setIsGeneratingAgreement] = useState(false);
+  const [viewingAgreement, setViewingAgreement] = useState<any | null>(null);
   const updateStatus = useUpdateBookingStatus();
   const queryClient = useQueryClient();
 
