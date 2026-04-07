@@ -269,7 +269,7 @@ export default function Finance() {
 // Tab 1 — Overview (formerly PaymentDashboard)
 // ═══════════════════════════════════════════════════
 
-function OverviewTab() {
+function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => void }) {
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
   const [customEnd, setCustomEnd] = useState<Date>(new Date());
