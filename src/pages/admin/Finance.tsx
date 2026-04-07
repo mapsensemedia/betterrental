@@ -188,6 +188,10 @@ function getDateRange(range: DateRange): { start: Date; end: Date } {
       return { start: startOfMonth(now), end: endOfDay(now) };
     case "last30":
       return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
+    case "all":
+      return { start: new Date("2024-01-01T00:00:00"), end: endOfDay(now) };
+    case "custom":
+      return { start: startOfMonth(now), end: endOfDay(now) };
   }
 }
 
