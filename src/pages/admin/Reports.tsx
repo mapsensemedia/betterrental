@@ -804,8 +804,8 @@ export default function AdminReports() {
                       <span className="text-lg font-bold">${fleetStats.totalRevenue.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Active Vehicles</span>
-                      <span className="text-lg font-bold">{fleetStats.activeVehicles}</span>
+                      <span className="text-sm text-muted-foreground">Rentable Vehicles</span>
+                      <span className="text-lg font-bold">{fleetStats.rentableUnits}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Total Fleet</span>
