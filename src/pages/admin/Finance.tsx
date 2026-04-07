@@ -216,6 +216,26 @@ export default function Finance() {
   const topTab = searchParams.get("tab") || "overview";
   const [methodFilter, setMethodFilter] = useState<string | null>(searchParams.get("method") || null);
 
+  // Lift dateRange to URL for persistence across navigation
+  const dateRange = (searchParams.get("range") || "month") as DateRange;
+  const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
+  const [customEnd, setCustomEnd] = useState<Date>(new Date());
+
+  const setDateRange = (range: DateRange) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("range", range);
+      return next;
+    }, { replace: true });
+  };
+
+  const { start: dateStart, end: dateEnd } = useMemo(() =>
+    dateRange === "custom"
+      ? { start: startOfDay(customStart), end: endOfDay(customEnd) }
+      : getDateRange(dateRange),
+    [dateRange, customStart, customEnd]
+  );
+
   const setTopTab = (tab: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -254,11 +274,21 @@ export default function Finance() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
-            <OverviewTab onMethodClick={handleMethodClick} />
+            <OverviewTab
+              onMethodClick={handleMethodClick}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              start={dateStart}
+              end={dateEnd}
+              customStart={customStart}
+              customEnd={customEnd}
+              setCustomStart={setCustomStart}
+              setCustomEnd={setCustomEnd}
+            />
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
-            <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} />
+            <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} dateStart={dateStart} dateEnd={dateEnd} />
           </TabsContent>
         </Tabs>
       </div>
@@ -270,17 +300,17 @@ export default function Finance() {
 // Tab 1 — Overview (formerly PaymentDashboard)
 // ═══════════════════════════════════════════════════
 
-function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => void }) {
-  const [dateRange, setDateRange] = useState<DateRange>("month");
-  const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
-  const [customEnd, setCustomEnd] = useState<Date>(new Date());
-
-  const { start, end } = useMemo(() =>
-    dateRange === "custom"
-      ? { start: startOfDay(customStart), end: endOfDay(customEnd) }
-      : getDateRange(dateRange),
-    [dateRange, customStart, customEnd]
-  );
+function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, customStart, customEnd, setCustomStart, setCustomEnd }: {
+  onMethodClick?: (method: string) => void;
+  dateRange: DateRange;
+  setDateRange: (range: DateRange) => void;
+  start: Date;
+  end: Date;
+  customStart: Date;
+  customEnd: Date;
+  setCustomStart: (d: Date) => void;
+  setCustomEnd: (d: Date) => void;
+}) {
 
   // Source A — payments table (primary, renders immediately)
   const { data: paymentsOnly = [], isLoading, refetch } = useQuery({
@@ -917,7 +947,7 @@ function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => vo
 // Tab 2 — Transactions (formerly Billing)
 // ═══════════════════════════════════════════════════
 
-function TransactionsTab({ methodFilter, onClearMethodFilter }: { methodFilter?: string | null; onClearMethodFilter?: () => void }) {
+function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd }: { methodFilter?: string | null; onClearMethodFilter?: () => void; dateStart: Date; dateEnd: Date }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1065,12 +1095,17 @@ function TransactionsTab({ methodFilter, onClearMethodFilter }: { methodFilter?:
 
   // ==================== PAYMENTS (combined) ====================
   const { data: payments = [], isLoading: paymentsLoading } = useQuery({
-    queryKey: ["admin-payments"],
+    queryKey: ["admin-payments", dateStart.toISOString(), dateEnd.toISOString()],
     queryFn: async () => {
-      // Fetch all payments (no limit cap — paginate if needed later)
+      const startISO = dateStart.toISOString();
+      const endISO = dateEnd.toISOString();
+
+      // Fetch payments within date range
       const { data: manualPayments, error: pErr } = await supabase
         .from("payments")
         .select(`*, booking:bookings(booking_code, user_id)`)
+        .gte("created_at", startISO)
+        .lte("created_at", endISO)
         .order("created_at", { ascending: false });
       if (pErr) throw pErr;
 
@@ -1078,6 +1113,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter }: { methodFilter?:
         .from("bookings")
         .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id, customer_id")
         .not("wl_transaction_id", "is", null)
+        .gte("created_at", startISO)
+        .lte("created_at", endISO)
         .order("created_at", { ascending: false });
       if (wlErr) throw wlErr;
 
@@ -1085,6 +1122,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter }: { methodFilter?:
         .from("bookings")
         .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id, customer_id")
         .not("wl_deposit_transaction_id", "is", null)
+        .gte("created_at", startISO)
+        .lte("created_at", endISO)
         .order("created_at", { ascending: false });
       if (wlDErr) throw wlDErr;
 
