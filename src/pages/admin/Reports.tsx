@@ -183,6 +183,7 @@ export default function AdminReports() {
   const [isQuarterlyOpen, setIsQuarterlyOpen] = useState(false);
   
   const [auditSearch, setAuditSearch] = useState("");
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>("important");
   const [entityFilter, setEntityFilter] = useState<string>("all");
 
   // ── Unified filter state (shared across all tabs + metric cards) ──
