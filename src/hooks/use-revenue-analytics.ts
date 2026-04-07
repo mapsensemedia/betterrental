@@ -415,7 +415,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
           const d = new Date(b.start_at);
           return d >= weekStart && d <= weekEndDate;
         });
-        revenueTrend.push({ date: format(weekStart, "MMM d"), revenue: weekBookings.reduce((s, b) => s + b.total_amount, 0), bookings: weekBookings.length });
+        revenueTrend.push({ date: format(weekStart, "MMM d"), revenue: weekBookings.reduce((s, b) => s + (paidMap.get(b.id) || 0), 0), bookings: weekBookings.length });
         addOnTrend.push({ date: format(weekStart, "MMM d"), revenue: computeExtrasForBookings(weekBookings), bookings: weekBookings.length });
       });
     } else {
