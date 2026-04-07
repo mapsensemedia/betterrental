@@ -168,6 +168,7 @@ export function useAdminBookings(filters: BookingFilters = {}) {
           wlTransactionId: b.wl_transaction_id || null,
           wlAuthStatus: b.wl_auth_status || null,
           depositStatus: b.deposit_status || null,
+          hasPaidPayment: paidBookingIds.has(b.id),
           locationId: b.location_id,
           vehicle: category ? {
             id: category.id,
