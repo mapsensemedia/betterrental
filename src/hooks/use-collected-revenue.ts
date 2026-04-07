@@ -133,7 +133,8 @@ export function useCollectedRevenue(startDate: Date, endDate: Date): CollectedRe
         .select("id, total_amount, wl_transaction_id")
         .in("status", ["confirmed", "active", "completed"])
         .gte("start_at", start)
-        .lte("start_at", end);
+        .lte("start_at", end)
+        .lte("start_at", new Date().toISOString());
       if (error) throw error;
       if (!allBookings?.length) return 0;
 

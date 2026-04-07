@@ -28,6 +28,9 @@ export interface BookingWithDetails {
   vehicleId: string;
   locationId: string;
   // Joined data
+  wlTransactionId: string | null;
+  wlAuthStatus: string | null;
+  depositStatus: string | null;
   vehicle: {
     id: string;
     make: string;
@@ -155,6 +158,9 @@ export function useAdminBookings(filters: BookingFilters = {}) {
           updatedAt: b.updated_at,
           userId: b.user_id,
           vehicleId: b.vehicle_id,
+          wlTransactionId: b.wl_transaction_id || null,
+          wlAuthStatus: b.wl_auth_status || null,
+          depositStatus: b.deposit_status || null,
           locationId: b.location_id,
           vehicle: category ? {
             id: category.id,

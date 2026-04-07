@@ -260,7 +260,7 @@ export default function Finance() {
 // ═══════════════════════════════════════════════════
 
 function OverviewTab() {
-  const [dateRange, setDateRange] = useState<DateRange>("last30");
+  const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
   const [customEnd, setCustomEnd] = useState<Date>(new Date());
 
@@ -329,7 +329,8 @@ function OverviewTab() {
         .select("id, booking_code, total_amount, user_id, customer_id, start_at, status, wl_transaction_id")
         .in("status", ["confirmed", "active", "completed"])
         .gte("start_at", start.toISOString())
-        .lte("start_at", end.toISOString());
+        .lte("start_at", end.toISOString())
+        .lte("start_at", new Date().toISOString());
       if (bErr) throw bErr;
       if (!allBookings?.length) return [];
 
