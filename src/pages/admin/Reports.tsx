@@ -539,11 +539,13 @@ export default function AdminReports() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Cart Abandonment</span>
                       <span className="text-lg font-bold text-destructive">
-                        {funnelStats.find(s => s.key === "checkout_started")?.count || 0 > 0
-                          ? (((funnelStats.find(s => s.key === "checkout_started")?.count || 0) -
-                             (funnelStats.find(s => s.key === "booking_completed")?.count || 0)) /
-                             (funnelStats.find(s => s.key === "checkout_started")?.count || 1) * 100).toFixed(0)
-                          : 0}%
+                        {(() => {
+                          const checkoutCount = funnelStages[5]?.count || 0;
+                          const completedCount = funnelStages[7]?.count || 0;
+                          return checkoutCount > 0
+                            ? (((checkoutCount - completedCount) / checkoutCount) * 100).toFixed(0)
+                            : 0;
+                        })()}%
                       </span>
                     </div>
                   </div>
