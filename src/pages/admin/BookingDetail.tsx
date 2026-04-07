@@ -81,6 +81,64 @@ import {
   Ban,
 } from "lucide-react";
 
+function AssignedUnitDisplay({ unitId }: { unitId: string | null }) {
+  const { data: unit, isLoading } = useQuery({
+    queryKey: ["assigned-unit", unitId],
+    queryFn: async () => {
+      if (!unitId) return null;
+      const { data } = await supabase
+        .from("vehicle_units")
+        .select("vin, license_plate, color, status")
+        .eq("id", unitId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!unitId,
+  });
+
+  if (!unitId) {
+    return (
+      <div className="pt-2 border-t">
+        <p className="text-xs text-muted-foreground">No unit assigned</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="pt-2 border-t">
+        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!unit) return null;
+
+  return (
+    <div className="pt-2 border-t space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">Assigned Unit</p>
+      {unit.vin && (
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">VIN:</span>
+          <span className="font-mono text-xs">{unit.vin}</span>
+        </div>
+      )}
+      {unit.license_plate && (
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Plate:</span>
+          <span className="font-mono">{unit.license_plate}</span>
+        </div>
+      )}
+      {unit.color && (
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Color:</span>
+          <span>{unit.color}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BookingDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
@@ -466,7 +524,7 @@ export default function BookingDetail() {
                       )}
                     </div>
                     {/* Assigned Unit (VIN / Plate) */}
-                    <AssignedUnitInfo unitId={booking.assigned_unit_id} />
+                    <AssignedUnitDisplay unitId={booking.assigned_unit_id} />
                   </CardContent>
                 </Card>
 
@@ -1269,18 +1327,35 @@ export default function BookingDetail() {
                   <CardContent className="space-y-3">
                     {rentalAgreements.length > 0 ? (
                       rentalAgreements.map((agreement: any) => (
-                        <div key={agreement.id} className="flex items-center justify-between text-sm gap-2">
-                          <div className="min-w-0">
-                            <p className="font-medium">
-                              {agreement.customer_signed_at ? "Signed" : "Pending signature"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
+                        <div key={agreement.id} className="space-y-2 p-3 rounded-lg border">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {agreement.status === "extension" ? "Extension" : "Initial"}
+                              </Badge>
+                              {agreement.customer_signed_at ? (
+                                <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  Signed ✓
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
+                                  Pending Signature
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
                               {format(parseISO(agreement.created_at), "PP")}
-                            </p>
+                            </span>
                           </div>
-                          <Badge variant={agreement.customer_signed_at ? "default" : "secondary"}>
-                            {agreement.status}
-                          </Badge>
+                          {agreement.signature_png_url && (
+                            <Button variant="outline" size="sm" className="w-full" asChild>
+                              <a href={agreement.signature_png_url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="w-3 h-3 mr-2" />
+                                View Agreement
+                              </a>
+                            </Button>
+                          )}
                         </div>
                       ))
                     ) : (

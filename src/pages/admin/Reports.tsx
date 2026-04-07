@@ -94,11 +94,12 @@ const FUNNEL_STAGES = [
   { key: "booking_completed", label: "Completed" },
 ] as const;
 
-const DATE_PRESET_LABELS: Record<DatePreset, string> = {
+const DATE_PRESET_LABELS: Record<DatePreset | "all", string> = {
   "7d": "Last 7 Days",
   "30d": "Last 30 Days",
   "90d": "Last 90 Days",
   "mtd": "This Month",
+  "all": "All Time",
   "custom": "Custom Range",
 };
 
@@ -182,10 +183,11 @@ export default function AdminReports() {
   const [isQuarterlyOpen, setIsQuarterlyOpen] = useState(false);
   
   const [auditSearch, setAuditSearch] = useState("");
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>("important");
   const [entityFilter, setEntityFilter] = useState<string>("all");
 
   // ── Unified filter state (shared across all tabs + metric cards) ──
-  const [datePreset, setDatePreset] = useState<DatePreset>("30d");
+  const [datePreset, setDatePreset] = useState<DatePreset | "all">("30d");
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [channel, setChannel] = useState<BookingChannel>("all");
@@ -202,6 +204,7 @@ export default function AdminReports() {
       case "30d": return { start: subDays(now, 30), end: now };
       case "90d": return { start: subDays(now, 90), end: now };
       case "mtd": return { start: startOfMonth(now), end: now };
+      case "all": return { start: new Date("2024-01-01T00:00:00"), end: now };
       case "custom": return {
         start: customStartDate || subDays(now, 30),
         end: customEndDate || now,
@@ -287,6 +290,7 @@ export default function AdminReports() {
   const fleetStats = useMemo(() => {
     const activeRentals = activeBookingsCount;
     const totalVehicles = vehicleUnits.length;
+    const activeVehicles = vehicleUnits.filter(u => u.status === "available" || u.status === "on_rent").length;
     const availableVehicles = vehicleUnits.filter(u => u.status === "available").length;
 
     const utilizationRate = totalVehicles > 0
@@ -294,13 +298,14 @@ export default function AdminReports() {
       : 0;
 
     const totalRevenue = collectedRevenue;
-    const revenuePerVehicle = totalVehicles > 0
-      ? totalRevenue / totalVehicles
+    const revenuePerVehicle = activeVehicles > 0
+      ? totalRevenue / activeVehicles
       : 0;
 
     return {
       activeRentals,
       availableVehicles,
+      activeVehicles,
       totalVehicles,
       utilizationRate,
       revenuePerVehicle,
@@ -334,10 +339,15 @@ export default function AdminReports() {
 
   // Funnel stats
   const funnelStats = useMemo(() => {
-    return FUNNEL_STAGES.map((stage) => ({
+    const raw = FUNNEL_STAGES.map((stage) => ({
       ...stage,
       count: filteredEvents.filter((e) => e.event === stage.key).length,
     }));
+    // Enforce monotonically decreasing: each stage count <= previous
+    for (let i = 1; i < raw.length; i++) {
+      raw[i] = { ...raw[i], count: Math.min(raw[i].count, raw[i - 1].count) };
+    }
+    return raw;
   }, [filteredEvents]);
 
   const overallConversion = useMemo(() => {
@@ -389,9 +399,17 @@ export default function AdminReports() {
   }, [filteredEvents]);
 
   // Filter audit logs
+  const NOISE_ACTIONS = ["booking_created", "booking_updated", "photo_uploaded", "checkin_record_created", "verification_approved", "verification_rejected"];
+
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       if (entityFilter !== "all" && log.entityType !== entityFilter) return false;
+      // Category filter
+      if (auditCategoryFilter === "important" && NOISE_ACTIONS.includes(log.action)) return false;
+      if (auditCategoryFilter === "payments" && !/(payment|terminal|deposit)/.test(log.action)) return false;
+      if (auditCategoryFilter === "status" && !/(status|void|cancel)/.test(log.action)) return false;
+      if (auditCategoryFilter === "damage" && !/(damage|incident)/.test(log.action)) return false;
+      // auditCategoryFilter === "all" shows everything
       if (auditSearch) {
         const query = auditSearch.toLowerCase();
         const searchableText = [log.action, log.entityType, log.userName, log.userEmail].filter(Boolean).join(" ").toLowerCase();
@@ -399,7 +417,7 @@ export default function AdminReports() {
       }
       return true;
     });
-  }, [logs, entityFilter, auditSearch]);
+  }, [logs, entityFilter, auditSearch, auditCategoryFilter]);
 
   const entityTypes = useMemo(() => {
     const types = new Set(logs.map((l) => l.entityType));
@@ -521,8 +539,8 @@ export default function AdminReports() {
           <TabsContent value="revenue-addons">
             <RevenueAnalyticsTab
               filters={filters}
-              datePreset={datePreset}
-              onDatePresetChange={setDatePreset}
+              datePreset={datePreset === "all" ? "custom" : datePreset}
+              onDatePresetChange={(p) => setDatePreset(p)}
               onChannelChange={setChannel}
               onLocationIdChange={setLocationId}
               onCategoryIdChange={setCategoryId}
@@ -788,7 +806,7 @@ export default function AdminReports() {
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Revenue per Vehicle</span>
+                      <span className="text-sm text-muted-foreground">Avg Revenue / Active Vehicle</span>
                       <span className="text-lg font-bold">${fleetStats.revenuePerVehicle.toFixed(0)}</span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -796,7 +814,11 @@ export default function AdminReports() {
                       <span className="text-lg font-bold">${fleetStats.totalRevenue.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Fleet Size</span>
+                      <span className="text-sm text-muted-foreground">Active Vehicles</span>
+                      <span className="text-lg font-bold">{fleetStats.activeVehicles}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Fleet</span>
                       <span className="text-lg font-bold">{fleetStats.totalVehicles}</span>
                     </div>
                   </div>
@@ -818,6 +840,18 @@ export default function AdminReports() {
                   className="pl-9"
                 />
               </div>
+              <Select value={auditCategoryFilter} onValueChange={setAuditCategoryFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Action Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="important">Important Actions</SelectItem>
+                  <SelectItem value="payments">Payments</SelectItem>
+                  <SelectItem value="status">Status Changes</SelectItem>
+                  <SelectItem value="damage">Damage & Incidents</SelectItem>
+                  <SelectItem value="all">All Actions</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={entityFilter} onValueChange={setEntityFilter}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Entity Type" />

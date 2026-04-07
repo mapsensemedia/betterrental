@@ -24,6 +24,7 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
+  XCircle,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -213,9 +214,19 @@ function normalizeMethod(method: string | null): string {
 export default function Finance() {
   const [searchParams, setSearchParams] = useSearchParams();
   const topTab = searchParams.get("tab") || "overview";
+  const [methodFilter, setMethodFilter] = useState<string | null>(searchParams.get("method") || null);
 
   const setTopTab = (tab: string) => {
-    setSearchParams({ tab }, { replace: true });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tab);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleMethodClick = (method: string) => {
+    setMethodFilter(method);
+    setTopTab("transactions");
   };
 
   return (
@@ -243,11 +254,11 @@ export default function Finance() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
-            <OverviewTab />
+            <OverviewTab onMethodClick={handleMethodClick} />
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
-            <TransactionsTab />
+            <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} />
           </TabsContent>
         </Tabs>
       </div>
@@ -259,7 +270,7 @@ export default function Finance() {
 // Tab 1 — Overview (formerly PaymentDashboard)
 // ═══════════════════════════════════════════════════
 
-function OverviewTab() {
+function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => void }) {
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
   const [customEnd, setCustomEnd] = useState<Date>(new Date());
@@ -721,7 +732,13 @@ function OverviewTab() {
                 ) : (
                   <div className="space-y-2">
                     {methodBreakdown.map((m) => (
-                      <BreakdownRow key={m.method} label={m.method} amount={m.total} total={metrics.collected} count={m.count} />
+                      <button
+                        key={m.method}
+                        className="w-full text-left hover:bg-muted/50 rounded-lg transition-colors p-1 -m-1"
+                        onClick={() => onMethodClick?.(m.method)}
+                      >
+                        <BreakdownRow label={m.method} amount={m.total} total={metrics.collected} count={m.count} />
+                      </button>
                     ))}
                   </div>
                 )}
@@ -893,11 +910,12 @@ function OverviewTab() {
 // Tab 2 — Transactions (formerly Billing)
 // ═══════════════════════════════════════════════════
 
-function TransactionsTab() {
+function TransactionsTab({ methodFilter, onClearMethodFilter }: { methodFilter?: string | null; onClearMethodFilter?: () => void }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   
   // Read URL params for deep-linking from other pages
   const urlStatus = searchParams.get("status");
@@ -909,7 +927,7 @@ function TransactionsTab() {
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
   const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">(
-    urlStatus === "failed" || urlAdjustment === "damage" ? "payments" : "invoices"
+    methodFilter ? "payments" : urlStatus === "failed" || urlAdjustment === "damage" ? "payments" : "invoices"
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -1179,6 +1197,17 @@ function TransactionsTab() {
   });
 
   const filteredPayments = payments.filter((payment) => {
+    // Method filter from Overview click-through
+    if (methodFilter && normalizeMethod(payment.payment_method) !== methodFilter) return false;
+    // Type filter
+    if (typeFilter !== "all") {
+      const pt = payment.payment_type?.toLowerCase();
+      if (typeFilter === "rental" && !["rental", "pac", "p"].includes(pt)) return false;
+      if (typeFilter === "deposit" && pt !== "deposit") return false;
+      if (typeFilter === "extension" && pt !== "extension") return false;
+      if (typeFilter === "damage" && pt !== "damage") return false;
+      if (typeFilter === "refund" && pt !== "refund") return false;
+    }
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return payment.booking?.booking_code?.toLowerCase().includes(s) || payment.booking?.profile?.full_name?.toLowerCase().includes(s) || payment.transaction_id?.toLowerCase().includes(s);
@@ -1370,6 +1399,33 @@ function TransactionsTab() {
                   <SelectItem value="voided">Voided</SelectItem>
                 </SelectContent>
               </Select>
+            )}
+            {activeTab === "payments" && (
+              <div className="flex items-center gap-2">
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="rental">Rental</SelectItem>
+                    <SelectItem value="deposit">Deposit</SelectItem>
+                    <SelectItem value="extension">Extension</SelectItem>
+                    <SelectItem value="damage">Damage</SelectItem>
+                    <SelectItem value="refund">Refund</SelectItem>
+                  </SelectContent>
+                </Select>
+                {methodFilter && (
+                  <div className="flex items-center gap-1">
+                    <Badge variant="secondary" className="text-xs">
+                      Method: {methodFilter}
+                    </Badge>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClearMethodFilter}>
+                      <XCircle className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

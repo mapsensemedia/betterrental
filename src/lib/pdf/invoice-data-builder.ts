@@ -98,6 +98,7 @@ export async function buildInvoicePdfData(
     { data: drivers },
     { data: pickupLoc },
     { data: returnLoc },
+    { data: paymentRows },
     driverFees,
   ] = await Promise.all([
     supabase.from("profiles").select("full_name, email, phone").eq("id", booking.user_id).maybeSingle(),
@@ -108,6 +109,10 @@ export async function buildInvoicePdfData(
     booking.return_location_id
       ? supabase.from("locations").select("name, address, city").eq("id", booking.return_location_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase.from("payments")
+      .select("amount, payment_type, status, transaction_id, payment_method, created_at")
+      .eq("booking_id", bookingId)
+      .in("status", ["completed", "captured"]),
     fetchDriverFeeSettings(),
   ]);
 
@@ -247,6 +252,9 @@ export async function buildInvoicePdfData(
   // Location formatting
   const fmtLoc = (loc: any) => loc ? `${loc.name}${loc.address ? `, ${loc.address}` : ""}${loc.city ? `, ${loc.city}` : ""}` : undefined;
 
+  // Calculate actual payments collected from payments table
+  const actualPaymentsCollected = (paymentRows || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
   return {
     invoiceNumber: invoice.invoice_number,
     status: invoice.status || "draft",
@@ -277,8 +285,10 @@ export async function buildInvoicePdfData(
     lateFees: Number(invoice.late_fees || 0),
     damageCharges: Number(invoice.damage_charges || 0),
     grandTotal: fromCents(dbTotalCents),
-    paymentsReceived: Number(invoice.payments_received || 0),
-    amountDue: Number(invoice.amount_due || 0),
+    paymentsReceived: actualPaymentsCollected > 0 ? actualPaymentsCollected : Number(invoice.payments_received || 0),
+    amountDue: actualPaymentsCollected > 0
+      ? Math.max(0, fromCents(dbTotalCents) - actualPaymentsCollected)
+      : Number(invoice.amount_due || 0),
     depositHeld: Number(invoice.deposit_held || 0),
     depositReleased: Number(invoice.deposit_released || 0),
     depositCaptured: Number(invoice.deposit_captured || 0),
