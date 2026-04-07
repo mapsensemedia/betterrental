@@ -1,67 +1,46 @@
 
 
-## Fix Fleet Utilization — Stale `on_rent` Status
+## Remove Activity Tab from Reports Page
 
-### Root Cause
+### Changes — `src/pages/admin/Reports.tsx`
 
-The `vehicle_units.status` column has 11 units stuck as `on_rent` because the status was never reset when those bookings ended. Only 3 units actually have active bookings. The Reports page trusts this stale status, showing 11 "On Rent" instead of 3.
+**1. Remove imports (line 68)**
+- Delete `useAuditLogs, useAuditStats, type AuditLog` import from `@/hooks/use-audit-logs`
+- Remove `formatDistanceToNow` from date-fns import (only used by AuditLogItem)
 
-### Fix — `src/pages/admin/Reports.tsx`
+**2. Remove unused icon imports (line 15-45)**
+- Remove icons only used by audit: `History`, `User`, `ChevronDown`, `ChevronUp` (verify none used elsewhere first)
+- Remove `Collapsible, CollapsibleContent, CollapsibleTrigger` imports (lines 53-63) if only used by AuditLogItem
 
-**1. Add a query for active bookings with assigned units** (after the vehicle_units query, ~line 242):
+**3. Remove constants and components (lines 106-178)**
+- Delete `ACTION_CONFIG` object
+- Delete `getActionConfig` function
+- Delete `formatActionLabel` function
+- Delete `AuditLogItem` component
 
-```typescript
-const { data: activeRentalUnitIds = [] } = useQuery({
-  queryKey: ["active-rental-units-for-reports"],
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("assigned_unit_id")
-      .eq("status", "active")
-      .not("assigned_unit_id", "is", null);
-    if (error) throw error;
-    return (data || []).map(b => b.assigned_unit_id);
-  },
-  staleTime: 60_000,
-});
-```
+**4. Remove state variables (lines 185-187)**
+- Delete `auditSearch`, `auditCategoryFilter`, `entityFilter` state declarations
 
-**2. Rewrite fleetStats useMemo** (lines 276-300) to derive "on rent" from active bookings, not stale unit status:
+**5. Remove data hooks (lines 228-229)**
+- Delete `useAuditLogs` call (`logs`, `logsLoading`, `refetchLogs`)
+- Delete `useAuditStats` call (`auditStats`)
 
-```typescript
-const fleetStats = useMemo(() => {
-  const totalVehicles = vehicleUnits.length;
-  const activeRentalSet = new Set(activeRentalUnitIds);
-  
-  // "On rent" = units with an active booking (source of truth)
-  const rentedUnits = vehicleUnits.filter(u => activeRentalSet.has(u.id)).length;
-  // Maintenance/damage from unit status (reliable — set manually)
-  const maintenanceUnits = vehicleUnits.filter(u => 
-    u.status === "maintenance" || u.status === "damage"
-  ).length;
-  // Available = total minus rented minus maintenance
-  const availableUnits = totalVehicles - rentedUnits - maintenanceUnits;
+**6. Remove derived data (lines 408-432)**
+- Delete `NOISE_ACTIONS` constant
+- Delete `filteredLogs` useMemo
+- Delete `entityTypes` useMemo
 
-  const rentableUnits = rentedUnits + availableUnits;
-  const utilizationRate = rentableUnits > 0
-    ? (rentedUnits / rentableUnits) * 100 : 0;
-  const revenuePerVehicle = collectedRevenue / (rentableUnits || 1);
+**7. Remove tab trigger (lines 535-538)**
+- Delete the `<TabsTrigger value="audit">Activity</TabsTrigger>`
 
-  return { totalVehicles, rentedUnits, availableUnits, maintenanceUnits,
-           rentableUnits, utilizationRate, revenuePerVehicle,
-           totalRevenue: collectedRevenue };
-}, [vehicleUnits, activeRentalUnitIds, collectedRevenue]);
-```
+**8. Remove tab content (lines 841-909)**
+- Delete the entire `<TabsContent value="audit">` block
 
-### Why this approach
-- `vehicle_units.status` is unreliable for "on rent" (gets stuck due to edge function bugs)
-- `bookings.status = 'active'` is the authoritative source for what's currently rented
-- Maintenance/damage status is still read from `vehicle_units.status` (set manually by staff, reliable)
+**9. Update subtitle (line 445)**
+- Change "Revenue, conversions, fleet utilization & activity logs" → "Revenue, conversions & fleet utilization"
 
 ### Files
 | File | Change |
 |------|--------|
-| `src/pages/admin/Reports.tsx` | Add active bookings query + rewrite fleetStats to derive on-rent from bookings |
-
-No database or edge function changes.
+| `src/pages/admin/Reports.tsx` | Remove Activity tab, its component, hooks, state, and constants |
 
