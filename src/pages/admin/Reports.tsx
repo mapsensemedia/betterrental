@@ -42,7 +42,6 @@ import {
   Wallet,
   Percent,
   CalendarDays,
-  Info,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -361,6 +360,7 @@ export default function AdminReports() {
   const revenueStats = useMemo(() => {
     return {
       totalRevenue: collectedRevenue,
+      billedRevenue: rentalMetrics.totalRentalBaseRevenue,
       avgBookingValue: rentalMetrics.averageRentalPrice,
       avgDuration: rentalMetrics.averageDays,
       totalBookings: rentalMetrics.totalBookings,
@@ -461,10 +461,7 @@ export default function AdminReports() {
                   <p className="text-2xl font-bold">
                     ${collectedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    Collected — {periodLabel}
-                    <span title="Sum of completed & captured payments only" className="cursor-help"><Info className="w-3 h-3" /></span>
-                  </p>
+                  <p className="text-xs text-muted-foreground">Collected — {periodLabel}</p>
                 </div>
               </div>
             </CardContent>
@@ -562,13 +559,10 @@ export default function AdminReports() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-muted-foreground" />
-                    Collected Revenue
-                    <span title="Sum of completed & captured payments only. Does not include pending, authorized, or future bookings." className="cursor-help text-muted-foreground">
-                      <Info className="w-3.5 h-3.5" />
-                    </span>
+                    <Wallet className="w-4 h-4 text-muted-foreground" />
+                    Billed Revenue
                   </CardTitle>
-                  <CardDescription>Money actually received ({periodLabel})</CardDescription>
+                  <CardDescription>Total invoiced amount ({periodLabel})</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
@@ -577,8 +571,8 @@ export default function AdminReports() {
                       <span className="text-lg font-bold">{revenueStats.totalBookings}</span>
                     </div>
                     <div className="flex items-center justify-between border-t pt-3">
-                      <span className="text-sm text-muted-foreground">Collected</span>
-                      <span className="text-xl font-bold text-success">${revenueStats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-sm text-muted-foreground">Revenue</span>
+                      <span className="text-xl font-bold text-primary">${revenueStats.totalRevenue.toLocaleString()}</span>
                     </div>
                   </div>
                 </CardContent>
