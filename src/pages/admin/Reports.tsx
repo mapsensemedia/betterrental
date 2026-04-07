@@ -187,7 +187,7 @@ export default function AdminReports() {
   const [entityFilter, setEntityFilter] = useState<string>("all");
 
   // ── Unified filter state (shared across all tabs + metric cards) ──
-  const [datePreset, setDatePreset] = useState<DatePreset>("30d");
+  const [datePreset, setDatePreset] = useState<DatePreset | "all">("30d");
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [channel, setChannel] = useState<BookingChannel>("all");
