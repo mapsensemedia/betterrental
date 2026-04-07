@@ -122,8 +122,6 @@ export default function AdminReports() {
 
   // ── Data hooks ──
   const { data: locations } = useLocations();
-  const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useAuditLogs({ limit: 100 });
-  const { data: auditStats } = useAuditStats();
   // Fleet: query vehicle_units for real fleet size
   const { data: vehicleUnits = [] } = useQuery({
     queryKey: ["fleet-units-for-reports"],
