@@ -204,6 +204,7 @@ export default function AdminReports() {
       case "30d": return { start: subDays(now, 30), end: now };
       case "90d": return { start: subDays(now, 90), end: now };
       case "mtd": return { start: startOfMonth(now), end: now };
+      case "all": return { start: new Date("2024-01-01T00:00:00"), end: now };
       case "custom": return {
         start: customStartDate || subDays(now, 30),
         end: customEndDate || now,
