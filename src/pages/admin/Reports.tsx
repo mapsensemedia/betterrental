@@ -40,8 +40,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { useAnalyticsEvents } from "@/hooks/use-analytics-events";
 import { useLocations } from "@/hooks/use-locations";
-import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
-import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth, parseISO, differenceInDays } from "date-fns";
+import { format, subDays, startOfDay, eachDayOfInterval, startOfMonth } from "date-fns";
 import { RevenueAnalyticsTab, type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
 import { QuarterlyReportGenerator } from "@/components/admin/QuarterlyReportGenerator";
 import { DemandForecastingTab } from "@/components/admin/DemandForecastingTab";
