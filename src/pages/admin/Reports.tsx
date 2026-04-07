@@ -806,7 +806,7 @@ export default function AdminReports() {
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Revenue per Vehicle</span>
+                      <span className="text-sm text-muted-foreground">Avg Revenue / Active Vehicle</span>
                       <span className="text-lg font-bold">${fleetStats.revenuePerVehicle.toFixed(0)}</span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -814,7 +814,11 @@ export default function AdminReports() {
                       <span className="text-lg font-bold">${fleetStats.totalRevenue.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Fleet Size</span>
+                      <span className="text-sm text-muted-foreground">Active Vehicles</span>
+                      <span className="text-lg font-bold">{fleetStats.activeVehicles}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Fleet</span>
                       <span className="text-lg font-bold">{fleetStats.totalVehicles}</span>
                     </div>
                   </div>
