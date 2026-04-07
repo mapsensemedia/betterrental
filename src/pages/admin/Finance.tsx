@@ -1095,12 +1095,17 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
   // ==================== PAYMENTS (combined) ====================
   const { data: payments = [], isLoading: paymentsLoading } = useQuery({
-    queryKey: ["admin-payments"],
+    queryKey: ["admin-payments", dateStart.toISOString(), dateEnd.toISOString()],
     queryFn: async () => {
-      // Fetch all payments (no limit cap — paginate if needed later)
+      const startISO = dateStart.toISOString();
+      const endISO = dateEnd.toISOString();
+
+      // Fetch payments within date range
       const { data: manualPayments, error: pErr } = await supabase
         .from("payments")
         .select(`*, booking:bookings(booking_code, user_id)`)
+        .gte("created_at", startISO)
+        .lte("created_at", endISO)
         .order("created_at", { ascending: false });
       if (pErr) throw pErr;
 
@@ -1108,6 +1113,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
         .from("bookings")
         .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id, customer_id")
         .not("wl_transaction_id", "is", null)
+        .gte("created_at", startISO)
+        .lte("created_at", endISO)
         .order("created_at", { ascending: false });
       if (wlErr) throw wlErr;
 
@@ -1115,6 +1122,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
         .from("bookings")
         .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id, customer_id")
         .not("wl_deposit_transaction_id", "is", null)
+        .gte("created_at", startISO)
+        .lte("created_at", endISO)
         .order("created_at", { ascending: false });
       if (wlDErr) throw wlDErr;
 
