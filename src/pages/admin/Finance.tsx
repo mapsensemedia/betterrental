@@ -1196,6 +1196,17 @@ function TransactionsTab({ methodFilter, onClearMethodFilter }: { methodFilter?:
   });
 
   const filteredPayments = payments.filter((payment) => {
+    // Method filter from Overview click-through
+    if (methodFilter && normalizeMethod(payment.payment_method) !== methodFilter) return false;
+    // Type filter
+    if (typeFilter !== "all") {
+      const pt = payment.payment_type?.toLowerCase();
+      if (typeFilter === "rental" && !["rental", "pac", "p"].includes(pt)) return false;
+      if (typeFilter === "deposit" && pt !== "deposit") return false;
+      if (typeFilter === "extension" && pt !== "extension") return false;
+      if (typeFilter === "damage" && pt !== "damage") return false;
+      if (typeFilter === "refund" && pt !== "refund") return false;
+    }
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return payment.booking?.booking_code?.toLowerCase().includes(s) || payment.booking?.profile?.full_name?.toLowerCase().includes(s) || payment.transaction_id?.toLowerCase().includes(s);
