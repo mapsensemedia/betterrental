@@ -98,6 +98,7 @@ export async function buildInvoicePdfData(
     { data: drivers },
     { data: pickupLoc },
     { data: returnLoc },
+    { data: paymentRows },
     driverFees,
   ] = await Promise.all([
     supabase.from("profiles").select("full_name, email, phone").eq("id", booking.user_id).maybeSingle(),
@@ -108,6 +109,10 @@ export async function buildInvoicePdfData(
     booking.return_location_id
       ? supabase.from("locations").select("name, address, city").eq("id", booking.return_location_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase.from("payments")
+      .select("amount, payment_type, status, transaction_id, payment_method, created_at")
+      .eq("booking_id", bookingId)
+      .in("status", ["completed", "captured"]),
     fetchDriverFeeSettings(),
   ]);
 
