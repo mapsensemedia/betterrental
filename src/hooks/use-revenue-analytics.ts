@@ -357,7 +357,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     filteredBookings.forEach(b => {
       const channel = (b.booking_source || "online") as "online" | "walk_in";
       const key = channel === "walk_in" ? "walk_in" : "online";
-      channelStats[key].revenue += b.total_amount;
+      channelStats[key].revenue += paidMap.get(b.id) || 0;
       channelStats[key].bookings++;
 
       const tableAddOns = addOnsByBooking.get(b.id) || [];
