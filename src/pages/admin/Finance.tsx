@@ -213,9 +213,19 @@ function normalizeMethod(method: string | null): string {
 export default function Finance() {
   const [searchParams, setSearchParams] = useSearchParams();
   const topTab = searchParams.get("tab") || "overview";
+  const [methodFilter, setMethodFilter] = useState<string | null>(searchParams.get("method") || null);
 
   const setTopTab = (tab: string) => {
-    setSearchParams({ tab }, { replace: true });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tab);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleMethodClick = (method: string) => {
+    setMethodFilter(method);
+    setTopTab("transactions");
   };
 
   return (
@@ -243,11 +253,11 @@ export default function Finance() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
-            <OverviewTab />
+            <OverviewTab onMethodClick={handleMethodClick} />
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
-            <TransactionsTab />
+            <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} />
           </TabsContent>
         </Tabs>
       </div>
