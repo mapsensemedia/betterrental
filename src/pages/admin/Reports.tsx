@@ -6,7 +6,7 @@
  * is managed here and passed down to all tabs and metric cards.
  */
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+
 import { AdminShell } from "@/components/layout/AdminShell";
 import { ConversionFunnel } from "@/components/admin/ConversionFunnel";
 import { useAdminVehicles } from "@/hooks/use-inventory";
@@ -16,28 +16,9 @@ import {
   BarChart3,
   TrendingUp,
   Eye,
-  MousePointerClick,
-  ShoppingCart,
-  CheckCircle,
-  AlertTriangle,
   RefreshCw,
-  Trash2,
-  Search,
-  Shield,
-  Gift,
-  CreditCard,
-  ArrowRight,
-  MapPin,
-  History,
-  Filter,
-  User,
-  Clock,
   FileText,
   Car,
-  Camera,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
   DollarSign,
   Wallet,
   Percent,
@@ -45,10 +26,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   ChartConfig,
@@ -56,17 +34,10 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line } from "recharts";
 import { useAnalyticsEvents } from "@/hooks/use-analytics-events";
 import { useLocations } from "@/hooks/use-locations";
-import { useAuditLogs, useAuditStats, type AuditLog } from "@/hooks/use-audit-logs";
-import { format, formatDistanceToNow, subDays, isAfter, startOfDay, eachDayOfInterval, isToday, startOfWeek, startOfMonth, parseISO, differenceInDays } from "date-fns";
+import { format, subDays, startOfDay, eachDayOfInterval, startOfMonth } from "date-fns";
 import { RevenueAnalyticsTab, type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
 import { QuarterlyReportGenerator } from "@/components/admin/QuarterlyReportGenerator";
 import { DemandForecastingTab } from "@/components/admin/DemandForecastingTab";
@@ -103,88 +74,11 @@ const DATE_PRESET_LABELS: Record<DatePreset | "all", string> = {
   "custom": "Custom Range",
 };
 
-// Audit log action config
-const ACTION_CONFIG: Record<string, { icon: typeof History; color: string; bgColor: string }> = {
-  booking_created: { icon: FileText, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  booking_status_change: { icon: Clock, color: "text-amber-500", bgColor: "bg-amber-500/10" },
-  booking_updated: { icon: FileText, color: "text-blue-500", bgColor: "bg-blue-500/10" },
-  payment_received: { icon: CreditCard, color: "text-green-500", bgColor: "bg-green-500/10" },
-  payment_created: { icon: CreditCard, color: "text-green-500", bgColor: "bg-green-500/10" },
-  verification_approved: { icon: Shield, color: "text-green-500", bgColor: "bg-green-500/10" },
-  verification_rejected: { icon: Shield, color: "text-destructive", bgColor: "bg-destructive/10" },
-  vehicle_assigned: { icon: Car, color: "text-purple-500", bgColor: "bg-purple-500/10" },
-  photo_uploaded: { icon: Camera, color: "text-pink-500", bgColor: "bg-pink-500/10" },
-  damage_reported: { icon: AlertTriangle, color: "text-destructive", bgColor: "bg-destructive/10" },
-  receipt_created: { icon: CreditCard, color: "text-emerald-500", bgColor: "bg-emerald-500/10" },
-  default: { icon: History, color: "text-muted-foreground", bgColor: "bg-muted" },
-};
-
-function getActionConfig(action: string) {
-  return ACTION_CONFIG[action] || ACTION_CONFIG.default;
-}
-
-function formatActionLabel(action: string): string {
-  return action.split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
-}
-
-// Audit log item component
-function AuditLogItem({ log }: { log: AuditLog }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const config = getActionConfig(log.action);
-  const Icon = config.icon;
-  const hasChanges = log.oldData || log.newData;
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="border rounded-lg bg-card hover:bg-muted/30 transition-colors">
-        <CollapsibleTrigger asChild>
-          <button className="w-full p-3 flex items-start gap-3 text-left">
-            <div className={`w-8 h-8 rounded-lg ${config.bgColor} flex items-center justify-center shrink-0`}>
-              <Icon className={`w-4 h-4 ${config.color}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-sm">{formatActionLabel(log.action)}</span>
-                <Badge variant="outline" className="text-xs">{log.entityType}</Badge>
-              </div>
-              <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                <span>{log.userName || log.userEmail || "System"}</span>
-                <span>{formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}</span>
-              </div>
-            </div>
-            {hasChanges && (
-              <div className="shrink-0">
-                {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-              </div>
-            )}
-          </button>
-        </CollapsibleTrigger>
-        {hasChanges && (
-          <CollapsibleContent>
-            <div className="px-3 pb-3 pt-0 border-t">
-              <div className="pt-3 text-xs font-mono space-y-1">
-                {log.newData && Object.entries(log.newData).slice(0, 5).map(([key, val]) => (
-                  <div key={key}>
-                    <span className="text-muted-foreground">{key}:</span>{" "}
-                    <span className="text-green-600">{JSON.stringify(val)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CollapsibleContent>
-        )}
-      </div>
-    </Collapsible>
-  );
-}
 
 export default function AdminReports() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isQuarterlyOpen, setIsQuarterlyOpen] = useState(false);
   
-  const [auditSearch, setAuditSearch] = useState("");
-  const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>("important");
-  const [entityFilter, setEntityFilter] = useState<string>("all");
 
   // ── Unified filter state (shared across all tabs + metric cards) ──
   const [datePreset, setDatePreset] = useState<DatePreset | "all">("30d");
@@ -225,8 +119,6 @@ export default function AdminReports() {
 
   // ── Data hooks ──
   const { data: locations } = useLocations();
-  const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useAuditLogs({ limit: 100 });
-  const { data: auditStats } = useAuditStats();
   // Fleet: query vehicle_units for real fleet size
   const { data: vehicleUnits = [] } = useQuery({
     queryKey: ["fleet-units-for-reports"],
@@ -322,7 +214,6 @@ export default function AdminReports() {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    refetchLogs();
     refetchAnalytics();
     setTimeout(() => {
       setIsRefreshing(false);
@@ -405,31 +296,6 @@ export default function AdminReports() {
       .slice(0, 6);
   }, [filteredEvents]);
 
-  // Filter audit logs
-  const NOISE_ACTIONS = ["booking_created", "booking_updated", "photo_uploaded", "checkin_record_created", "verification_approved", "verification_rejected"];
-
-  const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
-      if (entityFilter !== "all" && log.entityType !== entityFilter) return false;
-      // Category filter
-      if (auditCategoryFilter === "important" && NOISE_ACTIONS.includes(log.action)) return false;
-      if (auditCategoryFilter === "payments" && !/(payment|terminal|deposit)/.test(log.action)) return false;
-      if (auditCategoryFilter === "status" && !/(status|void|cancel)/.test(log.action)) return false;
-      if (auditCategoryFilter === "damage" && !/(damage|incident)/.test(log.action)) return false;
-      // auditCategoryFilter === "all" shows everything
-      if (auditSearch) {
-        const query = auditSearch.toLowerCase();
-        const searchableText = [log.action, log.entityType, log.userName, log.userEmail].filter(Boolean).join(" ").toLowerCase();
-        return searchableText.includes(query);
-      }
-      return true;
-    });
-  }, [logs, entityFilter, auditSearch, auditCategoryFilter]);
-
-  const entityTypes = useMemo(() => {
-    const types = new Set(logs.map((l) => l.entityType));
-    return Array.from(types).sort();
-  }, [logs]);
 
   const periodLabel = DATE_PRESET_LABELS[datePreset];
 
@@ -442,7 +308,7 @@ export default function AdminReports() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Revenue, conversions, fleet utilization & activity logs
+              Revenue, conversions & fleet utilization
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -531,10 +397,6 @@ export default function AdminReports() {
             <TabsTrigger value="fleet" className="gap-2">
               <Car className="w-4 h-4" />
               Fleet
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="gap-2">
-              <History className="w-4 h-4" />
-              Activity
             </TabsTrigger>
             <TabsTrigger value="demand" className="gap-2">
               <BarChart3 className="w-4 h-4" />
@@ -836,76 +698,6 @@ export default function AdminReports() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          {/* Audit Logs Tab */}
-          <TabsContent value="audit" className="space-y-4">
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search logs..."
-                  value={auditSearch}
-                  onChange={(e) => setAuditSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={auditCategoryFilter} onValueChange={setAuditCategoryFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Action Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="important">Important Actions</SelectItem>
-                  <SelectItem value="payments">Payments</SelectItem>
-                  <SelectItem value="status">Status Changes</SelectItem>
-                  <SelectItem value="damage">Damage & Incidents</SelectItem>
-                  <SelectItem value="all">All Actions</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={entityFilter} onValueChange={setEntityFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Entity Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Entities</SelectItem>
-                  {entityTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Logs List */}
-            <div className="space-y-2 max-h-[500px] overflow-y-auto">
-              {logsLoading ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <div key={idx} className="border rounded-lg p-3">
-                    <div className="flex items-start gap-3">
-                      <Skeleton className="w-8 h-8 rounded-lg" />
-                      <div className="flex-1 space-y-1">
-                        <Skeleton className="h-4 w-40" />
-                        <Skeleton className="h-3 w-28" />
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : filteredLogs.length > 0 ? (
-                filteredLogs.slice(0, 50).map((log) => <AuditLogItem key={log.id} log={log} />)
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <History className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                  <p>No audit logs found</p>
-                </div>
-              )}
-            </div>
-            {filteredLogs.length > 0 && (
-              <p className="text-xs text-muted-foreground text-center">
-                Showing {Math.min(filteredLogs.length, 50)} of {filteredLogs.length} logs
-              </p>
-            )}
           </TabsContent>
 
           <TabsContent value="demand">
