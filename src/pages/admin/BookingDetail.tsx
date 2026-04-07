@@ -81,6 +81,64 @@ import {
   Ban,
 } from "lucide-react";
 
+function AssignedUnitDisplay({ unitId }: { unitId: string | null }) {
+  const { data: unit, isLoading } = useQuery({
+    queryKey: ["assigned-unit", unitId],
+    queryFn: async () => {
+      if (!unitId) return null;
+      const { data } = await supabase
+        .from("vehicle_units")
+        .select("vin, license_plate, color, status")
+        .eq("id", unitId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!unitId,
+  });
+
+  if (!unitId) {
+    return (
+      <div className="pt-2 border-t">
+        <p className="text-xs text-muted-foreground">No unit assigned</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="pt-2 border-t">
+        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!unit) return null;
+
+  return (
+    <div className="pt-2 border-t space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">Assigned Unit</p>
+      {unit.vin && (
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">VIN:</span>
+          <span className="font-mono text-xs">{unit.vin}</span>
+        </div>
+      )}
+      {unit.license_plate && (
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Plate:</span>
+          <span className="font-mono">{unit.license_plate}</span>
+        </div>
+      )}
+      {unit.color && (
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">Color:</span>
+          <span>{unit.color}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BookingDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
