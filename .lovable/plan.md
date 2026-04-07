@@ -1,48 +1,34 @@
 
 
-## Fix Conversion Funnel — Use Bookings as Single Source of Truth
+## Fix Two Display Bugs in Booking Detail Page
 
-### Problem
-The funnel mixes analytics_events (browser tracking) with bookings table counts, producing impossible numbers (e.g., 35 completions from 15 checkout starts, >100% conversion rates, negative drop-offs).
+### Bug 1 — Inspection metrics showing raw JSON
 
-### Approach
-Rewrite the `ConversionFunnel` component to accept pre-computed stage counts derived entirely from the bookings/booking_add_ons/payments tables. Move all data fetching to `Reports.tsx` and pass clean numbers down.
+**Root cause**: The `exterior_notes` field on pickup inspections stores vehicle prep checklist data as JSON (from `useVehiclePrepStatus`), but `BookingDetail.tsx` renders it directly as text on lines 634-636 and 652-654.
 
-### Changes
+**Fix in `src/pages/admin/BookingDetail.tsx`**:
+- Replace the raw `{pickupInspection.exterior_notes}` and `{returnInspection.exterior_notes}` renders with a helper that:
+  1. Tries to parse the string as JSON
+  2. If it's a prep checklist object (keys like `fuel_verified`, `interior_clean`), render each entry as a formatted row with:
+     - Label: convert snake_case key to Title Case (e.g. `fuel_verified` → "Fuel Verified")
+     - Green checkmark icon if `checked: true`, red X if `checked: false`
+     - Formatted date/time from `checkedAt` if present
+  3. If parsing fails or it's plain text, render as-is (backward compatible)
 
-**1. `src/pages/admin/Reports.tsx` — Replace funnel data source**
+### Bug 2 — Agreement modal shows only signature link
 
-- Add a new query (`funnel-bookings-data`) that fetches all bookings in the date range (excluding cancelled for stage 1, but including cancelled for checkout stage):
-  ```sql
-  SELECT id, status, protection_plan FROM bookings
-  WHERE created_at >= start AND created_at <= end
-  ```
-- Add a query for booking_add_ons: count distinct booking_ids that have at least one add-on row
-- Add a query for payments: count distinct booking_ids that have at least one payment row
-- Compute 8 stage counts in a `useMemo`:
-  - Stage 1-3 (Search/Viewed/Selected): all non-cancelled bookings
-  - Stage 4 (Protection): bookings where `protection_plan != 'none'`
-  - Stage 5 (Add-ons): bookings with ≥1 booking_add_on row
-  - Stage 6 (Checkout): bookings with status in confirmed/active/completed/cancelled
-  - Stage 7 (Payment Attempted): bookings with ≥1 payment row
-  - Stage 8 (Completed): bookings with status in confirmed/active/completed
-- Enforce monotonic decreasing after calculation
-- Pass the computed stages array to `ConversionFunnel` instead of raw events
-- Remove `realBookingsCount` query (no longer needed separately)
-- Keep `analyticsEventsRaw` / `useAnalyticsEvents` if used elsewhere (Event Distribution chart still needs it)
+**Root cause**: The rental agreements query on line 256 only fetches `id, status, customer_signed_at, signature_png_url, created_at`. The "View Agreement" button (line 1352-1357) links directly to `signature_png_url` — opening just the signature image, not the agreement.
 
-**2. `src/components/admin/ConversionFunnel.tsx` — Simplify props and fix math**
-
-- Change props from `events + bookingsCount` to a single `stages` array: `{ label, count, icon }[]`
-- Remove all internal event filtering logic
-- Fix bar width: `width = (stage.count / stages[0].count) * 100`
-- Clamp conversion rate to 0-100%: `Math.min(100, Math.max(0, rate))`
-- Clamp drop-off rate to 0-100%
-- Empty state: show when `stages[0].count === 0` instead of `events.length === 0`
+**Fix in `src/pages/admin/BookingDetail.tsx`**:
+1. Expand the query (line 256) to also select `agreement_content, terms_json, customer_signature, staff_confirmed_at, signed_manually, agreement_type` 
+2. Replace the simple signature link button with a Dialog that opens on click
+3. Inside the Dialog, render the existing `AgreementStructuredView` component (already built and used elsewhere), passing the full agreement data
+4. If no `terms_json` is available, fall back to rendering `agreement_content` as formatted text
+5. Show signature image below the content if signed, or "Pending Signature" notice if not
+6. Add the `AgreementStructuredView` import at the top of the file
 
 ### Files
 | File | Change |
 |------|--------|
-| `src/pages/admin/Reports.tsx` | Add bookings-based funnel queries, compute stages, pass to component |
-| `src/components/admin/ConversionFunnel.tsx` | Accept pre-computed stages, fix bar width and rate calculations |
+| `src/pages/admin/BookingDetail.tsx` | Parse exterior_notes JSON into checklist UI; expand agreement query and add Dialog with full agreement view |
 
