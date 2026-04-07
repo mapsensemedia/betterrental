@@ -317,16 +317,21 @@ function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => vo
       const bookingMap = new Map((bookings || []).map((b) => [b.id, b]));
       const profileMap = new Map((profiles || []).map((p) => [p.id, p.full_name || "Unknown"]));
 
-      return paymentRows.map((p): OverviewPaymentRecord => {
-        const booking = bookingMap.get(p.booking_id);
-        const custName = booking?.customer_id ? customersMap.get(booking.customer_id) : null;
-        return {
-          ...p,
-          amount: Number(p.amount),
-          booking_code: booking?.booking_code || "—",
-          customer_name: custName || (booking ? profileMap.get(booking.user_id) || "Unknown" : "Unknown"),
-        };
-      });
+      return paymentRows
+        .filter((p) => {
+          const booking = bookingMap.get(p.booking_id);
+          return !booking || booking.status !== "cancelled";
+        })
+        .map((p): OverviewPaymentRecord => {
+          const booking = bookingMap.get(p.booking_id);
+          const custName = booking?.customer_id ? customersMap.get(booking.customer_id) : null;
+          return {
+            ...p,
+            amount: Number(p.amount),
+            booking_code: booking?.booking_code || "—",
+            customer_name: custName || (booking ? profileMap.get(booking.user_id) || "Unknown" : "Unknown"),
+          };
+        });
     },
   });
 
