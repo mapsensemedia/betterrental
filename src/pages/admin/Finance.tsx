@@ -216,6 +216,26 @@ export default function Finance() {
   const topTab = searchParams.get("tab") || "overview";
   const [methodFilter, setMethodFilter] = useState<string | null>(searchParams.get("method") || null);
 
+  // Lift dateRange to URL for persistence across navigation
+  const dateRange = (searchParams.get("range") || "month") as DateRange;
+  const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
+  const [customEnd, setCustomEnd] = useState<Date>(new Date());
+
+  const setDateRange = (range: DateRange) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("range", range);
+      return next;
+    }, { replace: true });
+  };
+
+  const { start: dateStart, end: dateEnd } = useMemo(() =>
+    dateRange === "custom"
+      ? { start: startOfDay(customStart), end: endOfDay(customEnd) }
+      : getDateRange(dateRange),
+    [dateRange, customStart, customEnd]
+  );
+
   const setTopTab = (tab: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -254,11 +274,21 @@ export default function Finance() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
-            <OverviewTab onMethodClick={handleMethodClick} />
+            <OverviewTab
+              onMethodClick={handleMethodClick}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              start={dateStart}
+              end={dateEnd}
+              customStart={customStart}
+              customEnd={customEnd}
+              setCustomStart={setCustomStart}
+              setCustomEnd={setCustomEnd}
+            />
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
-            <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} />
+            <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} dateStart={dateStart} dateEnd={dateEnd} />
           </TabsContent>
         </Tabs>
       </div>
