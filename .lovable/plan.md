@@ -1,63 +1,37 @@
 
-## Fix: Remove 30-Day Cap on Finance Revenue — Add "All Time" + Custom Date Range
 
-### Problem
-The Finance Overview tab's date range selector maxes out at "Last 30 Days." Staff wanting to see total revenue earned to date have no way to do so, causing confusion.
+## Fix 4 Data Calculation Bugs
 
-### Solution
-Add two new options to the existing date range selector — no new components or redundant code needed:
+### Analysis
 
-1. **"All Time"** preset — queries from a fixed business start date (e.g., Jan 1 2024) to now
-2. **"Custom"** option — shows a compact date picker (two `<input type="date">`) inline next to the selector
+After inspecting the codebase:
+- **FIX 1 (Cancelled exclusion)**: `use-collected-revenue.ts` Source C and `use-revenue-analytics.ts` already filter `.in("status", ["confirmed", "active", "completed"])` — cancelled is already excluded. The Finance payments query (Source A) fetches from the `payments` table directly without status filter — need to add booking status fetch + filter. The Bookings.tsx summary bar sums all `allTabData` without excluding cancelled.
+- **FIX 2 (Fleet label)**: Already fixed — Reports.tsx line 803 uses `Fleet Revenue ({periodLabel})` which is dynamic.
+- **FIX 3 (Payments table)**: Finance.tsx Source A fetches bookings but doesn't select `status` — need to add it and filter out cancelled.
+- **FIX 4 (Summary bar)**: `allTabTotalValue` on line 332 sums all bookings without excluding cancelled.
 
 ### Changes
 
-**File: `src/pages/admin/Finance.tsx`**
+**File: `src/pages/admin/Bookings.tsx`** (lines 332, 465-469)
+- Change `allTabTotalValue` memo to exclude cancelled: filter `allTabData` where `status !== 'cancelled'` before summing
+- Update summary bar to show active count, total value (excluding cancelled), and a separate muted cancelled count
 
-1. **Extend the `DateRange` type** (line 75):
-   ```ts
-   type DateRange = "today" | "yesterday" | "week" | "month" | "last30" | "all" | "custom";
-   ```
+**File: `src/pages/admin/Finance.tsx`** (lines 300-329)
+- In Source A payments query, add `status` to the bookings select: `.select("id, booking_code, user_id, customer_id, status")`
+- Add `status` field to the returned payment records
+- After building the final payments array, filter out records where `booking.status === 'cancelled'` from both the display list and metric totals
+- Also filter cancelled from the WL supplement queries (lines 421-434): add `.neq("status", "cancelled")` to the WL bookings queries
 
-2. **Update `getDateRange` helper** (lines 176-192) — add `"all"` case returning `start: new Date("2024-01-01")` to `end: endOfDay(now)`. The `"custom"` case won't use this function (handled by state).
-
-3. **Add custom date state** to `OverviewTab` (after line 259):
-   ```ts
-   const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
-   const [customEnd, setCustomEnd] = useState<Date>(new Date());
-   ```
-
-4. **Update the `start`/`end` memo** (line 261) to use custom dates when `dateRange === "custom"`:
-   ```ts
-   const { start, end } = useMemo(() =>
-     dateRange === "custom"
-       ? { start: startOfDay(customStart), end: endOfDay(customEnd) }
-       : getDateRange(dateRange),
-     [dateRange, customStart, customEnd]
-   );
-   ```
-
-5. **Add dropdown options** (lines 616-621) — add `<SelectItem value="all">All Time</SelectItem>` and `<SelectItem value="custom">Custom Range</SelectItem>`.
-
-6. **Add inline date inputs** after the Select (around line 622) — conditionally rendered when `dateRange === "custom"`:
-   ```tsx
-   {dateRange === "custom" && (
-     <div className="flex items-center gap-1.5">
-       <Input type="date" className="h-9 w-[140px]" value={format(customStart, "yyyy-MM-dd")} onChange={...} />
-       <span className="text-xs text-muted-foreground">to</span>
-       <Input type="date" className="h-9 w-[140px]" value={format(customEnd, "yyyy-MM-dd")} onChange={...} />
-     </div>
-   )}
-   ```
-
-### What Does NOT Change
-- No backend, edge function, or database changes
-- `use-collected-revenue.ts` hook unchanged (it already accepts arbitrary date ranges)
-- No new files or components
-- All existing date range options continue to work identically
-- Reports and Analytics tabs unaffected
+**No changes needed:**
+- `use-collected-revenue.ts` — already correctly filters by status
+- `use-revenue-analytics.ts` — already correctly filters by status
+- Reports.tsx fleet label — already dynamic
 
 ### Files
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/pages/admin/Finance.tsx` | Extend DateRange type, update getDateRange, add custom state + UI |
+| `src/pages/admin/Bookings.tsx` | Exclude cancelled from summary bar total + show cancelled count |
+| `src/pages/admin/Finance.tsx` | Fetch booking status in payments query, filter out cancelled from display + metrics |
+
+### No backend changes needed
+
