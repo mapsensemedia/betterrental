@@ -28,8 +28,10 @@ import {
 import { 
   Search, Eye, Car, Calendar, MapPin, RefreshCw, KeyRound, RotateCcw,
   Clock, AlertCircle, CheckCircle2, Plus, UserPlus,
-  CalendarDays, Workflow,
+  CalendarDays, Workflow, Download, Loader2,
 } from "lucide-react";
+import { exportBookingsExcel } from "@/lib/export-bookings-excel";
+import { toast } from "sonner";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { OperationsFilters, defaultFilters, type OperationsFiltersState } from "@/components/admin/OperationsFilters";
@@ -233,6 +235,17 @@ export default function AdminBookings() {
     }
   };
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportBookingsExcel();
+    } catch (err: any) {
+      toast.error(err?.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
   const [filters, setFilters] = useState<BookingFilters>({
     status: "all",
     search: searchParams.get("code") || "",
@@ -362,6 +375,11 @@ export default function AdminBookings() {
                 <UserPlus className="h-4 w-4 mr-1 md:mr-2" />
                 <span className="hidden xs:inline">Walk-In</span>
                 <span className="xs:hidden">New</span>
+              </Button>
+              <Button onClick={handleExport} variant="outline" size="sm" className="h-8 md:h-9" disabled={exporting}>
+                {exporting ? <Loader2 className="h-4 w-4 mr-1 md:mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-1 md:mr-2" />}
+                <span className="hidden xs:inline">Export Excel</span>
+                <span className="xs:hidden">Export</span>
               </Button>
               <TooltipProvider>
                 <Tooltip>
