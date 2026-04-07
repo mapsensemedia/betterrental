@@ -28,6 +28,9 @@ export interface BookingWithDetails {
   vehicleId: string;
   locationId: string;
   // Joined data
+  wlTransactionId: string | null;
+  wlAuthStatus: string | null;
+  depositStatus: string | null;
   vehicle: {
     id: string;
     make: string;
