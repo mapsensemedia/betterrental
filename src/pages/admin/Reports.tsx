@@ -53,17 +53,16 @@ const chartConfig = {
 
 const COLORS = ["hsl(var(--primary))", "#22c55e", "#f97316", "#8b5cf6", "#3b82f6", "#ec4899"];
 
-// Funnel stages for internal calculations
-const FUNNEL_STAGES = [
-  { key: "search_performed", label: "Search" },
-  { key: "vehicle_viewed", label: "Viewed" },
-  { key: "vehicle_selected", label: "Selected" },
-  { key: "protection_selected", label: "Protection" },
-  { key: "addons_selected", label: "Add-ons" },
-  { key: "checkout_started", label: "Checkout" },
-  { key: "checkout_payment_method_selected", label: "Payment" },
-  { key: "booking_completed", label: "Completed" },
-] as const;
+import {
+  Search,
+  Eye as EyeIcon2,
+  MousePointerClick,
+  Shield,
+  Gift,
+  ShoppingCart,
+  CreditCard,
+  CheckCircle,
+} from "lucide-react";
 
 const DATE_PRESET_LABELS: Record<DatePreset | "all", string> = {
   "7d": "Last 7 Days",
