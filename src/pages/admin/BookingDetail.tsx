@@ -84,6 +84,43 @@ import {
   Ban,
 } from "lucide-react";
 
+function snakeToTitle(str: string): string {
+  return str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function InspectionNotesDisplay({ notes }: { notes: string }) {
+  try {
+    const parsed = JSON.parse(notes);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return <p className="text-xs text-muted-foreground">{notes}</p>;
+    }
+    const entries = Object.entries(parsed);
+    if (entries.length === 0) return <p className="text-xs text-muted-foreground">{notes}</p>;
+
+    return (
+      <div className="space-y-1 mt-1">
+        {entries.map(([key, val]: [string, any]) => (
+          <div key={key} className="flex items-center gap-2 text-xs">
+            {val?.checked ? (
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+            ) : (
+              <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+            )}
+            <span className="text-muted-foreground">{snakeToTitle(key)}</span>
+            {val?.checkedAt && (
+              <span className="text-muted-foreground/60 ml-auto">
+                {format(new Date(val.checkedAt), "MMM d, h:mm a")}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  } catch {
+    return <p className="text-xs text-muted-foreground">{notes}</p>;
+  }
+}
+
 function AssignedUnitDisplay({ unitId }: { unitId: string | null }) {
   const { data: unit, isLoading } = useQuery({
     queryKey: ["assigned-unit", unitId],
