@@ -300,17 +300,17 @@ export default function Finance() {
 // Tab 1 — Overview (formerly PaymentDashboard)
 // ═══════════════════════════════════════════════════
 
-function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => void }) {
-  const [dateRange, setDateRange] = useState<DateRange>("month");
-  const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
-  const [customEnd, setCustomEnd] = useState<Date>(new Date());
-
-  const { start, end } = useMemo(() =>
-    dateRange === "custom"
-      ? { start: startOfDay(customStart), end: endOfDay(customEnd) }
-      : getDateRange(dateRange),
-    [dateRange, customStart, customEnd]
-  );
+function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, customStart, customEnd, setCustomStart, setCustomEnd }: {
+  onMethodClick?: (method: string) => void;
+  dateRange: DateRange;
+  setDateRange: (range: DateRange) => void;
+  start: Date;
+  end: Date;
+  customStart: Date;
+  customEnd: Date;
+  setCustomStart: (d: Date) => void;
+  setCustomEnd: (d: Date) => void;
+}) {
 
   // Source A — payments table (primary, renders immediately)
   const { data: paymentsOnly = [], isLoading, refetch } = useQuery({
