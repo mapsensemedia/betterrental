@@ -360,7 +360,6 @@ export default function AdminReports() {
   const revenueStats = useMemo(() => {
     return {
       totalRevenue: collectedRevenue,
-      billedRevenue: rentalMetrics.totalRentalBaseRevenue,
       avgBookingValue: rentalMetrics.averageRentalPrice,
       avgDuration: rentalMetrics.averageDays,
       totalBookings: rentalMetrics.totalBookings,
