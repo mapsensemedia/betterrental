@@ -425,8 +425,9 @@ function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => vo
       // 2. Fetch Worldline rental bookings in date range
       const { data: wlRentals } = await supabase
         .from("bookings")
-        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id, customer_id")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id, customer_id, status")
         .not("wl_transaction_id", "is", null)
+        .neq("status", "cancelled")
         .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
         .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
         .order("created_at", { ascending: false });
@@ -434,8 +435,9 @@ function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => vo
       // 3. Fetch Worldline deposit bookings in date range
       const { data: wlDeposits } = await supabase
         .from("bookings")
-        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id, customer_id")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id, customer_id, status")
         .not("wl_deposit_transaction_id", "is", null)
+        .neq("status", "cancelled")
         .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
         .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
         .order("created_at", { ascending: false });
