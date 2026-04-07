@@ -82,7 +82,10 @@ import {
   Shield,
   MoreVertical,
   Ban,
+  Truck,
+  Info,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function snakeToTitle(str: string): string {
   return str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -121,7 +124,7 @@ function InspectionNotesDisplay({ notes }: { notes: string }) {
   }
 }
 
-function AssignedUnitDisplay({ unitId }: { unitId: string | null }) {
+function AssignedUnitCard({ unitId }: { unitId: string | null }) {
   const { data: unit, isLoading } = useQuery({
     queryKey: ["assigned-unit", unitId],
     queryFn: async () => {
@@ -136,46 +139,74 @@ function AssignedUnitDisplay({ unitId }: { unitId: string | null }) {
     enabled: !!unitId,
   });
 
-  if (!unitId) {
-    return (
-      <div className="pt-2 border-t">
-        <p className="text-xs text-muted-foreground">No unit assigned</p>
-      </div>
-    );
-  }
+  const statusLabels: Record<string, string> = {
+    available: "Available",
+    on_rent: "On Rent",
+    maintenance: "Maintenance",
+    retired: "Retired",
+    inactive: "Inactive",
+  };
 
-  if (isLoading) {
-    return (
-      <div className="pt-2 border-t">
-        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!unit) return null;
+  const statusColors: Record<string, string> = {
+    available: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    on_rent: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    maintenance: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    retired: "bg-muted text-muted-foreground",
+    inactive: "bg-muted text-muted-foreground",
+  };
 
   return (
-    <div className="pt-2 border-t space-y-1">
-      <p className="text-xs font-medium text-muted-foreground">Assigned Unit</p>
-      {unit.vin && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">VIN:</span>
-          <span className="font-mono text-xs">{unit.vin}</span>
-        </div>
-      )}
-      {unit.license_plate && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Plate:</span>
-          <span className="font-mono">{unit.license_plate}</span>
-        </div>
-      )}
-      {unit.color && (
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Color:</span>
-          <span>{unit.color}</span>
-        </div>
-      )}
-    </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Truck className="h-4 w-4" />
+          Assigned Vehicle Unit
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!unitId ? (
+          <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+            <Info className="h-4 w-4 shrink-0" />
+            <span>No vehicle unit assigned</span>
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : !unit ? (
+          <p className="text-sm text-muted-foreground">Unit not found</p>
+        ) : (
+          <div className="space-y-2.5">
+            {unit.vin && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">VIN</span>
+                <span className="font-mono font-medium">{unit.vin}</span>
+              </div>
+            )}
+            {unit.license_plate && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">License Plate</span>
+                <span className="font-mono font-medium bg-muted px-2 py-0.5 rounded">{unit.license_plate}</span>
+              </div>
+            )}
+            {unit.color && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Color</span>
+                <span className="capitalize">{unit.color}</span>
+              </div>
+            )}
+            {unit.status && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Status</span>
+                <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", statusColors[unit.status] || "bg-muted text-muted-foreground")}>
+                  {statusLabels[unit.status] || unit.status}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -564,10 +595,11 @@ export default function BookingDetail() {
                         </div>
                       )}
                     </div>
-                    {/* Assigned Unit (VIN / Plate) */}
-                    <AssignedUnitDisplay unitId={booking.assigned_unit_id} />
                   </CardContent>
                 </Card>
+
+                {/* Assigned Vehicle Unit */}
+                <AssignedUnitCard unitId={booking.assigned_unit_id} />
 
                 {/* Rental Period */}
                 <Card>
