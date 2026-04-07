@@ -595,10 +595,11 @@ export default function BookingDetail() {
                         </div>
                       )}
                     </div>
-                    {/* Assigned Unit (VIN / Plate) */}
-                    <AssignedUnitDisplay unitId={booking.assigned_unit_id} />
                   </CardContent>
                 </Card>
+
+                {/* Assigned Vehicle Unit */}
+                <AssignedUnitCard unitId={booking.assigned_unit_id} />
 
                 {/* Rental Period */}
                 <Card>
