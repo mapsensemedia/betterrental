@@ -260,7 +260,7 @@ export default function Finance() {
 // ═══════════════════════════════════════════════════
 
 function OverviewTab() {
-  const [dateRange, setDateRange] = useState<DateRange>("last30");
+  const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customStart, setCustomStart] = useState<Date>(startOfMonth(new Date()));
   const [customEnd, setCustomEnd] = useState<Date>(new Date());
 
