@@ -50,16 +50,15 @@ const statusOptions: { value: BookingStatus | "all"; label: string }[] = [
 // ── Payment Status Dot ──
 function PaymentStatusDot({ booking }: { booking: any }) {
   const status = booking.status as string;
-  const wlTxn = booking.wlTransactionId as string | null;
-  const wlAuth = booking.wlAuthStatus as string | null;
 
   // Don't show for completed/cancelled
   if (status === "completed" || status === "cancelled") return null;
 
-  const isPaid = wlAuth === "completed" || (wlTxn && wlTxn.startsWith("TERM-"));
-  const isPayAtPickup = (status === "confirmed" || status === "pending") && !wlTxn;
+  const hasPaid = booking.hasPaidPayment === true;
+  const notes = (booking.notes as string) || "";
+  const isPayAtPickup = notes.toLowerCase().includes("pay at pickup");
 
-  if (isPaid) {
+  if (hasPaid) {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600">
         <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -67,15 +66,23 @@ function PaymentStatusDot({ booking }: { booking: any }) {
       </span>
     );
   }
-  if (isPayAtPickup && status === "confirmed") {
+  if (!hasPaid && isPayAtPickup) {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600">
-        <span className="w-2 h-2 rounded-full bg-amber-500" />
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600">
+        <span className="w-2 h-2 rounded-full bg-blue-500" />
         Pay at Pickup
       </span>
     );
   }
-  if (status === "pending" && !wlTxn) {
+  if (!hasPaid && (status === "confirmed" || status === "active") && !isPayAtPickup) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600">
+        <span className="w-2 h-2 rounded-full bg-amber-500" />
+        Payment Pending
+      </span>
+    );
+  }
+  if (status === "pending") {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] font-medium text-destructive">
         <span className="w-2 h-2 rounded-full bg-destructive" />
