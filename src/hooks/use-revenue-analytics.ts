@@ -116,7 +116,28 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
         .in("status", ["confirmed", "active", "completed"]);
 
       if (error) throw error;
-      return (data || []) as BookingRow[];
+      const bookings = (data || []) as BookingRow[];
+
+      // Fetch actual payments for these bookings
+      if (bookings.length === 0) return { bookings, paidMap: new Map<string, number>() };
+
+      const bookingIds = bookings.map(b => b.id);
+      // Batch in chunks of 200 to avoid query limits
+      const paidMap = new Map<string, number>();
+      for (let i = 0; i < bookingIds.length; i += 200) {
+        const chunk = bookingIds.slice(i, i + 200);
+        const { data: paymentRows } = await supabase
+          .from("payments")
+          .select("booking_id, amount")
+          .in("booking_id", chunk)
+          .in("status", ["completed", "captured"]);
+
+        (paymentRows || []).forEach(p => {
+          paidMap.set(p.booking_id, (paidMap.get(p.booking_id) || 0) + Number(p.amount));
+        });
+      }
+
+      return { bookings, paidMap };
     },
     staleTime: 60000,
   });
@@ -169,7 +190,8 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       };
     }
 
-    const bookings = bookingsQuery.data;
+    const bookings = bookingsQuery.data.bookings;
+    const paidMap = bookingsQuery.data.paidMap;
     const addOns = addOnsQuery.data || [];
     const categories = categoriesQuery.data || [];
 
@@ -208,7 +230,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     });
 
     // --- Rental Revenue Metrics ---
-    const rentalBases = filteredBookings.map(b => b.total_amount);
+    const rentalBases = filteredBookings.map(b => paidMap.get(b.id) || 0);
     const totalRentalBaseRevenue = rentalBases.reduce((sum, v) => sum + v, 0);
     const averageRentalPrice = filteredBookings.length > 0 ? totalRentalBaseRevenue / filteredBookings.length : 0;
     const sortedBases = [...rentalBases].sort((a, b) => a - b);
@@ -335,7 +357,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     filteredBookings.forEach(b => {
       const channel = (b.booking_source || "online") as "online" | "walk_in";
       const key = channel === "walk_in" ? "walk_in" : "online";
-      channelStats[key].revenue += b.total_amount;
+      channelStats[key].revenue += paidMap.get(b.id) || 0;
       channelStats[key].bookings++;
 
       const tableAddOns = addOnsByBooking.get(b.id) || [];
@@ -393,7 +415,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
           const d = new Date(b.start_at);
           return d >= weekStart && d <= weekEndDate;
         });
-        revenueTrend.push({ date: format(weekStart, "MMM d"), revenue: weekBookings.reduce((s, b) => s + b.total_amount, 0), bookings: weekBookings.length });
+        revenueTrend.push({ date: format(weekStart, "MMM d"), revenue: weekBookings.reduce((s, b) => s + (paidMap.get(b.id) || 0), 0), bookings: weekBookings.length });
         addOnTrend.push({ date: format(weekStart, "MMM d"), revenue: computeExtrasForBookings(weekBookings), bookings: weekBookings.length });
       });
     } else {
@@ -405,7 +427,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
           const d = new Date(b.start_at);
           return d >= dayStart && d <= dayEnd;
         });
-        revenueTrend.push({ date: format(day, "MMM d"), revenue: dayBookings.reduce((s, b) => s + b.total_amount, 0), bookings: dayBookings.length });
+        revenueTrend.push({ date: format(day, "MMM d"), revenue: dayBookings.reduce((s, b) => s + (paidMap.get(b.id) || 0), 0), bookings: dayBookings.length });
         addOnTrend.push({ date: format(day, "MMM d"), revenue: computeExtrasForBookings(dayBookings), bookings: dayBookings.length });
       });
     }
@@ -428,7 +450,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
         channel: b.booking_source || "online",
         daily_rate: b.daily_rate,
         total_days: b.total_days,
-        total_amount: b.total_amount,
+        total_amount: paidMap.get(b.id) || 0,
         addon_count: tableAOs.length + (ext?.protectionRevenue ? 1 : 0) + (ext?.upgradeRevenue ? 1 : 0) + (ext?.youngDriverRevenue ? 1 : 0),
         addon_total: addOnTotal,
         addons: addonNames,
