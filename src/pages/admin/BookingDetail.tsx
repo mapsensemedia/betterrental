@@ -636,7 +636,7 @@ export default function BookingDetail() {
                               </div>
                             </div>
                             {pickupInspection.exterior_notes && (
-                              <p className="text-xs text-muted-foreground">{pickupInspection.exterior_notes}</p>
+                              <InspectionNotesDisplay notes={pickupInspection.exterior_notes} />
                             )}
                           </div>
                         )}
