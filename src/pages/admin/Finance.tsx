@@ -731,7 +731,13 @@ function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => vo
                 ) : (
                   <div className="space-y-2">
                     {methodBreakdown.map((m) => (
-                      <BreakdownRow key={m.method} label={m.method} amount={m.total} total={metrics.collected} count={m.count} />
+                      <button
+                        key={m.method}
+                        className="w-full text-left hover:bg-muted/50 rounded-lg transition-colors p-1 -m-1"
+                        onClick={() => onMethodClick?.(m.method)}
+                      >
+                        <BreakdownRow label={m.method} amount={m.total} total={metrics.collected} count={m.count} />
+                      </button>
                     ))}
                   </div>
                 )}
