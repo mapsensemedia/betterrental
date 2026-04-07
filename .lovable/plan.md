@@ -1,41 +1,67 @@
 
 
-## Fix Fleet Utilization — Status Mismatch in Reports
+## Fix Fleet Utilization — Stale `on_rent` Status
 
 ### Root Cause
 
-The database stores vehicle unit status as `on_rent` (confirmed: 11 units currently have this status, 3 of which match active bookings). There is **no CHECK constraint** enforcing `rented` — that was a misunderstanding.
-
-The previous fix changed `Reports.tsx` to filter for `status === "rented"`, but the actual DB value is `"on_rent"`. This is why the dashboard shows 0 "On Rent" — no units match `"rented"` because none exist with that value.
-
-The entire rest of the codebase (OpsFleet, FleetManagement, delivery mutations, fleet types) all correctly use `on_rent`. The edge function `update-booking-status` also writes `on_rent`.
+The `vehicle_units.status` column has 11 units stuck as `on_rent` because the status was never reset when those bookings ended. Only 3 units actually have active bookings. The Reports page trusts this stale status, showing 11 "On Rent" instead of 3.
 
 ### Fix — `src/pages/admin/Reports.tsx`
 
-One-line change in the `fleetStats` useMemo (around line 278):
+**1. Add a query for active bookings with assigned units** (after the vehicle_units query, ~line 242):
 
 ```typescript
-// Change:
-const rentedUnits = vehicleUnits.filter(u => u.status === "rented").length;
-
-// To:
-const rentedUnits = vehicleUnits.filter(u => u.status === "on_rent").length;
+const { data: activeRentalUnitIds = [] } = useQuery({
+  queryKey: ["active-rental-units-for-reports"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("assigned_unit_id")
+      .eq("status", "active")
+      .not("assigned_unit_id", "is", null);
+    if (error) throw error;
+    return (data || []).map(b => b.assigned_unit_id);
+  },
+  staleTime: 60_000,
+});
 ```
 
-Also include `damage` status units (1 unit currently has this) alongside maintenance in the UI, since the DB has 4 statuses in practice: `available`, `on_rent`, `maintenance`, `damage`.
+**2. Rewrite fleetStats useMemo** (lines 276-300) to derive "on rent" from active bookings, not stale unit status:
 
-Update the query filter (line ~269) to also include `damage`:
 ```typescript
-// Currently: .neq("status", "retired")
-// Keep as-is — this already fetches all non-retired units including damage
+const fleetStats = useMemo(() => {
+  const totalVehicles = vehicleUnits.length;
+  const activeRentalSet = new Set(activeRentalUnitIds);
+  
+  // "On rent" = units with an active booking (source of truth)
+  const rentedUnits = vehicleUnits.filter(u => activeRentalSet.has(u.id)).length;
+  // Maintenance/damage from unit status (reliable — set manually)
+  const maintenanceUnits = vehicleUnits.filter(u => 
+    u.status === "maintenance" || u.status === "damage"
+  ).length;
+  // Available = total minus rented minus maintenance
+  const availableUnits = totalVehicles - rentedUnits - maintenanceUnits;
+
+  const rentableUnits = rentedUnits + availableUnits;
+  const utilizationRate = rentableUnits > 0
+    ? (rentedUnits / rentableUnits) * 100 : 0;
+  const revenuePerVehicle = collectedRevenue / (rentableUnits || 1);
+
+  return { totalVehicles, rentedUnits, availableUnits, maintenanceUnits,
+           rentableUnits, utilizationRate, revenuePerVehicle,
+           totalRevenue: collectedRevenue };
+}, [vehicleUnits, activeRentalUnitIds, collectedRevenue]);
 ```
 
-The query is already correct (`.neq("status", "retired")`). Only the JS filter needs fixing.
+### Why this approach
+- `vehicle_units.status` is unreliable for "on rent" (gets stuck due to edge function bugs)
+- `bookings.status = 'active'` is the authoritative source for what's currently rented
+- Maintenance/damage status is still read from `vehicle_units.status` (set manually by staff, reliable)
 
 ### Files
 | File | Change |
 |------|--------|
-| `src/pages/admin/Reports.tsx` | Change `"rented"` → `"on_rent"` in fleetStats filter |
+| `src/pages/admin/Reports.tsx` | Add active bookings query + rewrite fleetStats to derive on-rent from bookings |
 
-No edge function changes. No database changes.
+No database or edge function changes.
 
