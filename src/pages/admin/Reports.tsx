@@ -234,23 +234,9 @@ export default function AdminReports() {
       const { data, error } = await supabase
         .from("vehicle_units")
         .select("id, status")
-        .in("status", ["available", "on_rent", "maintenance"]);
+        .neq("status", "retired");
       if (error) throw error;
       return data ?? [];
-    },
-    staleTime: 60_000,
-  });
-
-  // Fleet: query active bookings count
-  const { data: activeBookingsCount = 0 } = useQuery({
-    queryKey: ["active-bookings-count-for-reports"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "active");
-      if (error) throw error;
-      return count ?? 0;
     },
     staleTime: 60_000,
   });
@@ -288,30 +274,30 @@ export default function AdminReports() {
 
   // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
-    const activeRentals = activeBookingsCount;
     const totalVehicles = vehicleUnits.length;
-    const activeVehicles = vehicleUnits.filter(u => u.status === "available" || u.status === "on_rent").length;
-    const availableVehicles = vehicleUnits.filter(u => u.status === "available").length;
+    const rentedUnits = vehicleUnits.filter(u => u.status === "rented").length;
+    const availableUnits = vehicleUnits.filter(u => u.status === "available").length;
+    const maintenanceUnits = vehicleUnits.filter(u => u.status === "maintenance").length;
 
-    const utilizationRate = totalVehicles > 0
-      ? (activeRentals / totalVehicles) * 100
+    const rentableUnits = rentedUnits + availableUnits;
+    const utilizationRate = rentableUnits > 0
+      ? (rentedUnits / rentableUnits) * 100
       : 0;
 
-    const totalRevenue = collectedRevenue;
-    const revenuePerVehicle = activeVehicles > 0
-      ? totalRevenue / activeVehicles
-      : 0;
+    const activeVehiclesForRevenue = rentableUnits > 0 ? rentableUnits : 1;
+    const revenuePerVehicle = collectedRevenue / activeVehiclesForRevenue;
 
     return {
-      activeRentals,
-      availableVehicles,
-      activeVehicles,
       totalVehicles,
+      rentedUnits,
+      availableUnits,
+      maintenanceUnits,
+      rentableUnits,
       utilizationRate,
       revenuePerVehicle,
-      totalRevenue,
+      totalRevenue: collectedRevenue,
     };
-  }, [activeBookingsCount, vehicleUnits, collectedRevenue]);
+  }, [vehicleUnits, collectedRevenue]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -779,18 +765,22 @@ export default function AdminReports() {
                     <p className="text-sm text-muted-foreground mt-1">Current Utilization</p>
                   </div>
                   <Progress value={fleetStats.utilizationRate} className="h-3" />
-                  <div className="grid grid-cols-3 gap-3 pt-2 text-center">
+                  <div className="grid grid-cols-4 gap-3 pt-2 text-center">
                     <div>
-                      <p className="text-xl font-bold">{fleetStats.activeRentals}</p>
-                      <p className="text-xs text-muted-foreground">Active</p>
+                      <p className="text-xl font-bold">{fleetStats.rentedUnits}</p>
+                      <p className="text-xs text-muted-foreground">On Rent</p>
                     </div>
                     <div>
-                      <p className="text-xl font-bold">{fleetStats.availableVehicles}</p>
+                      <p className="text-xl font-bold">{fleetStats.availableUnits}</p>
                       <p className="text-xs text-muted-foreground">Available</p>
                     </div>
                     <div>
+                      <p className="text-xl font-bold">{fleetStats.maintenanceUnits}</p>
+                      <p className="text-xs text-muted-foreground">Maintenance</p>
+                    </div>
+                    <div>
                       <p className="text-xl font-bold">{fleetStats.totalVehicles}</p>
-                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="text-xs text-muted-foreground">Total Fleet</p>
                     </div>
                   </div>
                 </CardContent>
@@ -814,8 +804,8 @@ export default function AdminReports() {
                       <span className="text-lg font-bold">${fleetStats.totalRevenue.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Active Vehicles</span>
-                      <span className="text-lg font-bold">{fleetStats.activeVehicles}</span>
+                      <span className="text-sm text-muted-foreground">Rentable Vehicles</span>
+                      <span className="text-lg font-bold">{fleetStats.rentableUnits}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Total Fleet</span>
