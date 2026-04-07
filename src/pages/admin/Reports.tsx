@@ -840,6 +840,18 @@ export default function AdminReports() {
                   className="pl-9"
                 />
               </div>
+              <Select value={auditCategoryFilter} onValueChange={setAuditCategoryFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Action Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="important">Important Actions</SelectItem>
+                  <SelectItem value="payments">Payments</SelectItem>
+                  <SelectItem value="status">Status Changes</SelectItem>
+                  <SelectItem value="damage">Damage & Incidents</SelectItem>
+                  <SelectItem value="all">All Actions</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={entityFilter} onValueChange={setEntityFilter}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Entity Type" />

@@ -24,6 +24,7 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
+  XCircle,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
