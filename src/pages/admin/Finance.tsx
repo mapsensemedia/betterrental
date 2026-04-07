@@ -629,8 +629,27 @@ function OverviewTab() {
             <SelectItem value="week">This Week</SelectItem>
             <SelectItem value="month">This Month</SelectItem>
             <SelectItem value="last30">Last 30 Days</SelectItem>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
         </Select>
+        {dateRange === "custom" && (
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="date"
+              className="h-9 w-[140px]"
+              value={format(customStart, "yyyy-MM-dd")}
+              onChange={(e) => e.target.value && setCustomStart(new Date(e.target.value + "T00:00:00"))}
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input
+              type="date"
+              className="h-9 w-[140px]"
+              value={format(customEnd, "yyyy-MM-dd")}
+              onChange={(e) => e.target.value && setCustomEnd(new Date(e.target.value + "T00:00:00"))}
+            />
+          </div>
+        )}
         <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => refetch()}>
           <RefreshCw className="w-4 h-4" />
         </Button>
