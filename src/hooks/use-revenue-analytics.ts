@@ -450,7 +450,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
         channel: b.booking_source || "online",
         daily_rate: b.daily_rate,
         total_days: b.total_days,
-        total_amount: b.total_amount,
+        total_amount: paidMap.get(b.id) || 0,
         addon_count: tableAOs.length + (ext?.protectionRevenue ? 1 : 0) + (ext?.upgradeRevenue ? 1 : 0) + (ext?.youngDriverRevenue ? 1 : 0),
         addon_total: addOnTotal,
         addons: addonNames,
