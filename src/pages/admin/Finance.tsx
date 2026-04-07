@@ -299,7 +299,7 @@ function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => vo
       const bookingIds = [...new Set(paymentRows.map((p) => p.booking_id))];
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, booking_code, user_id, customer_id")
+        .select("id, booking_code, user_id, customer_id, status")
         .in("id", bookingIds);
 
       const userIds = [...new Set((bookings || []).map((b) => b.user_id))];
