@@ -401,10 +401,6 @@ export default function AdminReports() {
               <Car className="w-4 h-4" />
               Fleet
             </TabsTrigger>
-            <TabsTrigger value="audit" className="gap-2">
-              <History className="w-4 h-4" />
-              Activity
-            </TabsTrigger>
             <TabsTrigger value="demand" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               Demand
