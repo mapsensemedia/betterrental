@@ -141,17 +141,18 @@ export default function PaymentDashboard() {
 
   // Summary metrics
   const metrics = useMemo(() => {
-    const collected = payments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
-    const pending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+    const isCollected = (p: { status: string }) => p.status === "completed" || p.status === "captured";
+    const collected = payments.filter(isCollected).reduce((s, p) => s + p.amount, 0);
+    const pending = payments.filter((p) => p.status === "pending" || p.status === "authorized").reduce((s, p) => s + p.amount, 0);
     const failed = payments.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
     const total = payments.length;
-    const completedCount = payments.filter((p) => p.status === "completed").length;
+    const completedCount = payments.filter(isCollected).length;
     const successRate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
-    const prevCollected = prevPayments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
+    const prevCollected = prevPayments.filter(isCollected).reduce((s, p) => s + p.amount, 0);
     const changePercent = prevCollected > 0 ? Math.round(((collected - prevCollected) / prevCollected) * 100) : 0;
 
-    return { collected, pending, failed, total, completedCount, successRate, changePercent, pendingCount: payments.filter((p) => p.status === "pending").length, failedCount: payments.filter((p) => p.status === "failed").length };
+    return { collected, pending, failed, total, completedCount, successRate, changePercent, pendingCount: payments.filter((p) => p.status === "pending" || p.status === "authorized").length, failedCount: payments.filter((p) => p.status === "failed").length };
   }, [payments, prevPayments]);
 
   // Payment method breakdown
