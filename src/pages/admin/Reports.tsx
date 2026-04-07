@@ -34,7 +34,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line } from "recharts";
 import { useAnalyticsEvents } from "@/hooks/use-analytics-events";
 import { useLocations } from "@/hooks/use-locations";
 import { format, subDays, startOfDay, eachDayOfInterval, startOfMonth } from "date-fns";
