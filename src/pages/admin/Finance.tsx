@@ -1399,6 +1399,33 @@ function TransactionsTab({ methodFilter, onClearMethodFilter }: { methodFilter?:
                 </SelectContent>
               </Select>
             )}
+            {activeTab === "payments" && (
+              <div className="flex items-center gap-2">
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="rental">Rental</SelectItem>
+                    <SelectItem value="deposit">Deposit</SelectItem>
+                    <SelectItem value="extension">Extension</SelectItem>
+                    <SelectItem value="damage">Damage</SelectItem>
+                    <SelectItem value="refund">Refund</SelectItem>
+                  </SelectContent>
+                </Select>
+                {methodFilter && (
+                  <div className="flex items-center gap-1">
+                    <Badge variant="secondary" className="text-xs">
+                      Method: {methodFilter}
+                    </Badge>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClearMethodFilter}>
+                      <XCircle className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ==================== INVOICES TAB ==================== */}

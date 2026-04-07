@@ -1327,18 +1327,35 @@ export default function BookingDetail() {
                   <CardContent className="space-y-3">
                     {rentalAgreements.length > 0 ? (
                       rentalAgreements.map((agreement: any) => (
-                        <div key={agreement.id} className="flex items-center justify-between text-sm gap-2">
-                          <div className="min-w-0">
-                            <p className="font-medium">
-                              {agreement.customer_signed_at ? "Signed" : "Pending signature"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
+                        <div key={agreement.id} className="space-y-2 p-3 rounded-lg border">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {agreement.status === "extension" ? "Extension" : "Initial"}
+                              </Badge>
+                              {agreement.customer_signed_at ? (
+                                <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  Signed ✓
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
+                                  Pending Signature
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
                               {format(parseISO(agreement.created_at), "PP")}
-                            </p>
+                            </span>
                           </div>
-                          <Badge variant={agreement.customer_signed_at ? "default" : "secondary"}>
-                            {agreement.status}
-                          </Badge>
+                          {agreement.signature_png_url && (
+                            <Button variant="outline" size="sm" className="w-full" asChild>
+                              <a href={agreement.signature_png_url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="w-3 h-3 mr-2" />
+                                View Agreement
+                              </a>
+                            </Button>
+                          )}
                         </div>
                       ))
                     ) : (
