@@ -82,7 +82,10 @@ import {
   Shield,
   MoreVertical,
   Ban,
+  Truck,
+  Info,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function snakeToTitle(str: string): string {
   return str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
