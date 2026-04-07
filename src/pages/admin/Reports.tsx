@@ -163,19 +163,53 @@ export default function AdminReports() {
   // Analytics events from Supabase
   const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
 
-  // Real bookings count for the funnel (confirmed, active, completed within date range)
-  const { data: realBookingsCount = 0 } = useQuery({
-    queryKey: ["funnel-bookings-count", dateRange.start.toISOString(), dateRange.end.toISOString()],
+  // ── Funnel data: bookings as single source of truth ──
+  const { data: funnelBookings = [] } = useQuery({
+    queryKey: ["funnel-bookings-data", dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from("bookings")
-        .select("id", { count: "exact", head: true })
-        .in("status", ["confirmed", "active", "completed"])
+        .select("id, status, protection_plan")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString());
       if (error) throw error;
-      return count ?? 0;
+      return data ?? [];
     },
+    staleTime: 60_000,
+  });
+
+  // Booking IDs that have at least one add-on
+  const { data: funnelAddOnBookingIds = [] } = useQuery({
+    queryKey: ["funnel-addon-ids", dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: async () => {
+      // Get booking_add_ons for bookings in range
+      const bookingIds = funnelBookings.map(b => b.id);
+      if (bookingIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("booking_add_ons")
+        .select("booking_id")
+        .in("booking_id", bookingIds);
+      if (error) throw error;
+      return [...new Set((data ?? []).map(r => r.booking_id))];
+    },
+    enabled: funnelBookings.length > 0,
+    staleTime: 60_000,
+  });
+
+  // Booking IDs that have at least one payment
+  const { data: funnelPaymentBookingIds = [] } = useQuery({
+    queryKey: ["funnel-payment-ids", dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: async () => {
+      const bookingIds = funnelBookings.map(b => b.id);
+      if (bookingIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("payments")
+        .select("booking_id")
+        .in("booking_id", bookingIds);
+      if (error) throw error;
+      return [...new Set((data ?? []).map(r => r.booking_id))];
+    },
+    enabled: funnelBookings.length > 0,
     staleTime: 60_000,
   });
 
