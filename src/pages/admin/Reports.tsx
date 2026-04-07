@@ -461,7 +461,10 @@ export default function AdminReports() {
                   <p className="text-2xl font-bold">
                     ${collectedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-muted-foreground">Collected — {periodLabel}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    Collected — {periodLabel}
+                    <span title="Sum of completed & captured payments only" className="cursor-help"><Info className="w-3 h-3" /></span>
+                  </p>
                 </div>
               </div>
             </CardContent>
