@@ -654,7 +654,7 @@ export default function AdminReports() {
 
           {/* Funnel Tab */}
           <TabsContent value="funnel" className="space-y-4">
-            <ConversionFunnel events={filteredEvents} bookingsCount={realBookingsCount} />
+            <ConversionFunnel stages={funnelStages} />
 
             <Card>
               <CardHeader className="pb-3">
