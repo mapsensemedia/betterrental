@@ -765,18 +765,22 @@ export default function AdminReports() {
                     <p className="text-sm text-muted-foreground mt-1">Current Utilization</p>
                   </div>
                   <Progress value={fleetStats.utilizationRate} className="h-3" />
-                  <div className="grid grid-cols-3 gap-3 pt-2 text-center">
+                  <div className="grid grid-cols-4 gap-3 pt-2 text-center">
                     <div>
-                      <p className="text-xl font-bold">{fleetStats.activeRentals}</p>
-                      <p className="text-xs text-muted-foreground">Active</p>
+                      <p className="text-xl font-bold">{fleetStats.rentedUnits}</p>
+                      <p className="text-xs text-muted-foreground">On Rent</p>
                     </div>
                     <div>
-                      <p className="text-xl font-bold">{fleetStats.availableVehicles}</p>
+                      <p className="text-xl font-bold">{fleetStats.availableUnits}</p>
                       <p className="text-xs text-muted-foreground">Available</p>
                     </div>
                     <div>
+                      <p className="text-xl font-bold">{fleetStats.maintenanceUnits}</p>
+                      <p className="text-xs text-muted-foreground">Maintenance</p>
+                    </div>
+                    <div>
                       <p className="text-xl font-bold">{fleetStats.totalVehicles}</p>
-                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="text-xs text-muted-foreground">Total Fleet</p>
                     </div>
                   </div>
                 </CardContent>
