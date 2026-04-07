@@ -6,6 +6,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format, parseISO, differenceInHours } from "date-fns";
+import { AgreementStructuredView } from "@/components/booking/AgreementStructuredView";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { RentalAgreement } from "@/hooks/use-rental-agreement";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { useBookingById } from "@/hooks/use-bookings";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
@@ -81,6 +84,43 @@ import {
   Ban,
 } from "lucide-react";
 
+function snakeToTitle(str: string): string {
+  return str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function InspectionNotesDisplay({ notes }: { notes: string }) {
+  try {
+    const parsed = JSON.parse(notes);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return <p className="text-xs text-muted-foreground">{notes}</p>;
+    }
+    const entries = Object.entries(parsed);
+    if (entries.length === 0) return <p className="text-xs text-muted-foreground">{notes}</p>;
+
+    return (
+      <div className="space-y-1 mt-1">
+        {entries.map(([key, val]: [string, any]) => (
+          <div key={key} className="flex items-center gap-2 text-xs">
+            {val?.checked ? (
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+            ) : (
+              <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+            )}
+            <span className="text-muted-foreground">{snakeToTitle(key)}</span>
+            {val?.checkedAt && (
+              <span className="text-muted-foreground/60 ml-auto">
+                {format(new Date(val.checkedAt), "MMM d, h:mm a")}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  } catch {
+    return <p className="text-xs text-muted-foreground">{notes}</p>;
+  }
+}
+
 function AssignedUnitDisplay({ unitId }: { unitId: string | null }) {
   const { data: unit, isLoading } = useQuery({
     queryKey: ["assigned-unit", unitId],
@@ -150,6 +190,7 @@ export default function BookingDetail() {
   const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const [isGeneratingAgreement, setIsGeneratingAgreement] = useState(false);
+  const [viewingAgreement, setViewingAgreement] = useState<any | null>(null);
   const updateStatus = useUpdateBookingStatus();
   const queryClient = useQueryClient();
 
@@ -253,7 +294,7 @@ export default function BookingDetail() {
       if (!bookingId) return [];
       const { data } = await supabase
         .from("rental_agreements")
-        .select("id, status, customer_signed_at, signature_png_url, created_at")
+        .select("id, status, customer_signed_at, signature_png_url, created_at, agreement_content, terms_json, customer_signature, staff_confirmed_by, staff_confirmed_at, signed_manually, signed_manually_at, signed_manually_by, customer_ip_address, updated_at, booking_id")
         .eq("booking_id", bookingId)
         .order("created_at", { ascending: false });
       return data || [];
@@ -632,7 +673,7 @@ export default function BookingDetail() {
                               </div>
                             </div>
                             {pickupInspection.exterior_notes && (
-                              <p className="text-xs text-muted-foreground">{pickupInspection.exterior_notes}</p>
+                              <InspectionNotesDisplay notes={pickupInspection.exterior_notes} />
                             )}
                           </div>
                         )}
@@ -650,7 +691,7 @@ export default function BookingDetail() {
                               </div>
                             </div>
                             {returnInspection.exterior_notes && (
-                              <p className="text-xs text-muted-foreground">{returnInspection.exterior_notes}</p>
+                              <InspectionNotesDisplay notes={returnInspection.exterior_notes} />
                             )}
                           </div>
                         )}
@@ -1348,14 +1389,15 @@ export default function BookingDetail() {
                               {format(parseISO(agreement.created_at), "PP")}
                             </span>
                           </div>
-                          {agreement.signature_png_url && (
-                            <Button variant="outline" size="sm" className="w-full" asChild>
-                              <a href={agreement.signature_png_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="w-3 h-3 mr-2" />
-                                View Agreement
-                              </a>
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setViewingAgreement(agreement)}
+                          >
+                            <FileText className="w-3 h-3 mr-2" />
+                            View Agreement
+                          </Button>
                         </div>
                       ))
                     ) : (
@@ -1458,6 +1500,70 @@ export default function BookingDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Agreement View Dialog */}
+      <Dialog open={!!viewingAgreement} onOpenChange={(open) => !open && setViewingAgreement(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Rental Agreement
+              {viewingAgreement?.status && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {viewingAgreement.status}
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 min-h-0">
+            {viewingAgreement?.terms_json ? (
+              <AgreementStructuredView
+                agreement={viewingAgreement as RentalAgreement}
+                bookingId={bookingId || ""}
+              />
+            ) : viewingAgreement?.agreement_content ? (
+              <div className="prose prose-sm max-w-none p-4" dangerouslySetInnerHTML={{ __html: viewingAgreement.agreement_content }} />
+            ) : (
+              <p className="text-sm text-muted-foreground p-4">No agreement content available.</p>
+            )}
+
+            <Separator className="my-4" />
+
+            {viewingAgreement?.customer_signed_at ? (
+              <div className="p-4 space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  Signed on {format(parseISO(viewingAgreement.customer_signed_at), "PPp")}
+                </p>
+                {viewingAgreement.signature_png_url && (
+                  <div className="border rounded-md p-3 bg-muted/30">
+                    <img
+                      src={viewingAgreement.signature_png_url}
+                      alt="Customer signature"
+                      className="max-h-24 mx-auto"
+                    />
+                  </div>
+                )}
+                {viewingAgreement.customer_signature && !viewingAgreement.signature_png_url && (
+                  <div className="border rounded-md p-3 bg-muted/30">
+                    <img
+                      src={viewingAgreement.customer_signature}
+                      alt="Customer signature"
+                      className="max-h-24 mx-auto"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4">
+                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Pending Signature
+                </Badge>
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </PanelShell>
   );
 }
