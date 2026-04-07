@@ -1,32 +1,41 @@
 
 
-## Fix Fleet Utilization in Reports Page
+## Fix Fleet Utilization — Status Mismatch in Reports
 
-### Problem
-The fleet utilization section uses wrong status values (`on_rent` instead of `rented`) and mixes two data sources (vehicle_units status + active bookings count), producing incorrect numbers.
+### Root Cause
 
-### Changes — `src/pages/admin/Reports.tsx`
+The database stores vehicle unit status as `on_rent` (confirmed: 11 units currently have this status, 3 of which match active bookings). There is **no CHECK constraint** enforcing `rented` — that was a misunderstanding.
 
-**1. Fix vehicle_units query (lines 231-242)**
-- Change `.in("status", ["available", "on_rent", "maintenance"])` to `.neq("status", "retired")`
+The previous fix changed `Reports.tsx` to filter for `status === "rented"`, but the actual DB value is `"on_rent"`. This is why the dashboard shows 0 "On Rent" — no units match `"rented"` because none exist with that value.
 
-**2. Remove active bookings count query (lines 244-256)**
-- Delete the entire `useQuery` for `active-bookings-count-for-reports`
+The entire rest of the codebase (OpsFleet, FleetManagement, delivery mutations, fleet types) all correctly use `on_rent`. The edge function `update-booking-status` also writes `on_rent`.
 
-**3. Rewrite fleetStats useMemo (lines 290-314)**
-- Use `vehicle_units.status === 'rented'` instead of `activeBookingsCount`
-- Calculate: `rentedUnits`, `availableUnits`, `maintenanceUnits`
-- Utilization = `rentedUnits / (rentedUnits + availableUnits) * 100` (exclude maintenance from denominator)
-- Revenue per vehicle divides by rentable units only
-- Remove `activeRentals` and `activeVehicles` properties; replace with `rentedUnits`, `availableUnits`, `maintenanceUnits`
+### Fix — `src/pages/admin/Reports.tsx`
 
-**4. Update Fleet Utilization card UI (lines 776-796)**
-- Change 3-column grid to 4 rows: On Rent, Available, Maintenance, Total Fleet
+One-line change in the `fleetStats` useMemo (around line 278):
 
-**5. Update Fleet Revenue card UI (lines 806-825)**
-- "Active Vehicles" → "Rentable Vehicles" showing `rentedUnits + availableUnits`
-- All references to `fleetStats.activeRentals` → `fleetStats.rentedUnits`
-- All references to `fleetStats.activeVehicles` → rentable units count
+```typescript
+// Change:
+const rentedUnits = vehicleUnits.filter(u => u.status === "rented").length;
 
-### No other files affected
+// To:
+const rentedUnits = vehicleUnits.filter(u => u.status === "on_rent").length;
+```
+
+Also include `damage` status units (1 unit currently has this) alongside maintenance in the UI, since the DB has 4 statuses in practice: `available`, `on_rent`, `maintenance`, `damage`.
+
+Update the query filter (line ~269) to also include `damage`:
+```typescript
+// Currently: .neq("status", "retired")
+// Keep as-is — this already fetches all non-retired units including damage
+```
+
+The query is already correct (`.neq("status", "retired")`). Only the JS filter needs fixing.
+
+### Files
+| File | Change |
+|------|--------|
+| `src/pages/admin/Reports.tsx` | Change `"rented"` → `"on_rent"` in fleetStats filter |
+
+No edge function changes. No database changes.
 
