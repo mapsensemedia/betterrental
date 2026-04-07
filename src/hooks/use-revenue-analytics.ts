@@ -190,7 +190,8 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
       };
     }
 
-    const bookings = bookingsQuery.data;
+    const bookings = bookingsQuery.data.bookings;
+    const paidMap = bookingsQuery.data.paidMap;
     const addOns = addOnsQuery.data || [];
     const categories = categoriesQuery.data || [];
 
