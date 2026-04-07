@@ -230,7 +230,7 @@ export function useRevenueAnalytics(filters: RevenueFilters) {
     });
 
     // --- Rental Revenue Metrics ---
-    const rentalBases = filteredBookings.map(b => b.total_amount);
+    const rentalBases = filteredBookings.map(b => paidMap.get(b.id) || 0);
     const totalRentalBaseRevenue = rentalBases.reduce((sum, v) => sum + v, 0);
     const averageRentalPrice = filteredBookings.length > 0 ? totalRentalBaseRevenue / filteredBookings.length : 0;
     const sortedBases = [...rentalBases].sort((a, b) => a - b);
