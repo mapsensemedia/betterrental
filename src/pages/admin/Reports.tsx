@@ -290,6 +290,7 @@ export default function AdminReports() {
   const fleetStats = useMemo(() => {
     const activeRentals = activeBookingsCount;
     const totalVehicles = vehicleUnits.length;
+    const activeVehicles = vehicleUnits.filter(u => u.status === "available" || u.status === "on_rent").length;
     const availableVehicles = vehicleUnits.filter(u => u.status === "available").length;
 
     const utilizationRate = totalVehicles > 0
@@ -297,13 +298,14 @@ export default function AdminReports() {
       : 0;
 
     const totalRevenue = collectedRevenue;
-    const revenuePerVehicle = totalVehicles > 0
-      ? totalRevenue / totalVehicles
+    const revenuePerVehicle = activeVehicles > 0
+      ? totalRevenue / activeVehicles
       : 0;
 
     return {
       activeRentals,
       availableVehicles,
+      activeVehicles,
       totalVehicles,
       utilizationRate,
       revenuePerVehicle,
