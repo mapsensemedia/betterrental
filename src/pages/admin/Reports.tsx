@@ -399,9 +399,17 @@ export default function AdminReports() {
   }, [filteredEvents]);
 
   // Filter audit logs
+  const NOISE_ACTIONS = ["booking_created", "booking_updated", "photo_uploaded", "checkin_record_created", "verification_approved", "verification_rejected"];
+
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       if (entityFilter !== "all" && log.entityType !== entityFilter) return false;
+      // Category filter
+      if (auditCategoryFilter === "important" && NOISE_ACTIONS.includes(log.action)) return false;
+      if (auditCategoryFilter === "payments" && !/(payment|terminal|deposit)/.test(log.action)) return false;
+      if (auditCategoryFilter === "status" && !/(status|void|cancel)/.test(log.action)) return false;
+      if (auditCategoryFilter === "damage" && !/(damage|incident)/.test(log.action)) return false;
+      // auditCategoryFilter === "all" shows everything
       if (auditSearch) {
         const query = auditSearch.toLowerCase();
         const searchableText = [log.action, log.entityType, log.userName, log.userEmail].filter(Boolean).join(" ").toLowerCase();
@@ -409,7 +417,7 @@ export default function AdminReports() {
       }
       return true;
     });
-  }, [logs, entityFilter, auditSearch]);
+  }, [logs, entityFilter, auditSearch, auditCategoryFilter]);
 
   const entityTypes = useMemo(() => {
     const types = new Set(logs.map((l) => l.entityType));
