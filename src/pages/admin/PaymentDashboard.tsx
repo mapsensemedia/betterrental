@@ -158,7 +158,7 @@ export default function PaymentDashboard() {
   // Payment method breakdown
   const methodBreakdown = useMemo(() => {
     const map = new Map<string, { count: number; total: number }>();
-    payments.filter((p) => p.status === "completed").forEach((p) => {
+    payments.filter((p) => p.status === "completed" || p.status === "captured").forEach((p) => {
       const method = normalizeMethod(p.payment_method);
       const entry = map.get(method) || { count: 0, total: 0 };
       entry.count++;
