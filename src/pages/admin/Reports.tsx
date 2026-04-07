@@ -539,8 +539,8 @@ export default function AdminReports() {
           <TabsContent value="revenue-addons">
             <RevenueAnalyticsTab
               filters={filters}
-              datePreset={datePreset}
-              onDatePresetChange={setDatePreset}
+              datePreset={datePreset === "all" ? "custom" : datePreset}
+              onDatePresetChange={(p) => setDatePreset(p)}
               onChannelChange={setChannel}
               onLocationIdChange={setLocationId}
               onCategoryIdChange={setCategoryId}
