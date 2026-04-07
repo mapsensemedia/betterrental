@@ -1,46 +1,45 @@
 
 
-## Remove Activity Tab from Reports Page
+## Fix Two Bugs in Finance Page Date Filter
 
-### Changes — `src/pages/admin/Reports.tsx`
+### Bug 1 — Method click ignores date range
 
-**1. Remove imports (line 68)**
-- Delete `useAuditLogs, useAuditStats, type AuditLog` import from `@/hooks/use-audit-logs`
-- Remove `formatDistanceToNow` from date-fns import (only used by AuditLogItem)
+**Root cause**: `dateRange` state lives inside `OverviewTab` (line 274). When a method is clicked, `handleMethodClick` in `Finance` only sets `methodFilter` and switches to the transactions tab. The `TransactionsTab` fetches ALL payments (`queryKey: ["admin-payments"]`, line 1068) with no date filter, so it shows everything.
 
-**2. Remove unused icon imports (line 15-45)**
-- Remove icons only used by audit: `History`, `User`, `ChevronDown`, `ChevronUp` (verify none used elsewhere first)
-- Remove `Collapsible, CollapsibleContent, CollapsibleTrigger` imports (lines 53-63) if only used by AuditLogItem
+**Fix**: Lift the `dateRange` (and `customStart`/`customEnd`) state from `OverviewTab` up to the `Finance` component. Pass it down to both tabs. In `TransactionsTab`, use the date range to filter the payments query (add `.gte`/`.lte` on `created_at`). Also pass the date range to `OverviewTab` as props instead of local state.
 
-**3. Remove constants and components (lines 106-178)**
-- Delete `ACTION_CONFIG` object
-- Delete `getActionConfig` function
-- Delete `formatActionLabel` function
-- Delete `AuditLogItem` component
+### Bug 2 — Date range resets on navigation
 
-**4. Remove state variables (lines 185-187)**
-- Delete `auditSearch`, `auditCategoryFilter`, `entityFilter` state declarations
+**Root cause**: `dateRange` is `useState("month")` — lost on unmount.
 
-**5. Remove data hooks (lines 228-229)**
-- Delete `useAuditLogs` call (`logs`, `logsLoading`, `refetchLogs`)
-- Delete `useAuditStats` call (`auditStats`)
+**Fix**: Store `dateRange` in URL search params (e.g. `?range=month`). Since `Finance` already uses `useSearchParams` for `tab`, add `range` to the same params.
 
-**6. Remove derived data (lines 408-432)**
-- Delete `NOISE_ACTIONS` constant
-- Delete `filteredLogs` useMemo
-- Delete `entityTypes` useMemo
+### Changes — `src/pages/admin/Finance.tsx`
 
-**7. Remove tab trigger (lines 535-538)**
-- Delete the `<TabsTrigger value="audit">Activity</TabsTrigger>`
+**1. Lift dateRange to Finance component (line 214-230)**
+- Read `range` from `searchParams` (default `"month"`)
+- Add `setDateRange` that updates the URL param
+- Compute `start`/`end` dates at this level
+- Pass `dateRange`, `setDateRange`, `start`, `end` as props to `OverviewTab`
+- Pass `start`, `end` as props to `TransactionsTab`
 
-**8. Remove tab content (lines 841-909)**
-- Delete the entire `<TabsContent value="audit">` block
+**2. Update OverviewTab (line 273-276)**
+- Remove local `dateRange` useState
+- Accept `dateRange`, `setDateRange`, `start`, `end` as props
+- Remove local `useMemo` for start/end (use props)
+- Keep `customStart`/`customEnd` local (only relevant within overview)
 
-**9. Update subtitle (line 445)**
-- Change "Revenue, conversions, fleet utilization & activity logs" → "Revenue, conversions & fleet utilization"
+**3. Update TransactionsTab (line 920, 1066-1074)**
+- Accept `dateStart` and `dateEnd` props
+- Add `.gte("created_at", dateStart.toISOString())` and `.lte("created_at", dateEnd.toISOString())` to the payments query (line 1071-1074)
+- Also apply date filter to the WL bookings queries (lines 1077-1088)
+- Update `queryKey` to include the date range: `["admin-payments", dateStart.toISOString(), dateEnd.toISOString()]`
+
+**4. Update handleMethodClick (line 227-230)**
+- No change needed — date range is already in URL and shared
 
 ### Files
 | File | Change |
 |------|--------|
-| `src/pages/admin/Reports.tsx` | Remove Activity tab, its component, hooks, state, and constants |
+| `src/pages/admin/Finance.tsx` | Lift dateRange to URL params, pass to both tabs, add date filter to TransactionsTab queries |
 
