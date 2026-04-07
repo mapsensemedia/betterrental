@@ -275,7 +275,7 @@ export default function AdminReports() {
   // Fleet utilization (real-time snapshot — not date-filtered)
   const fleetStats = useMemo(() => {
     const totalVehicles = vehicleUnits.length;
-    const rentedUnits = vehicleUnits.filter(u => u.status === "rented").length;
+    const rentedUnits = vehicleUnits.filter(u => u.status === "on_rent").length;
     const availableUnits = vehicleUnits.filter(u => u.status === "available").length;
     const maintenanceUnits = vehicleUnits.filter(u => u.status === "maintenance").length;
 
