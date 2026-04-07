@@ -299,31 +299,6 @@ export default function AdminReports() {
       .slice(0, 6);
   }, [filteredEvents]);
 
-  // Filter audit logs
-  const NOISE_ACTIONS = ["booking_created", "booking_updated", "photo_uploaded", "checkin_record_created", "verification_approved", "verification_rejected"];
-
-  const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
-      if (entityFilter !== "all" && log.entityType !== entityFilter) return false;
-      // Category filter
-      if (auditCategoryFilter === "important" && NOISE_ACTIONS.includes(log.action)) return false;
-      if (auditCategoryFilter === "payments" && !/(payment|terminal|deposit)/.test(log.action)) return false;
-      if (auditCategoryFilter === "status" && !/(status|void|cancel)/.test(log.action)) return false;
-      if (auditCategoryFilter === "damage" && !/(damage|incident)/.test(log.action)) return false;
-      // auditCategoryFilter === "all" shows everything
-      if (auditSearch) {
-        const query = auditSearch.toLowerCase();
-        const searchableText = [log.action, log.entityType, log.userName, log.userEmail].filter(Boolean).join(" ").toLowerCase();
-        return searchableText.includes(query);
-      }
-      return true;
-    });
-  }, [logs, entityFilter, auditSearch, auditCategoryFilter]);
-
-  const entityTypes = useMemo(() => {
-    const types = new Set(logs.map((l) => l.entityType));
-    return Array.from(types).sort();
-  }, [logs]);
 
   const periodLabel = DATE_PRESET_LABELS[datePreset];
 
