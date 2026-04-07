@@ -94,11 +94,12 @@ const FUNNEL_STAGES = [
   { key: "booking_completed", label: "Completed" },
 ] as const;
 
-const DATE_PRESET_LABELS: Record<DatePreset, string> = {
+const DATE_PRESET_LABELS: Record<DatePreset | "all", string> = {
   "7d": "Last 7 Days",
   "30d": "Last 30 Days",
   "90d": "Last 90 Days",
   "mtd": "This Month",
+  "all": "All Time",
   "custom": "Custom Range",
 };
 
