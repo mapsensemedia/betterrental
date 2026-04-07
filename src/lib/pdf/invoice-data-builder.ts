@@ -252,6 +252,9 @@ export async function buildInvoicePdfData(
   // Location formatting
   const fmtLoc = (loc: any) => loc ? `${loc.name}${loc.address ? `, ${loc.address}` : ""}${loc.city ? `, ${loc.city}` : ""}` : undefined;
 
+  // Calculate actual payments collected from payments table
+  const actualPaymentsCollected = (paymentRows || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
   return {
     invoiceNumber: invoice.invoice_number,
     status: invoice.status || "draft",
@@ -279,9 +282,6 @@ export async function buildInvoicePdfData(
     taxesTotal: fromCents(dbTaxCents),
     pstAmount: fromCents(pstCents),
     gstAmount: fromCents(gstCents),
-    // Calculate actual payments collected from payments table
-    const actualPaymentsCollected = (paymentRows || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-
     lateFees: Number(invoice.late_fees || 0),
     damageCharges: Number(invoice.damage_charges || 0),
     grandTotal: fromCents(dbTotalCents),
