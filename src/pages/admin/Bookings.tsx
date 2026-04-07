@@ -28,8 +28,10 @@ import {
 import { 
   Search, Eye, Car, Calendar, MapPin, RefreshCw, KeyRound, RotateCcw,
   Clock, AlertCircle, CheckCircle2, Plus, UserPlus,
-  CalendarDays, Workflow,
+  CalendarDays, Workflow, Download, Loader2,
 } from "lucide-react";
+import { exportBookingsExcel } from "@/lib/export-bookings-excel";
+import { toast } from "sonner";
 import { DeliveryBadge } from "@/components/admin/DeliveryDetailsCard";
 import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { OperationsFilters, defaultFilters, type OperationsFiltersState } from "@/components/admin/OperationsFilters";
