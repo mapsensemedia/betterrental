@@ -239,7 +239,7 @@ export default function AdminBookings() {
   });
   const [opsFilters, setOpsFilters] = useState<OperationsFiltersState>(defaultFilters);
 
-  const { data: bookings = [], isLoading, refetch } = useAdminBookings(filters);
+  const { data: bookings = [] as BookingWithDetails[], isLoading, refetch } = useAdminBookings(filters);
   const { data: locations = [] } = useLocations();
   const { data: vehicles = [] } = useAdminVehicles({ status: "all" });
 
