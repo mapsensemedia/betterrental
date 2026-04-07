@@ -189,10 +189,10 @@ export default function PaymentDashboard() {
         const d = new Date(p.created_at);
         return d >= dayStart && d <= dayEnd;
       });
-      const collected = dayPayments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
-      const pending = dayPayments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+      const collected = dayPayments.filter((p) => p.status === "completed" || p.status === "captured").reduce((s, p) => s + p.amount, 0);
+      const pending = dayPayments.filter((p) => p.status === "pending" || p.status === "authorized").reduce((s, p) => s + p.amount, 0);
       const failed = dayPayments.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
-      const completedCount = dayPayments.filter((p) => p.status === "completed").length;
+      const completedCount = dayPayments.filter((p) => p.status === "completed" || p.status === "captured").length;
       const successRate = dayPayments.length > 0 ? Math.round((completedCount / dayPayments.length) * 100) : 0;
       days.push({
         date: format(day, "MMM d"),
