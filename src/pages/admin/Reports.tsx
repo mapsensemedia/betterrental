@@ -339,10 +339,15 @@ export default function AdminReports() {
 
   // Funnel stats
   const funnelStats = useMemo(() => {
-    return FUNNEL_STAGES.map((stage) => ({
+    const raw = FUNNEL_STAGES.map((stage) => ({
       ...stage,
       count: filteredEvents.filter((e) => e.event === stage.key).length,
     }));
+    // Enforce monotonically decreasing: each stage count <= previous
+    for (let i = 1; i < raw.length; i++) {
+      raw[i] = { ...raw[i], count: Math.min(raw[i].count, raw[i - 1].count) };
+    }
+    return raw;
   }, [filteredEvents]);
 
   const overallConversion = useMemo(() => {
