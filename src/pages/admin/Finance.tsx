@@ -909,11 +909,12 @@ function OverviewTab({ onMethodClick }: { onMethodClick?: (method: string) => vo
 // Tab 2 — Transactions (formerly Billing)
 // ═══════════════════════════════════════════════════
 
-function TransactionsTab() {
+function TransactionsTab({ methodFilter, onClearMethodFilter }: { methodFilter?: string | null; onClearMethodFilter?: () => void }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   
   // Read URL params for deep-linking from other pages
   const urlStatus = searchParams.get("status");
@@ -925,7 +926,7 @@ function TransactionsTab() {
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
   const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">(
-    urlStatus === "failed" || urlAdjustment === "damage" ? "payments" : "invoices"
+    methodFilter ? "payments" : urlStatus === "failed" || urlAdjustment === "damage" ? "payments" : "invoices"
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
 
