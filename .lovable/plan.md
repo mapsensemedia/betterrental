@@ -1,28 +1,28 @@
 
 
-## Add Download Button & Show Customer Name in Agreement Dialog
+## Fix: Extension Agreement Not Generating
 
-### Changes — `src/pages/admin/BookingDetail.tsx`
+### Root Cause
 
-**1. Add PDF download button to each agreement in the list (lines 1424-1432)**
+Two issues:
 
-Add a "Download PDF" button next to the existing "View Agreement" button. Use the existing `generateRentalAgreementPdf` function (already used in `RentalAgreementPanel` and `RentalAgreementSign`).
+1. **Edge function not deployed with extension logic** — The source code has the `isExtension` bypass but the logs show "Agreement already exists" was hit, meaning the deployed version didn't include the extension bypass. The edge function needs to be redeployed.
 
-- Import `generateRentalAgreementPdf` from `@/lib/pdf/rental-agreement-pdf`
-- Import `Download` icon from lucide-react
-- Add a row with two buttons: "View Agreement" and "Download PDF"
-- The download button calls `generateRentalAgreementPdf(agreement, bookingId)`
+2. **UI shows false success** — `handleGenerateAgreement` always shows "generated successfully" even when the function returns `{ alreadyExists: true }`. It should check `data.alreadyExists` and show a different message, or better yet, not show success at all since no new agreement was created.
 
-**2. Show customer typed name in the agreement dialog signature section (lines 1563-1586)**
+### Fix Plan
 
-Currently the dialog shows the signature image but not the customer's typed name. The `customer_signature` field contains the typed name (e.g. "Chantelle Depatie").
+**1. Redeploy the edge function** (`supabase/functions/generate-agreement/index.ts`)
+- No code changes needed — the extension bypass logic is already in the source (lines 327-340). Just needs redeployment.
 
-- After the "Signed on..." line, add: `Signed by: {viewingAgreement.customer_signature}`
-- Show this regardless of whether a PNG signature image exists
-- If `signed_manually` is true, add a small "(In-person)" note
+**2. Fix success handling in `src/pages/admin/BookingDetail.tsx`** (line 363-364)
+- After the function call, check `data.alreadyExists`:
+  - If `true` and type is `extension`: show an info toast "Extension agreement already exists" instead of success
+  - If `false`: show the success toast and invalidate queries as before
 
 ### Files
 | File | Change |
 |------|--------|
-| `src/pages/admin/BookingDetail.tsx` | Add PDF download button to agreement list; show customer name in dialog |
+| `supabase/functions/generate-agreement/index.ts` | Redeploy (no code change needed) |
+| `src/pages/admin/BookingDetail.tsx` | Check `data.alreadyExists` before showing success toast |
 
