@@ -353,15 +353,15 @@ export default function BookingDetail() {
     }
   };
 
-  const handleGenerateAgreement = async () => {
+  const handleGenerateAgreement = async (agreementType: "initial" | "extension" = "initial") => {
     if (!bookingId) return;
     setIsGeneratingAgreement(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-agreement", {
-        body: { bookingId },
+        body: { bookingId, agreementType },
       });
       if (error) throw error;
-      toast.success("Agreement generated successfully");
+      toast.success(`${agreementType === "extension" ? "Extension" : ""} Agreement generated successfully`);
       queryClient.invalidateQueries({ queryKey: ["booking-agreements-detail", bookingId] });
     } catch (err: any) {
       const msg = await extractEdgeFunctionError(null, err);
