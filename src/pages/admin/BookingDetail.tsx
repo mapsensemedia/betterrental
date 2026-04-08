@@ -561,6 +561,61 @@ export default function BookingDetail() {
                         </p>
                       )}
                     </div>
+                    {/* License Photos */}
+                    {(() => {
+                      const extractPath = (url: string | null | undefined) => {
+                        if (!url) return null;
+                        const match = url.match(/driver-licenses\/(.+?)(?:\?|$)/);
+                        return match ? match[1] : null;
+                      };
+                      const frontPath = extractPath(booking.profiles?.driver_license_front_url);
+                      const backPath = extractPath(booking.profiles?.driver_license_back_url);
+                      if (!frontPath && !backPath) return (
+                        <p className="text-xs text-muted-foreground italic">No license photos uploaded</p>
+                      );
+                      return (
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { label: "Front", path: frontPath },
+                            { label: "Back", path: backPath },
+                          ].map(({ label, path }) => path ? (
+                            <div key={label} className="space-y-1">
+                              <p className="text-xs text-muted-foreground font-medium">{label}</p>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <button className="w-full aspect-[3/2] rounded-md overflow-hidden border hover:ring-2 hover:ring-primary transition-all cursor-pointer">
+                                    <SignedStorageImage
+                                      bucket="driver-licenses"
+                                      path={path}
+                                      alt={`License ${label}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl">
+                                  <DialogHeader>
+                                    <DialogTitle>Driver's License — {label}</DialogTitle>
+                                  </DialogHeader>
+                                  <SignedStorageImage
+                                    bucket="driver-licenses"
+                                    path={path}
+                                    alt={`License ${label} full size`}
+                                    className="w-full max-h-[70vh] object-contain rounded-md"
+                                  />
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          ) : (
+                            <div key={label} className="space-y-1">
+                              <p className="text-xs text-muted-foreground font-medium">{label}</p>
+                              <div className="w-full aspect-[3/2] rounded-md border bg-muted flex items-center justify-center">
+                                <p className="text-xs text-muted-foreground">Not uploaded</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
 
