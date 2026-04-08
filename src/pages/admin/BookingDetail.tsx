@@ -1451,7 +1451,7 @@ export default function BookingDetail() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleGenerateAgreement}
+                            onClick={() => handleGenerateAgreement("initial")}
                             disabled={isGeneratingAgreement}
                           >
                             {isGeneratingAgreement ? (
@@ -1463,6 +1463,23 @@ export default function BookingDetail() {
                           </Button>
                         )}
                       </div>
+                    )}
+                    {/* Generate Extension button - show when agreements exist */}
+                    {rentalAgreements.length > 0 && (booking.status === "active" || booking.status === "completed") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => handleGenerateAgreement("extension")}
+                        disabled={isGeneratingAgreement}
+                      >
+                        {isGeneratingAgreement ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <FileText className="h-4 w-4 mr-2" />
+                        )}
+                        Generate Extension Agreement
+                      </Button>
                     )}
                   </CardContent>
                 </Card>
