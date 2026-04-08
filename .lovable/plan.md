@@ -1,31 +1,28 @@
 
 
-## Show Assigned Vehicle Unit on Booking Detail Page
+## Add Download Button & Show Customer Name in Agreement Dialog
 
-### Investigation Summary
+### Changes — `src/pages/admin/BookingDetail.tsx`
 
-The `AssignedUnitDisplay` component already exists (line 124-179 of `BookingDetail.tsx`) and is rendered inside the Vehicle card (line 568). It queries `vehicle_units` by `assigned_unit_id` and shows VIN, plate, and color. The code is structurally correct.
+**1. Add PDF download button to each agreement in the list (lines 1424-1432)**
 
-The likely issue is **visual prominence** — the unit info is tucked inside the Vehicle card as a small subsection with muted styling (`text-xs`, `text-muted-foreground`), making it easy to miss. Also, when no unit is assigned, it shows a tiny muted "No unit assigned" line that blends into the card.
+Add a "Download PDF" button next to the existing "View Agreement" button. Use the existing `generateRentalAgreementPdf` function (already used in `RentalAgreementPanel` and `RentalAgreementSign`).
 
-### Fix — `src/pages/admin/BookingDetail.tsx`
+- Import `generateRentalAgreementPdf` from `@/lib/pdf/rental-agreement-pdf`
+- Import `Download` icon from lucide-react
+- Add a row with two buttons: "View Agreement" and "Download PDF"
+- The download button calls `generateRentalAgreementPdf(agreement, bookingId)`
 
-**1. Extract `AssignedUnitDisplay` into its own Card** (move from inside Vehicle card to a separate card below it)
+**2. Show customer typed name in the agreement dialog signature section (lines 1563-1586)**
 
-- Remove line 567-568 from inside the Vehicle `<CardContent>`
-- Add a new standalone Card after the Vehicle card with a clear header: "Assigned Vehicle Unit" with a `Truck` icon
-- When a unit IS assigned: show VIN, License Plate, Color, and Status as clearly labeled rows (normal text size, not `text-xs`)
-- When NO unit is assigned: show a visible notice with an info icon: "No vehicle unit assigned" in a muted but noticeable style
+Currently the dialog shows the signature image but not the customer's typed name. The `customer_signature` field contains the typed name (e.g. "Chantelle Depatie").
 
-**2. Improve the component styling**
-
-- Use `text-sm` instead of `text-xs` for labels
-- Make VIN use `font-mono` styling for readability
-- Add a subtle status badge for the unit status (available, on_rent, maintenance, etc.)
-- Use a clear card header with icon, consistent with other cards on the page
+- After the "Signed on..." line, add: `Signed by: {viewingAgreement.customer_signature}`
+- Show this regardless of whether a PNG signature image exists
+- If `signed_manually` is true, add a small "(In-person)" note
 
 ### Files
 | File | Change |
 |------|--------|
-| `src/pages/admin/BookingDetail.tsx` | Move `AssignedUnitDisplay` to its own Card, improve styling and empty state |
+| `src/pages/admin/BookingDetail.tsx` | Add PDF download button to agreement list; show customer name in dialog |
 
