@@ -1405,7 +1405,7 @@ export default function BookingDetail() {
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-xs">
-                                {agreement.status === "extension" ? "Extension" : "Initial"}
+                                {agreement.agreement_type === "extension" ? "Extension" : "Initial"}
                               </Badge>
                               {agreement.customer_signed_at ? (
                                 <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
