@@ -98,7 +98,8 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { bookingId, suppressNotifications } = body;
+    const { bookingId, suppressNotifications, agreementType } = body;
+    const isExtension = agreementType === "extension";
 
     // Input validation
     if (!bookingId || typeof bookingId !== "string") {
@@ -323,20 +324,22 @@ serve(async (req) => {
     const upgradeName = booking.upgrade_category_label || "Vehicle Upgrade";
     const upgradeFee = hasUpgrade ? Number(booking.upgrade_daily_fee) * (booking.total_days || 1) : 0;
 
-    // Check if a non-voided agreement already exists
-    const { data: existingAgreement } = await supabase
-      .from("rental_agreements")
-      .select("id, status")
-      .eq("booking_id", bookingId)
-      .neq("status", "voided")
-      .maybeSingle();
+    // Check if a non-voided agreement already exists (skip for extensions)
+    if (!isExtension) {
+      const { data: existingAgreement } = await supabase
+        .from("rental_agreements")
+        .select("id, status")
+        .eq("booking_id", bookingId)
+        .neq("status", "voided")
+        .maybeSingle();
 
-    if (existingAgreement) {
-      console.log(`Agreement already exists: ${existingAgreement.id}`);
-      return new Response(
-        JSON.stringify({ agreementId: existingAgreement.id, alreadyExists: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (existingAgreement) {
+        console.log(`Agreement already exists: ${existingAgreement.id}`);
+        return new Response(
+          JSON.stringify({ agreementId: existingAgreement.id, alreadyExists: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Resolve protection plan from booking
@@ -543,6 +546,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         agreement_content: agreementContent,
         terms_json: terms,
         status: "pending",
+        agreement_type: isExtension ? "extension" : "initial",
       })
       .select("id")
       .single();

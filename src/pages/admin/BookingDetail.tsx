@@ -326,7 +326,7 @@ export default function BookingDetail() {
       if (!bookingId) return [];
       const { data } = await supabase
         .from("rental_agreements")
-        .select("id, status, customer_signed_at, signature_png_url, created_at, agreement_content, terms_json, customer_signature, staff_confirmed_by, staff_confirmed_at, signed_manually, signed_manually_at, signed_manually_by, customer_ip_address, updated_at, booking_id")
+        .select("id, status, agreement_type, customer_signed_at, signature_png_url, created_at, agreement_content, terms_json, customer_signature, staff_confirmed_by, staff_confirmed_at, signed_manually, signed_manually_at, signed_manually_by, customer_ip_address, updated_at, booking_id")
         .eq("booking_id", bookingId)
         .order("created_at", { ascending: false });
       return data || [];
@@ -353,15 +353,15 @@ export default function BookingDetail() {
     }
   };
 
-  const handleGenerateAgreement = async () => {
+  const handleGenerateAgreement = async (agreementType: "initial" | "extension" = "initial") => {
     if (!bookingId) return;
     setIsGeneratingAgreement(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-agreement", {
-        body: { bookingId },
+        body: { bookingId, agreementType },
       });
       if (error) throw error;
-      toast.success("Agreement generated successfully");
+      toast.success(`${agreementType === "extension" ? "Extension" : ""} Agreement generated successfully`);
       queryClient.invalidateQueries({ queryKey: ["booking-agreements-detail", bookingId] });
     } catch (err: any) {
       const msg = await extractEdgeFunctionError(null, err);
@@ -1405,7 +1405,7 @@ export default function BookingDetail() {
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-xs">
-                                {agreement.status === "extension" ? "Extension" : "Initial"}
+                                {agreement.agreement_type === "extension" ? "Extension" : "Initial"}
                               </Badge>
                               {agreement.customer_signed_at ? (
                                 <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
@@ -1451,7 +1451,7 @@ export default function BookingDetail() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleGenerateAgreement}
+                            onClick={() => handleGenerateAgreement("initial")}
                             disabled={isGeneratingAgreement}
                           >
                             {isGeneratingAgreement ? (
@@ -1463,6 +1463,23 @@ export default function BookingDetail() {
                           </Button>
                         )}
                       </div>
+                    )}
+                    {/* Generate Extension button - show when agreements exist */}
+                    {rentalAgreements.length > 0 && (booking.status === "active" || booking.status === "completed") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => handleGenerateAgreement("extension")}
+                        disabled={isGeneratingAgreement}
+                      >
+                        {isGeneratingAgreement ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <FileText className="h-4 w-4 mr-2" />
+                        )}
+                        Generate Extension Agreement
+                      </Button>
                     )}
                   </CardContent>
                 </Card>
@@ -1579,14 +1596,14 @@ export default function BookingDetail() {
                   Signed on {format(parseISO(viewingAgreement.customer_signed_at), "PPp")}
                 </p>
                 {viewingAgreement.customer_signature && (
-                  <p className="text-sm text-muted-foreground">
-                    Signed by: <span className="font-medium text-foreground">{viewingAgreement.customer_signature}</span>
+                  <div className="border rounded-md p-3 bg-muted/30 space-y-1">
+                    <p className="text-sm font-medium text-center">{viewingAgreement.customer_signature}</p>
                     {(viewingAgreement as any).signed_manually && (
-                      <span className="ml-2 text-xs text-muted-foreground">(In-person)</span>
+                      <p className="text-xs text-muted-foreground text-center">Signed in person</p>
                     )}
-                  </p>
+                  </div>
                 )}
-                {viewingAgreement.signature_png_url && (
+                {!((viewingAgreement as any).signed_manually) && viewingAgreement.signature_png_url && (
                   <div className="border rounded-md p-3 bg-muted/30">
                     <img
                       src={viewingAgreement.signature_png_url}

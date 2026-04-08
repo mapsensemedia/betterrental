@@ -2478,6 +2478,7 @@ export type Database = {
       rental_agreements: {
         Row: {
           agreement_content: string
+          agreement_type: string
           booking_id: string
           created_at: string
           customer_ip_address: string | null
@@ -2500,6 +2501,7 @@ export type Database = {
         }
         Insert: {
           agreement_content: string
+          agreement_type?: string
           booking_id: string
           created_at?: string
           customer_ip_address?: string | null
@@ -2522,6 +2524,7 @@ export type Database = {
         }
         Update: {
           agreement_content?: string
+          agreement_type?: string
           booking_id?: string
           created_at?: string
           customer_ip_address?: string | null
