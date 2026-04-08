@@ -1596,14 +1596,14 @@ export default function BookingDetail() {
                   Signed on {format(parseISO(viewingAgreement.customer_signed_at), "PPp")}
                 </p>
                 {viewingAgreement.customer_signature && (
-                  <p className="text-sm text-muted-foreground">
-                    Signed by: <span className="font-medium text-foreground">{viewingAgreement.customer_signature}</span>
+                  <div className="border rounded-md p-3 bg-muted/30 space-y-1">
+                    <p className="text-sm font-medium text-center">{viewingAgreement.customer_signature}</p>
                     {(viewingAgreement as any).signed_manually && (
-                      <span className="ml-2 text-xs text-muted-foreground">(In-person)</span>
+                      <p className="text-xs text-muted-foreground text-center">Signed in person</p>
                     )}
-                  </p>
+                  </div>
                 )}
-                {viewingAgreement.signature_png_url && (
+                {!((viewingAgreement as any).signed_manually) && viewingAgreement.signature_png_url && (
                   <div className="border rounded-md p-3 bg-muted/30">
                     <img
                       src={viewingAgreement.signature_png_url}
