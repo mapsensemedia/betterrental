@@ -361,8 +361,12 @@ export default function BookingDetail() {
         body: { bookingId, agreementType },
       });
       if (error) throw error;
-      toast.success(`${agreementType === "extension" ? "Extension" : ""} Agreement generated successfully`);
-      queryClient.invalidateQueries({ queryKey: ["booking-agreements-detail", bookingId] });
+      if (data?.alreadyExists) {
+        toast.info(agreementType === "extension" ? "Extension agreement already exists" : "Agreement already exists for this booking");
+      } else {
+        toast.success(`${agreementType === "extension" ? "Extension" : ""} Agreement generated successfully`);
+        queryClient.invalidateQueries({ queryKey: ["booking-agreements-detail", bookingId] });
+      }
     } catch (err: any) {
       const msg = await extractEdgeFunctionError(null, err);
       toast.error("Failed to generate agreement: " + msg);
