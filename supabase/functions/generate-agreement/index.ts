@@ -324,20 +324,22 @@ serve(async (req) => {
     const upgradeName = booking.upgrade_category_label || "Vehicle Upgrade";
     const upgradeFee = hasUpgrade ? Number(booking.upgrade_daily_fee) * (booking.total_days || 1) : 0;
 
-    // Check if a non-voided agreement already exists
-    const { data: existingAgreement } = await supabase
-      .from("rental_agreements")
-      .select("id, status")
-      .eq("booking_id", bookingId)
-      .neq("status", "voided")
-      .maybeSingle();
+    // Check if a non-voided agreement already exists (skip for extensions)
+    if (!isExtension) {
+      const { data: existingAgreement } = await supabase
+        .from("rental_agreements")
+        .select("id, status")
+        .eq("booking_id", bookingId)
+        .neq("status", "voided")
+        .maybeSingle();
 
-    if (existingAgreement) {
-      console.log(`Agreement already exists: ${existingAgreement.id}`);
-      return new Response(
-        JSON.stringify({ agreementId: existingAgreement.id, alreadyExists: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (existingAgreement) {
+        console.log(`Agreement already exists: ${existingAgreement.id}`);
+        return new Response(
+          JSON.stringify({ agreementId: existingAgreement.id, alreadyExists: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Resolve protection plan from booking
