@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { AgreementStructuredView } from "@/components/booking/AgreementStructuredView";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { RentalAgreement } from "@/hooks/use-rental-agreement";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { useBookingById } from "@/hooks/use-bookings";
