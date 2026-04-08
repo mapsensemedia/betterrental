@@ -546,6 +546,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         agreement_content: agreementContent,
         terms_json: terms,
         status: "pending",
+        agreement_type: isExtension ? "extension" : "initial",
       })
       .select("id")
       .single();
