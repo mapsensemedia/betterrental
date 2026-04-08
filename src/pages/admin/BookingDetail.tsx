@@ -86,6 +86,7 @@ import {
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
 
 function snakeToTitle(str: string): string {
   return str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -1421,15 +1422,26 @@ export default function BookingDetail() {
                               {format(parseISO(agreement.created_at), "PP")}
                             </span>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setViewingAgreement(agreement)}
-                          >
-                            <FileText className="w-3 h-3 mr-2" />
-                            View Agreement
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => setViewingAgreement(agreement)}
+                            >
+                              <FileText className="w-3 h-3 mr-2" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => generateRentalAgreementPdf(agreement, booking.id)}
+                            >
+                              <Download className="w-3 h-3 mr-2" />
+                              PDF
+                            </Button>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -1561,24 +1573,23 @@ export default function BookingDetail() {
             <Separator className="my-4" />
 
             {viewingAgreement?.customer_signed_at ? (
-              <div className="p-4 space-y-2">
+              <div className="p-4 space-y-3">
                 <p className="text-sm font-medium flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   Signed on {format(parseISO(viewingAgreement.customer_signed_at), "PPp")}
                 </p>
+                {viewingAgreement.customer_signature && (
+                  <p className="text-sm text-muted-foreground">
+                    Signed by: <span className="font-medium text-foreground">{viewingAgreement.customer_signature}</span>
+                    {(viewingAgreement as any).signed_manually && (
+                      <span className="ml-2 text-xs text-muted-foreground">(In-person)</span>
+                    )}
+                  </p>
+                )}
                 {viewingAgreement.signature_png_url && (
                   <div className="border rounded-md p-3 bg-muted/30">
                     <img
                       src={viewingAgreement.signature_png_url}
-                      alt="Customer signature"
-                      className="max-h-24 mx-auto"
-                    />
-                  </div>
-                )}
-                {viewingAgreement.customer_signature && !viewingAgreement.signature_png_url && (
-                  <div className="border rounded-md p-3 bg-muted/30">
-                    <img
-                      src={viewingAgreement.customer_signature}
                       alt="Customer signature"
                       className="max-h-24 mx-auto"
                     />
