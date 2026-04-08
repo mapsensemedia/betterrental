@@ -98,7 +98,8 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { bookingId, suppressNotifications } = body;
+    const { bookingId, suppressNotifications, agreementType } = body;
+    const isExtension = agreementType === "extension";
 
     // Input validation
     if (!bookingId || typeof bookingId !== "string") {
