@@ -1573,24 +1573,23 @@ export default function BookingDetail() {
             <Separator className="my-4" />
 
             {viewingAgreement?.customer_signed_at ? (
-              <div className="p-4 space-y-2">
+              <div className="p-4 space-y-3">
                 <p className="text-sm font-medium flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   Signed on {format(parseISO(viewingAgreement.customer_signed_at), "PPp")}
                 </p>
+                {viewingAgreement.customer_signature && (
+                  <p className="text-sm text-muted-foreground">
+                    Signed by: <span className="font-medium text-foreground">{viewingAgreement.customer_signature}</span>
+                    {(viewingAgreement as any).signed_manually && (
+                      <span className="ml-2 text-xs text-muted-foreground">(In-person)</span>
+                    )}
+                  </p>
+                )}
                 {viewingAgreement.signature_png_url && (
                   <div className="border rounded-md p-3 bg-muted/30">
                     <img
                       src={viewingAgreement.signature_png_url}
-                      alt="Customer signature"
-                      className="max-h-24 mx-auto"
-                    />
-                  </div>
-                )}
-                {viewingAgreement.customer_signature && !viewingAgreement.signature_png_url && (
-                  <div className="border rounded-md p-3 bg-muted/30">
-                    <img
-                      src={viewingAgreement.customer_signature}
                       alt="Customer signature"
                       className="max-h-24 mx-auto"
                     />
