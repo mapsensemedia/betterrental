@@ -326,7 +326,7 @@ export default function BookingDetail() {
       if (!bookingId) return [];
       const { data } = await supabase
         .from("rental_agreements")
-        .select("id, status, customer_signed_at, signature_png_url, created_at, agreement_content, terms_json, customer_signature, staff_confirmed_by, staff_confirmed_at, signed_manually, signed_manually_at, signed_manually_by, customer_ip_address, updated_at, booking_id")
+        .select("id, status, agreement_type, customer_signed_at, signature_png_url, created_at, agreement_content, terms_json, customer_signature, staff_confirmed_by, staff_confirmed_at, signed_manually, signed_manually_at, signed_manually_by, customer_ip_address, updated_at, booking_id")
         .eq("booking_id", bookingId)
         .order("created_at", { ascending: false });
       return data || [];
