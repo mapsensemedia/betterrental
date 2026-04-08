@@ -1,28 +1,30 @@
 
 
-## Fix: Extension Agreement Not Generating
+## Fix License Photos Not Displaying on Booking Detail Page
 
-### Root Cause
+### Problem
+The booking detail page shows the license status badge but never renders the actual license images. The profile query fetches `driver_license_front_url` and `driver_license_back_url`, but no image elements exist in the UI. Additionally, the stored URLs are pre-signed URLs that expire, so fresh signed URLs must be generated from the storage path.
 
-Two issues:
+### Approach
+The stored URLs contain the full signed URL (e.g., `https://.../storage/v1/object/sign/driver-licenses/{userId}/front.jpg?token=...`). We need to extract the storage path from these URLs and use `SignedStorageImage` (already imported) to render them with fresh signed URLs.
 
-1. **Edge function not deployed with extension logic** — The source code has the `isExtension` bypass but the logs show "Agreement already exists" was hit, meaning the deployed version didn't include the extension bypass. The edge function needs to be redeployed.
+### Changes in `src/pages/admin/BookingDetail.tsx`
 
-2. **UI shows false success** — `handleGenerateAgreement` always shows "generated successfully" even when the function returns `{ alreadyExists: true }`. It should check `data.alreadyExists` and show a different message, or better yet, not show success at all since no new agreement was created.
+After the license status badge section (around line 563), add a license photo preview section:
 
-### Fix Plan
+1. Extract the storage path from `driver_license_front_url` and `driver_license_back_url` by parsing out the path after `driver-licenses/` and before `?token=`
+2. Render two `SignedStorageImage` components (front and back) in a 2-column grid with click-to-enlarge dialog
+3. Show "No license photos uploaded" if both URLs are null
+4. Add a Dialog for full-size license preview on click (reuse the pattern from condition photos)
 
-**1. Redeploy the edge function** (`supabase/functions/generate-agreement/index.ts`)
-- No code changes needed — the extension bypass logic is already in the source (lines 327-340). Just needs redeployment.
+### Technical Details
 
-**2. Fix success handling in `src/pages/admin/BookingDetail.tsx`** (line 363-364)
-- After the function call, check `data.alreadyExists`:
-  - If `true` and type is `extension`: show an info toast "Extension agreement already exists" instead of success
-  - If `false`: show the success toast and invalidate queries as before
+- Helper function to extract path: parse the URL to get the segment between `/driver-licenses/` and `?token=`
+- Use the existing `SignedStorageImage` component with `bucket="driver-licenses"`
+- Wrap each image in a clickable container that opens a full-size dialog
 
 ### Files
 | File | Change |
 |------|--------|
-| `supabase/functions/generate-agreement/index.ts` | Redeploy (no code change needed) |
-| `src/pages/admin/BookingDetail.tsx` | Check `data.alreadyExists` before showing success toast |
+| `src/pages/admin/BookingDetail.tsx` | Add license image rendering after license status badge, with path extraction and SignedStorageImage |
 
