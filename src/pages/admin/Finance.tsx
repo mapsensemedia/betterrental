@@ -773,7 +773,6 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
                 <div className="space-y-2">
                   <BreakdownRow label="Rental Payments" amount={typeBreakdown.rental} total={metrics.collected} />
                   <BreakdownRow label="Deposit Payments" amount={typeBreakdown.deposit} total={metrics.collected} />
-                  {unrecordedTotal > 0 && <BreakdownRow label="Unrecorded Revenue" amount={unrecordedTotal} total={metrics.collected} />}
                   {typeBreakdown.other > 0 && <BreakdownRow label="Other" amount={typeBreakdown.other} total={metrics.collected} />}
                 </div>
               </CardContent>
