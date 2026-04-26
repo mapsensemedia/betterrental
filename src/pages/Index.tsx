@@ -73,7 +73,7 @@ const Index = () => {
   // Inject meta tags, OG tags, canonical, and JSON-LD structured data
   useEffect(() => {
     // Title
-    document.title = "C2C Rental | Car Rental Surrey, Langley & Abbotsford BC | No Hidden Fees";
+    document.title = "Car Rental Surrey, Langley & Abbotsford BC | C2C Rental";
 
     // Meta description
     let metaDesc = document.querySelector('meta[name="description"]');
@@ -121,7 +121,7 @@ const Index = () => {
     const ogTags = [
       { property: "og:type", content: "website" },
       { property: "og:locale", content: "en_CA" },
-      { property: "og:title", content: "C2C Rental | Car Rental Surrey, Langley & Abbotsford BC" },
+      { property: "og:title", content: "Car Rental Surrey, Langley & Abbotsford BC | C2C Rental" },
       { property: "og:description", content: "Local car rental in Surrey, Langley, Abbotsford and the Lower Mainland BC. Affordable rates, fully insured, no hidden fees, 24/7 support." },
       { property: "og:url", content: "https://c2crental.ca/" },
     ];
@@ -284,10 +284,10 @@ const Index = () => {
             <div className="relative z-10 max-w-xl animate-slide-up">
               {/* Eyebrow */}
               <p className="text-[12px] md:text-[13px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-4">
-                Premium Rentals · Lower Mainland
+                C2C Rental · Lower Mainland
               </p>
-              <h1 className="text-[44px] md:text-[64px] font-semibold tracking-[-0.03em] leading-[1.05] text-zinc-950 mb-2">
-                C2C Rental
+              <h1 className="text-[40px] md:text-[60px] font-semibold tracking-[-0.03em] leading-[1.05] text-zinc-950 mb-2">
+                Car Rental in Surrey, Langley &amp; Abbotsford BC
               </h1>
               {/* Accent underline */}
               <div className="w-14 h-[3px] mt-4 mb-6 rounded-full" style={{ backgroundColor: '#197149' }} />
@@ -345,6 +345,29 @@ const Index = () => {
 
       {/* ── D) WHY CHOOSE SECTION ──────────────────────────────── */}
       <WhyChooseSection />
+
+      {/* ── D1) QUICK LINKS — improves internal linking for SEO ── */}
+      <section aria-labelledby="explore-heading" className="py-10 md:py-14 bg-background border-t border-border/40">
+        <div className="container-page">
+          <h2 id="explore-heading" className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-5">
+            Explore C2C Rental
+          </h2>
+          <nav aria-label="Popular pages" className="flex flex-wrap gap-x-6 gap-y-3 text-sm">
+            <Link to="/search" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Browse all cars</Link>
+            <Link to="/surrey" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Car rental in Surrey</Link>
+            <Link to="/langley" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Car rental in Langley</Link>
+            <Link to="/abbotsford" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Car rental in Abbotsford</Link>
+            <Link to="/locations" className="text-foreground hover:text-primary underline-offset-4 hover:underline">All locations</Link>
+            <Link to="/protection" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Insurance &amp; protection</Link>
+            <Link to="/about" className="text-foreground hover:text-primary underline-offset-4 hover:underline">About C2C Rental</Link>
+            <Link to="/contact" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Contact us</Link>
+            <Link to="/blog" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Rental tips &amp; guides</Link>
+            <Link to="/blog/daily-vs-weekly-car-rental-surrey-bc" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Daily vs weekly rates</Link>
+            <Link to="/blog/icbc-car-rental-insurance-bc" className="text-foreground hover:text-primary underline-offset-4 hover:underline">ICBC rental insurance guide</Link>
+            <Link to="/blog/best-road-trips-from-surrey-bc" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Best road trips from Surrey</Link>
+          </nav>
+        </div>
+      </section>
 
       {/* ── D2) CLEANING BANNER ─────────────────────────────── */}
       <CleaningBanner />

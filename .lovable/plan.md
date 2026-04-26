@@ -1,66 +1,41 @@
+# Fix Homepage SEO Issues
 
+The audit flagged 3 errors and 2 warnings on the homepage (`/`). Most stem from the crawler reading the static `index.html` (where the `<title>` and the JS-rendered `<h1>` don't agree) and from a brand-only H1 with too few internal links.
 
-## March 2026 — Booking & Analytics Summary
+## What gets fixed
 
-Here is a consolidated read of all booking and analytics activity for **March 1 – March 31, 2026**, pulled directly from the database. No code changes are needed — this is a reporting answer.
-
-### Bookings
-| Metric | Value |
-|---|---|
-| Total bookings created | **37** |
-| Completed | 26 |
-| Active | 1 |
-| Pending | 3 |
-| Cancelled | 7 |
-| Unique customers | 33 |
-| Unique vehicles booked | 8 |
-| Total billed | **$12,220.42** |
-| Avg booking value | $330.28 |
-| Avg rental length | 3.3 days |
-| Total rental days | 123 |
-
-### Fulfilment
-- Pickups scheduled in March: **33**
-- Scheduled returns in March: 31
-- Actual returns in March: 30
-
-### Revenue (payments table — source of truth)
-| Status | Count | Amount |
+| Audit finding | Root cause | Fix |
 |---|---|---|
-| Completed | 30 | $6,824.72 |
-| Captured | 2 | $520.74 |
-| Authorized (holds) | 10 | $3,500.00 |
-| Voided | 4 | $1,400.00 |
-| **Collected revenue (completed + captured)** | **32** | **$7,345.46** |
+| Add an H1 to this page | H1 is just "C2C Rental" — too generic, and the audit may not see JS-rendered content | Make the H1 keyword-rich and ensure the same text exists in `index.html` as a fallback that React replaces |
+| Use good headings on the page | Only 1 H2 (`Browse Our Fleet`); other sections use H2 inconsistently and there's no clear H1 → H2 → H3 flow | Standardize section headings (`Why Choose`, `Browse Fleet`, `Locations`, `Delivery`, `Cleaning`) as H2, ensure card titles stay H3 |
+| Page has very few internal links | Hero only links to 3 city pages; rest of the page links are JS-rendered and the crawler likely under-counts | Add a small "Popular pages" / quick-links row in the hero or above the footer (Browse Cars, Surrey, Langley, Abbotsford, Locations, About, Blog, Contact, Daily vs Weekly guide, ICBC guide) |
+| Review and improve the page title | Current title is 79 chars — over Google's ~60-char limit and gets truncated | Shorten to ~55 chars, lead with the primary keyword |
+| Title doesn't match content | Static `<title>` says "Affordable Car Rental…", JS title says "No Hidden Fees", H1 says only "C2C Rental" — three different signals | Align all three: same wording in `index.html`, the React `useEffect` title, and the H1 eyebrow/heading |
 
-### Web Analytics — Funnel (analytics_events)
-| Stage | Events | Unique sessions |
-|---|---|---|
-| Page views | 965 | 229 |
-| Search performed | 434 | 234 |
-| Vehicle viewed | 238 | 139 |
-| Vehicle selected | 282 | 146 |
-| Protection selected | 72 | 56 |
-| Add-ons selected | 33 | 28 |
-| Checkout started | 50 | 43 |
-| Payment method selected | 20 | 12 |
-| Booking completed (tracked) | 12 | 12 |
-| Errors logged | 10 | 5 |
+## Specific changes
 
-**Funnel conversion (session-based):** Search → Vehicle viewed ≈ 59% → Checkout started ≈ 31% of viewers → Booking ≈ 28% of checkouts started.
+### 1. `index.html`
+- Update `<title>` to: `Car Rental Surrey, Langley & Abbotsford BC | C2C Rental` (~55 chars).
+- Update the matching `og:title` and `twitter:title` to the same string.
+- Add a noscript fallback `<h1>` inside `<body>` so crawlers without JS see a heading that matches the title.
 
-### Incidents
-- Damage reports filed: **2** (1 minor, 1 moderate)
-- Estimated damage cost: $350.00
+### 2. `src/pages/Index.tsx`
+- Change the JS-injected `document.title` to the same shorter string used in `index.html`.
+- Update the H1 from `C2C Rental` to `Car Rental in Surrey, Langley & Abbotsford BC` (keeps the "C2C Rental" brand as the eyebrow above it).
+- Keep the visual treatment (same font sizes, accent underline) — only the text changes.
 
-### Daily booking trend (top days)
-- Mar 16 — 5 bookings, $3,252.49 billed (peak day)
-- Mar 21 — 4 bookings, $1,017.77
-- Mar 14 / Mar 15 — 3 bookings each
-- Mar 10 / 19 / 25 / 27 / 28 — 2 bookings each
+### 3. New "Quick links" strip on the homepage
+- Add a small section (between `WhyChooseSection` and `CleaningBanner`) with 8–10 internal links: Browse Cars, Surrey, Langley, Abbotsford, All Locations, About, Contact, Blog, Daily vs Weekly guide, ICBC Insurance guide.
+- Styled as compact text links in 2 rows so it doesn't disrupt the design.
+- This directly resolves the "few internal links" finding.
 
-### Notes
-- "Total billed" (bookings.total_amount) reflects contract value; **collected revenue is $7,345.46** — this is the authoritative number per your finance rules.
-- Abandoned carts table has no March entries — tracking may not be firing for anonymous sessions.
-- `unique_users: 0` on analytics events means most traffic is from unauthenticated sessions (expected for a booking funnel).
+### 4. Heading hierarchy audit
+- Verify `WhyChooseSection`, `CleaningBanner`, `DeliveryBanner`, `LocationsSection`, and the fleet section all use `<h2>` for their section title and `<h3>` for child cards. The current `SectionHeader` already emits `<h2>`, so the only fix is making sure each banner/section follows the same pattern (quick check + small edits where needed).
 
+## Out of scope
+- No changes to other pages (Surrey, Langley, Abbotsford, blog) — the audit was for `/` only. If you want, I can run the same pass on those pages next.
+- No changes to JSON-LD schemas (they're already comprehensive).
+
+## Technical notes
+- The new H1 text is the only on-page text change visible to users; everything else is meta/structural.
+- The `noscript` H1 in `index.html` will be hidden visually (or simply replaced by React on hydration) so it doesn't double-render for normal users.
