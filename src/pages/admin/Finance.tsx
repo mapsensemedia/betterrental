@@ -598,15 +598,17 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
         }
       }
     }
-    // Add unrecorded revenue (confirmed bookings with no payment records)
-    collected += unrecordedTotal;
+    // NOTE: unrecordedTotal is intentionally NOT added to `collected`.
+    // Collected Revenue = money actually received (payments table only).
+    // Unrecorded bookings (confirmed but missing a payment row) are surfaced
+    // separately via metrics.unrecorded and the amber action panel below.
     const pending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
     const failed = payments.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
     const total = payments.length;
     const successRate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
     const prevCollected = prevPayments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
     const changePercent = prevCollected > 0 ? Math.round(((collected - prevCollected) / prevCollected) * 100) : 0;
-    return { collected, pending, failed, total, completedCount, successRate, changePercent, pendingCount: payments.filter((p) => p.status === "pending").length, failedCount: payments.filter((p) => p.status === "failed").length };
+    return { collected, unrecorded: unrecordedTotal, pending, failed, total, completedCount, successRate, changePercent, pendingCount: payments.filter((p) => p.status === "pending").length, failedCount: payments.filter((p) => p.status === "failed").length };
   }, [payments, prevPayments, unrecordedTotal]);
 
   const methodBreakdown = useMemo(() => {
