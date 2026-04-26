@@ -598,15 +598,17 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
         }
       }
     }
-    // Add unrecorded revenue (confirmed bookings with no payment records)
-    collected += unrecordedTotal;
+    // NOTE: unrecordedTotal is intentionally NOT added to `collected`.
+    // Collected Revenue = money actually received (payments table only).
+    // Unrecorded bookings (confirmed but missing a payment row) are surfaced
+    // separately via metrics.unrecorded and the amber action panel below.
     const pending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
     const failed = payments.filter((p) => p.status === "failed").reduce((s, p) => s + p.amount, 0);
     const total = payments.length;
     const successRate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
     const prevCollected = prevPayments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
     const changePercent = prevCollected > 0 ? Math.round(((collected - prevCollected) / prevCollected) * 100) : 0;
-    return { collected, pending, failed, total, completedCount, successRate, changePercent, pendingCount: payments.filter((p) => p.status === "pending").length, failedCount: payments.filter((p) => p.status === "failed").length };
+    return { collected, unrecorded: unrecordedTotal, pending, failed, total, completedCount, successRate, changePercent, pendingCount: payments.filter((p) => p.status === "pending").length, failedCount: payments.filter((p) => p.status === "failed").length };
   }, [payments, prevPayments, unrecordedTotal]);
 
   const methodBreakdown = useMemo(() => {
@@ -716,7 +718,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       ) : (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className={`grid grid-cols-2 gap-3 ${metrics.unrecorded > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
             <SummaryCard
               title="Collected Revenue"
               value={`$${metrics.collected.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
@@ -725,6 +727,21 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
               positive
               changePercent={metrics.changePercent}
             />
+            {metrics.unrecorded > 0 && (
+              <button
+                type="button"
+                onClick={() => document.getElementById("unrecorded-bookings-panel")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="text-left"
+              >
+                <SummaryCard
+                  title="Unrecorded Revenue"
+                  value={`$${metrics.unrecorded.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
+                  subtitle={`${unrecordedBookings.length} booking${unrecordedBookings.length !== 1 ? "s" : ""} awaiting payment entry`}
+                  icon={AlertTriangle}
+                  negative
+                />
+              </button>
+            )}
             <SummaryCard
               title="Pending"
               value={`$${metrics.pending.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
@@ -756,7 +773,6 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
                 <div className="space-y-2">
                   <BreakdownRow label="Rental Payments" amount={typeBreakdown.rental} total={metrics.collected} />
                   <BreakdownRow label="Deposit Payments" amount={typeBreakdown.deposit} total={metrics.collected} />
-                  {unrecordedTotal > 0 && <BreakdownRow label="Unrecorded Revenue" amount={unrecordedTotal} total={metrics.collected} />}
                   {typeBreakdown.other > 0 && <BreakdownRow label="Other" amount={typeBreakdown.other} total={metrics.collected} />}
                 </div>
               </CardContent>
@@ -783,18 +799,18 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             </Card>
           </div>
 
-          {/* Unrecorded Revenue Warning */}
+          {/* Expected Revenue (not yet collected) — action required */}
           {unrecordedBookings.length > 0 && (
-            <Card className="border-amber-500/30 bg-amber-500/5">
+            <Card id="unrecorded-bookings-panel" className="border-amber-500/30 bg-amber-500/5 scroll-mt-24">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600" />
                   <h3 className="text-sm font-semibold text-amber-700">
-                    {unrecordedBookings.length} Booking{unrecordedBookings.length !== 1 ? "s" : ""} Without Payment Records
+                    Expected Revenue — Action Required ({unrecordedBookings.length} booking{unrecordedBookings.length !== 1 ? "s" : ""})
                   </h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  These confirmed bookings have no logged payment. Use "Log Terminal Payment" on each booking to record the transaction.
+                  These confirmed bookings have no logged payment, so the money has not been counted in Collected Revenue. Use "Log Terminal Payment" on each booking to record the transaction.
                 </p>
                 <div className="space-y-1.5">
                   {unrecordedBookings.map((b) => (
