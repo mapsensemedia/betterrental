@@ -799,18 +799,18 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             </Card>
           </div>
 
-          {/* Unrecorded Revenue Warning */}
+          {/* Expected Revenue (not yet collected) — action required */}
           {unrecordedBookings.length > 0 && (
-            <Card className="border-amber-500/30 bg-amber-500/5">
+            <Card id="unrecorded-bookings-panel" className="border-amber-500/30 bg-amber-500/5 scroll-mt-24">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600" />
                   <h3 className="text-sm font-semibold text-amber-700">
-                    {unrecordedBookings.length} Booking{unrecordedBookings.length !== 1 ? "s" : ""} Without Payment Records
+                    Expected Revenue — Action Required ({unrecordedBookings.length} booking{unrecordedBookings.length !== 1 ? "s" : ""})
                   </h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  These confirmed bookings have no logged payment. Use "Log Terminal Payment" on each booking to record the transaction.
+                  These confirmed bookings have no logged payment, so the money has not been counted in Collected Revenue. Use "Log Terminal Payment" on each booking to record the transaction.
                 </p>
                 <div className="space-y-1.5">
                   {unrecordedBookings.map((b) => (
