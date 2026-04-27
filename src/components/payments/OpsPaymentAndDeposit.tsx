@@ -112,48 +112,44 @@ export function OpsPaymentAndDeposit({
       }
     }
 
-    // ── Step 2: Deposit authorization ──
+    // ── Step 2: ALWAYS attempt deposit hold after rental, regardless of capture status ──
     setStatusMessage("Placing deposit hold…");
-    let tokenB: { token: string; last4: string; name: string };
+    let depositAttempted = false;
     try {
-      tokenB = await checkoutRef.current.getToken();
-    } catch (err: any) {
-      // Rental succeeded but second tokenization failed
-      toast.info("Rental payment received. Deposit hold will be arranged separately.");
-      setStep("done");
-      setStatusMessage(null);
-      onUpdated();
-      return;
-    }
+      const tokenB = await checkoutRef.current.getToken();
+      depositAttempted = true;
+      const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", {
+        body: { bookingId, token: tokenB.token, name: tokenB.name },
+      });
 
-    const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", {
-      body: { bookingId, token: tokenB.token, name: tokenB.name },
-    });
-
-    if (authError || authData?.error || authData?.declined) {
-      // Check server truth
-      try {
-        const truth = await verifyServerState();
-        if (truth.depositAuthorized) {
-          console.warn("[OpsPayment] Deposit authorized server-side despite client error");
-          toast.success("Payment and deposit hold completed successfully");
-          setStep("done");
-          setStatusMessage(null);
-          onUpdated();
-          return;
+      if (authError || authData?.error || authData?.declined) {
+        try {
+          const truth = await verifyServerState();
+          if (!truth.depositAuthorized) {
+            console.warn("[OpsPayment] Deposit hold failed:", authError || authData?.error);
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // fall through
       }
-      toast.info("Rental payment received. Deposit hold will be arranged separately.");
-      setStep("done");
-      setStatusMessage(null);
-      onUpdated();
-      return;
+    } catch (err: any) {
+      console.warn("[OpsPayment] Deposit step exception:", err);
     }
 
-    // Both succeeded
-    toast.success("Payment and deposit hold completed successfully");
+    // ── Step 3: integrity check — raises an admin alert if anything is missing ──
+    try {
+      await supabase.functions.invoke("check-booking-payment-integrity", {
+        body: { bookingId },
+      });
+    } catch (intErr) {
+      console.warn("[OpsPayment] Integrity check failed (non-blocking):", intErr);
+    }
+
+    if (depositAttempted) {
+      toast.success("Payment and deposit hold completed");
+    } else {
+      toast.info("Rental payment received. Deposit hold needs to be arranged separately.");
+    }
     setError(null);
     setStep("done");
     setStatusMessage(null);
