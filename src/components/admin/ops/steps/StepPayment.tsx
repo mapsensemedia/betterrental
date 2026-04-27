@@ -42,6 +42,7 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: paymentStatus, isLoading } = usePaymentDepositStatus(bookingId);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
+  const [isCapturingRental, setIsCapturingRental] = useState(false);
   const [payMode, setPayMode] = useState<"card" | "terminal">("card");
   const queryClient = useQueryClient();
 
@@ -109,6 +110,24 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
       toast.error("Release failed: " + (err.message || "Unknown error"));
     } finally {
       setIsReleasing(false);
+    }
+  };
+
+  const handleCaptureRental = async () => {
+    setIsCapturingRental(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-capture", {
+        body: { bookingId, kind: "rental" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      toast.success("Rental payment captured successfully");
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    } catch (err: any) {
+      toast.error("Rental capture failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsCapturingRental(false);
     }
   };
 
@@ -218,6 +237,28 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                   </Button>
                 </div>
               </div>
+              {/* Manual rental capture — only when authorized but not yet captured */}
+              {wlAuthStatus === "authorized" &&
+                paymentStatus?.payments?.some(p => p.paymentType === "rental" && p.status === "authorized") && (
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    onClick={handleCaptureRental}
+                    disabled={isCapturingRental}
+                    className="w-full"
+                  >
+                    {isCapturingRental ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-1" />
+                    )}
+                    Capture Rental Now
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Rental is authorized but not yet captured. Click to settle the funds.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

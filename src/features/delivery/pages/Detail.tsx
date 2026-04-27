@@ -21,6 +21,8 @@ import { RentalAgreementPanel } from "@/components/admin/RentalAgreementPanel";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { StepWalkaround } from "@/components/admin/ops/steps/StepWalkaround";
 import { StepPhotos } from "@/components/admin/ops/steps/StepPhotos";
+import { NoDepositActivationModal } from "@/components/admin/NoDepositActivationModal";
+import { usePreActivationCheck, logActivationOverride, type PreActivationStatus } from "@/hooks/use-pre-activation-check";
 import { displayName } from "@/lib/format-customer";
 import { DELIVERY_PORTAL_STEPS, type OpsStep } from "@/lib/ops-steps";
 import {
@@ -562,12 +564,18 @@ function StepHandoverActivation({
   const [showConfirm, setShowConfirm] = useState(false);
   const [activating, setActivating] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
+  const [noDepositStatus, setNoDepositStatus] = useState<PreActivationStatus | null>(null);
+  const preCheck = usePreActivationCheck();
   const isDelivered = delivery.deliveryStatus === "delivered";
 
-  const handleActivate = async () => {
+  const performActivation = async (overrideStatus?: PreActivationStatus) => {
     setActivating(true);
     setActivationError(null);
     try {
+      if (overrideStatus) {
+        const { logActivationOverride } = await import("@/hooks/use-pre-activation-check");
+        await logActivationOverride(bookingId, overrideStatus, "delivery_portal");
+      }
       const { data, error } = await supabase.functions.invoke("update-booking-status", {
         body: {
           bookingId,
@@ -579,13 +587,11 @@ function StepHandoverActivation({
       });
       if (error) throw error;
 
-      // Update delivery status to delivered
       await supabase
         .from("delivery_statuses")
         .update({ status: "delivered", updated_at: new Date().toISOString() })
         .eq("booking_id", bookingId);
 
-      // Update delivery task
       await supabase
         .from("delivery_tasks")
         .upsert({
@@ -604,7 +610,18 @@ function StepHandoverActivation({
     } finally {
       setActivating(false);
       setShowConfirm(false);
+      setNoDepositStatus(null);
     }
+  };
+
+  const handleActivate = async () => {
+    const status = await preCheck(bookingId);
+    if (!status.ok) {
+      setShowConfirm(false);
+      setNoDepositStatus(status);
+      return;
+    }
+    await performActivation();
   };
 
   if (isDelivered) {
