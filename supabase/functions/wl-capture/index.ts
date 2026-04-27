@@ -1,8 +1,11 @@
 /**
- * wl-capture — Capture a previously authorized deposit hold
- * 
- * Admin/staff only. Captures the full or partial amount of a pre-auth.
- * Uses wl_deposit_transaction_id (not rental wl_transaction_id).
+ * wl-capture — Capture a previously authorized Bambora transaction.
+ *
+ * Supports two kinds:
+ *   - kind: 'deposit' (default) — captures wl_deposit_transaction_id, updates deposit_*.
+ *   - kind: 'rental'             — captures wl_transaction_id, marks rental payment 'completed'.
+ *
+ * Admin/staff/finance only.
  */
 
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -20,7 +23,8 @@ Deno.serve(async (req) => {
     const user = await getUserOrThrow(req, corsHeaders);
     await requireRoleOrThrow(user.userId, ["admin", "staff", "finance"], corsHeaders);
 
-    const { bookingId, amount: captureAmount } = await req.json();
+    const { bookingId, amount: captureAmount, kind } = await req.json();
+    const captureKind: "rental" | "deposit" = kind === "rental" ? "rental" : "deposit";
 
     if (!bookingId) {
       return new Response(
@@ -36,14 +40,69 @@ Deno.serve(async (req) => {
 
     const { data: booking, error: bErr } = await supabase
       .from("bookings")
-      .select("wl_deposit_transaction_id, wl_transaction_id, deposit_amount, deposit_status, booking_code")
+      .select("wl_deposit_transaction_id, wl_transaction_id, deposit_amount, deposit_status, wl_auth_status, total_amount, booking_code")
       .eq("id", bookingId)
       .single();
 
-    // Use deposit-specific txn id, fall back to legacy wl_transaction_id
-    const depositTxnId = booking?.wl_deposit_transaction_id || booking?.wl_transaction_id;
+    if (bErr || !booking) {
+      return new Response(
+        JSON.stringify({ error: "Booking not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    if (bErr || !depositTxnId) {
+    // ── RENTAL CAPTURE ──
+    if (captureKind === "rental") {
+      const rentalTxnId = booking.wl_transaction_id;
+      if (!rentalTxnId) {
+        return new Response(
+          JSON.stringify({ error: "No rental transaction found for this booking" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      if (booking.wl_auth_status === "completed") {
+        return new Response(
+          JSON.stringify({ error: "Rental already captured" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const finalAmount = captureAmount ?? booking.total_amount;
+
+      const res = await log.timed("bambora_capture_rental", () =>
+        worldlineRequest("POST", `/payments/${rentalTxnId}/completions`, { amount: finalAmount }),
+      );
+
+      if (!res.ok) {
+        log.error("Rental capture failed", undefined, { response: res.data });
+        return new Response(
+          JSON.stringify({ error: parseWorldlineError(res.data) }),
+          { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      await supabase.from("bookings").update({
+        wl_auth_status: "completed",
+      }).eq("id", bookingId);
+
+      await supabase.from("payments")
+        .update({ status: "completed" })
+        .eq("booking_id", bookingId)
+        .eq("transaction_id", rentalTxnId);
+
+      log.info("Rental capture completed", { amount: finalAmount, rentalTxnId });
+
+      return new Response(
+        JSON.stringify({ success: true, kind: "rental", capturedAmount: finalAmount }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ── DEPOSIT CAPTURE (legacy default behavior) ──
+    const depositTxnId = booking.wl_deposit_transaction_id || booking.wl_transaction_id;
+
+    if (!depositTxnId) {
       return new Response(
         JSON.stringify({ error: "No deposit authorization found for this booking" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -60,9 +119,7 @@ Deno.serve(async (req) => {
     const finalAmount = captureAmount ?? booking.deposit_amount;
 
     const res = await log.timed("bambora_capture", () =>
-      worldlineRequest("POST", `/payments/${depositTxnId}/completions`, {
-        amount: finalAmount,
-      }),
+      worldlineRequest("POST", `/payments/${depositTxnId}/completions`, { amount: finalAmount }),
     );
 
     if (!res.ok) {
@@ -81,16 +138,15 @@ Deno.serve(async (req) => {
       wl_deposit_auth_status: "captured",
     }).eq("id", bookingId);
 
-    // Update payment record for the deposit transaction
     await supabase.from("payments")
       .update({ status: "completed" })
       .eq("booking_id", bookingId)
       .eq("transaction_id", depositTxnId);
 
-    log.info("Capture completed", { amount: finalAmount, depositTxnId });
+    log.info("Deposit capture completed", { amount: finalAmount, depositTxnId });
 
     return new Response(
-      JSON.stringify({ success: true, capturedAmount: finalAmount }),
+      JSON.stringify({ success: true, kind: "deposit", capturedAmount: finalAmount }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
