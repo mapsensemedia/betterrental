@@ -1,8 +1,9 @@
 /**
  * PaymentDepositPanel
- * 
- * Simple payment status panel showing payments received
- * and a "Send Payment Request" button for additional charges.
+ *
+ * Simple payment status panel showing payments received on a booking.
+ * Additional charges are collected at the counter via the Worldline POS flow
+ * (see OpsPaymentAndDeposit) — there is no "send payment link" action here.
  */
 
 import { format } from 'date-fns';
@@ -18,11 +19,8 @@ import {
   Loader2,
   Info,
   Copy,
-  Send,
 } from 'lucide-react';
-import { useState } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentDepositPanelProps {
   bookingId: string;
@@ -30,32 +28,14 @@ interface PaymentDepositPanelProps {
   onComplete?: () => void;
 }
 
-export function PaymentDepositPanel({ 
-  bookingId, 
-  bookingStatus = 'confirmed',
-  onComplete 
+export function PaymentDepositPanel({
+  bookingId,
 }: PaymentDepositPanelProps) {
   const { data: status, isLoading } = usePaymentDepositStatus(bookingId);
-  const [isSendingRequest, setIsSendingRequest] = useState(false);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard`);
-  };
-
-  const handleSendPaymentRequest = async () => {
-    setIsSendingRequest(true);
-    try {
-      const { error } = await supabase.functions.invoke("send-payment-request", {
-        body: { bookingId },
-      });
-      if (error) throw error;
-      toast.success("Payment request sent to customer");
-    } catch (err: any) {
-      toast.error("Failed to send payment request: " + (err.message || "Unknown error"));
-    } finally {
-      setIsSendingRequest(false);
-    }
   };
 
   if (isLoading) {
@@ -150,38 +130,17 @@ export function PaymentDepositPanel({
           <div className="text-center py-4 text-muted-foreground">
             <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="font-medium">No payments recorded</p>
-            <p className="text-sm mt-1">Send a payment link to the customer.</p>
+            <p className="text-sm mt-1">Collect payment via the Worldline counter flow.</p>
           </div>
-        )}
-
-        {/* Send Payment Request Button */}
-        {status.balance > 0 && (
-          <Button 
-            onClick={handleSendPaymentRequest}
-            disabled={isSendingRequest}
-            variant="outline"
-            className="w-full"
-          >
-            {isSendingRequest ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                Send Payment Request (${status.balance.toFixed(2)})
-              </>
-            )}
-          </Button>
         )}
 
         {/* Info */}
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription className="text-sm text-muted-foreground">
-            Payments are collected at checkout via Stripe. For additional charges 
-            (deposits, damages, fees), send a payment link to the customer.
+            Payments are processed through Worldline/Bambora. Additional charges
+            (deposits, damages, fees) are collected at the counter via the POS
+            flow.
           </AlertDescription>
         </Alert>
       </CardContent>

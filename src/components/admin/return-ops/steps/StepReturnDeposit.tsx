@@ -23,7 +23,6 @@ import {
   Loader2,
   AlertTriangle,
   Lock,
-  Send,
   ShieldCheck,
   ShieldOff,
 } from "lucide-react";
@@ -50,7 +49,6 @@ export function StepReturnDeposit({
   const createAuditLog = useCreateAuditLog();
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSendingRequest, setIsSendingRequest] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
 
@@ -169,21 +167,6 @@ export function StepReturnDeposit({
       toast.error("Failed to complete return");
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const handleSendPaymentRequest = async () => {
-    setIsSendingRequest(true);
-    try {
-      const { error } = await supabase.functions.invoke("send-payment-request", {
-        body: { bookingId },
-      });
-      if (error) throw error;
-      toast.success("Payment request sent to customer");
-    } catch (err: any) {
-      toast.error("Failed to send: " + (err.message || "Unknown error"));
-    } finally {
-      setIsSendingRequest(false);
     }
   };
 
