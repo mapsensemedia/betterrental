@@ -1,8 +1,8 @@
 /**
  * Payments Hook
- * 
- * Internal hook for recording payments from Stripe webhooks.
- * Manual payment recording has been removed - all payments are Stripe-only.
+ *
+ * Internal hook for booking lookups by code. Payment recording is handled
+ * server-side by the Worldline (wl-pay / wl-webhook) flow.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";

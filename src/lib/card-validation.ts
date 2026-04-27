@@ -281,8 +281,8 @@ export function validateCard(card: {
  */
 export function isCardTypeAllowed(cardNumber: string): { allowed: boolean; reason?: string } {
   // Note: Full debit/prepaid detection requires BIN database lookup
-  // This is a fail-safe messaging function - the actual detection
-  // would typically be done server-side with Stripe or a BIN database
+  // This is a fail-safe messaging function — the actual detection
+  // would typically be done server-side with the payment processor or a BIN database
   const cardType = detectCardType(cardNumber);
   
   if (cardType === "debit" || cardType === "prepaid") {
