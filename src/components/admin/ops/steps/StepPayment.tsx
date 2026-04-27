@@ -113,6 +113,24 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
     }
   };
 
+  const handleCaptureRental = async () => {
+    setIsCapturingRental(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-capture", {
+        body: { bookingId, kind: "rental" },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      toast.success("Rental payment captured successfully");
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    } catch (err: any) {
+      toast.error("Rental capture failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsCapturingRental(false);
+    }
+  };
+
   const refreshData = () => {
     queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
   };
