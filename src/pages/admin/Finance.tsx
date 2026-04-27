@@ -2058,6 +2058,7 @@ function RentalCaptureFailurePanel() {
   );
 }
 
+function StatusCard({ label, amount, count, variant }: { label: string; amount: number; count: number; variant: "success" | "warning" | "destructive" }) {
   const colors = { success: "bg-emerald-500/10 border-emerald-500/20", warning: "bg-yellow-500/10 border-yellow-500/20", destructive: "bg-destructive/10 border-destructive/20" };
   const textColors = { success: "text-emerald-600", warning: "text-yellow-600", destructive: "text-destructive" };
   return (
