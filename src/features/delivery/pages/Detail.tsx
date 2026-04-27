@@ -21,6 +21,8 @@ import { RentalAgreementPanel } from "@/components/admin/RentalAgreementPanel";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
 import { StepWalkaround } from "@/components/admin/ops/steps/StepWalkaround";
 import { StepPhotos } from "@/components/admin/ops/steps/StepPhotos";
+import { NoDepositActivationModal } from "@/components/admin/NoDepositActivationModal";
+import { usePreActivationCheck, logActivationOverride, type PreActivationStatus } from "@/hooks/use-pre-activation-check";
 import { displayName } from "@/lib/format-customer";
 import { DELIVERY_PORTAL_STEPS, type OpsStep } from "@/lib/ops-steps";
 import {
