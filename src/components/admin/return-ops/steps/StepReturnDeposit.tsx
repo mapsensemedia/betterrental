@@ -277,16 +277,9 @@ export function StepReturnDeposit({
                     </p>
                   ))}
                   {!hasActiveHold && (
-                    <Button
-                      onClick={handleSendPaymentRequest}
-                      disabled={isSendingRequest}
-                      variant="outline"
-                      size="sm"
-                      className="mt-3"
-                    >
-                      {isSendingRequest ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />}
-                      Send Payment Link for Damages
-                    </Button>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">
+                      Collect damage payment at the counter via the Worldline POS flow.
+                    </p>
                   )}
                 </div>
               </div>
