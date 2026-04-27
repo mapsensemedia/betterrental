@@ -897,8 +897,10 @@ export default function NewCheckout() {
                         const activeBooking = pendingBookingRef.current;
                         paymentSubmitStartedForBookingRef.current = null;
                         setPaymentError(null);
-                        
-                        // Step 2: Place deposit hold if booking has deposit
+
+                        // Step 2: ALWAYS attempt the deposit hold after rental payment.
+                        // wl-pay returns success on any approved Bambora response (P or PA).
+                        // Capture status of the rental does NOT gate the deposit step.
                         const depositAmount = DEFAULT_DEPOSIT_AMOUNT;
                         if (depositAmount > 0 && activeBooking) {
                           setCheckoutStep("deposit");
@@ -913,41 +915,41 @@ export default function NewCheckout() {
                           try {
                             const tokenResult = await worldlineRef.current?.getToken();
                             console.log("[checkout] deposit token result", { hasToken: !!tokenResult?.token });
-                            if (!tokenResult) {
-                              console.warn("[checkout] deposit hold skipped: no token from getToken()");
-                              sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
-                              setCheckoutStep("idle");
-                              if (!user) {
-                                navigate(`/complete-signup?bookingCode=${encodeURIComponent(activeBooking.booking_code)}&bookingId=${encodeURIComponent(activeBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
+                            if (tokenResult) {
+                              const authBody: Record<string, unknown> = {
+                                bookingId: activeBooking.id,
+                                token: tokenResult.token,
+                                name: tokenResult.name || fallbackCardholderName,
+                              };
+                              if (activeBooking.accessToken) authBody.accessToken = activeBooking.accessToken;
+
+                              const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
+                              if (authError || authData?.error) {
+                                console.warn("[checkout] deposit hold failed:", authError || authData?.error);
                               } else {
-                                navigate(`/booking/${activeBooking.id}?payment=success`);
+                                console.log("[checkout] deposit hold success", {
+                                  transactionId: authData?.transactionId,
+                                });
                               }
-                              return;
-                            }
-
-                            const authBody: Record<string, unknown> = {
-                              bookingId: activeBooking.id,
-                              token: tokenResult.token,
-                              name: tokenResult.name || fallbackCardholderName,
-                            };
-
-                            if (activeBooking.accessToken) authBody.accessToken = activeBooking.accessToken;
-
-                            const { data: authData, error: authError } = await supabase.functions.invoke("wl-authorize", { body: authBody });
-                            if (authError || authData?.error) {
-                              console.warn("[checkout] deposit hold failed (non-blocking):", authError || authData?.error);
-                              sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
                             } else {
-                              console.log("[checkout] deposit hold success", {
-                                transactionId: authData?.transactionId,
-                              });
+                              console.warn("[checkout] deposit hold skipped: no token from getToken()");
                             }
                           } catch (depositErr) {
-                            console.warn("[checkout] deposit hold exception (non-blocking):", depositErr);
-                            sonnerToast.info("Rental payment received. Deposit hold will be arranged separately.");
+                            console.warn("[checkout] deposit hold exception:", depositErr);
                           }
                         }
-                        
+
+                        // Step 3: integrity check — raises an admin alert if rental or deposit is missing.
+                        if (activeBooking) {
+                          try {
+                            const integrityBody: Record<string, unknown> = { bookingId: activeBooking.id };
+                            if (activeBooking.accessToken) integrityBody.accessToken = activeBooking.accessToken;
+                            await supabase.functions.invoke("check-booking-payment-integrity", { body: integrityBody });
+                          } catch (intErr) {
+                            console.warn("[checkout] integrity check failed (non-blocking):", intErr);
+                          }
+                        }
+
                         setCheckoutStep("idle");
                         if (!user && activeBooking) {
                           navigate(`/complete-signup?bookingCode=${encodeURIComponent(activeBooking.booking_code)}&bookingId=${encodeURIComponent(activeBooking.id)}&email=${encodeURIComponent(formData.email)}&payment=success`);
