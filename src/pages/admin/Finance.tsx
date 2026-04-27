@@ -799,6 +799,9 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             </Card>
           </div>
 
+          {/* Rental Capture Failures — surfaced from admin_alerts */}
+          <RentalCaptureFailurePanel />
+
           {/* Expected Revenue (not yet collected) — action required */}
           {unrecordedBookings.length > 0 && (
             <Card id="unrecorded-bookings-panel" className="border-amber-500/30 bg-amber-500/5 scroll-mt-24">
