@@ -18,9 +18,6 @@ verify_jwt = false
 [functions.confirm-admin-email]
 verify_jwt = true
 
-[functions.send-payment-request]
-verify_jwt = false
-
 [functions.send-payment-confirmation]
 verify_jwt = false
 
@@ -28,15 +25,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.check-rental-alerts]
-verify_jwt = false
-
-[functions.create-checkout-session]
-verify_jwt = false
-
-[functions.create-payment-intent]
-verify_jwt = false
-
-[functions.stripe-webhook]
 verify_jwt = false
 
 [functions.send-booking-notification]
@@ -82,12 +70,6 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.close-account]
-verify_jwt = false
-
-[functions.create-checkout-hold]
-verify_jwt = false
-
-[functions.get-stripe-config]
 verify_jwt = false
 
 [functions.backfill-additional-drivers]
