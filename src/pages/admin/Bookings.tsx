@@ -331,9 +331,9 @@ export default function AdminBookings() {
     import("@/components/admin/LowInventoryBanner").then(m => ({ default: m.LowInventoryBanner }))
   );
 
-  // Sorted + filtered All tab data
+  // Sorted + filtered All tab data — newest bookings first (by creation time)
   const allTabData = useMemo(() => {
-    return applyOpsFilters(bookings).sort((a, b) => parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime());
+    return applyOpsFilters(bookings).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
   }, [bookings, opsFilters]);
 
   const allTabSummary = useMemo(() => {
