@@ -1,190 +1,170 @@
-## Plan: make rental payments end as captured even if Bambora forces Pre-Auth
+# Stripe Removal — Full Audit
 
-I will not change the customer card form. The fix belongs in the backend payment flow: after the rental payment is approved by Bambora, the backend will immediately attempt a Completion/Capture against the returned transaction ID. Deposits will remain pre-auth only.
+## TL;DR
 
-## What will change
+Stripe is **completely dormant** in this project. Worldline/Bambora is the only active payment flow. Removing Stripe will not break anything currently working — but `send-payment-request` (used by admin "Send Payment Link") still uses Stripe Checkout and would need a Worldline replacement (or removal) before we delete it.
 
-### 1. Merchant configuration check
-Before changing the payment behavior, I will perform a read-only Bambora configuration check using the existing backend Worldline/Bambora credentials:
+Below is the full inventory. **Nothing has been changed yet.**
 
-- Try `GET /configuration`
-- If unavailable or unsupported, try `GET /merchant`
-- Show you the returned payload or the exact Bambora error response
+---
 
-No payment, capture, refund, or booking mutation will be performed for this check.
+## 1. Frontend files referencing Stripe
 
-If Bambora does not expose merchant/account capture mode through those endpoints, I will report that exact API response and still proceed with the capture guarantee below.
+| File | What's there | Active? |
+|------|--------------|---------|
+| `src/pages/NewCheckout.tsx` | 3 stale comments only ("Stripe webhook handles…", "Stripe hosted checkout…"). No imports, no calls. | Comments only |
+| `src/components/admin/PaymentDepositPanel.tsx` | Visible UI text: *"Payments are collected at checkout via Stripe."* + invokes `send-payment-request` (Stripe edge fn) | **Live UI** |
+| `src/components/admin/return-ops/steps/StepReturnDeposit.tsx` | Invokes `send-payment-request` for the "send payment link" button at return | **Live UI** |
+| `src/lib/card-validation.ts` | One comment ("would typically be done… with Stripe"). No code. | Comment only |
+| `src/hooks/use-payments.ts` | Header comments only ("Stripe webhooks", "Stripe-only"). No Stripe code. | Comments only |
+| `src/integrations/supabase/types.ts` | Auto-generated types for `stripe_deposit_*` columns + `stripe_webhook_events` table | Auto-regen after migration |
 
-### 2. Rental payment flow: force completion after approval
-For `wl-pay` rental payments only:
+**No file imports `@stripe/react-stripe-js` or `@stripe/stripe-js`.** The npm packages are dead weight.
 
-1. Create the initial Bambora payment exactly as today.
-2. Read the returned transaction ID and returned transaction type, if present.
-3. Immediately call Bambora Completion/Capture:
+---
 
-```text
-POST /payments/{transaction_id}/completions
-body: { amount: booking.total_amount }
+## 2. NPM packages
+
+In `package.json`:
+- `@stripe/react-stripe-js` ^5.6.0
+- `@stripe/stripe-js` ^8.7.0
+
+Both have **zero imports** anywhere in `src/`. Safe to remove.
+
+Lockfiles (`bun.lock`, `bun.lockb`, `package-lock.json`, `deno.lock`) will regenerate.
+
+---
+
+## 3. Supabase edge functions using Stripe
+
+| Function | Status | Called from |
+|----------|--------|-------------|
+| `stripe-webhook/` | Stripe webhook handler | Stripe only (no Stripe = nothing) |
+| `create-checkout-session/` | Stripe Checkout for rentals | **Not called by any frontend code** |
+| `create-checkout-hold/` | Stripe PaymentIntent for deposit holds | **Not called by any frontend code** |
+| `create-payment-intent/` | Standard Stripe PI for authed users | **Not called by any frontend code** |
+| `send-payment-request/` | Creates a Stripe Checkout session, emails/SMS the link | **CALLED by `PaymentDepositPanel` and `StepReturnDeposit`** |
+| `close-account/` | Imports Stripe SDK, collects `stripe_payment_ids` for the export | Called by account-deletion flow |
+
+`get-stripe-config/` is referenced in `supabase/config.toml` but the function folder no longer exists (orphaned config block).
+
+`_shared/cors.ts` allows the `stripe-signature` header — harmless but Stripe-specific.
+
+---
+
+## 4. Environment variables / secrets
+
+In Supabase secrets (Lovable Cloud):
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+In `.env`: none. In code: only those two names referenced.
+
+---
+
+## 5. Database tables / columns / migrations
+
+**Table:** `stripe_webhook_events` — **0 rows**. Created in migration `20260116012359…`, unique constraint added in `20260214033202…`.
+
+**Columns on `bookings` table** (all NULL on every row — verified, 0 rows have a `stripe_deposit_pi_id`):
+- `stripe_deposit_pi_id`
+- `stripe_deposit_pm_id`
+- `stripe_deposit_charge_id`
+- `stripe_deposit_client_secret`
+- `stripe_deposit_refund_id`
+
+**Columns on `deposit_ledger`** (all unused):
+- `stripe_refund_id`, `stripe_charge_id`, `stripe_balance_txn_id`, `stripe_pi_id`
+- CHECK constraint includes `'stripe_hold'` and `'stripe_release'` action values
+
+**Columns on `closed_accounts`** (or similar, written by `close-account`):
+- `stripe_payment_ids` (jsonb), `stripe_refund_ids` (jsonb), `stripe_charge_ids` (jsonb)
+
+Migration `20260205133740…` added all the above. Migration `20260209031600…` has Stripe in a comment only.
+
+We will **not delete the historical migrations** (they're append-only history). New migration will drop the columns/tables/constraints.
+
+---
+
+## 6. UI surfaces shown to users
+
+Admin-only:
+- **`PaymentDepositPanel`** on `/admin/bookings/:id` — explicit text "Payments are collected at checkout via Stripe" + a "Send Payment Link" button that hits `send-payment-request` (Stripe Checkout email).
+- **`StepReturnDeposit`** in the return-ops wizard — same "send payment link" action.
+
+No customer-facing UI shows Stripe branding.
+
+---
+
+## Confirmation answers
+
+**Is Stripe actively used by any live payment flow?**
+No. The customer rental + deposit flow runs entirely through `wl-pay`, `wl-authorize`, `wl-webhook`, `wl-completion`, etc. Stripe edge functions are unreachable from the UI **except** `send-payment-request`, which is only triggered when an admin clicks "Send Payment Link" on a booking — and that hasn't been migrated to Worldline.
+
+**Dependencies between Stripe code and Worldline?**
+None. No Worldline edge function imports the Stripe SDK or reads Stripe DB columns. They are fully independent.
+
+**Will removing Stripe break anything currently working?**
+Only one thing: the admin **"Send Payment Link"** button in `PaymentDepositPanel` and `StepReturnDeposit`. If we delete `send-payment-request`, those buttons stop working. Three options:
+1. Replace `send-payment-request` with a Worldline-based hosted-payment-link version.
+2. Remove the "Send Payment Link" button entirely (admins collect payment in person via the existing `OpsPaymentAndDeposit` flow).
+3. Leave `send-payment-request` + its Stripe secret in place for now and remove everything else.
+
+---
+
+## Proposed removal plan (for your approval)
+
+### A. Code deletions
+- **Delete edge functions:** `stripe-webhook/`, `create-checkout-session/`, `create-checkout-hold/`, `create-payment-intent/`, and (pending decision above) `send-payment-request/`. Call `supabase--delete_edge_functions` to deprovision them from Cloud.
+- **`close-account/index.ts`:** strip the `import Stripe from …`, drop `stripe_payment_ids` / `stripe_charge_ids` from the export object.
+- **`_shared/cors.ts`:** remove `stripe-signature` from allowed headers + the comment.
+- **`supabase/config.toml`:** remove `[functions.stripe-webhook]`, `[functions.create-checkout-session]`, `[functions.create-payment-intent]`, `[functions.create-checkout-hold]`, `[functions.get-stripe-config]`, and `[functions.send-payment-request]` (if deleted).
+- **`PaymentDepositPanel.tsx`:** remove the Stripe sentence + "Send Payment Link" button (or rewire — your call).
+- **`StepReturnDeposit.tsx`:** remove or rewire the "send payment link" call.
+- **Stale comments:** clean `NewCheckout.tsx`, `card-validation.ts`, `use-payments.ts`.
+
+### B. Package removal
+- `bun remove @stripe/react-stripe-js @stripe/stripe-js`
+
+### C. Database migration
+```sql
+ALTER TABLE bookings
+  DROP COLUMN stripe_deposit_pi_id,
+  DROP COLUMN stripe_deposit_pm_id,
+  DROP COLUMN stripe_deposit_charge_id,
+  DROP COLUMN stripe_deposit_client_secret,
+  DROP COLUMN stripe_deposit_refund_id;
+
+ALTER TABLE deposit_ledger
+  DROP COLUMN stripe_refund_id,
+  DROP COLUMN stripe_charge_id,
+  DROP COLUMN stripe_balance_txn_id,
+  DROP COLUMN stripe_pi_id;
+
+-- Drop & recreate the deposit_ledger action CHECK without 'stripe_hold'/'stripe_release'
+ALTER TABLE deposit_ledger DROP CONSTRAINT <action_check_name>;
+ALTER TABLE deposit_ledger ADD CONSTRAINT deposit_ledger_action_check
+  CHECK (action IN ('hold','release','deduct','authorize','partial_capture','capture','expire','cancel'));
+
+-- Closed-accounts table: drop stripe_*_ids columns
+ALTER TABLE <closed_accounts_table>
+  DROP COLUMN stripe_payment_ids,
+  DROP COLUMN stripe_refund_ids,
+  DROP COLUMN stripe_charge_ids;
+
+DROP TABLE stripe_webhook_events;
 ```
+(Exact constraint/table names confirmed during execution.)
 
-4. Treat the rental as completed only if:
-   - the completion call succeeds, or
-   - Bambora explicitly says the transaction is already completed/captured.
+### D. Secrets
+After deploy succeeds, you delete `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` from Cloud secrets manually (I can't delete secrets, only request them).
 
-5. Only then update:
+### E. Knowledgebase
+Mark Stripe-specific runbooks/incidents (`stripe-payment-failed.md`, `webhook-not-firing.md`, etc.) as archived/deprecated, and update `06-edge-functions.md`, `02-architecture.md`, etc., to remove Stripe references.
 
-```text
-payments.status = 'completed'
-bookings.wl_auth_status = 'completed'
-bookings.status = 'confirmed'
-```
+---
 
-If the completion fails, the payment will not be counted as collected revenue.
+## Decision needed before I execute
 
-### 3. Deposit path remains protected
-For `wl-authorize` deposit holds:
-
-- Keep `complete: false`
-- Keep `payment_type = 'deposit'`
-- Do not call Completion/Capture from the deposit authorization flow
-- Add a safety assertion around the returned Bambora transaction type so a deposit cannot be silently recorded as a normal completed rental payment
-
-Manual admin deposit capture will continue to use the existing deposit-specific capture function.
-
-### 4. Capture failure alert in Finance
-If rental auto-capture fails, the backend will create/update a visible admin alert tied to the booking.
-
-The Finance Overview page will show a red “Rental Capture Failed” panel listing:
-
-- booking code
-- customer/booking link if available
-- amount
-- transaction ID
-- Bambora error message
-
-This prevents silent failures and gives staff an immediate manual follow-up queue.
-
-### 5. Webhook/callback sync hardening
-The webhook handler will also recognize rental capture callbacks:
-
-```text
-P   = rental purchase confirmed
-PA  = rental pre-auth observed; not collected yet
-PAC = rental completion/capture confirmed
-VP  = void/reversal
-```
-
-For rental `PAC`, it will update the matching payment row to `completed` and the booking to `confirmed` immediately.
-
-## Exact files to change
-
-### `supabase/functions/_shared/worldline.ts`
-Add shared helpers for:
-
-- Completion/Capture response typing
-- detecting Bambora “already completed/captured” responses
-- optional merchant/configuration read calls if needed for the API check
-
-Likely area:
-
-```text
-lines 80-103: existing Worldline error parsing helpers
-```
-
-### `supabase/functions/wl-pay/index.ts`
-Main rental fix.
-
-Current relevant areas:
-
-```text
-lines 64-72: initial POST /payments request with complete: true
-lines 90-108: booking update + payment insert currently mark rental completed immediately
-```
-
-Planned replacement behavior:
-
-```text
-approved initial payment
-  -> attempt POST /payments/{txn.id}/completions
-  -> if capture success/already captured:
-       update booking confirmed/completed auth status
-       insert/update rental payment as completed
-     else:
-       insert/update rental payment as authorized or capture_failed/pending_capture
-       create Finance/admin alert
-       return a clear payment capture failure response
-```
-
-### `supabase/functions/wl-authorize/index.ts`
-Deposit safety only.
-
-Current relevant area:
-
-```text
-lines 95-103: deposit POST /payments with complete: false
-lines 114-124: deposit authorization persisted as status authorized
-```
-
-Planned change:
-
-```text
-keep complete: false
-add returned transaction type validation before persistDepositAuthorization(...)
-never call /completions here
-```
-
-### `supabase/functions/wl-webhook/index.ts`
-Webhook sync hardening.
-
-Current relevant area:
-
-```text
-lines 108-121: rental callbacks currently handle P and VP only
-```
-
-Planned change:
-
-```text
-add rental PA handling as authorized / not collected
-add rental PAC handling as completed + confirmed
-update matching payments row status after P/PAC/VP where applicable
-```
-
-### `src/pages/admin/Finance.tsx`
-Finance alert visibility.
-
-Current relevant areas:
-
-```text
-lines 585-612: overview metrics/query-derived state area
-lines 802-840: existing action-required panel area
-```
-
-Planned change:
-
-```text
-query pending admin alerts for rental capture failures
-render a red capture-failure panel above/near the existing Expected Revenue panel
-```
-
-## What I will not do
-
-- I will not auto-capture deposits.
-- I will not run test card payments or create live charges.
-- I will not count uncaptured pre-auths as collected revenue.
-- I will not change the customer-facing card entry component unless a compile error forces a minor type adjustment.
-
-## Verification after implementation
-
-I will verify by code/type checks and by inspecting the changed logic, not by running real payment transactions. The expected result is:
-
-```text
-Rental payment approved by Bambora
-  -> immediate completion attempted
-  -> completed DB status only after capture succeeds or gateway confirms already completed
-  -> failure creates visible Finance alert
-
-Deposit authorization approved by Bambora
-  -> remains authorized/pre-auth
-  -> no automatic completion call
-```
+1. **Send Payment Link button** — delete it, leave it (keep `send-payment-request` + Stripe secret), or rebuild it on Worldline? (My recommendation: delete it for now; on-counter payments already work via `OpsPaymentAndDeposit`. We can add a Worldline payment-link flow later as its own task.)
+2. Confirm you want the DB columns dropped (irreversible, but all values are NULL — verified).

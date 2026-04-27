@@ -32,11 +32,11 @@ const ALLOWED_ORIGINS = [
 export function getCorsHeaders(req: Request, isWebhook = false): Record<string, string> {
   const origin = req.headers.get("Origin") || "";
   
-  // For webhooks (Stripe, etc.), we need to accept all origins since they don't send Origin headers
+  // For webhooks (Worldline/Bambora, etc.), we need to accept all origins since they don't send Origin headers
   if (isWebhook) {
     return {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
     };
   }

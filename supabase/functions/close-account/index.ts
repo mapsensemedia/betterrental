@@ -1,4 +1,3 @@
-import Stripe from "npm:stripe@14.21.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateAuth, isAdminOrStaff } from "../_shared/auth.ts";
@@ -306,11 +305,6 @@ Deno.serve(async (req) => {
 
     const amountDue = roundCents(totalCharges - paymentsReceived);
 
-    // Collect Stripe payment IDs
-    const stripePaymentIds = (payments || [])
-      .filter((p: any) => p.transaction_id?.startsWith("pi_"))
-      .map((p: any) => p.transaction_id);
-
     // Create final invoice
     const { data: invoice, error: invoiceError } = await supabase
       .from("final_invoices")
@@ -328,8 +322,6 @@ Deno.serve(async (req) => {
         payments_received: paymentsReceived,
         grand_total: totalCharges,
         amount_due: Math.max(0, amountDue),
-        stripe_payment_ids: stripePaymentIds,
-        stripe_charge_ids: [],
         line_items_json: lineItems,
         notes: notes || null,
         status: "issued",

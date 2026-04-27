@@ -504,11 +504,6 @@ export type Database = {
           special_instructions: string | null
           start_at: string
           status: Database["public"]["Enums"]["booking_status"]
-          stripe_deposit_charge_id: string | null
-          stripe_deposit_client_secret: string | null
-          stripe_deposit_pi_id: string | null
-          stripe_deposit_pm_id: string | null
-          stripe_deposit_refund_id: string | null
           subtotal: number
           tax_amount: number | null
           total_amount: number
@@ -604,11 +599,6 @@ export type Database = {
           special_instructions?: string | null
           start_at: string
           status?: Database["public"]["Enums"]["booking_status"]
-          stripe_deposit_charge_id?: string | null
-          stripe_deposit_client_secret?: string | null
-          stripe_deposit_pi_id?: string | null
-          stripe_deposit_pm_id?: string | null
-          stripe_deposit_refund_id?: string | null
           subtotal: number
           tax_amount?: number | null
           total_amount: number
@@ -704,11 +694,6 @@ export type Database = {
           special_instructions?: string | null
           start_at?: string
           status?: Database["public"]["Enums"]["booking_status"]
-          stripe_deposit_charge_id?: string | null
-          stripe_deposit_client_secret?: string | null
-          stripe_deposit_pi_id?: string | null
-          stripe_deposit_pm_id?: string | null
-          stripe_deposit_refund_id?: string | null
           subtotal?: number
           tax_amount?: number | null
           total_amount?: number
@@ -1306,10 +1291,6 @@ export type Database = {
           id: string
           payment_id: string | null
           reason: string | null
-          stripe_balance_txn_id: string | null
-          stripe_charge_id: string | null
-          stripe_pi_id: string | null
-          stripe_refund_id: string | null
         }
         Insert: {
           action: string
@@ -1321,10 +1302,6 @@ export type Database = {
           id?: string
           payment_id?: string | null
           reason?: string | null
-          stripe_balance_txn_id?: string | null
-          stripe_charge_id?: string | null
-          stripe_pi_id?: string | null
-          stripe_refund_id?: string | null
         }
         Update: {
           action?: string
@@ -1336,10 +1313,6 @@ export type Database = {
           id?: string
           payment_id?: string | null
           reason?: string | null
-          stripe_balance_txn_id?: string | null
-          stripe_charge_id?: string | null
-          stripe_pi_id?: string | null
-          stripe_refund_id?: string | null
         }
         Relationships: [
           {
@@ -1381,9 +1354,6 @@ export type Database = {
           payments_received: number | null
           rental_subtotal: number
           status: string | null
-          stripe_charge_ids: Json | null
-          stripe_payment_ids: Json | null
-          stripe_refund_ids: Json | null
           taxes_total: number
           updated_at: string | null
         }
@@ -1409,9 +1379,6 @@ export type Database = {
           payments_received?: number | null
           rental_subtotal?: number
           status?: string | null
-          stripe_charge_ids?: Json | null
-          stripe_payment_ids?: Json | null
-          stripe_refund_ids?: Json | null
           taxes_total?: number
           updated_at?: string | null
         }
@@ -1437,9 +1404,6 @@ export type Database = {
           payments_received?: number | null
           rental_subtotal?: number
           status?: string | null
-          stripe_charge_ids?: Json | null
-          stripe_payment_ids?: Json | null
-          stripe_refund_ids?: Json | null
           taxes_total?: number
           updated_at?: string | null
         }
@@ -2592,44 +2556,6 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      stripe_webhook_events: {
-        Row: {
-          booking_id: string | null
-          event_id: string
-          event_type: string
-          id: string
-          payload_hash: string | null
-          processed_at: string
-          result: Json | null
-        }
-        Insert: {
-          booking_id?: string | null
-          event_id: string
-          event_type: string
-          id?: string
-          payload_hash?: string | null
-          processed_at?: string
-          result?: Json | null
-        }
-        Update: {
-          booking_id?: string | null
-          event_id?: string
-          event_type?: string
-          id?: string
-          payload_hash?: string | null
-          processed_at?: string
-          result?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stripe_webhook_events_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
         ]

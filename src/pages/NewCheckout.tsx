@@ -264,8 +264,8 @@ export default function NewCheckout() {
     setPointsUsed(points);
   };
 
-  // Payment success is now handled by the Stripe webhook (checkout.session.completed)
-  // which promotes the booking from "draft" to "pending"
+  // Payment success is handled by the Worldline (wl-pay / wl-webhook) flow,
+  // which promotes the booking from "draft" to "pending"/"confirmed".
 
   // Save abandoned cart when user leaves with info filled in
   const saveCartData = useCallback(() => {
@@ -351,7 +351,7 @@ export default function NewCheckout() {
       return;
     }
 
-    // Card validation removed — Stripe hosted checkout handles card collection
+    // Card validation removed — Worldline hosted checkout handles card collection
 
     if (!formData.termsAccepted) {
       toast({ title: "Please accept the terms and conditions", variant: "destructive" });
@@ -399,7 +399,7 @@ export default function NewCheckout() {
 
       let booking: { id: string; booking_code: string; user_id?: string; accessToken?: string } | null = null;
 
-      // Card info will be collected by Stripe checkout — store nulls for now
+      // Card info will be collected by Worldline at checkout — store nulls for now
 
       if (session) {
         // Logged-in user flow — call create-booking edge function for server-side pricing

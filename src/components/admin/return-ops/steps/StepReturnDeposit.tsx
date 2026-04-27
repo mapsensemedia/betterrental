@@ -23,7 +23,6 @@ import {
   Loader2,
   AlertTriangle,
   Lock,
-  Send,
   ShieldCheck,
   ShieldOff,
 } from "lucide-react";
@@ -50,7 +49,6 @@ export function StepReturnDeposit({
   const createAuditLog = useCreateAuditLog();
   const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSendingRequest, setIsSendingRequest] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
 
@@ -172,21 +170,6 @@ export function StepReturnDeposit({
     }
   };
 
-  const handleSendPaymentRequest = async () => {
-    setIsSendingRequest(true);
-    try {
-      const { error } = await supabase.functions.invoke("send-payment-request", {
-        body: { bookingId },
-      });
-      if (error) throw error;
-      toast.success("Payment request sent to customer");
-    } catch (err: any) {
-      toast.error("Failed to send: " + (err.message || "Unknown error"));
-    } finally {
-      setIsSendingRequest(false);
-    }
-  };
-
   const isProcessed = completion.processed;
   const depositState = depositData?.depositLifecycleState || "none";
   const hasActiveHold = depositData?.hasActiveHold ?? false;
@@ -294,16 +277,9 @@ export function StepReturnDeposit({
                     </p>
                   ))}
                   {!hasActiveHold && (
-                    <Button
-                      onClick={handleSendPaymentRequest}
-                      disabled={isSendingRequest}
-                      variant="outline"
-                      size="sm"
-                      className="mt-3"
-                    >
-                      {isSendingRequest ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />}
-                      Send Payment Link for Damages
-                    </Button>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">
+                      Collect damage payment at the counter via the Worldline POS flow.
+                    </p>
                   )}
                 </div>
               </div>
