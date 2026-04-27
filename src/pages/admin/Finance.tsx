@@ -2004,7 +2004,60 @@ function BreakdownRow({ label, amount, total, count }: { label: string; amount: 
   );
 }
 
-function StatusCard({ label, amount, count, variant }: { label: string; amount: number; count: number; variant: "success" | "warning" | "destructive" }) {
+function RentalCaptureFailurePanel() {
+  const { data: alerts = [] } = useQuery({
+    queryKey: ["finance-capture-failures"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_alerts")
+        .select("id, title, message, booking_id, created_at, status")
+        .eq("alert_type", "payment_pending")
+        .eq("status", "pending")
+        .ilike("title", "Rental capture failed%")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return data || [];
+    },
+    refetchInterval: 60_000,
+  });
+
+  if (!alerts.length) return null;
+
+  return (
+    <Card className="border-destructive/40 bg-destructive/5 scroll-mt-24">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-destructive" />
+          <h3 className="text-sm font-semibold text-destructive">
+            Rental Capture Failed — Action Required ({alerts.length})
+          </h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          These rental payments were authorized at the gateway but the automatic capture call failed.
+          The funds have not been collected. Capture them manually in the Bambora portal, then resolve the alert.
+        </p>
+        <div className="space-y-2">
+          {alerts.map((a) => (
+            <div key={a.id} className="flex items-start justify-between gap-3 text-sm border-t border-destructive/20 pt-2 first:border-t-0 first:pt-0">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium truncate">{a.title}</div>
+                <div className="text-xs text-muted-foreground line-clamp-2">{a.message}</div>
+              </div>
+              {a.booking_id && (
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" asChild>
+                  <a href={`/admin/bookings/${a.booking_id}`} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
   const colors = { success: "bg-emerald-500/10 border-emerald-500/20", warning: "bg-yellow-500/10 border-yellow-500/20", destructive: "bg-destructive/10 border-destructive/20" };
   const textColors = { success: "text-emerald-600", warning: "text-yellow-600", destructive: "text-destructive" };
   return (
