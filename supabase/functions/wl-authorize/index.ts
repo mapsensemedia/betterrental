@@ -111,7 +111,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    const txn = res.data;
+    const txn = res.data as typeof res.data & { type?: string };
+
+    // SAFETY: deposits must remain pre-auth. If Bambora unexpectedly returned
+    // this transaction as a captured purchase ("P"), refuse to record it as a
+    // simple authorization — that would silently collect the deposit. Surface
+    // it instead.
+    const txnType = (txn.type || "").toUpperCase();
+    if (txnType && txnType !== "PA") {
+      log.error("Deposit returned unexpected transaction type — refusing", undefined, {
+        transaction_id: txn.id,
+        returned_type: txnType,
+      });
+      return new Response(
+        JSON.stringify({
+          error:
+            "Deposit authorization returned an unexpected transaction type from the gateway. " +
+            "Refusing to record. Please contact support.",
+          declined: true,
+          gatewayType: txnType,
+          transactionId: txn.id,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     await persistDepositAuthorization(
       supabase,
