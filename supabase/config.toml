@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.wl-search-txns]
 verify_jwt = false
+
+[functions.check-booking-payment-integrity]
+verify_jwt = false
