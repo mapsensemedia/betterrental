@@ -1,18 +1,21 @@
 /**
- * wl-pay — Rental payment via Worldline/Bambora with FORCED CAPTURE
+ * wl-pay — Rental payment via Worldline/Bambora (NO AUTO-CAPTURE)
  *
- * Flow:
- * 1. POST /payments with complete: true (request immediate purchase).
- * 2. If Bambora returns the transaction as Pre-Auth (type "PA") instead of
- *    a Purchase ("P"), immediately call POST /payments/{id}/completions
- *    to capture the funds. This guards against merchant-account level
- *    settings that force pre-auth regardless of the API flag.
- * 3. Only mark the booking confirmed and the payment row "completed"
- *    once funds are actually captured. If capture fails, write a visible
- *    admin alert and leave the payment row in "authorized" state.
+ * Behavior:
+ * 1. POST /payments with complete: true (request purchase from Bambora).
+ * 2. If Bambora returns approved=1:
+ *      - type "P"  (purchase)            → record payment as 'completed', booking status → confirmed.
+ *      - type "PA" (pre-auth)            → record payment as 'authorized', booking status → confirmed.
+ *      - any other approved type         → record payment as 'authorized' (safe default).
+ * 3. ALWAYS return success when approved=1, regardless of capture status.
+ *    Capture for authorized rentals is performed manually from the admin panel
+ *    via the wl-capture edge function (kind: 'rental').
  *
- * IMPORTANT: This function only ever auto-captures payment_type = 'rental'.
- * Deposits go through wl-authorize (pre-auth only).
+ * Removed (intentionally):
+ * - Forced /completions call.
+ * - "Rental capture failed" admin_alerts insert.
+ *
+ * Deposits go through wl-authorize (always pre-auth). Not handled here.
  */
 
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -30,15 +33,13 @@ interface BamboraPaymentResponse {
   auth_code?: string;
   created?: string;
   order_number?: string;
-  type?: string; // "P" purchase, "PA" pre-auth, "PAC" pre-auth completion
+  type?: string; // "P" purchase, "PA" pre-auth
   payment_method?: string;
   amount?: number;
   card?: { card_type: string; last_four: string; name: string };
   code?: number;
   category?: number;
 }
-
-const ALREADY_COMPLETED_CODES = new Set([302]);
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -66,7 +67,7 @@ Deno.serve(async (req) => {
     const supabase = getAdminClient();
     const amount = booking.total_amount;
 
-    // Step 1: initial payment attempt (request immediate purchase).
+    // Single payment attempt — no force-capture follow-up.
     const res = await log.timed("bambora_payment", () =>
       worldlineRequest<BamboraPaymentResponse>("POST", "/payments", {
         order_number: booking.booking_code,
@@ -96,78 +97,15 @@ Deno.serve(async (req) => {
     }
 
     const txn = res.data;
-    const initialType = (txn.type || "").toUpperCase();
-    let captured = initialType === "P" || initialType === "PAC";
-    let captureError: string | null = null;
-    let captureResponse: unknown = null;
+    const returnedType = (txn.type || "").toUpperCase();
+    // "P" = purchase (already captured). Anything else (PA or unknown) is treated as authorized only.
+    const captured = returnedType === "P";
+    const paymentRowStatus = captured ? "completed" : "authorized";
+    const wlAuthStatus = captured ? "completed" : "authorized";
 
-    // Step 2: if it landed as PA (or unknown), force a completion call.
-    if (!captured) {
-      log.warn("Rental landed as Pre-Auth — forcing completion", {
-        transaction_id: txn.id,
-        returned_type: initialType || "unknown",
-      });
-      const cap = await log.timed("bambora_force_completion", () =>
-        worldlineRequest<BamboraPaymentResponse>(
-          "POST",
-          `/payments/${txn.id}/completions`,
-          { amount },
-        ),
-      );
-      captureResponse = cap.data;
-      const capCode = (cap.data as { code?: number })?.code;
-      if (cap.ok && (cap.data as BamboraPaymentResponse)?.approved) {
-        captured = true;
-      } else if (capCode && ALREADY_COMPLETED_CODES.has(capCode)) {
-        // Bambora says "already completed" — treat as captured.
-        captured = true;
-        log.info("Capture skipped: already completed at gateway", { code: capCode });
-      } else {
-        captureError = parseWorldlineError(cap.data);
-        log.error("Forced completion failed", undefined, { response: cap.data });
-      }
-    }
-
-    // Step 3: persist booking + payment based on capture outcome.
-    if (captured) {
-      await supabase.from("bookings").update({
-        wl_transaction_id: String(txn.id),
-        wl_auth_status: "completed",
-        status: "confirmed",
-        card_last_four: txn.card?.last_four || null,
-        card_type: txn.card?.card_type || null,
-        card_holder_name: txn.card?.name || name || null,
-      }).eq("id", bookingId);
-
-      await supabase.from("payments").insert({
-        booking_id: bookingId,
-        user_id: booking.user_id,
-        amount,
-        payment_type: "rental",
-        payment_method: "card",
-        status: "completed",
-        transaction_id: String(txn.id),
-      });
-
-      log.info("Payment captured", { transaction_id: txn.id, amount, initialType });
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          transactionId: txn.id,
-          amount,
-          authCode: txn.auth_code,
-          captured: true,
-          initialType,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // Capture failed — record as authorized (not collected) and raise an alert.
     await supabase.from("bookings").update({
       wl_transaction_id: String(txn.id),
-      wl_auth_status: "authorized",
+      wl_auth_status: wlAuthStatus,
       status: "confirmed",
       card_last_four: txn.card?.last_four || null,
       card_type: txn.card?.card_type || null,
@@ -180,26 +118,16 @@ Deno.serve(async (req) => {
       amount,
       payment_type: "rental",
       payment_method: "card",
-      status: "authorized",
+      status: paymentRowStatus,
       transaction_id: String(txn.id),
     });
 
-    // Visible alert in Finance / Alerts dashboards.
-    try {
-      await supabase.from("admin_alerts").insert({
-        booking_id: bookingId,
-        alert_type: "payment_pending",
-        title: `Rental capture failed — ${booking.booking_code}`,
-        message:
-          `Rental payment was authorized but capture failed for booking ${booking.booking_code} ` +
-          `(amount $${Number(amount).toFixed(2)}, txn ${txn.id}). ` +
-          `Bambora response: ${captureError ?? "unknown error"}. ` +
-          `Manual capture required from the Finance/Bambora portal.`,
-        status: "pending",
-      });
-    } catch (alertErr) {
-      log.error("Failed to create capture-failure alert", alertErr);
-    }
+    log.info("Rental payment recorded", {
+      transaction_id: txn.id,
+      amount,
+      returnedType,
+      paymentRowStatus,
+    });
 
     return new Response(
       JSON.stringify({
@@ -207,10 +135,8 @@ Deno.serve(async (req) => {
         transactionId: txn.id,
         amount,
         authCode: txn.auth_code,
-        captured: false,
-        captureError,
-        captureResponse,
-        warning: "Payment was authorized but capture failed. Manual capture required.",
+        captured,
+        status: paymentRowStatus,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
