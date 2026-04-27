@@ -237,6 +237,28 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                   </Button>
                 </div>
               </div>
+              {/* Manual rental capture — only when authorized but not yet captured */}
+              {wlAuthStatus === "authorized" &&
+                paymentStatus?.payments?.some(p => p.paymentType === "rental" && p.status === "authorized") && (
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    onClick={handleCaptureRental}
+                    disabled={isCapturingRental}
+                    className="w-full"
+                  >
+                    {isCapturingRental ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-1" />
+                    )}
+                    Capture Rental Now
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Rental is authorized but not yet captured. Click to settle the funds.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
