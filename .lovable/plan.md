@@ -1,63 +1,190 @@
-## Issue confirmed
+## Plan: make rental payments end as captured even if Bambora forces Pre-Auth
 
-In `src/pages/admin/Finance.tsx` (line 602), the `metrics.collected` value is computed by summing actual completed payments and then **adding `unrecordedTotal`** — the dollar value of confirmed/active/completed bookings that have no payment record and no Worldline transaction.
+I will not change the customer card form. The fix belongs in the backend payment flow: after the rental payment is approved by Bambora, the backend will immediately attempt a Completion/Capture against the returned transaction ID. Deposits will remain pre-auth only.
 
-```ts
-// Add unrecorded revenue (confirmed bookings with no payment records)
-collected += unrecordedTotal;   // ← line 602: wrong by design
+## What will change
+
+### 1. Merchant configuration check
+Before changing the payment behavior, I will perform a read-only Bambora configuration check using the existing backend Worldline/Bambora credentials:
+
+- Try `GET /configuration`
+- If unavailable or unsupported, try `GET /merchant`
+- Show you the returned payload or the exact Bambora error response
+
+No payment, capture, refund, or booking mutation will be performed for this check.
+
+If Bambora does not expose merchant/account capture mode through those endpoints, I will report that exact API response and still proceed with the capture guarantee below.
+
+### 2. Rental payment flow: force completion after approval
+For `wl-pay` rental payments only:
+
+1. Create the initial Bambora payment exactly as today.
+2. Read the returned transaction ID and returned transaction type, if present.
+3. Immediately call Bambora Completion/Capture:
+
+```text
+POST /payments/{transaction_id}/completions
+body: { amount: booking.total_amount }
 ```
 
-This conflates two very different things:
-- **Money actually collected** (rows in `payments` with `status = completed`)
-- **Money expected but not yet logged** (a booking exists, but no one has recorded the cash/terminal/transfer payment)
+4. Treat the rental as completed only if:
+   - the completion call succeeds, or
+   - Bambora explicitly says the transaction is already completed/captured.
 
-The same `metrics.collected` then drives:
-- The "Collected Revenue" headline card
-- The "Revenue Breakdown" denominator (Rental %, Deposit %)
-- The "Payment Method" % shares
-- The period-over-period `changePercent` comparison (which compares the inflated number against `prevPayments` that does *not* include unrecorded — an apples-to-oranges delta)
+5. Only then update:
 
-### Current real-world impact (just verified against the database)
+```text
+payments.status = 'completed'
+bookings.wl_auth_status = 'completed'
+bookings.status = 'confirmed'
+```
 
-- Month-to-date: `0` unrecorded bookings, `$0` unrecorded total. Collected card = `$11,257.04` (pure payments).
-- All-time (since 2024-01-01): also `0` unrecorded.
+If the completion fails, the payment will not be counted as collected revenue.
 
-So the headline figure is **not currently inflated**, but the logic will silently inflate the moment any walk-in/manual booking is confirmed without a payment row — exactly the case the amber "Bookings Without Payment Records" panel is meant to flag for follow-up.
+### 3. Deposit path remains protected
+For `wl-authorize` deposit holds:
 
-## Recommendation
+- Keep `complete: false`
+- Keep `payment_type = 'deposit'`
+- Do not call Completion/Capture from the deposit authorization flow
+- Add a safety assertion around the returned Bambora transaction type so a deposit cannot be silently recorded as a normal completed rental payment
 
-**Remove `unrecordedTotal` from `collected` and surface it as its own metric.** The amber warning card already lists each unrecorded booking — the fix is purely about the headline math, not about hiding the data.
+Manual admin deposit capture will continue to use the existing deposit-specific capture function.
 
-### Proposed changes (no edits made yet)
+### 4. Capture failure alert in Finance
+If rental auto-capture fails, the backend will create/update a visible admin alert tied to the booking.
 
-1. **`metrics` calculation (line 587–610)**
-   - Drop `collected += unrecordedTotal;`
-   - Add a new field `unrecorded: unrecordedTotal` to the returned object so it can be displayed alongside Collected.
-   - `changePercent` will now correctly compare payments-vs-payments period over period.
+The Finance Overview page will show a red “Rental Capture Failed” panel listing:
 
-2. **Headline cards (Summary row)**
-   - Keep "Collected Revenue" = real payments only.
-   - Add a sibling card "Unrecorded Revenue" (only rendered when `> 0`) styled in amber, with subtitle "N booking(s) awaiting payment entry" and a click-through that scrolls to the existing amber list.
+- booking code
+- customer/booking link if available
+- amount
+- transaction ID
+- Bambora error message
 
-3. **Revenue Breakdown card (line 757–760)**
-   - Remove the "Unrecorded Revenue" row from this breakdown — it doesn't belong in a breakdown of *collected* money.
-   - The percentages for Rental / Deposit / Other will then sum to ~100% of actual collections.
+This prevents silent failures and gives staff an immediate manual follow-up queue.
 
-4. **Amber "Bookings Without Payment Records" panel (line 787–824)**
-   - Keep as-is. It's the correct surface for follow-up action.
-   - Optionally rename the section header from "Unrecorded Revenue" to "Expected Revenue — Action Required" to reinforce that it is *not yet collected*.
+### 5. Webhook/callback sync hardening
+The webhook handler will also recognize rental capture callbacks:
 
-5. **Memory update**
-   - Update `mem://financials/unrecorded-revenue-reconciliation` to clarify that unrecorded revenue is reported **separately** and is **never** added to Collected Revenue.
+```text
+P   = rental purchase confirmed
+PA  = rental pre-auth observed; not collected yet
+PAC = rental completion/capture confirmed
+VP  = void/reversal
+```
 
-### Files that would change
+For rental `PAC`, it will update the matching payment row to `completed` and the booking to `confirmed` immediately.
 
-- `src/pages/admin/Finance.tsx` — calculation, summary cards, breakdown rows, optional header rename
-- `mem://financials/unrecorded-revenue-reconciliation` — clarification
+## Exact files to change
 
-### Files intentionally NOT changed
+### `supabase/functions/_shared/worldline.ts`
+Add shared helpers for:
 
-- `src/hooks/use-collected-revenue.ts` — already correct (payments-only). It is the right model; Finance.tsx should align with it.
-- The `unrecordedBookings` query and amber action panel — these are valuable and stay.
+- Completion/Capture response typing
+- detecting Bambora “already completed/captured” responses
+- optional merchant/configuration read calls if needed for the API check
 
-No code changes will be made until you approve.
+Likely area:
+
+```text
+lines 80-103: existing Worldline error parsing helpers
+```
+
+### `supabase/functions/wl-pay/index.ts`
+Main rental fix.
+
+Current relevant areas:
+
+```text
+lines 64-72: initial POST /payments request with complete: true
+lines 90-108: booking update + payment insert currently mark rental completed immediately
+```
+
+Planned replacement behavior:
+
+```text
+approved initial payment
+  -> attempt POST /payments/{txn.id}/completions
+  -> if capture success/already captured:
+       update booking confirmed/completed auth status
+       insert/update rental payment as completed
+     else:
+       insert/update rental payment as authorized or capture_failed/pending_capture
+       create Finance/admin alert
+       return a clear payment capture failure response
+```
+
+### `supabase/functions/wl-authorize/index.ts`
+Deposit safety only.
+
+Current relevant area:
+
+```text
+lines 95-103: deposit POST /payments with complete: false
+lines 114-124: deposit authorization persisted as status authorized
+```
+
+Planned change:
+
+```text
+keep complete: false
+add returned transaction type validation before persistDepositAuthorization(...)
+never call /completions here
+```
+
+### `supabase/functions/wl-webhook/index.ts`
+Webhook sync hardening.
+
+Current relevant area:
+
+```text
+lines 108-121: rental callbacks currently handle P and VP only
+```
+
+Planned change:
+
+```text
+add rental PA handling as authorized / not collected
+add rental PAC handling as completed + confirmed
+update matching payments row status after P/PAC/VP where applicable
+```
+
+### `src/pages/admin/Finance.tsx`
+Finance alert visibility.
+
+Current relevant areas:
+
+```text
+lines 585-612: overview metrics/query-derived state area
+lines 802-840: existing action-required panel area
+```
+
+Planned change:
+
+```text
+query pending admin alerts for rental capture failures
+render a red capture-failure panel above/near the existing Expected Revenue panel
+```
+
+## What I will not do
+
+- I will not auto-capture deposits.
+- I will not run test card payments or create live charges.
+- I will not count uncaptured pre-auths as collected revenue.
+- I will not change the customer-facing card entry component unless a compile error forces a minor type adjustment.
+
+## Verification after implementation
+
+I will verify by code/type checks and by inspecting the changed logic, not by running real payment transactions. The expected result is:
+
+```text
+Rental payment approved by Bambora
+  -> immediate completion attempted
+  -> completed DB status only after capture succeeds or gateway confirms already completed
+  -> failure creates visible Finance alert
+
+Deposit authorization approved by Bambora
+  -> remains authorized/pre-auth
+  -> no automatic completion call
+```
