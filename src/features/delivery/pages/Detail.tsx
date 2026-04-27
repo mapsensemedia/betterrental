@@ -564,11 +564,11 @@ function StepHandoverActivation({
   const [showConfirm, setShowConfirm] = useState(false);
   const [activating, setActivating] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
-  const [noDepositStatus, setNoDepositStatus] = useState<import("@/hooks/use-pre-activation-check").PreActivationStatus | null>(null);
-  const preCheck = (require("@/hooks/use-pre-activation-check") as typeof import("@/hooks/use-pre-activation-check")).usePreActivationCheck();
+  const [noDepositStatus, setNoDepositStatus] = useState<PreActivationStatus | null>(null);
+  const preCheck = usePreActivationCheck();
   const isDelivered = delivery.deliveryStatus === "delivered";
 
-  const performActivation = async (overrideStatus?: import("@/hooks/use-pre-activation-check").PreActivationStatus) => {
+  const performActivation = async (overrideStatus?: PreActivationStatus) => {
     setActivating(true);
     setActivationError(null);
     try {
