@@ -78,7 +78,7 @@ test.describe('Booking Flow - Guest User', () => {
   });
 
   test('should show booking confirmation after successful booking', async ({ page }) => {
-    // This test would require mocking Stripe or using test mode
+    // This test would require mocking Worldline or using test mode
     // For now, verify the confirmation page structure exists
     await page.goto('/booking/confirmed?bookingId=test');
     
