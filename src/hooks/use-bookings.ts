@@ -31,6 +31,8 @@ export interface BookingWithDetails {
   wlTransactionId: string | null;
   wlAuthStatus: string | null;
   depositStatus: string | null;
+  hasPaidPayment?: boolean;
+  hasAuthorizedRental?: boolean;
   vehicle: {
     id: string;
     make: string;
