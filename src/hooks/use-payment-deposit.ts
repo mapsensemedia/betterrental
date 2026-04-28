@@ -27,10 +27,12 @@ export interface PaymentRecord {
 export interface PaymentSummary {
   totalDue: number;
   totalPaid: number;
+  totalAuthorized: number;
+  rentalAuthorized: boolean;
   depositRequired: number;
   depositHeld: number;
   balance: number;
-  paymentStatus: 'unpaid' | 'partial' | 'paid';
+  paymentStatus: 'unpaid' | 'partial' | 'paid' | 'authorized';
   depositStatus: 'not_required' | 'pending' | 'held' | 'released';
   depositLifecycleState: DepositLifecycleState;
   depositStatusLabel: string;
