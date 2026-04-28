@@ -3,7 +3,6 @@ import { MapPin, ChevronRight, Navigation } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { SectionHeader } from "@/components/landing/SectionHeader";
 import { useLocations } from "@/hooks/use-locations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -42,10 +41,14 @@ export default function Locations() {
   return (
     <CustomerLayout>
       <PageContainer className="pt-28 pb-16">
-        <SectionHeader 
-          title="Our Locations" 
-          className="mb-8"
-        />
+        <header className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
+            Car Rental Locations in Surrey, Langley &amp; Abbotsford BC
+          </h1>
+          <p className="mt-3 text-base md:text-lg text-muted-foreground max-w-2xl">
+            Find your nearest C2C Rental branch across the Lower Mainland — pickup, delivery, and 24/7 support.
+          </p>
+        </header>
         
         {isLoading ? (
           <>
