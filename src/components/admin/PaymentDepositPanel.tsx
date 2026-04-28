@@ -124,7 +124,10 @@ export function PaymentDepositPanel({
                   <span className={`font-mono ${payment.amount < 0 ? 'text-destructive' : 'text-emerald-600'}`}>
                     {payment.amount < 0 ? '-' : ''}${Math.abs(payment.amount).toFixed(2)}
                   </span>
-                  <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
+                  <Badge
+                    variant={payment.status === 'completed' ? 'default' : 'secondary'}
+                    className={`text-xs ${payment.status === 'authorized' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' : ''}`}
+                  >
                     {payment.status}
                   </Badge>
                   {payment.transactionId && (
