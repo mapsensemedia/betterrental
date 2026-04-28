@@ -89,11 +89,20 @@ export function usePaymentDepositStatus(bookingId: string | null) {
       const netPaid = totalPaid - totalRefunded;
       const balance = totalDue - netPaid;
       
-      let paymentStatus: 'unpaid' | 'partial' | 'paid' = 'unpaid';
+      // Authorized rental amount (PA / pre-auth — funds held but not captured)
+      const totalAuthorizedRental = (payments || [])
+        .filter(p => p.payment_type === 'rental' && p.status === 'authorized')
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+      const rentalAuthorized =
+        totalAuthorizedRental > 0 || booking.wl_auth_status === 'authorized';
+
+      let paymentStatus: 'unpaid' | 'partial' | 'paid' | 'authorized' = 'unpaid';
       if (netPaid >= totalDue) {
         paymentStatus = 'paid';
       } else if (netPaid > 0) {
         paymentStatus = 'partial';
+      } else if (rentalAuthorized) {
+        paymentStatus = 'authorized';
       }
 
       const allComplete = paymentStatus === 'paid';
