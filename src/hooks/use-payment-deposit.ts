@@ -144,6 +144,8 @@ export function usePaymentDepositStatus(bookingId: string | null) {
       return {
         totalDue,
         totalPaid: netPaid,
+        totalAuthorized: totalAuthorizedRental,
+        rentalAuthorized,
         depositRequired,
         depositHeld: hasActiveHold ? depositRequired : 0,
         balance: Math.max(0, balance),
