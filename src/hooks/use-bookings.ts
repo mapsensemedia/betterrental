@@ -31,6 +31,8 @@ export interface BookingWithDetails {
   wlTransactionId: string | null;
   wlAuthStatus: string | null;
   depositStatus: string | null;
+  hasPaidPayment?: boolean;
+  hasAuthorizedRental?: boolean;
   vehicle: {
     id: string;
     make: string;
@@ -117,12 +119,21 @@ export function useAdminBookings(filters: BookingFilters = {}) {
 
       const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
 
-      // Fetch payments to determine paid status
+      // Fetch payments to determine paid / authorized status
       const bookingIds = (bookingsData || []).map(b => b.id);
       const { data: paymentsData } = bookingIds.length > 0
-        ? await supabase.from("payments").select("booking_id, status").in("booking_id", bookingIds).in("status", ["completed", "captured"])
+        ? await supabase.from("payments").select("booking_id, status, payment_type").in("booking_id", bookingIds).in("status", ["completed", "captured", "authorized"])
         : { data: [] };
-      const paidBookingIds = new Set((paymentsData || []).map(p => p.booking_id));
+      const paidBookingIds = new Set(
+        (paymentsData || [])
+          .filter(p => p.status === "completed" || p.status === "captured")
+          .map(p => p.booking_id)
+      );
+      const authorizedRentalBookingIds = new Set(
+        (paymentsData || [])
+          .filter(p => p.status === "authorized" && p.payment_type === "rental")
+          .map(p => p.booking_id)
+      );
 
       // Fetch customers for bookings that have customer_id
       const customerIds = [...new Set((bookingsData || []).map((b: any) => b.customer_id).filter(Boolean))];
@@ -169,6 +180,7 @@ export function useAdminBookings(filters: BookingFilters = {}) {
           wlAuthStatus: b.wl_auth_status || null,
           depositStatus: b.deposit_status || null,
           hasPaidPayment: paidBookingIds.has(b.id),
+          hasAuthorizedRental: authorizedRentalBookingIds.has(b.id) || b.wl_auth_status === "authorized",
           locationId: b.location_id,
           vehicle: category ? {
             id: category.id,

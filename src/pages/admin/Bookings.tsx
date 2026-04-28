@@ -55,6 +55,7 @@ function PaymentStatusDot({ booking }: { booking: any }) {
   if (status === "completed" || status === "cancelled") return null;
 
   const hasPaid = booking.hasPaidPayment === true;
+  const hasAuthorizedRental = booking.hasAuthorizedRental === true;
   const notes = (booking.notes as string) || "";
   const isPayAtPickup = notes.toLowerCase().includes("pay at pickup");
 
@@ -64,6 +65,19 @@ function PaymentStatusDot({ booking }: { booking: any }) {
         <span className="w-2 h-2 rounded-full bg-emerald-500" />
         Paid
       </span>
+    );
+  }
+  if (hasAuthorizedRental) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 cursor-help">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            Authorized
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Card authorized — capture pending</TooltipContent>
+      </Tooltip>
     );
   }
   if (!hasPaid && isPayAtPickup) {

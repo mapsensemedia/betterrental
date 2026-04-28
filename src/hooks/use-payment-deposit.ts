@@ -27,10 +27,12 @@ export interface PaymentRecord {
 export interface PaymentSummary {
   totalDue: number;
   totalPaid: number;
+  totalAuthorized: number;
+  rentalAuthorized: boolean;
   depositRequired: number;
   depositHeld: number;
   balance: number;
-  paymentStatus: 'unpaid' | 'partial' | 'paid';
+  paymentStatus: 'unpaid' | 'partial' | 'paid' | 'authorized';
   depositStatus: 'not_required' | 'pending' | 'held' | 'released';
   depositLifecycleState: DepositLifecycleState;
   depositStatusLabel: string;
@@ -87,11 +89,20 @@ export function usePaymentDepositStatus(bookingId: string | null) {
       const netPaid = totalPaid - totalRefunded;
       const balance = totalDue - netPaid;
       
-      let paymentStatus: 'unpaid' | 'partial' | 'paid' = 'unpaid';
+      // Authorized rental amount (PA / pre-auth — funds held but not captured)
+      const totalAuthorizedRental = (payments || [])
+        .filter(p => p.payment_type === 'rental' && p.status === 'authorized')
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+      const rentalAuthorized =
+        totalAuthorizedRental > 0 || booking.wl_auth_status === 'authorized';
+
+      let paymentStatus: 'unpaid' | 'partial' | 'paid' | 'authorized' = 'unpaid';
       if (netPaid >= totalDue) {
         paymentStatus = 'paid';
       } else if (netPaid > 0) {
         paymentStatus = 'partial';
+      } else if (rentalAuthorized) {
+        paymentStatus = 'authorized';
       }
 
       const allComplete = paymentStatus === 'paid';
@@ -133,6 +144,8 @@ export function usePaymentDepositStatus(bookingId: string | null) {
       return {
         totalDue,
         totalPaid: netPaid,
+        totalAuthorized: totalAuthorizedRental,
+        rentalAuthorized,
         depositRequired,
         depositHeld: hasActiveHold ? depositRequired : 0,
         balance: Math.max(0, balance),

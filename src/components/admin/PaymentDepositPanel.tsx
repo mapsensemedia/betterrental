@@ -51,6 +51,7 @@ export function PaymentDepositPanel({
   if (!status) return null;
 
   const allComplete = status.paymentStatus === 'paid';
+  const isAuthorized = status.paymentStatus === 'authorized';
 
   return (
     <Card>
@@ -66,6 +67,12 @@ export function PaymentDepositPanel({
               Paid
             </Badge>
           )}
+          {isAuthorized && (
+            <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+              <CreditCard className="h-3 w-3 mr-1" />
+              Authorized — Capture Pending
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -76,14 +83,25 @@ export function PaymentDepositPanel({
             <span className="font-medium font-mono">${status.totalDue.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Total Paid</span>
+            <span className="text-muted-foreground">Total Paid (captured)</span>
             <span className="font-medium font-mono text-emerald-600">${status.totalPaid.toFixed(2)}</span>
           </div>
-          {status.balance > 0 && (
+          {status.totalAuthorized > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-blue-600">Authorized (not yet captured)</span>
+              <span className="font-medium font-mono text-blue-600">${status.totalAuthorized.toFixed(2)}</span>
+            </div>
+          )}
+          {status.balance > 0 && !isAuthorized && (
             <div className="flex justify-between text-sm font-medium">
               <span className="text-destructive">Balance Remaining</span>
               <span className="font-mono text-destructive">${status.balance.toFixed(2)}</span>
             </div>
+          )}
+          {isAuthorized && (
+            <p className="text-xs text-muted-foreground pt-1">
+              Funds held on card. Capture from the Operations panel when ready.
+            </p>
           )}
         </div>
 
@@ -106,7 +124,10 @@ export function PaymentDepositPanel({
                   <span className={`font-mono ${payment.amount < 0 ? 'text-destructive' : 'text-emerald-600'}`}>
                     {payment.amount < 0 ? '-' : ''}${Math.abs(payment.amount).toFixed(2)}
                   </span>
-                  <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
+                  <Badge
+                    variant={payment.status === 'completed' ? 'default' : 'secondary'}
+                    className={`text-xs ${payment.status === 'authorized' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' : ''}`}
+                  >
                     {payment.status}
                   </Badge>
                   {payment.transactionId && (
