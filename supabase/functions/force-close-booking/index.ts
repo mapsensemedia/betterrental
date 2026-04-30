@@ -159,6 +159,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Promote any still-authorized rental payment rows to 'completed' so finance
+    // dashboards / customer pass reflect reality (Worldline auto-settles).
+    try {
+      const { data: authRentals } = await supabase
+        .from("payments")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .eq("payment_type", "rental")
+        .eq("status", "authorized");
+
+      if (authRentals && authRentals.length > 0) {
+        await supabase
+          .from("payments")
+          .update({ status: "completed" })
+          .in("id", authRentals.map((r: { id: string }) => r.id));
+
+        await supabase
+          .from("bookings")
+          .update({ wl_auth_status: "completed" })
+          .eq("id", bookingId);
+      }
+    } catch (promoteErr) {
+      console.warn("Failed to auto-complete authorized rental payments:", promoteErr);
+    }
+
     // Audit log
     const { error: auditError } = await supabase
       .from("audit_logs")

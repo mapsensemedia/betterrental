@@ -96,8 +96,19 @@ export function usePaymentDepositStatus(bookingId: string | null) {
       const rentalAuthorized =
         totalAuthorizedRental > 0 || booking.wl_auth_status === 'authorized';
 
+      // Bookings that have progressed past 'confirmed' (active / completed) and have a
+      // Worldline pre-auth covering the full amount are effectively paid — funds settle
+      // automatically on Worldline's side. Treat as 'paid' so customer-facing UIs don't
+      // show "Pending" for already-charged rentals.
+      const bookingPastConfirmed =
+        booking.status === 'active' || booking.status === 'completed';
+      const authCoversTotal =
+        rentalAuthorized && (totalAuthorizedRental + netPaid) >= totalDue;
+
       let paymentStatus: 'unpaid' | 'partial' | 'paid' | 'authorized' = 'unpaid';
       if (netPaid >= totalDue) {
+        paymentStatus = 'paid';
+      } else if (bookingPastConfirmed && authCoversTotal) {
         paymentStatus = 'paid';
       } else if (netPaid > 0) {
         paymentStatus = 'partial';
