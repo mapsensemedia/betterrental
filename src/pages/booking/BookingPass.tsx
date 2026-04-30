@@ -107,8 +107,20 @@ export default function BookingPass() {
   const completedPayments = payments.filter(p => p.status === "completed");
   const rentalPayment = completedPayments.find(p => p.payment_type === "rental");
   const depositPayment = completedPayments.find(p => p.payment_type === "deposit");
-  
-  const paymentStatus = rentalPayment ? "Paid" : "Pending";
+
+  // Treat Worldline pre-authorized rentals as "Paid" once the booking has progressed
+  // past confirmed (active / completed). Funds are held on the customer's card and
+  // settle automatically — DB capture is a back-office reconciliation step.
+  const authorizedRentalPayment = payments.find(
+    p => p.payment_type === "rental" && p.status === "authorized"
+  );
+  const bookingPastConfirmed =
+    booking?.status === "active" || booking?.status === "completed";
+  const rentalConsideredPaid =
+    !!rentalPayment ||
+    (bookingPastConfirmed && (!!authorizedRentalPayment || booking?.wl_auth_status === "authorized"));
+
+  const paymentStatus = rentalConsideredPaid ? "Paid" : "Pending";
   const depositStatus = depositPayment ? "Held" : "Pending";
   
   if (authLoading || isLoading) {
