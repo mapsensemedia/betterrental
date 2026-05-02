@@ -1,74 +1,70 @@
-## What's actually wrong
+# Bambora Auto-Reconciliation for Authorized Rentals
 
-Booking **DA2PHVEX** is not a payment failure — the money was successfully charged through Worldline. It's a **display/labelling bug** introduced by the recent payment processing change.
+## Problem
 
-What the database actually shows for DA2PHVEX:
+After the `wl-pay` rewrite removed forced capture, rental payments returned as `PA` (pre-auth) are written to our DB as `authorized` and never flipped to `completed` unless someone manually captures them. Bambora, however, often settles them on its side (a `PAC` row appears under `adjusted_by`). Result: customer/admin UI shows "Pending" or "Unpaid" while the money is actually in.
 
-- `bookings.status` = `completed`
-- `bookings.wl_transaction_id` = `10000195`, `wl_auth_status` = `authorized`
-- `payments` row: rental, $92.96, **status = `authorized`** (not `completed`), txn `10000195`
-- Deposit row: $350 voided/released (normal — rental is finished)
+We just confirmed and backfilled 4 such bookings (2FTY86HU, MSHXYKWN, AMKS28BT, M8V9LAHX) for April–May. We need this to happen automatically going forward.
 
-So the rental was charged via Worldline as a **pre-auth (PA)**, never explicitly captured, yet the booking still progressed all the way through `active` → `completed`. The customer paid; the system just never wrote `completed` on the payment row.
+Querying Bambora with `GET /v1/payments/{id}` is **read-only** — it never moves money and does not charge the customer or merchant. Safe to run on a schedule.
 
-## Why this happened (root cause)
+## What we'll build
 
-The recent rewrite of `supabase/functions/wl-pay/index.ts` removed the forced `/completions` call. Now:
+### 1. New edge function: `wl-reconcile-authorized`
 
-- If Worldline returns `type: "P"` (purchase) → payment row written as `completed`.
-- If Worldline returns anything else, including `type: "PA"` (pre-auth) → payment row written as `authorized`, with the comment *"Capture for authorized rentals is performed manually from the admin panel via wl-capture."*
+A scheduled, server-side reconciler that:
 
-In practice, several recent online rentals came back as `PA` and were **never manually captured** before the rental was completed and the deposit released. The funds are held on the customer's card and will auto-settle on Worldline's side (typical 5–7 days), but our DB still says `authorized`.
+1. Selects all `payments` rows where:
+   - `payment_type = 'rental'`
+   - `status = 'authorized'`
+   - `transaction_id IS NOT NULL`
+   - `created_at >= now() - interval '60 days'` (rolling window — pre-auths older than ~7 days have either settled or expired anyway, 60d gives safety margin)
+2. For each row, call Bambora `GET /v1/payments/{transaction_id}` via the existing `_shared/worldline.ts` client (Basic Auth with passcode — no charge).
+3. Parse the response:
+   - If `total_completions >= amount` AND `adjusted_by[].type === 'PAC'` → Bambora has captured it.
+   - Otherwise leave it alone (still genuinely a pending pre-auth).
+4. For each captured row:
+   - Update `payments.status = 'completed'`
+   - Update parent `bookings.wl_auth_status = 'completed'` (only if currently `authorized`)
+   - Insert an `audit_logs` entry with `action = 'rental_payment_auto_completed'`, including the Bambora PAC id and timestamp.
+5. Return a JSON summary: `{ scanned, reconciled: [{booking_code, txn_id, amount}], unchanged, errors }`.
 
-Then the customer-facing rental view does this:
+### 2. Schedule it
 
+Add a cron entry (every 6 hours is plenty — settlement isn't real-time) using Supabase `pg_cron` + `pg_net`, calling the function with the service-role key. We already use this pattern for `check-rental-alerts` (runs every 15 min per logs).
+
+### 3. Manual trigger from admin (optional, lightweight)
+
+A small "Reconcile Pending Captures" button on the admin Finance/Payments page that POSTs to the same edge function and toasts the result. Useful when staff notice a discrepancy and don't want to wait for the cron.
+
+### 4. Keep the existing display fallback
+
+The hook/UI changes already shipped (treat `authorized` rentals on `active`/`completed` bookings as "Paid") stay in place as a belt-and-braces fallback in case reconciliation runs late.
+
+## Why this is safe
+
+- `GET /payments/{id}` is a query, not a transaction — Bambora confirms this is the standard inquiry endpoint and no fees apply.
+- We only flip DB rows when Bambora itself reports `PAC` — we never assume.
+- All writes go through an edge function (service role), respecting the existing trigger that blocks client-side financial writes.
+- Every change is audit-logged with the Bambora PAC reference for traceability.
+
+## Files to create / change
+
+```text
+supabase/functions/wl-reconcile-authorized/index.ts   (new)
+supabase/config.toml                                   (register function if needed)
+src/pages/admin/...Finance page                        (add manual button — optional)
+migration: pg_cron job to call the function every 6h
 ```
-src/pages/booking/BookingPass.tsx:107-111
-const completedPayments = payments.filter(p => p.status === "completed");
-const rentalPayment = completedPayments.find(p => p.payment_type === "rental");
-const paymentStatus = rentalPayment ? "Paid" : "Pending";
-```
-
-Because the row is `authorized`, not `completed`, the customer sees **"Pending"** even though the booking is `completed` and money was taken. The admin payment panel has the same issue (it only shows the green "Paid" badge when `paymentStatus === 'paid'`, which requires `completed` rows).
-
-## Fix plan
-
-Two parts: behaviour going forward, and cleanup for already-affected bookings.
-
-### 1. Treat authorized rentals as "paid" in the UI
-
-In `src/hooks/use-payment-deposit.ts` and the customer rental detail views (`BookingPass.tsx`, and any other place that filters strictly on `status === 'completed'`), treat a rental payment row whose status is `authorized` as paid for display purposes once the booking has progressed past `confirmed` (i.e. `active`, `completed`, `cancelled-after-charge`). Show a small "Authorized" hint only on the admin payment panel, not on the customer pass.
-
-Specifically:
-- `usePaymentDepositStatus` already computes `paymentStatus = 'authorized'` correctly. Customer-facing screens should map `authorized` + booking past confirmed → display label **"Paid"**.
-- `BookingPass.tsx` should switch from filtering only `completed` rows to using the same hook (or matching its logic) so it does not contradict reality.
-
-### 2. Auto-complete authorized rentals when the booking reaches `completed`
-
-When a return is closed out and the booking moves to `completed`, any `authorized` rental payment row for that booking should be flipped to `completed` (and `bookings.wl_auth_status` to `completed`) by the same edge function that performs closeout. This guarantees the DB reflects the real-world settlement and stops the "appears unpaid" issue from recurring.
-
-This is a server-side change (edge function), keeping with the rule that financial writes go through edge functions only.
-
-### 3. One-time backfill for already-affected bookings
-
-Run a single SQL backfill to fix the existing rows where the booking is already `completed` (or `active` past handover) and the rental payment is still `authorized` with a Worldline txn id present. Update those `payments.status` to `completed` and `bookings.wl_auth_status` to `completed`. Log each one to `audit_logs` so it's traceable.
-
-This will immediately resolve DA2PHVEX and any siblings.
-
-### 4. Add a visibility safeguard
-
-Add an admin alert (or extend the existing `check-rental-alerts` cron) to flag any booking that becomes `active` while its rental payment is still `authorized` for more than 24h, so this stops silently propagating.
-
-## Files to touch
-
-- `supabase/functions/wl-pay/index.ts` — no logic change, but make sure it logs the returned `type` clearly (already does).
-- New / extended edge function used by return closeout — flip authorized rental payment to completed when booking → `completed`.
-- `src/hooks/use-payment-deposit.ts` — minor: ensure `allComplete` is also true when booking status is `completed` and a rental row exists in `authorized` state with a valid `wl_transaction_id`.
-- `src/pages/booking/BookingPass.tsx` — replace the `completedPayments` filter with the hook's `paymentStatus`, so the customer sees "Paid".
-- Migration / data backfill — one-time SQL to repair existing rows + audit log entries.
-- `supabase/functions/check-rental-alerts/index.ts` — add the "authorized > 24h on active booking" alert.
 
 ## Out of scope
 
-- No changes to Worldline auth flow itself; pre-auth + later capture remains the model.
-- No automatic capture against Worldline — money is already settling on their side; we are aligning DB labelling, not double-charging.
+- No changes to `wl-pay` behavior — pre-auth + later settlement remains the model.
+- No automatic captures against Bambora (we don't call `/completions`); we only mirror what Bambora has already done.
+- Deposits are unaffected — they have their own webhook/lifecycle.
+
+## Acceptance
+
+- After deploy, run the function once manually; verify it returns `reconciled: []` (everything Apr–May already backfilled).
+- Within 6 hours of a future authorized rental being settled by Bambora, our DB shows `completed` and the customer's pass / admin panel shows "Paid".
+- Audit log shows one `rental_payment_auto_completed` entry per reconciled row, with Bambora PAC id.
