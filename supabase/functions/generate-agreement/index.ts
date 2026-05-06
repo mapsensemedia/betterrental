@@ -351,21 +351,36 @@ serve(async (req) => {
     const upgradeName = booking.upgrade_category_label || "Vehicle Upgrade";
     const upgradeFee = hasUpgrade ? Number(booking.upgrade_daily_fee) * (booking.total_days || 1) : 0;
 
-    // Check if a non-voided agreement already exists (skip for extensions)
+    // Check if a non-voided agreement already exists (skip for extensions or when forcing regenerate)
+    let priorAgreement: any = null;
     if (!isExtension) {
       const { data: existingAgreement } = await supabase
         .from("rental_agreements")
-        .select("id, status")
+        .select("id, status, customer_signature, signature_png_url, signature_vector_json, signature_method, signature_device_info, signature_workstation_id, customer_signed_at, customer_ip_address, signed_manually, signed_manually_by, signed_manually_at")
         .eq("booking_id", bookingId)
         .neq("status", "voided")
+        .order("created_at", { ascending: false })
         .maybeSingle();
 
-      if (existingAgreement) {
+      if (existingAgreement && !forceRegenerate) {
         console.log(`Agreement already exists: ${existingAgreement.id}`);
         return new Response(
           JSON.stringify({ agreementId: existingAgreement.id, alreadyExists: true }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      if (existingAgreement && forceRegenerate) {
+        priorAgreement = existingAgreement;
+        const { error: supersedeErr } = await supabase
+          .from("rental_agreements")
+          .update({ status: "superseded", updated_at: new Date().toISOString() })
+          .eq("id", existingAgreement.id);
+        if (supersedeErr) {
+          console.error("Failed to mark prior agreement superseded:", supersedeErr);
+        } else {
+          console.log(`Prior agreement marked superseded: ${existingAgreement.id}`);
+        }
       }
     }
 
