@@ -532,6 +532,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         endAt: booking.end_at,
         totalDays: booking.total_days,
         dailyRate: dailyRate,
+        weekendDays,
       },
       locations: {
         pickup: {
