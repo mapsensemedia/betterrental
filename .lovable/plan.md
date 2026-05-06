@@ -1,48 +1,45 @@
 ## Goal
-Make rental agreements display weekend surcharge as a distinct line so the totals reconcile cleanly (Vehicle + Weekend Surcharge + Protection + Add-ons + PVRT + ACSRCH + Tax = Grand Total).
+Regenerate the rental agreement for booking `949A8FYR` (id `4df24cbf-aa1e-4a15-a606-19b978cf0424`) so it picks up the new "Weekend Surcharge" line, while:
+- Keeping the existing signed agreement record (`3990e709-…`) intact for audit history.
+- Carrying the existing signature (PNG, vector JSON, method, device info, timestamps, signed_manually flags) onto the new agreement so the customer does not have to re-sign.
+- Sending no notifications to the customer.
 
-## Why it currently looks wrong
-In `supabase/functions/generate-agreement/index.ts` (line 352) the agreement records:
-
-```
-vehicleSubtotal = dailyRate × totalDays          // base only, e.g. $175
-```
-
-The DB-stored `subtotal` already contains the weekend surcharge (e.g. $10.50 on ZB5NSXJJ). Because that surcharge isn't materialised as a line item, the rendered breakdown looks like 175 + 7.50 + 5.00 + tax ≠ subtotal/total.
+## Why this needs a code change
+The current `generate-agreement` edge function refuses to create a second agreement when a non-voided one already exists (lines 354–370), and it has no mechanism to copy a prior signature onto a freshly generated agreement. We need a controlled, one-shot path that:
+1. Allows regeneration when a flag is passed.
+2. Marks the prior agreement as `superseded` (a non-destructive status that keeps the row visible in history) instead of voiding it.
+3. Copies the signature fields from the prior agreement onto the new row so the new PDF renders signed.
 
 ## Changes
 
 ### 1. `supabase/functions/generate-agreement/index.ts`
-- Compute `weekendSurcharge`:
-  - Prefer `pricing_snapshot.weekendSurcharge` when present.
-  - Otherwise derive: count Fri/Sat/Sun days in `[start_at, start_at + totalDays)` (America/Vancouver) and apply `dailyRate × weekendDays × 0.15`.
-  - Final fallback: `subtotal − (vehicleBase + protection + addOns + drivers + young + pvrt + acsrch + delivery + dropoff + upgrade)` if positive (handles legacy rows where snapshot is null).
-- Add `weekendSurcharge` and `weekendDays` to `terms.financial` and `terms.rental`.
-- Update the plain-text `agreementContent` block (line 424) to include a `Weekend Surcharge:` line when > 0.
+- Accept two new request flags:
+  - `forceRegenerate: boolean` — bypasses the "already exists" early return.
+  - `copySignatureFromLatest: boolean` — after creating the new agreement, copy from the most recent prior signed agreement: `customer_signature`, `signature_png_url`, `signature_vector_json`, `signature_method`, `signature_device_info`, `signature_workstation_id`, `customer_signed_at`, `customer_ip_address`, `signed_manually`, `signed_manually_by`, `signed_manually_at`, and set the new agreement's `status = 'confirmed'`.
+- When `forceRegenerate` is true:
+  - Find any existing non-voided agreement for the booking.
+  - Update its status to `'superseded'` (keeps row, hides it from active flows).
+  - Proceed to create the new agreement record.
+- Always honour `suppressNotifications: true` for this call (existing logic already does).
+- Log an `audit_logs` entry with action `agreement_regenerated_with_signature_copy`, recording both the old and new agreement IDs.
 
-### 2. `src/lib/pdf/rental-agreement-pdf.ts`
-- Extend `RentalAgreementPdfData.financial` with optional `weekendSurcharge` and `weekendDays`.
-- In the VEHICLE RENTAL section (line 395), if `weekendSurcharge > 0`, render a second `finRow`:
-  `Weekend Surcharge (${weekendDays} day(s) × 15%)` → `+$X.XX`.
+### 2. Run the regeneration once
+Call the deployed function:
+```
+POST /functions/v1/generate-agreement
+{
+  "bookingId": "4df24cbf-aa1e-4a15-a606-19b978cf0424",
+  "forceRegenerate": true,
+  "copySignatureFromLatest": true,
+  "suppressNotifications": true
+}
+```
 
-### 3. `src/components/booking/AgreementStructuredView.tsx`
-- Below the Vehicle Subtotal row (line 146), conditionally render a "Weekend Surcharge" row using the same data.
-
-### 4. `src/lib/pdf/invoice-data-builder.ts` (consistency)
-- Stop labelling the derived remainder as `"Vehicle Rental (… incl. surcharges/discounts)"`. Split it into:
-  - `Vehicle Rental ($X.XX/day × N days)` = base
-  - `Weekend Surcharge (W day(s) × 15%)` if positive remainder ≤ a sane cap
-  - `Discount` if remainder is negative
-  This keeps invoices, agreements, and the ops Financial Breakdown labelled identically.
-
-### 5. Reuse existing helpers
-Add a small shared helper `countWeekendDays(startISO, days, tz="America/Vancouver")` in `supabase/functions/_shared/booking-core.ts` (one already exists in `src/lib/pricing.ts`; mirror the logic) and import it from the agreement function.
+### 3. Verify
+- Query `rental_agreements` for booking `4df24cbf-…` and confirm there are now two rows: the original (status `superseded`) and the new one (status `confirmed`, with copied signature fields and a populated `terms_json.financial.weekendSurcharge`).
+- Open the booking in the admin view and confirm the regenerated agreement PDF shows the Weekend Surcharge line.
 
 ## Out of scope
-- No re-signing of already-signed agreements. Newly generated/regenerated PDFs and the on-screen structured view will show the corrected layout. Existing signed PDFs keep their archived content unchanged (per agreement-lifecycle rules).
-- No pricing recomputation — totals in the DB are unchanged; this is presentation only.
-
-## Verification
-- Regenerate the agreement for `ZB5NSXJJ`: expect `Vehicle $175.00 + Weekend Surcharge $10.50 + PVRT $7.50 + ACSRCH $5.00 = Subtotal $198.00`, then `Tax $23.76`, `Total $221.76`.
-- Spot-check one weekday-only booking to confirm the surcharge row is hidden when zero.
-- Spot-check one booking with a duration discount to confirm it renders as a negative line instead of being absorbed silently.
+- No bulk regeneration of other historical agreements.
+- No modification to financial totals — totals in `bookings` are unchanged; this is presentation only.
+- Customer is not notified (existing notification suppression flag is honoured).

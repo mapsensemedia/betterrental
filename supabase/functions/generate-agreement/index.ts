@@ -125,7 +125,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { bookingId, suppressNotifications, agreementType } = body;
+    const { bookingId, suppressNotifications, agreementType, forceRegenerate, copySignatureFromLatest } = body;
     const isExtension = agreementType === "extension";
 
     // Input validation
