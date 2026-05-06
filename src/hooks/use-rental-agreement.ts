@@ -26,6 +26,7 @@ export interface AgreementTermsJson {
     endAt: string;
     totalDays: number;
     dailyRate: number;
+    weekendDays?: number;
   };
   locations: {
     pickup: { name?: string; address?: string; city?: string };
