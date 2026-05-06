@@ -194,13 +194,25 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     setIsSubmitting(true);
     setCustomerConflict(null);
     
+    // Merge selected pickup/return times into the chosen dates so the
+    // booking is stored with the correct hour/minute (was defaulting to
+    // local midnight when only the calendar date was sent).
+    const applyTime = (date: Date, hhmm: string) => {
+      const [h, m] = (hhmm || "00:00").split(":").map(Number);
+      const d = new Date(date);
+      d.setHours(h || 0, m || 0, 0, 0);
+      return d;
+    };
+    const startAtDate = applyTime(formData.startDate, formData.pickupTime);
+    const endAtDate = applyTime(formData.endDate, formData.returnTime);
+
     try {
       const { data, error } = await supabase.functions.invoke("create-walk-in-booking", {
         body: {
           locationId: formData.locationId,
           categoryId: formData.vehicleId,
-          startAt: formData.startDate.toISOString(),
-          endAt: formData.endDate.toISOString(),
+          startAt: startAtDate.toISOString(),
+          endAt: endAtDate.toISOString(),
           customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
           customerPhone: formData.phone || "000-000-0000",
           customerEmail: formData.email.toLowerCase().trim(),
