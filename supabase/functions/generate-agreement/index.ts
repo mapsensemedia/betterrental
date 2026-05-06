@@ -371,16 +371,9 @@ serve(async (req) => {
       }
 
       if (existingAgreement && forceRegenerate) {
+        // Preserve prior agreement as-is (kept for history); do not modify its status.
         priorAgreement = existingAgreement;
-        const { error: supersedeErr } = await supabase
-          .from("rental_agreements")
-          .update({ status: "superseded", updated_at: new Date().toISOString() })
-          .eq("id", existingAgreement.id);
-        if (supersedeErr) {
-          console.error("Failed to mark prior agreement superseded:", supersedeErr);
-        } else {
-          console.log(`Prior agreement marked superseded: ${existingAgreement.id}`);
-        }
+        console.log(`Prior agreement preserved alongside regenerated copy: ${existingAgreement.id}`);
       }
     }
 
