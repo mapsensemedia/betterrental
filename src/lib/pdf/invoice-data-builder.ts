@@ -157,14 +157,31 @@ export async function buildInvoicePdfData(
   // ── Build line items (same order as FinancialBreakdown) ──
   const lineItems: InvoicePdfData["lineItems"] = [];
 
-  // Vehicle rental
-  const vehicleHasAdjustments = useRemainder && vehicleRemainderCents !== vehicleBaseCents;
+  // Vehicle rental — always show base; surface remainder as Weekend Surcharge or Discount
+  const remainderCents = useRemainder ? vehicleRemainderCents - vehicleBaseCents : 0;
   lineItems.push({
-    description: vehicleHasAdjustments
-      ? `Vehicle Rental (${totalDays} days, incl. surcharges/discounts)`
-      : `Vehicle Rental ($${Number(booking.daily_rate).toFixed(2)}/day × ${totalDays} days)`,
-    amount: fromCents(vehicleCents),
+    description: `Vehicle Rental ($${Number(booking.daily_rate).toFixed(2)}/day × ${totalDays} days)`,
+    amount: fromCents(vehicleBaseCents),
   });
+
+  if (remainderCents > 0) {
+    const weekendDays = countWeekendDays(
+      booking.start_at ? new Date(booking.start_at) : null,
+      totalDays,
+    );
+    const wkLabel = weekendDays > 0
+      ? `Weekend Surcharge (${weekendDays} day${weekendDays === 1 ? "" : "s"} × 15%)`
+      : `Weekend Surcharge (15%)`;
+    lineItems.push({
+      description: wkLabel,
+      amount: fromCents(remainderCents),
+    });
+  } else if (remainderCents < 0) {
+    lineItems.push({
+      description: "Discount",
+      amount: fromCents(remainderCents),
+    });
+  }
 
   // Protection
   if (plan && protectionCents > 0) {
