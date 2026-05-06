@@ -46,6 +46,8 @@ export interface AgreementTermsJson {
   };
   financial: {
     vehicleSubtotal: number;
+    weekendSurcharge?: number;
+    weekendDays?: number;
     addOnsTotal: number;
     youngDriverFee: number;
     pvrtTotal: number;
