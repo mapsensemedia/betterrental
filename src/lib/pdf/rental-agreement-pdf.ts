@@ -398,6 +398,17 @@ function renderStructuredPdf(
   finRow(pdf, `Daily Rate: ${fmt(t.rental.dailyRate)} × ${t.rental.totalDays} days`, fmt(t.financial.vehicleSubtotal), y, FONT_FIN);
   y += FIN_ROW_H;
 
+  // Weekend surcharge (Fri/Sat/Sun days @ 15%)
+  const weekendSurcharge = t.financial.weekendSurcharge ?? 0;
+  const weekendDays = t.financial.weekendDays ?? t.rental.weekendDays ?? 0;
+  if (weekendSurcharge > 0) {
+    const wkLabel = weekendDays > 0
+      ? `Weekend Surcharge (${weekendDays} day${weekendDays === 1 ? "" : "s"} × 15%)`
+      : `Weekend Surcharge (15%)`;
+    finRow(pdf, wkLabel, `+${fmt(weekendSurcharge)}`, y, FONT_FIN);
+    y += FIN_ROW_H;
+  }
+
   // Protection plan
   const protName = t.protection?.planName || "No Extra Protection";
   const protTotal = t.protection?.total ?? t.financial.protectionTotal ?? 0;
