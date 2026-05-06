@@ -5,7 +5,7 @@
  * This ensures the invoice PDF matches Ops Summary and customer views exactly.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE } from "@/lib/pricing";
+import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE, countWeekendDays } from "@/lib/pricing";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
 import type { InvoicePdfData } from "./invoice-pdf";
 
