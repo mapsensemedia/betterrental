@@ -36,6 +36,7 @@ interface TermsJson {
     endAt: string;
     totalDays: number;
     dailyRate: number;
+    weekendDays?: number;
   };
   locations: {
     pickup: { name?: string; address?: string; city?: string };
@@ -49,6 +50,8 @@ interface TermsJson {
   protection?: ProtectionTerms;
   financial: {
     vehicleSubtotal: number;
+    weekendSurcharge?: number;
+    weekendDays?: number;
     protectionTotal?: number;
     addOnsTotal: number;
     youngDriverFee: number;
