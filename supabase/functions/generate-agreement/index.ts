@@ -22,6 +22,33 @@ const PST_RATE = 0.07;
 const GST_RATE = 0.05;
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
+const WEEKEND_SURCHARGE_RATE = 0.15; // Fri/Sat/Sun per-day uplift (mirrors src/lib/pricing.ts)
+
+/**
+ * Count weekend days (Fri/Sat/Sun) within a rental range, in America/Vancouver.
+ * Mirrors countWeekendDays() in src/lib/pricing.ts.
+ */
+function countWeekendDaysVancouver(startISO: string, days: number): number {
+  if (!startISO || !days || days < 1) return 0;
+  const start = new Date(startISO);
+  if (Number.isNaN(start.getTime())) return 0;
+  let count = 0;
+  // Use Vancouver weekday via Intl
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Vancouver",
+    weekday: "short",
+  });
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getTime() + i * 86400000);
+    const wk = fmt.format(d); // Sun, Mon, Tue, ...
+    if (wk === "Fri" || wk === "Sat" || wk === "Sun") count++;
+  }
+  return count;
+}
+
+function roundCents(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 // Protection plan metadata (rates come from booking's pricing_snapshot or group logic)
 const PROTECTION_PLAN_META: Record<string, { name: string; deductible: string }> = {
