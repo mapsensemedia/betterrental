@@ -474,7 +474,7 @@ Renter: ${displayName} | Email: ${resolvedEmail || '—'}
 Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(s)
 Location: ${booking.locations?.name || '—'}, ${booking.locations?.address || '—'}, ${booking.locations?.city || '—'}
 Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
-Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}
+Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}${weekendSurcharge > 0 ? `\nWeekend Surcharge: $${weekendSurcharge.toFixed(2)} (${weekendDays} day(s) × 15%)` : ''}
 Protection: ${planMeta.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
 Add-ons: $${addOnsTotal.toFixed(2)}
 ${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}
