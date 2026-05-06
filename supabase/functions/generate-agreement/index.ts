@@ -560,6 +560,8 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
       },
       financial: {
         vehicleSubtotal,
+        weekendSurcharge,
+        weekendDays,
         protectionTotal,
         addOnsTotal: addOnsTotal + driversTotal,
         youngDriverFee,
