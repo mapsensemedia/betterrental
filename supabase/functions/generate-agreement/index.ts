@@ -22,6 +22,33 @@ const PST_RATE = 0.07;
 const GST_RATE = 0.05;
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
+const WEEKEND_SURCHARGE_RATE = 0.15; // Fri/Sat/Sun per-day uplift (mirrors src/lib/pricing.ts)
+
+/**
+ * Count weekend days (Fri/Sat/Sun) within a rental range, in America/Vancouver.
+ * Mirrors countWeekendDays() in src/lib/pricing.ts.
+ */
+function countWeekendDaysVancouver(startISO: string, days: number): number {
+  if (!startISO || !days || days < 1) return 0;
+  const start = new Date(startISO);
+  if (Number.isNaN(start.getTime())) return 0;
+  let count = 0;
+  // Use Vancouver weekday via Intl
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Vancouver",
+    weekday: "short",
+  });
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getTime() + i * 86400000);
+    const wk = fmt.format(d); // Sun, Mon, Tue, ...
+    if (wk === "Fri" || wk === "Sat" || wk === "Sun") count++;
+  }
+  return count;
+}
+
+function roundCents(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 // Protection plan metadata (rates come from booking's pricing_snapshot or group logic)
 const PROTECTION_PLAN_META: Record<string, { name: string; deductible: string }> = {
@@ -373,9 +400,35 @@ serve(async (req) => {
     // Daily regulatory fees
     const pvrtTotal = PVRT_DAILY_FEE * rentalDays;
     const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
-    
+
+    // Weekend surcharge — prefer pricing_snapshot, then derive from Fri/Sat/Sun count,
+    // then fall back to subtotal remainder so legacy bookings still itemise correctly.
+    const snapshotWeekendDays = Number(pricingSnapshot?.weekendDays ?? pricingSnapshot?.weekendDayCount);
+    const snapshotWeekendSurcharge = Number(pricingSnapshot?.weekendSurcharge);
+    let weekendDays = Number.isFinite(snapshotWeekendDays) && snapshotWeekendDays >= 0
+      ? Math.floor(snapshotWeekendDays)
+      : countWeekendDaysVancouver(booking.start_at, rentalDays);
+    let weekendSurcharge = Number.isFinite(snapshotWeekendSurcharge) && snapshotWeekendSurcharge >= 0
+      ? roundCents(snapshotWeekendSurcharge)
+      : roundCents(dailyRate * weekendDays * WEEKEND_SURCHARGE_RATE);
+
+    // Reconcile against DB subtotal — if a remainder exists, treat it as the true surcharge/discount line.
+    const dropoffFee = Number(booking.different_dropoff_fee) || 0;
+    const deliveryFeeAmt = Number(booking.delivery_fee) || 0;
+    const knownLineItems = vehicleSubtotal + protectionTotal + addOnsTotal + driversTotal
+      + youngDriverFee + pvrtTotal + acsrchTotal + dropoffFee + deliveryFeeAmt;
+    const dbSubtotal = Number(booking.subtotal) || 0;
+    const remainder = roundCents(dbSubtotal - knownLineItems);
+    if (Math.abs(remainder - weekendSurcharge) > 0.02) {
+      // Snapshot/derivation disagreed with DB — trust DB so totals always reconcile in print.
+      weekendSurcharge = remainder > 0 ? remainder : 0;
+      if (weekendSurcharge > 0 && weekendDays === 0) {
+        weekendDays = countWeekendDaysVancouver(booking.start_at, rentalDays);
+      }
+    }
+
     // Use DB source-of-truth for subtotal, tax, total (same as FinancialBreakdown component)
-    const subtotalBeforeTax = Number(booking.subtotal) || 0;
+    const subtotalBeforeTax = dbSubtotal;
     const dbTaxAmount = Number(booking.tax_amount) || 0;
     const pstAmount = Math.round(subtotalBeforeTax * PST_RATE * 100) / 100;
     const gstAmount = Math.round(subtotalBeforeTax * GST_RATE * 100) / 100;
@@ -421,7 +474,7 @@ Renter: ${displayName} | Email: ${resolvedEmail || '—'}
 Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(s)
 Location: ${booking.locations?.name || '—'}, ${booking.locations?.address || '—'}, ${booking.locations?.city || '—'}
 Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
-Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}
+Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}${weekendSurcharge > 0 ? `\nWeekend Surcharge: $${weekendSurcharge.toFixed(2)} (${weekendDays} day(s) × 15%)` : ''}
 Protection: ${planMeta.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
 Add-ons: $${addOnsTotal.toFixed(2)}
 ${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}
@@ -479,6 +532,7 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         endAt: booking.end_at,
         totalDays: booking.total_days,
         dailyRate: dailyRate,
+        weekendDays,
       },
       locations: {
         pickup: {
@@ -506,6 +560,8 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
       },
       financial: {
         vehicleSubtotal,
+        weekendSurcharge,
+        weekendDays,
         protectionTotal,
         addOnsTotal: addOnsTotal + driversTotal,
         youngDriverFee,

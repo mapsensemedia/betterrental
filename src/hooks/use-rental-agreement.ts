@@ -26,6 +26,7 @@ export interface AgreementTermsJson {
     endAt: string;
     totalDays: number;
     dailyRate: number;
+    weekendDays?: number;
   };
   locations: {
     pickup: { name?: string; address?: string; city?: string };
@@ -45,6 +46,8 @@ export interface AgreementTermsJson {
   };
   financial: {
     vehicleSubtotal: number;
+    weekendSurcharge?: number;
+    weekendDays?: number;
     addOnsTotal: number;
     youngDriverFee: number;
     pvrtTotal: number;

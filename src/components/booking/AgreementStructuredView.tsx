@@ -143,7 +143,13 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
       <Section title="Financial Summary">
         <table className="w-full text-[12px]">
           <tbody>
-            <FinRow label="Vehicle Subtotal" value={fmt(t.financial.vehicleSubtotal)} />
+            <FinRow label={`Vehicle Subtotal (${fmt(t.rental.dailyRate)}/day × ${t.rental.totalDays})`} value={fmt(t.financial.vehicleSubtotal)} />
+            {(t.financial.weekendSurcharge ?? 0) > 0 && (
+              <FinRow
+                label={`Weekend Surcharge${(t.financial.weekendDays ?? t.rental.weekendDays) ? ` (${t.financial.weekendDays ?? t.rental.weekendDays} day${(t.financial.weekendDays ?? t.rental.weekendDays) === 1 ? "" : "s"} × 15%)` : " (15%)"}`}
+                value={`+${fmt(t.financial.weekendSurcharge ?? 0)}`}
+              />
+            )}
             <FinRow label="Protection Total" value={fmt(protTotal)} />
             <FinRow label="Add-ons Total" value={fmt(t.financial.addOns?.reduce((s, a) => s + a.price, 0) ?? 0)} />
             {t.financial.youngDriverFee > 0 && <FinRow label="Young Driver Fee" value={fmt(t.financial.youngDriverFee)} />}
