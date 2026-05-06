@@ -125,7 +125,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { bookingId, suppressNotifications, agreementType } = body;
+    const { bookingId, suppressNotifications, agreementType, forceRegenerate, copySignatureFromLatest } = body;
     const isExtension = agreementType === "extension";
 
     // Input validation
@@ -351,21 +351,29 @@ serve(async (req) => {
     const upgradeName = booking.upgrade_category_label || "Vehicle Upgrade";
     const upgradeFee = hasUpgrade ? Number(booking.upgrade_daily_fee) * (booking.total_days || 1) : 0;
 
-    // Check if a non-voided agreement already exists (skip for extensions)
+    // Check if a non-voided agreement already exists (skip for extensions or when forcing regenerate)
+    let priorAgreement: any = null;
     if (!isExtension) {
       const { data: existingAgreement } = await supabase
         .from("rental_agreements")
-        .select("id, status")
+        .select("id, status, customer_signature, signature_png_url, signature_vector_json, signature_method, signature_device_info, signature_workstation_id, customer_signed_at, customer_ip_address, signed_manually, signed_manually_by, signed_manually_at")
         .eq("booking_id", bookingId)
         .neq("status", "voided")
+        .order("created_at", { ascending: false })
         .maybeSingle();
 
-      if (existingAgreement) {
+      if (existingAgreement && !forceRegenerate) {
         console.log(`Agreement already exists: ${existingAgreement.id}`);
         return new Response(
           JSON.stringify({ agreementId: existingAgreement.id, alreadyExists: true }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      if (existingAgreement && forceRegenerate) {
+        // Preserve prior agreement as-is (kept for history); do not modify its status.
+        priorAgreement = existingAgreement;
+        console.log(`Prior agreement preserved alongside regenerated copy: ${existingAgreement.id}`);
       }
     }
 
@@ -617,13 +625,45 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
 
     console.log(`Agreement created successfully: ${agreement.id}`);
 
+    // Optionally copy signature from prior (superseded) agreement so customer doesn't re-sign
+    if (copySignatureFromLatest && priorAgreement && priorAgreement.customer_signed_at) {
+      const { error: copyErr } = await supabase
+        .from("rental_agreements")
+        .update({
+          customer_signature: priorAgreement.customer_signature,
+          signature_png_url: priorAgreement.signature_png_url,
+          signature_vector_json: priorAgreement.signature_vector_json,
+          signature_method: priorAgreement.signature_method,
+          signature_device_info: priorAgreement.signature_device_info,
+          signature_workstation_id: priorAgreement.signature_workstation_id,
+          customer_signed_at: priorAgreement.customer_signed_at,
+          customer_ip_address: priorAgreement.customer_ip_address,
+          signed_manually: priorAgreement.signed_manually,
+          signed_manually_by: priorAgreement.signed_manually_by,
+          signed_manually_at: priorAgreement.signed_manually_at,
+          status: "confirmed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", agreement.id);
+      if (copyErr) {
+        console.error("Failed to copy signature onto new agreement:", copyErr);
+      } else {
+        console.log(`Signature copied from ${priorAgreement.id} to ${agreement.id}`);
+      }
+    }
+
     // Log to audit
     await supabase.from("audit_logs").insert({
       entity_type: "rental_agreement",
       entity_id: agreement.id,
-      action: "agreement_generated",
+      action: priorAgreement ? "agreement_regenerated_with_signature_copy" : "agreement_generated",
       user_id: auth.userId || null,
-      new_data: { booking_id: bookingId, booking_code: booking.booking_code },
+      new_data: {
+        booking_id: bookingId,
+        booking_code: booking.booking_code,
+        prior_agreement_id: priorAgreement?.id || null,
+        signature_copied: Boolean(copySignatureFromLatest && priorAgreement?.customer_signed_at),
+      },
     });
 
     // Send notification to customer (unless suppressed for backfill)
