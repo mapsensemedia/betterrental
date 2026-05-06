@@ -400,9 +400,35 @@ serve(async (req) => {
     // Daily regulatory fees
     const pvrtTotal = PVRT_DAILY_FEE * rentalDays;
     const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
-    
+
+    // Weekend surcharge — prefer pricing_snapshot, then derive from Fri/Sat/Sun count,
+    // then fall back to subtotal remainder so legacy bookings still itemise correctly.
+    const snapshotWeekendDays = Number(pricingSnapshot?.weekendDays ?? pricingSnapshot?.weekendDayCount);
+    const snapshotWeekendSurcharge = Number(pricingSnapshot?.weekendSurcharge);
+    let weekendDays = Number.isFinite(snapshotWeekendDays) && snapshotWeekendDays >= 0
+      ? Math.floor(snapshotWeekendDays)
+      : countWeekendDaysVancouver(booking.start_at, rentalDays);
+    let weekendSurcharge = Number.isFinite(snapshotWeekendSurcharge) && snapshotWeekendSurcharge >= 0
+      ? roundCents(snapshotWeekendSurcharge)
+      : roundCents(dailyRate * weekendDays * WEEKEND_SURCHARGE_RATE);
+
+    // Reconcile against DB subtotal — if a remainder exists, treat it as the true surcharge/discount line.
+    const dropoffFee = Number(booking.different_dropoff_fee) || 0;
+    const deliveryFeeAmt = Number(booking.delivery_fee) || 0;
+    const knownLineItems = vehicleSubtotal + protectionTotal + addOnsTotal + driversTotal
+      + youngDriverFee + pvrtTotal + acsrchTotal + dropoffFee + deliveryFeeAmt;
+    const dbSubtotal = Number(booking.subtotal) || 0;
+    const remainder = roundCents(dbSubtotal - knownLineItems);
+    if (Math.abs(remainder - weekendSurcharge) > 0.02) {
+      // Snapshot/derivation disagreed with DB — trust DB so totals always reconcile in print.
+      weekendSurcharge = remainder > 0 ? remainder : 0;
+      if (weekendSurcharge > 0 && weekendDays === 0) {
+        weekendDays = countWeekendDaysVancouver(booking.start_at, rentalDays);
+      }
+    }
+
     // Use DB source-of-truth for subtotal, tax, total (same as FinancialBreakdown component)
-    const subtotalBeforeTax = Number(booking.subtotal) || 0;
+    const subtotalBeforeTax = dbSubtotal;
     const dbTaxAmount = Number(booking.tax_amount) || 0;
     const pstAmount = Math.round(subtotalBeforeTax * PST_RATE * 100) / 100;
     const gstAmount = Math.round(subtotalBeforeTax * GST_RATE * 100) / 100;
