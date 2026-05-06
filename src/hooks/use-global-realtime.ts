@@ -233,6 +233,7 @@ export function useGlobalRealtime() {
           invalidate([
             ["rental-agreement"],
             ["my-agreements"],
+            ["booking-agreements-detail"],
           ])
       )
 
