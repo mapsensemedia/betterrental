@@ -1,71 +1,75 @@
-## Investigation Findings
+# Add second location: Langley – 20178 96 Avenue
 
-**Booking:** ZB5NSXJJ (id `7825fa05-…`) — TUSHAR MALLESH YENNAM, Mystery Car (plate A819JZ).
+## Goal
 
-**Who marked it Completed?**
-Admin **Devish Arora** (`devarora25016@gmail.com`) called the `close-account` edge function on **2026-05-06 07:40 UTC (≈12:40 AM Vancouver)**. Audit trail shows `account_closed` action by his user_id, plus auto‑promotion of the rental payment to completed and final invoice INV‑2026‑01073 generated. This was a **manual admin action**, not automatic.
+Bring the existing (currently inactive) **Langley Centre** location back online with the new address **20178 96 Ave Langley Twp, BC V1M 0B2**, alongside Surrey Newton. Cars share the same categories/pricing, but vehicle units are physically assigned to one branch in admin (separate inventory per location). Cross-location pickup/return uses the existing $50 Surrey↔Langley drop-off fee.
 
-**Why "12:00 AM" return time?**
-`end_at` is stored as `2026-05-10 07:00:00 UTC` = **2026-05-10 00:00 America/Vancouver** (midnight). Root cause is in `src/components/admin/WalkInBookingDialog.tsx`: the dialog has `pickupTime`/`returnTime` selects (state defaults to `DEFAULT_PICKUP_TIME`), but the submit handler sends `formData.startDate.toISOString()` / `formData.endDate.toISOString()` directly — the chosen times are **never merged into the date** before posting to `create-walk-in-booking`. So end_at always uses the calendar's default midnight-local component.
+## How the system already supports this
 
-**Current vehicle state:** Unit `e2004597-…` is still `on_rent` (good, no need to flip).
+The codebase is largely location-aware via the `locations` table and the `useLocations()` hook:
 
----
+- Customer location pickers (`LocationSelector`, `LocationsSection`, `Locations` page, `OpsLocationFilter`) all read from DB.
+- Availability filters by `vehicles.location_id` (or `null` = all).
+- Drop-off fee uses `locations.fee_group` (`surrey`, `langley`, `abbotsford`) — Langley row already has `fee_group = 'langley'`, so the $50 tier in `src/lib/pricing.ts` and the server function in `supabase/functions/_shared/booking-core.ts` work without code changes.
+- Admin inventory (`UnifiedVehicleManager`, `VehicleEditDialog`, `VinFormDialog`) already lets staff pick a location per vehicle unit.
 
-## Plan
+So most of the work is **data/config**, not code. The remaining code edits are mostly cosmetic (hardcoded mirrors, marketing pages, SEO).
 
-### 1. Restore the booking record (data fix, single existing row)
-Update booking `7825fa05-a783-4415-916e-b131f88da6a1`:
-- `status` → `active`
-- `end_at` → `2026-05-10 21:30:00+00` (Sunday May 10, 1:30 PM America/Vancouver = 21:30 UTC during PDT)
-- `actual_return_at` → `NULL`
-- `return_state` → `not_started`
-- `account_closed_at` → `NULL`
-- `account_closed_by` → `NULL`
+## Changes
 
-Vehicle unit already `on_rent` — leave as is (verify post‑update).
+### 1. Database (1 migration)
 
-Revert the auto‑completed rental payment back to `authorized`:
-- Payment `c67314d8-01a4-496e-97b4-664b788d48d3` → `status = authorized`
-- Booking `wl_auth_status` → `authorized`
+Update the existing Langley row — keep its UUID so historical data stays intact:
 
-Void the prematurely generated final invoice INV‑2026‑01073 (mark as void/deleted so finance/customer pass don't show it). Will inspect `final_invoices` table first to choose the correct void column.
+- `name`: `Langley Centre` → keep, .
+- `address`: 20178 96 Ave Langley Twp, BC V1M 0B2.
+- `lat` / `lng`: update to new coordinates 
+- `phone`, `email`, `hours_json`: copy/adjust from Surrey or provide values.
+- `is_active`: `true`.
+- `fee_group`: keep `langley` (preserves the $50 tier).
 
-These writes go through the migration/insert tool (service_role) to bypass `block_sensitive_booking_updates` trigger.
+No schema changes needed. No table creation.
 
-### 2. Audit trail
-Insert two `audit_logs` rows on entity `booking / 7825fa05-…`:
-- `action: 'booking_status_corrected'` — old `{status: completed}`, new `{status: active, end_at: 2026-05-10T21:30Z}`, note: "Booking was mistakenly closed by admin before actual return. Restored to active; correct return time Sun May 10, 1:30 PM. Original close action preserved above."
-- `action: 'invoice_voided'` — referencing INV‑2026‑01073, reason "premature account close reversal".
+### 2. Hardcoded mirror — `src/constants/rentalLocations.ts`
 
-Existing audit entries are kept untouched (preserves the trail of who closed it).
+- Flip Langley entry's `isActive: false` → `true`.
+- Update its `address`, `lat`, `lng` to the new branch.
+- Used by delivery-distance / closest-location calc, so coordinates matter.
 
-### 3. Bug fix — return time defaulting to midnight
-File: `src/components/admin/WalkInBookingDialog.tsx`
+### 3. Marketing / SEO surfaces (small text edits)
 
-Before invoking `create-walk-in-booking`, build the actual datetimes by merging `pickupTime` / `returnTime` (`HH:mm`) into `startDate` / `endDate`. Approach:
-```ts
-const applyTime = (date: Date, hhmm: string) => {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(date);
-  d.setHours(h, m, 0, 0);   // local time, becomes correct UTC via toISOString
-  return d;
-};
-const startAt = applyTime(formData.startDate, formData.pickupTime).toISOString();
-const endAt   = applyTime(formData.endDate,   formData.returnTime).toISOString();
-```
-Use these in the body and in the local `totalDays` calc if relevant. Also apply the same merge when auto‑bumping `endDate` on start date change, so the times stay attached.
+- `src/components/landing/LocationsSection.tsx` and `src/pages/Locations.tsx` — add the new Google Maps share link to the `LOCATION_MAPS_LINKS` map (keyed by location name).
+- `src/pages/Langley.tsx` — existing city landing page; refresh hero copy/address to the new branch.
+- `src/components/layout/Footer.tsx`, `src/components/layout/TopNav.tsx` — surface Langley link if it's currently hidden behind the active filter (likely auto-shows once `is_active=true`, but verify).
+- `public/sitemap.xml` — ensure `/langley` and `/location/<langley-id>` are listed.
+- Update the **memory** entry "Only Surrey Newton location is active" to reflect two active branches.
 
-No changes to the edge function itself — it already trusts `endAt` ISO string.
+### 4. Inventory in admin (no code change, just data)
 
-### 4. Verification
-- Re‑query booking: status=active, end_at correct, actual_return_at null.
-- Re‑query payment + invoice state.
-- Confirm vehicle_units row still on_rent.
-- Open admin panel → Tushar's booking should now show Active, return Sun May 10 1:30 PM.
+Once Langley is active, the existing **Inventory** admin screen lets you create/move `vehicle_units` with `location_id = <Langley UUID>`. Vehicles themselves (categories/models) stay shared — only the physical units are split per branch.
 
----
+### 5. Verification checklist
 
-### Confirmation needed
-1. Return time: I'm assuming **1:30 PM America/Vancouver** (PDT, UTC‑7) → `2026-05-10T21:30:00Z`. Confirm timezone.
-2. The premature final invoice INV‑2026‑01073 — **void it** (recommended) or leave it for finance to handle manually?
+- Customer search/checkout: Langley appears in pickup & return dropdowns.
+- Picking Surrey→Langley shows a **$50** different-drop-off fee.
+- Admin Ops queues filter correctly when "Langley" is selected.
+- Adding a new vehicle unit to Langley shows up only under that location's inventory.
+- `/langley` page renders the new address and map.
+
+## Files touched (estimated)
+
+
+| Type            | Count | Files                                                                                                                                                       |
+| --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DB migration    | 1     | update `locations` row                                                                                                                                      |
+| Code edits      | ~5    | `src/constants/rentalLocations.ts`, `src/components/landing/LocationsSection.tsx`, `src/pages/Locations.tsx`, `src/pages/Langley.tsx`, `public/sitemap.xml` |
+| Optional polish | ~2    | Footer/TopNav copy, memory file                                                                                                                             |
+
+
+## Things I still need from you (before implementing)
+
+1. **Phone & email** for the Langley branch (or reuse Surrey's `+1 (604) 763-4242`?).
+2. **Operating hours** for Langley (or copy Surrey's).
+3. **Exact display name**: keep "Langley Centre" or rename (e.g. "Langley – 96 Ave")?
+4. **Google Maps share link** for the new address (optional — I can derive coords from the address otherwise).
+5. Confirm postal code for `20178 96 Avenue, Langley, BC`.
