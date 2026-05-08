@@ -127,16 +127,16 @@ const LangleyPage = () => {
       "telephone": "+1-604-763-4242",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "5933 200 St",
-        "addressLocality": "Langley",
+        "streetAddress": "20178 96 Ave",
+        "addressLocality": "Langley Twp",
         "addressRegion": "BC",
-        "postalCode": "V3A 1N2",
+        "postalCode": "V1M 0B2",
         "addressCountry": "CA"
       },
       "geo": {
         "@type": "GeoCoordinates",
-        "latitude": 49.1042,
-        "longitude": -122.6604
+        "latitude": 49.1556,
+        "longitude": -122.6784
       },
       "areaServed": [
         { "@type": "City", "name": "Surrey" },
