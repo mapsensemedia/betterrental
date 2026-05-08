@@ -26,11 +26,11 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
   {
     id: "a1b2c3d4-2222-4000-8000-000000000002",
     name: "Langley Centre",
-    address: "5933 200 St, Langley, BC V3A 1N2",
+    address: "20178 96 Ave, Langley Twp, BC V1M 0B2",
     city: "Langley",
-    lat: 49.1042,
-    lng: -122.6604,
-    isActive: false, // Toggle to true to re-enable this location
+    lat: 49.1556,
+    lng: -122.6784,
+    isActive: true, // Toggle to true to re-enable this location
   },
   {
     id: "a1b2c3d4-3333-4000-8000-000000000003",
