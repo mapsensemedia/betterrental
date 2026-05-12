@@ -39,7 +39,7 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
     city: "Abbotsford",
     lat: 49.0504,
     lng: -122.3045,
-    isActive: false, // Toggle to true to re-enable this location
+    isActive: true, // Toggle to true to re-enable this location
   },
 ];
 
