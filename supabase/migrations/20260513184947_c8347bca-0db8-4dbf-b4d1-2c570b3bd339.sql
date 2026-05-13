@@ -1,0 +1,1 @@
+UPDATE public.inspection_metrics SET odometer = 43732 WHERE id = '5ce6d44e-7279-47a7-9b4d-0f96d8bf103b';
