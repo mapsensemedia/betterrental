@@ -20,7 +20,17 @@ export default function Locations() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = "Our Locations | C2C Rental – Surrey, BC";
+    document.title = "Car Rental Locations | C2C Rental BC";
+
+    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (!meta) { meta = document.createElement("meta"); meta.setAttribute("name", "description"); document.head.appendChild(meta); }
+    meta.setAttribute("content", "Find C2C Rental branches in Surrey, Langley, and Abbotsford BC. Pickup, delivery, and 24/7 support across the Lower Mainland.");
+
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) { canonical = document.createElement("link"); canonical.setAttribute("rel", "canonical"); document.head.appendChild(canonical); }
+    canonical.setAttribute("href", "https://c2crental.ca/locations");
+
+    return () => { canonical?.remove(); };
   }, []);
 
   const handleGetDirections = (locationName: string, lat: number | null, lng: number | null, address: string, city: string) => {

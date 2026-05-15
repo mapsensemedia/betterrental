@@ -52,7 +52,17 @@ export default function Search() {
   } = useRentalBooking();
   
   useEffect(() => {
-    document.title = "Browse Cars | C2C Rental – Surrey, BC";
+    document.title = "Browse Cars | C2C Rental BC";
+
+    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (!meta) { meta = document.createElement("meta"); meta.setAttribute("name", "description"); document.head.appendChild(meta); }
+    meta.setAttribute("content", "Browse available rental cars from C2C Rental in Surrey, Langley, and Abbotsford BC. Compare economy cars, SUVs, and minivans by date.");
+
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) { canonical = document.createElement("link"); canonical.setAttribute("rel", "canonical"); document.head.appendChild(canonical); }
+    canonical.setAttribute("href", "https://c2crental.ca/search");
+
+    return () => { canonical?.remove(); };
   }, []);
 
   // When arriving from homepage fleet section, clear previous search state
