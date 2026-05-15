@@ -39,15 +39,15 @@ const fleetCategories = [
 
 export default function About() {
   useEffect(() => {
-    document.title = "About C2C Rental – Local Car Rental in Surrey, Langley & Abbotsford, BC";
+    document.title = "About C2C Rental – Surrey, Langley & Abbotsford BC";
 
     let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
     if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
-    meta.content = "Learn about C2C Rental — a Surrey-based local car rental platform serving the Fraser Valley. Our story, our team, and why we built a better alternative to Turo and Enterprise.";
+    meta.content = "Local Surrey-based car rental serving the Fraser Valley. Transparent pricing, flexible pickup, and a friendlier alternative to Turo and Enterprise.";
 
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = "https://c2crental.com/about";
+    canonical.href = "https://c2crental.ca/about";
 
     // OG tags
     const ogTags = [

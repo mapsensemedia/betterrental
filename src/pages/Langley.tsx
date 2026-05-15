@@ -76,7 +76,7 @@ const bookingSteps = [
 
 const LangleyPage = () => {
   useEffect(() => {
-    document.title = "Car Rental in Langley, BC | Daily & Weekly Rates – C2C Rental";
+    document.title = "Car Rental Langley BC | C2C Rental";
 
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
@@ -92,7 +92,7 @@ const LangleyPage = () => {
       canonical.setAttribute("rel", "canonical");
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute("href", "https://c2crental.com/langley");
+    canonical.setAttribute("href", "https://c2crental.ca/langley");
 
     // Open Graph tags
     const ogTags = [

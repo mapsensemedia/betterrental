@@ -76,7 +76,7 @@ const bookingSteps = [
 
 const AbbotsfordPage = () => {
   useEffect(() => {
-    document.title = "Car Rental in Abbotsford, BC | Near YXX Airport – C2C Rental";
+    document.title = "Car Rental Abbotsford BC | C2C Rental";
 
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
@@ -84,7 +84,7 @@ const AbbotsfordPage = () => {
       metaDesc.setAttribute("name", "description");
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute("content", "Affordable car rental in Abbotsford, BC near Abbotsford Airport. Economy sedans, SUVs, and minivans available. Cross-border documentation support. Book with C2C Rental today.");
+    metaDesc.setAttribute("content", "Affordable car rental in Abbotsford, BC near YXX Airport. Economy cars, SUVs, and minivans with cross-border docs. Book online with C2C Rental.");
 
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonical) {
@@ -92,7 +92,7 @@ const AbbotsfordPage = () => {
       canonical.setAttribute("rel", "canonical");
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute("href", "https://c2crental.com/abbotsford");
+    canonical.setAttribute("href", "https://c2crental.ca/abbotsford");
 
     // Open Graph tags
     const ogTags = [

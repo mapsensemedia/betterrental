@@ -116,7 +116,7 @@ const bookingSteps = [
 
 const SurreyPage = () => {
   useEffect(() => {
-    document.title = "Car Rental in Surrey, BC | Affordable & Local – C2C Rental";
+    document.title = "Car Rental Surrey BC | C2C Rental";
 
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
@@ -124,7 +124,7 @@ const SurreyPage = () => {
       metaDesc.setAttribute("name", "description");
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute("content", "C2C Rental offers affordable car rentals in Surrey, BC from $30/day. Economy cars, SUVs, and minivans. Serving Newton, Guildford, Whalley, Cloverdale, South Surrey. Book online today.");
+    metaDesc.setAttribute("content", "Affordable car rentals in Surrey, BC from $30/day. Economy cars, SUVs, and minivans across Newton, Guildford, Whalley & Cloverdale. Book online.");
 
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonical) {
@@ -132,7 +132,7 @@ const SurreyPage = () => {
       canonical.setAttribute("rel", "canonical");
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute("href", "https://c2crental.com/surrey");
+    canonical.setAttribute("href", "https://c2crental.ca/surrey");
 
     const ogTags = [
       { property: "og:type", content: "website" },
