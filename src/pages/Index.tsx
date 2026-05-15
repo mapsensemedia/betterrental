@@ -82,7 +82,7 @@ const Index = () => {
       metaDesc.setAttribute("name", "description");
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute("content", "Local car rental in Surrey, Langley, Abbotsford and the Lower Mainland BC. Affordable daily and weekly rates, fully insured vehicles, transparent pricing, flexible pickup, and 24/7 support. Book at c2crental.ca.");
+    metaDesc.setAttribute("content", "Local car rental in Surrey, Langley & Abbotsford BC. Affordable daily and weekly rates, fully insured vehicles, transparent pricing, and 24/7 support.");
 
     // Canonical
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;

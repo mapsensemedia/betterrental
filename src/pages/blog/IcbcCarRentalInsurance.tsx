@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 const SLUG = "icbc-car-rental-insurance-bc";
 const TITLE = "How ICBC Insurance Works for Car Rentals in BC";
-const DESC = "Confused about ICBC and rental car insurance in BC? This guide explains owner's certificate coverage, damage waivers, and what renters are responsible for in British Columbia.";
+const DESC = "How ICBC insurance works for rental cars in BC: owner's certificate coverage, damage waivers, and what renters are responsible for.";
 
 export default function IcbcCarRentalInsurance() {
   useEffect(() => {
