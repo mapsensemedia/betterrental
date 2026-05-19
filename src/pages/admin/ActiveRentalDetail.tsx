@@ -515,6 +515,15 @@ export default function ActiveRentalDetail() {
             </CardContent>
           </Card>
 
+          {/* Vehicle unit not yet attached → let staff pick one */}
+          {rental.status === "active" && !rental.assignedUnitId && rental.vehicleId && rental.locationId && (
+            <ActiveRentalUnitAssignCard
+              bookingId={rental.id}
+              categoryId={rental.vehicleId}
+              locationId={rental.locationId}
+            />
+          )}
+
           {/* Rental Details Card */}
           <Card>
             <CardHeader className="pb-3">
