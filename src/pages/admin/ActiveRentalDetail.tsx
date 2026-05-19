@@ -50,6 +50,7 @@ import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
 import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
+import { ActiveRentalUnitAssignCard } from "@/components/admin/ops/ActiveRentalUnitAssignCard";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
 import {
