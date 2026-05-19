@@ -221,6 +221,7 @@ export function useActiveRentalDetail(bookingId: string | null) {
         vehicleId: booking.vehicle_id,
         locationId: booking.location_id,
         returnLocationId: booking.return_location_id,
+        assignedUnitId: booking.assigned_unit_id ?? null,
         differentDropoffFee: Number(booking.different_dropoff_fee || 0),
         activatedAt: booking.start_at, // For active rentals, start_at is activation time
         isOverdue,
