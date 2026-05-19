@@ -20,6 +20,7 @@ export interface ActiveRentalDetail {
   vehicleId: string;
   locationId: string;
   returnLocationId: string | null;
+  assignedUnitId: string | null;
   differentDropoffFee: number;
   // Calculated fields
   activatedAt: string; // Using start_at as activation time for active rentals
