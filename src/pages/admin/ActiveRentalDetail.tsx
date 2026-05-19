@@ -50,6 +50,7 @@ import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
 import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
+import { ActiveRentalUnitAssignCard } from "@/components/admin/ops/ActiveRentalUnitAssignCard";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
 import {
@@ -513,6 +514,15 @@ export default function ActiveRentalDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Vehicle unit not yet attached → let staff pick one */}
+          {rental.status === "active" && !rental.assignedUnitId && rental.vehicleId && rental.locationId && (
+            <ActiveRentalUnitAssignCard
+              bookingId={rental.id}
+              categoryId={rental.vehicleId}
+              locationId={rental.locationId}
+            />
+          )}
 
           {/* Rental Details Card */}
           <Card>
