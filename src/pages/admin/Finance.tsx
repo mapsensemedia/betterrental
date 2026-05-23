@@ -412,6 +412,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
         total_amount: Number(b.total_amount),
         customer_name: (b.customer_id ? customerMap.get(b.customer_id) : null) || profileMap.get(b.user_id) || "Unknown",
         start_at: b.start_at,
+        status: b.status as string,
       }));
     },
     retry: false,
