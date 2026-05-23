@@ -1,76 +1,51 @@
-## Goal
+## Context
 
-Attach the Nissan Kicks shown in your photo — **VIN `3N1CP5CV7RL483132`, plate `A819JZ`** — to booking **SZWURS55**, and make sure the rental agreement reflects it. Then ship the missing UI so this is self-serve next time.
+The "Expected Revenue — Action Required" panel on `/admin/finance` (Finance.tsx, lines 805–843) is currently flagging booking **KSF25Z8L** (FIROZ KHONDKER, $335.16).
 
-## What I found
+DB check confirms:
+- `status = confirmed` (never activated → never picked up)
+- `assigned_unit_id = null`
+- `start_at = 2026-05-22 07:00 UTC` (already elapsed)
+- `wl_transaction_id = null`, no completed payment rows
 
-- **Vehicle unit `e2004597-29ca-4d42-a0a3-f661d4bd4262`** — 2024 Nissan Kicks, VIN `3N1CP5CV7RL483132`, plate `A819JZ`, category **Mystery Car**, location Surrey. Status is already `on_rent` but no booking is pointing at it (it was flipped without being attached).
-- **Booking SZWURS55** — status `active`, category **Mystery Car**, pickup Surrey, `assigned_unit_id = NULL`. Exact category and location match — safe to attach this exact unit.
-- **Rental agreement** — the generator (`generate-agreement` edge function) reads VIN, plate, color, odometer, make/model/year from `vehicle_units` whenever `assigned_unit_id` is set; with it null it falls back to category info only. So once we attach + regenerate, the PDF will show the Nissan Kicks details.
-- **Financials** — `assigned_unit_id` is outside the DB seatbelt trigger (`block_sensitive_booking_updates` only guards status, daily_rate, subtotal, tax, total, deposit, delivery fee, dropoff fee, upgrade fee, young driver fee). Attaching a unit cannot and will not change any total. No reprice is performed.
+So yes — this warning is firing for a booking where the pickup window has elapsed but the customer has not shown up / not been activated. The current copy ("These confirmed bookings have no logged payment… Use Log Terminal Payment") is misleading because there is nothing to log — the rental never started.
 
-## Plan
+The underlying query (lines 368–419) pulls bookings with `status IN ('confirmed','active','completed')` whose `start_at <= now`. That mixes two very different situations:
 
-### Step 1 — Data fix for SZWURS55 (immediate, one-off migration)
+1. **`confirmed`** past start_at, no unit assigned → customer hasn't picked up (no-show / awaiting pickup)
+2. **`active` / `completed`** → vehicle handed over but staff forgot to log the terminal payment
 
-```sql
--- Idempotent: only attach if still unassigned and unit still matches
-UPDATE bookings
-SET assigned_unit_id = 'e2004597-29ca-4d42-a0a3-f661d4bd4262',
-    updated_at = now()
-WHERE id = '1a0cf2ea-7eab-494e-8904-fda659b9166d'
-  AND assigned_unit_id IS NULL;
+The fix is a UI-only change in `src/pages/admin/Finance.tsx`: split the panel into two sections with appropriate copy.
 
--- Unit is already on_rent; ensure it stays that way (no-op if already correct)
-UPDATE vehicle_units
-SET status = 'on_rent', updated_at = now()
-WHERE id = 'e2004597-29ca-4d42-a0a3-f661d4bd4262';
+## Changes
 
--- Audit trail
-INSERT INTO audit_logs (action, entity_type, entity_id, new_data)
-VALUES (
-  'unit_assigned_post_activation',
-  'bookings',
-  '1a0cf2ea-7eab-494e-8904-fda659b9166d',
-  jsonb_build_object(
-    'unit_id', 'e2004597-29ca-4d42-a0a3-f661d4bd4262',
-    'vin', '3N1CP5CV7RL483132',
-    'plate', 'A819JZ',
-    'source', 'manual_data_fix'
-  )
-);
-```
+**File:** `src/pages/admin/Finance.tsx` (lines 805–843, plus a small derivation just above the JSX)
 
-### Step 2 — Regenerate the rental agreement for SZWURS55
+1. Derive two arrays from `unrecordedBookings` (we already select `status` in the query — confirm and add it to the returned object on line 409–415 so the UI can read it):
+   - `noShowBookings` → `status === 'confirmed'`
+   - `unloggedPaymentBookings` → `status === 'active' || status === 'completed'`
 
-After the data update, invoke the existing `generate-agreement` edge function for this booking. It will rebuild the PDF and the new version will include:
+2. Replace the single amber card with two cards, each rendered only when its array is non-empty:
 
-- VIN `3N1CP5CV7RL483132`
-- Plate `A819JZ`
-- Make / model / year (Nissan Kicks 2024)
-- Color and current odometer (whatever is on the unit row)
-- Pickup odometer/fuel from `inspection_metrics` if recorded
+   **Card A — Awaiting Pickup / No-Show** (amber, same styling)
+   - Title: `Awaiting Pickup — Action Required (N booking[s])`
+   - Body: `These bookings were scheduled to be picked up but the customer has not arrived yet. The vehicle was never handed over, so no payment is expected to be logged. Contact the customer to confirm pickup, or cancel/mark as no-show if they will not come.`
+   - Action icon links to `/admin/ops/{id}` (unchanged).
+   - Total label: `Total Expected (Awaiting Pickup)`
 
-The customer-facing **/booking/:id/agreement** page and the ops Agreement step both read from the same `rental_agreements` row, so both will update automatically.
+   **Card B — Payment Not Logged** (amber, same styling)
+   - Title: `Payment Not Logged — Action Required (N booking[s])`
+   - Body: `These active or completed rentals have no logged payment, so the money has not been counted in Collected Revenue. Use "Log Terminal Payment" on each booking to record the transaction.`
+   - Same row layout and totals as today.
+   - Total label: `Total Unrecorded`
 
-### Step 3 — Ship the post-activation "Attach vehicle" UI (prevents recurrence)
+3. Keep both totals using the same `${amount.toLocaleString(...)}` formatting, the same `AlertTriangle` icon, `border-amber-500/30 bg-amber-500/5`, and the same external-link button.
 
-So staff never need a data fix again, add the previously-planned card to `ActiveRentalDetail.tsx`:
+4. The `Unrecorded Revenue` metric tile (line 737) and the `unrecordedTotal` calculation stay as-is — they still represent total expected revenue not yet collected, which is accurate.
 
-- New edge function `assign-unit-to-active-booking` (admin/staff only) — validates category + location + availability, atomically writes `bookings.assigned_unit_id` and flips `vehicle_units.status` to `on_rent`, writes audit log, then triggers `generate-agreement` for the booking.
-- New component `ActiveRentalUnitAssignCard.tsx` — lists available units for the booking's category at its pickup location, lets staff pick one, shows toasts for "Vehicle attached" and "Agreement regenerated".
-- Wire it into `src/pages/admin/ActiveRentalDetail.tsx`, rendered only when `status === 'active' && !rental.unit`.
-- Invalidates: `active-rental`, `booking`, `vehicle-units`, `available-vehicles`, `fleet-vehicles`, `rental-agreement`, `booking-activity-timeline`.
+No query/business-logic/edge-function changes. No status transitions. No financial recalculation.
 
-## Calculations — confirmed unaffected
+## Out of scope
 
-Pricing inputs (`daily_rate`, `total_days`, protection, add-ons, fees, taxes) do not reference `assigned_unit_id`. The DB seatbelt trigger forbids client updates to every money field, so a plain assignment of `assigned_unit_id` is the only column that changes. SZWURS55's current totals (subtotal 361.96, tax 43.44, total 405.40, deposit 350.00) will remain identical.
-
-## Files
-
-- new migration: attach unit + audit log (Step 1)
-- new: `supabase/functions/assign-unit-to-active-booking/index.ts` (Step 3)
-- new: `src/components/admin/ops/ActiveRentalUnitAssignCard.tsx` (Step 3)
-- edit: `src/pages/admin/ActiveRentalDetail.tsx` (Step 3)
-
-Regeneration in Step 2 is a one-shot function invocation, no file changes.
+- Automatic no-show detection or status changes (would require backend work and product policy on grace period).
+- Cancelling KSF25Z8L itself — the user only asked about the wording.
