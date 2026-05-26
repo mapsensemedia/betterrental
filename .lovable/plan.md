@@ -1,51 +1,35 @@
-## Context
 
-The "Expected Revenue — Action Required" panel on `/admin/finance` (Finance.tsx, lines 805–843) is currently flagging booking **KSF25Z8L** (FIROZ KHONDKER, $335.16).
+## What's there now
 
-DB check confirms:
-- `status = confirmed` (never activated → never picked up)
-- `assigned_unit_id = null`
-- `start_at = 2026-05-22 07:00 UTC` (already elapsed)
-- `wl_transaction_id = null`, no completed payment rows
+4 rental payments are currently in `status = 'authorized'` (likely the "+5 unreconciled" you're seeing — the dashboard may also count a 5th from a slightly older row):
 
-So yes — this warning is firing for a booking where the pickup window has elapsed but the customer has not shown up / not been activated. The current copy ("These confirmed bookings have no logged payment… Use Log Terminal Payment") is misleading because there is nothing to log — the rental never started.
+| Booking | Txn ID | Amount | Authorized at |
+|---|---|---|---|
+| DE34SXME | 10000418 | $152.86 | 2026-05-26 22:24 UTC |
+| LX29TWG7 | 10000416 | $1,517.49 | 2026-05-26 21:56 UTC |
+| 6JKVEKHL | 10000413 | $148.37 | 2026-05-26 21:18 UTC |
+| 8578V787 | 10000409 | $226.76 | 2026-05-26 17:49 UTC |
 
-The underlying query (lines 368–419) pulls bookings with `status IN ('confirmed','active','completed')` whose `start_at <= now`. That mixes two very different situations:
+All four are real online Bambora auths (numeric IDs, not TERM- terminal receipts), so the reconciler **can** match them.
 
-1. **`confirmed`** past start_at, no unit assigned → customer hasn't picked up (no-show / awaiting pickup)
-2. **`active` / `completed`** → vehicle handed over but staff forgot to log the terminal payment
+## What I'll do
 
-The fix is a UI-only change in `src/pages/admin/Finance.tsx`: split the panel into two sections with appropriate copy.
+Invoke the existing `wl-reconcile-authorized` edge function on demand (the same one pg_cron runs every 6 hours — there isn't a 3-hour schedule today; see note below).
 
-## Changes
+For each authorized payment from the last 60 days, the function will:
+1. `GET /v1/payments/{txnId}` from Bambora (read-only).
+2. If a **PAC** (pre-auth completion) exists and `total_completions ≥ amount` and `total_refunds = 0` → promote `payments.status` to `completed` and `bookings.wl_auth_status` to `completed`, write an `audit_logs` row tagged `rental_payment_auto_completed`.
+3. If still partial / no PAC → leave alone, report as `unchanged`.
+4. Any Bambora error → reported in `errors[]`, no DB change.
 
-**File:** `src/pages/admin/Finance.tsx` (lines 805–843, plus a small derivation just above the JSX)
+No charges, no captures, no voids — it's strictly a read-then-promote against what Bambora already shows.
 
-1. Derive two arrays from `unrecordedBookings` (we already select `status` in the query — confirm and add it to the returned object on line 409–415 so the UI can read it):
-   - `noShowBookings` → `status === 'confirmed'`
-   - `unloggedPaymentBookings` → `status === 'active' || status === 'completed'`
+## After the run
 
-2. Replace the single amber card with two cards, each rendered only when its array is non-empty:
+I'll report back: `scanned / reconciled / unchanged / errors` totals plus the booking codes that flipped to completed. Finance "Collected Revenue" will reflect them on next refresh.
 
-   **Card A — Awaiting Pickup / No-Show** (amber, same styling)
-   - Title: `Awaiting Pickup — Action Required (N booking[s])`
-   - Body: `These bookings were scheduled to be picked up but the customer has not arrived yet. The vehicle was never handed over, so no payment is expected to be logged. Contact the customer to confirm pickup, or cancel/mark as no-show if they will not come.`
-   - Action icon links to `/admin/ops/{id}` (unchanged).
-   - Total label: `Total Expected (Awaiting Pickup)`
+## Note on the "every 3 hours" expectation
 
-   **Card B — Payment Not Logged** (amber, same styling)
-   - Title: `Payment Not Logged — Action Required (N booking[s])`
-   - Body: `These active or completed rentals have no logged payment, so the money has not been counted in Collected Revenue. Use "Log Terminal Payment" on each booking to record the transaction.`
-   - Same row layout and totals as today.
-   - Total label: `Total Unrecorded`
+The current cron schedule for this job is **every 6 hours** (not 3). If you want it tightened to every 3 hours, I can re-schedule the `cron.schedule(...)` entry in the same turn — just say the word.
 
-3. Keep both totals using the same `${amount.toLocaleString(...)}` formatting, the same `AlertTriangle` icon, `border-amber-500/30 bg-amber-500/5`, and the same external-link button.
-
-4. The `Unrecorded Revenue` metric tile (line 737) and the `unrecordedTotal` calculation stay as-is — they still represent total expected revenue not yet collected, which is accurate.
-
-No query/business-logic/edge-function changes. No status transitions. No financial recalculation.
-
-## Out of scope
-
-- Automatic no-show detection or status changes (would require backend work and product policy on grace period).
-- Cancelling KSF25Z8L itself — the user only asked about the wording.
+Approve and I'll run it now.
