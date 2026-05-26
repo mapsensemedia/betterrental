@@ -1,35 +1,34 @@
+## Goal
 
-## What's there now
+Log $735.00 cash received today against booking **5SHYDHG5** so Finance counts it in today's Collected Revenue and the booking can be closed. No code or schema changes.
 
-4 rental payments are currently in `status = 'authorized'` (likely the "+5 unreconciled" you're seeing — the dashboard may also count a 5th from a slightly older row):
+## Existing state
 
-| Booking | Txn ID | Amount | Authorized at |
-|---|---|---|---|
-| DE34SXME | 10000418 | $152.86 | 2026-05-26 22:24 UTC |
-| LX29TWG7 | 10000416 | $1,517.49 | 2026-05-26 21:56 UTC |
-| 6JKVEKHL | 10000413 | $148.37 | 2026-05-26 21:18 UTC |
-| 8578V787 | 10000409 | $226.76 | 2026-05-26 17:49 UTC |
+- Booking total: $866.88
+- Already logged: $131.88 (terminal, TERM-0010110020, completed)
+- Outstanding: $735.00
 
-All four are real online Bambora auths (numeric IDs, not TERM- terminal receipts), so the reconciler **can** match them.
+## Action (data-only)
 
-## What I'll do
+Insert one `payments` row via the insert tool:
 
-Invoke the existing `wl-reconcile-authorized` edge function on demand (the same one pg_cron runs every 6 hours — there isn't a 3-hour schedule today; see note below).
+| Field | Value |
+|---|---|
+| booking_id | `308a88fb-5659-4b18-a79d-6a8a6beb1af5` |
+| amount | `735.00` |
+| status | `completed` |
+| payment_type | `rental` |
+| payment_method | `cash` |
+| transaction_id | `CASH-5SHYDHG5-20260526` (unique, traceable) |
+| paid_at / created_at | `now()` (today, May 26 2026 — falls in this month's Collected Revenue) |
+| notes | "Cash payment received as exception — manually logged to close booking" |
 
-For each authorized payment from the last 60 days, the function will:
-1. `GET /v1/payments/{txnId}` from Bambora (read-only).
-2. If a **PAC** (pre-auth completion) exists and `total_completions ≥ amount` and `total_refunds = 0` → promote `payments.status` to `completed` and `bookings.wl_auth_status` to `completed`, write an `audit_logs` row tagged `rental_payment_auto_completed`.
-3. If still partial / no PAC → leave alone, report as `unchanged`.
-4. Any Bambora error → reported in `errors[]`, no DB change.
+The existing `payment_method` enum/text already accepts `cash` in other rows, so no code path changes are needed. Finance's Collected Revenue aggregates completed payments by `paid_at`, so this $735 will appear in today's and this month's totals automatically.
 
-No charges, no captures, no voids — it's strictly a read-then-promote against what Bambora already shows.
+## Not doing
 
-## After the run
+- No Bambora reconciliation (cash, off-gateway).
+- No edits to payment-method UI, enums, or code.
+- No booking status change — once paid in full you can mark it completed via the normal ops flow, or tell me to flip status in the same turn.
 
-I'll report back: `scanned / reconciled / unchanged / errors` totals plus the booking codes that flipped to completed. Finance "Collected Revenue" will reflect them on next refresh.
-
-## Note on the "every 3 hours" expectation
-
-The current cron schedule for this job is **every 6 hours** (not 3). If you want it tightened to every 3 hours, I can re-schedule the `cron.schedule(...)` entry in the same turn — just say the word.
-
-Approve and I'll run it now.
+Approve and I'll insert the row.
