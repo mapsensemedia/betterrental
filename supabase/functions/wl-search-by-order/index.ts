@@ -2,7 +2,7 @@ import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { worldlineRequest } from "../_shared/worldline.ts";
 
 // Bambora Reports API: search transactions by order number.
-// Field 14 = trnOrderNumber. Date range required.
+// Field 5 = trnOrderNumber. Date range required.
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
