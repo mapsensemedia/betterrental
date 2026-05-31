@@ -1,53 +1,53 @@
 ## Goal
-Update `/mnt/documents/outstanding_dues.xlsx` so every outstanding-due booking shows the customer name, and add a breakdown of the actual charge transactions that make up the "Paid" amount.
+Determine whether Bambora/Worldline has any transaction(s) for order number `P455Y39D` that match the $112.55 charge the user says was processed via the Bambora backoffice — and reconcile our DB accordingly.
 
-## Current state
-- One sheet `Outstanding Dues`, 10 bookings.
-- Columns: Booking Code, Invoice #, Status, Start Date, End Date, Total ($), Paid ($), Due ($), Reason.
-- No customer name. "Paid ($)" is a single rolled-up number with no transaction-level detail.
+## What's in our DB for P455Y39D
+| Txn ID | Type | Method | Amount | Status |
+|---|---|---|---|---|
+| 10000362 | rental | card | $477.41 | completed |
+| 10000364 | rental | card | $477.41 | completed (duplicate of 362) |
+| 10000365 | deposit | card | $350.00 | voided |
+| CASH-P455Y39D-20260528 | rental | cash | $112.55 | completed (manual entry I added) |
 
-## Changes
+So we already show $112.55 collected, but as **cash**. If Bambora actually has a $112.55 card charge, the cash row is wrong and should be replaced with the real Worldline txn.
 
-### Sheet 1 — `Outstanding Dues` (enriched)
-Add columns, keep existing ones:
-- `Customer Name` (from `customers` via `bookings.customer_id`, fallback to `profiles` via `user_id`)
-- `Customer Phone` (helpful for collections; optional — include unless you say no)
-- `Location` (location name)
-- `Charges Count` (number of successful payment rows on that booking)
-- `Last Charge Date`
+## Plan
 
-### Sheet 2 — `Charged Transactions` (new)
-One row per successful payment tied to the 10 due bookings. Columns:
-- Booking Code
-- Customer Name
-- Invoice #
-- Payment Date
-- Method (card / terminal / etc.)
-- Amount ($)
-- Worldline Txn ID / RRN
-- Status
+### Step 1 — Add a search-by-order edge function
+Create `supabase/functions/wl-search-by-order/index.ts` that calls Bambora's Reports API:
 
-Sorted by Booking Code, then Payment Date. Footer total per booking via SUBTOTAL.
+- `POST https://api.na.bambora.com/v1/reports`
+- Body: `{ name: "Search", start_date, end_date, start_row: 1, end_row: 200, criteria: [{ field: 14, operator: "=", value: orderNumber }] }`
+- Field 14 = `trnOrderNumber`
+- Uses existing `worldlineRequest()` helper for HTTP Basic auth (Passcode merchant:passcode)
 
-### Sheet 3 — `Summary` (new, small)
-- Total Outstanding Due ($)
-- Total Already Charged ($) across these bookings
-- Count of bookings with zero charges vs. partial charges
+No `supabase/config.toml` change needed (defaults to `verify_jwt = false` like the other `wl-*` functions).
 
-## Data sources
-- `bookings` (booking_code, customer_id, user_id, location_id, total_amount)
-- `customers` (name, phone) — joined on `bookings.customer_id`
-- `profiles` fallback when `customer_id` is null
-- `locations` (name)
-- `payments` table — only `status = 'completed'` (or equivalent successful state) rows for the 10 booking IDs
-- `final_invoices` for invoice number confirmation
+### Step 2 — Call it
+Invoke via `supabase--curl_edge_functions` with:
+- `orderNumber: "P455Y39D"`
+- `startDate: "2026-05-20T00:00:00"` (a few days before our known txns)
+- `endDate: "2026-05-31T23:59:59"` (today)
 
-## Formatting
-- Currency cells: `$#,##0.00;($#,##0.00);-`
-- Bold header row, frozen top row, autosized columns
-- Sheet 1 sorted by Due ($) descending (unchanged ordering)
-- File saved as `outstanding_dues_v2.xlsx` so the original is preserved; QA each sheet by rendering to image before delivery.
+This returns every Bambora transaction (approved or declined, P / R / VP / etc.) tagged with that order number, including any made directly in the Bambora backoffice.
+
+### Step 3 — Reconcile based on what comes back
+
+**Case A — Bambora has an approved $112.55 P txn we don't have in DB:**
+- Insert a real `payments` row: `payment_method='card'`, `transaction_id=<bambora id>`, `amount=112.55`, `payment_type='rental'`, `status='completed'`, `created_at=<bambora processed_at>`.
+- Delete the placeholder `CASH-P455Y39D-20260528` row.
+- Update booking's `wl_transaction_id` / `card_last_four` from the Bambora record.
+
+**Case B — Bambora has nothing new (only 10000362/364/365 echo back):**
+- Confirm to the user that no $112.55 charge exists at the gateway. The cash row stays as the source of truth, and we either keep it or remove it depending on what they actually collected.
+
+**Case C — Bambora has a $112.55 charge that was later refunded/voided:**
+- Report the txn id + status, leave DB untouched, ask the user how to record it.
+
+### Step 4 — Tell the user the result
+Plain summary: txn id, amount, status, processed_at, card last 4. No DB changes without their confirmation if anything is ambiguous.
 
 ## Out of scope
-- No DB writes, no app/UI changes.
-- No reopening of "what counts as paid" — using existing `payments` completed rows as source of truth (matches Lovable Cloud rule: Amount Collected is derived from completed payments).
+- No changes to the Finance UI, no migrations, no refactors.
+- Will not auto-refund or auto-void anything at Bambora.
+- Will not touch other bookings.
