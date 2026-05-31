@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       start_row: 1,
       end_row: 200,
       criteria: [
-        { field: 14, operator: "=", value: String(orderNumber) },
+        { field: 5, operator: "=", value: String(orderNumber) },
       ],
     });
 
