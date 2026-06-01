@@ -473,12 +473,15 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
         .or(`created_at.lte.${end.toISOString()},start_at.lte.${end.toISOString()}`)
         .order("created_at", { ascending: false });
 
-      // Filter: use type-specific dedup to prevent PA txn IDs from blocking deposit entries
+      // Filter: use type-specific dedup to prevent PA txn IDs from blocking deposit entries.
+      // Exclude terminal/manual deposit holds (TERM-DEP-*) — these are POS authorizations,
+      // not online Bambora captures, and don't represent collectable revenue to reconcile.
+      const isTerminalTxn = (id?: string | null) => !!id && id.startsWith("TERM-");
       const rentalEntries = (wlRentals || []).filter(
-        (b) => !paidRentalBookingIds.has(b.id) && !paidRentalTxnIds.has(b.wl_transaction_id!)
+        (b) => !paidRentalBookingIds.has(b.id) && !paidRentalTxnIds.has(b.wl_transaction_id!) && !isTerminalTxn(b.wl_transaction_id)
       );
       const depositEntries = (wlDeposits || []).filter(
-        (b) => !paidDepositBookingIds.has(b.id) && !paidDepositTxnIds.has(b.wl_deposit_transaction_id!)
+        (b) => !paidDepositBookingIds.has(b.id) && !paidDepositTxnIds.has(b.wl_deposit_transaction_id!) && !isTerminalTxn(b.wl_deposit_transaction_id)
       );
 
       // Resolve profiles
