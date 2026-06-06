@@ -488,7 +488,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       // 3. Fetch Worldline deposit bookings in date range
       const { data: wlDeposits } = await supabase
         .from("bookings")
-        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id, customer_id, status")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id, customer_id, status, location_id")
         .not("wl_deposit_transaction_id", "is", null)
         .neq("status", "cancelled")
         .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
