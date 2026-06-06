@@ -1108,6 +1108,19 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Location filter (deep-linkable via ?location=<id>)
+  const urlLocation = searchParams.get("location");
+  const [locationFilter, setLocationFilter] = useState<string>(urlLocation || "all");
+  const { data: locationsList = [] } = useQuery({
+    queryKey: ["finance-locations"],
+    queryFn: async () => {
+      const { data } = await supabase.from("locations").select("id, name").order("name");
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const locationNameMap = useMemo(() => new Map(locationsList.map((l) => [l.id, l.name])), [locationsList]);
+
   // Damage charge banner from Damages page
   const showDamageBanner = urlAdjustment === "damage" && urlBooking;
 
