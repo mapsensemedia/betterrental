@@ -573,6 +573,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
           created_at: effectiveDate,
           booking_code: b.booking_code,
           customer_name: resolveName(b.user_id, b.customer_id),
+          location_id: (b as any).location_id ?? null,
           unreconciled: true,
         });
       }
