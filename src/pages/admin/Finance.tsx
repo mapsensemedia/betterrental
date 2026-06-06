@@ -1860,7 +1860,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           <TabsContent value="deposits">
             {paymentsLoading ? (
               <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : depositPayments.length === 0 ? (
+            ) : filteredDepositPayments.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-2xl">
                 <Banknote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No deposit records found</p>
