@@ -41,9 +41,11 @@ interface RentalSearchCardProps {
   className?: string;
   onSearchComplete?: () => void;
   defaultLocationId?: string;
+  /** When set, forces pickup location to this id and hides other options. */
+  lockLocationId?: string;
 }
 
-export function RentalSearchCard({ className, onSearchComplete, defaultLocationId }: RentalSearchCardProps) {
+export function RentalSearchCard({ className, onSearchComplete, defaultLocationId, lockLocationId }: RentalSearchCardProps) {
   const navigate = useNavigate();
   const {
     searchData,
