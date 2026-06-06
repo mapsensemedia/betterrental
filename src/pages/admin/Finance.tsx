@@ -850,6 +850,38 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             </Card>
           </div>
 
+          {/* Revenue by Location */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                  Revenue by Location
+                </h3>
+                <span className="text-xs text-muted-foreground">Completed payments only</span>
+              </div>
+              {locationBreakdown.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No completed payments</p>
+              ) : (
+                <div className="space-y-2">
+                  {locationBreakdown.map((loc) => (
+                    <button
+                      key={loc.id}
+                      className="w-full text-left hover:bg-muted/50 rounded-lg transition-colors p-1 -m-1"
+                      onClick={() => {
+                        if (loc.id === "__none__") return;
+                        navigate(`/admin/finance?tab=transactions&location=${loc.id}`);
+                      }}
+                      disabled={loc.id === "__none__"}
+                    >
+                      <BreakdownRow label={loc.name} amount={loc.total} total={metrics.collected} count={loc.count} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Rental Capture Failures — surfaced from admin_alerts */}
           <RentalCaptureFailurePanel />
 
