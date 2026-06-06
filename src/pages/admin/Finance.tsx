@@ -1880,7 +1880,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {depositPayments.map((payment) => (
+                    {filteredDepositPayments.map((payment) => (
                       <TableRow key={payment.id} className="hover:bg-muted/30">
                         <TableCell>
                           <Tooltip>
