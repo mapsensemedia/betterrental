@@ -165,6 +165,8 @@ interface InvoiceRow {
   deposit_captured: number | null;
   line_items_json: any;
   notes: string | null;
+  location_id?: string | null;
+  location_name?: string | null;
   booking?: {
     booking_code: string;
     start_at: string;
