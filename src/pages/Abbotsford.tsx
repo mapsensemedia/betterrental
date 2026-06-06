@@ -341,7 +341,7 @@ const AbbotsfordPage = () => {
           <div id="book" className="mt-10 animate-scale-in animation-delay-300 scroll-mt-24">
             <RentalSearchCard
               className="search-card-premium"
-              defaultLocationId={ABBOTSFORD_LOCATION_ID}
+              lockLocationId={ABBOTSFORD_LOCATION_ID}
             />
           </div>
         </div>

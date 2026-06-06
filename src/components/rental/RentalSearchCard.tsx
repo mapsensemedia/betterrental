@@ -41,9 +41,11 @@ interface RentalSearchCardProps {
   className?: string;
   onSearchComplete?: () => void;
   defaultLocationId?: string;
+  /** When set, forces pickup location to this id and hides other options. */
+  lockLocationId?: string;
 }
 
-export function RentalSearchCard({ className, onSearchComplete, defaultLocationId }: RentalSearchCardProps) {
+export function RentalSearchCard({ className, onSearchComplete, defaultLocationId, lockLocationId }: RentalSearchCardProps) {
   const navigate = useNavigate();
   const {
     searchData,
@@ -108,12 +110,16 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
   // Get minimum date (today)
   const today = formatLocalDate(new Date());
 
-  // Pre-select location from prop
+  // Pre-select location from prop (or force when locked)
   useEffect(() => {
+    if (lockLocationId) {
+      if (locationId !== lockLocationId) handleLocationChange(lockLocationId);
+      return;
+    }
     if (defaultLocationId && !searchData.pickupLocationId) {
       handleLocationChange(defaultLocationId);
     }
-  }, [defaultLocationId]);
+  }, [defaultLocationId, lockLocationId, searchData.pickupLocationId]);
 
   // Auto-select delivery mode from URL param
   useEffect(() => {
@@ -125,7 +131,9 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
   // Sync from context on mount
   useEffect(() => {
-    if (searchData.pickupLocationId) {
+    if (lockLocationId) {
+      setLocationId(lockLocationId);
+    } else if (searchData.pickupLocationId) {
       setLocationId(searchData.pickupLocationId);
     }
     if (searchData.pickupDate) {
@@ -551,7 +559,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Pickup Location
             </label>
-            <Select value={locationId} onValueChange={handleLocationChange}>
+            <Select value={locationId} onValueChange={handleLocationChange} disabled={!!lockLocationId}>
               <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -561,7 +569,10 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                 </div>
               </SelectTrigger>
               <SelectContent>
-                {pickupLocations.map((loc) => (
+                {(lockLocationId
+                  ? pickupLocations.filter((loc) => loc.id === lockLocationId)
+                  : pickupLocations
+                ).map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{loc.name}</span>
