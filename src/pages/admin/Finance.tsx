@@ -1256,7 +1256,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
       // Fetch payments within date range
       const { data: manualPayments, error: pErr } = await supabase
         .from("payments")
-        .select(`*, booking:bookings(booking_code, user_id)`)
+        .select(`*, booking:bookings(booking_code, user_id, location_id)`)
         .gte("created_at", startISO)
         .lte("created_at", endISO)
         .order("created_at", { ascending: false });
