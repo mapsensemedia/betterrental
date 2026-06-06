@@ -1191,7 +1191,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     queryFn: async () => {
       let query = supabase
         .from("receipts")
-        .select(`*, booking:bookings(booking_code, total_amount, daily_rate, total_days, start_at, end_at, deposit_amount, user_id, customer_id, vehicle_id)`)
+        .select(`*, booking:bookings(booking_code, total_amount, daily_rate, total_days, start_at, end_at, deposit_amount, user_id, customer_id, vehicle_id, location_id)`)
         .order("created_at", { ascending: false });
 
       if (statusFilter !== "all") {
