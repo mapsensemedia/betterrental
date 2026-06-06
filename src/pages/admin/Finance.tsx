@@ -1275,7 +1275,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
       const { data: wlDepositBookings, error: wlDErr } = await supabase
         .from("bookings")
-        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id, customer_id")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id, customer_id, location_id")
         .not("wl_deposit_transaction_id", "is", null)
         .gte("created_at", startISO)
         .lte("created_at", endISO)
