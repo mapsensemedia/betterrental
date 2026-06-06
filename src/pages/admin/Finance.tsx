@@ -1327,6 +1327,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
       const manual: Payment[] = manualPayments.map(payment => ({
         ...payment,
         source: "manual" as const,
+        location_id: (payment.booking as any)?.location_id ?? null,
         booking: payment.booking ? { ...payment.booking, profile: profileMap.get(payment.booking.user_id) || null } : null,
       }));
 
@@ -1342,6 +1343,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           transaction_id: b.wl_transaction_id,
           created_at: b.created_at,
           source: "worldline" as const,
+          location_id: (b as any).location_id ?? null,
           booking: { booking_code: b.booking_code, profile: resolveProf(b.user_id, b.customer_id) },
         }));
 
@@ -1357,6 +1359,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           transaction_id: b.wl_deposit_transaction_id,
           created_at: b.deposit_authorized_at || b.created_at,
           source: "worldline" as const,
+          location_id: (b as any).location_id ?? null,
           booking: { booking_code: b.booking_code, profile: resolveProf(b.user_id, b.customer_id) },
         }));
 
