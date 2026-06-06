@@ -381,6 +381,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             amount: Number(p.amount),
             booking_code: booking?.booking_code || "—",
             customer_name: custName || (booking ? profileMap.get(booking.user_id) || "Unknown" : "Unknown"),
+            location_id: (booking as any)?.location_id ?? null,
           };
         });
     },
