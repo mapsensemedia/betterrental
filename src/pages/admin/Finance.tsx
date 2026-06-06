@@ -1175,6 +1175,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
         return {
           ...inv,
           line_items_json: inv.line_items_json as any,
+          location_id: b?.location_id ?? null,
           booking: b ? {
             booking_code: b.booking_code, start_at: b.start_at, end_at: b.end_at, total_days: b.total_days,
             profile: cust ? { id: b.customer_id, full_name: cust.full_name, email: cust.email } : profileMap.get(b.user_id) || null,
