@@ -112,6 +112,8 @@ interface ReceiptData {
   notes: string | null;
   issued_at: string | null;
   created_at: string;
+  location_id?: string | null;
+  location_name?: string | null;
   booking?: {
     booking_code: string;
     total_amount: number;
