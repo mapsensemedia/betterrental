@@ -1,51 +1,70 @@
 ## Goal
 
-Turn `/abbotsford` into a true landing page for the Abbotsford location — same visual structure and polish as the homepage (`/`), but every piece of copy, imagery, schema, and the booking widget is localized to Abbotsford. Booking flow downstream stays identical; only the pickup location is pre-selected and locked to Abbotsford Centre.
+Replace the two text-heavy sections on `/abbotsford` — **Simple Booking Process** and **Insurance, Deposits & Requirements** — with visually rich card layouts that mix on-brand imagery and icon tiles. Same information, far less reading weight.
 
 ## Scope
 
 In scope:
-- `src/pages/Abbotsford.tsx` — full rewrite to match the `Index.tsx` landing structure.
-- Minor: pass `defaultLocationId` (Abbotsford UUID `a1b2c3d4-3333-4000-8000-000000000003`) into the search card.
+- `src/pages/Abbotsford.tsx` — rewrite only the two sections shown in the screenshot.
+- Generate 2 new hero images for these sections and 1 small supporting image (saved to `src/assets/`).
 
 Out of scope:
-- No changes to `RentalSearchCard`, `create-booking`, pricing, or any downstream booking step. The existing `defaultLocationId` prop already handles pre-selection.
-- No changes to `/surrey` or `/langley`.
-- No DB / edge function changes.
+- Hero, search card, fleet grid, FAQ, CTA — unchanged.
+- No changes to `/surrey`, `/langley`, or `/`.
 
-## Page structure (mirrors Index.tsx)
+## New design
 
-1. **Hero** — Abbotsford eyebrow ("C2C Rental · Abbotsford"), H1 "Car Rental in Abbotsford, BC", supporting copy referencing YXX / Sumas / Hwy 1, hero image, scroll cue. Replace the city shortcut row with a "Other locations" link row (Surrey / Langley) so the page stays Abbotsford-anchored.
-2. **Booking / Search module** — `<RentalSearchCard defaultLocationId="a1b2c3d4-3333-4000-8000-000000000003" />`. Pickup is pre-filled with Abbotsford Centre; user can still change dates/vehicle/return location. Booking flow itself is untouched.
-3. **Why Choose C2C in Abbotsford** — Abbotsford-specific bullets (YXX proximity, cross-border docs, Hwy 1/11/Sumas knowledge, UFV, ag/farm worker support).
-4. **Cleaning banner** — reuse `<CleaningBanner />`.
-5. **Browse fleet** — reuse the homepage fleet category grid (`useFleetCategories` + `CategoryDisplayCard`), with all "Book Now" links pointing to `/search?location=abbotsford` style query so the search prefilters (existing search already reads pickup from context — links can simply go to `/search`).
-6. **Popular Abbotsford trips & use cases** — existing list (YXX, Bellingham, Kelowna corridor, Whistler, UFV, ag worker).
-7. **Pickup, delivery & service area** — Abbotsford address (32835 South Fraser Way), neighbourhoods covered, delivery note.
-8. **Simple booking process** — existing 5-step list.
-9. **Insurance, deposits & requirements** — existing content.
-10. **FAQ accordion** — existing 5 Abbotsford FAQs.
-11. **Final CTA** — "Book your Abbotsford rental" button → scrolls back to the search card (anchor link `#book`).
-12. Reuse `<LocationsSection />` footer-style block if useful, otherwise omit to keep Abbotsford focus.
+### 1. Simple Booking Process — "Visual timeline + illustration"
 
-## SEO
+Two-column layout (stacks on mobile):
 
-- Keep the existing `<title>`, meta description, canonical (`/abbotsford`), OG tags, LocalBusiness+CarRental JSON-LD (Abbotsford address), and FAQPage JSON-LD that the current page already injects — port them into the new layout verbatim.
-- Add a `WebPage` schema with `about` referencing the Abbotsford location.
-- Single H1 ("Car Rental in Abbotsford, BC ..."). Section H2s as listed above.
+- **Left column (image)**: generated image, ~4:5 portrait. Subject: a customer's hand receiving keys at a clean modern rental counter, soft natural light, neutral palette with subtle green accent (`#197149` — C2C brand). Rounded `rounded-2xl`, soft shadow.
+- **Right column (steps)**: 5 numbered steps rendered as compact horizontal "pill" cards instead of the current stacked list. Each card: small numbered circle (existing primary token), bold one-line label (3–5 words), supporting half-line of detail. Connected by a thin vertical accent line on the left of each row. Italic "Extensions, changes…" line moves below as a quiet caption.
+
+Step labels (condensed from current copy):
+1. **Pick dates & vehicle** — Online or by phone
+2. **Share driver details** — Licence, age, additional drivers
+3. **Review your quote** — Insurance, deposit, mileage
+4. **Confirm & sign** — Digital agreement to your inbox
+5. **Pick up in Abbotsford** — Walk-around & drive away
+
+### 2. Insurance, Deposits & Requirements — "Icon tile grid + photo strip"
+
+Replace the two-column bullet list with a **6-tile icon grid** (3 cols desktop, 2 cols tablet, 1 col mobile). Each tile: card with light-tinted background, icon at top (lucide), short title, one-line description. Six tiles:
+
+| Icon | Title | Description |
+|------|-------|-------------|
+| `IdCard` | Valid driver's licence | BC or accepted international, held 2+ years |
+| `CalendarCheck` | Age 21+ | 25+ for premium vehicles |
+| `CreditCard` | Credit card deposit | Held at pickup, released on return |
+| `ShieldCheck` | ICBC coverage included | Plus optional damage waiver at checkout |
+| `Snowflake` | Winter tires Nov–Mar | Standard on AWD/4WD vehicles |
+| `Globe2` | Cross-border ready | US trips need advance approval & extra docs |
+
+Below the grid, a slim **photo strip banner** (full-width, ~3:1) with a subtle gradient overlay and a short reassurance line: *"Our team will walk you through exact requirements before you confirm — no surprises."* with a small "Talk to us → /contact" link. Image: generated photo of a friendly C2C staff member handing over a clipboard / agreement at the counter, warm and trustworthy.
+
+## Image generation
+
+Use the agent `generate_image` tool, `standard` quality (no text in images), saved to `src/assets/`:
+
+1. `src/assets/abbotsford-keys-handover.jpg` — close-up of a hand receiving car keys at a modern, minimal rental counter; warm natural light; neutral palette with a hint of forest green; shallow depth of field; photographic, editorial style. (Booking Process section)
+2. `src/assets/abbotsford-counter-handshake.jpg` — friendly C2C-style agent across a counter handing a clipboard to a customer; warm bright daylight; clean modern interior; soft green accent. (Requirements section banner)
+
+Both imported as ES6 image imports — no asset CDN externalization.
 
 ## Technical detail
 
-- File touched: `src/pages/Abbotsford.tsx` (rewrite using the same building blocks as `Index.tsx`: `CustomerLayout`, `container-page` hero, `RentalSearchCard`, `WhyChooseSection` *(optionally swapped for Abbotsford-specific inline copy to avoid Surrey-flavoured text)*, `CleaningBanner`, `SectionHeader`, fleet grid with `useFleetCategories`).
-- The Abbotsford location UUID is the canonical one from `src/constants/rentalLocations.ts`: `a1b2c3d4-3333-4000-8000-000000000003`. Passed as `defaultLocationId` to `RentalSearchCard`. The search card already syncs this into `RentalBookingContext.searchData.pickupLocationId`, which `create-booking` consumes — so the entire downstream flow continues to operate identically, just with Abbotsford pre-selected.
-- Booking widget remains fully interactive; user can override the location if they want. (If you'd rather hard-lock it to Abbotsford with no override on this page, say the word and I'll hide the location selector — but default behaviour matches your "booking flow completely same" requirement.)
-- Cleanup: remove the unused `PageContainer`-only narrow layout; new page uses full-width sections like the homepage.
+- Edit only the two `<section>` blocks for "Simple Booking Process" and "Insurance, Deposits & Requirements" inside `src/pages/Abbotsford.tsx`.
+- Use existing design tokens (`bg-card`, `text-foreground`, `text-muted-foreground`, `bg-primary`, `text-primary-foreground`, `border-border`, `text-accent`). No hardcoded colors except the existing `#197149` brand accent already used in the hero.
+- All new icons sourced from `lucide-react` (already used on the page).
+- New constants for steps/tiles live at the top of the file alongside existing arrays.
+- Responsive: tiles `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`; booking image stacks on top on mobile.
+- Accessibility: each image has descriptive `alt`; tile titles use `<h3>` so heading order stays h1 → h2 → h3.
 
-## Risk / verification
+## Verification
 
-- No backend or routing changes; `/abbotsford` route already exists in `App.tsx`.
-- Verify in preview that:
-  1. `/abbotsford` renders the hero + search card with Abbotsford pre-selected.
-  2. Submitting search proceeds through the normal booking flow.
-  3. `/` (home) is unchanged.
-  4. SEO tags (title, canonical, JSON-LD) reflect Abbotsford.
+After implementation, view `/abbotsford` in preview and confirm:
+1. Booking Process section shows image + 5 visual step cards, no bare bullet list.
+2. Requirements section shows 6 icon tiles + photo banner, no bullet list.
+3. Hero, search widget, fleet, FAQ, CTA unchanged.
+4. Mobile layout stacks cleanly (single column).
