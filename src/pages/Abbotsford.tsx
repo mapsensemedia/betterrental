@@ -1,46 +1,113 @@
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
+import {
+  ChevronDown,
+  ArrowRight,
+  Users,
+  Fuel,
+  Settings2,
+  Car,
+  CheckCircle2,
+  MapPin,
+  ClipboardList,
+  Shield,
+  HelpCircle,
+} from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
-import { PageContainer } from "@/components/layout/PageContainer";
+import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
+import { SectionHeader } from "@/components/landing/SectionHeader";
+import { CleaningBanner } from "@/components/landing/CleaningBanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Link } from "react-router-dom";
-import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
+import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
 
-const vehicleCards = [
-  {
-    icon: Car,
-    category: "Economy & Compact Cars",
-    example: "Toyota Corolla",
-    rate: "$45–$65/day",
-    useCase: "City driving, errands, solo commuters, YVR airport runs",
-  },
-  {
-    icon: Users,
-    category: "Midsize & Full-Size Sedans",
-    example: "Honda Accord",
-    rate: "$65–$85/day",
-    useCase: "Longer drives, small families, business travel",
-  },
-  {
-    icon: Mountain,
-    category: "SUVs & Crossovers",
-    example: "Toyota RAV4",
-    rate: "$75–$110/day",
-    useCase: "Road trips, Whistler, winter conditions, moving loads",
-  },
-  {
-    icon: Baby,
-    category: "Minivans & 7-Seat Vehicles",
-    example: "Toyota Sienna",
-    rate: "$85–$120/day",
-    useCase: "Family trips, group travel, airport runs, events",
-  },
+// Canonical Abbotsford Centre location id (see src/constants/rentalLocations.ts)
+const ABBOTSFORD_LOCATION_ID = "a1b2c3d4-3333-4000-8000-000000000003";
+
+// Fleet category card — mirrors the homepage layout, links into search
+function CategoryDisplayCard({ category }: { category: FleetCategory }) {
+  return (
+    <Link to="/search?from=fleet" className="block group">
+      <div className="card-premium overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col">
+        <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+          {category.image_url ? (
+            <img
+              src={category.image_url}
+              alt={category.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => (e.currentTarget.src = "/placeholder.svg")}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              <Car className="w-12 h-12" />
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 flex flex-col flex-1">
+          <h3 className="font-semibold text-base mb-2 line-clamp-1 text-foreground">{category.name}</h3>
+
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+            <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{category.seats || 5}</span>
+            <span className="flex items-center gap-1"><Fuel className="w-3.5 h-3.5" />{category.fuel_type || "Gas"}</span>
+            <span className="flex items-center gap-1"><Settings2 className="w-3.5 h-3.5" />{category.transmission === "Automatic" ? "Auto" : "Manual"}</span>
+          </div>
+
+          <div className="flex items-center justify-between mt-auto">
+            <div>
+              <span className="text-xl font-bold text-foreground">${category.daily_rate}</span>
+              <span className="text-xs text-muted-foreground">/day</span>
+            </div>
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-[10px] border border-border bg-secondary text-foreground">View</span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+const whyChooseItems = [
+  "Close to Abbotsford Airport (YXX) — 10 minutes away",
+  "Cross-border documentation support for US travel via Sumas",
+  "Local knowledge of Hwy 1, Hwy 11, and Sumas border route",
+  "Flexible daily, weekly, and long-term terms",
+  "Options for farm workers, UFV students, and international visitors",
+  "Transparent pricing — no hidden counter fees",
+];
+
+const popularTrips = [
+  "Abbotsford Airport (YXX) pickup — 10 min away",
+  "Cross-border trips to Bellingham and Washington State via Sumas",
+  "Kelowna corridor drive (2.5 hrs)",
+  "Whistler from Abbotsford (3 hrs)",
+  "Agricultural and industrial worker transport",
+  "UFV student commutes and moves",
+];
+
+const bookingSteps = [
+  "Choose your dates and vehicle type online or by phone",
+  "Share your driver details (licence, age, additional drivers)",
+  "Review your quote — insurance options, deposit, mileage limits",
+  "Confirm your booking and receive digital agreement",
+  "Pick up your vehicle in Abbotsford, complete walk-around inspection, and drive away",
+];
+
+const requirements = [
+  "Valid full driver's licence required (BC or accepted international licence)",
+  "Minimum age: 21 (25 for premium vehicles)",
+  "Must hold a valid licence for minimum 2 years",
+  "Security deposit taken on a valid credit card at pickup",
+  "All C2C vehicles covered under ICBC owner's certificate",
+  "Optional damage waiver available at checkout",
+  "Winter tires installed November–March on all AWD/4WD vehicles",
+  "Cross-border travel to the US requires advance approval and additional insurance documentation",
 ];
 
 const faqItems = [
@@ -66,15 +133,10 @@ const faqItems = [
   },
 ];
 
-const bookingSteps = [
-  "Choose your dates and vehicle type online or by phone",
-  "Share your driver details (licence, age, additional drivers)",
-  "Review your quote — insurance options, deposit, mileage limits",
-  "Confirm your booking and receive digital agreement",
-  "Pick up your vehicle in Abbotsford, complete walk-around inspection, and drive away",
-];
-
 const AbbotsfordPage = () => {
+  const { data: categories = [], isLoading } = useFleetCategories();
+  const displayCategories = categories.filter((c) => c.is_active).slice(0, 4);
+
   useEffect(() => {
     document.title = "Car Rental Abbotsford BC | C2C Rental";
 
@@ -84,7 +146,10 @@ const AbbotsfordPage = () => {
       metaDesc.setAttribute("name", "description");
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute("content", "Affordable car rental in Abbotsford, BC near YXX Airport. Economy cars, SUVs, and minivans with cross-border docs. Book online with C2C Rental.");
+    metaDesc.setAttribute(
+      "content",
+      "Affordable car rental in Abbotsford, BC near YXX Airport. Economy cars, SUVs, and minivans with cross-border docs. Book online with C2C Rental.",
+    );
 
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonical) {
@@ -94,14 +159,16 @@ const AbbotsfordPage = () => {
     }
     canonical.setAttribute("href", "https://c2crental.ca/abbotsford");
 
-    // Open Graph tags
     const ogTags = [
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "C2C Rental" },
       { property: "og:title", content: "Car Rental in Abbotsford, BC | Near YXX Airport – C2C Rental" },
-      { property: "og:description", content: "Affordable car rental in Abbotsford, BC near Abbotsford Airport. Economy sedans, SUVs, and minivans available. Cross-border documentation support. Book with C2C Rental today." },
-      { property: "og:url", content: "https://c2crental.com/abbotsford" },
-      { property: "og:image", content: "https://c2crental.com/og-abbotsford.jpg" },
+      {
+        property: "og:description",
+        content:
+          "Affordable car rental in Abbotsford, BC near Abbotsford Airport. Economy sedans, SUVs, and minivans available. Cross-border documentation support. Book with C2C Rental today.",
+      },
+      { property: "og:url", content: "https://c2crental.ca/abbotsford" },
     ];
 
     ogTags.forEach(({ property, content }) => {
@@ -114,110 +181,79 @@ const AbbotsfordPage = () => {
       tag.setAttribute("content", content);
     });
 
-    // LocalBusiness + CarRental JSON-LD
     const localBusinessSchema = {
       "@context": "https://schema.org",
       "@type": ["LocalBusiness", "CarRental"],
-      "@id": "https://c2crental.com/#organization",
-      "name": "C2C Rental",
-      "url": "https://c2crental.com",
-      "logo": "https://c2crental.com/logo.png",
-      "image": "https://c2crental.com/og-image.jpg",
-      "description": "C2C Rental is a local peer-to-peer car rental platform serving Surrey, Langley, and Abbotsford, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
-      "telephone": "+1-604-763-4242",
-      "address": {
+      "@id": "https://c2crental.ca/abbotsford#localbusiness",
+      name: "C2C Rental — Abbotsford",
+      url: "https://c2crental.ca/abbotsford",
+      logo: "https://c2crental.ca/logo.png",
+      image: "https://c2crental.ca/og-image.jpg",
+      description:
+        "C2C Rental in Abbotsford, BC — affordable daily, weekly, and monthly car rentals near Abbotsford International Airport (YXX) and the Sumas US border crossing.",
+      telephone: "+1-604-763-4242",
+      address: {
         "@type": "PostalAddress",
-        "streetAddress": "32835 South Fraser Way",
-        "addressLocality": "Abbotsford",
-        "addressRegion": "BC",
-        "addressCountry": "CA"
+        streetAddress: "32835 South Fraser Way",
+        addressLocality: "Abbotsford",
+        addressRegion: "BC",
+        addressCountry: "CA",
       },
-      "geo": {
+      geo: {
         "@type": "GeoCoordinates",
-        "latitude": 49.0504,
-        "longitude": -122.3045
+        latitude: 49.0504,
+        longitude: -122.3045,
       },
-      "areaServed": [
-        { "@type": "City", "name": "Surrey" },
-        { "@type": "City", "name": "Langley" },
-        { "@type": "City", "name": "Abbotsford" }
+      areaServed: [
+        { "@type": "City", name: "Abbotsford" },
+        { "@type": "City", name: "Mission" },
+        { "@type": "City", name: "Chilliwack" },
       ],
-      "serviceArea": {
-        "@type": "AdministrativeArea",
-        "name": "Fraser Valley, British Columbia"
-      },
-      "priceRange": "$$",
-      "openingHoursSpecification": [
+      priceRange: "$$",
+      openingHoursSpecification: [
         {
           "@type": "OpeningHoursSpecification",
-          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-          "opens": "08:00",
-          "closes": "18:00"
+          dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          opens: "08:00",
+          closes: "18:00",
         },
         {
           "@type": "OpeningHoursSpecification",
-          "dayOfWeek": "Sunday",
-          "opens": "11:00",
-          "closes": "17:00"
-        }
+          dayOfWeek: "Sunday",
+          opens: "11:00",
+          closes: "17:00",
+        },
       ],
-      "sameAs": [
+      sameAs: [
         "https://www.instagram.com/c2crental",
-        "https://www.facebook.com/c2crental"
-      ]
+        "https://www.facebook.com/c2crental",
+      ],
     };
 
-    // FAQPage JSON-LD
     const faqPageSchema = {
       "@context": "https://schema.org",
       "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "Is C2C Rental available near Abbotsford Airport (YXX)?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. C2C Rental serves drivers near Abbotsford International Airport (YXX), located just 10 minutes from our Abbotsford service area. Book online and arrange pickup or delivery so your vehicle is ready when you land. Contact our team for airport coordination details."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Can I rent a car in Abbotsford for a cross-border trip to Washington State?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Cross-border travel to the United States is possible with advance approval from C2C Rental. You must inform us at the time of booking so we can arrange the required cross-border insurance documentation. The Sumas border crossing is just minutes from Abbotsford, making it convenient for trips to Bellingham and beyond."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What is the minimum age to rent a car in Abbotsford, BC?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "The minimum age to rent with C2C Rental in Abbotsford is 21 years old. Drivers under 25 may be subject to additional deposits or insurance requirements. Premium vehicles require a minimum age of 25. Contact us with your details and we'll confirm your eligibility."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Are winter tires included in Abbotsford rentals during winter?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "During the winter season, C2C Rental equips AWD and 4WD vehicles with winter tires as standard for Abbotsford rentals. If you're planning a trip to the Coquihalla, Kelowna corridor, or any mountain pass, let us know your destination so we can ensure your vehicle is properly equipped."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How far in advance should I book a car rental in Abbotsford?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "We recommend booking at least 48 hours in advance for the best vehicle selection in Abbotsford, especially during peak travel seasons and long weekends. Same-day bookings may be available depending on fleet availability — contact our team to check."
-          }
-        }
-      ]
+      mainEntity: faqItems.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    };
+
+    const webPageSchema = {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://c2crental.ca/abbotsford#webpage",
+      url: "https://c2crental.ca/abbotsford",
+      name: "Car Rental in Abbotsford, BC | C2C Rental",
+      about: { "@id": "https://c2crental.ca/abbotsford#localbusiness" },
+      inLanguage: "en-CA",
     };
 
     const schemas = [
       { id: "abbotsford-localbusiness-jsonld", data: localBusinessSchema },
       { id: "abbotsford-faqpage-jsonld", data: faqPageSchema },
+      { id: "abbotsford-webpage-jsonld", data: webPageSchema },
     ];
 
     schemas.forEach(({ id, data }) => {
@@ -232,114 +268,173 @@ const AbbotsfordPage = () => {
     });
 
     return () => {
-      schemas.forEach(({ id }) => {
-        document.getElementById(id)?.remove();
-      });
-      canonical?.remove();
+      schemas.forEach(({ id }) => document.getElementById(id)?.remove());
     };
   }, []);
 
   return (
     <CustomerLayout>
-      <PageContainer className="max-w-4xl mx-auto space-y-16">
-        {/* H1 + Intro */}
-        <section className="space-y-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
-            Car Rental in Abbotsford, BC – Affordable, Local &amp; Hassle-Free
-          </h1>
-          <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-            Abbotsford sits at the crossroads of the Fraser Valley — close to Abbotsford International Airport (YXX), minutes from the Sumas US border crossing, and connected by Highway 1 to the rest of Metro Vancouver. Whether you're arriving at YXX, heading to Bellingham for shopping, driving the Kelowna corridor, or simply need reliable wheels while your own car is being repaired, C2C Rental has you covered. We offer affordable daily, weekly, and monthly car rentals in Abbotsford for commuters, UFV students, agricultural workers, and visitors. No hidden fees, no confusing add-ons at the counter — just straightforward pricing, flexible insurance options, and a local team that understands Abbotsford roads. Book online in minutes and pick up your vehicle locally in Abbotsford.
-          </p>
-        </section>
+      {/* ── HERO ───────────────────────────────────────────────── */}
+      <section className="bg-[#FBFAF8] pt-10 md:pt-16 pb-6 md:pb-10">
+        <div className="container-page">
+          <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-10 lg:items-center">
+            <div className="relative z-10 max-w-xl animate-slide-up">
+              <p className="text-[12px] md:text-[13px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-4">
+                C2C Rental · Abbotsford, BC
+              </p>
+              <h1 className="text-[40px] md:text-[60px] font-semibold tracking-[-0.03em] leading-[1.05] text-zinc-950 mb-2">
+                Car Rental in Abbotsford, BC
+              </h1>
+              <div className="w-14 h-[3px] mt-4 mb-6 rounded-full" style={{ backgroundColor: "#197149" }} />
+              <p className="text-zinc-800 mt-8 md:text-xl font-semibold text-lg">
+                Near YXX Airport. Cross-border ready. Transparent pricing.
+              </p>
+              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">
+                Affordable daily, weekly, and monthly rentals from our Abbotsford Centre location — minutes from Abbotsford International Airport and the Sumas border.
+              </p>
 
-        {/* Why Choose C2C */}
-        <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <CheckCircle2 className="h-6 w-6 text-accent" />
-            Why Choose C2C Rental in Abbotsford?
-          </h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Close to Abbotsford Airport (YXX) — 10 minutes away",
-              "Cross-border documentation support for US travel",
-              "Knowledge of Hwy 1, Hwy 11, and Sumas border route",
-              "Flexible daily, weekly, and long-term terms",
-              "Options for farm workers, students at UFV, and international visitors",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+              <p className="text-[13px] md:text-[14px] text-muted-foreground flex items-center gap-2 mt-6 mb-4 leading-tight select-none">
+                Search Abbotsford availability below
+                <ChevronDown className="w-4 h-4 opacity-70" />
+              </p>
 
-        {/* Vehicle Cards */}
-        <section className="space-y-6">
-          <h2 className="text-2xl font-bold text-foreground">Our Vehicles Available in Abbotsford</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {vehicleCards.map((v) => (
-              <Card key={v.category} className="flex flex-col justify-between hover:shadow-md transition-shadow">
-                <CardContent className="p-5 space-y-3 flex-1">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                      <v.icon className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground text-base">{v.category}</h3>
-                      <p className="text-sm text-muted-foreground">{v.example}</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{v.useCase}</p>
-                  <p className="text-lg font-bold text-foreground">{v.rate}</p>
-                </CardContent>
-                <div className="px-5 pb-5">
-                  <Button asChild className="w-full" size="default">
-                    <Link to="/search">Book Now <ArrowRight className="ml-1 h-4 w-4" /></Link>
-                  </Button>
-                </div>
-              </Card>
-            ))}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full bg-primary text-primary-foreground">
+                  Abbotsford Centre
+                </span>
+                <Link
+                  to="/surrey"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+                >
+                  Surrey
+                </Link>
+                <Link
+                  to="/langley"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+                >
+                  Langley
+                </Link>
+              </div>
+            </div>
+
+            <div className="relative z-0 block w-full animate-fade-in animation-delay-200">
+              <img
+                alt="Car rental in Abbotsford, BC"
+                className="block w-full max-h-[260px] lg:max-h-none object-cover rounded-lg"
+                src="/lovable-uploads/ae30751c-fe6d-4959-839f-3ebc3decea01.png"
+              />
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            All vehicles are regularly maintained, cleaned before each rental, and equipped for Lower Mainland weather. Car seats, extra storage, and winter tires available on request.
-          </p>
-        </section>
 
-        {/* Popular Trips */}
-        <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground">Popular Abbotsford Trips &amp; Use Cases</h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Abbotsford Airport (YXX) pickup — 10 min away",
-              "Cross-border trips to Bellingham and Washington State via Sumas crossing",
-              "Kelowna corridor drive (2.5 hrs)",
-              "Whistler from Abbotsford (3 hrs)",
-              "Agricultural and industrial worker transport",
-              "UFV student commutes and moves",
-            ].map((item) => (
+          {/* ── BOOKING / SEARCH MODULE ─────────────────────────── */}
+          <div id="book" className="mt-10 animate-scale-in animation-delay-300 scroll-mt-24">
+            <RentalSearchCard
+              className="search-card-premium"
+              defaultLocationId={ABBOTSFORD_LOCATION_ID}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── WHY CHOOSE C2C IN ABBOTSFORD ───────────────────────── */}
+      <section className="py-12 md:py-16 bg-background">
+        <div className="container-page">
+          <SectionHeader title="Why Choose C2C Rental in Abbotsford?" />
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 mt-6 text-muted-foreground">
+            {whyChooseItems.map((item) => (
               <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
+                <CheckCircle2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                 <span>{item}</span>
               </li>
             ))}
           </ul>
-        </section>
+        </div>
+      </section>
 
-        {/* Pickup & Service Area */}
-        <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-accent" />
-            Abbotsford Pickup, Delivery &amp; Service Area
-          </h2>
-          <p className="text-muted-foreground leading-relaxed">
-            C2C Rental serves drivers across Abbotsford, including West Abbotsford, East Abbotsford, Clearbrook, and areas near Abbotsford International Airport (YXX). Depending on your booking and vehicle availability, we can arrange convenient pickup from our local service point or limited delivery within the Abbotsford area (subject to availability and fee). We also coordinate with local body shops for insurance replacement rentals, helping Abbotsford drivers stay on the road while their vehicle is being repaired.
-          </p>
-        </section>
+      {/* ── CLEANING BANNER ────────────────────────────────────── */}
+      <CleaningBanner />
 
-        {/* Simple Booking Process */}
-        <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+      {/* ── BROWSE FLEET ───────────────────────────────────────── */}
+      <section className="py-10 md:py-20 bg-background">
+        <div className="container-page">
+          <SectionHeader
+            title="Vehicles Available in Abbotsford"
+            action={
+              <Link
+                to="/search?from=fleet"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold border border-border transition-all duration-200 bg-accent text-primary-foreground"
+              >
+                View all
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            }
+          />
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="card-premium overflow-hidden">
+                  <Skeleton className="h-40 w-full" />
+                  <div className="p-4 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-6 w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : displayCategories.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {displayCategories.map((category) => (
+                <CategoryDisplayCard key={category.id} category={category} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No vehicles available at the moment.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── POPULAR TRIPS + PICKUP/SERVICE AREA ─────────────────── */}
+      <section className="py-12 md:py-16 bg-[#FBFAF8] border-y border-border/40">
+        <div className="container-page grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground mb-5">Popular Abbotsford Trips &amp; Use Cases</h2>
+            <ul className="space-y-3 text-muted-foreground">
+              {popularTrips.map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 mb-5">
+              <MapPin className="h-6 w-6 text-accent" />
+              Pickup, Delivery &amp; Service Area
+            </h2>
+            <Card>
+              <CardContent className="p-5 space-y-3">
+                <p className="font-semibold text-foreground">Abbotsford Centre</p>
+                <p className="text-sm text-muted-foreground">32835 South Fraser Way, Abbotsford, BC</p>
+                <p className="text-sm text-muted-foreground">+1 (604) 763-4242</p>
+                <p className="text-sm text-muted-foreground leading-relaxed pt-2">
+                  Serving West Abbotsford, East Abbotsford, Clearbrook, and YXX Airport. Pickup from our local service point or limited delivery within the Abbotsford area (subject to availability and fee). We also coordinate insurance replacement rentals with local body shops.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SIMPLE BOOKING PROCESS ─────────────────────────────── */}
+      <section className="py-12 md:py-16 bg-background">
+        <div className="container-page max-w-3xl">
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 mb-6">
             <ClipboardList className="h-6 w-6 text-accent" />
             Simple Booking Process
           </h2>
@@ -353,46 +448,39 @@ const AbbotsfordPage = () => {
               </li>
             ))}
           </ol>
-          <p className="text-sm text-muted-foreground italic">
+          <p className="text-sm text-muted-foreground italic mt-4">
             Extensions, changes, and early returns are usually simple — contact us as early as possible so we can adjust your booking.
           </p>
-        </section>
+        </div>
+      </section>
 
-        {/* Insurance, Deposits & Requirements */}
-        <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+      {/* ── INSURANCE / REQUIREMENTS ───────────────────────────── */}
+      <section className="py-12 md:py-16 bg-[#FBFAF8] border-y border-border/40">
+        <div className="container-page max-w-4xl">
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 mb-6">
             <Shield className="h-6 w-6 text-accent" />
-            Insurance, Deposits &amp; Requirements in Abbotsford
+            Insurance, Deposits &amp; Requirements
           </h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Valid full driver's licence required (BC or accepted international licence)",
-              "Minimum age: 21 (25 for premium vehicles)",
-              "Must hold a valid licence for minimum 2 years",
-              "Security deposit taken on a valid credit card at pickup",
-              "All C2C vehicles covered under ICBC owner's certificate",
-              "Optional damage waiver available at checkout",
-              "Winter tires installed November–March on all AWD/4WD vehicles",
-              "US border crossings: contact C2C before booking for cross-border insurance documentation",
-              "Cross-border travel to the US requires advance approval and additional insurance documentation",
-              "Clear policy on fuel, kilometres, tolls, tickets, and damage inspections",
-            ].map((item) => (
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-muted-foreground">
+            {requirements.map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
                 <span>{item}</span>
               </li>
             ))}
           </ul>
-          <p className="text-sm text-muted-foreground italic">
+          <p className="text-sm text-muted-foreground italic mt-4">
             Our team will walk you through exact requirements before you confirm — no surprises.
           </p>
-        </section>
+        </div>
+      </section>
 
-        {/* FAQ */}
-        <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+      {/* ── FAQ ────────────────────────────────────────────────── */}
+      <section className="py-12 md:py-16 bg-background">
+        <div className="container-page max-w-3xl">
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 mb-6">
             <HelpCircle className="h-6 w-6 text-accent" />
-            Frequently Asked Questions – Car Rental in Abbotsford, BC
+            Frequently Asked Questions
           </h2>
           <Accordion type="single" collapsible className="w-full">
             {faqItems.map((faq, i) => (
@@ -406,30 +494,32 @@ const AbbotsfordPage = () => {
               </AccordionItem>
             ))}
           </Accordion>
-        </section>
+        </div>
+      </section>
 
-        {/* Cross-links */}
-        <section className="text-sm text-muted-foreground">
-          C2C Rental also serves:{" "}
-          <Link to="/surrey" className="text-accent underline underline-offset-2 hover:text-accent/80">Surrey</Link>
-          {" "}and{" "}
-          <Link to="/langley" className="text-accent underline underline-offset-2 hover:text-accent/80">Langley</Link>
-        </section>
-
-        {/* CTA Banner */}
-        <section className="rounded-xl bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
-          <h2 className="text-2xl md:text-3xl font-bold">Ready to book your Abbotsford car rental?</h2>
-          <p className="text-primary-foreground/80 max-w-lg mx-auto">
-            Browse available vehicles now — no hidden fees, local support, and flexible terms.
-          </p>
-          <Button asChild variant="hero" size="xl">
-            <Link to="/search">View Available Cars in Abbotsford <ArrowRight className="ml-2 h-5 w-5" /></Link>
-          </Button>
-          <p className="text-sm text-primary-foreground/60 pt-2">
-            <Link to="/contact" className="underline underline-offset-2 hover:text-primary-foreground/90">Questions? Contact our team →</Link>
-          </p>
-        </section>
-      </PageContainer>
+      {/* ── FINAL CTA ──────────────────────────────────────────── */}
+      <section className="py-12 md:py-16 bg-background">
+        <div className="container-page">
+          <div className="rounded-xl bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
+            <h2 className="text-2xl md:text-3xl font-bold">Ready to book your Abbotsford rental?</h2>
+            <p className="text-primary-foreground/80 max-w-lg mx-auto">
+              Pickup is pre-selected to Abbotsford Centre. Pick your dates and confirm in minutes.
+            </p>
+            <Button asChild variant="hero" size="xl">
+              <a href="#book">
+                Book in Abbotsford <ArrowRight className="ml-2 h-5 w-5" />
+              </a>
+            </Button>
+            <p className="text-sm text-primary-foreground/60 pt-2">
+              Also serving{" "}
+              <Link to="/surrey" className="underline underline-offset-2 hover:text-primary-foreground/90">Surrey</Link>
+              {" "}and{" "}
+              <Link to="/langley" className="underline underline-offset-2 hover:text-primary-foreground/90">Langley</Link>
+              .
+            </p>
+          </div>
+        </div>
+      </section>
     </CustomerLayout>
   );
 };
