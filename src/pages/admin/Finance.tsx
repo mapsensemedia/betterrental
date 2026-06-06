@@ -478,7 +478,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       // 2. Fetch Worldline rental bookings in date range
       const { data: wlRentals } = await supabase
         .from("bookings")
-        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id, customer_id, status")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id, customer_id, status, location_id")
         .not("wl_transaction_id", "is", null)
         .neq("status", "cancelled")
         .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
