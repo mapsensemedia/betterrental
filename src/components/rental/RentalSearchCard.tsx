@@ -559,7 +559,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Pickup Location
             </label>
-            <Select value={locationId} onValueChange={handleLocationChange}>
+            <Select value={locationId} onValueChange={handleLocationChange} disabled={!!lockLocationId}>
               <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -569,7 +569,10 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                 </div>
               </SelectTrigger>
               <SelectContent>
-                {pickupLocations.map((loc) => (
+                {(lockLocationId
+                  ? pickupLocations.filter((loc) => loc.id === lockLocationId)
+                  : pickupLocations
+                ).map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{loc.name}</span>
