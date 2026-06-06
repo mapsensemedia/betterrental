@@ -1151,7 +1151,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     queryFn: async () => {
       const { data, error } = await supabase
         .from("final_invoices")
-        .select(`*, booking:bookings(booking_code, start_at, end_at, total_days, user_id, customer_id, vehicle_id)`)
+        .select(`*, booking:bookings(booking_code, start_at, end_at, total_days, user_id, customer_id, vehicle_id, location_id)`)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
