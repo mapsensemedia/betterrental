@@ -87,6 +87,8 @@ interface OverviewPaymentRecord {
   created_at: string;
   booking_code?: string;
   customer_name?: string;
+  location_id?: string | null;
+  location_name?: string | null;
   unreconciled?: boolean;
 }
 
