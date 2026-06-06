@@ -1235,6 +1235,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           ...receipt,
           totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number },
           line_items_json: receipt.line_items_json as any[],
+          location_id: b?.location_id ?? null,
           booking: b ? {
             booking_code: b.booking_code, total_amount: b.total_amount, daily_rate: b.daily_rate,
             total_days: b.total_days, start_at: b.start_at, end_at: b.end_at, deposit_amount: b.deposit_amount,
