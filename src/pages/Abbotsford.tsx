@@ -12,6 +12,17 @@ import {
   ClipboardList,
   Shield,
   HelpCircle,
+  CalendarRange,
+  UserCheck,
+  FileCheck2,
+  KeyRound,
+  IdCard,
+  CalendarCheck,
+  CreditCard,
+  ShieldCheck,
+  Snowflake,
+  Globe2,
+  MessageCircle,
 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
@@ -27,6 +38,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
+import keysHandoverImg from "@/assets/abbotsford-keys-handover.jpg";
+import counterHandshakeImg from "@/assets/abbotsford-counter-handshake.jpg";
 
 // Canonical Abbotsford Centre location id (see src/constants/rentalLocations.ts)
 const ABBOTSFORD_LOCATION_ID = "a1b2c3d4-3333-4000-8000-000000000003";
@@ -92,22 +105,20 @@ const popularTrips = [
 ];
 
 const bookingSteps = [
-  "Choose your dates and vehicle type online or by phone",
-  "Share your driver details (licence, age, additional drivers)",
-  "Review your quote — insurance options, deposit, mileage limits",
-  "Confirm your booking and receive digital agreement",
-  "Pick up your vehicle in Abbotsford, complete walk-around inspection, and drive away",
+  { icon: CalendarRange, title: "Pick dates & vehicle", detail: "Online or by phone in minutes." },
+  { icon: UserCheck, title: "Share driver details", detail: "Licence, age, additional drivers." },
+  { icon: ClipboardList, title: "Review your quote", detail: "Insurance, deposit, mileage limits." },
+  { icon: FileCheck2, title: "Confirm & sign", detail: "Digital agreement to your inbox." },
+  { icon: KeyRound, title: "Pick up in Abbotsford", detail: "Quick walk-around, then drive away." },
 ];
 
-const requirements = [
-  "Valid full driver's licence required (BC or accepted international licence)",
-  "Minimum age: 21 (25 for premium vehicles)",
-  "Must hold a valid licence for minimum 2 years",
-  "Security deposit taken on a valid credit card at pickup",
-  "All C2C vehicles covered under ICBC owner's certificate",
-  "Optional damage waiver available at checkout",
-  "Winter tires installed November–March on all AWD/4WD vehicles",
-  "Cross-border travel to the US requires advance approval and additional insurance documentation",
+const requirementTiles = [
+  { icon: IdCard, title: "Valid driver's licence", detail: "BC or accepted international, held 2+ years." },
+  { icon: CalendarCheck, title: "Age 21 and up", detail: "25+ required for premium vehicles." },
+  { icon: CreditCard, title: "Credit card deposit", detail: "Held at pickup, released on return." },
+  { icon: ShieldCheck, title: "ICBC coverage included", detail: "Optional damage waiver at checkout." },
+  { icon: Snowflake, title: "Winter tires Nov–Mar", detail: "Standard on AWD and 4WD vehicles." },
+  { icon: Globe2, title: "Cross-border ready", detail: "US trips need advance approval & extra docs." },
 ];
 
 const faqItems = [
@@ -432,46 +443,127 @@ const AbbotsfordPage = () => {
       </section>
 
       {/* ── SIMPLE BOOKING PROCESS ─────────────────────────────── */}
-      <section className="py-12 md:py-16 bg-background">
-        <div className="container-page max-w-3xl">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 mb-6">
-            <ClipboardList className="h-6 w-6 text-accent" />
-            Simple Booking Process
-          </h2>
-          <ol className="space-y-4">
-            {bookingSteps.map((step, i) => (
-              <li key={i} className="flex items-start gap-4">
-                <span className="flex items-center justify-center h-8 w-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
-                  {i + 1}
-                </span>
-                <span className="text-muted-foreground pt-1">{step}</span>
-              </li>
-            ))}
-          </ol>
-          <p className="text-sm text-muted-foreground italic mt-4">
-            Extensions, changes, and early returns are usually simple — contact us as early as possible so we can adjust your booking.
-          </p>
+      <section className="py-12 md:py-20 bg-background">
+        <div className="container-page">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+            {/* Image */}
+            <div className="relative order-2 lg:order-1">
+              <div className="absolute -inset-4 rounded-3xl bg-accent/10 -z-10" aria-hidden="true" />
+              <img
+                src={keysHandoverImg}
+                alt="C2C Rental agent handing car keys to a customer at the Abbotsford counter"
+                width={1024}
+                height={1024}
+                loading="lazy"
+                className="w-full h-full max-h-[520px] object-cover rounded-2xl shadow-lg"
+              />
+            </div>
+
+            {/* Steps */}
+            <div className="order-1 lg:order-2">
+              <p className="text-[12px] md:text-[13px] font-semibold uppercase tracking-[0.18em] text-accent mb-3">
+                How it works
+              </p>
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-[-0.02em] text-foreground mb-3">
+                A simple booking process
+              </h2>
+              <p className="text-muted-foreground mb-8 max-w-md">
+                Five quick steps from search to driving away in Abbotsford — no counter surprises.
+              </p>
+
+              <ol className="relative space-y-4 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-border">
+                {bookingSteps.map((step, i) => {
+                  const Icon = step.icon;
+                  return (
+                    <li
+                      key={i}
+                      className="relative flex items-start gap-4 p-4 rounded-xl bg-card border border-border/60 hover:border-accent/50 transition-colors"
+                    >
+                      <span className="relative z-10 flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0 ring-4 ring-background">
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4 text-accent shrink-0" />
+                          <h3 className="font-semibold text-foreground text-base">{step.title}</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5">{step.detail}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+
+              <p className="text-sm text-muted-foreground italic mt-5">
+                Extensions, changes, and early returns are usually simple — just reach out as early as you can.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ── INSURANCE / REQUIREMENTS ───────────────────────────── */}
-      <section className="py-12 md:py-16 bg-[#FBFAF8] border-y border-border/40">
-        <div className="container-page max-w-4xl">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 mb-6">
-            <Shield className="h-6 w-6 text-accent" />
-            Insurance, Deposits &amp; Requirements
-          </h2>
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-muted-foreground">
-            {requirements.map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-sm text-muted-foreground italic mt-4">
-            Our team will walk you through exact requirements before you confirm — no surprises.
-          </p>
+      <section className="py-12 md:py-20 bg-[#FBFAF8] border-y border-border/40">
+        <div className="container-page">
+          <div className="max-w-2xl mb-10">
+            <p className="text-[12px] md:text-[13px] font-semibold uppercase tracking-[0.18em] text-accent mb-3">
+              What you'll need
+            </p>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-[-0.02em] text-foreground mb-3">
+              Insurance, deposits &amp; requirements
+            </h2>
+            <p className="text-muted-foreground">
+              Everything you need to know before you pick up your Abbotsford rental — clear, upfront, no fine-print games.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {requirementTiles.map((tile) => {
+              const Icon = tile.icon;
+              return (
+                <div
+                  key={tile.title}
+                  className="group p-6 rounded-2xl bg-card border border-border/60 hover:border-accent/50 hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <div className="h-11 w-11 rounded-xl bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/15 transition-colors">
+                    <Icon className="h-5 w-5 text-accent" />
+                  </div>
+                  <h3 className="font-semibold text-foreground text-base mb-1.5">{tile.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{tile.detail}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Reassurance banner */}
+          <div className="relative mt-8 overflow-hidden rounded-2xl">
+            <img
+              src={counterHandshakeImg}
+              alt="C2C Rental staff member handing a rental agreement to a customer"
+              width={1920}
+              height={640}
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-foreground/85 via-foreground/65 to-foreground/20" aria-hidden="true" />
+            <div className="relative p-6 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+              <div className="max-w-xl">
+                <div className="flex items-center gap-2 text-background/80 text-xs font-semibold uppercase tracking-[0.18em] mb-2">
+                  <Shield className="h-4 w-4" />
+                  No surprises
+                </div>
+                <p className="text-background text-lg md:text-xl font-medium leading-snug">
+                  Our team walks you through exact requirements before you confirm. Questions? We're here.
+                </p>
+              </div>
+              <Button asChild variant="hero" size="lg" className="shrink-0">
+                <Link to="/contact">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Talk to our team
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
 
