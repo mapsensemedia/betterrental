@@ -1,53 +1,51 @@
 ## Goal
-Determine whether Bambora/Worldline has any transaction(s) for order number `P455Y39D` that match the $112.55 charge the user says was processed via the Bambora backoffice — and reconcile our DB accordingly.
 
-## What's in our DB for P455Y39D
-| Txn ID | Type | Method | Amount | Status |
-|---|---|---|---|---|
-| 10000362 | rental | card | $477.41 | completed |
-| 10000364 | rental | card | $477.41 | completed (duplicate of 362) |
-| 10000365 | deposit | card | $350.00 | voided |
-| CASH-P455Y39D-20260528 | rental | cash | $112.55 | completed (manual entry I added) |
+Turn `/abbotsford` into a true landing page for the Abbotsford location — same visual structure and polish as the homepage (`/`), but every piece of copy, imagery, schema, and the booking widget is localized to Abbotsford. Booking flow downstream stays identical; only the pickup location is pre-selected and locked to Abbotsford Centre.
 
-So we already show $112.55 collected, but as **cash**. If Bambora actually has a $112.55 card charge, the cash row is wrong and should be replaced with the real Worldline txn.
+## Scope
 
-## Plan
+In scope:
+- `src/pages/Abbotsford.tsx` — full rewrite to match the `Index.tsx` landing structure.
+- Minor: pass `defaultLocationId` (Abbotsford UUID `a1b2c3d4-3333-4000-8000-000000000003`) into the search card.
 
-### Step 1 — Add a search-by-order edge function
-Create `supabase/functions/wl-search-by-order/index.ts` that calls Bambora's Reports API:
+Out of scope:
+- No changes to `RentalSearchCard`, `create-booking`, pricing, or any downstream booking step. The existing `defaultLocationId` prop already handles pre-selection.
+- No changes to `/surrey` or `/langley`.
+- No DB / edge function changes.
 
-- `POST https://api.na.bambora.com/v1/reports`
-- Body: `{ name: "Search", start_date, end_date, start_row: 1, end_row: 200, criteria: [{ field: 14, operator: "=", value: orderNumber }] }`
-- Field 14 = `trnOrderNumber`
-- Uses existing `worldlineRequest()` helper for HTTP Basic auth (Passcode merchant:passcode)
+## Page structure (mirrors Index.tsx)
 
-No `supabase/config.toml` change needed (defaults to `verify_jwt = false` like the other `wl-*` functions).
+1. **Hero** — Abbotsford eyebrow ("C2C Rental · Abbotsford"), H1 "Car Rental in Abbotsford, BC", supporting copy referencing YXX / Sumas / Hwy 1, hero image, scroll cue. Replace the city shortcut row with a "Other locations" link row (Surrey / Langley) so the page stays Abbotsford-anchored.
+2. **Booking / Search module** — `<RentalSearchCard defaultLocationId="a1b2c3d4-3333-4000-8000-000000000003" />`. Pickup is pre-filled with Abbotsford Centre; user can still change dates/vehicle/return location. Booking flow itself is untouched.
+3. **Why Choose C2C in Abbotsford** — Abbotsford-specific bullets (YXX proximity, cross-border docs, Hwy 1/11/Sumas knowledge, UFV, ag/farm worker support).
+4. **Cleaning banner** — reuse `<CleaningBanner />`.
+5. **Browse fleet** — reuse the homepage fleet category grid (`useFleetCategories` + `CategoryDisplayCard`), with all "Book Now" links pointing to `/search?location=abbotsford` style query so the search prefilters (existing search already reads pickup from context — links can simply go to `/search`).
+6. **Popular Abbotsford trips & use cases** — existing list (YXX, Bellingham, Kelowna corridor, Whistler, UFV, ag worker).
+7. **Pickup, delivery & service area** — Abbotsford address (32835 South Fraser Way), neighbourhoods covered, delivery note.
+8. **Simple booking process** — existing 5-step list.
+9. **Insurance, deposits & requirements** — existing content.
+10. **FAQ accordion** — existing 5 Abbotsford FAQs.
+11. **Final CTA** — "Book your Abbotsford rental" button → scrolls back to the search card (anchor link `#book`).
+12. Reuse `<LocationsSection />` footer-style block if useful, otherwise omit to keep Abbotsford focus.
 
-### Step 2 — Call it
-Invoke via `supabase--curl_edge_functions` with:
-- `orderNumber: "P455Y39D"`
-- `startDate: "2026-05-20T00:00:00"` (a few days before our known txns)
-- `endDate: "2026-05-31T23:59:59"` (today)
+## SEO
 
-This returns every Bambora transaction (approved or declined, P / R / VP / etc.) tagged with that order number, including any made directly in the Bambora backoffice.
+- Keep the existing `<title>`, meta description, canonical (`/abbotsford`), OG tags, LocalBusiness+CarRental JSON-LD (Abbotsford address), and FAQPage JSON-LD that the current page already injects — port them into the new layout verbatim.
+- Add a `WebPage` schema with `about` referencing the Abbotsford location.
+- Single H1 ("Car Rental in Abbotsford, BC ..."). Section H2s as listed above.
 
-### Step 3 — Reconcile based on what comes back
+## Technical detail
 
-**Case A — Bambora has an approved $112.55 P txn we don't have in DB:**
-- Insert a real `payments` row: `payment_method='card'`, `transaction_id=<bambora id>`, `amount=112.55`, `payment_type='rental'`, `status='completed'`, `created_at=<bambora processed_at>`.
-- Delete the placeholder `CASH-P455Y39D-20260528` row.
-- Update booking's `wl_transaction_id` / `card_last_four` from the Bambora record.
+- File touched: `src/pages/Abbotsford.tsx` (rewrite using the same building blocks as `Index.tsx`: `CustomerLayout`, `container-page` hero, `RentalSearchCard`, `WhyChooseSection` *(optionally swapped for Abbotsford-specific inline copy to avoid Surrey-flavoured text)*, `CleaningBanner`, `SectionHeader`, fleet grid with `useFleetCategories`).
+- The Abbotsford location UUID is the canonical one from `src/constants/rentalLocations.ts`: `a1b2c3d4-3333-4000-8000-000000000003`. Passed as `defaultLocationId` to `RentalSearchCard`. The search card already syncs this into `RentalBookingContext.searchData.pickupLocationId`, which `create-booking` consumes — so the entire downstream flow continues to operate identically, just with Abbotsford pre-selected.
+- Booking widget remains fully interactive; user can override the location if they want. (If you'd rather hard-lock it to Abbotsford with no override on this page, say the word and I'll hide the location selector — but default behaviour matches your "booking flow completely same" requirement.)
+- Cleanup: remove the unused `PageContainer`-only narrow layout; new page uses full-width sections like the homepage.
 
-**Case B — Bambora has nothing new (only 10000362/364/365 echo back):**
-- Confirm to the user that no $112.55 charge exists at the gateway. The cash row stays as the source of truth, and we either keep it or remove it depending on what they actually collected.
+## Risk / verification
 
-**Case C — Bambora has a $112.55 charge that was later refunded/voided:**
-- Report the txn id + status, leave DB untouched, ask the user how to record it.
-
-### Step 4 — Tell the user the result
-Plain summary: txn id, amount, status, processed_at, card last 4. No DB changes without their confirmation if anything is ambiguous.
-
-## Out of scope
-- No changes to the Finance UI, no migrations, no refactors.
-- Will not auto-refund or auto-void anything at Bambora.
-- Will not touch other bookings.
+- No backend or routing changes; `/abbotsford` route already exists in `App.tsx`.
+- Verify in preview that:
+  1. `/abbotsford` renders the hero + search card with Abbotsford pre-selected.
+  2. Submitting search proceeds through the normal booking flow.
+  3. `/` (home) is unchanged.
+  4. SEO tags (title, canonical, JSON-LD) reflect Abbotsford.
