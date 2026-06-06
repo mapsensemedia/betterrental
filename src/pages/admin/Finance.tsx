@@ -1388,19 +1388,25 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
   });
 
   // ==================== FILTERING ====================
+  const matchesLocation = (locId: string | null | undefined) =>
+    locationFilter === "all" || (locId || "") === locationFilter;
+
   const filteredInvoices = invoices.filter((inv) => {
+    if (!matchesLocation(inv.location_id)) return false;
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return inv.invoice_number?.toLowerCase().includes(s) || inv.booking?.booking_code?.toLowerCase().includes(s) || inv.booking?.profile?.full_name?.toLowerCase().includes(s);
   });
 
   const filteredReceipts = receipts.filter((receipt) => {
+    if (!matchesLocation(receipt.location_id)) return false;
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return receipt.receipt_number?.toLowerCase().includes(s) || receipt.booking?.booking_code?.toLowerCase().includes(s) || receipt.booking?.profile?.full_name?.toLowerCase().includes(s);
   });
 
   const filteredPayments = payments.filter((payment) => {
+    if (!matchesLocation(payment.location_id)) return false;
     // Method filter from Overview click-through
     if (methodFilter && normalizeMethod(payment.payment_method) !== methodFilter) return false;
     // Type filter
@@ -1416,6 +1422,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     const s = searchTerm.toLowerCase();
     return payment.booking?.booking_code?.toLowerCase().includes(s) || payment.booking?.profile?.full_name?.toLowerCase().includes(s) || payment.transaction_id?.toLowerCase().includes(s);
   });
+
+  const filteredDepositPayments = filteredPayments.filter(p => p.payment_type === "deposit");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
