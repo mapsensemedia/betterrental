@@ -350,7 +350,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       const bookingIds = [...new Set(paymentRows.map((p) => p.booking_id))];
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, booking_code, user_id, customer_id, status")
+        .select("id, booking_code, user_id, customer_id, status, location_id")
         .in("id", bookingIds);
 
       const userIds = [...new Set((bookings || []).map((b) => b.user_id))];
