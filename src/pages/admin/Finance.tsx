@@ -136,6 +136,8 @@ interface Payment {
   transaction_id: string | null;
   created_at: string;
   source: "worldline" | "manual";
+  location_id?: string | null;
+  location_name?: string | null;
   booking?: {
     booking_code: string;
     profile?: { full_name: string | null };
