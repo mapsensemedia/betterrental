@@ -131,7 +131,9 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
   // Sync from context on mount
   useEffect(() => {
-    if (searchData.pickupLocationId) {
+    if (lockLocationId) {
+      setLocationId(lockLocationId);
+    } else if (searchData.pickupLocationId) {
       setLocationId(searchData.pickupLocationId);
     }
     if (searchData.pickupDate) {
