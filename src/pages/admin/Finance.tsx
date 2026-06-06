@@ -25,6 +25,7 @@ import {
   TrendingDown,
   BarChart3,
   XCircle,
+  MapPin,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,8 @@ interface OverviewPaymentRecord {
   created_at: string;
   booking_code?: string;
   customer_name?: string;
+  location_id?: string | null;
+  location_name?: string | null;
   unreconciled?: boolean;
 }
 
@@ -109,6 +112,8 @@ interface ReceiptData {
   notes: string | null;
   issued_at: string | null;
   created_at: string;
+  location_id?: string | null;
+  location_name?: string | null;
   booking?: {
     booking_code: string;
     total_amount: number;
@@ -133,6 +138,8 @@ interface Payment {
   transaction_id: string | null;
   created_at: string;
   source: "worldline" | "manual";
+  location_id?: string | null;
+  location_name?: string | null;
   booking?: {
     booking_code: string;
     profile?: { full_name: string | null };
@@ -160,6 +167,8 @@ interface InvoiceRow {
   deposit_captured: number | null;
   line_items_json: any;
   notes: string | null;
+  location_id?: string | null;
+  location_name?: string | null;
   booking?: {
     booking_code: string;
     start_at: string;
@@ -311,6 +320,18 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
   setCustomStart: (d: Date) => void;
   setCustomEnd: (d: Date) => void;
 }) {
+  const navigate = useNavigate();
+
+  // Locations lookup for revenue-by-location breakdown
+  const { data: locationsList = [] } = useQuery({
+    queryKey: ["finance-locations"],
+    queryFn: async () => {
+      const { data } = await supabase.from("locations").select("id, name").order("name");
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const locationMap = useMemo(() => new Map(locationsList.map((l) => [l.id, l.name])), [locationsList]);
 
   // Source A — payments table (primary, renders immediately)
   const { data: paymentsOnly = [], isLoading, refetch } = useQuery({
@@ -329,7 +350,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       const bookingIds = [...new Set(paymentRows.map((p) => p.booking_id))];
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, booking_code, user_id, customer_id, status")
+        .select("id, booking_code, user_id, customer_id, status, location_id")
         .in("id", bookingIds);
 
       const userIds = [...new Set((bookings || []).map((b) => b.user_id))];
@@ -360,6 +381,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             amount: Number(p.amount),
             booking_code: booking?.booking_code || "—",
             customer_name: custName || (booking ? profileMap.get(booking.user_id) || "Unknown" : "Unknown"),
+            location_id: (booking as any)?.location_id ?? null,
           };
         });
     },
@@ -456,7 +478,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       // 2. Fetch Worldline rental bookings in date range
       const { data: wlRentals } = await supabase
         .from("bookings")
-        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id, customer_id, status")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, created_at, start_at, user_id, customer_id, status, location_id")
         .not("wl_transaction_id", "is", null)
         .neq("status", "cancelled")
         .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
@@ -466,7 +488,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       // 3. Fetch Worldline deposit bookings in date range
       const { data: wlDeposits } = await supabase
         .from("bookings")
-        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id, customer_id, status")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, deposit_status, deposit_authorized_at, card_type, created_at, start_at, user_id, customer_id, status, location_id")
         .not("wl_deposit_transaction_id", "is", null)
         .neq("status", "cancelled")
         .or(`created_at.gte.${start.toISOString()},start_at.gte.${start.toISOString()}`)
@@ -530,6 +552,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
           created_at: effectiveDate,
           booking_code: b.booking_code,
           customer_name: resolveName(b.user_id, b.customer_id),
+          location_id: (b as any).location_id ?? null,
           unreconciled: true,
         });
       }
@@ -550,6 +573,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
           created_at: effectiveDate,
           booking_code: b.booking_code,
           customer_name: resolveName(b.user_id, b.customer_id),
+          location_id: (b as any).location_id ?? null,
           unreconciled: true,
         });
       }
@@ -628,6 +652,29 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       .map(([method, data]) => ({ method, ...data, percent: metrics.collected > 0 ? Math.round((data.total / metrics.collected) * 100) : 0 }))
       .sort((a, b) => b.total - a.total);
   }, [payments, metrics.collected]);
+
+  const locationBreakdown = useMemo(() => {
+    const map = new Map<string, { count: number; total: number }>();
+    const seen = new Set<string>();
+    payments.filter((p) => p.status === "completed").forEach((p) => {
+      const dedupeKey = p.transaction_id || p.id;
+      if (seen.has(dedupeKey)) return;
+      seen.add(dedupeKey);
+      const id = p.location_id || "__none__";
+      const entry = map.get(id) || { count: 0, total: 0 };
+      entry.count++;
+      entry.total += p.amount;
+      map.set(id, entry);
+    });
+    return Array.from(map.entries())
+      .map(([id, data]) => ({
+        id,
+        name: id === "__none__" ? "Unassigned" : (locationMap.get(id) || "Unknown"),
+        ...data,
+        percent: metrics.collected > 0 ? Math.round((data.total / metrics.collected) * 100) : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [payments, metrics.collected, locationMap]);
 
   const typeBreakdown = useMemo(() => {
     const seenRental = new Set<string>();
@@ -802,6 +849,38 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
               </CardContent>
             </Card>
           </div>
+
+          {/* Revenue by Location */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                  Revenue by Location
+                </h3>
+                <span className="text-xs text-muted-foreground">Completed payments only</span>
+              </div>
+              {locationBreakdown.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No completed payments</p>
+              ) : (
+                <div className="space-y-2">
+                  {locationBreakdown.map((loc) => (
+                    <button
+                      key={loc.id}
+                      className="w-full text-left hover:bg-muted/50 rounded-lg transition-colors p-1 -m-1"
+                      onClick={() => {
+                        if (loc.id === "__none__") return;
+                        navigate(`/admin/finance?tab=transactions&location=${loc.id}`);
+                      }}
+                      disabled={loc.id === "__none__"}
+                    >
+                      <BreakdownRow label={loc.name} amount={loc.total} total={metrics.collected} count={loc.count} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Rental Capture Failures — surfaced from admin_alerts */}
           <RentalCaptureFailurePanel />
@@ -1029,6 +1108,19 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Location filter (deep-linkable via ?location=<id>)
+  const urlLocation = searchParams.get("location");
+  const [locationFilter, setLocationFilter] = useState<string>(urlLocation || "all");
+  const { data: locationsList = [] } = useQuery({
+    queryKey: ["finance-locations"],
+    queryFn: async () => {
+      const { data } = await supabase.from("locations").select("id, name").order("name");
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const locationNameMap = useMemo(() => new Map(locationsList.map((l) => [l.id, l.name])), [locationsList]);
+
   // Damage charge banner from Damages page
   const showDamageBanner = urlAdjustment === "damage" && urlBooking;
 
@@ -1059,7 +1151,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     queryFn: async () => {
       const { data, error } = await supabase
         .from("final_invoices")
-        .select(`*, booking:bookings(booking_code, start_at, end_at, total_days, user_id, customer_id, vehicle_id)`)
+        .select(`*, booking:bookings(booking_code, start_at, end_at, total_days, user_id, customer_id, vehicle_id, location_id)`)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -1083,6 +1175,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
         return {
           ...inv,
           line_items_json: inv.line_items_json as any,
+          location_id: b?.location_id ?? null,
           booking: b ? {
             booking_code: b.booking_code, start_at: b.start_at, end_at: b.end_at, total_days: b.total_days,
             profile: cust ? { id: b.customer_id, full_name: cust.full_name, email: cust.email } : profileMap.get(b.user_id) || null,
@@ -1099,7 +1192,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     queryFn: async () => {
       let query = supabase
         .from("receipts")
-        .select(`*, booking:bookings(booking_code, total_amount, daily_rate, total_days, start_at, end_at, deposit_amount, user_id, customer_id, vehicle_id)`)
+        .select(`*, booking:bookings(booking_code, total_amount, daily_rate, total_days, start_at, end_at, deposit_amount, user_id, customer_id, vehicle_id, location_id)`)
         .order("created_at", { ascending: false });
 
       if (statusFilter !== "all") {
@@ -1142,6 +1235,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           ...receipt,
           totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number },
           line_items_json: receipt.line_items_json as any[],
+          location_id: b?.location_id ?? null,
           booking: b ? {
             booking_code: b.booking_code, total_amount: b.total_amount, daily_rate: b.daily_rate,
             total_days: b.total_days, start_at: b.start_at, end_at: b.end_at, deposit_amount: b.deposit_amount,
@@ -1164,7 +1258,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
       // Fetch payments within date range
       const { data: manualPayments, error: pErr } = await supabase
         .from("payments")
-        .select(`*, booking:bookings(booking_code, user_id)`)
+        .select(`*, booking:bookings(booking_code, user_id, location_id)`)
         .gte("created_at", startISO)
         .lte("created_at", endISO)
         .order("created_at", { ascending: false });
@@ -1172,7 +1266,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
       const { data: wlBookings, error: wlErr } = await supabase
         .from("bookings")
-        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id, customer_id")
+        .select("id, booking_code, total_amount, wl_transaction_id, wl_auth_status, card_type, card_last_four, status, created_at, user_id, customer_id, location_id")
         .not("wl_transaction_id", "is", null)
         .gte("created_at", startISO)
         .lte("created_at", endISO)
@@ -1181,7 +1275,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
       const { data: wlDepositBookings, error: wlDErr } = await supabase
         .from("bookings")
-        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id, customer_id")
+        .select("id, booking_code, deposit_amount, wl_deposit_transaction_id, wl_deposit_auth_status, card_type, card_last_four, deposit_status, deposit_authorized_at, created_at, user_id, customer_id, location_id")
         .not("wl_deposit_transaction_id", "is", null)
         .gte("created_at", startISO)
         .lte("created_at", endISO)
@@ -1233,6 +1327,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
       const manual: Payment[] = manualPayments.map(payment => ({
         ...payment,
         source: "manual" as const,
+        location_id: (payment.booking as any)?.location_id ?? null,
         booking: payment.booking ? { ...payment.booking, profile: profileMap.get(payment.booking.user_id) || null } : null,
       }));
 
@@ -1248,6 +1343,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           transaction_id: b.wl_transaction_id,
           created_at: b.created_at,
           source: "worldline" as const,
+          location_id: (b as any).location_id ?? null,
           booking: { booking_code: b.booking_code, profile: resolveProf(b.user_id, b.customer_id) },
         }));
 
@@ -1263,6 +1359,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           transaction_id: b.wl_deposit_transaction_id,
           created_at: b.deposit_authorized_at || b.created_at,
           source: "worldline" as const,
+          location_id: (b as any).location_id ?? null,
           booking: { booking_code: b.booking_code, profile: resolveProf(b.user_id, b.customer_id) },
         }));
 
@@ -1291,19 +1388,25 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
   });
 
   // ==================== FILTERING ====================
+  const matchesLocation = (locId: string | null | undefined) =>
+    locationFilter === "all" || (locId || "") === locationFilter;
+
   const filteredInvoices = invoices.filter((inv) => {
+    if (!matchesLocation(inv.location_id)) return false;
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return inv.invoice_number?.toLowerCase().includes(s) || inv.booking?.booking_code?.toLowerCase().includes(s) || inv.booking?.profile?.full_name?.toLowerCase().includes(s);
   });
 
   const filteredReceipts = receipts.filter((receipt) => {
+    if (!matchesLocation(receipt.location_id)) return false;
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return receipt.receipt_number?.toLowerCase().includes(s) || receipt.booking?.booking_code?.toLowerCase().includes(s) || receipt.booking?.profile?.full_name?.toLowerCase().includes(s);
   });
 
   const filteredPayments = payments.filter((payment) => {
+    if (!matchesLocation(payment.location_id)) return false;
     // Method filter from Overview click-through
     if (methodFilter && normalizeMethod(payment.payment_method) !== methodFilter) return false;
     // Type filter
@@ -1319,6 +1422,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     const s = searchTerm.toLowerCase();
     return payment.booking?.booking_code?.toLowerCase().includes(s) || payment.booking?.profile?.full_name?.toLowerCase().includes(s) || payment.transaction_id?.toLowerCase().includes(s);
   });
+
+  const filteredDepositPayments = filteredPayments.filter(p => p.payment_type === "deposit");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -1493,6 +1598,18 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 className="pl-10"
               />
             </div>
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-[180px]">
+                <MapPin className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locationsList.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {activeTab === "receipts" && (
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[160px]">
@@ -1743,7 +1860,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           <TabsContent value="deposits">
             {paymentsLoading ? (
               <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : depositPayments.length === 0 ? (
+            ) : filteredDepositPayments.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-2xl">
                 <Banknote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No deposit records found</p>
@@ -1763,7 +1880,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {depositPayments.map((payment) => (
+                    {filteredDepositPayments.map((payment) => (
                       <TableRow key={payment.id} className="hover:bg-muted/30">
                         <TableCell>
                           <Tooltip>
