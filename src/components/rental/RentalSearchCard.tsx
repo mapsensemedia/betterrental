@@ -110,12 +110,16 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
   // Get minimum date (today)
   const today = formatLocalDate(new Date());
 
-  // Pre-select location from prop
+  // Pre-select location from prop (or force when locked)
   useEffect(() => {
+    if (lockLocationId) {
+      if (locationId !== lockLocationId) handleLocationChange(lockLocationId);
+      return;
+    }
     if (defaultLocationId && !searchData.pickupLocationId) {
       handleLocationChange(defaultLocationId);
     }
-  }, [defaultLocationId]);
+  }, [defaultLocationId, lockLocationId, searchData.pickupLocationId]);
 
   // Auto-select delivery mode from URL param
   useEffect(() => {
