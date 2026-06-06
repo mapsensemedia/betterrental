@@ -320,6 +320,18 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
   setCustomStart: (d: Date) => void;
   setCustomEnd: (d: Date) => void;
 }) {
+  const navigate = useNavigate();
+
+  // Locations lookup for revenue-by-location breakdown
+  const { data: locationsList = [] } = useQuery({
+    queryKey: ["finance-locations"],
+    queryFn: async () => {
+      const { data } = await supabase.from("locations").select("id, name").order("name");
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const locationMap = useMemo(() => new Map(locationsList.map((l) => [l.id, l.name])), [locationsList]);
 
   // Source A — payments table (primary, renders immediately)
   const { data: paymentsOnly = [], isLoading, refetch } = useQuery({
