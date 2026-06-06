@@ -653,6 +653,29 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       .sort((a, b) => b.total - a.total);
   }, [payments, metrics.collected]);
 
+  const locationBreakdown = useMemo(() => {
+    const map = new Map<string, { count: number; total: number }>();
+    const seen = new Set<string>();
+    payments.filter((p) => p.status === "completed").forEach((p) => {
+      const dedupeKey = p.transaction_id || p.id;
+      if (seen.has(dedupeKey)) return;
+      seen.add(dedupeKey);
+      const id = p.location_id || "__none__";
+      const entry = map.get(id) || { count: 0, total: 0 };
+      entry.count++;
+      entry.total += p.amount;
+      map.set(id, entry);
+    });
+    return Array.from(map.entries())
+      .map(([id, data]) => ({
+        id,
+        name: id === "__none__" ? "Unassigned" : (locationMap.get(id) || "Unknown"),
+        ...data,
+        percent: metrics.collected > 0 ? Math.round((data.total / metrics.collected) * 100) : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [payments, metrics.collected, locationMap]);
+
   const typeBreakdown = useMemo(() => {
     const seenRental = new Set<string>();
     const seenDeposit = new Set<string>();
