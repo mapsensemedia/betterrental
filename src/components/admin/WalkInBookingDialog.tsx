@@ -261,12 +261,32 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       if (data?.booking?.id) {
         const code = data.booking.bookingCode || data.booking.booking_code;
         createdBookingRef.current = { id: data.booking.id, bookingCode: code };
-        
+
         if (data.existing) {
           toast.info(`Existing walk-in booking found (${code}). Resuming payment.`);
         } else {
           toast.success(`Walk-in booking created: ${code}`);
         }
+
+        // Opt-in: email the customer a password-setup link
+        if (sendSetupLink && formData.email) {
+          try {
+            const { data: linkRes, error: linkErr } = await supabase.functions.invoke(
+              "send-account-setup-link",
+              { body: { bookingId: data.booking.id } },
+            );
+            if (linkErr || linkRes?.error) {
+              toast.warning(
+                `Booking created, but couldn't send account setup link: ${linkRes?.error || linkErr?.message || "unknown error"}`,
+              );
+            } else if (linkRes?.success) {
+              toast.success(`Account setup link sent to ${linkRes.sentTo}`);
+            }
+          } catch (e: any) {
+            toast.warning(`Booking created, but couldn't send setup link: ${e?.message || e}`);
+          }
+        }
+
         onOpenChange(false);
         navigate(`/admin/bookings/${data.booking.id}/ops?returnTo=/admin/bookings`);
       } else {
