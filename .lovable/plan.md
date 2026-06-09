@@ -1,58 +1,27 @@
-# Walk-In: Send Account Setup Link
+# Fix: Can't change a vehicle unit's location in admin inventory
 
-Add an opt-in checkbox to the **Walk-In Booking** dialog that, on successful booking creation, emails the customer a link to `/complete-signup` with their booking pre-linked, so they can set a password and access their booking online.
+## Root cause
 
-## Why
-Walk-in customers today get a `customers` record and a guest `auth.users` entry with a random password they never see. They never receive the standard `/complete-signup` prompt, so they can't log in to view their booking. This change gives staff a one-click way to invite them.
+`src/components/admin/fleet/VehicleUnitEditDialog.tsx` (the dialog opened from the admin fleet inventory's "Edit" action) renders fields for VIN, plate, color, status, category, cost, mileage, tank, and notes — but **has no Location field**. Even though `vehicle_units.location_id` exists in the DB and is editable via `useUpdateVehicleUnit`, the UI never lets the user change it. The only place location is set today is the create flow (`VinFormDialog`), so once a unit is added, its location is effectively frozen in the admin panel.
 
-## UX
+## Fix
 
-In `src/components/admin/WalkInBookingDialog.tsx`, just below the Email field, add:
+Add a Location selector to the edit dialog and include `location_id` in the update payload.
 
-- ☐ **Email customer a link to set up their account** (default: checked when email looks valid)
-- Helper text: *"Sends a secure link to set a password and view this booking online."*
+### Changes in `src/components/admin/fleet/VehicleUnitEditDialog.tsx`
 
-After successful submission, if the box is checked, a toast confirms: *"Account setup link sent to john@example.com"*. Failure to send is non-fatal and shown as a warning toast — the booking still succeeds.
+1. Import `LocationSelector` from `@/components/shared/LocationSelector` (already wired to `useLocations`).
+2. Add `location_id: ""` to the `formData` state shape.
+3. In the `useEffect` that hydrates `formData` from `unit`, populate `location_id: unit.location_id || ""`.
+4. Add a new form row (next to Category, or just below Status) labeled "Location" rendering `<LocationSelector value={formData.location_id || null} onChange={(v) => setFormData({ ...formData, location_id: v })} />`.
+5. In `handleSubmit`, pass `location_id: formData.location_id || null` to `updateUnit.mutateAsync(...)`.
 
-## Flow
+### Out of scope
 
-```text
-Staff submits walk-in
-   ├── create-walk-in-booking (existing)  -> booking + customer + guest auth user
-   └── if sendSetupLink:
-         send-account-setup-link (NEW)    -> emails /complete-signup link to customer
-```
+- No DB migration (column already exists, RLS already allows admin/staff updates via `useUpdateVehicleUnit`).
+- No change to the move-with-reason audit flow used in ops (`MoveUnitInput`); this is the admin inventory edit path only.
+- No change to status auto-transitions — admin keeps current status field as-is.
 
-## New edge function: `send-account-setup-link`
+### Files touched
 
-- Auth: requires JWT + `is_admin_or_staff` (same pattern as `create-walk-in-booking`).
-- Input: `{ bookingId: string }`.
-- Steps:
-  1. Load booking → resolve `user_id`, `booking_code`, customer email + name via `profiles` / `customers`.
-  2. Reject if email is missing or if the `auth.users` row is **already confirmed** (i.e. customer already has a real account) — return `{ skipped: "already_registered" }`.
-  3. Build URL: `${APP_ORIGIN}/complete-signup?bookingId=<id>&bookingCode=<code>&email=<email>`.
-     - `APP_ORIGIN` resolved from request `Origin` header, falling back to a hardcoded production URL (`https://www.c2crental.ca`).
-  4. Send via Resend (existing `RESEND_API_KEY`), reusing the `from` address pattern from `send-booking-email` (`C2C Rental <onboarding@resend.dev>`).
-  5. Log to `notification_logs` (channel `email`, type `account_setup_invite`).
-- Returns `{ success: true, sentTo }` or `{ error }`.
-
-## Client wiring
-
-In `WalkInBookingDialog.tsx`:
-- New state: `sendSetupLink: boolean` (default `true`).
-- New checkbox under the Email input.
-- After `submitBooking()` succeeds and `data.booking.id` exists, if `sendSetupLink && formData.email`, fire-and-await `supabase.functions.invoke("send-account-setup-link", { body: { bookingId: data.booking.id } })` before navigating. Show success/warn toast based on result.
-
-## Reuse existing pieces (no changes needed)
-- `/complete-signup` page already accepts `bookingId`, `bookingCode`, `email` query params and handles both the "create account" and "already registered → log in" branches.
-- `create-walk-in-booking` already creates an unconfirmed auth user tied to the email — so signing up at `/complete-signup` will either match that shell user (after they verify their email) or surface the existing-account path.
-
-## Out of scope
-- No SMS variant (email-only for v1).
-- No changes to `create-walk-in-booking` itself.
-- No changes to `/complete-signup` UI.
-- No custom-domain email setup; we keep the current Resend sender used elsewhere in the project.
-
-## Files
-- **New:** `supabase/functions/send-account-setup-link/index.ts`
-- **Edit:** `src/components/admin/WalkInBookingDialog.tsx` (checkbox + post-submit invoke)
+- `src/components/admin/fleet/VehicleUnitEditDialog.tsx` (edit only)

@@ -26,6 +26,7 @@ import { Loader2 } from "lucide-react";
 import { useUpdateVehicleUnit, VehicleUnit } from "@/hooks/use-vehicle-units";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { useLocations } from "@/hooks/use-locations";
+import { LocationSelector } from "@/components/shared/LocationSelector";
 
 interface VehicleUnitEditDialogProps {
   open: boolean;
@@ -50,6 +51,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
     current_mileage: "",
     tank_capacity_liters: "",
     category_id: NO_CATEGORY_VALUE,
+    location_id: "",
     status: "active",
     notes: "",
   });
@@ -66,6 +68,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
         current_mileage: unit.current_mileage ? String(unit.current_mileage) : "",
         tank_capacity_liters: unit.tank_capacity_liters ? String(unit.tank_capacity_liters) : "",
         category_id: unit.category_id || NO_CATEGORY_VALUE,
+        location_id: unit.location_id || "",
         status: unit.status || "active",
         notes: unit.notes || "",
       });
@@ -87,6 +90,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
       current_mileage: formData.current_mileage ? Number(formData.current_mileage) : null,
       tank_capacity_liters: formData.tank_capacity_liters ? Number(formData.tank_capacity_liters) : null,
       category_id: formData.category_id === NO_CATEGORY_VALUE ? null : formData.category_id,
+      location_id: formData.location_id || null,
       status: formData.status,
       notes: formData.notes || null,
     });
@@ -180,6 +184,17 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <LocationSelector
+              value={formData.location_id || null}
+              onChange={(v) => setFormData({ ...formData, location_id: v })}
+              placeholder="Select location"
+            />
+          </div>
+
+
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
