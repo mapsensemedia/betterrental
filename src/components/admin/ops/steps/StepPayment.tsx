@@ -51,10 +51,16 @@ interface StepPaymentProps {
 
 export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: paymentStatus, isLoading } = usePaymentDepositStatus(bookingId);
+  const { data: roles } = useUserRoles();
+  const isAdmin = (roles || []).some((r) => r.role === "admin");
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
   const [isCapturingRental, setIsCapturingRental] = useState(false);
   const [payMode, setPayMode] = useState<"card" | "terminal">("card");
+  const [lastRentalError, setLastRentalError] = useState<string | null>(null);
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [manualReason, setManualReason] = useState("");
+  const [isManualCapturing, setIsManualCapturing] = useState(false);
   const queryClient = useQueryClient();
 
   const copyToClipboard = (text: string, label: string) => {
