@@ -432,6 +432,55 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Mark Signed in Person Dialog */}
+      <Dialog open={manualSignDialogOpen} onOpenChange={setManualSignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Signed in Person</DialogTitle>
+            <DialogDescription>
+              Record that the customer signed the agreement physically at the counter.
+              This marks the agreement as confirmed and is logged in the audit trail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="manual-signer-name">Customer Name</Label>
+            <Input
+              id="manual-signer-name"
+              value={manualSignerName}
+              onChange={(e) => setManualSignerName(e.target.value)}
+              placeholder="Enter customer's full name as signed"
+            />
+          </div>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setManualSignDialogOpen(false)} disabled={markSignedManually.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!agreement) return;
+                const name = manualSignerName.trim();
+                if (!name) {
+                  toast.error("Customer name is required");
+                  return;
+                }
+                markSignedManually.mutate(
+                  { agreementId: agreement.id, customerName: name },
+                  { onSuccess: () => setManualSignDialogOpen(false) }
+                );
+              }}
+              disabled={markSignedManually.isPending}
+            >
+              {markSignedManually.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-1" />
+              )}
+              Confirm Signed in Person
+            </Button>
+          </AlertDialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
