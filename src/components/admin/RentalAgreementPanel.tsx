@@ -38,6 +38,7 @@ import {
   useGenerateAgreement,
   useConfirmAgreement,
   useVoidAgreement,
+  useMarkSignedManually,
 } from "@/hooks/use-rental-agreement";
 import { useSaveSignature } from "@/hooks/use-signature-capture";
 import { SignatureCapturePanel } from "./signature/SignatureCapturePanel";
