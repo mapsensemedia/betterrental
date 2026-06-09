@@ -421,6 +421,20 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 />
               </div>
             </div>
+            <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-input"
+                checked={sendSetupLink}
+                onChange={(e) => setSendSetupLink(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">Email customer a link to set up their account</span>
+                <span className="block text-xs text-muted-foreground">
+                  Sends a secure link so they can set a password and view this booking online.
+                </span>
+              </span>
+            </label>
           </div>
 
           {/* Location & Vehicle */}
