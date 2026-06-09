@@ -90,6 +90,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
       current_mileage: formData.current_mileage ? Number(formData.current_mileage) : null,
       tank_capacity_liters: formData.tank_capacity_liters ? Number(formData.tank_capacity_liters) : null,
       category_id: formData.category_id === NO_CATEGORY_VALUE ? null : formData.category_id,
+      location_id: formData.location_id || null,
       status: formData.status,
       notes: formData.notes || null,
     });
