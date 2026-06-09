@@ -310,6 +310,24 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                   <p className="text-xs text-muted-foreground mt-1.5">
                     Rental is authorized but not yet captured. Click to settle the funds.
                   </p>
+                  {lastRentalError && (
+                    <Alert className="mt-2 border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 py-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                      <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+                        Last attempt: {lastRentalError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={openManualDialog}
+                      className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Mark captured manually (admin override)
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
