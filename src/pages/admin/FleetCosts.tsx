@@ -871,6 +871,15 @@ export default function FleetCosts() {
             </div>
 
             <div className="space-y-2">
+              <Label>Location</Label>
+              <LocationSelector
+                value={formData.location_id || null}
+                onChange={(v) => setFormData({ ...formData, location_id: v })}
+                placeholder="Select location"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Notes</Label>
               <Textarea
                 value={formData.notes}
