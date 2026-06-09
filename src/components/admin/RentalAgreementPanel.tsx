@@ -57,11 +57,14 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
   const generateAgreement = useGenerateAgreement();
   const confirmAgreement = useConfirmAgreement();
   const voidAgreement = useVoidAgreement();
+  const markSignedManually = useMarkSignedManually();
   const saveSignature = useSaveSignature();
 
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [manualSignDialogOpen, setManualSignDialogOpen] = useState(false);
+  const [manualSignerName, setManualSignerName] = useState(customerName || "");
   const [signerName, setSignerName] = useState(customerName || "");
   const [showSignatureCapture, setShowSignatureCapture] = useState(false);
 
