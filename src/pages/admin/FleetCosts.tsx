@@ -140,6 +140,7 @@ export default function FleetCosts() {
       tank_capacity_liters: "",
       notes: "",
       status: "active",
+      location_id: "",
     });
   };
 
