@@ -315,6 +315,22 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
                   </Button>
                 )}
 
+                {/* Mark Signed In Person - only show if not yet confirmed/voided */}
+                {(agreement.status === "pending" || agreement.status === "signed") && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setManualSignerName(customerName || "");
+                      setManualSignDialogOpen(true);
+                    }}
+                    className="gap-1"
+                  >
+                    <PenLine className="h-3.5 w-3.5" />
+                    Mark Signed in Person
+                  </Button>
+                )}
+
                 {agreement.status !== "voided" && agreement.status !== "confirmed" && (
                   <Button
                     variant="destructive"
