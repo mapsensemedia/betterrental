@@ -39,7 +39,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { OpsPaymentAndDeposit } from "@/components/payments/OpsPaymentAndDeposit";
 import { DEFAULT_DEPOSIT_AMOUNT } from "@/lib/pricing";
-import { useUserRole } from "@/hooks/use-admin";
+import { useUserRoles } from "@/hooks/use-admin";
 
 interface StepPaymentProps {
   bookingId: string;
