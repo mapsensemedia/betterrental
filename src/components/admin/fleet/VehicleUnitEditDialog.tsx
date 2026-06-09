@@ -185,6 +185,17 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <LocationSelector
+              value={formData.location_id || null}
+              onChange={(v) => setFormData({ ...formData, location_id: v })}
+              placeholder="Select location"
+            />
+          </div>
+
+
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="acquisition_cost">Acquisition Cost ($ CAD)</Label>
