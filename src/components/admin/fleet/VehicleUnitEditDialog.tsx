@@ -153,7 +153,6 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="available">Available</SelectItem>
                   <SelectItem value="on_rent">On Rent</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
