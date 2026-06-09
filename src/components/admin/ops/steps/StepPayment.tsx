@@ -139,12 +139,48 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
       if (error) throw error;
       if (data?.error) throw new Error(data.message || data.error);
       toast.success("Rental payment captured successfully");
+      setLastRentalError(null);
       queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
     } catch (err: any) {
-      toast.error("Rental capture failed: " + (err.message || "Unknown error"));
+      const msg = err?.message || "Unknown error";
+      setLastRentalError(msg);
+      toast.error("Rental capture failed: " + msg);
     } finally {
       setIsCapturingRental(false);
+    }
+  };
+
+  const openManualDialog = () => {
+    setManualReason(
+      lastRentalError ? `Worldline capture failed: ${lastRentalError}` : ""
+    );
+    setManualDialogOpen(true);
+  };
+
+  const handleManualCapture = async () => {
+    const trimmed = manualReason.trim();
+    if (trimmed.length < 5) {
+      toast.error("Please provide a reason (min 5 characters)");
+      return;
+    }
+    setIsManualCapturing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-capture", {
+        body: { bookingId, kind: "rental", manualOverride: true, reason: trimmed },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      toast.success("Rental marked as captured (manual override)");
+      setManualDialogOpen(false);
+      setManualReason("");
+      setLastRentalError(null);
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    } catch (err: any) {
+      toast.error("Manual capture failed: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsManualCapturing(false);
     }
   };
 
