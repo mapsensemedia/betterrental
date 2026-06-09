@@ -165,6 +165,7 @@ export default function FleetCosts() {
       tank_capacity_liters: unit.tank_capacity_liters ? String(unit.tank_capacity_liters) : "",
       notes: unit.notes || "",
       status: unit.status,
+      location_id: unit.location_id || "",
     });
     setIsEditOpen(true);
   };
