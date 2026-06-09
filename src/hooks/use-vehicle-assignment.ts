@@ -77,7 +77,7 @@ export function useAvailableVehicles(
         .from('vehicle_units')
         .select('id, vin, license_plate, color, status, category_id, location_id, vehicle_categories(id, name, daily_rate, image_url)')
         .eq('location_id', locationId)
-        .in('status', ['available']);
+        .in('status', ['available', 'active']);
 
       if (unitError) throw unitError;
 
