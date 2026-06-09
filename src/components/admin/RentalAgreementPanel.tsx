@@ -453,7 +453,7 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
               placeholder="Enter customer's full name as signed"
             />
           </div>
-          <AlertDialogFooter>
+          <DialogFooter>
             <Button variant="outline" onClick={() => setManualSignDialogOpen(false)} disabled={markSignedManually.isPending}>
               Cancel
             </Button>
@@ -479,7 +479,7 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
               )}
               Confirm Signed in Person
             </Button>
-          </AlertDialogFooter>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
