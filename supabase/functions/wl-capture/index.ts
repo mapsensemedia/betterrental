@@ -74,6 +74,40 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ── MANUAL OVERRIDE (rental) ── bypass Bambora completion call
+      if (isManual) {
+        const finalAmountManual = captureAmount ?? booking.total_amount;
+
+        await supabase.from("bookings").update({
+          wl_auth_status: "completed",
+        }).eq("id", bookingId);
+
+        await supabase.from("payments")
+          .update({ status: "completed", payment_method: "card_manual_capture" })
+          .eq("booking_id", bookingId)
+          .eq("transaction_id", rentalTxnId);
+
+        await supabase.from("audit_logs").insert({
+          action: "rental_capture_manual_override",
+          entity_type: "booking",
+          entity_id: bookingId,
+          user_id: user.userId,
+          new_data: {
+            rental_txn_id: rentalTxnId,
+            amount: finalAmountManual,
+            reason: reason || null,
+            booking_code: booking.booking_code,
+          },
+        });
+
+        log.info("Rental capture manual override", { amount: finalAmountManual, rentalTxnId, reason });
+
+        return new Response(
+          JSON.stringify({ success: true, kind: "rental", capturedAmount: finalAmountManual, manualOverride: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       const finalAmount = captureAmount ?? booking.total_amount;
 
       const res = await log.timed("bambora_capture_rental", () =>
