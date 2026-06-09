@@ -75,6 +75,7 @@ import { DepreciationCalculator } from "@/components/admin/DepreciationCalculato
 import { LifecycleSummarySection } from "@/components/admin/fleet/LifecycleSummarySection";
 import { VehicleHealthCard, VehicleHealthData } from "@/components/admin/fleet/VehicleHealthCard";
 import { useFleetCostAnalysisEnhanced } from "@/hooks/use-fleet-cost-enhanced";
+import { LocationSelector } from "@/components/shared/LocationSelector";
 
 export default function FleetCosts() {
   const [searchParams] = useSearchParams();
@@ -123,6 +124,7 @@ export default function FleetCosts() {
     tank_capacity_liters: "",
     notes: "",
     status: "active",
+    location_id: "",
   });
 
   const resetForm = () => {
@@ -138,6 +140,7 @@ export default function FleetCosts() {
       tank_capacity_liters: "",
       notes: "",
       status: "active",
+      location_id: "",
     });
   };
 
@@ -162,6 +165,7 @@ export default function FleetCosts() {
       tank_capacity_liters: unit.tank_capacity_liters ? String(unit.tank_capacity_liters) : "",
       notes: unit.notes || "",
       status: unit.status,
+      location_id: unit.location_id || "",
     });
     setIsEditOpen(true);
   };
@@ -209,6 +213,7 @@ export default function FleetCosts() {
       tank_capacity_liters: formData.tank_capacity_liters ? Number(formData.tank_capacity_liters) : null,
       notes: formData.notes || null,
       status: formData.status,
+      location_id: formData.location_id || null,
     });
     setIsEditOpen(false);
     setSelectedUnit(null);
@@ -862,6 +867,15 @@ export default function FleetCosts() {
                 min="20"
                 max="200"
                 step="0.1"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <LocationSelector
+                value={formData.location_id || null}
+                onChange={(v) => setFormData({ ...formData, location_id: v })}
+                placeholder="Select location"
               />
             </div>
 
