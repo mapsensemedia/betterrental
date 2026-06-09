@@ -213,6 +213,7 @@ export default function FleetCosts() {
       tank_capacity_liters: formData.tank_capacity_liters ? Number(formData.tank_capacity_liters) : null,
       notes: formData.notes || null,
       status: formData.status,
+      location_id: formData.location_id || null,
     });
     setIsEditOpen(false);
     setSelectedUnit(null);
