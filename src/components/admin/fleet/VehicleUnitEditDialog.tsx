@@ -51,6 +51,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
     current_mileage: "",
     tank_capacity_liters: "",
     category_id: NO_CATEGORY_VALUE,
+    location_id: "",
     status: "active",
     notes: "",
   });
@@ -67,6 +68,7 @@ export function VehicleUnitEditDialog({ open, onOpenChange, unit }: VehicleUnitE
         current_mileage: unit.current_mileage ? String(unit.current_mileage) : "",
         tank_capacity_liters: unit.tank_capacity_liters ? String(unit.tank_capacity_liters) : "",
         category_id: unit.category_id || NO_CATEGORY_VALUE,
+        location_id: unit.location_id || "",
         status: unit.status || "active",
         notes: unit.notes || "",
       });
