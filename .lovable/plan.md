@@ -1,42 +1,58 @@
-# Per-Location Revenue in Finance
+# Walk-In: Send Account Setup Link
 
-Today the Finance page (`/admin/finance`) shows totals across all three locations (Surrey Newton, Langley Centre, Abbotsford Centre) with no way to see which location earned what. Two additions:
+Add an opt-in checkbox to the **Walk-In Booking** dialog that, on successful booking creation, emails the customer a link to `/complete-signup` with their booking pre-linked, so they can set a password and access their booking online.
 
-## 1. Overview tab — "Revenue by location" card
+## Why
+Walk-in customers today get a `customers` record and a guest `auth.users` entry with a random password they never see. They never receive the standard `/complete-signup` prompt, so they can't log in to view their booking. This change gives staff a one-click way to invite them.
 
-A new card under the existing KPI row, for the selected date range:
+## UX
+
+In `src/components/admin/WalkInBookingDialog.tsx`, just below the Email field, add:
+
+- ☐ **Email customer a link to set up their account** (default: checked when email looks valid)
+- Helper text: *"Sends a secure link to set a password and view this booking online."*
+
+After successful submission, if the box is checked, a toast confirms: *"Account setup link sent to john@example.com"*. Failure to send is non-fatal and shown as a warning toast — the booking still succeeds.
+
+## Flow
 
 ```text
-Revenue by location                                    [month ▾]
-─────────────────────────────────────────────────────────────
-Surrey Newton            $12,430.00      52 payments    48%
-Langley Centre            $8,120.00      36 payments    31%
-Abbotsford Centre         $4,310.00      19 payments    21%
-─────────────────────────────────────────────────────────────
-Total                    $24,860.00     107 payments
+Staff submits walk-in
+   ├── create-walk-in-booking (existing)  -> booking + customer + guest auth user
+   └── if sendSetupLink:
+         send-account-setup-link (NEW)    -> emails /complete-signup link to customer
 ```
 
-- Source: `payments` rows already loaded by `OverviewTab`, joined to `bookings.location_id` → `locations.name`.
-- Only `status = 'completed'` rows count toward revenue (matches the existing "Amount Collected" rule in the unified revenue source of truth).
-- Clicking a row deep-links to Transactions tab with the location pre-filtered.
+## New edge function: `send-account-setup-link`
 
-## 2. Transactions tab — Location filter + column
+- Auth: requires JWT + `is_admin_or_staff` (same pattern as `create-walk-in-booking`).
+- Input: `{ bookingId: string }`.
+- Steps:
+  1. Load booking → resolve `user_id`, `booking_code`, customer email + name via `profiles` / `customers`.
+  2. Reject if email is missing or if the `auth.users` row is **already confirmed** (i.e. customer already has a real account) — return `{ skipped: "already_registered" }`.
+  3. Build URL: `${APP_ORIGIN}/complete-signup?bookingId=<id>&bookingCode=<code>&email=<email>`.
+     - `APP_ORIGIN` resolved from request `Origin` header, falling back to a hardcoded production URL (`https://www.c2crental.ca`).
+  4. Send via Resend (existing `RESEND_API_KEY`), reusing the `from` address pattern from `send-booking-email` (`C2C Rental <onboarding@resend.dev>`).
+  5. Log to `notification_logs` (channel `email`, type `account_setup_invite`).
+- Returns `{ success: true, sentTo }` or `{ error }`.
 
-- New "Location" dropdown next to the existing Type/Status filters: **All locations / Surrey Newton / Langley Centre / Abbotsford Centre**. Persisted in the URL as `?location=<id>`.
-- Filter applies to Invoices, Receipts, Payments, and Deposits sub-tabs (all are booking-scoped).
-- Add a compact "Location" column (or small chip under the booking code) to each sub-tab's table so staff can see the location without opening the booking.
+## Client wiring
 
-## Technical notes
+In `WalkInBookingDialog.tsx`:
+- New state: `sendSetupLink: boolean` (default `true`).
+- New checkbox under the Email input.
+- After `submitBooking()` succeeds and `data.booking.id` exists, if `sendSetupLink && formData.email`, fire-and-await `supabase.functions.invoke("send-account-setup-link", { body: { bookingId: data.booking.id } })` before navigating. Show success/warn toast based on result.
 
-- Extend the `payments` query in `OverviewTab` to include `bookings(location_id, locations(name))` via the existing booking join already done at line ~330.
-- Extend each sub-tab query in `TransactionsTab` (invoices, receipts, payments, deposits) to select `bookings.location_id` and join `locations(name)`.
-- Aggregation is integer-cents safe (sum then format) per the project's financial integrity rules.
-- No schema changes, no edge function changes — read-only UI work.
-
-## Files
-
-- `src/pages/admin/Finance.tsx` — add location card, location filter state, URL param, table column, extended selects.
+## Reuse existing pieces (no changes needed)
+- `/complete-signup` page already accepts `bookingId`, `bookingCode`, `email` query params and handles both the "create account" and "already registered → log in" branches.
+- `create-walk-in-booking` already creates an unconfirmed auth user tied to the email — so signing up at `/complete-signup` will either match that shell user (after they verify their email) or surface the existing-account path.
 
 ## Out of scope
+- No SMS variant (email-only for v1).
+- No changes to `create-walk-in-booking` itself.
+- No changes to `/complete-signup` UI.
+- No custom-domain email setup; we keep the current Resend sender used elsewhere in the project.
 
-- No changes to Reports page, no new exports, no email/PDF changes. Refunds and deposit captures continue to follow existing rules.
+## Files
+- **New:** `supabase/functions/send-account-setup-link/index.ts`
+- **Edit:** `src/components/admin/WalkInBookingDialog.tsx` (checkbox + post-submit invoke)

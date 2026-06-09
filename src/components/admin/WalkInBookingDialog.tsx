@@ -74,6 +74,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createdBookingRef = useRef<{ id: string; bookingCode: string } | null>(null);
   const [customerConflict, setCustomerConflict] = useState<CustomerMatchConflict | null>(null);
+  const [sendSetupLink, setSendSetupLink] = useState(true);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -260,12 +261,32 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       if (data?.booking?.id) {
         const code = data.booking.bookingCode || data.booking.booking_code;
         createdBookingRef.current = { id: data.booking.id, bookingCode: code };
-        
+
         if (data.existing) {
           toast.info(`Existing walk-in booking found (${code}). Resuming payment.`);
         } else {
           toast.success(`Walk-in booking created: ${code}`);
         }
+
+        // Opt-in: email the customer a password-setup link
+        if (sendSetupLink && formData.email) {
+          try {
+            const { data: linkRes, error: linkErr } = await supabase.functions.invoke(
+              "send-account-setup-link",
+              { body: { bookingId: data.booking.id } },
+            );
+            if (linkErr || linkRes?.error) {
+              toast.warning(
+                `Booking created, but couldn't send account setup link: ${linkRes?.error || linkErr?.message || "unknown error"}`,
+              );
+            } else if (linkRes?.success) {
+              toast.success(`Account setup link sent to ${linkRes.sentTo}`);
+            }
+          } catch (e: any) {
+            toast.warning(`Booking created, but couldn't send setup link: ${e?.message || e}`);
+          }
+        }
+
         onOpenChange(false);
         navigate(`/admin/bookings/${data.booking.id}/ops?returnTo=/admin/bookings`);
       } else {
@@ -400,6 +421,20 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 />
               </div>
             </div>
+            <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-input"
+                checked={sendSetupLink}
+                onChange={(e) => setSendSetupLink(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">Email customer a link to set up their account</span>
+                <span className="block text-xs text-muted-foreground">
+                  Sends a secure link so they can set a password and view this booking online.
+                </span>
+              </span>
+            </label>
           </div>
 
           {/* Location & Vehicle */}
