@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -38,6 +39,7 @@ import {
   useGenerateAgreement,
   useConfirmAgreement,
   useVoidAgreement,
+  useMarkSignedManually,
 } from "@/hooks/use-rental-agreement";
 import { useSaveSignature } from "@/hooks/use-signature-capture";
 import { SignatureCapturePanel } from "./signature/SignatureCapturePanel";
@@ -56,11 +58,14 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
   const generateAgreement = useGenerateAgreement();
   const confirmAgreement = useConfirmAgreement();
   const voidAgreement = useVoidAgreement();
+  const markSignedManually = useMarkSignedManually();
   const saveSignature = useSaveSignature();
 
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [manualSignDialogOpen, setManualSignDialogOpen] = useState(false);
+  const [manualSignerName, setManualSignerName] = useState(customerName || "");
   const [signerName, setSignerName] = useState(customerName || "");
   const [showSignatureCapture, setShowSignatureCapture] = useState(false);
 
@@ -311,6 +316,22 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
                   </Button>
                 )}
 
+                {/* Mark Signed In Person - only show if not yet confirmed/voided */}
+                {(agreement.status === "pending" || agreement.status === "signed") && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setManualSignerName(customerName || "");
+                      setManualSignDialogOpen(true);
+                    }}
+                    className="gap-1"
+                  >
+                    <PenLine className="h-3.5 w-3.5" />
+                    Mark Signed in Person
+                  </Button>
+                )}
+
                 {agreement.status !== "voided" && agreement.status !== "confirmed" && (
                   <Button
                     variant="destructive"
@@ -412,6 +433,55 @@ export function RentalAgreementPanel({ bookingId, customerName }: RentalAgreemen
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Mark Signed in Person Dialog */}
+      <Dialog open={manualSignDialogOpen} onOpenChange={setManualSignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Signed in Person</DialogTitle>
+            <DialogDescription>
+              Record that the customer signed the agreement physically at the counter.
+              This marks the agreement as confirmed and is logged in the audit trail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="manual-signer-name">Customer Name</Label>
+            <Input
+              id="manual-signer-name"
+              value={manualSignerName}
+              onChange={(e) => setManualSignerName(e.target.value)}
+              placeholder="Enter customer's full name as signed"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualSignDialogOpen(false)} disabled={markSignedManually.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!agreement) return;
+                const name = manualSignerName.trim();
+                if (!name) {
+                  toast.error("Customer name is required");
+                  return;
+                }
+                markSignedManually.mutate(
+                  { agreementId: agreement.id, customerName: name },
+                  { onSuccess: () => setManualSignDialogOpen(false) }
+                );
+              }}
+              disabled={markSignedManually.isPending}
+            >
+              {markSignedManually.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-1" />
+              )}
+              Confirm Signed in Person
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

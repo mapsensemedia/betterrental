@@ -10,6 +10,16 @@ import { TerminalPaymentForm } from "@/components/payments/TerminalPaymentForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   CheckCircle2, 
   CreditCard, 
@@ -29,6 +39,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { OpsPaymentAndDeposit } from "@/components/payments/OpsPaymentAndDeposit";
 import { DEFAULT_DEPOSIT_AMOUNT } from "@/lib/pricing";
+import { useUserRoles } from "@/hooks/use-admin";
 
 interface StepPaymentProps {
   bookingId: string;
@@ -40,10 +51,16 @@ interface StepPaymentProps {
 
 export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: paymentStatus, isLoading } = usePaymentDepositStatus(bookingId);
+  const { data: roles } = useUserRoles();
+  const isAdmin = (roles || []).some((r) => r.role === "admin");
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
   const [isCapturingRental, setIsCapturingRental] = useState(false);
   const [payMode, setPayMode] = useState<"card" | "terminal">("card");
+  const [lastRentalError, setLastRentalError] = useState<string | null>(null);
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [manualReason, setManualReason] = useState("");
+  const [isManualCapturing, setIsManualCapturing] = useState(false);
   const queryClient = useQueryClient();
 
   const copyToClipboard = (text: string, label: string) => {
@@ -122,12 +139,48 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
       if (error) throw error;
       if (data?.error) throw new Error(data.message || data.error);
       toast.success("Rental payment captured successfully");
+      setLastRentalError(null);
       queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
     } catch (err: any) {
-      toast.error("Rental capture failed: " + (err.message || "Unknown error"));
+      const msg = err?.message || "Unknown error";
+      setLastRentalError(msg);
+      toast.error("Rental capture failed: " + msg);
     } finally {
       setIsCapturingRental(false);
+    }
+  };
+
+  const openManualDialog = () => {
+    setManualReason(
+      lastRentalError ? `Worldline capture failed: ${lastRentalError}` : ""
+    );
+    setManualDialogOpen(true);
+  };
+
+  const handleManualCapture = async () => {
+    const trimmed = manualReason.trim();
+    if (trimmed.length < 5) {
+      toast.error("Please provide a reason (min 5 characters)");
+      return;
+    }
+    setIsManualCapturing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-capture", {
+        body: { bookingId, kind: "rental", manualOverride: true, reason: trimmed },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
+      toast.success("Rental marked as captured (manual override)");
+      setManualDialogOpen(false);
+      setManualReason("");
+      setLastRentalError(null);
+      queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    } catch (err: any) {
+      toast.error("Manual capture failed: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsManualCapturing(false);
     }
   };
 
@@ -257,6 +310,24 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
                   <p className="text-xs text-muted-foreground mt-1.5">
                     Rental is authorized but not yet captured. Click to settle the funds.
                   </p>
+                  {lastRentalError && (
+                    <Alert className="mt-2 border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 py-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                      <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+                        Last attempt: {lastRentalError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={openManualDialog}
+                      className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Mark captured manually (admin override)
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -387,6 +458,43 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark rental captured manually</DialogTitle>
+            <DialogDescription>
+              This bypasses the Worldline settlement call and marks the rental as paid.
+              Use only when the gateway returned an error (e.g. "CALL HELP DESK") and the
+              charge will be settled out-of-band (merchant portal, phone auth, etc.).
+              An audit log entry will record this override.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="manual-reason">Reason (required)</Label>
+            <Textarea
+              id="manual-reason"
+              value={manualReason}
+              onChange={(e) => setManualReason(e.target.value)}
+              placeholder="e.g. Bambora 319 CALL HELP DESK — settled via merchant portal"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualDialogOpen(false)} disabled={isManualCapturing}>
+              Cancel
+            </Button>
+            <Button onClick={handleManualCapture} disabled={isManualCapturing}>
+              {isManualCapturing ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4 mr-1" />
+              )}
+              Confirm Manual Capture
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
