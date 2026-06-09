@@ -26,6 +26,7 @@ import { Loader2 } from "lucide-react";
 import { useUpdateVehicleUnit, VehicleUnit } from "@/hooks/use-vehicle-units";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { useLocations } from "@/hooks/use-locations";
+import { LocationSelector } from "@/components/shared/LocationSelector";
 
 interface VehicleUnitEditDialogProps {
   open: boolean;
