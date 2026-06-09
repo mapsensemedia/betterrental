@@ -75,6 +75,7 @@ import { DepreciationCalculator } from "@/components/admin/DepreciationCalculato
 import { LifecycleSummarySection } from "@/components/admin/fleet/LifecycleSummarySection";
 import { VehicleHealthCard, VehicleHealthData } from "@/components/admin/fleet/VehicleHealthCard";
 import { useFleetCostAnalysisEnhanced } from "@/hooks/use-fleet-cost-enhanced";
+import { LocationSelector } from "@/components/shared/LocationSelector";
 
 export default function FleetCosts() {
   const [searchParams] = useSearchParams();
