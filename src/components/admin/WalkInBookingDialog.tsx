@@ -74,6 +74,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createdBookingRef = useRef<{ id: string; bookingCode: string } | null>(null);
   const [customerConflict, setCustomerConflict] = useState<CustomerMatchConflict | null>(null);
+  const [sendSetupLink, setSendSetupLink] = useState(true);
   
   // Form state
   const [formData, setFormData] = useState({
