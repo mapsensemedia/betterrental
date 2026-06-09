@@ -10,6 +10,16 @@ import { TerminalPaymentForm } from "@/components/payments/TerminalPaymentForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   CheckCircle2, 
   CreditCard, 
@@ -29,6 +39,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { OpsPaymentAndDeposit } from "@/components/payments/OpsPaymentAndDeposit";
 import { DEFAULT_DEPOSIT_AMOUNT } from "@/lib/pricing";
+import { useUserRole } from "@/hooks/use-admin";
 
 interface StepPaymentProps {
   bookingId: string;
