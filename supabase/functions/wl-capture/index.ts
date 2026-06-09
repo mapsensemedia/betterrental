@@ -21,10 +21,16 @@ Deno.serve(async (req) => {
 
   try {
     const user = await getUserOrThrow(req, corsHeaders);
-    await requireRoleOrThrow(user.userId, ["admin", "staff", "finance"], corsHeaders);
 
-    const { bookingId, amount: captureAmount, kind } = await req.json();
+    const { bookingId, amount: captureAmount, kind, manualOverride, reason } = await req.json();
     const captureKind: "rental" | "deposit" = kind === "rental" ? "rental" : "deposit";
+    const isManual = manualOverride === true;
+
+    if (isManual) {
+      await requireRoleOrThrow(user.userId, ["admin"], corsHeaders);
+    } else {
+      await requireRoleOrThrow(user.userId, ["admin", "staff", "finance"], corsHeaders);
+    }
 
     if (!bookingId) {
       return new Response(
