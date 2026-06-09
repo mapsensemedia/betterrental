@@ -458,6 +458,43 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark rental captured manually</DialogTitle>
+            <DialogDescription>
+              This bypasses the Worldline settlement call and marks the rental as paid.
+              Use only when the gateway returned an error (e.g. "CALL HELP DESK") and the
+              charge will be settled out-of-band (merchant portal, phone auth, etc.).
+              An audit log entry will record this override.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="manual-reason">Reason (required)</Label>
+            <Textarea
+              id="manual-reason"
+              value={manualReason}
+              onChange={(e) => setManualReason(e.target.value)}
+              placeholder="e.g. Bambora 319 CALL HELP DESK — settled via merchant portal"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualDialogOpen(false)} disabled={isManualCapturing}>
+              Cancel
+            </Button>
+            <Button onClick={handleManualCapture} disabled={isManualCapturing}>
+              {isManualCapturing ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4 mr-1" />
+              )}
+              Confirm Manual Capture
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
