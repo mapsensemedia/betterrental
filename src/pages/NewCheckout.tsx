@@ -454,6 +454,14 @@ export default function NewCheckout() {
         // Handle errors from edge function
         if (authResponse.data?.error) {
           const errorCode = authResponse.data.error;
+          if (errorCode === "DUPLICATE_BOOKING" && authResponse.data?.existingBookingId) {
+            toast({
+              title: "Duplicate booking detected",
+              description: `An existing booking (${authResponse.data.existingBookingCode}) for this vehicle and time range was found. Redirecting…`,
+            });
+            navigate(`/dashboard/bookings/${authResponse.data.existingBookingId}`);
+            return;
+          }
           const errorMessages: Record<string, string> = {
             "age_validation_failed": "Please confirm your age on the search page before booking.",
             "PRICE_MISMATCH": `Price has changed. Server total: $${authResponse.data.serverTotal?.toFixed(2) || "N/A"}. Please refresh and try again.`,
