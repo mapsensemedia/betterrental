@@ -652,6 +652,7 @@ export default function NewCheckout() {
       setCheckoutStep("idle");
     } finally {
       setIsSubmitting(false);
+      try { sessionStorage.removeItem(idemKey); } catch { /* ignore */ }
     }
   };
 
