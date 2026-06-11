@@ -370,6 +370,15 @@ export default function NewCheckout() {
     setPaymentError(null);
     setCheckoutStep("idle");
 
+    // Client-side double-submit lock — prevents two-tab / refresh duplicate submissions.
+    const idemKey = `booking-submit:${categoryId}:${formatLocalDate(searchData.pickupDate!)}:${searchData.pickupTime}:${formatLocalDate(searchData.returnDate!)}:${searchData.returnTime}`;
+    const inflightAt = sessionStorage.getItem(idemKey);
+    if (inflightAt && Date.now() - Number(inflightAt) < 60_000) {
+      toast({ title: "Booking already in progress", description: "Please wait a moment before trying again.", variant: "destructive" });
+      return;
+    }
+    sessionStorage.setItem(idemKey, String(Date.now()));
+
     setIsSubmitting(true);
     if (paymentMethod === "pay-now") {
       setCheckoutStep("creating");
