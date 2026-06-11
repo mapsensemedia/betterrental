@@ -553,8 +553,17 @@ export default function NewCheckout() {
           const errorCode = guestResponse.data.error;
           const errorMessage = guestResponse.data.message || "Validation error";
           console.error("Guest booking validation error:", guestResponse.data);
+          if (errorCode === "DUPLICATE_BOOKING") {
+            toast({
+              title: "Duplicate booking detected",
+              description: `A booking (${guestResponse.data.existingBookingCode}) for this vehicle and time range was just created. Please continue with that one.`,
+              variant: "destructive",
+            });
+            return;
+          }
           throw new Error(errorMessages[errorCode] || errorMessage);
         }
+
 
         // Handle edge function errors (network issues, 5xx errors)
         if (guestResponse.error) {
