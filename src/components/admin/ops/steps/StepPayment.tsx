@@ -54,6 +54,7 @@ interface StepPaymentProps {
 export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const { data: paymentStatus, isLoading } = usePaymentDepositStatus(bookingId);
   const { data: roles } = useUserRoles();
+  const { data: duplicateSuspects } = useDuplicateBookings(bookingId);
   const isAdmin = (roles || []).some((r) => r.role === "admin");
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
@@ -223,6 +224,31 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
 
   return (
     <div className="space-y-4">
+      {duplicateSuspects && duplicateSuspects.length > 0 && (
+        <Alert variant="destructive" className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-sm">
+            <strong>Possible duplicate booking detected.</strong> This customer has{" "}
+            {duplicateSuspects.length} other booking(s) for the same vehicle with overlapping dates:
+            <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
+              {duplicateSuspects.map((d) => (
+                <li key={d.id}>
+                  <Link to={`/admin/bookings/${d.id}`} className="font-mono underline">
+                    {d.bookingCode}
+                  </Link>{" "}
+                  — {d.status}
+                  {d.wlAuthStatus === "completed" && (
+                    <span className="ml-1 text-emerald-700 dark:text-emerald-400">(already paid ${d.totalAmount.toFixed(2)})</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-xs">
+              Verify with the customer before charging again. If this is a duplicate, cancel and refund the orphan booking.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
