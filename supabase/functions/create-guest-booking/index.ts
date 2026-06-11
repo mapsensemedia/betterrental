@@ -275,6 +275,38 @@ Deno.serve(async (req) => {
       if (newCust) customerId = newCust.id;
     }
 
+    // Duplicate-booking guard: prevent the same guest (resolved user_id) from creating
+    // a duplicate booking for the same vehicle with overlapping dates within 10 minutes.
+    try {
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: dupes } = await supabaseAdmin
+        .from("bookings")
+        .select("id, booking_code, status, created_at")
+        .eq("user_id", userId!)
+        .eq("vehicle_id", vehicleId)
+        .in("status", ["draft", "pending", "confirmed", "active"])
+        .gte("created_at", tenMinAgo)
+        .lt("start_at", endAt)
+        .gt("end_at", startAt)
+        .limit(1);
+      if (dupes && dupes.length > 0) {
+        const existing = dupes[0];
+        console.warn(`[create-guest-booking] Duplicate detected for user ${userId} vehicle ${vehicleId} — existing ${existing.booking_code}`);
+        return new Response(
+          JSON.stringify({
+            error: "DUPLICATE_BOOKING",
+            message: "A booking for this vehicle and time range was just created. Please continue with the existing booking instead of creating a new one.",
+            existingBookingId: existing.id,
+            existingBookingCode: existing.booking_code,
+            existingStatus: existing.status,
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (dupErr) {
+      console.error("[create-guest-booking] Duplicate check failed (non-fatal):", dupErr);
+    }
+
     // Create booking with SERVER-COMPUTED totals
     const bookingResult = await createBookingRecord({
       userId: userId!,
