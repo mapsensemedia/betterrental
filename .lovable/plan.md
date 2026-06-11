@@ -1,67 +1,55 @@
-# Fix: Manual agreement-signing & manual payment-capture in Ops
+## Diagnosis — Daniel Reyes duplicate bookings
 
-## What's actually wrong with booking 8CWFZQ6A
+Both bookings exist as **separate, real Worldline transactions**. This is not a webhook duplicate or accounting glitch — the customer was actually charged twice.
 
-I traced the booking and the wl-capture logs.
+### Side-by-side facts
 
-- Rental pre-auth `10000532` for $111.42 → status `authorized` (PA succeeded).
-- Deposit pre-auth `10000533` for $350 → status `authorized`.
-- When you clicked **Capture Rental Now**, the edge function `wl-capture` called Bambora `/payments/10000532/completions` and Bambora returned:
-  ```
-  code: 319, category: 2, message: "CALL HELP DESK"
-  ```
-  That's a gateway-side decline of the completion (typically: auth expired, settlement window passed, or merchant flagged). The funds are still held on the card but Worldline won't let us settle them through the API right now.
-- The booking is stuck because:
-  1. `wl_auth_status` stays `authorized`, so the UI keeps showing **Capture Rental Now** and never marks the rental "paid".
-  2. There is no manual override — staff can't tell the system "we settled this another way / it'll be settled out-of-band, mark it done so the rental can go active".
-  3. The agreement step has no "mark signed in person" button either (the `useMarkSignedManually` mutation exists in `src/hooks/use-rental-agreement.ts` but is never wired into the ops UI).
+| Field | FTUXPFU3 (orphan) | 63H9EEU3 (active) |
+|---|---|---|
+| Vehicle | same | same |
+| Dates | Jun 10 17:00 → Jun 12 17:00 | Jun 10 18:30 → Jun 12 18:30 (time-adjusted by staff) |
+| Created | 2026-06-10 01:17:42 | 2026-06-10 01:17:11 (30 sec earlier) |
+| Rental charge | $128.78 captured @ 01:17:47 (tx 10000540) | $128.78 captured @ 18:19:12 (tx 10000555) |
+| Deposit hold | $350 authorized (tx 10000541) | $350 authorized (tx 10000556) |
+| Status today | confirmed, no unit assigned, never picked up | active, unit assigned, checked in |
 
-## Plan
+### What happened (timeline)
+1. Customer (or staff) created **two bookings 30 seconds apart** on Jun 10 ~01:17 — likely a double-submit on the checkout button or two browser tabs.
+2. The checkout flow paid **FTUXPFU3** immediately ($128.78 rental + $350 deposit auth).
+3. The second booking **63H9EEU3** was left unpaid (draft/pending).
+4. ~17 hours later, staff opened 63H9EEU3 in the Ops panel, adjusted the start time, assigned a unit, ran check-in, **took a second card payment** ($128.78 + $350 deposit auth), and activated it.
+5. FTUXPFU3 was never voided/refunded. Customer is now out **$128.78 cash + $350 still on hold** for a booking they never used.
 
-Two small, independent ops-panel features + one safe escape hatch in the capture edge function.
+### Root cause
+- `create-booking` has no idempotency / duplicate-window check. The reservation hold mechanism does not prevent the same user from creating a second booking for the same vehicle moments later.
+- The Ops payment screen does not warn staff when another booking for the same customer + vehicle + overlapping dates is already paid.
 
-### 1. Wire "Mark Agreement Signed in Person" into the ops Agreement step
-File: `src/components/admin/RentalAgreementPanel.tsx` (and/or `src/components/admin/ops/steps/StepAgreement.tsx`).
+---
 
-- When the agreement is generated but not yet signed digitally, show a secondary button **"Mark Signed in Person"** next to the existing "Send signing link" controls.
-- On click → confirm dialog → call existing `useMarkSignedManually(bookingId)` (already implemented; writes `signed_manually=true`, `signed_manually_at`, `signed_manually_by`, `status='signed'`, audit log).
-- Invalidate `rental-agreement` and `bookings` queries so `completion.agreementSigned` flips and the ops wizard advances.
+## Remediation plan
 
-No DB / edge-function changes needed for this part — the columns and the mutation already exist.
+### Immediate (operational, no code)
+1. **Refund FTUXPFU3 rental** — $128.78 via Worldline (manual; automated refund is not wired per existing memory).
+2. **Release FTUXPFU3 deposit hold** — void pre-auth tx `10000541` via `wl-void` / deposit release flow in Ops.
+3. **Cancel FTUXPFU3** — set status `cancelled` with note "Duplicate of 63H9EEU3 — refunded".
+4. Log both actions in `audit_logs` and notify the customer.
 
-### 2. Add "Mark Payment Captured (Manual)" in the ops Payment step
-File: `src/components/admin/ops/steps/StepPayment.tsx`, plus a small extension to `supabase/functions/wl-capture/index.ts`.
+### Code changes (prevent recurrence)
+1. **`create-booking` / `create-guest-booking` duplicate guard**
+   - Before insert, check for an existing booking by the same `user_id` + `vehicle_id` with overlapping `[start_at, end_at]` and status in `(draft, pending, confirmed, active)` created within the last 10 minutes.
+   - If found, return `409 DUPLICATE_BOOKING` with the existing `booking_code` so the client can resume that one instead.
 
-UI:
-- In the **Rental** section, when `wlAuthStatus === "authorized"` and the in-API capture is failing, show a small **"Mark captured manually"** link/button under the existing "Capture Rental Now" button (kept primary).
-- Clicking opens a confirm dialog explaining: "This bypasses the gateway settlement and marks the rental as paid. Use only when Worldline returned an error (e.g. 'CALL HELP DESK') and the charge will be settled out-of-band." Requires a short free-text **reason** and is admin-only.
+2. **Ops Payment duplicate warning (`StepPayment.tsx`)**
+   - Before invoking `wl-auth` / `wl-capture`, query for other bookings of the same customer + vehicle with overlapping dates that already have `wl_auth_status='completed'`.
+   - If found, show a blocking dialog: "Customer already paid for booking XXXXXX covering these dates. Continue anyway?" requiring explicit confirmation + reason logged to `audit_logs`.
 
-Edge function change — extend `wl-capture` with a `manualOverride: true` branch (admin role only):
-- Skip the Bambora `/completions` call.
-- Update `bookings.wl_auth_status = 'completed'`.
-- Update the matching `payments` row (`transaction_id = wl_transaction_id`) to `status = 'completed'`, set `payment_method = 'card_manual_capture'`.
-- Insert an `audit_logs` entry `action: 'rental_capture_manual_override'` with the staff user id and reason.
-- Return the same shape as the normal rental capture success.
+3. **Client-side double-submit lock**
+   - In the checkout submit handler, disable the pay button on first click and keep it disabled until the server response (success or error). Also store an in-flight idempotency key in `sessionStorage` keyed by `vehicleId|startAt|endAt` so a refresh/second tab can't fire again.
 
-Then the existing client logic in `usePaymentDepositStatus` already promotes the booking to "paid" once the rental payment row is `completed` covering the total, which lets the ops wizard's payment step show **Complete** and lets handover proceed → booking goes `active` via the existing activation flow.
+### Files to touch
+- `supabase/functions/create-booking/index.ts`
+- `supabase/functions/create-guest-booking/index.ts`
+- `src/components/admin/ops/steps/StepPayment.tsx`
+- `src/components/checkout/...` (submit handler — to be located during build)
 
-### 3. Make the manual-capture path role-gated and auditable
-- In `wl-capture`, require `requireRoleOrThrow(userId, ["admin"])` specifically when `manualOverride === true` (not just `admin/staff/finance` like the normal capture).
-- Always write the audit log (action, booking id, reason, user, gateway error that triggered the override if the client passes one).
-
-### 4. Surface the gateway error context
-In `StepPayment.tsx`, when the last attempted Worldline capture call fails, keep the error toast (already done) and additionally remember the last error message in component state so the "Mark captured manually" dialog can pre-fill the reason field with `Worldline capture failed: <error>` for the audit log.
-
-## Technical notes
-
-- Files touched:
-  - `src/components/admin/ops/steps/StepPayment.tsx` — add "Mark captured manually" button + confirm dialog + invoke `wl-capture` with `{ bookingId, kind: 'rental', manualOverride: true, reason }`.
-  - `src/components/admin/RentalAgreementPanel.tsx` (or `StepAgreement.tsx`) — add "Mark Signed in Person" button calling existing `useMarkSignedManually`.
-  - `supabase/functions/wl-capture/index.ts` — add `manualOverride` branch for `kind: 'rental'` (and optionally `kind: 'deposit'` for consistency, but only `rental` is required to unblock the user).
-- No DB migration needed: `payments.status='completed'`, `bookings.wl_auth_status='completed'`, and `rental_agreements.signed_manually*` columns already exist. The seatbelt trigger `block_sensitive_booking_updates` allows the edge function to update via service role.
-- Booking 8CWFZQ6A specifically: after deploy, staff clicks **Mark captured manually** with reason "Bambora 319 CALL HELP DESK — settled via merchant portal" → rental payment row flips to `completed`, ops can proceed to handover and activate the booking. The deposit hold (still `authorized` on `10000533`) is unaffected and can be captured/released as normal at return.
-
-## Out of scope
-
-- Investigating the Worldline 319 root cause on the merchant account (separate ops/finance task — likely auth window expired or merchant flag).
-- Changing the existing auto-capture flow for normal happy-path bookings.
+No DB schema changes needed; the guards use existing columns.

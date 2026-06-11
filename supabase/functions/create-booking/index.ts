@@ -200,6 +200,38 @@ Deno.serve(async (req) => {
     // NOTE: Availability check removed — overbooking is allowed.
     // Staff will assign specific VIN units manually.
 
+    // Duplicate-booking guard: prevent same user creating a duplicate booking for the
+    // same vehicle with overlapping dates within the last 10 minutes (double-submit / two tabs).
+    try {
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: dupes } = await supabaseAdmin
+        .from("bookings")
+        .select("id, booking_code, status, start_at, end_at, created_at")
+        .eq("user_id", auth.userId)
+        .eq("vehicle_id", vehicleId)
+        .in("status", ["draft", "pending", "confirmed", "active"])
+        .gte("created_at", tenMinAgo)
+        .lt("start_at", endAt)
+        .gt("end_at", startAt)
+        .limit(1);
+      if (dupes && dupes.length > 0) {
+        const existing = dupes[0];
+        console.warn(`[create-booking] Duplicate detected for user ${auth.userId} vehicle ${vehicleId} — existing ${existing.booking_code}`);
+        return new Response(
+          JSON.stringify({
+            error: "DUPLICATE_BOOKING",
+            message: "You already have a booking for this vehicle and time range. Open it to continue.",
+            existingBookingId: existing.id,
+            existingBookingCode: existing.booking_code,
+            existingStatus: existing.status,
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (dupErr) {
+      console.error("[create-booking] Duplicate check failed (non-fatal):", dupErr);
+    }
+
     // Determine initial status
     const initialStatus = paymentMethod === "pay-now" ? "draft" : (paymentMethod === "pay-later" ? "pending" : "confirmed");
 

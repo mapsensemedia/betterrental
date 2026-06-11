@@ -370,6 +370,15 @@ export default function NewCheckout() {
     setPaymentError(null);
     setCheckoutStep("idle");
 
+    // Client-side double-submit lock — prevents two-tab / refresh duplicate submissions.
+    const idemKey = `booking-submit:${categoryId}:${formatLocalDate(searchData.pickupDate!)}:${searchData.pickupTime}:${formatLocalDate(searchData.returnDate!)}:${searchData.returnTime}`;
+    const inflightAt = sessionStorage.getItem(idemKey);
+    if (inflightAt && Date.now() - Number(inflightAt) < 60_000) {
+      toast({ title: "Booking already in progress", description: "Please wait a moment before trying again.", variant: "destructive" });
+      return;
+    }
+    sessionStorage.setItem(idemKey, String(Date.now()));
+
     setIsSubmitting(true);
     if (paymentMethod === "pay-now") {
       setCheckoutStep("creating");
@@ -445,6 +454,14 @@ export default function NewCheckout() {
         // Handle errors from edge function
         if (authResponse.data?.error) {
           const errorCode = authResponse.data.error;
+          if (errorCode === "DUPLICATE_BOOKING" && authResponse.data?.existingBookingId) {
+            toast({
+              title: "Duplicate booking detected",
+              description: `An existing booking (${authResponse.data.existingBookingCode}) for this vehicle and time range was found. Redirecting…`,
+            });
+            navigate(`/dashboard/bookings/${authResponse.data.existingBookingId}`);
+            return;
+          }
           const errorMessages: Record<string, string> = {
             "age_validation_failed": "Please confirm your age on the search page before booking.",
             "PRICE_MISMATCH": `Price has changed. Server total: $${authResponse.data.serverTotal?.toFixed(2) || "N/A"}. Please refresh and try again.`,
@@ -536,8 +553,17 @@ export default function NewCheckout() {
           const errorCode = guestResponse.data.error;
           const errorMessage = guestResponse.data.message || "Validation error";
           console.error("Guest booking validation error:", guestResponse.data);
+          if (errorCode === "DUPLICATE_BOOKING") {
+            toast({
+              title: "Duplicate booking detected",
+              description: `A booking (${guestResponse.data.existingBookingCode}) for this vehicle and time range was just created. Please continue with that one.`,
+              variant: "destructive",
+            });
+            return;
+          }
           throw new Error(errorMessages[errorCode] || errorMessage);
         }
+
 
         // Handle edge function errors (network issues, 5xx errors)
         if (guestResponse.error) {
@@ -626,6 +652,7 @@ export default function NewCheckout() {
       setCheckoutStep("idle");
     } finally {
       setIsSubmitting(false);
+      try { sessionStorage.removeItem(idemKey); } catch { /* ignore */ }
     }
   };
 
