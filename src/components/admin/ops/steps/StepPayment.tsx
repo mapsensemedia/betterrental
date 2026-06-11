@@ -40,6 +40,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { OpsPaymentAndDeposit } from "@/components/payments/OpsPaymentAndDeposit";
 import { DEFAULT_DEPOSIT_AMOUNT } from "@/lib/pricing";
 import { useUserRoles } from "@/hooks/use-admin";
+import { useDuplicateBookings } from "@/hooks/use-duplicate-bookings";
+import { Link } from "react-router-dom";
 
 interface StepPaymentProps {
   bookingId: string;
