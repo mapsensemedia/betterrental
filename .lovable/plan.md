@@ -1,55 +1,74 @@
-## Diagnosis — Daniel Reyes duplicate bookings
+# Plan: Business Hours + Hour-based Day Billing
 
-Both bookings exist as **separate, real Worldline transactions**. This is not a webhook duplicate or accounting glitch — the customer was actually charged twice.
+Two related changes to rental rules:
 
-### Side-by-side facts
+## 1. Restrict pickup & return times to 9:00 AM – 8:00 PM
 
-| Field | FTUXPFU3 (orphan) | 63H9EEU3 (active) |
-|---|---|---|
-| Vehicle | same | same |
-| Dates | Jun 10 17:00 → Jun 12 17:00 | Jun 10 18:30 → Jun 12 18:30 (time-adjusted by staff) |
-| Created | 2026-06-10 01:17:42 | 2026-06-10 01:17:11 (30 sec earlier) |
-| Rental charge | $128.78 captured @ 01:17:47 (tx 10000540) | $128.78 captured @ 18:19:12 (tx 10000555) |
-| Deposit hold | $350 authorized (tx 10000541) | $350 authorized (tx 10000556) |
-| Status today | confirmed, no unit assigned, never picked up | active, unit assigned, checked in |
+Today the time-slot dropdowns offer every 30 minutes, 24 hours a day. We'll limit them to **9:00 AM through 8:00 PM** (last selectable slot 8:00 PM).
 
-### What happened (timeline)
-1. Customer (or staff) created **two bookings 30 seconds apart** on Jun 10 ~01:17 — likely a double-submit on the checkout button or two browser tabs.
-2. The checkout flow paid **FTUXPFU3** immediately ($128.78 rental + $350 deposit auth).
-3. The second booking **63H9EEU3** was left unpaid (draft/pending).
-4. ~17 hours later, staff opened 63H9EEU3 in the Ops panel, adjusted the start time, assigned a unit, ran check-in, **took a second card payment** ($128.78 + $350 deposit auth), and activated it.
-5. FTUXPFU3 was never voided/refunded. Customer is now out **$128.78 cash + $350 still on hold** for a booking they never used.
+**File:** `src/lib/rental-rules.ts`
+- Change `PICKUP_TIME_SLOTS = generateTimeSlots(0, 23, 30)` → `generateTimeSlots(9, 20, 30)`
+- Update `DEFAULT_PICKUP_TIME` to `"10:00"` (already is, leave as-is)
+- Export new constants `BUSINESS_HOURS_START = 9`, `BUSINESS_HOURS_END = 20` for reuse.
 
-### Root cause
-- `create-booking` has no idempotency / duplicate-window check. The reservation hold mechanism does not prevent the same user from creating a second booking for the same vehicle moments later.
-- The Ops payment screen does not warn staff when another booking for the same customer + vehicle + overlapping dates is already paid.
+All three consumers (`GlassSearchBar`, `RentalSearchCard`, `WalkInBookingDialog`) read from `PICKUP_TIME_SLOTS`, so they update automatically.
 
----
+**Validation guard** (defense in depth) — add a helper `isWithinBusinessHours(date)` and call it in:
+- `RentalBookingContext` when persisting pickup/return datetimes
+- `use-booking-edit.ts` and `use-booking-modification.ts` (admin/ops reschedule paths)
+- `supabase/functions/_shared/booking-core.ts` server-side (reject `start_at`/`end_at` outside 09:00–20:00 local Vancouver time with a clear error)
 
-## Remediation plan
+Existing bookings already created outside these hours are not touched.
 
-### Immediate (operational, no code)
-1. **Refund FTUXPFU3 rental** — $128.78 via Worldline (manual; automated refund is not wired per existing memory).
-2. **Release FTUXPFU3 deposit hold** — void pre-auth tx `10000541` via `wl-void` / deposit release flow in Ops.
-3. **Cancel FTUXPFU3** — set status `cancelled` with note "Duplicate of 63H9EEU3 — refunded".
-4. Log both actions in `audit_logs` and notify the customer.
+## 2. Hour-based day billing (>24h rolls to next day)
 
-### Code changes (prevent recurrence)
-1. **`create-booking` / `create-guest-booking` duplicate guard**
-   - Before insert, check for an existing booking by the same `user_id` + `vehicle_id` with overlapping `[start_at, end_at]` and status in `(draft, pending, confirmed, active)` created within the last 10 minutes.
-   - If found, return `409 DUPLICATE_BOOKING` with the existing `booking_code` so the client can resume that one instead.
+Today day count uses a **date-only diff**: pickup Jun 16 10:00 AM → return Jun 17 11:00 AM is 1 day even though it's 25 hours. We'll switch to **`ceil(hoursDiff / 24)`** so anything over 24h becomes 2 days, over 48h becomes 3 days, etc.
 
-2. **Ops Payment duplicate warning (`StepPayment.tsx`)**
-   - Before invoking `wl-auth` / `wl-capture`, query for other bookings of the same customer + vehicle with overlapping dates that already have `wl_auth_status='completed'`.
-   - If found, show a blocking dialog: "Customer already paid for booking XXXXXX covering these dates. Continue anyway?" requiring explicit confirmation + reason logged to `audit_logs`.
+| Pickup → Return | Hours | Old days | New days |
+|---|---|---|---|
+| Jun 16 10:00 → Jun 17 10:00 | 24 | 1 | 1 |
+| Jun 16 10:00 → Jun 17 11:00 | 25 | 1 | **2** |
+| Jun 16 10:00 → Jun 18 09:00 | 47 | 2 | **2** |
+| Jun 16 10:00 → Jun 18 11:00 | 49 | 2 | **3** |
 
-3. **Client-side double-submit lock**
-   - In the checkout submit handler, disable the pay button on first click and keep it disabled until the server response (success or error). Also store an in-flight idempotency key in `sessionStorage` keyed by `vehicleId|startAt|endAt` so a refresh/second tab can't fire again.
+**Files to change:**
 
-### Files to touch
-- `supabase/functions/create-booking/index.ts`
-- `supabase/functions/create-guest-booking/index.ts`
-- `src/components/admin/ops/steps/StepPayment.tsx`
-- `src/components/checkout/...` (submit handler — to be located during build)
+1. **`supabase/functions/_shared/booking-core.ts`** (authoritative — line ~479)
+   - Replace date-only `Math.round((endMs - startMs) / 86400000)` with
+     `Math.max(1, Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)))`
+   - Use raw `start_at` / `end_at` timestamps (not stripped to midnight).
 
-No DB schema changes needed; the guards use existing columns.
+2. **`src/contexts/RentalBookingContext.tsx`** (lines 435–453)
+   - `rentalDays` and `isRentalDurationValid` switch to the same `ceil(hours/24)` formula using full `pickupDate` / `returnDate` Date objects.
+
+3. **`src/pages/Search.tsx`** (line 146) — already uses `Math.ceil(diffTime / 86400000)`. Leave as-is (matches new rule).
+
+4. **`src/hooks/use-booking-edit.ts`** and **`src/hooks/use-booking-modification.ts`** — already use `Math.ceil(hoursDiff / 24)`. Leave as-is.
+
+5. **`src/lib/pricing.test.ts`** — update any fixtures whose expected day count changes.
+
+### Grace period
+
+Strict by default: 24h 1min = 2 days. If you want a small buffer (e.g. "29 minutes free"), say so and I'll add a configurable `BILLING_GRACE_MINUTES` constant.
+
+### Backfill
+
+No retroactive repricing of existing bookings — change applies to **new bookings and future edits** only.
+
+## Technical details
+
+- Add `BUSINESS_HOURS_START`, `BUSINESS_HOURS_END`, `isWithinBusinessHours(d: Date)` to `src/lib/rental-rules.ts`.
+- Server-side time validation in `booking-core.ts` returns `400 OUTSIDE_BUSINESS_HOURS` with message "Pickup and return must be between 9:00 AM and 8:00 PM".
+- Update `MIN_RENTAL_DAYS` validation copy if needed; min stays 1 day (24h or less).
+- Verify `validateClientPricing` tolerance still holds — server and client both move to the new formula in lockstep.
+
+## Out of scope
+
+- Late-return fees (already hour-based in `src/lib/late-return.ts`).
+- Closing the business on specific dates / holidays.
+- Per-location business hours (single global window for now).
+
+## Open questions
+
+1. Apply a grace period (e.g. 30 min over 24h still bills as 1 day), or strict ceil?
+2. Should **walk-in / ops** bookings be allowed to bypass the 9 AM–8 PM restriction (e.g. staff overrides), or hard-enforced everywhere?
