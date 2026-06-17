@@ -135,10 +135,37 @@ export function generateTimeSlots(
   return slots;
 }
 
-// Pre-generated time slots for 24-hour availability (30-min intervals)
-export const PICKUP_TIME_SLOTS: TimeSlot[] = generateTimeSlots(0, 23, 30);
+// Business hours: 9:00 AM – 8:00 PM (last slot 8:00 PM)
+export const BUSINESS_HOURS_START = 9;
+export const BUSINESS_HOURS_END = 20;
+
+// Pre-generated time slots within business hours (30-min intervals)
+export const PICKUP_TIME_SLOTS: TimeSlot[] = generateTimeSlots(BUSINESS_HOURS_START, BUSINESS_HOURS_END, 30);
 
 export const DEFAULT_PICKUP_TIME = "10:00";
+
+/**
+ * Check whether a Date's local time falls within business hours (9:00–20:00 inclusive).
+ */
+export function isWithinBusinessHours(d: Date): boolean {
+  if (!d || isNaN(d.getTime())) return false;
+  const minutes = d.getHours() * 60 + d.getMinutes();
+  return minutes >= BUSINESS_HOURS_START * 60 && minutes <= BUSINESS_HOURS_END * 60;
+}
+
+/**
+ * Compute billable rental days from two timestamps.
+ * Any rental over 24h rolls into the next day (ceil of hours / 24).
+ * Examples: 24h → 1, 25h → 2, 48h → 2, 49h → 3.
+ */
+export function computeBillableDays(startAt: Date | string, endAt: Date | string): number {
+  const start = typeof startAt === "string" ? new Date(startAt) : startAt;
+  const end = typeof endAt === "string" ? new Date(endAt) : endAt;
+  if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return 1;
+  const ms = end.getTime() - start.getTime();
+  if (ms <= 0) return 1;
+  return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+}
 
 /**
  * Format a 24h time string to display format

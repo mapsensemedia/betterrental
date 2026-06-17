@@ -431,24 +431,21 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  // Computed: rental days (capped to max) — uses date-only diff to avoid timezone drift
+  // Computed: rental days (capped to max) — hour-based ceil so anything over 24h rolls to next day
   const rentalDays = (() => {
     if (!searchData.pickupDate || !searchData.returnDate) return 1;
-    const startY = searchData.pickupDate.getFullYear(), startM = searchData.pickupDate.getMonth(), startD = searchData.pickupDate.getDate();
-    const endY = searchData.returnDate.getFullYear(), endM = searchData.returnDate.getMonth(), endD = searchData.returnDate.getDate();
-    const startMs = Date.UTC(startY, startM, startD);
-    const endMs = Date.UTC(endY, endM, endD);
-    const days = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
-    // Clamp between min and max rental days
-    return Math.max(MIN_RENTAL_DAYS, Math.min(days || 1, MAX_RENTAL_DAYS));
+    const ms = searchData.returnDate.getTime() - searchData.pickupDate.getTime();
+    if (ms <= 0) return MIN_RENTAL_DAYS;
+    const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
+    return Math.max(MIN_RENTAL_DAYS, Math.min(days, MAX_RENTAL_DAYS));
   })();
-  
+
   // Computed: is rental duration valid
   const isRentalDurationValid = (() => {
     if (!searchData.pickupDate || !searchData.returnDate) return true;
-    const startMs = Date.UTC(searchData.pickupDate.getFullYear(), searchData.pickupDate.getMonth(), searchData.pickupDate.getDate());
-    const endMs = Date.UTC(searchData.returnDate.getFullYear(), searchData.returnDate.getMonth(), searchData.returnDate.getDate());
-    const days = Math.round((endMs - startMs) / (1000 * 60 * 60 * 24));
+    const ms = searchData.returnDate.getTime() - searchData.pickupDate.getTime();
+    if (ms <= 0) return false;
+    const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
     return days >= MIN_RENTAL_DAYS && days <= MAX_RENTAL_DAYS;
   })();
 

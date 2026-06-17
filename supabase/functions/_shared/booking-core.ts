@@ -471,12 +471,18 @@ export async function computeBookingTotals(input: {
 }): Promise<ServerPricingResult> {
   const supabase = getAdminClient();
 
-  // 1) Compute days from date-only portions
-  const startDate = input.startAt.length === 10 ? input.startAt : input.startAt.substring(0, 10);
-  const endDate = input.endAt.length === 10 ? input.endAt : input.endAt.substring(0, 10);
-  const startMs = Date.UTC(+startDate.slice(0,4), +startDate.slice(5,7)-1, +startDate.slice(8,10));
-  const endMs = Date.UTC(+endDate.slice(0,4), +endDate.slice(5,7)-1, +endDate.slice(8,10));
-  const days = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)));
+  // 1) Compute billable days — hour-based ceil so any rental over 24h rolls into the next day.
+  //    Pure date-only inputs (YYYY-MM-DD) fall back to date diff for backwards-compat.
+  let days: number;
+  if (input.startAt.length === 10 && input.endAt.length === 10) {
+    const sMs = Date.UTC(+input.startAt.slice(0,4), +input.startAt.slice(5,7)-1, +input.startAt.slice(8,10));
+    const eMs = Date.UTC(+input.endAt.slice(0,4), +input.endAt.slice(5,7)-1, +input.endAt.slice(8,10));
+    days = Math.max(1, Math.round((eMs - sMs) / (1000 * 60 * 60 * 24)));
+  } else {
+    const sMs = new Date(input.startAt).getTime();
+    const eMs = new Date(input.endAt).getTime();
+    days = Math.max(1, Math.ceil((eMs - sMs) / (1000 * 60 * 60 * 24)));
+  }
 
   // 2) Fetch canonical daily rate — support both vehicles (legacy) and vehicle_categories IDs
   let dailyRate: number;
