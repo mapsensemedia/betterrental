@@ -2,7 +2,7 @@
  * AddOns - Select additional services after protection
  */
 import { useState, useEffect } from "react";
-import { formatLocalDate } from "@/lib/date-utils";
+import { formatLocalDate, localDateTimeToISO } from "@/lib/date-utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check, Plus, Minus, Users, Car, Baby, Fuel, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
