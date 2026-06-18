@@ -268,15 +268,43 @@ export async function moveUnit(input: MoveUnitInput): Promise<void> {
 /**
  * Delete a vehicle unit
  */
-export async function deleteUnit(unitId: string): Promise<void> {
+export async function deleteUnit(unitId: string): Promise<{ archived: boolean }> {
+  // Block if active/upcoming bookings hold this unit
+  const { data: activeBookings } = await supabase
+    .from("bookings")
+    .select("booking_code, status")
+    .eq("assigned_unit_id", unitId)
+    .in("status", ["pending", "confirmed", "active"]);
+
+  if (activeBookings && activeBookings.length > 0) {
+    const codes = activeBookings.map((b: any) => b.booking_code).filter(Boolean).join(", ");
+    throw new Error(
+      `Cannot delete: vehicle is on ${activeBookings.length} active/upcoming booking(s)${codes ? ` (${codes})` : ""}. Cancel or complete those bookings first.`
+    );
+  }
+
   const { error } = await supabase.from("vehicle_units").delete().eq("id", unitId);
 
   if (error) {
-    if (error.code === '23503') {
-      throw new Error("Cannot delete vehicle because it is associated with existing bookings or records. Consider updating its status to 'retired' or 'inactive' instead.");
+    if (error.code === "23503") {
+      // Soft-archive fallback for units referenced by historical bookings
+      const archiveNote = `Archived ${new Date().toISOString().slice(0, 10)} – sold/removed from active fleet`;
+      const { error: archiveErr } = await supabase
+        .from("vehicle_units")
+        .update({
+          status: "retired",
+          location_id: null,
+          notes: archiveNote,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", unitId);
+      if (archiveErr) throw new Error(`Failed to archive vehicle: ${archiveErr.message}`);
+      await createAuditLog("unit_archived", "vehicle_unit", unitId, null, { reason: "fk_constraint_fallback" }, "admin");
+      return { archived: true };
     }
     throw error;
   }
 
   await createAuditLog("unit_deleted", "vehicle_unit", unitId, null, null, "admin");
+  return { archived: false };
 }
