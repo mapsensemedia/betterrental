@@ -49,6 +49,7 @@ export default function Search() {
     setPickupDateTime,
     setReturnDateTime,
     setPickupLocation,
+    rentalDays,
   } = useRentalBooking();
   
   useEffect(() => {
@@ -142,14 +143,7 @@ export default function Search() {
     });
   }, []);
 
-  // Calculate rental days
-  const rentalDays = useMemo(() => {
-    if (startDate && endDate) {
-      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-    }
-    return 1;
-  }, [startDate, endDate]);
+  // rentalDays comes from context (already accounts for pickup/return time)
 
   // Apply filters then sort
   const filteredAndSorted = useMemo(() => {
