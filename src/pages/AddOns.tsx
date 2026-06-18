@@ -211,8 +211,8 @@ export default function AddOns() {
     } else if (vehicleId) {
       params.set("vehicleId", vehicleId);
     }
-    if (searchData.pickupDate) params.set("startAt", formatLocalDate(searchData.pickupDate));
-    if (searchData.returnDate) params.set("endAt", formatLocalDate(searchData.returnDate));
+    if (searchData.pickupDate) params.set("startAt", localDateTimeToISO(formatLocalDate(searchData.pickupDate), searchData.pickupTime));
+    if (searchData.returnDate) params.set("endAt", localDateTimeToISO(formatLocalDate(searchData.returnDate), searchData.returnTime));
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     navigate(`/protection?${params.toString()}`);
   };
