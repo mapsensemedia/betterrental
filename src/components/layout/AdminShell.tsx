@@ -193,6 +193,17 @@ export function AdminShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [bookingCode, setBookingCode] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("admin-sidebar-collapsed") === "1";
+  });
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem("admin-sidebar-collapsed", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  };
   const { counts } = useSidebarCounts();
   const { data: caps } = useCapabilities("admin");
   useGlobalRealtime();
