@@ -432,9 +432,23 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Computed: rental days (capped to max) — hour-based ceil so anything over 24h rolls to next day
+  // Build full pickup/return Date objects by combining stored date + HH:MM time.
+  // Stored dates are local-midnight; the time component must be applied to get
+  // accurate billable hours (24h = 1 day, 25h = 2 days).
+  const buildDateTime = (date: Date | null, time: string): Date | null => {
+    if (!date) return null;
+    const [h, m] = (time || "10:00").split(":").map(Number);
+    const d = new Date(date);
+    d.setHours(h || 0, m || 0, 0, 0);
+    return d;
+  };
+
+  const pickupAt = buildDateTime(searchData.pickupDate, searchData.pickupTime);
+  const returnAt = buildDateTime(searchData.returnDate, searchData.returnTime);
+
   const rentalDays = (() => {
-    if (!searchData.pickupDate || !searchData.returnDate) return 1;
-    const ms = searchData.returnDate.getTime() - searchData.pickupDate.getTime();
+    if (!pickupAt || !returnAt) return 1;
+    const ms = returnAt.getTime() - pickupAt.getTime();
     if (ms <= 0) return MIN_RENTAL_DAYS;
     const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
     return Math.max(MIN_RENTAL_DAYS, Math.min(days, MAX_RENTAL_DAYS));
@@ -442,8 +456,8 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
 
   // Computed: is rental duration valid
   const isRentalDurationValid = (() => {
-    if (!searchData.pickupDate || !searchData.returnDate) return true;
-    const ms = searchData.returnDate.getTime() - searchData.pickupDate.getTime();
+    if (!pickupAt || !returnAt) return true;
+    const ms = returnAt.getTime() - pickupAt.getTime();
     if (ms <= 0) return false;
     const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
     return days >= MIN_RENTAL_DAYS && days <= MAX_RENTAL_DAYS;
