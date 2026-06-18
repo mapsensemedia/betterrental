@@ -305,9 +305,15 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
       return;
     }
 
-    // Update context with final values
-    setPickupDateTime(parseLocalDate(pickupDate), pickupTime);
-    setReturnDateTime(parseLocalDate(returnDate), returnTime);
+    // Update context with final values — combine date + time so billable-day calc is correct
+    const pickupDt = parseLocalDate(pickupDate);
+    const [pH, pM] = pickupTime.split(":").map(Number);
+    pickupDt.setHours(pH || 0, pM || 0, 0, 0);
+    const returnDt = parseLocalDate(returnDate);
+    const [rH, rM] = returnTime.split(":").map(Number);
+    returnDt.setHours(rH || 0, rM || 0, 0, 0);
+    setPickupDateTime(pickupDt, pickupTime);
+    setReturnDateTime(returnDt, returnTime);
 
     onSearchComplete?.();
     navigate("/search");
