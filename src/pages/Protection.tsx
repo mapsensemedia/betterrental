@@ -2,7 +2,7 @@
  * Protection - Select protection package before checkout
  */
 import { useState, useEffect } from "react";
-import { formatLocalDate } from "@/lib/date-utils";
+import { formatLocalDate, localDateTimeToISO } from "@/lib/date-utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check, X, Info, Shield } from "lucide-react";
 import { PriceTooltip } from "@/components/shared/PriceTooltip";
