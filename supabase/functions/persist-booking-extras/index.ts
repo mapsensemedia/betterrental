@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // Fetch booking — include location IDs for canonical drop-off fee computation
     const { data: booking, error: bErr } = await supabaseAdmin
       .from("bookings")
-      .select("id, user_id, vehicle_id, start_at, end_at, protection_plan, driver_age_band, delivery_fee, different_dropoff_fee, subtotal, tax_amount, total_amount, location_id, return_location_id")
+      .select("id, user_id, vehicle_id, start_at, end_at, status, protection_plan, driver_age_band, delivery_fee, different_dropoff_fee, subtotal, tax_amount, total_amount, location_id, return_location_id")
       .eq("id", bookingId)
       .single();
 
