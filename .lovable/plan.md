@@ -1,99 +1,143 @@
-## Plan: fix hourly billable-day pricing across the full booking flow
 
-### Goal
-Make the customer-facing booking flow consistently charge and display billable days by actual pickup/return date + time:
+# Admin Fleet — 3-Tab Restructure + Collapsible Sidebar
 
-- 24 hours = 1 billable day
-- 25 or 26 hours = 2 billable days
-- Same logic visible on search input, available categories, protection, add-ons, and checkout
-- Server-side booking totals stay authoritative and aligned with the client preview
+Goal: Make `/admin/fleet` more usable on wide tables and add two new views — a flat "All Vehicles" master list and a "Temporary Vehicles" register — without changing any booking, pricing, or financial behavior.
 
-### Root cause to fix
-The previous backend/shared helper uses `ceil(hours / 24)` correctly for timestamp inputs, but the customer flow still drops the selected time in several places:
+## What changes (and what does NOT)
 
-- `RentalBookingContext` calculates `rentalDays` from `pickupDate` and `returnDate` only, often stored as local midnight dates.
-- `RentalSearchCard.handleSearch()` persists dates with `parseLocalDate(...)`, which removes the selected pickup/return time.
-- Protection/add-ons URLs use `formatLocalDate(...)`, so time is lost when moving pages or refreshing.
-- Search, protection, add-ons, checkout, and summary components depend on this context `rentalDays`, so prices remain based on date-only days.
+**Changes (UI + a tiny schema additive):**
+- New tabbed layout on Fleet Management page.
+- Admin sidebar can be collapsed/expanded from the page header so wide tables fit.
+- New "All Vehicles" master table.
+- New "Temporary Vehicles" register (additive `is_temporary` flag + optional `temp_*` metadata on `vehicle_units`).
 
-### Implementation steps
+**Does NOT change:**
+- Booking flow, pricing engine, pro‑rata logic, Worldline, deposits, RLS triggers.
+- Category → VIN pool model (it stays; the new tabs are alternate views of the same `vehicle_units` table).
+- Existing soft‑archive delete fallback (kept exactly as is).
+- Drop‑off fees, locations, status enum semantics for active rentals.
 
-1. **Create one client-side source of truth for billable timestamps**
-   - Add or reuse helpers in `src/lib/rental-rules.ts` / `src/lib/date-utils.ts` to combine:
-     - `pickupDate + pickupTime`
-     - `returnDate + returnTime`
-   - Calculate billable days using `computeBillableDays(startDateTime, endDateTime)`.
-   - Keep the rule explicit: `Math.ceil(durationMs / 24h)`, minimum 1 day.
+---
 
-2. **Fix `RentalBookingContext` day calculation**
-   - Update `rentalDays` and duration validation to use combined date + time, not date-only midnight values.
-   - Ensure 10:00 AM Apr 10 → 10:00 AM Apr 11 = 1 day.
-   - Ensure 10:00 AM Apr 10 → 11:00 AM Apr 11 = 2 days.
+## Tab 1 — Fleet Management (Categories) — **redesigned, same data**
 
-3. **Stop dropping times from the search form**
-   - In `RentalSearchCard`, persist date/time together when the customer searches.
-   - Keep selected times intact when dates change.
-   - Use the same helper for pickup and delivery modes.
-   - Show the calculated billable day count directly near the pickup/return fields so customers see the pricing impact immediately.
+Keeps current category + VIN pool functionality. UI improvements only:
 
-4. **Preserve time in booking-flow URLs**
-   - Update navigation from:
-     - search → protection
-     - protection → add-ons
-     - add-ons → checkout
-     - checkout back → add-ons
-   - Use timestamp params with time (`localDateTimeToISO(...)`) instead of date-only values.
-   - Keep existing hydration support so old date-only URLs still work, defaulting to stored/default times.
+```text
+┌─ Fleet ────────────────────────────────────────[ ⇆ Hide sidebar ]─┐
+│ [ Categories ] [ All Vehicles ] [ Temporary ]                     │
+│                                                                   │
+│  ┌─ Categories (left, 320px, collapsible) ─┬─ Category detail ──┐ │
+│  │ 🔍 search                               │ Economy            │ │
+│  │ • Economy            8/12 avail         │ Daily $45 · 12 VINs│ │
+│  │ • Compact            3/6                │ [+ Add VIN]        │ │
+│  │ • SUV                2/4                │                    │ │
+│  │ [+ New category]                        │ VIN table…         │ │
+│  └─────────────────────────────────────────┴────────────────────┘ │
+└───────────────────────────────────────────────────────────────────┘
+```
 
-5. **Make pricing visibly clear on available categories**
-   - Use the context billable days for each category total.
-   - Add clearer text such as:
-     - `1 billable day`
-     - `2 billable days`
-     - `$20.00/day × 2 days`
-   - Keep the existing taxes/fees disclaimer.
+Improvements vs today:
+- Sticky header with a "Hide sidebar" toggle (calls existing `useSidebar().setOpen(false)`).
+- Left category rail is itself collapsible to a 56px icon strip.
+- Status chips and counts aligned right; row click opens detail in the right pane instead of navigating away.
 
-6. **Make protection page totals clear**
-   - Add the billable-day count in the sticky total/header or summary area.
-   - Protection package cards should still show `/ day`, while total preview uses the correct billable days.
+## Tab 2 — All Vehicles (new)
 
-7. **Make add-ons page totals clear**
-   - Add billable-day count near the total.
-   - Ensure daily add-ons and additional drivers multiply by the corrected `rentalDays`.
+A flat, filterable master list of every permanent unit in `vehicle_units` where `is_temporary = false`.
 
-8. **Make checkout price details clear**
-   - Ensure checkout uses corrected `rentalDays` everywhere:
-     - vehicle base rental line
-     - protection total
-     - add-ons
-     - additional drivers
-     - PVRT / ACSRCH
-     - final total sent to booking function
-   - Add concise wording in the price details that the day count is based on pickup/return time.
+Columns (in this order):
+1. **Vehicle** — `{year} {make} {model}` (from joined `vehicles`)
+2. **License Plate**
+3. **VIN**
+4. **Location** — Abbotsford / Surrey / Langley (from `locations.name`)
+5. **Kilometers** — `current_mileage`
+6. **Status** — colored badge (Available / On Rent / Maintenance / Damage / Retired)
+7. **Actions** — Edit · Delete (kebab menu)
 
-9. **Server alignment check**
-   - Keep backend `computeBookingTotals()` as source of truth.
-   - Verify checkout sends timestamped `startAt` and `endAt` with selected times so server total matches the corrected client total.
-   - Keep backwards compatibility for date-only inputs.
+```text
+┌─ All Vehicles ────────────────────────────────────────────────────┐
+│ 🔍 Search VIN/plate   [Location ▾] [Status ▾] [Category ▾]  [+ Add]│
+├───────────────────────────────────────────────────────────────────┤
+│ Vehicle           Plate    VIN              Location   KM    Status│
+│ 2023 Toyota Corolla  BC-1234  1HGCM82…   Surrey   42,310  ● Avail │
+│ 2022 Honda Civic     BC-5588  2T1BURH…   Langley  88,902  ● Rent  │
+│ 2024 RAV4            BC-9001  JTMRWRF…   Abbots.  12,440  ● Maint │
+│ …                                                              ⋮  │
+└───────────────────────────────────────────────────────────────────┘
+                                              Showing 1–25 of 87  ‹›
+```
 
-10. **Verification**
-   - Test these scenarios in the booking flow:
-     - 24 hours: $20/day category shows one day.
-     - 25 hours: same category shows two days.
-     - Protection page total changes when return time crosses 24h.
-     - Add-ons page daily extras use the corrected day count.
-     - Checkout price details and submitted total match the same corrected count.
+Features:
+- **Add vehicle** — opens existing `VinFormDialog` (category required, all current validation intact).
+- **Edit** — inline drawer to update plate, VIN, mileage, location, status, notes. Uses existing `useUpdateVehicleUnit` which already surfaces clear errors (duplicate VIN/plate, permission).
+- **Delete** — uses existing `useDeleteVehicleUnit`: blocks if pending/confirmed/active booking on the unit (lists booking codes); otherwise hard delete; if historical FKs exist, **soft‑archives** to `status = retired` and clears `location_id`. No change to this logic.
+- **CSV export** of the current filtered view (client‑side, no backend).
+- URL‑synced filters (`?loc=&status=&q=`) so views are shareable.
 
-### Files likely touched
-- `src/lib/rental-rules.ts`
-- `src/lib/date-utils.ts`
-- `src/contexts/RentalBookingContext.tsx`
-- `src/components/rental/RentalSearchCard.tsx`
-- `src/pages/Search.tsx`
-- `src/pages/Protection.tsx`
-- `src/pages/AddOns.tsx`
-- `src/pages/NewCheckout.tsx`
-- `src/components/rental/BookingSummaryPanel.tsx`
+## Tab 3 — Temporary Vehicles (new)
 
-### Expected result
-Customers will see and be charged consistently by actual rental duration everywhere: exactly 24 hours stays 1 day, anything over 24 hours becomes 2 days, and that same calculation is visible from search through checkout.
+For short‑term rentals you don't own (loaner from vendor, partner unit, etc.). Stored in the same `vehicle_units` table with `is_temporary = true` so all booking/assignment plumbing keeps working.
+
+Extra columns vs Tab 2:
+- **Source** (vendor / owner name) — `temp_source`
+- **Start date** — `temp_start_date`
+- **End date** — `temp_end_date` (badge turns amber within 3 days, red if past)
+- **Daily cost to us** — `temp_daily_cost` (informational; does NOT touch customer pricing)
+
+```text
+┌─ Temporary Vehicles ──────────────────────────────────────────────┐
+│ [+ Add temporary vehicle]                Showing active only ☑    │
+├───────────────────────────────────────────────────────────────────┤
+│ Vehicle        Plate   Source        Location  Ends      Status   │
+│ 2023 Sienna    BC-TMP1 Enterprise    Surrey    Jun 28 ⚠ ● Avail   │
+│ 2022 Kona      BC-TMP2 Owner: Raj    Langley   Jul 10    ● Rent   │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+Features:
+- **Add** — dedicated dialog: vendor/source, start/end, category, plate, VIN (VIN optional → auto‑generated `TMP-<8>` placeholder if missing, since VIN is NOT NULL today).
+- **Return / Remove** — one‑click "Return to vendor" sets `actual_disposal_date = today`, status → `retired`, and hides from default view. Real delete only allowed if the unit has zero bookings (same rules as Tab 2).
+- A nightly check (existing pattern) could flag temps past `temp_end_date`; out of scope for this change but the data supports it.
+
+---
+
+## Collapsible sidebar
+
+`AdminShell` already wraps content in `SidebarProvider`. Add a `SidebarTrigger` to the Fleet page header so a single click hides the left admin nav and gives the table full width. State persists per session via the existing sidebar cookie.
+
+---
+
+## Safety & permissions
+
+- All add/edit/delete go through existing hooks (`useDeleteVehicleUnit`, `useUpdateVehicleUnit`, `useCreateVehicleUnit`) which respect RLS and the active‑booking guard.
+- **You can delete a vehicle** only when it has no pending/confirmed/active bookings. If it has historical bookings/invoices, the system **archives** it (status = `retired`) so finance history stays intact — no FK breakage, no lost revenue records.
+- **You can edit** plate, VIN, mileage, location, status, notes at any time; duplicates and permission errors are surfaced verbatim.
+- Temporary flag is purely a view filter + metadata; it does not alter availability, pricing, deposits, or assignment.
+
+---
+
+## Technical details
+
+Schema (single additive migration, no destructive changes):
+```sql
+ALTER TABLE public.vehicle_units
+  ADD COLUMN IF NOT EXISTS is_temporary boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS temp_source text,
+  ADD COLUMN IF NOT EXISTS temp_start_date date,
+  ADD COLUMN IF NOT EXISTS temp_end_date date,
+  ADD COLUMN IF NOT EXISTS temp_daily_cost numeric;
+CREATE INDEX IF NOT EXISTS idx_vehicle_units_is_temporary
+  ON public.vehicle_units(is_temporary) WHERE is_temporary = true;
+```
+No RLS or GRANT changes needed (existing policies cover the new columns).
+
+Files to touch:
+- `src/pages/admin/FleetManagement.tsx` — wrap content in `<Tabs>` with 3 tabs; add header `SidebarTrigger`.
+- `src/components/admin/fleet/AllVehiclesTable.tsx` *(new)* — Tab 2 table, filters, edit drawer.
+- `src/components/admin/fleet/TemporaryVehiclesTable.tsx` *(new)* — Tab 3 table + add dialog.
+- `src/components/admin/fleet/EditVehicleUnitDrawer.tsx` *(new)* — shared edit form.
+- `src/hooks/use-vehicle-units.ts` — extend query to join `vehicles` + `locations`, accept `isTemporary` filter. Reuses existing mutations.
+- No edge function, pricing, or booking changes.
+
+Out of scope (call out, do not build now): vendor billing for temp units, automated end‑date alerts, bulk CSV import.
