@@ -143,8 +143,7 @@ export default function Search() {
     });
   }, []);
 
-  // Calculate rental days using context (already accounts for pickup/return time)
-  const { rentalDays } = useRentalBooking();
+  // rentalDays comes from context (already accounts for pickup/return time)
 
   // Apply filters then sort
   const filteredAndSorted = useMemo(() => {
