@@ -142,14 +142,8 @@ export default function Search() {
     });
   }, []);
 
-  // Calculate rental days
-  const rentalDays = useMemo(() => {
-    if (startDate && endDate) {
-      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-    }
-    return 1;
-  }, [startDate, endDate]);
+  // Calculate rental days using context (already accounts for pickup/return time)
+  const { rentalDays } = useRentalBooking();
 
   // Apply filters then sort
   const filteredAndSorted = useMemo(() => {
