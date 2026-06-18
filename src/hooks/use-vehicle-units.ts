@@ -17,6 +17,12 @@ export interface VehicleUnit {
   status: string;
   tank_capacity_liters: number | null;
   location_id: string | null;
+  location_name?: string | null;
+  is_temporary?: boolean;
+  temp_source?: string | null;
+  temp_start_date?: string | null;
+  temp_end_date?: string | null;
+  temp_daily_cost?: number | null;
   created_at: string;
   updated_at: string;
   vehicle?: {
@@ -33,6 +39,9 @@ export interface VehicleUnitFilters {
   vehicleId?: string;
   status?: string;
   search?: string;
+  isTemporary?: boolean;
+  locationId?: string;
+  categoryId?: string;
 }
 
 export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
