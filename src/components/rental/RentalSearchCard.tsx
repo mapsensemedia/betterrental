@@ -834,6 +834,26 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
         </div>
       )}
 
+      {/* Billable days preview based on selected date + time */}
+      {pickupDate && returnDate && (() => {
+        const [pH, pM] = (pickupTime || "10:00").split(":").map(Number);
+        const [rH, rM] = (returnTime || "10:00").split(":").map(Number);
+        const start = parseLocalDate(pickupDate); start.setHours(pH || 0, pM || 0, 0, 0);
+        const end = parseLocalDate(returnDate); end.setHours(rH || 0, rM || 0, 0, 0);
+        const ms = end.getTime() - start.getTime();
+        if (ms <= 0) return null;
+        const hours = ms / 3_600_000;
+        const days = Math.max(1, Math.ceil(ms / 86_400_000));
+        return (
+          <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 text-sm">
+            <span className="font-medium text-foreground">
+              {days} billable day{days > 1 ? "s" : ""}
+            </span>
+            <span className="text-muted-foreground"> · {hours.toFixed(1)} hours total. Any rental over 24 hours rolls into the next day.</span>
+          </div>
+        );
+      })()}
+
       {/* Age Confirmation & Search Button */}
       <div className="flex flex-col gap-4 mt-6 pt-4 border-t border-border/50">
         <div className="space-y-3">
