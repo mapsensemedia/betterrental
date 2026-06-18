@@ -101,8 +101,9 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
         expenseMap.set(e.vehicle_unit_id, total + Number(e.amount));
       });
 
-      return data.map(unit => ({
+      return data.map((unit: any) => ({
         ...unit,
+        location_name: unit.location?.name || null,
         total_expenses: expenseMap.get(unit.id) || 0,
       } as VehicleUnit));
     },
