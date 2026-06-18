@@ -120,7 +120,9 @@ export default function Protection() {
 
               <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                 <div className="text-right">
-                  <p className="text-[10px] sm:text-sm text-muted-foreground">Total:</p>
+                  <p className="text-[10px] sm:text-sm text-muted-foreground">
+                    Total · {rentalDays} day{rentalDays > 1 ? "s" : ""}
+                  </p>
                   <p className="text-base sm:text-2xl font-bold whitespace-nowrap">
                     ${totalPrice.toFixed(2)} CAD
                   </p>
