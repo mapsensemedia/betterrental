@@ -195,7 +195,7 @@ export function useDeleteVehicleUnit() {
         .from("bookings")
         .select("booking_code, status")
         .eq("assigned_unit_id", id)
-        .in("status", ["pending", "confirmed", "active", "overdue"]);
+        .in("status", ["pending", "confirmed", "active"]);
 
       if (activeBookings && activeBookings.length > 0) {
         const codes = activeBookings.map((b: any) => b.booking_code).filter(Boolean).join(", ");
