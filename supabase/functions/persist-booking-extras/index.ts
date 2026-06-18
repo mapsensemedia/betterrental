@@ -498,6 +498,19 @@ async function handleUpsellDriverAdd(
     );
   }
 
+  // Mid-rental pro-rata for the additional driver fee
+  let driverProRata: { mode: string; remainingDays: number; fullDays: number; originalFee: number } | null = null;
+  if (booking.status === "active" && new Date(booking.start_at).getTime() < Date.now()) {
+    const fullDays = serverTotals.days;
+    const remainingDays = computeRemainingDays(booking.end_at);
+    if (remainingDays > 0 && remainingDays < fullDays && fullDays > 0) {
+      const perDay = round2(newDriverRecord.youngDriverFee / fullDays);
+      const proRatedFee = round2(perDay * remainingDays);
+      driverProRata = { mode: "mid-rental", remainingDays, fullDays, originalFee: newDriverRecord.youngDriverFee };
+      newDriverRecord.youngDriverFee = proRatedFee;
+    }
+  }
+
   const { error: insertErr } = await supabaseAdmin
     .from("booking_additional_drivers")
     .insert({
@@ -521,10 +534,10 @@ async function handleUpsellDriverAdd(
     entity_id: bookingId,
     user_id: userId,
     old_data: null,
-    new_data: { driverName: newDriverRecord.driverName, driverAgeBand: newDriverRecord.driverAgeBand, computedFee: newDriverRecord.youngDriverFee },
+    new_data: { driverName: newDriverRecord.driverName, driverAgeBand: newDriverRecord.driverAgeBand, computedFee: newDriverRecord.youngDriverFee, proRata: driverProRata },
   });
 
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!driverProRata);
   if (repriceResult) return repriceResult;
 
   return new Response(
