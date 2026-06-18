@@ -1,64 +1,99 @@
-## Three fixes
+## Plan: fix hourly billable-day pricing across the full booking flow
 
-### 1. Pro-rata pricing for mid-rental upsells (additional driver, add-ons)
+### Goal
+Make the customer-facing booking flow consistently charge and display billable days by actual pickup/return date + time:
 
-**Problem:** When staff add an extra (additional driver, GPS, etc.) on day 3 of a 5-day active rental, the system charges the full 5-day fee instead of the remaining 3 days.
+- 24 hours = 1 billable day
+- 25 or 26 hours = 2 billable days
+- Same logic visible on search input, available categories, protection, add-ons, and checkout
+- Server-side booking totals stay authoritative and aligned with the client preview
 
-**Root cause:** `supabase/functions/persist-booking-extras/index.ts` calls `computeBookingTotals({ startAt: booking.start_at, endAt: booking.end_at, … })` using the original booking window. The pricing engine then bills `dailyRate × fullRentalDays`.
+### Root cause to fix
+The previous backend/shared helper uses `ceil(hours / 24)` correctly for timestamp inputs, but the customer flow still drops the selected time in several places:
 
-**Fix:** When the booking is already `active` and the extra is being added after pickup, anchor the daily-billed portion of the new extra to the **remaining days** from `now()` to `end_at`, while keeping the original line items untouched.
+- `RentalBookingContext` calculates `rentalDays` from `pickupDate` and `returnDate` only, often stored as local midnight dates.
+- `RentalSearchCard.handleSearch()` persists dates with `parseLocalDate(...)`, which removes the selected pickup/return time.
+- Protection/add-ons URLs use `formatLocalDate(...)`, so time is lost when moving pages or refreshing.
+- Search, protection, add-ons, checkout, and summary components depend on this context `rentalDays`, so prices remain based on date-only days.
 
-Approach (least invasive):
-- In `persist-booking-extras` `handleUpsellAdd` and `handleUpsellDriverAdd`:
-  - Detect mid-rental: `booking.status === 'active'` AND `now() > booking.start_at`.
-  - Compute `remainingDays = max(1, ceil((end_at - now()) / 24h))` using the same rule already in `booking-core.ts`.
-  - Compute the new item's price **directly** with `remainingDays` (don't re-run the full engine for it). Persist that price into `booking_add_ons.price` / `booking_additional_drivers.young_driver_fee`.
-  - Still call `reprice-booking` afterwards, but pass a flag (or new param) telling it to leave existing rows' `price` alone and only recompute the booking-level totals by summing rows. Cleanest: add an `engineMode: 'sum_existing_extras'` branch in `reprice-booking` that skips re-pricing add-ons / drivers and just sums them for tax/total.
-- Add an audit-log note `{ mode: "mid-rental", remainingDays, fullRentalDays }` for traceability.
-- No change to pre-pickup upsells — they keep full-rental pricing.
+### Implementation steps
 
-Files: `supabase/functions/persist-booking-extras/index.ts`, `supabase/functions/reprice-booking/index.ts`, `supabase/functions/_shared/booking-core.ts` (small helper `computeRemainingDays`).
+1. **Create one client-side source of truth for billable timestamps**
+   - Add or reuse helpers in `src/lib/rental-rules.ts` / `src/lib/date-utils.ts` to combine:
+     - `pickupDate + pickupTime`
+     - `returnDate + returnTime`
+   - Calculate billable days using `computeBillableDays(startDateTime, endDateTime)`.
+   - Keep the rule explicit: `Math.ceil(durationMs / 24h)`, minimum 1 day.
 
-### 2. Misleading "vehicle on rent" error when deleting a sold/retired vehicle
+2. **Fix `RentalBookingContext` day calculation**
+   - Update `rentalDays` and duration validation to use combined date + time, not date-only midnight values.
+   - Ensure 10:00 AM Apr 10 → 10:00 AM Apr 11 = 1 day.
+   - Ensure 10:00 AM Apr 10 → 11:00 AM Apr 11 = 2 days.
 
-**Problem:** Delete fails with "vehicle is on rent" even when no active booking holds the unit.
+3. **Stop dropping times from the search form**
+   - In `RentalSearchCard`, persist date/time together when the customer searches.
+   - Keep selected times intact when dates change.
+   - Use the same helper for pickup and delivery modes.
+   - Show the calculated billable day count directly near the pickup/return fields so customers see the pricing impact immediately.
 
-**Root cause:** Postgres FK violation (`23503`) from `bookings.assigned_unit_id → vehicle_units.id` (historical bookings reference the unit). The catch in `src/domain/fleet/mutations.ts` and `src/hooks/use-vehicle-units.ts` translates *any* `23503` into a generic "associated with bookings" message that users read as "on rent".
+4. **Preserve time in booking-flow URLs**
+   - Update navigation from:
+     - search → protection
+     - protection → add-ons
+     - add-ons → checkout
+     - checkout back → add-ons
+   - Use timestamp params with time (`localDateTimeToISO(...)`) instead of date-only values.
+   - Keep existing hydration support so old date-only URLs still work, defaulting to stored/default times.
 
-**Fix — soft delete + clearer error:**
-1. Pre-check before delete:
-   - Query `bookings` where `assigned_unit_id = unitId AND status IN ('active','pending','confirmed')`.
-   - If found → block with explicit message naming the booking codes.
-   - If none → attempt hard delete.
-2. On FK failure (only historical bookings reference it), automatically fall back to **soft-archive**:
-   - Set `status = 'retired'`, `location_id = null`, append note `"Archived <date> – sold/removed from fleet"`.
-   - Return success with a toast: *"Vehicle archived (kept for historical records). It will no longer appear in active fleet."*
-3. Hide `retired` units from default fleet views (`OpsFleet`, `FleetManagement` listings) behind an "Include archived" toggle. They're already filtered out in availability queries.
+5. **Make pricing visibly clear on available categories**
+   - Use the context billable days for each category total.
+   - Add clearer text such as:
+     - `1 billable day`
+     - `2 billable days`
+     - `$20.00/day × 2 days`
+   - Keep the existing taxes/fees disclaimer.
 
-Files: `src/domain/fleet/mutations.ts`, `src/hooks/use-vehicle-units.ts`, `src/pages/admin/FleetManagement.tsx`, `src/pages/ops/OpsFleet.tsx`.
+6. **Make protection page totals clear**
+   - Add the billable-day count in the sticky total/header or summary area.
+   - Protection package cards should still show `/ day`, while total preview uses the correct billable days.
 
-### 3. Cannot edit VIN / plate / details — "car is on rent"
+7. **Make add-ons page totals clear**
+   - Add billable-day count near the total.
+   - Ensure daily add-ons and additional drivers multiply by the corrected `rentalDays`.
 
-**Problem:** Updating any vehicle_unit field from the admin edit dialog is rejected with an on-rent message.
+8. **Make checkout price details clear**
+   - Ensure checkout uses corrected `rentalDays` everywhere:
+     - vehicle base rental line
+     - protection total
+     - add-ons
+     - additional drivers
+     - PVRT / ACSRCH
+     - final total sent to booking function
+   - Add concise wording in the price details that the day count is based on pickup/return time.
 
-**Investigation needed before coding** (will do at build time):
-- Confirm whether the rejection comes from (a) a Postgres RLS policy on `vehicle_units` that blocks updates when `status='on_rent'`, (b) a trigger, or (c) a client-side guard. The DB-functions list shows no such trigger, so most likely RLS.
-- Fetch the current `vehicle_units` policies via `supabase--read_query` on `pg_policies`.
+9. **Server alignment check**
+   - Keep backend `computeBookingTotals()` as source of truth.
+   - Verify checkout sends timestamped `startAt` and `endAt` with selected times so server total matches the corrected client total.
+   - Keep backwards compatibility for date-only inputs.
 
-**Fix plan:**
-- Loosen the RLS UPDATE policy for admins/staff so that **identity fields** (`vin`, `license_plate`, `color`, `notes`, `current_mileage`, `acquisition_*`, `tank_capacity_liters`, `category_id`, `location_id`) can be edited regardless of `status`.
-- Keep `status` field transitions guarded — only allow client edits when not `on_rent`, or only via the assignment/release RPCs (`assign_vin_to_booking`, `release_vin_from_booking`). Status changes for on-rent units should still go through ops flows.
-- If the block is in `useUpdateVehicleUnit`, remove the guard and rely on the RLS rule above.
-- Show a precise error if the policy still blocks (`"Status cannot be changed while vehicle is on an active rental — return the vehicle first."`).
+10. **Verification**
+   - Test these scenarios in the booking flow:
+     - 24 hours: $20/day category shows one day.
+     - 25 hours: same category shows two days.
+     - Protection page total changes when return time crosses 24h.
+     - Add-ons page daily extras use the corrected day count.
+     - Checkout price details and submitted total match the same corrected count.
 
-Files: new migration to replace the `vehicle_units` UPDATE policy, plus a small adjustment in `src/hooks/use-vehicle-units.ts` to surface the precise error.
+### Files likely touched
+- `src/lib/rental-rules.ts`
+- `src/lib/date-utils.ts`
+- `src/contexts/RentalBookingContext.tsx`
+- `src/components/rental/RentalSearchCard.tsx`
+- `src/pages/Search.tsx`
+- `src/pages/Protection.tsx`
+- `src/pages/AddOns.tsx`
+- `src/pages/NewCheckout.tsx`
+- `src/components/rental/BookingSummaryPanel.tsx`
 
-### Out of scope
-- No changes to historical bookings' financials.
-- No change to pre-rental upsell pricing (still full-rental).
-- No deletion of legacy data; archived units remain queryable.
-
-### Verification
-- Manual: create active booking, add additional driver mid-rental, confirm charge = `fee × remainingDays`.
-- Manual: delete a unit referenced by past completed bookings → expect archive success; delete one with active booking → expect blocked with booking code.
-- Manual: edit VIN/plate on a unit currently `on_rent` → expect success; try to flip its status → expect blocked.
+### Expected result
+Customers will see and be charged consistently by actual rental duration everywhere: exactly 24 hours stays 1 day, anything over 24 hours becomes 2 days, and that same calculation is visible from search through checkout.
