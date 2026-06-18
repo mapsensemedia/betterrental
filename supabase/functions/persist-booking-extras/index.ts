@@ -250,6 +250,35 @@ async function handleUpsellAdd(
     );
   }
 
+  // ── Mid-rental pro-rata: if booking is already active and pickup time has passed,
+  // charge the new add-on only for remaining days (ceil from now → end_at).
+  let proRataInfo: { mode: string; remainingDays: number; fullDays: number; originalPrice: number } | null = null;
+  if (booking.status === "active" && new Date(booking.start_at).getTime() < Date.now()) {
+    const fullDays = serverTotals.days;
+    const remainingDays = computeRemainingDays(booking.end_at);
+    if (remainingDays > 0 && remainingDays < fullDays) {
+      const { data: addOnPricing } = await supabaseAdmin
+        .from("add_ons")
+        .select("name, daily_rate, one_time_fee")
+        .eq("id", addOnId)
+        .single();
+      if (addOnPricing) {
+        const isFuel = String(addOnPricing.name || "").toLowerCase().includes("fuel");
+        let newPrice: number;
+        if (isFuel) {
+          newPrice = round2(Number(addOnPricing.one_time_fee ?? addOnPricing.daily_rate ?? 0));
+        } else {
+          const daily = round2(Number(addOnPricing.daily_rate ?? 0) * remainingDays * computedEntry.quantity);
+          const oneTime = round2(Number(addOnPricing.one_time_fee ?? 0) * computedEntry.quantity);
+          newPrice = round2(daily + oneTime);
+        }
+        proRataInfo = { mode: "mid-rental", remainingDays, fullDays, originalPrice: computedEntry.price };
+        computedEntry.price = newPrice;
+      }
+    }
+  }
+
+
   // Persist: upsert using delete-then-insert (no unique constraint on booking_id+add_on_id)
   const { data: existingRow } = await supabaseAdmin
     .from("booking_add_ons")
