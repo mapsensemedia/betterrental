@@ -172,6 +172,23 @@ export default function FleetManagement() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <Tabs defaultValue="categories" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="all">All Vehicles</TabsTrigger>
+            <TabsTrigger value="temporary">Temporary</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="mt-0">
+            <AllVehiclesTable isTemporary={false} />
+          </TabsContent>
+
+          <TabsContent value="temporary" className="mt-0">
+            <TemporaryVehiclesTable />
+          </TabsContent>
+
+          <TabsContent value="categories" className="mt-0">
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Categories List */}
