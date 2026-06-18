@@ -252,7 +252,7 @@ export function AdminShell({
   }
   return <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Desktop Sidebar - hidden on mobile, visible on tablet+ */}
-      <aside className="w-60 border-r border-border bg-card hidden md:flex flex-col shrink-0">
+      <aside className={cn("w-60 border-r border-border bg-card hidden md:flex flex-col shrink-0", sidebarCollapsed && "md:hidden")}>
         <div className="p-4 lg:p-5 border-b border-border">
           <Link to="/" className="flex items-center">
             <img src={c2cLogo} alt="C2C Rental" className="h-8 lg:h-9 w-auto" />
