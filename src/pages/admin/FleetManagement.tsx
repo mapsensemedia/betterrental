@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AllVehiclesTable } from "@/components/admin/fleet/AllVehiclesTable";
+import { TemporaryVehiclesTable } from "@/components/admin/fleet/TemporaryVehiclesTable";
 import {
   Table,
   TableBody,
