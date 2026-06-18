@@ -406,6 +406,17 @@ export function AdminShell({
             <Menu className="w-5 h-5" />
           </Button>
 
+          {/* Desktop Sidebar Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden md:inline-flex shrink-0"
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+          </Button>
+
           {/* Booking Code Scanner */}
           <form onSubmit={handleBookingSearch} className="flex-1 max-w-[180px] sm:max-w-xs">
             <div className="relative">
