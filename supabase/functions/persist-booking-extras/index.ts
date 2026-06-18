@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // Fetch booking — include location IDs for canonical drop-off fee computation
     const { data: booking, error: bErr } = await supabaseAdmin
       .from("bookings")
-      .select("id, user_id, vehicle_id, start_at, end_at, protection_plan, driver_age_band, delivery_fee, different_dropoff_fee, subtotal, tax_amount, total_amount, location_id, return_location_id")
+      .select("id, user_id, vehicle_id, start_at, end_at, status, protection_plan, driver_age_band, delivery_fee, different_dropoff_fee, subtotal, tax_amount, total_amount, location_id, return_location_id")
       .eq("id", bookingId)
       .single();
 
@@ -250,6 +250,35 @@ async function handleUpsellAdd(
     );
   }
 
+  // ── Mid-rental pro-rata: if booking is already active and pickup time has passed,
+  // charge the new add-on only for remaining days (ceil from now → end_at).
+  let proRataInfo: { mode: string; remainingDays: number; fullDays: number; originalPrice: number } | null = null;
+  if (booking.status === "active" && new Date(booking.start_at).getTime() < Date.now()) {
+    const fullDays = serverTotals.days;
+    const remainingDays = computeRemainingDays(booking.end_at);
+    if (remainingDays > 0 && remainingDays < fullDays) {
+      const { data: addOnPricing } = await supabaseAdmin
+        .from("add_ons")
+        .select("name, daily_rate, one_time_fee")
+        .eq("id", addOnId)
+        .single();
+      if (addOnPricing) {
+        const isFuel = String(addOnPricing.name || "").toLowerCase().includes("fuel");
+        let newPrice: number;
+        if (isFuel) {
+          newPrice = round2(Number(addOnPricing.one_time_fee ?? addOnPricing.daily_rate ?? 0));
+        } else {
+          const daily = round2(Number(addOnPricing.daily_rate ?? 0) * remainingDays * computedEntry.quantity);
+          const oneTime = round2(Number(addOnPricing.one_time_fee ?? 0) * computedEntry.quantity);
+          newPrice = round2(daily + oneTime);
+        }
+        proRataInfo = { mode: "mid-rental", remainingDays, fullDays, originalPrice: computedEntry.price };
+        computedEntry.price = newPrice;
+      }
+    }
+  }
+
+
   // Persist: upsert using delete-then-insert (no unique constraint on booking_id+add_on_id)
   const { data: existingRow } = await supabaseAdmin
     .from("booking_add_ons")
@@ -301,11 +330,13 @@ async function handleUpsellAdd(
     entity_id: bookingId,
     user_id: userId,
     old_data: oldData,
-    new_data: { addOnId, addOnName: addOnRow.name, quantity: computedEntry.quantity, computedPrice: computedEntry.price },
+    new_data: { addOnId, addOnName: addOnRow.name, quantity: computedEntry.quantity, computedPrice: computedEntry.price, proRata: proRataInfo },
   });
 
-  // Reprice booking totals via canonical reprice-booking edge function
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  // Reprice booking totals via canonical reprice-booking edge function.
+  // When mid-rental pro-rata was applied, ask reprice to preserve the row prices
+  // (sum them) rather than recomputing add-ons/drivers from full duration.
+  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!proRataInfo);
   if (repriceResult) return repriceResult;
 
   return new Response(
@@ -467,6 +498,19 @@ async function handleUpsellDriverAdd(
     );
   }
 
+  // Mid-rental pro-rata for the additional driver fee
+  let driverProRata: { mode: string; remainingDays: number; fullDays: number; originalFee: number } | null = null;
+  if (booking.status === "active" && new Date(booking.start_at).getTime() < Date.now()) {
+    const fullDays = serverTotals.days;
+    const remainingDays = computeRemainingDays(booking.end_at);
+    if (remainingDays > 0 && remainingDays < fullDays && fullDays > 0) {
+      const perDay = round2(newDriverRecord.youngDriverFee / fullDays);
+      const proRatedFee = round2(perDay * remainingDays);
+      driverProRata = { mode: "mid-rental", remainingDays, fullDays, originalFee: newDriverRecord.youngDriverFee };
+      newDriverRecord.youngDriverFee = proRatedFee;
+    }
+  }
+
   const { error: insertErr } = await supabaseAdmin
     .from("booking_additional_drivers")
     .insert({
@@ -490,10 +534,10 @@ async function handleUpsellDriverAdd(
     entity_id: bookingId,
     user_id: userId,
     old_data: null,
-    new_data: { driverName: newDriverRecord.driverName, driverAgeBand: newDriverRecord.driverAgeBand, computedFee: newDriverRecord.youngDriverFee },
+    new_data: { driverName: newDriverRecord.driverName, driverAgeBand: newDriverRecord.driverAgeBand, computedFee: newDriverRecord.youngDriverFee, proRata: driverProRata },
   });
 
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!driverProRata);
   if (repriceResult) return repriceResult;
 
   return new Response(
@@ -567,12 +611,24 @@ async function handleUpsellDriverRemove(
 }
 
 
+// ── Helpers ─────────────────────────────────────────────────────────
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+
+function computeRemainingDays(endAt: string): number {
+  const eMs = new Date(endAt).getTime();
+  const nMs = Date.now();
+  return Math.max(1, Math.ceil((eMs - nMs) / (1000 * 60 * 60 * 24)));
+}
+
 // ── Invoke reprice-booking edge function (canonical totals writer) ──
 async function invokeRepriceBooking(
   bookingId: string,
   currentEndAt: string,
   originalReq: Request,
   corsHeaders: Record<string, string>,
+  preserveExtrasPrices = false,
 ): Promise<Response | null> {
   const authHeader = originalReq.headers.get("Authorization");
   if (!authHeader) {
@@ -600,6 +656,7 @@ async function invokeRepriceBooking(
         operation: "modify",
         newEndAt: currentEndAt,
         reason: "upsell_reprice",
+        preserveExtrasPrices,
       }),
     },
   );

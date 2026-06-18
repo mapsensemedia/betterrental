@@ -165,7 +165,15 @@ export function useUpdateVehicleUnit() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23505") {
+          throw new Error("A vehicle with that VIN or license plate already exists.");
+        }
+        if (error.code === "42501") {
+          throw new Error("You don't have permission to edit this vehicle. Admin/staff role required.");
+        }
+        throw new Error(error.message || "Update failed");
+      }
       return data;
     },
     onSuccess: (data) => {
@@ -189,26 +197,59 @@ export function useDeleteVehicleUnit() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("vehicle_units")
-        .delete()
-        .eq("id", id);
+    mutationFn: async (id: string): Promise<{ archived: boolean }> => {
+      // 1. Block delete if there's an ACTIVE/PENDING/CONFIRMED booking on this unit
+      const { data: activeBookings } = await supabase
+        .from("bookings")
+        .select("booking_code, status")
+        .eq("assigned_unit_id", id)
+        .in("status", ["pending", "confirmed", "active"]);
 
-      if (error) {
-        if (error.code === '23503') {
-          throw new Error("Cannot delete vehicle because it is associated with existing bookings or records. Consider updating its status to 'retired' or 'inactive' instead.");
-        }
-        throw error;
+      if (activeBookings && activeBookings.length > 0) {
+        const codes = activeBookings.map((b: any) => b.booking_code).filter(Boolean).join(", ");
+        throw new Error(
+          `Cannot delete: vehicle is on ${activeBookings.length} active/upcoming booking(s)${codes ? ` (${codes})` : ""}. Cancel or complete those bookings first.`
+        );
       }
+
+      // 2. Try hard delete first
+      const { error } = await supabase.from("vehicle_units").delete().eq("id", id);
+      if (!error) return { archived: false };
+
+      // 3. If blocked by historical FK references, fall back to soft archive
+      if (error.code === "23503") {
+        const archiveNote = `Archived ${new Date().toISOString().slice(0, 10)} – sold/removed from active fleet`;
+        const { error: archiveErr } = await supabase
+          .from("vehicle_units")
+          .update({
+            status: "retired",
+            location_id: null,
+            notes: archiveNote,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+        if (archiveErr) throw new Error(`Failed to archive vehicle: ${archiveErr.message}`);
+        return { archived: true };
+      }
+
+      throw error;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
-      toast({ title: "Vehicle unit deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["fleet-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["category-vins"] });
+      toast({
+        title: result.archived
+          ? "Vehicle archived"
+          : "Vehicle unit deleted successfully",
+        description: result.archived
+          ? "Kept for historical records — won't appear in active fleet."
+          : undefined,
+      });
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to delete vehicle unit",
+        title: "Failed to remove vehicle",
         description: error.message,
         variant: "destructive",
       });

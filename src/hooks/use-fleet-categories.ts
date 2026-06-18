@@ -391,32 +391,60 @@ export function useUpdateVinStatus() {
   });
 }
 
-// Delete VIN
+// Delete VIN (with soft-archive fallback for units referenced by historical bookings)
 export function useDeleteVin() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (vinId: string) => {
-      const { error } = await supabase
-        .from("vehicle_units")
-        .delete()
-        .eq("id", vinId);
+    mutationFn: async (vinId: string): Promise<{ archived: boolean }> => {
+      // 1. Block if active/upcoming booking holds this unit
+      const { data: activeBookings } = await supabase
+        .from("bookings")
+        .select("booking_code, status")
+        .eq("assigned_unit_id", vinId)
+        .in("status", ["pending", "confirmed", "active"]);
 
-      if (error) {
-        if (error.code === '23503') {
-          throw new Error("Cannot delete vehicle because it is associated with existing bookings or records. Consider updating its status to 'retired' or 'inactive' instead.");
-        }
-        throw error;
+      if (activeBookings && activeBookings.length > 0) {
+        const codes = activeBookings.map((b: any) => b.booking_code).filter(Boolean).join(", ");
+        throw new Error(
+          `Cannot delete: vehicle is on ${activeBookings.length} active/upcoming booking(s)${codes ? ` (${codes})` : ""}. Cancel or complete those bookings first.`
+        );
       }
+
+      // 2. Hard delete
+      const { error } = await supabase.from("vehicle_units").delete().eq("id", vinId);
+      if (!error) return { archived: false };
+
+      // 3. Fallback: soft-archive on FK violation (historical bookings still reference it)
+      if (error.code === "23503") {
+        const archiveNote = `Archived ${new Date().toISOString().slice(0, 10)} – sold/removed from active fleet`;
+        const { error: archiveErr } = await supabase
+          .from("vehicle_units")
+          .update({
+            status: "retired",
+            location_id: null,
+            notes: archiveNote,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", vinId);
+        if (archiveErr) throw new Error(`Failed to archive vehicle: ${archiveErr.message}`);
+        return { archived: true };
+      }
+
+      throw error;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["fleet-categories"] });
       queryClient.invalidateQueries({ queryKey: ["category-vins"] });
       queryClient.invalidateQueries({ queryKey: ["available-categories"] });
-      toast.success("Vehicle removed");
+      toast.success(
+        result.archived
+          ? "Vehicle archived (kept for historical records)"
+          : "Vehicle removed"
+      );
     },
     onError: (error: Error) => {
-      toast.error("Failed to remove vehicle: " + error.message);
+      toast.error(error.message);
     },
   });
 }
