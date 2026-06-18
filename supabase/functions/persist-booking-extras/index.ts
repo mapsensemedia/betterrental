@@ -330,11 +330,13 @@ async function handleUpsellAdd(
     entity_id: bookingId,
     user_id: userId,
     old_data: oldData,
-    new_data: { addOnId, addOnName: addOnRow.name, quantity: computedEntry.quantity, computedPrice: computedEntry.price },
+    new_data: { addOnId, addOnName: addOnRow.name, quantity: computedEntry.quantity, computedPrice: computedEntry.price, proRata: proRataInfo },
   });
 
-  // Reprice booking totals via canonical reprice-booking edge function
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  // Reprice booking totals via canonical reprice-booking edge function.
+  // When mid-rental pro-rata was applied, ask reprice to preserve the row prices
+  // (sum them) rather than recomputing add-ons/drivers from full duration.
+  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!proRataInfo);
   if (repriceResult) return repriceResult;
 
   return new Response(
