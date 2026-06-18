@@ -49,6 +49,7 @@ export default function Search() {
     setPickupDateTime,
     setReturnDateTime,
     setPickupLocation,
+    rentalDays,
   } = useRentalBooking();
   
   useEffect(() => {
