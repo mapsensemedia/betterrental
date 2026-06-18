@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
 
     if (operation === "modify") {
       // Extend/shorten rental, change dates, location, optionally override daily rate
-      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason } = body;
+      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices } = body;
       if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId) {
         return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
       }
@@ -113,14 +113,15 @@ Deno.serve(async (req) => {
       const overrideRate = newDailyRate ? Number(newDailyRate) : null;
       const effectiveDailyRate = overrideRate ?? Number(booking.daily_rate);
 
-      // Use canonical pricing engine for ALL totals
+      // When preserveExtrasPrices is set (mid-rental upsell), compute the engine
+      // WITHOUT add-ons/drivers and then add the actual persisted row sums.
       const serverTotals = await computeBookingTotals({
         vehicleId: booking.vehicle_id,
         startAt: effectiveStartAt,
         endAt: effectiveEndAt,
         protectionPlan: booking.protection_plan || undefined,
-        addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
-        additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
+        addOns: preserveExtrasPrices ? undefined : (addOnInputs.length > 0 ? addOnInputs : undefined),
+        additionalDrivers: preserveExtrasPrices ? undefined : (driverInputs.length > 0 ? driverInputs : undefined),
         driverAgeBand: booking.driver_age_band || undefined,
         deliveryFee,
         locationId: effectiveLocationId,
@@ -128,10 +129,27 @@ Deno.serve(async (req) => {
         overrideDailyRate: effectiveDailyRate,
       });
 
+      let extrasRowsTotal = 0;
+      if (preserveExtrasPrices) {
+        const { data: addOnPriceRows } = await supabase
+          .from("booking_add_ons")
+          .select("price")
+          .eq("booking_id", bookingId);
+        const { data: driverFeeRows } = await supabase
+          .from("booking_additional_drivers")
+          .select("young_driver_fee")
+          .eq("booking_id", bookingId);
+        const addOnSum = (addOnPriceRows || []).reduce((s: number, r: any) => s + Number(r.price || 0), 0);
+        const driverSum = (driverFeeRows || []).reduce((s: number, r: any) => s + Number(r.young_driver_fee || 0), 0);
+        extrasRowsTotal = roundCents(addOnSum + driverSum);
+      }
+
       // If upgrade fee exists, add it to the canonical totals
-      let finalSubtotal = serverTotals.subtotal;
-      let finalTaxAmount = serverTotals.taxAmount;
-      let finalTotal = serverTotals.total;
+      let finalSubtotal = roundCents(serverTotals.subtotal + extrasRowsTotal);
+      let finalTaxAmount = preserveExtrasPrices
+        ? roundCents(finalSubtotal * 0.07) + roundCents(finalSubtotal * 0.05)
+        : serverTotals.taxAmount;
+      let finalTotal = roundCents(finalSubtotal + finalTaxAmount);
       if (upgradeFee > 0) {
         const upgradeTotal = roundCents(upgradeFee * serverTotals.days);
         finalSubtotal = roundCents(finalSubtotal + upgradeTotal);
