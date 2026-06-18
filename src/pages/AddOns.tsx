@@ -191,8 +191,8 @@ export default function AddOns() {
     // Use categoryId for checkout (this is the new category-based flow)
     const checkoutCategoryId = categoryId || vehicleId;
     if (checkoutCategoryId) params.set("categoryId", checkoutCategoryId);
-    if (searchData.pickupDate) params.set("startAt", formatLocalDate(searchData.pickupDate));
-    if (searchData.returnDate) params.set("endAt", formatLocalDate(searchData.returnDate));
+    if (searchData.pickupDate) params.set("startAt", localDateTimeToISO(formatLocalDate(searchData.pickupDate), searchData.pickupTime));
+    if (searchData.returnDate) params.set("endAt", localDateTimeToISO(formatLocalDate(searchData.returnDate), searchData.returnTime));
     if (searchData.pickupLocationId) params.set("locationId", searchData.pickupLocationId);
     params.set("protection", protection);
     params.set("addOns", cleanedAddOnIds.join(","));
