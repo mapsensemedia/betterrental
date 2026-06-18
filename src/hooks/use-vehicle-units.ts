@@ -52,7 +52,8 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
         .from("vehicle_units")
         .select(`
           *,
-          vehicle:vehicles(id, make, model, year, category)
+          vehicle:vehicles(id, make, model, year, category),
+          location:locations(id, name)
         `)
         .order("created_at", { ascending: false });
 
@@ -62,6 +63,18 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
 
       if (filters.status && filters.status !== "all") {
         query = query.eq("status", filters.status);
+      }
+
+      if (typeof filters.isTemporary === "boolean") {
+        query = query.eq("is_temporary", filters.isTemporary);
+      }
+
+      if (filters.locationId && filters.locationId !== "all") {
+        query = query.eq("location_id", filters.locationId);
+      }
+
+      if (filters.categoryId && filters.categoryId !== "all") {
+        query = query.eq("category_id", filters.categoryId);
       }
 
       if (filters.search) {
