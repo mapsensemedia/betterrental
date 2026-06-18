@@ -611,12 +611,24 @@ async function handleUpsellDriverRemove(
 }
 
 
+// ── Helpers ─────────────────────────────────────────────────────────
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+
+function computeRemainingDays(endAt: string): number {
+  const eMs = new Date(endAt).getTime();
+  const nMs = Date.now();
+  return Math.max(1, Math.ceil((eMs - nMs) / (1000 * 60 * 60 * 24)));
+}
+
 // ── Invoke reprice-booking edge function (canonical totals writer) ──
 async function invokeRepriceBooking(
   bookingId: string,
   currentEndAt: string,
   originalReq: Request,
   corsHeaders: Record<string, string>,
+  preserveExtrasPrices = false,
 ): Promise<Response | null> {
   const authHeader = originalReq.headers.get("Authorization");
   if (!authHeader) {
@@ -644,6 +656,7 @@ async function invokeRepriceBooking(
         operation: "modify",
         newEndAt: currentEndAt,
         reason: "upsell_reprice",
+        preserveExtrasPrices,
       }),
     },
   );
