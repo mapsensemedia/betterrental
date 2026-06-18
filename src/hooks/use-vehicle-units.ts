@@ -165,7 +165,15 @@ export function useUpdateVehicleUnit() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23505") {
+          throw new Error("A vehicle with that VIN or license plate already exists.");
+        }
+        if (error.code === "42501") {
+          throw new Error("You don't have permission to edit this vehicle. Admin/staff role required.");
+        }
+        throw new Error(error.message || "Update failed");
+      }
       return data;
     },
     onSuccess: (data) => {
