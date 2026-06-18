@@ -1,74 +1,64 @@
-# Plan: Business Hours + Hour-based Day Billing
+## Three fixes
 
-Two related changes to rental rules:
+### 1. Pro-rata pricing for mid-rental upsells (additional driver, add-ons)
 
-## 1. Restrict pickup & return times to 9:00 AM – 8:00 PM
+**Problem:** When staff add an extra (additional driver, GPS, etc.) on day 3 of a 5-day active rental, the system charges the full 5-day fee instead of the remaining 3 days.
 
-Today the time-slot dropdowns offer every 30 minutes, 24 hours a day. We'll limit them to **9:00 AM through 8:00 PM** (last selectable slot 8:00 PM).
+**Root cause:** `supabase/functions/persist-booking-extras/index.ts` calls `computeBookingTotals({ startAt: booking.start_at, endAt: booking.end_at, … })` using the original booking window. The pricing engine then bills `dailyRate × fullRentalDays`.
 
-**File:** `src/lib/rental-rules.ts`
-- Change `PICKUP_TIME_SLOTS = generateTimeSlots(0, 23, 30)` → `generateTimeSlots(9, 20, 30)`
-- Update `DEFAULT_PICKUP_TIME` to `"10:00"` (already is, leave as-is)
-- Export new constants `BUSINESS_HOURS_START = 9`, `BUSINESS_HOURS_END = 20` for reuse.
+**Fix:** When the booking is already `active` and the extra is being added after pickup, anchor the daily-billed portion of the new extra to the **remaining days** from `now()` to `end_at`, while keeping the original line items untouched.
 
-All three consumers (`GlassSearchBar`, `RentalSearchCard`, `WalkInBookingDialog`) read from `PICKUP_TIME_SLOTS`, so they update automatically.
+Approach (least invasive):
+- In `persist-booking-extras` `handleUpsellAdd` and `handleUpsellDriverAdd`:
+  - Detect mid-rental: `booking.status === 'active'` AND `now() > booking.start_at`.
+  - Compute `remainingDays = max(1, ceil((end_at - now()) / 24h))` using the same rule already in `booking-core.ts`.
+  - Compute the new item's price **directly** with `remainingDays` (don't re-run the full engine for it). Persist that price into `booking_add_ons.price` / `booking_additional_drivers.young_driver_fee`.
+  - Still call `reprice-booking` afterwards, but pass a flag (or new param) telling it to leave existing rows' `price` alone and only recompute the booking-level totals by summing rows. Cleanest: add an `engineMode: 'sum_existing_extras'` branch in `reprice-booking` that skips re-pricing add-ons / drivers and just sums them for tax/total.
+- Add an audit-log note `{ mode: "mid-rental", remainingDays, fullRentalDays }` for traceability.
+- No change to pre-pickup upsells — they keep full-rental pricing.
 
-**Validation guard** (defense in depth) — add a helper `isWithinBusinessHours(date)` and call it in:
-- `RentalBookingContext` when persisting pickup/return datetimes
-- `use-booking-edit.ts` and `use-booking-modification.ts` (admin/ops reschedule paths)
-- `supabase/functions/_shared/booking-core.ts` server-side (reject `start_at`/`end_at` outside 09:00–20:00 local Vancouver time with a clear error)
+Files: `supabase/functions/persist-booking-extras/index.ts`, `supabase/functions/reprice-booking/index.ts`, `supabase/functions/_shared/booking-core.ts` (small helper `computeRemainingDays`).
 
-Existing bookings already created outside these hours are not touched.
+### 2. Misleading "vehicle on rent" error when deleting a sold/retired vehicle
 
-## 2. Hour-based day billing (>24h rolls to next day)
+**Problem:** Delete fails with "vehicle is on rent" even when no active booking holds the unit.
 
-Today day count uses a **date-only diff**: pickup Jun 16 10:00 AM → return Jun 17 11:00 AM is 1 day even though it's 25 hours. We'll switch to **`ceil(hoursDiff / 24)`** so anything over 24h becomes 2 days, over 48h becomes 3 days, etc.
+**Root cause:** Postgres FK violation (`23503`) from `bookings.assigned_unit_id → vehicle_units.id` (historical bookings reference the unit). The catch in `src/domain/fleet/mutations.ts` and `src/hooks/use-vehicle-units.ts` translates *any* `23503` into a generic "associated with bookings" message that users read as "on rent".
 
-| Pickup → Return | Hours | Old days | New days |
-|---|---|---|---|
-| Jun 16 10:00 → Jun 17 10:00 | 24 | 1 | 1 |
-| Jun 16 10:00 → Jun 17 11:00 | 25 | 1 | **2** |
-| Jun 16 10:00 → Jun 18 09:00 | 47 | 2 | **2** |
-| Jun 16 10:00 → Jun 18 11:00 | 49 | 2 | **3** |
+**Fix — soft delete + clearer error:**
+1. Pre-check before delete:
+   - Query `bookings` where `assigned_unit_id = unitId AND status IN ('active','pending','confirmed')`.
+   - If found → block with explicit message naming the booking codes.
+   - If none → attempt hard delete.
+2. On FK failure (only historical bookings reference it), automatically fall back to **soft-archive**:
+   - Set `status = 'retired'`, `location_id = null`, append note `"Archived <date> – sold/removed from fleet"`.
+   - Return success with a toast: *"Vehicle archived (kept for historical records). It will no longer appear in active fleet."*
+3. Hide `retired` units from default fleet views (`OpsFleet`, `FleetManagement` listings) behind an "Include archived" toggle. They're already filtered out in availability queries.
 
-**Files to change:**
+Files: `src/domain/fleet/mutations.ts`, `src/hooks/use-vehicle-units.ts`, `src/pages/admin/FleetManagement.tsx`, `src/pages/ops/OpsFleet.tsx`.
 
-1. **`supabase/functions/_shared/booking-core.ts`** (authoritative — line ~479)
-   - Replace date-only `Math.round((endMs - startMs) / 86400000)` with
-     `Math.max(1, Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)))`
-   - Use raw `start_at` / `end_at` timestamps (not stripped to midnight).
+### 3. Cannot edit VIN / plate / details — "car is on rent"
 
-2. **`src/contexts/RentalBookingContext.tsx`** (lines 435–453)
-   - `rentalDays` and `isRentalDurationValid` switch to the same `ceil(hours/24)` formula using full `pickupDate` / `returnDate` Date objects.
+**Problem:** Updating any vehicle_unit field from the admin edit dialog is rejected with an on-rent message.
 
-3. **`src/pages/Search.tsx`** (line 146) — already uses `Math.ceil(diffTime / 86400000)`. Leave as-is (matches new rule).
+**Investigation needed before coding** (will do at build time):
+- Confirm whether the rejection comes from (a) a Postgres RLS policy on `vehicle_units` that blocks updates when `status='on_rent'`, (b) a trigger, or (c) a client-side guard. The DB-functions list shows no such trigger, so most likely RLS.
+- Fetch the current `vehicle_units` policies via `supabase--read_query` on `pg_policies`.
 
-4. **`src/hooks/use-booking-edit.ts`** and **`src/hooks/use-booking-modification.ts`** — already use `Math.ceil(hoursDiff / 24)`. Leave as-is.
+**Fix plan:**
+- Loosen the RLS UPDATE policy for admins/staff so that **identity fields** (`vin`, `license_plate`, `color`, `notes`, `current_mileage`, `acquisition_*`, `tank_capacity_liters`, `category_id`, `location_id`) can be edited regardless of `status`.
+- Keep `status` field transitions guarded — only allow client edits when not `on_rent`, or only via the assignment/release RPCs (`assign_vin_to_booking`, `release_vin_from_booking`). Status changes for on-rent units should still go through ops flows.
+- If the block is in `useUpdateVehicleUnit`, remove the guard and rely on the RLS rule above.
+- Show a precise error if the policy still blocks (`"Status cannot be changed while vehicle is on an active rental — return the vehicle first."`).
 
-5. **`src/lib/pricing.test.ts`** — update any fixtures whose expected day count changes.
+Files: new migration to replace the `vehicle_units` UPDATE policy, plus a small adjustment in `src/hooks/use-vehicle-units.ts` to surface the precise error.
 
-### Grace period
+### Out of scope
+- No changes to historical bookings' financials.
+- No change to pre-rental upsell pricing (still full-rental).
+- No deletion of legacy data; archived units remain queryable.
 
-Strict by default: 24h 1min = 2 days. If you want a small buffer (e.g. "29 minutes free"), say so and I'll add a configurable `BILLING_GRACE_MINUTES` constant.
-
-### Backfill
-
-No retroactive repricing of existing bookings — change applies to **new bookings and future edits** only.
-
-## Technical details
-
-- Add `BUSINESS_HOURS_START`, `BUSINESS_HOURS_END`, `isWithinBusinessHours(d: Date)` to `src/lib/rental-rules.ts`.
-- Server-side time validation in `booking-core.ts` returns `400 OUTSIDE_BUSINESS_HOURS` with message "Pickup and return must be between 9:00 AM and 8:00 PM".
-- Update `MIN_RENTAL_DAYS` validation copy if needed; min stays 1 day (24h or less).
-- Verify `validateClientPricing` tolerance still holds — server and client both move to the new formula in lockstep.
-
-## Out of scope
-
-- Late-return fees (already hour-based in `src/lib/late-return.ts`).
-- Closing the business on specific dates / holidays.
-- Per-location business hours (single global window for now).
-
-## Open questions
-
-1. Apply a grace period (e.g. 30 min over 24h still bills as 1 day), or strict ceil?
-2. Should **walk-in / ops** bookings be allowed to bypass the 9 AM–8 PM restriction (e.g. staff overrides), or hard-enforced everywhere?
+### Verification
+- Manual: create active booking, add additional driver mid-rental, confirm charge = `fee × remainingDays`.
+- Manual: delete a unit referenced by past completed bookings → expect archive success; delete one with active booking → expect blocked with booking code.
+- Manual: edit VIN/plate on a unit currently `on_rent` → expect success; try to flip its status → expect blocked.
