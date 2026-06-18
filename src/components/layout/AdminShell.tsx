@@ -22,6 +22,8 @@ import {
   DollarSign,
   Building2,
   HelpCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
