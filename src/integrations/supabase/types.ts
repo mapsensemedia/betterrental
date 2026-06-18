@@ -3125,12 +3125,17 @@ export type Database = {
           disposal_value: number | null
           expected_disposal_date: string | null
           id: string
+          is_temporary: boolean
           license_plate: string | null
           location_id: string | null
           mileage_at_acquisition: number | null
           notes: string | null
           status: string
           tank_capacity_liters: number | null
+          temp_daily_cost: number | null
+          temp_end_date: string | null
+          temp_source: string | null
+          temp_start_date: string | null
           updated_at: string
           vehicle_id: string
           vendor_contact: string | null
@@ -3151,12 +3156,17 @@ export type Database = {
           disposal_value?: number | null
           expected_disposal_date?: string | null
           id?: string
+          is_temporary?: boolean
           license_plate?: string | null
           location_id?: string | null
           mileage_at_acquisition?: number | null
           notes?: string | null
           status?: string
           tank_capacity_liters?: number | null
+          temp_daily_cost?: number | null
+          temp_end_date?: string | null
+          temp_source?: string | null
+          temp_start_date?: string | null
           updated_at?: string
           vehicle_id: string
           vendor_contact?: string | null
@@ -3177,12 +3187,17 @@ export type Database = {
           disposal_value?: number | null
           expected_disposal_date?: string | null
           id?: string
+          is_temporary?: boolean
           license_plate?: string | null
           location_id?: string | null
           mileage_at_acquisition?: number | null
           notes?: string | null
           status?: string
           tank_capacity_liters?: number | null
+          temp_daily_cost?: number | null
+          temp_end_date?: string | null
+          temp_source?: string | null
+          temp_start_date?: string | null
           updated_at?: string
           vehicle_id?: string
           vendor_contact?: string | null

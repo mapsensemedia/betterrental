@@ -22,6 +22,8 @@ import {
   DollarSign,
   Building2,
   HelpCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -191,6 +193,17 @@ export function AdminShell({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [bookingCode, setBookingCode] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("admin-sidebar-collapsed") === "1";
+  });
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem("admin-sidebar-collapsed", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  };
   const { counts } = useSidebarCounts();
   const { data: caps } = useCapabilities("admin");
   useGlobalRealtime();
@@ -239,7 +252,7 @@ export function AdminShell({
   }
   return <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Desktop Sidebar - hidden on mobile, visible on tablet+ */}
-      <aside className="w-60 border-r border-border bg-card hidden md:flex flex-col shrink-0">
+      <aside className={cn("w-60 border-r border-border bg-card hidden md:flex flex-col shrink-0", sidebarCollapsed && "md:hidden")}>
         <div className="p-4 lg:p-5 border-b border-border">
           <Link to="/" className="flex items-center">
             <img src={c2cLogo} alt="C2C Rental" className="h-8 lg:h-9 w-auto" />
@@ -391,6 +404,17 @@ export function AdminShell({
           {/* Mobile Menu Toggle */}
           <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={() => setMobileMenuOpen(true)}>
             <Menu className="w-5 h-5" />
+          </Button>
+
+          {/* Desktop Sidebar Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden md:inline-flex shrink-0"
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
           </Button>
 
           {/* Booking Code Scanner */}

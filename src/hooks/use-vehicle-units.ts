@@ -17,6 +17,12 @@ export interface VehicleUnit {
   status: string;
   tank_capacity_liters: number | null;
   location_id: string | null;
+  location_name?: string | null;
+  is_temporary?: boolean;
+  temp_source?: string | null;
+  temp_start_date?: string | null;
+  temp_end_date?: string | null;
+  temp_daily_cost?: number | null;
   created_at: string;
   updated_at: string;
   vehicle?: {
@@ -33,6 +39,9 @@ export interface VehicleUnitFilters {
   vehicleId?: string;
   status?: string;
   search?: string;
+  isTemporary?: boolean;
+  locationId?: string;
+  categoryId?: string;
 }
 
 export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
@@ -43,7 +52,8 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
         .from("vehicle_units")
         .select(`
           *,
-          vehicle:vehicles(id, make, model, year, category)
+          vehicle:vehicles(id, make, model, year, category),
+          location:locations(id, name)
         `)
         .order("created_at", { ascending: false });
 
@@ -53,6 +63,18 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
 
       if (filters.status && filters.status !== "all") {
         query = query.eq("status", filters.status);
+      }
+
+      if (typeof filters.isTemporary === "boolean") {
+        query = query.eq("is_temporary", filters.isTemporary);
+      }
+
+      if (filters.locationId && filters.locationId !== "all") {
+        query = query.eq("location_id", filters.locationId);
+      }
+
+      if (filters.categoryId && filters.categoryId !== "all") {
+        query = query.eq("category_id", filters.categoryId);
       }
 
       if (filters.search) {
@@ -79,8 +101,9 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
         expenseMap.set(e.vehicle_unit_id, total + Number(e.amount));
       });
 
-      return data.map(unit => ({
+      return data.map((unit: any) => ({
         ...unit,
+        location_name: unit.location?.name || null,
         total_expenses: expenseMap.get(unit.id) || 0,
       } as VehicleUnit));
     },

@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AllVehiclesTable } from "@/components/admin/fleet/AllVehiclesTable";
+import { TemporaryVehiclesTable } from "@/components/admin/fleet/TemporaryVehiclesTable";
 import {
   Table,
   TableBody,
@@ -169,6 +172,23 @@ export default function FleetManagement() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <Tabs defaultValue="categories" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="all">All Vehicles</TabsTrigger>
+            <TabsTrigger value="temporary">Temporary</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="mt-0">
+            <AllVehiclesTable isTemporary={false} />
+          </TabsContent>
+
+          <TabsContent value="temporary" className="mt-0">
+            <TemporaryVehiclesTable />
+          </TabsContent>
+
+          <TabsContent value="categories" className="mt-0">
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Categories List */}
@@ -402,6 +422,8 @@ export default function FleetManagement() {
             )}
           </div>
         </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Dialogs */}
