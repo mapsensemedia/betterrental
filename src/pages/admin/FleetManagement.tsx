@@ -422,6 +422,8 @@ export default function FleetManagement() {
             )}
           </div>
         </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Dialogs */}
