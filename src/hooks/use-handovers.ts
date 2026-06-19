@@ -154,7 +154,8 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
         const profile = profilesMap.get(b.user_id);
         const payments = paymentsMap.get(b.id) || [];
         const verification = verificationsMap.get(b.id);
-        const vehicle = b.vehicles;
+        const vehicle = vehiclesMap.get(b.vehicle_id) || null;
+        const location = locationsMap.get(b.location_id) || null;
         const lastReturn = vehicleLastReturnMap.get(b.vehicle_id);
         const bufferHours = vehicle?.cleaning_buffer_hours || 2;
         
