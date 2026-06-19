@@ -77,9 +77,7 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
         query = query.eq("category_id", filters.categoryId);
       }
 
-      if (filters.search) {
-        query = query.or(`vin.ilike.%${filters.search}%,license_plate.ilike.%${filters.search}%`);
-      }
+      // Note: search is applied client-side below so it can match joined vehicle fields (make/model/year)
 
       const { data, error } = await query;
 
