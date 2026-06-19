@@ -432,8 +432,27 @@ export default function BookingDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* Activate Rental - for confirmed bookings */}
-              {booking.status === "confirmed" && (
+              {/* Ops context: direct wizard launchers so staff don't have to backtrack */}
+              {isOpsContext && (booking.status === "draft" || booking.status === "pending" || booking.status === "confirmed") && (
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/ops/booking/${bookingId}/handover`)}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Handover
+                </Button>
+              )}
+              {isOpsContext && booking.status === "active" && (
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/ops/return/${bookingId}`)}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Process Return
+                </Button>
+              )}
+              {/* Activate Rental - for confirmed bookings (admin only) */}
+              {!isOpsContext && booking.status === "confirmed" && (
                 <Button 
                   size="sm"
                   onClick={() => setShowActivateDialog(true)}
