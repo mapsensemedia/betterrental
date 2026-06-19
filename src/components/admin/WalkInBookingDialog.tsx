@@ -315,13 +315,13 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#FAF8F3] text-[#0E0E0E] font-['Poppins',system-ui,sans-serif] border-[#154735]/10">
+        <DialogHeader className="border-b border-[#154735]/10 pb-4">
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold text-[#154735]">
             <User className="h-5 w-5" />
             Create Walk-In Booking
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-[#0E0E0E]/60">
             Create a new booking for a walk-in customer at the rental location.
           </DialogDescription>
         </DialogHeader>
