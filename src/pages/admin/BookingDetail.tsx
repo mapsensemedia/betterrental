@@ -452,10 +452,30 @@ export default function BookingDetail() {
                   Process Return
                 </Button>
               )}
+              {/* Admin context: direct wizard launchers (mirror ops shortcuts) */}
+              {!isOpsContext && (booking.status === "draft" || booking.status === "pending" || booking.status === "confirmed") && (
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/ops/booking/${bookingId}/handover?returnTo=${returnTo}`)}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Handover
+                </Button>
+              )}
+              {!isOpsContext && booking.status === "active" && (
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/ops/return/${bookingId}?returnTo=${returnTo}`)}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Process Return
+                </Button>
+              )}
               {/* Activate Rental - for confirmed bookings (admin only) */}
               {!isOpsContext && booking.status === "confirmed" && (
                 <Button 
                   size="sm"
+                  variant="outline"
                   onClick={() => setShowActivateDialog(true)}
                   disabled={updateStatus.isPending}
                 >
@@ -467,6 +487,7 @@ export default function BookingDetail() {
                   Activate Rental
                 </Button>
               )}
+
               {/* View Active Rental tracking */}
               {booking.status === "active" && (
                 <Button 
