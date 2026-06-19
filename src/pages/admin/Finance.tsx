@@ -1642,7 +1642,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               />
             </div>
             <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <MapPin className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Location" />
               </SelectTrigger>
@@ -1654,7 +1654,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </SelectContent>
             </Select>
             <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-              <SelectTrigger className="w-[170px]">
+              <SelectTrigger className="w-full sm:w-[170px]">
                 <CalendarIcon className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Date range" />
               </SelectTrigger>
@@ -1736,7 +1736,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                     setState({ key, dir: dir as "asc" | "desc" });
                   }}
                 >
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-full sm:w-[200px]">
                     <ArrowUpDown className="w-4 h-4 mr-2" />
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
@@ -1753,7 +1753,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             })()}
             {activeTab === "receipts" && (
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-full sm:w-[160px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -1767,7 +1767,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             )}
             {activeTab === "invoices" && (
               <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-full sm:w-[160px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -1782,7 +1782,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             )}
             {activeTab === "deposits" && (
               <Select value={depositStatusFilter} onValueChange={setDepositStatusFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-full sm:w-[160px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -1799,7 +1799,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             {activeTab === "payments" && (
               <div className="flex items-center gap-2">
                 <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <Filter className="w-4 h-4 mr-2" />
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -1813,7 +1813,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                   </SelectContent>
                 </Select>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
