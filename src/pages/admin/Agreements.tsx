@@ -153,6 +153,8 @@ export default function AdminAgreements() {
     viewAgreement?.bookingId || null
   );
 
+  const [sortBy, setSortBy] = useState<string>("createdAt|desc");
+
   const filtered = useMemo(() => {
     let list = agreements;
     if (tab === "signed") {
@@ -168,8 +170,25 @@ export default function AdminAgreements() {
           (a.customerName && a.customerName.toLowerCase().includes(q))
       );
     }
-    return list;
-  }, [agreements, tab, search]);
+    const [key, dir] = sortBy.split("|");
+    const sign = dir === "asc" ? 1 : -1;
+    const accessor = (a: AgreementRow) => {
+      switch (key) {
+        case "createdAt": return new Date(a.createdAt || 0).getTime();
+        case "startAt": return new Date(a.startAt || 0).getTime();
+        case "bookingCode": return a.bookingCode || "";
+        case "customer": return a.customerName || "";
+        case "status": return isSigned(a) ? "signed" : (a.status || "pending");
+        default: return 0;
+      }
+    };
+    return [...list].sort((a, b) => {
+      const av = accessor(a); const bv = accessor(b);
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * sign;
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * sign;
+    });
+  }, [agreements, tab, search, sortBy]);
+
 
   const signed = agreements.filter((a) => isSigned(a)).length;
   const pending = agreements.filter((a) => !isSigned(a) && a.status !== "expired" && a.status !== "voided").length;
