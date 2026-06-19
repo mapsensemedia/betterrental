@@ -270,28 +270,24 @@ export default function Finance() {
   return (
     <AdminShell>
       <div className="space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">Payments</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Revenue metrics, invoices, receipts, and transaction records
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Payments"
+          subtitle="Revenue metrics, invoices, receipts, and transaction records"
+        />
 
-        <Tabs value={topTab} onValueChange={setTopTab}>
-          <TabsList>
-            <TabsTrigger value="overview" className="gap-1.5">
+        <UnderlineTabs value={topTab} onValueChange={setTopTab}>
+          <UnderlineTabsList>
+            <UnderlineTabsTrigger value="overview" className="gap-1.5">
               <BarChart3 className="w-3.5 h-3.5" />
               Overview
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="gap-1.5">
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="transactions" className="gap-1.5">
               <CreditCard className="w-3.5 h-3.5" />
               Transactions
-            </TabsTrigger>
-          </TabsList>
+            </UnderlineTabsTrigger>
+          </UnderlineTabsList>
 
-          <TabsContent value="overview" className="mt-6">
+          <UnderlineTabsContent value="overview">
             <OverviewTab
               onMethodClick={handleMethodClick}
               dateRange={dateRange}
@@ -303,12 +299,12 @@ export default function Finance() {
               setCustomStart={setCustomStart}
               setCustomEnd={setCustomEnd}
             />
-          </TabsContent>
+          </UnderlineTabsContent>
 
-          <TabsContent value="transactions" className="mt-6">
+          <UnderlineTabsContent value="transactions">
             <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} dateStart={dateStart} dateEnd={dateEnd} />
-          </TabsContent>
-        </Tabs>
+          </UnderlineTabsContent>
+        </UnderlineTabs>
       </div>
     </AdminShell>
   );
