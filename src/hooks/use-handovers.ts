@@ -74,13 +74,9 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
 
       let query = supabase
         .from("bookings")
-        .select(`
-          *,
-          vehicles (id, make, model, year, image_url, is_available, cleaning_buffer_hours),
-          locations!location_id (id, name, city, address)
-        `)
-        .in("status", ["pending", "confirmed"])
+        .select("*")
         // CRITICAL: Exclude already-activated bookings (handover completed in BookingOps)
+        .in("status", ["pending", "confirmed"])
         .is("handed_over_at", null)
         .gte("start_at", startDate.toISOString())
         .lte("start_at", endDate.toISOString())
@@ -98,6 +94,32 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
       }
 
       if (!bookings || bookings.length === 0) return [];
+
+      // Fetch vehicles + locations separately (no FK constraint enables PostgREST embedding)
+      const uniqueVehicleIds = [...new Set(bookings.map((b: any) => b.vehicle_id).filter(Boolean))];
+      const uniqueLocationIds = [...new Set(bookings.map((b: any) => b.location_id).filter(Boolean))];
+
+      const [vehiclesRes, locationsRes] = await Promise.all([
+        uniqueVehicleIds.length
+          ? supabase
+              .from("vehicles")
+              .select("id, make, model, year, image_url, is_available, cleaning_buffer_hours")
+              .in("id", uniqueVehicleIds)
+          : Promise.resolve({ data: [] as any[], error: null }),
+        uniqueLocationIds.length
+          ? supabase
+              .from("locations")
+              .select("id, name, city, address")
+              .in("id", uniqueLocationIds)
+          : Promise.resolve({ data: [] as any[], error: null }),
+      ]);
+
+      const vehiclesMap = new Map<string, any>(
+        (vehiclesRes.data || []).map((v: any) => [v.id, v])
+      );
+      const locationsMap = new Map<string, any>(
+        (locationsRes.data || []).map((l: any) => [l.id, l])
+      );
 
       // Use batch utilities to prevent N+1 queries
       const userIds = [...new Set(bookings.map(b => b.user_id))];
