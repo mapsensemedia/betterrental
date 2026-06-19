@@ -64,6 +64,15 @@ import {
 } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
+import { StatGrid } from "@/components/admin/ui/StatGrid";
+import { StatCard } from "@/components/admin/ui/StatCard";
+import {
+  UnderlineTabs,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+  UnderlineTabsContent,
+} from "@/components/admin/ui/UnderlineTabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
@@ -261,28 +270,24 @@ export default function Finance() {
   return (
     <AdminShell>
       <div className="space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">Payments</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Revenue metrics, invoices, receipts, and transaction records
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Payments"
+          subtitle="Revenue metrics, invoices, receipts, and transaction records"
+        />
 
-        <Tabs value={topTab} onValueChange={setTopTab}>
-          <TabsList>
-            <TabsTrigger value="overview" className="gap-1.5">
+        <UnderlineTabs value={topTab} onValueChange={setTopTab}>
+          <UnderlineTabsList>
+            <UnderlineTabsTrigger value="overview" className="gap-1.5">
               <BarChart3 className="w-3.5 h-3.5" />
               Overview
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="gap-1.5">
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="transactions" className="gap-1.5">
               <CreditCard className="w-3.5 h-3.5" />
               Transactions
-            </TabsTrigger>
-          </TabsList>
+            </UnderlineTabsTrigger>
+          </UnderlineTabsList>
 
-          <TabsContent value="overview" className="mt-6">
+          <UnderlineTabsContent value="overview">
             <OverviewTab
               onMethodClick={handleMethodClick}
               dateRange={dateRange}
@@ -294,12 +299,12 @@ export default function Finance() {
               setCustomStart={setCustomStart}
               setCustomEnd={setCustomEnd}
             />
-          </TabsContent>
+          </UnderlineTabsContent>
 
-          <TabsContent value="transactions" className="mt-6">
+          <UnderlineTabsContent value="transactions">
             <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} dateStart={dateStart} dateEnd={dateEnd} />
-          </TabsContent>
-        </Tabs>
+          </UnderlineTabsContent>
+        </UnderlineTabs>
       </div>
     </AdminShell>
   );
@@ -764,37 +769,36 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       ) : (
         <>
           {/* Summary Cards — clean 4-card layout, ledger-sourced only */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <SummaryCard
-              title="Collected Revenue"
+          <StatGrid>
+            <StatCard
+              label="Collected Revenue"
               value={`$${metrics.collected.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
-              subtitle={metrics.changePercent !== 0 ? `${metrics.changePercent > 0 ? "↑" : "↓"} ${Math.abs(metrics.changePercent)}% vs prev period` : undefined}
               icon={DollarSign}
-              positive
-              changePercent={metrics.changePercent}
+              tone="success"
+              sublabel={metrics.changePercent !== 0 ? `${metrics.changePercent > 0 ? "↑" : "↓"} ${Math.abs(metrics.changePercent)}% vs prev period` : "settled"}
             />
-            <SummaryCard
-              title="Pending"
+            <StatCard
+              label="Pending"
               value={`$${metrics.pending.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
-              subtitle={`${metrics.pendingCount} transaction${metrics.pendingCount !== 1 ? "s" : ""}`}
               icon={Clock}
+              tone="warning"
+              sublabel={`${metrics.pendingCount} transaction${metrics.pendingCount !== 1 ? "s" : ""}`}
             />
-            <SummaryCard
-              title="Failed"
+            <StatCard
+              label="Failed"
               value={`$${metrics.failed.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
-              subtitle={`${metrics.failedCount} issue${metrics.failedCount !== 1 ? "s" : ""}`}
               icon={AlertTriangle}
-              negative={metrics.failedCount > 0}
+              tone={metrics.failedCount > 0 ? "danger" : "default"}
+              sublabel={`${metrics.failedCount} issue${metrics.failedCount !== 1 ? "s" : ""}`}
             />
-            <SummaryCard
-              title="Success Rate"
+            <StatCard
+              label="Success Rate"
               value={`${metrics.successRate}%`}
-              subtitle={`${metrics.completedCount} of ${metrics.total} payments`}
               icon={CheckCircle2}
-              positive={metrics.successRate >= 95}
-              negative={metrics.successRate < 90}
+              tone={metrics.successRate >= 95 ? "success" : metrics.successRate < 90 ? "danger" : "default"}
+              sublabel={`${metrics.completedCount} of ${metrics.total} payments`}
             />
-          </div>
+          </StatGrid>
 
           {/* Breakdowns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
