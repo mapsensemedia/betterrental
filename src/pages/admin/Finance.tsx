@@ -763,8 +763,8 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className={`grid grid-cols-2 gap-3 ${metrics.unrecorded > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+          {/* Summary Cards — clean 4-card layout, ledger-sourced only */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <SummaryCard
               title="Collected Revenue"
               value={`$${metrics.collected.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
@@ -773,21 +773,6 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
               positive
               changePercent={metrics.changePercent}
             />
-            {metrics.unrecorded > 0 && (
-              <button
-                type="button"
-                onClick={() => document.getElementById("unrecorded-bookings-panel")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                className="text-left"
-              >
-                <SummaryCard
-                  title="Unrecorded Revenue"
-                  value={`$${metrics.unrecorded.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
-                  subtitle={`${unrecordedBookings.length} booking${unrecordedBookings.length !== 1 ? "s" : ""} awaiting payment entry`}
-                  icon={AlertTriangle}
-                  negative
-                />
-              </button>
-            )}
             <SummaryCard
               title="Pending"
               value={`$${metrics.pending.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
