@@ -26,6 +26,9 @@ import {
   BarChart3,
   XCircle,
   MapPin,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -1031,12 +1034,43 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
   const urlAmount = searchParams.get("amount");
   
   const [statusFilter, setStatusFilter] = useState<string>(urlStatus === "failed" ? "failed" : "all");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>(urlStatus === "failed" ? "failed" : "all");
+  const [depositStatusFilter, setDepositStatusFilter] = useState<string>("all");
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
   const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">(
     methodFilter ? "payments" : urlStatus === "failed" || urlAdjustment === "damage" ? "payments" : "invoices"
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Sort state per tab: { key, dir }
+  const [invoiceSort, setInvoiceSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [receiptSort, setReceiptSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [paymentSort, setPaymentSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [depositSort, setDepositSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+
+  const toggleSort = (
+    setter: (s: { key: string; dir: "asc" | "desc" }) => void,
+    current: { key: string; dir: "asc" | "desc" },
+    key: string,
+  ) => {
+    if (current.key === key) setter({ key, dir: current.dir === "asc" ? "desc" : "asc" });
+    else setter({ key, dir: "asc" });
+  };
+
+  const SortHead = ({ label, sortKey, state, setState, className }: { label: string; sortKey: string; state: { key: string; dir: "asc" | "desc" }; setState: (s: { key: string; dir: "asc" | "desc" }) => void; className?: string }) => {
+    const active = state.key === sortKey;
+    const Icon = !active ? ArrowUpDown : state.dir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <TableHead className={className}>
+        <button type="button" onClick={() => toggleSort(setState, state, sortKey)} className={cn("inline-flex items-center gap-1 hover:text-foreground transition-colors", active ? "text-foreground" : "text-muted-foreground")}>
+          {label}
+          <Icon className="w-3 h-3" />
+        </button>
+      </TableHead>
+    );
+  };
 
   // Location filter (deep-linkable via ?location=<id>)
   const urlLocation = searchParams.get("location");
@@ -1323,23 +1357,23 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
   const filteredInvoices = invoices.filter((inv) => {
     if (!matchesLocation(inv.location_id)) return false;
+    if (invoiceStatusFilter !== "all" && (inv.status || "draft") !== invoiceStatusFilter) return false;
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return inv.invoice_number?.toLowerCase().includes(s) || inv.booking?.booking_code?.toLowerCase().includes(s) || inv.booking?.profile?.full_name?.toLowerCase().includes(s);
-  });
+  }).slice();
 
-  const filteredReceipts = receipts.filter((receipt) => {
+  const filteredReceiptsSorted = receipts.filter((receipt) => {
     if (!matchesLocation(receipt.location_id)) return false;
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return receipt.receipt_number?.toLowerCase().includes(s) || receipt.booking?.booking_code?.toLowerCase().includes(s) || receipt.booking?.profile?.full_name?.toLowerCase().includes(s);
-  });
+  }).slice();
 
   const filteredPayments = payments.filter((payment) => {
     if (!matchesLocation(payment.location_id)) return false;
-    // Method filter from Overview click-through
+    if (paymentStatusFilter !== "all" && payment.status !== paymentStatusFilter) return false;
     if (methodFilter && normalizeMethod(payment.payment_method) !== methodFilter) return false;
-    // Type filter
     if (typeFilter !== "all") {
       const pt = payment.payment_type?.toLowerCase();
       if (typeFilter === "rental" && !["rental", "pac", "p"].includes(pt)) return false;
@@ -1351,9 +1385,72 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return payment.booking?.booking_code?.toLowerCase().includes(s) || payment.booking?.profile?.full_name?.toLowerCase().includes(s) || payment.transaction_id?.toLowerCase().includes(s);
-  });
+  }).slice();
 
-  const filteredDepositPayments = filteredPayments.filter(p => p.payment_type === "deposit");
+  const filteredDepositPayments = payments.filter((payment) => {
+    if (payment.payment_type !== "deposit") return false;
+    if (!matchesLocation(payment.location_id)) return false;
+    if (depositStatusFilter !== "all" && payment.status !== depositStatusFilter) return false;
+    if (!searchTerm) return true;
+    const s = searchTerm.toLowerCase();
+    return payment.booking?.booking_code?.toLowerCase().includes(s) || payment.booking?.profile?.full_name?.toLowerCase().includes(s) || payment.transaction_id?.toLowerCase().includes(s);
+  }).slice();
+
+  const sortBy = <T,>(arr: T[], key: string, dir: "asc" | "desc", accessor: (row: T, key: string) => any) => {
+    const sign = dir === "asc" ? 1 : -1;
+    return arr.sort((a, b) => {
+      const av = accessor(a, key);
+      const bv = accessor(b, key);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * sign;
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * sign;
+    });
+  };
+
+  const invoiceAccessor = (inv: any, key: string) => {
+    switch (key) {
+      case "invoice_number": return inv.invoice_number || "";
+      case "customer": return inv.booking?.profile?.full_name || "";
+      case "booking": return inv.booking?.booking_code || "";
+      case "grand_total": return Number(inv.grand_total || 0);
+      case "amount_due": return Number(inv.amount_due || 0);
+      case "status": return inv.status || "draft";
+      case "created_at": return new Date(inv.created_at || 0).getTime();
+      default: return "";
+    }
+  };
+  const receiptAccessor = (r: any, key: string) => {
+    switch (key) {
+      case "receipt_number": return r.receipt_number || "";
+      case "customer": return r.booking?.profile?.full_name || "";
+      case "booking": return r.booking?.booking_code || "";
+      case "amount": return Number(r.totals_json?.total || 0);
+      case "status": return r.status || "";
+      case "created_at": return new Date(r.created_at || 0).getTime();
+      default: return "";
+    }
+  };
+  const paymentAccessor = (p: any, key: string) => {
+    switch (key) {
+      case "transaction_id": return p.transaction_id || "";
+      case "customer": return p.booking?.profile?.full_name || "";
+      case "booking": return p.booking?.booking_code || "";
+      case "amount": return Number(p.amount || 0);
+      case "payment_type": return p.payment_type || "";
+      case "source": return p.source || "";
+      case "payment_method": return p.payment_method || "";
+      case "status": return p.status || "";
+      case "created_at": return new Date(p.created_at || 0).getTime();
+      default: return "";
+    }
+  };
+
+  const sortedInvoices = sortBy([...filteredInvoices], invoiceSort.key, invoiceSort.dir, invoiceAccessor);
+  const filteredReceipts = sortBy([...filteredReceiptsSorted], receiptSort.key, receiptSort.dir, receiptAccessor);
+  const sortedPayments = sortBy([...filteredPayments], paymentSort.key, paymentSort.dir, paymentAccessor);
+  const sortedDepositPayments = sortBy([...filteredDepositPayments], depositSort.key, depositSort.dir, paymentAccessor);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -1554,8 +1651,53 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 </SelectContent>
               </Select>
             )}
+            {activeTab === "invoices" && (
+              <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="issued">Issued</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="voided">Voided</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {activeTab === "deposits" && (
+              <Select value={depositStatusFilter} onValueChange={setDepositStatusFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="authorized">Authorized</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="released">Released</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             {activeTab === "payments" && (
               <div className="flex items-center gap-2">
+                <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="authorized">Authorized</SelectItem>
+                    <SelectItem value="released">Released</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Type" />
@@ -1587,7 +1729,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           <TabsContent value="invoices">
             {invoicesLoading ? (
               <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : filteredInvoices.length === 0 ? (
+            ) : sortedInvoices.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-2xl">
                 <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No invoices found</p>
@@ -1597,18 +1739,18 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Grand Total</TableHead>
-                      <TableHead>Amount Due</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                      <SortHead label="Invoice #" sortKey="invoice_number" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Customer" sortKey="customer" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Booking" sortKey="booking" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Grand Total" sortKey="grand_total" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Amount Due" sortKey="amount_due" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Status" sortKey="status" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Date" sortKey="created_at" state={invoiceSort} setState={setInvoiceSort} />
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInvoices.map((inv) => (
+                    {sortedInvoices.map((inv) => (
                       <TableRow key={inv.id} className="hover:bg-muted/30">
                         <TableCell><Badge variant="outline" className="font-mono">{inv.invoice_number}</Badge></TableCell>
                         <TableCell>
@@ -1674,12 +1816,12 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Receipt #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                      <SortHead label="Receipt #" sortKey="receipt_number" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Customer" sortKey="customer" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Booking" sortKey="booking" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Amount" sortKey="amount" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Status" sortKey="status" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Date" sortKey="created_at" state={receiptSort} setState={setReceiptSort} />
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1729,7 +1871,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           <TabsContent value="payments">
             {paymentsLoading ? (
               <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : filteredPayments.length === 0 ? (
+            ) : sortedPayments.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-2xl">
                 <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No payments found</p>
@@ -1739,19 +1881,19 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Transaction ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                      <SortHead label="Transaction ID" sortKey="transaction_id" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Customer" sortKey="customer" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Booking" sortKey="booking" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Amount" sortKey="amount" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Type" sortKey="payment_type" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Source" sortKey="source" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Method" sortKey="payment_method" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Status" sortKey="status" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Date" sortKey="created_at" state={paymentSort} setState={setPaymentSort} />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPayments.map((payment) => (
+                    {sortedPayments.map((payment) => (
                       <TableRow key={payment.id} className="hover:bg-muted/30">
                         <TableCell>
                           <code className="text-xs bg-muted px-2 py-1 rounded">{payment.transaction_id?.slice(0, 12) || "—"}</code>
@@ -1790,7 +1932,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           <TabsContent value="deposits">
             {paymentsLoading ? (
               <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : filteredDepositPayments.length === 0 ? (
+            ) : sortedDepositPayments.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-2xl">
                 <Banknote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No deposit records found</p>
@@ -1800,17 +1942,17 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Date</TableHead>
+                      <SortHead label="Booking" sortKey="booking" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Customer" sortKey="customer" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Amount" sortKey="amount" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Status" sortKey="status" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Method" sortKey="payment_method" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Date" sortKey="created_at" state={depositSort} setState={setDepositSort} />
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDepositPayments.map((payment) => (
+                    {sortedDepositPayments.map((payment) => (
                       <TableRow key={payment.id} className="hover:bg-muted/30">
                         <TableCell>
                           <Tooltip>
