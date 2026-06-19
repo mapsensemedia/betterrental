@@ -1729,7 +1729,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           <TabsContent value="invoices">
             {invoicesLoading ? (
               <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : filteredInvoices.length === 0 ? (
+            ) : sortedInvoices.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-2xl">
                 <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No invoices found</p>
@@ -1739,18 +1739,18 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Grand Total</TableHead>
-                      <TableHead>Amount Due</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                      <SortHead label="Invoice #" sortKey="invoice_number" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Customer" sortKey="customer" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Booking" sortKey="booking" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Grand Total" sortKey="grand_total" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Amount Due" sortKey="amount_due" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Status" sortKey="status" state={invoiceSort} setState={setInvoiceSort} />
+                      <SortHead label="Date" sortKey="created_at" state={invoiceSort} setState={setInvoiceSort} />
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInvoices.map((inv) => (
+                    {sortedInvoices.map((inv) => (
                       <TableRow key={inv.id} className="hover:bg-muted/30">
                         <TableCell><Badge variant="outline" className="font-mono">{inv.invoice_number}</Badge></TableCell>
                         <TableCell>
