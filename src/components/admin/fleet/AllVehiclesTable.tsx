@@ -196,7 +196,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
 
         {/* Table */}
         <div className="border border-border rounded-lg overflow-hidden">
-          <Table>
+          <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Vehicle</TableHead>

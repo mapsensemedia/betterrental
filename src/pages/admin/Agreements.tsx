@@ -305,7 +305,7 @@ export default function AdminAgreements() {
         ) : (
           <Card>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Booking</TableHead>
