@@ -86,7 +86,7 @@ import { cn } from "@/lib/utils";
 // Types
 // ═══════════════════════════════════════════════════
 
-type DateRange = "today" | "yesterday" | "week" | "month" | "last30" | "all" | "custom";
+type DateRange = "today" | "yesterday" | "week" | "month" | "last30" | "last90" | "all" | "custom";
 
 interface OverviewPaymentRecord {
   id: string;
