@@ -1586,9 +1586,9 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
       {/* Sub-tabs + refresh */}
       <div className="flex items-center justify-between">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1">
-          <div className="flex items-center justify-between">
-            <TabsList className="justify-start overflow-x-auto flex-nowrap">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <TabsList className="justify-start overflow-x-auto flex-nowrap whitespace-nowrap max-w-full">
               <TabsTrigger value="invoices" className="gap-1.5">
                 <FileText className="w-3.5 h-3.5" />
                 Invoices
@@ -1608,13 +1608,14 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             </TabsList>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="ml-2">
+                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="ml-auto shrink-0">
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Refresh data</TooltipContent>
             </Tooltip>
           </div>
+
 
           {/* Damage charge banner from Damages page */}
           {showDamageBanner && (
@@ -1631,13 +1632,13 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2 mt-4">
-            <div className="relative flex-1 max-w-sm">
+            <div className="relative w-full sm:flex-1 sm:max-w-sm sm:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder={activeTab === "invoices" ? "Search invoices..." : activeTab === "receipts" ? "Search receipts..." : "Search payments..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 w-full"
               />
             </div>
             <Select value={locationFilter} onValueChange={setLocationFilter}>
