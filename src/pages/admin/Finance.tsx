@@ -1034,12 +1034,43 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
   const urlAmount = searchParams.get("amount");
   
   const [statusFilter, setStatusFilter] = useState<string>(urlStatus === "failed" ? "failed" : "all");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>(urlStatus === "failed" ? "failed" : "all");
+  const [depositStatusFilter, setDepositStatusFilter] = useState<string>("all");
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null);
   const [activeTab, setActiveTab] = useState<"invoices" | "receipts" | "payments" | "deposits">(
     methodFilter ? "payments" : urlStatus === "failed" || urlAdjustment === "damage" ? "payments" : "invoices"
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Sort state per tab: { key, dir }
+  const [invoiceSort, setInvoiceSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [receiptSort, setReceiptSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [paymentSort, setPaymentSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [depositSort, setDepositSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+
+  const toggleSort = (
+    setter: (s: { key: string; dir: "asc" | "desc" }) => void,
+    current: { key: string; dir: "asc" | "desc" },
+    key: string,
+  ) => {
+    if (current.key === key) setter({ key, dir: current.dir === "asc" ? "desc" : "asc" });
+    else setter({ key, dir: "asc" });
+  };
+
+  const SortHead = ({ label, sortKey, state, setState, className }: { label: string; sortKey: string; state: { key: string; dir: "asc" | "desc" }; setState: (s: { key: string; dir: "asc" | "desc" }) => void; className?: string }) => {
+    const active = state.key === sortKey;
+    const Icon = !active ? ArrowUpDown : state.dir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <TableHead className={className}>
+        <button type="button" onClick={() => toggleSort(setState, state, sortKey)} className={cn("inline-flex items-center gap-1 hover:text-foreground transition-colors", active ? "text-foreground" : "text-muted-foreground")}>
+          {label}
+          <Icon className="w-3 h-3" />
+        </button>
+      </TableHead>
+    );
+  };
 
   // Location filter (deep-linkable via ?location=<id>)
   const urlLocation = searchParams.get("location");
