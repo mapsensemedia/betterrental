@@ -295,12 +295,13 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
       <AlertDialog open={!!deleteUnit} onOpenChange={(o) => !o && setDeleteUnit(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this vehicle?</AlertDialogTitle>
+            <AlertDialogTitle>Permanently delete this vehicle?</AlertDialogTitle>
             <AlertDialogDescription>
-              VIN <span className="font-mono">{deleteUnit?.vin}</span> will be removed from the active
-              fleet. If the vehicle has historical bookings or invoices, it will be archived
-              (status = retired) instead of fully deleted, so finance records stay intact.
-              Active or upcoming bookings will block this action.
+              VIN <span className="font-mono">{deleteUnit?.vin}</span> will be permanently deleted.
+              Its expense, maintenance, and fleet-cost records will be removed. Past bookings and
+              their invoices/payments are kept for finance history but will no longer reference
+              this VIN. Damage reports filed against this VIN will be deleted. Active or upcoming
+              bookings will block this action.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
