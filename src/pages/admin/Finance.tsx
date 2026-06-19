@@ -1871,7 +1871,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           <TabsContent value="payments">
             {paymentsLoading ? (
               <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : filteredPayments.length === 0 ? (
+            ) : sortedPayments.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-2xl">
                 <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No payments found</p>
@@ -1881,19 +1881,19 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Transaction ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                      <SortHead label="Transaction ID" sortKey="transaction_id" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Customer" sortKey="customer" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Booking" sortKey="booking" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Amount" sortKey="amount" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Type" sortKey="payment_type" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Source" sortKey="source" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Method" sortKey="payment_method" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Status" sortKey="status" state={paymentSort} setState={setPaymentSort} />
+                      <SortHead label="Date" sortKey="created_at" state={paymentSort} setState={setPaymentSort} />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPayments.map((payment) => (
+                    {sortedPayments.map((payment) => (
                       <TableRow key={payment.id} className="hover:bg-muted/30">
                         <TableCell>
                           <code className="text-xs bg-muted px-2 py-1 rounded">{payment.transaction_id?.slice(0, 12) || "—"}</code>
