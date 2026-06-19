@@ -246,11 +246,12 @@ export function AdminShell({
 
   // Full-screen mode (no nav)
   if (hideNav) {
-    return <div className="min-h-screen bg-background">
+    return <div className="admin-theme min-h-screen bg-background">
         {children}
       </div>;
   }
-  return <div className="min-h-screen bg-background flex flex-col md:flex-row">
+  return <div className="admin-theme min-h-screen bg-background flex flex-col md:flex-row">
+
       {/* Desktop Sidebar - hidden on mobile, visible on tablet+ */}
       <aside className={cn("w-60 border-r border-border bg-card hidden md:flex flex-col shrink-0", sidebarCollapsed && "md:hidden")}>
         <div className="p-4 lg:p-5 border-b border-border">
