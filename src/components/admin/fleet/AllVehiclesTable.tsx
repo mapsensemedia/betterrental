@@ -136,7 +136,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search VIN or plate…"
+              placeholder="Search make, model, year, VIN or plate…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
