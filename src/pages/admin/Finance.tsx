@@ -307,7 +307,18 @@ export default function Finance() {
           </UnderlineTabsContent>
 
           <UnderlineTabsContent value="transactions">
-            <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} dateStart={dateStart} dateEnd={dateEnd} />
+            <TransactionsTab
+              methodFilter={methodFilter}
+              onClearMethodFilter={() => setMethodFilter(null)}
+              dateStart={dateStart}
+              dateEnd={dateEnd}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              customStart={customStart}
+              customEnd={customEnd}
+              setCustomStart={setCustomStart}
+              setCustomEnd={setCustomEnd}
+            />
           </UnderlineTabsContent>
         </UnderlineTabs>
       </div>
