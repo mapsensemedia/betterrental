@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/poppins": "^5.2.7",
     "@hookform/resolvers": "^3.10.0",
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
     "@playwright/test": "^1.57.0",
