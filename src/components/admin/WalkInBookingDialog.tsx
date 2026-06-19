@@ -651,7 +651,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
             </div>
 
             {/* Price Summary */}
-            <div className="p-4 rounded-lg border bg-muted/30 space-y-2">
+            <div className="p-4 rounded-lg border border-[#154735]/15 bg-white space-y-2 shadow-sm">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Duration</span>
                 <span className="flex items-center gap-1">
