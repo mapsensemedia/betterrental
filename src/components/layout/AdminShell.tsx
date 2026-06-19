@@ -70,14 +70,14 @@ const navGroups: NavGroup[] = [
       {
         href: "/admin/alerts",
         label: "Alerts",
-        icon: AlertCircle,
+        icon: Bell,
         badgeKey: "alerts",
         description: "Issues & action items",
       },
       {
         href: "/admin/bookings?tab=active",
         label: "Ops",
-        icon: Car,
+        icon: Activity,
         badgeKey: "active",
         description: "Vehicles on road",
       },
@@ -89,7 +89,7 @@ const navGroups: NavGroup[] = [
       {
         href: "/admin/fleet",
         label: "Inventory",
-        icon: Car,
+        icon: Boxes,
         description: "Vehicle catalog",
       },
       {
@@ -101,7 +101,7 @@ const navGroups: NavGroup[] = [
       {
         href: "/admin/fleet-analytics",
         label: "Fleet Analytics",
-        icon: Wrench,
+        icon: BarChart3,
         description: "Utilization & costs",
       },
       {
@@ -131,7 +131,7 @@ const navGroups: NavGroup[] = [
       {
         href: "/admin/offers",
         label: "Offers",
-        icon: Gift,
+        icon: Tag,
         description: "Rewards & incentives",
       },
     ],
@@ -142,7 +142,7 @@ const navGroups: NavGroup[] = [
       {
         href: "/admin/reports",
         label: "Reports",
-        icon: BarChart3,
+        icon: PieChart,
         description: "Metrics & KPIs",
       },
       {
@@ -165,7 +165,7 @@ const navGroups: NavGroup[] = [
       {
         href: "/support",
         label: "Support",
-        icon: MessageSquare,
+        icon: LifeBuoy,
         description: "Customer tickets",
       },
       {
