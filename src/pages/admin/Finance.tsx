@@ -862,85 +862,10 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             </CardContent>
           </Card>
 
-          {/* Rental Capture Failures — surfaced from admin_alerts */}
-          <RentalCaptureFailurePanel />
+          {/* Action-item panels (capture failures, unrecorded revenue) intentionally
+              removed from this page — they live in /admin/alerts to keep Payments clean. */}
 
-          {/* Expected Revenue split into: Awaiting Pickup (no-show) vs Payment Not Logged */}
-          {(() => {
-            const noShowBookings = unrecordedBookings.filter((b) => b.status === "confirmed");
-            const unloggedPaymentBookings = unrecordedBookings.filter((b) => b.status === "active" || b.status === "completed");
-            const noShowTotal = noShowBookings.reduce((sum, b) => sum + b.total_amount, 0);
-            const unloggedTotal = unloggedPaymentBookings.reduce((sum, b) => sum + b.total_amount, 0);
 
-            const renderRow = (b: typeof unrecordedBookings[number]) => (
-              <div key={b.id} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs font-mono">{b.booking_code}</Badge>
-                  <span className="text-muted-foreground">{b.customer_name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">${b.total_amount.toLocaleString("en-CA", { minimumFractionDigits: 2 })}</span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
-                    <a href={`/admin/ops/${b.id}`} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            );
-
-            return (
-              <>
-                {noShowBookings.length > 0 && (
-                  <Card id="awaiting-pickup-panel" className="border-amber-500/30 bg-amber-500/5 scroll-mt-24">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-600" />
-                        <h3 className="text-sm font-semibold text-amber-700">
-                          Awaiting Pickup — Action Required ({noShowBookings.length} booking{noShowBookings.length !== 1 ? "s" : ""})
-                        </h3>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        These bookings were scheduled to be picked up but the customer has not arrived yet. The vehicle was never handed over, so no payment is expected to be logged. Contact the customer to confirm pickup, or cancel / mark as no-show if they will not come.
-                      </p>
-                      <div className="space-y-1.5">
-                        {noShowBookings.map(renderRow)}
-                      </div>
-                      <Separator />
-                      <div className="flex items-center justify-between text-sm font-semibold">
-                        <span>Total Expected (Awaiting Pickup)</span>
-                        <span>${noShowTotal.toLocaleString("en-CA", { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {unloggedPaymentBookings.length > 0 && (
-                  <Card id="unrecorded-bookings-panel" className="border-amber-500/30 bg-amber-500/5 scroll-mt-24">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-600" />
-                        <h3 className="text-sm font-semibold text-amber-700">
-                          Payment Not Logged — Action Required ({unloggedPaymentBookings.length} booking{unloggedPaymentBookings.length !== 1 ? "s" : ""})
-                        </h3>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        These active or completed rentals have no logged payment, so the money has not been counted in Collected Revenue. Use "Log Terminal Payment" on each booking to record the transaction.
-                      </p>
-                      <div className="space-y-1.5">
-                        {unloggedPaymentBookings.map(renderRow)}
-                      </div>
-                      <Separator />
-                      <div className="flex items-center justify-between text-sm font-semibold">
-                        <span>Total Unrecorded</span>
-                        <span>${unloggedTotal.toLocaleString("en-CA", { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            );
-          })()}
 
 
           {/* Payment Status */}
