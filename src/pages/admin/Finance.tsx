@@ -64,6 +64,15 @@ import {
 } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/admin/ui/PageHeader";
+import { StatGrid } from "@/components/admin/ui/StatGrid";
+import { StatCard } from "@/components/admin/ui/StatCard";
+import {
+  UnderlineTabs,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+  UnderlineTabsContent,
+} from "@/components/admin/ui/UnderlineTabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
