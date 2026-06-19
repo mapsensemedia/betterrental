@@ -376,7 +376,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
         <div className="space-y-6 py-4">
           {/* Customer Information */}
           <div className="space-y-4">
-            <h3 className="font-medium flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#154735] flex items-center gap-2">
               <User className="h-4 w-4" />
               Customer Information
             </h3>
@@ -439,7 +439,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
 
           {/* Location & Vehicle */}
           <div className="space-y-4">
-            <h3 className="font-medium flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#154735] flex items-center gap-2">
               <Car className="h-4 w-4" />
               Rental Details
             </h3>
@@ -621,7 +621,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
 
           {/* Pricing */}
           <div className="space-y-4">
-            <h3 className="font-medium flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#154735] flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Pricing
             </h3>
