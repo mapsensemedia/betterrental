@@ -499,7 +499,7 @@ export function AdminShell({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-3 md:p-4 lg:p-5 overflow-x-hidden">
+        <main className="flex-1 p-3 md:p-4 lg:p-5 min-w-0 w-full max-w-full overflow-x-clip">
           {children}
         </main>
       </div>

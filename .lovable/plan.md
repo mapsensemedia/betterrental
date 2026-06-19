@@ -1,49 +1,23 @@
-## Goal
+## Plan
 
-When you click **Delete** on a vehicle (VIN) in Admin → Inventory → All Vehicles, the vehicle should be permanently removed from the database — not silently archived as `retired`.
+Fix the mobile unscrollable admin tables by addressing the overflow chain, not just individual table tags.
 
-## Why it currently archives
+1. **Repair the admin page overflow container**
+   - Update the admin shell main content so mobile pages can contain horizontally scrollable children instead of clipping them.
+   - Keep the page itself from causing unwanted full-page sideways scrolling, but allow table wrappers to scroll internally.
 
-The `vehicle_units` row is referenced by other tables. Two of those references actively block a hard delete:
+2. **Make reusable tabs scroll correctly on mobile**
+   - Update the underline tab list used by Payments/Finance so its tabs can scroll horizontally when they exceed screen width.
+   - Apply the same mobile-safe tab wrapper pattern to Finance sub-tabs, Agreements tabs, and Fleet tabs.
 
-- `bookings.assigned_unit_id` (historical bookings the unit was assigned to)
-- `damage_reports.vehicle_unit_id` (damage reports filed against the unit)
+3. **Fix Finance filters and transaction tables**
+   - Make the search/filter row mobile-first: full-width controls where needed, wrapping without pushing content off-screen.
+   - Ensure invoices, receipts, payments, and deposits tables have a real horizontal scroll container with a stable table width, so the right-side view/download/actions columns are reachable.
 
-Three more references already clean themselves up automatically (`vehicle_expenses`, `fleet_cost_cache`, `maintenance_logs` cascade-delete; `incident_cases` sets to NULL).
+4. **Fix Agreements and Inventory tables**
+   - Ensure Agreements and All Vehicles table containers use `overflow-x-auto` without being clipped by parent wrappers.
+   - Add the same treatment to Fleet category VIN tables and temporary/all vehicle tabs where needed.
 
-So today, as soon as a unit has any past booking or damage report, the delete falls through to the "archive as retired" branch in `useDeleteVehicleUnit` (`src/hooks/use-vehicle-units.ts`).
-
-## What changes
-
-### 1. Hard-delete logic (`src/hooks/use-vehicle-units.ts`)
-
-Update `useDeleteVehicleUnit` so it performs a true delete:
-
-1. Keep the existing guard: block deletion if the unit is on a `pending`, `confirmed`, or `active` booking (those must be cancelled/completed first — this protects live operations).
-2. Detach historical references that would otherwise block the delete:
-   - `UPDATE bookings SET assigned_unit_id = NULL WHERE assigned_unit_id = <id>` (only completed/cancelled bookings remain at this point). The booking, its payments, invoices, receipts, and agreement records are untouched — finance history stays intact, the booking just no longer points at a deleted VIN.
-   - `DELETE FROM damage_reports WHERE vehicle_unit_id = <id>` (damage reports are about the physical unit and don't carry standalone financial value).
-3. `DELETE FROM vehicle_units WHERE id = <id>`. The remaining FKs (`vehicle_expenses`, `fleet_cost_cache`, `maintenance_logs`) cascade automatically; `incident_cases.vehicle_unit_id` is set to NULL automatically.
-4. Remove the "archive as retired" fallback branch entirely so a delete is always a delete.
-5. Return `{ archived: false }` and keep the existing query invalidations and toast.
-
-### 2. Confirmation dialog copy (`src/components/admin/fleet/AllVehiclesTable.tsx`)
-
-Rewrite the dialog text so it accurately reflects the new behaviour:
-
-- Title: **Permanently delete this vehicle?**
-- Body: VIN `<vin>` will be permanently deleted. Its expense, maintenance, and fleet-cost records will be removed. Past bookings and their invoices/payments will be kept for finance history but will no longer reference this VIN. Damage reports filed against this VIN will be deleted. Active or upcoming bookings will block this action.
-- Action button stays **Delete** (destructive styling).
-
-No other UI changes; the row's "Delete" action and the existing "block if active booking" toast still work the same way.
-
-## Out of scope
-
-- No schema/migration changes — existing FK rules already support the new flow.
-- No changes to the "active/upcoming booking blocks delete" rule (kept as a safety net).
-- No changes to vehicle **categories** deletion — only individual VIN units.
-
-## Technical notes
-
-- Files touched: `src/hooks/use-vehicle-units.ts`, `src/components/admin/fleet/AllVehiclesTable.tsx`.
-- Project memory currently records a "Vehicle Deletion Restrictions" rule preserving FKs. After this change ships, that memory will be updated to reflect the new policy (hard delete with reference detach).
+5. **Validate on mobile viewport**
+   - Use a 390px-wide browser check on `/admin/finance?tab=transactions`, `/admin/agreements`, and `/admin/fleet`.
+   - Confirm filters wrap/scroll cleanly and the table can scroll to the right-side eye/download/action controls.
