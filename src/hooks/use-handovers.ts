@@ -201,11 +201,11 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
             isAvailable: vehicle.is_available,
             cleaningBufferHours: vehicle.cleaning_buffer_hours,
           } : null,
-          location: b.locations ? {
-            id: b.locations.id,
-            name: b.locations.name,
-            city: b.locations.city,
-            address: b.locations.address,
+          location: location ? {
+            id: location.id,
+            name: location.name,
+            city: location.city,
+            address: location.address,
           } : null,
           profile: profile ? {
             fullName: profile.full_name,
