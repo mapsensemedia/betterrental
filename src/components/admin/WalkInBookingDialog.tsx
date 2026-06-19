@@ -721,11 +721,11 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2 border-t border-[#154735]/10 pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-[#154735]/20 text-[#154735] hover:bg-[#154735]/5">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-[#154735] hover:bg-[#0F3527] text-white">
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
