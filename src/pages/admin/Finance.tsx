@@ -11,6 +11,7 @@ import {
   FileText,
   DollarSign,
   Calendar,
+  Calendar as CalendarIcon,
   User,
   Loader2,
   CheckCircle,
@@ -86,7 +87,7 @@ import { cn } from "@/lib/utils";
 // Types
 // ═══════════════════════════════════════════════════
 
-type DateRange = "today" | "yesterday" | "week" | "month" | "last30" | "all" | "custom";
+type DateRange = "today" | "yesterday" | "week" | "month" | "last30" | "last90" | "all" | "custom";
 
 interface OverviewPaymentRecord {
   id: string;
@@ -210,6 +211,8 @@ function getDateRange(range: DateRange): { start: Date; end: Date } {
       return { start: startOfMonth(now), end: endOfDay(now) };
     case "last30":
       return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
+    case "last90":
+      return { start: startOfDay(subDays(now, 89)), end: endOfDay(now) };
     case "all":
       return { start: new Date("2024-01-01T00:00:00"), end: endOfDay(now) };
     case "custom":
@@ -305,7 +308,18 @@ export default function Finance() {
           </UnderlineTabsContent>
 
           <UnderlineTabsContent value="transactions">
-            <TransactionsTab methodFilter={methodFilter} onClearMethodFilter={() => setMethodFilter(null)} dateStart={dateStart} dateEnd={dateEnd} />
+            <TransactionsTab
+              methodFilter={methodFilter}
+              onClearMethodFilter={() => setMethodFilter(null)}
+              dateStart={dateStart}
+              dateEnd={dateEnd}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              customStart={customStart}
+              customEnd={customEnd}
+              setCustomStart={setCustomStart}
+              setCustomEnd={setCustomEnd}
+            />
           </UnderlineTabsContent>
         </UnderlineTabs>
       </div>
@@ -739,6 +753,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             <SelectItem value="week">This Week</SelectItem>
             <SelectItem value="month">This Month</SelectItem>
             <SelectItem value="last30">Last 30 Days</SelectItem>
+            <SelectItem value="last90">Last 90 Days</SelectItem>
             <SelectItem value="all">All Time</SelectItem>
             <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
@@ -1020,7 +1035,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
 // Tab 2 — Transactions (formerly Billing)
 // ═══════════════════════════════════════════════════
 
-function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd }: { methodFilter?: string | null; onClearMethodFilter?: () => void; dateStart: Date; dateEnd: Date }) {
+function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd, dateRange, setDateRange, customStart, customEnd, setCustomStart, setCustomEnd }: { methodFilter?: string | null; onClearMethodFilter?: () => void; dateStart: Date; dateEnd: Date; dateRange: DateRange; setDateRange: (r: DateRange) => void; customStart: Date; customEnd: Date; setCustomStart: (d: Date) => void; setCustomEnd: (d: Date) => void }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1637,6 +1652,39 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 ))}
               </SelectContent>
             </Select>
+            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+              <SelectTrigger className="w-[170px]">
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Date range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">Month to Date</SelectItem>
+                <SelectItem value="last30">Last 30 Days</SelectItem>
+                <SelectItem value="last90">Last 90 Days</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+            {dateRange === "custom" && (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="date"
+                  className="h-10 w-[150px]"
+                  value={format(customStart, "yyyy-MM-dd")}
+                  onChange={(e) => e.target.value && setCustomStart(new Date(e.target.value + "T00:00:00"))}
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <Input
+                  type="date"
+                  className="h-10 w-[150px]"
+                  value={format(customEnd, "yyyy-MM-dd")}
+                  onChange={(e) => e.target.value && setCustomEnd(new Date(e.target.value + "T00:00:00"))}
+                />
+              </div>
+            )}
             {(() => {
               const opts =
                 activeTab === "invoices"
