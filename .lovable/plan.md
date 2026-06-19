@@ -1,71 +1,61 @@
-# Admin UI Refresh + Clean Payments Tab
+# Admin UI Style Standardization
 
-Apply the clean TEST BACKEND look (shown in your screenshots) to the C2C admin shell, and strip the Payments page down to real, ledger-sourced data only — no demo alerts, no fabricated KPIs.
+Lock the look from the Payments and Inventory screenshots as the standard for every page under `/admin/*`. Pure presentation pass — no data, business logic, queries, or routes change.
 
-## 1. Shell visual refresh (matches screenshots)
+## Visual rules (locked)
 
-Keep all existing routes and capabilities. Only restyle.
+- **Surfaces**: page background `bg-muted/40` (soft off-white). All content blocks are white cards with `border border-border rounded-xl`, no heavy shadow.
+- **Sidebar**: active item = solid dark pill (`bg-foreground text-background`), inactive = muted text + subtle hover. Already in place — leave as is.
+- **Page header**: large bold H1 + one-line muted subtitle, primary action button top-right. One pattern, every page.
+- **Tabs**: text labels with a 2px underline on the active tab (the Overview/Transactions/Cash Position/Batch Close pattern). Replace pill/segmented tabs elsewhere.
+- **KPI cards**: uppercase muted label top-left, small tinted square icon top-right, large bold number, optional muted sub-label. Always in a 4-up grid on desktop, 2-up tablet, 1-up mobile.
+- **Filter rows**: search + selects sit inside one white card above the table, never floating on the page background.
+- **Tables**: white card, muted uppercase column headers, row dividers only (no vertical lines), badge pills for status.
 
-- **Sidebar** — narrower (240 → 232px), white/light surface, grouped with small uppercase labels: `OVERVIEW`, `ACTIVE WORK` (red label), `FLEET & ASSETS`, `MONEY & BILLING`, `CUSTOMER SERVICE`, `INSIGHTS & REPORTS`, `ADMINISTRATION`. Active item = solid dark pill (`bg-foreground text-background`), inactive = muted text + hover. Lucide icons, 16px.
-- **Brand block** — "C2C RENTAL" + "Admin Console" subtitle (current logo stays).
-- **Top bar** — single full-width search input (centered, muted background), help icon, avatar pill with email prefix + logout icon. Current date filter moves into the pages that actually use it (Finance, Reports) instead of living globally.
-- **Active pill badges** — keep current `useSidebarCounts`; only the styling changes (red rounded badge on Alerts, neutral pill on others).
-- New `Today` link at the top of the OVERVIEW group, pointing to existing `/admin` overview for now (no new page in this pass).
+## Shared primitives (new)
 
-Files: `src/components/layout/AdminShell.tsx`, plus minor tokens in `src/index.css` if needed (semantic tokens only — no hardcoded colors).
+Create four small components so every page renders the same shell without per-page restyling:
 
-## 2. Payments page cleanup (`/admin/finance`)
+1. `src/components/admin/ui/PageHeader.tsx` — `{ title, subtitle?, action? }`
+2. `src/components/admin/ui/StatCard.tsx` — `{ label, value, icon, tone?, sublabel? }` with tone-tinted icon chip
+3. `src/components/admin/ui/StatGrid.tsx` — responsive 4-up wrapper
+4. `src/components/admin/ui/UnderlineTabs.tsx` — thin wrapper around shadcn `Tabs` that styles `TabsList`/`TabsTrigger` with the underline treatment
 
-Goal: only show numbers that come from the real ledger. Anything that isn't backed by `payments` / `final_invoices` / `deposit_ledger` is removed.
+These are pure styling. No new state, no new data.
 
-**Keep:**
+## Pages to convert
 
-- Page header "Payments — Revenue, deposits, cash position, and settlement, all sourced from the ledger."
-- Tabs: `Overview`, `Transactions`, `Cash Position`, `Batch Close` (existing).
-- 4 KPI cards on Transactions: **Gross Revenue**, **Pending**, **Deposits Held**, **Invoices** — recomputed from:
-  - Gross Revenue = sum of `payments.amount` where `status in ('succeeded','captured')` for the active date range.
-  - Pending = sum of `payments.amount` where `status = 'pending'`.
-  - Deposits Held = sum of `deposit_ledger` net per booking where state = `authorized` (existing helper).
-  - Invoices = count of `final_invoices` in range.
-- Sub-tabs: `Invoices`, `Receipts`, `Payments`, `Deposits` with **real counts** from the same queries (no hardcoded `(110)` / `(40)` if those are stale — recompute).
-- Transactions table columns: TXN # · Customer · Booking (link) · Amount · Method · Status · Date · Actions (view / download receipt if present).
+Every route mounted under `AdminShell`:
 
-**Remove / fix (the "fake/unwanted" parts):**
+```text
+Today (Overview)        Ops / BookingOps        ActiveRentals
+Pickups   Returns        Handovers              Alerts
+Inventory*              FleetCategories          FleetCosts
+FleetAnalytics          FleetManagement          Incidents / Damages
+Payments (Finance)*     Agreements               Billing / Invoices
+Offers                  Customers / Verifications  Vendors
+Reports / Analytics     SupportV2 / Tickets / SupportAnalytics
+AuditLogs   History   Settings   AbandonedCarts
+```
 
-- Any KPI that currently shows `$0.00` because it's wired to a placeholder rather than a query — either remove the card or hide it when the underlying query returns no data, with a small "No data for selected range" caption instead of a misleading zero.
-- The "Show test data" toggle stays only if it actually filters; otherwise remove.
-- Remove any alert banner on this page that isn't generated from `admin_alerts` (e.g., demo "Pending: $X needs attention" strips).
-- Remove duplicate or stale "TERM-TEST-…" rows from the default view by filtering out `payments.method = 'terminal_test'` and any row where `booking_id is null` AND `metadata->>'simulated' = 'true'`. Real terminal pending rows stay.
-- Trim the page-level alert/toast noise: only show toasts on user actions (refresh, export). No background "polling failed" toasts unless the query errors twice in a row.
+`*` already match the target style and become the reference. Every other page is rewritten to use the four primitives above — header, stat grid, filter card, table card, underline tabs.
 
-**No business-logic changes:** integer-cents math, monotonic statuses, Worldline flow, deposit lifecycle, and edge-function writes are untouched. This is read-side cleanup + UI.
+## Out of scope (explicit)
 
-Files: `src/pages/admin/Finance.tsx` and the small components it imports under `src/components/admin/finance/*`. Query hooks (`use-payments`, `use-collected-revenue`, `use-deposit-ledger`) get filter args but no schema or RLS edits.
+- No changes to data fetching, mutations, RLS, edge functions, or routing.
+- No changes to KPI sources or formulas. If a card currently shows `$0.00` from a placeholder it stays `$0.00` — only the visual container changes. (Cleanup of placeholder KPIs and test-row filtering is **not** included in this pass per your selection.)
+- No sidebar restructuring. Active pill already matches.
+- Customer-facing booking site untouched.
 
-## 3. Inventory page polish (matches second screenshot)
+## Rollout
 
-Just a visual pass on the existing `All Vehicles` tab:
+1. Build the four primitives + a Storybook-style demo page is unnecessary — verify visually on Payments/Inventory first (they should look unchanged).
+2. Convert pages in this order, one PR-sized chunk per group: Overview & Ops → Fleet group → Money & Billing → Customer Service → Insights/Settings.
+3. After each group: scan the route, confirm no functional regression (counts, actions, filters all still wired), move on.
 
-- 4 stat cards at top: Total Vehicles · Available · On Rental · In Maintenance — counted from the already-loaded query.
-- Filter row: search · class · status · location (existing controls, restyled into a single card).
-- Table gets a small photo column (uses `vehicles.hero_photo_url` if present, placeholder otherwise — no schema change).
-- "Add Vehicle" button stays top-right.
+## Risks
 
-Files: `src/components/admin/fleet/AllVehiclesTable.tsx`.
+- Pages with custom dense layouts (BookingOps, ActiveRentals, Reports) may need a "wide table" variant of the card — handled inline, not a new primitive.
+- Some pages currently use shadcn `Card` with shadow; swapping to the flat bordered card is a className change only.
 
-## Out of scope (call out, don't build)
-
-- Merging `/ops` and `/admin`.
-- New `Today` dashboard with activity feed (can do in a follow-up).
-- Any change to booking, pricing, deposits, edge functions, RLS, or schema.
-
-## Open questions
-
-1. On Payments, should "Gross Revenue" follow the global date filter (Today / 24h / Week / All) or always show "this month to date"?  
-Answer: Always Month to date but also allow the user to chnage filter
-2. For the demo `TERM-TEST-…` rows — hide them by default with a "Show test transactions" toggle, or delete the filter entirely and rely on production data only?  
-Answer: Rely on production data only 
-3. Keep the existing `/admin` Overview page as-is, or also strip its KPIs to ledger-backed numbers in this same pass?  
-Answer Keep it as is   
-  
-Make sure no previous data, bookins payments or any other things is affected 
+Approve and I'll start with the four primitives and the Overview/Ops group.
