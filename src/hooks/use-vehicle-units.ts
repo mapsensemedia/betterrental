@@ -99,11 +99,35 @@ export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
         expenseMap.set(e.vehicle_unit_id, total + Number(e.amount));
       });
 
-      return data.map((unit: any) => ({
+      let results = data.map((unit: any) => ({
         ...unit,
         location_name: unit.location?.name || null,
         total_expenses: expenseMap.get(unit.id) || 0,
       } as VehicleUnit));
+
+      if (filters.search) {
+        const q = filters.search.trim().toLowerCase();
+        if (q) {
+          results = results.filter((u: any) => {
+            const v = u.vehicle || {};
+            const hay = [
+              u.vin,
+              u.license_plate,
+              v.make,
+              v.model,
+              v.year != null ? String(v.year) : "",
+              v.category,
+              [v.year, v.make, v.model].filter(Boolean).join(" "),
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+            return hay.includes(q);
+          });
+        }
+      }
+
+      return results;
     },
     staleTime: 30000,
   });
