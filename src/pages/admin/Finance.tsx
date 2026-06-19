@@ -927,11 +927,20 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             </Card>
           )}
 
-          {/* Recent Transactions */}
+          {/* Recent Transactions — quick peek; full list lives in the Transactions tab */}
           <Card>
             <CardContent className="p-0">
-              <div className="p-4 border-b border-border">
-                <h3 className="text-sm font-semibold">Recent Transactions ({payments.length})</h3>
+              <div className="p-4 border-b border-border flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold">Recent Transactions</h3>
+                {payments.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/admin/finance?tab=transactions")}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    View all ({payments.length}) →
+                  </button>
+                )}
               </div>
               {payments.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground text-sm">
@@ -952,7 +961,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {payments.slice(0, 50).map((p) => (
+                      {payments.slice(0, 8).map((p) => (
                         <TableRow key={p.id}>
                           <TableCell>
                             <a href={`/admin/bookings/${p.booking_id}`} className="font-mono text-sm text-primary hover:underline">
@@ -982,10 +991,22 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
                       ))}
                     </TableBody>
                   </Table>
+                  {payments.length > 8 && (
+                    <div className="p-3 border-t border-border text-center">
+                      <button
+                        type="button"
+                        onClick={() => navigate("/admin/finance?tab=transactions")}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        View all {payments.length} transactions →
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
+
         </>
       )}
     </div>
