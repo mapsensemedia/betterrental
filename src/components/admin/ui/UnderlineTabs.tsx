@@ -17,7 +17,7 @@ export const UnderlineTabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex items-center gap-6 border-b border-border w-full",
+      "flex items-center gap-6 border-b border-border w-full overflow-x-auto flex-nowrap whitespace-nowrap scrollbar-thin",
       className,
     )}
     {...props}

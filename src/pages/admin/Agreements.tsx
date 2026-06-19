@@ -257,9 +257,9 @@ export default function AdminAgreements() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-            <TabsList>
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="w-full sm:w-auto">
+            <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap whitespace-nowrap">
               <TabsTrigger value="all">All ({agreements.length})</TabsTrigger>
               <TabsTrigger value="signed">Signed ({signed})</TabsTrigger>
               <TabsTrigger value="pending">Pending ({pending})</TabsTrigger>

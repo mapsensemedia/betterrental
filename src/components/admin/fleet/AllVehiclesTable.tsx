@@ -133,7 +133,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
       <CardContent className="p-4 space-y-4">
         {/* Filters Bar */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search make, model, year, VIN or plate…"
@@ -142,12 +142,12 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
                 setSearch(e.target.value);
                 setParam("q", e.target.value);
               }}
-              className="pl-8 h-9"
+              className="pl-8 h-9 w-full"
             />
           </div>
 
           <Select value={locationId} onValueChange={(v) => setParam("loc", v)}>
-            <SelectTrigger className="w-[150px] h-9">
+            <SelectTrigger className="w-full sm:w-[150px] h-9">
               <SelectValue placeholder="Location" />
             </SelectTrigger>
             <SelectContent>
@@ -159,7 +159,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
           </Select>
 
           <Select value={status} onValueChange={(v) => setParam("status", v)}>
-            <SelectTrigger className="w-[140px] h-9">
+            <SelectTrigger className="w-full sm:w-[140px] h-9">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -171,7 +171,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
           </Select>
 
           <Select value={categoryId} onValueChange={(v) => setParam("cat", v)}>
-            <SelectTrigger className="w-[160px] h-9">
+            <SelectTrigger className="w-full sm:w-[160px] h-9">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -182,16 +182,18 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
             </SelectContent>
           </Select>
 
-          <div className="flex-1" />
+          <div className="hidden sm:block sm:flex-1" />
 
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!totalCount}>
-            <Download className="w-4 h-4 mr-2" />
-            CSV
-          </Button>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add vehicle
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={!totalCount} className="flex-1 sm:flex-none">
+              <Download className="w-4 h-4 mr-2" />
+              CSV
+            </Button>
+            <Button size="sm" onClick={() => setAddOpen(true)} className="flex-1 sm:flex-none">
+              <Plus className="w-4 h-4 mr-2" />
+              Add vehicle
+            </Button>
+          </div>
         </div>
 
         {/* Table */}

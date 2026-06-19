@@ -1586,9 +1586,9 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
       {/* Sub-tabs + refresh */}
       <div className="flex items-center justify-between">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1">
-          <div className="flex items-center justify-between">
-            <TabsList className="justify-start overflow-x-auto flex-nowrap">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <TabsList className="justify-start overflow-x-auto flex-nowrap whitespace-nowrap max-w-full">
               <TabsTrigger value="invoices" className="gap-1.5">
                 <FileText className="w-3.5 h-3.5" />
                 Invoices
@@ -1608,13 +1608,14 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             </TabsList>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="ml-2">
+                <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="ml-auto shrink-0">
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Refresh data</TooltipContent>
             </Tooltip>
           </div>
+
 
           {/* Damage charge banner from Damages page */}
           {showDamageBanner && (
@@ -1631,17 +1632,17 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2 mt-4">
-            <div className="relative flex-1 max-w-sm">
+            <div className="relative w-full sm:flex-1 sm:max-w-sm sm:min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder={activeTab === "invoices" ? "Search invoices..." : activeTab === "receipts" ? "Search receipts..." : "Search payments..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 w-full"
               />
             </div>
             <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <MapPin className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Location" />
               </SelectTrigger>
@@ -1653,7 +1654,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </SelectContent>
             </Select>
             <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-              <SelectTrigger className="w-[170px]">
+              <SelectTrigger className="w-full sm:w-[170px]">
                 <CalendarIcon className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Date range" />
               </SelectTrigger>
@@ -1669,17 +1670,17 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </SelectContent>
             </Select>
             {dateRange === "custom" && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
                 <Input
                   type="date"
-                  className="h-10 w-[150px]"
+                  className="h-10 flex-1 sm:w-[150px] sm:flex-none"
                   value={format(customStart, "yyyy-MM-dd")}
                   onChange={(e) => e.target.value && setCustomStart(new Date(e.target.value + "T00:00:00"))}
                 />
                 <span className="text-xs text-muted-foreground">to</span>
                 <Input
                   type="date"
-                  className="h-10 w-[150px]"
+                  className="h-10 flex-1 sm:w-[150px] sm:flex-none"
                   value={format(customEnd, "yyyy-MM-dd")}
                   onChange={(e) => e.target.value && setCustomEnd(new Date(e.target.value + "T00:00:00"))}
                 />
@@ -1735,7 +1736,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                     setState({ key, dir: dir as "asc" | "desc" });
                   }}
                 >
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-full sm:w-[200px]">
                     <ArrowUpDown className="w-4 h-4 mr-2" />
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
@@ -1752,7 +1753,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             })()}
             {activeTab === "receipts" && (
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-full sm:w-[160px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -1766,7 +1767,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             )}
             {activeTab === "invoices" && (
               <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-full sm:w-[160px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -1781,7 +1782,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
             )}
             {activeTab === "deposits" && (
               <Select value={depositStatusFilter} onValueChange={setDepositStatusFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-full sm:w-[160px]">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -1796,9 +1797,10 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </Select>
             )}
             {activeTab === "payments" && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+
                 <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <Filter className="w-4 h-4 mr-2" />
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -1812,7 +1814,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                   </SelectContent>
                 </Select>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
