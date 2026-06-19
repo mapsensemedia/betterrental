@@ -741,6 +741,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             <SelectItem value="week">This Week</SelectItem>
             <SelectItem value="month">This Month</SelectItem>
             <SelectItem value="last30">Last 30 Days</SelectItem>
+            <SelectItem value="last90">Last 90 Days</SelectItem>
             <SelectItem value="all">All Time</SelectItem>
             <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
