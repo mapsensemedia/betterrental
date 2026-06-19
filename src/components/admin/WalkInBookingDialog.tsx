@@ -315,13 +315,13 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#FAF8F3] text-[#0E0E0E] font-['Poppins',system-ui,sans-serif] border-[#154735]/10">
+        <DialogHeader className="border-b border-[#154735]/10 pb-4">
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold text-[#154735]">
             <User className="h-5 w-5" />
             Create Walk-In Booking
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-[#0E0E0E]/60">
             Create a new booking for a walk-in customer at the rental location.
           </DialogDescription>
         </DialogHeader>
@@ -376,7 +376,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
         <div className="space-y-6 py-4">
           {/* Customer Information */}
           <div className="space-y-4">
-            <h3 className="font-medium flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#154735] flex items-center gap-2">
               <User className="h-4 w-4" />
               Customer Information
             </h3>
@@ -439,7 +439,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
 
           {/* Location & Vehicle */}
           <div className="space-y-4">
-            <h3 className="font-medium flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#154735] flex items-center gap-2">
               <Car className="h-4 w-4" />
               Rental Details
             </h3>
@@ -621,7 +621,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
 
           {/* Pricing */}
           <div className="space-y-4">
-            <h3 className="font-medium flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#154735] flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Pricing
             </h3>
@@ -651,7 +651,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
             </div>
 
             {/* Price Summary */}
-            <div className="p-4 rounded-lg border bg-muted/30 space-y-2">
+            <div className="p-4 rounded-lg border border-[#154735]/15 bg-white space-y-2 shadow-sm">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Duration</span>
                 <span className="flex items-center gap-1">
@@ -721,11 +721,11 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2 border-t border-[#154735]/10 pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-[#154735]/20 text-[#154735] hover:bg-[#154735]/5">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-[#154735] hover:bg-[#0F3527] text-white">
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
