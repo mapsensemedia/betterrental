@@ -1848,7 +1848,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <p className="text-muted-foreground">No invoices found</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-xl border border-border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
@@ -1925,7 +1925,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <p className="text-muted-foreground">No receipts found</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-xl border border-border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
@@ -1990,7 +1990,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <p className="text-muted-foreground">No payments found</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-xl border border-border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
@@ -2051,7 +2051,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <p className="text-muted-foreground">No deposit records found</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-xl border border-border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
