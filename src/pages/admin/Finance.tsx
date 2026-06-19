@@ -1630,7 +1630,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           )}
 
           {/* Filters */}
-          <div className="flex flex-wrap items-center gap-2 mt-4 [&>*]:min-w-0 [&_button[role=combobox]]:w-full sm:[&_button[role=combobox]]:w-auto">
+          <div className="flex flex-wrap items-center gap-2 mt-4 max-sm:[&>*]:flex-1 max-sm:[&>*]:basis-[calc(50%-0.25rem)] max-sm:[&_[role=combobox]]:!w-full max-sm:[&_.relative]:!w-full max-sm:[&_.relative]:!max-w-none">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
