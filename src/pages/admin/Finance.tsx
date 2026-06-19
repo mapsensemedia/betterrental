@@ -769,37 +769,36 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
       ) : (
         <>
           {/* Summary Cards — clean 4-card layout, ledger-sourced only */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <SummaryCard
-              title="Collected Revenue"
+          <StatGrid>
+            <StatCard
+              label="Collected Revenue"
               value={`$${metrics.collected.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
-              subtitle={metrics.changePercent !== 0 ? `${metrics.changePercent > 0 ? "↑" : "↓"} ${Math.abs(metrics.changePercent)}% vs prev period` : undefined}
               icon={DollarSign}
-              positive
-              changePercent={metrics.changePercent}
+              tone="success"
+              sublabel={metrics.changePercent !== 0 ? `${metrics.changePercent > 0 ? "↑" : "↓"} ${Math.abs(metrics.changePercent)}% vs prev period` : "settled"}
             />
-            <SummaryCard
-              title="Pending"
+            <StatCard
+              label="Pending"
               value={`$${metrics.pending.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
-              subtitle={`${metrics.pendingCount} transaction${metrics.pendingCount !== 1 ? "s" : ""}`}
               icon={Clock}
+              tone="warning"
+              sublabel={`${metrics.pendingCount} transaction${metrics.pendingCount !== 1 ? "s" : ""}`}
             />
-            <SummaryCard
-              title="Failed"
+            <StatCard
+              label="Failed"
               value={`$${metrics.failed.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
-              subtitle={`${metrics.failedCount} issue${metrics.failedCount !== 1 ? "s" : ""}`}
               icon={AlertTriangle}
-              negative={metrics.failedCount > 0}
+              tone={metrics.failedCount > 0 ? "danger" : "default"}
+              sublabel={`${metrics.failedCount} issue${metrics.failedCount !== 1 ? "s" : ""}`}
             />
-            <SummaryCard
-              title="Success Rate"
+            <StatCard
+              label="Success Rate"
               value={`${metrics.successRate}%`}
-              subtitle={`${metrics.completedCount} of ${metrics.total} payments`}
               icon={CheckCircle2}
-              positive={metrics.successRate >= 95}
-              negative={metrics.successRate < 90}
+              tone={metrics.successRate >= 95 ? "success" : metrics.successRate < 90 ? "danger" : "default"}
+              sublabel={`${metrics.completedCount} of ${metrics.total} payments`}
             />
-          </div>
+          </StatGrid>
 
           {/* Breakdowns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
