@@ -910,7 +910,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
                   <h3 className="text-sm font-semibold">Daily Trend (Last 7 Days)</h3>
                 </div>
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[900px]">
                     <TableHeader>
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
                         <TableHead>Day</TableHead>
@@ -966,7 +966,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[900px]">
                     <TableHeader>
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
                         <TableHead>Booking</TableHead>
@@ -1630,7 +1630,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           )}
 
           {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+          <div className="flex flex-wrap items-center gap-2 mt-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -1848,8 +1848,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <p className="text-muted-foreground">No invoices found</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
-                <Table>
+              <div className="rounded-xl border border-border overflow-x-auto">
+                <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <SortHead label="Invoice #" sortKey="invoice_number" state={invoiceSort} setState={setInvoiceSort} />
@@ -1925,8 +1925,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <p className="text-muted-foreground">No receipts found</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
-                <Table>
+              <div className="rounded-xl border border-border overflow-x-auto">
+                <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <SortHead label="Receipt #" sortKey="receipt_number" state={receiptSort} setState={setReceiptSort} />
@@ -1990,8 +1990,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <p className="text-muted-foreground">No payments found</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
-                <Table>
+              <div className="rounded-xl border border-border overflow-x-auto">
+                <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <SortHead label="Transaction ID" sortKey="transaction_id" state={paymentSort} setState={setPaymentSort} />
@@ -2051,8 +2051,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <p className="text-muted-foreground">No deposit records found</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
-                <Table>
+              <div className="rounded-xl border border-border overflow-x-auto">
+                <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <SortHead label="Booking" sortKey="booking" state={depositSort} setState={setDepositSort} />
@@ -2228,7 +2228,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <div>
                   <p className="text-sm font-medium mb-2">Line Items</p>
                   <div className="rounded-lg border overflow-hidden">
-                    <Table>
+                    <Table className="min-w-[900px]">
                       <TableHeader>
                         <TableRow className="bg-muted/50">
                           <TableHead className="text-xs">Description</TableHead>

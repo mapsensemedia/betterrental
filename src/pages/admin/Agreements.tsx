@@ -275,7 +275,7 @@ export default function AdminAgreements() {
             />
           </div>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <ArrowUpDown className="w-4 h-4 mr-2" />
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -305,7 +305,7 @@ export default function AdminAgreements() {
         ) : (
           <Card>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Booking</TableHead>
