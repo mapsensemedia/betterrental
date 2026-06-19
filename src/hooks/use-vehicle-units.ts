@@ -257,27 +257,28 @@ export function useDeleteVehicleUnit() {
         );
       }
 
-      // 2. Try hard delete first
+      // 2. Detach historical references that would block a hard delete.
+      //    Past bookings (completed/cancelled) keep their financial history but
+      //    no longer point at the deleted VIN.
+      const { error: detachErr } = await supabase
+        .from("bookings")
+        .update({ assigned_unit_id: null })
+        .eq("assigned_unit_id", id);
+      if (detachErr) throw new Error(`Failed to detach bookings: ${detachErr.message}`);
+
+      // Damage reports are tied to the physical unit – remove them.
+      const { error: damageErr } = await supabase
+        .from("damage_reports")
+        .delete()
+        .eq("vehicle_unit_id", id);
+      if (damageErr) throw new Error(`Failed to remove damage reports: ${damageErr.message}`);
+
+      // 3. Hard delete. Remaining FKs cascade (vehicle_expenses, fleet_cost_cache,
+      //    maintenance_logs) or set null (incident_cases) automatically.
       const { error } = await supabase.from("vehicle_units").delete().eq("id", id);
-      if (!error) return { archived: false };
+      if (error) throw error;
 
-      // 3. If blocked by historical FK references, fall back to soft archive
-      if (error.code === "23503") {
-        const archiveNote = `Archived ${new Date().toISOString().slice(0, 10)} – sold/removed from active fleet`;
-        const { error: archiveErr } = await supabase
-          .from("vehicle_units")
-          .update({
-            status: "retired",
-            location_id: null,
-            notes: archiveNote,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", id);
-        if (archiveErr) throw new Error(`Failed to archive vehicle: ${archiveErr.message}`);
-        return { archived: true };
-      }
-
-      throw error;
+      return { archived: false };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
