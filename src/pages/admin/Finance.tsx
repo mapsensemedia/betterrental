@@ -755,11 +755,6 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
         <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => refetch()}>
           <RefreshCw className="w-4 h-4" />
         </Button>
-        {unreconciledCount > 0 && (
-          <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/20">
-            +{unreconciledCount} unreconciled
-          </Badge>
-        )}
       </div>
 
       {isLoading ? (
