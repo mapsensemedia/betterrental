@@ -1,143 +1,71 @@
+# Admin UI Refresh + Clean Payments Tab
 
-# Admin Fleet — 3-Tab Restructure + Collapsible Sidebar
+Apply the clean TEST BACKEND look (shown in your screenshots) to the C2C admin shell, and strip the Payments page down to real, ledger-sourced data only — no demo alerts, no fabricated KPIs.
 
-Goal: Make `/admin/fleet` more usable on wide tables and add two new views — a flat "All Vehicles" master list and a "Temporary Vehicles" register — without changing any booking, pricing, or financial behavior.
+## 1. Shell visual refresh (matches screenshots)
 
-## What changes (and what does NOT)
+Keep all existing routes and capabilities. Only restyle.
 
-**Changes (UI + a tiny schema additive):**
-- New tabbed layout on Fleet Management page.
-- Admin sidebar can be collapsed/expanded from the page header so wide tables fit.
-- New "All Vehicles" master table.
-- New "Temporary Vehicles" register (additive `is_temporary` flag + optional `temp_*` metadata on `vehicle_units`).
+- **Sidebar** — narrower (240 → 232px), white/light surface, grouped with small uppercase labels: `OVERVIEW`, `ACTIVE WORK` (red label), `FLEET & ASSETS`, `MONEY & BILLING`, `CUSTOMER SERVICE`, `INSIGHTS & REPORTS`, `ADMINISTRATION`. Active item = solid dark pill (`bg-foreground text-background`), inactive = muted text + hover. Lucide icons, 16px.
+- **Brand block** — "C2C RENTAL" + "Admin Console" subtitle (current logo stays).
+- **Top bar** — single full-width search input (centered, muted background), help icon, avatar pill with email prefix + logout icon. Current date filter moves into the pages that actually use it (Finance, Reports) instead of living globally.
+- **Active pill badges** — keep current `useSidebarCounts`; only the styling changes (red rounded badge on Alerts, neutral pill on others).
+- New `Today` link at the top of the OVERVIEW group, pointing to existing `/admin` overview for now (no new page in this pass).
 
-**Does NOT change:**
-- Booking flow, pricing engine, pro‑rata logic, Worldline, deposits, RLS triggers.
-- Category → VIN pool model (it stays; the new tabs are alternate views of the same `vehicle_units` table).
-- Existing soft‑archive delete fallback (kept exactly as is).
-- Drop‑off fees, locations, status enum semantics for active rentals.
+Files: `src/components/layout/AdminShell.tsx`, plus minor tokens in `src/index.css` if needed (semantic tokens only — no hardcoded colors).
 
----
+## 2. Payments page cleanup (`/admin/finance`)
 
-## Tab 1 — Fleet Management (Categories) — **redesigned, same data**
+Goal: only show numbers that come from the real ledger. Anything that isn't backed by `payments` / `final_invoices` / `deposit_ledger` is removed.
 
-Keeps current category + VIN pool functionality. UI improvements only:
+**Keep:**
 
-```text
-┌─ Fleet ────────────────────────────────────────[ ⇆ Hide sidebar ]─┐
-│ [ Categories ] [ All Vehicles ] [ Temporary ]                     │
-│                                                                   │
-│  ┌─ Categories (left, 320px, collapsible) ─┬─ Category detail ──┐ │
-│  │ 🔍 search                               │ Economy            │ │
-│  │ • Economy            8/12 avail         │ Daily $45 · 12 VINs│ │
-│  │ • Compact            3/6                │ [+ Add VIN]        │ │
-│  │ • SUV                2/4                │                    │ │
-│  │ [+ New category]                        │ VIN table…         │ │
-│  └─────────────────────────────────────────┴────────────────────┘ │
-└───────────────────────────────────────────────────────────────────┘
-```
+- Page header "Payments — Revenue, deposits, cash position, and settlement, all sourced from the ledger."
+- Tabs: `Overview`, `Transactions`, `Cash Position`, `Batch Close` (existing).
+- 4 KPI cards on Transactions: **Gross Revenue**, **Pending**, **Deposits Held**, **Invoices** — recomputed from:
+  - Gross Revenue = sum of `payments.amount` where `status in ('succeeded','captured')` for the active date range.
+  - Pending = sum of `payments.amount` where `status = 'pending'`.
+  - Deposits Held = sum of `deposit_ledger` net per booking where state = `authorized` (existing helper).
+  - Invoices = count of `final_invoices` in range.
+- Sub-tabs: `Invoices`, `Receipts`, `Payments`, `Deposits` with **real counts** from the same queries (no hardcoded `(110)` / `(40)` if those are stale — recompute).
+- Transactions table columns: TXN # · Customer · Booking (link) · Amount · Method · Status · Date · Actions (view / download receipt if present).
 
-Improvements vs today:
-- Sticky header with a "Hide sidebar" toggle (calls existing `useSidebar().setOpen(false)`).
-- Left category rail is itself collapsible to a 56px icon strip.
-- Status chips and counts aligned right; row click opens detail in the right pane instead of navigating away.
+**Remove / fix (the "fake/unwanted" parts):**
 
-## Tab 2 — All Vehicles (new)
+- Any KPI that currently shows `$0.00` because it's wired to a placeholder rather than a query — either remove the card or hide it when the underlying query returns no data, with a small "No data for selected range" caption instead of a misleading zero.
+- The "Show test data" toggle stays only if it actually filters; otherwise remove.
+- Remove any alert banner on this page that isn't generated from `admin_alerts` (e.g., demo "Pending: $X needs attention" strips).
+- Remove duplicate or stale "TERM-TEST-…" rows from the default view by filtering out `payments.method = 'terminal_test'` and any row where `booking_id is null` AND `metadata->>'simulated' = 'true'`. Real terminal pending rows stay.
+- Trim the page-level alert/toast noise: only show toasts on user actions (refresh, export). No background "polling failed" toasts unless the query errors twice in a row.
 
-A flat, filterable master list of every permanent unit in `vehicle_units` where `is_temporary = false`.
+**No business-logic changes:** integer-cents math, monotonic statuses, Worldline flow, deposit lifecycle, and edge-function writes are untouched. This is read-side cleanup + UI.
 
-Columns (in this order):
-1. **Vehicle** — `{year} {make} {model}` (from joined `vehicles`)
-2. **License Plate**
-3. **VIN**
-4. **Location** — Abbotsford / Surrey / Langley (from `locations.name`)
-5. **Kilometers** — `current_mileage`
-6. **Status** — colored badge (Available / On Rent / Maintenance / Damage / Retired)
-7. **Actions** — Edit · Delete (kebab menu)
+Files: `src/pages/admin/Finance.tsx` and the small components it imports under `src/components/admin/finance/*`. Query hooks (`use-payments`, `use-collected-revenue`, `use-deposit-ledger`) get filter args but no schema or RLS edits.
 
-```text
-┌─ All Vehicles ────────────────────────────────────────────────────┐
-│ 🔍 Search VIN/plate   [Location ▾] [Status ▾] [Category ▾]  [+ Add]│
-├───────────────────────────────────────────────────────────────────┤
-│ Vehicle           Plate    VIN              Location   KM    Status│
-│ 2023 Toyota Corolla  BC-1234  1HGCM82…   Surrey   42,310  ● Avail │
-│ 2022 Honda Civic     BC-5588  2T1BURH…   Langley  88,902  ● Rent  │
-│ 2024 RAV4            BC-9001  JTMRWRF…   Abbots.  12,440  ● Maint │
-│ …                                                              ⋮  │
-└───────────────────────────────────────────────────────────────────┘
-                                              Showing 1–25 of 87  ‹›
-```
+## 3. Inventory page polish (matches second screenshot)
 
-Features:
-- **Add vehicle** — opens existing `VinFormDialog` (category required, all current validation intact).
-- **Edit** — inline drawer to update plate, VIN, mileage, location, status, notes. Uses existing `useUpdateVehicleUnit` which already surfaces clear errors (duplicate VIN/plate, permission).
-- **Delete** — uses existing `useDeleteVehicleUnit`: blocks if pending/confirmed/active booking on the unit (lists booking codes); otherwise hard delete; if historical FKs exist, **soft‑archives** to `status = retired` and clears `location_id`. No change to this logic.
-- **CSV export** of the current filtered view (client‑side, no backend).
-- URL‑synced filters (`?loc=&status=&q=`) so views are shareable.
+Just a visual pass on the existing `All Vehicles` tab:
 
-## Tab 3 — Temporary Vehicles (new)
+- 4 stat cards at top: Total Vehicles · Available · On Rental · In Maintenance — counted from the already-loaded query.
+- Filter row: search · class · status · location (existing controls, restyled into a single card).
+- Table gets a small photo column (uses `vehicles.hero_photo_url` if present, placeholder otherwise — no schema change).
+- "Add Vehicle" button stays top-right.
 
-For short‑term rentals you don't own (loaner from vendor, partner unit, etc.). Stored in the same `vehicle_units` table with `is_temporary = true` so all booking/assignment plumbing keeps working.
+Files: `src/components/admin/fleet/AllVehiclesTable.tsx`.
 
-Extra columns vs Tab 2:
-- **Source** (vendor / owner name) — `temp_source`
-- **Start date** — `temp_start_date`
-- **End date** — `temp_end_date` (badge turns amber within 3 days, red if past)
-- **Daily cost to us** — `temp_daily_cost` (informational; does NOT touch customer pricing)
+## Out of scope (call out, don't build)
 
-```text
-┌─ Temporary Vehicles ──────────────────────────────────────────────┐
-│ [+ Add temporary vehicle]                Showing active only ☑    │
-├───────────────────────────────────────────────────────────────────┤
-│ Vehicle        Plate   Source        Location  Ends      Status   │
-│ 2023 Sienna    BC-TMP1 Enterprise    Surrey    Jun 28 ⚠ ● Avail   │
-│ 2022 Kona      BC-TMP2 Owner: Raj    Langley   Jul 10    ● Rent   │
-└───────────────────────────────────────────────────────────────────┘
-```
+- Merging `/ops` and `/admin`.
+- New `Today` dashboard with activity feed (can do in a follow-up).
+- Any change to booking, pricing, deposits, edge functions, RLS, or schema.
 
-Features:
-- **Add** — dedicated dialog: vendor/source, start/end, category, plate, VIN (VIN optional → auto‑generated `TMP-<8>` placeholder if missing, since VIN is NOT NULL today).
-- **Return / Remove** — one‑click "Return to vendor" sets `actual_disposal_date = today`, status → `retired`, and hides from default view. Real delete only allowed if the unit has zero bookings (same rules as Tab 2).
-- A nightly check (existing pattern) could flag temps past `temp_end_date`; out of scope for this change but the data supports it.
+## Open questions
 
----
-
-## Collapsible sidebar
-
-`AdminShell` already wraps content in `SidebarProvider`. Add a `SidebarTrigger` to the Fleet page header so a single click hides the left admin nav and gives the table full width. State persists per session via the existing sidebar cookie.
-
----
-
-## Safety & permissions
-
-- All add/edit/delete go through existing hooks (`useDeleteVehicleUnit`, `useUpdateVehicleUnit`, `useCreateVehicleUnit`) which respect RLS and the active‑booking guard.
-- **You can delete a vehicle** only when it has no pending/confirmed/active bookings. If it has historical bookings/invoices, the system **archives** it (status = `retired`) so finance history stays intact — no FK breakage, no lost revenue records.
-- **You can edit** plate, VIN, mileage, location, status, notes at any time; duplicates and permission errors are surfaced verbatim.
-- Temporary flag is purely a view filter + metadata; it does not alter availability, pricing, deposits, or assignment.
-
----
-
-## Technical details
-
-Schema (single additive migration, no destructive changes):
-```sql
-ALTER TABLE public.vehicle_units
-  ADD COLUMN IF NOT EXISTS is_temporary boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS temp_source text,
-  ADD COLUMN IF NOT EXISTS temp_start_date date,
-  ADD COLUMN IF NOT EXISTS temp_end_date date,
-  ADD COLUMN IF NOT EXISTS temp_daily_cost numeric;
-CREATE INDEX IF NOT EXISTS idx_vehicle_units_is_temporary
-  ON public.vehicle_units(is_temporary) WHERE is_temporary = true;
-```
-No RLS or GRANT changes needed (existing policies cover the new columns).
-
-Files to touch:
-- `src/pages/admin/FleetManagement.tsx` — wrap content in `<Tabs>` with 3 tabs; add header `SidebarTrigger`.
-- `src/components/admin/fleet/AllVehiclesTable.tsx` *(new)* — Tab 2 table, filters, edit drawer.
-- `src/components/admin/fleet/TemporaryVehiclesTable.tsx` *(new)* — Tab 3 table + add dialog.
-- `src/components/admin/fleet/EditVehicleUnitDrawer.tsx` *(new)* — shared edit form.
-- `src/hooks/use-vehicle-units.ts` — extend query to join `vehicles` + `locations`, accept `isTemporary` filter. Reuses existing mutations.
-- No edge function, pricing, or booking changes.
-
-Out of scope (call out, do not build now): vendor billing for temp units, automated end‑date alerts, bulk CSV import.
+1. On Payments, should "Gross Revenue" follow the global date filter (Today / 24h / Week / All) or always show "this month to date"?  
+Answer: Always Month to date but also allow the user to chnage filter
+2. For the demo `TERM-TEST-…` rows — hide them by default with a "Show test transactions" toggle, or delete the filter entirely and rely on production data only?  
+Answer: Rely on production data only 
+3. Keep the existing `/admin` Overview page as-is, or also strip its KPIs to ledger-backed numbers in this same pass?  
+Answer Keep it as is   
+  
+Make sure no previous data, bookins payments or any other things is affected 
