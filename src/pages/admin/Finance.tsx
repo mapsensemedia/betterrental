@@ -1670,17 +1670,17 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </SelectContent>
             </Select>
             {dateRange === "custom" && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
                 <Input
                   type="date"
-                  className="h-10 w-[150px]"
+                  className="h-10 flex-1 sm:w-[150px] sm:flex-none"
                   value={format(customStart, "yyyy-MM-dd")}
                   onChange={(e) => e.target.value && setCustomStart(new Date(e.target.value + "T00:00:00"))}
                 />
                 <span className="text-xs text-muted-foreground">to</span>
                 <Input
                   type="date"
-                  className="h-10 w-[150px]"
+                  className="h-10 flex-1 sm:w-[150px] sm:flex-none"
                   value={format(customEnd, "yyyy-MM-dd")}
                   onChange={(e) => e.target.value && setCustomEnd(new Date(e.target.value + "T00:00:00"))}
                 />
@@ -1797,7 +1797,8 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </Select>
             )}
             {activeTab === "payments" && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+
                 <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
                   <SelectTrigger className="w-full sm:w-[140px]">
                     <Filter className="w-4 h-4 mr-2" />
