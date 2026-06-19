@@ -28,7 +28,15 @@ import {
   Eye,
   PenLine,
   AlertTriangle,
+  ArrowUpDown,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AgreementRow {
   id: string;
