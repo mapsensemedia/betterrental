@@ -279,9 +279,9 @@ export function AdminShell({
                       to={item.href}
                       title={item.description}
                       className={cn(
-                        "flex items-center gap-2 lg:gap-2.5 px-2 lg:px-3 py-2 rounded-lg text-sm font-medium transition-colors", 
+                        "flex items-center gap-2 lg:gap-2.5 px-2 lg:px-3 py-2 rounded-md text-sm font-medium transition-colors", 
                         isActive(item.href) 
-                          ? "bg-primary text-primary-foreground" 
+                          ? "bg-foreground text-background" 
                           : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                       )}
                     >
@@ -292,7 +292,8 @@ export function AdminShell({
                           variant={group.priority ? "destructive" : "secondary"} 
                           className={cn(
                             "ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center shrink-0",
-                            group.priority && "animate-live-pulse"
+                            isActive(item.href) && "bg-background/20 text-background border-transparent",
+                            group.priority && !isActive(item.href) && "animate-live-pulse"
                           )}
                         >
                           {badgeCount > 99 ? "99+" : badgeCount}
@@ -354,9 +355,9 @@ export function AdminShell({
                           onClick={() => setMobileMenuOpen(false)}
                           title={item.description}
                           className={cn(
-                            "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors", 
+                            "flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium transition-colors", 
                             isActive(item.href) 
-                              ? "bg-primary text-primary-foreground" 
+                              ? "bg-foreground text-background" 
                               : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                           )}
                         >
@@ -367,7 +368,8 @@ export function AdminShell({
                               variant={group.priority ? "destructive" : "secondary"} 
                               className={cn(
                                 "ml-auto text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] flex items-center justify-center",
-                                group.priority && "animate-live-pulse"
+                                isActive(item.href) && "bg-background/20 text-background border-transparent",
+                                group.priority && !isActive(item.href) && "animate-live-pulse"
                               )}
                             >
                               {badgeCount > 99 ? "99+" : badgeCount}
