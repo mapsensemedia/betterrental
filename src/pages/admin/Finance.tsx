@@ -1816,12 +1816,12 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Receipt #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                      <SortHead label="Receipt #" sortKey="receipt_number" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Customer" sortKey="customer" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Booking" sortKey="booking" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Amount" sortKey="amount" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Status" sortKey="status" state={receiptSort} setState={setReceiptSort} />
+                      <SortHead label="Date" sortKey="created_at" state={receiptSort} setState={setReceiptSort} />
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
