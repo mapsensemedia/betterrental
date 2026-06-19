@@ -1637,6 +1637,71 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 ))}
               </SelectContent>
             </Select>
+            {(() => {
+              const opts =
+                activeTab === "invoices"
+                  ? [
+                      { v: "created_at|desc", l: "Latest first" },
+                      { v: "created_at|asc", l: "Oldest first" },
+                      { v: "grand_total|desc", l: "Amount: High → Low" },
+                      { v: "grand_total|asc", l: "Amount: Low → High" },
+                      { v: "amount_due|desc", l: "Amount Due: High → Low" },
+                      { v: "customer|asc", l: "Customer (A–Z)" },
+                      { v: "status|asc", l: "Status" },
+                    ]
+                  : activeTab === "receipts"
+                  ? [
+                      { v: "created_at|desc", l: "Latest first" },
+                      { v: "created_at|asc", l: "Oldest first" },
+                      { v: "amount|desc", l: "Amount: High → Low" },
+                      { v: "amount|asc", l: "Amount: Low → High" },
+                      { v: "customer|asc", l: "Customer (A–Z)" },
+                      { v: "status|asc", l: "Status" },
+                    ]
+                  : [
+                      { v: "created_at|desc", l: "Latest first" },
+                      { v: "created_at|asc", l: "Oldest first" },
+                      { v: "amount|desc", l: "Amount: High → Low" },
+                      { v: "amount|asc", l: "Amount: Low → High" },
+                      { v: "customer|asc", l: "Customer (A–Z)" },
+                      { v: "status|asc", l: "Status" },
+                      ...(activeTab === "payments" ? [{ v: "payment_type|asc", l: "Type" }] : []),
+                    ];
+              const state =
+                activeTab === "invoices" ? invoiceSort
+                : activeTab === "receipts" ? receiptSort
+                : activeTab === "payments" ? paymentSort
+                : depositSort;
+              const setState =
+                activeTab === "invoices" ? setInvoiceSort
+                : activeTab === "receipts" ? setReceiptSort
+                : activeTab === "payments" ? setPaymentSort
+                : setDepositSort;
+              const current = `${state.key}|${state.dir}`;
+              const matched = opts.find((o) => o.v === current)?.v ?? current;
+              return (
+                <Select
+                  value={matched}
+                  onValueChange={(v) => {
+                    const [key, dir] = v.split("|");
+                    setState({ key, dir: dir as "asc" | "desc" });
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <ArrowUpDown className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {opts.map((o) => (
+                      <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>
+                    ))}
+                    {!opts.find((o) => o.v === current) && (
+                      <SelectItem value={current}>Custom: {state.key} {state.dir}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              );
+            })()}
             {activeTab === "receipts" && (
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[160px]">

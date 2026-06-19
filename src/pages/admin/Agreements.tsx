@@ -28,7 +28,15 @@ import {
   Eye,
   PenLine,
   AlertTriangle,
+  ArrowUpDown,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AgreementRow {
   id: string;
@@ -145,6 +153,8 @@ export default function AdminAgreements() {
     viewAgreement?.bookingId || null
   );
 
+  const [sortBy, setSortBy] = useState<string>("createdAt|desc");
+
   const filtered = useMemo(() => {
     let list = agreements;
     if (tab === "signed") {
@@ -160,8 +170,25 @@ export default function AdminAgreements() {
           (a.customerName && a.customerName.toLowerCase().includes(q))
       );
     }
-    return list;
-  }, [agreements, tab, search]);
+    const [key, dir] = sortBy.split("|");
+    const sign = dir === "asc" ? 1 : -1;
+    const accessor = (a: AgreementRow) => {
+      switch (key) {
+        case "createdAt": return new Date(a.createdAt || 0).getTime();
+        case "startAt": return new Date(a.startAt || 0).getTime();
+        case "bookingCode": return a.bookingCode || "";
+        case "customer": return a.customerName || "";
+        case "status": return isSigned(a) ? "signed" : (a.status || "pending");
+        default: return 0;
+      }
+    };
+    return [...list].sort((a, b) => {
+      const av = accessor(a); const bv = accessor(b);
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * sign;
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * sign;
+    });
+  }, [agreements, tab, search, sortBy]);
+
 
   const signed = agreements.filter((a) => isSigned(a)).length;
   const pending = agreements.filter((a) => !isSigned(a) && a.status !== "expired" && a.status !== "voided").length;
@@ -247,6 +274,21 @@ export default function AdminAgreements() {
               className="pl-9"
             />
           </div>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[200px]">
+              <ArrowUpDown className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="createdAt|desc">Latest first</SelectItem>
+              <SelectItem value="createdAt|asc">Oldest first</SelectItem>
+              <SelectItem value="startAt|desc">Rental start: Newest</SelectItem>
+              <SelectItem value="startAt|asc">Rental start: Oldest</SelectItem>
+              <SelectItem value="customer|asc">Customer (A–Z)</SelectItem>
+              <SelectItem value="bookingCode|asc">Booking code (A–Z)</SelectItem>
+              <SelectItem value="status|asc">Status</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Table */}
