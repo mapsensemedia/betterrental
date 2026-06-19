@@ -1,61 +1,49 @@
-# Admin UI Style Standardization
+## Goal
 
-Lock the look from the Payments and Inventory screenshots as the standard for every page under `/admin/*`. Pure presentation pass — no data, business logic, queries, or routes change.
+When you click **Delete** on a vehicle (VIN) in Admin → Inventory → All Vehicles, the vehicle should be permanently removed from the database — not silently archived as `retired`.
 
-## Visual rules (locked)
+## Why it currently archives
 
-- **Surfaces**: page background `bg-muted/40` (soft off-white). All content blocks are white cards with `border border-border rounded-xl`, no heavy shadow.
-- **Sidebar**: active item = solid dark pill (`bg-foreground text-background`), inactive = muted text + subtle hover. Already in place — leave as is.
-- **Page header**: large bold H1 + one-line muted subtitle, primary action button top-right. One pattern, every page.
-- **Tabs**: text labels with a 2px underline on the active tab (the Overview/Transactions/Cash Position/Batch Close pattern). Replace pill/segmented tabs elsewhere.
-- **KPI cards**: uppercase muted label top-left, small tinted square icon top-right, large bold number, optional muted sub-label. Always in a 4-up grid on desktop, 2-up tablet, 1-up mobile.
-- **Filter rows**: search + selects sit inside one white card above the table, never floating on the page background.
-- **Tables**: white card, muted uppercase column headers, row dividers only (no vertical lines), badge pills for status.
+The `vehicle_units` row is referenced by other tables. Two of those references actively block a hard delete:
 
-## Shared primitives (new)
+- `bookings.assigned_unit_id` (historical bookings the unit was assigned to)
+- `damage_reports.vehicle_unit_id` (damage reports filed against the unit)
 
-Create four small components so every page renders the same shell without per-page restyling:
+Three more references already clean themselves up automatically (`vehicle_expenses`, `fleet_cost_cache`, `maintenance_logs` cascade-delete; `incident_cases` sets to NULL).
 
-1. `src/components/admin/ui/PageHeader.tsx` — `{ title, subtitle?, action? }`
-2. `src/components/admin/ui/StatCard.tsx` — `{ label, value, icon, tone?, sublabel? }` with tone-tinted icon chip
-3. `src/components/admin/ui/StatGrid.tsx` — responsive 4-up wrapper
-4. `src/components/admin/ui/UnderlineTabs.tsx` — thin wrapper around shadcn `Tabs` that styles `TabsList`/`TabsTrigger` with the underline treatment
+So today, as soon as a unit has any past booking or damage report, the delete falls through to the "archive as retired" branch in `useDeleteVehicleUnit` (`src/hooks/use-vehicle-units.ts`).
 
-These are pure styling. No new state, no new data.
+## What changes
 
-## Pages to convert
+### 1. Hard-delete logic (`src/hooks/use-vehicle-units.ts`)
 
-Every route mounted under `AdminShell`:
+Update `useDeleteVehicleUnit` so it performs a true delete:
 
-```text
-Today (Overview)        Ops / BookingOps        ActiveRentals
-Pickups   Returns        Handovers              Alerts
-Inventory*              FleetCategories          FleetCosts
-FleetAnalytics          FleetManagement          Incidents / Damages
-Payments (Finance)*     Agreements               Billing / Invoices
-Offers                  Customers / Verifications  Vendors
-Reports / Analytics     SupportV2 / Tickets / SupportAnalytics
-AuditLogs   History   Settings   AbandonedCarts
-```
+1. Keep the existing guard: block deletion if the unit is on a `pending`, `confirmed`, or `active` booking (those must be cancelled/completed first — this protects live operations).
+2. Detach historical references that would otherwise block the delete:
+   - `UPDATE bookings SET assigned_unit_id = NULL WHERE assigned_unit_id = <id>` (only completed/cancelled bookings remain at this point). The booking, its payments, invoices, receipts, and agreement records are untouched — finance history stays intact, the booking just no longer points at a deleted VIN.
+   - `DELETE FROM damage_reports WHERE vehicle_unit_id = <id>` (damage reports are about the physical unit and don't carry standalone financial value).
+3. `DELETE FROM vehicle_units WHERE id = <id>`. The remaining FKs (`vehicle_expenses`, `fleet_cost_cache`, `maintenance_logs`) cascade automatically; `incident_cases.vehicle_unit_id` is set to NULL automatically.
+4. Remove the "archive as retired" fallback branch entirely so a delete is always a delete.
+5. Return `{ archived: false }` and keep the existing query invalidations and toast.
 
-`*` already match the target style and become the reference. Every other page is rewritten to use the four primitives above — header, stat grid, filter card, table card, underline tabs.
+### 2. Confirmation dialog copy (`src/components/admin/fleet/AllVehiclesTable.tsx`)
 
-## Out of scope (explicit)
+Rewrite the dialog text so it accurately reflects the new behaviour:
 
-- No changes to data fetching, mutations, RLS, edge functions, or routing.
-- No changes to KPI sources or formulas. If a card currently shows `$0.00` from a placeholder it stays `$0.00` — only the visual container changes. (Cleanup of placeholder KPIs and test-row filtering is **not** included in this pass per your selection.)
-- No sidebar restructuring. Active pill already matches.
-- Customer-facing booking site untouched.
+- Title: **Permanently delete this vehicle?**
+- Body: VIN `<vin>` will be permanently deleted. Its expense, maintenance, and fleet-cost records will be removed. Past bookings and their invoices/payments will be kept for finance history but will no longer reference this VIN. Damage reports filed against this VIN will be deleted. Active or upcoming bookings will block this action.
+- Action button stays **Delete** (destructive styling).
 
-## Rollout
+No other UI changes; the row's "Delete" action and the existing "block if active booking" toast still work the same way.
 
-1. Build the four primitives + a Storybook-style demo page is unnecessary — verify visually on Payments/Inventory first (they should look unchanged).
-2. Convert pages in this order, one PR-sized chunk per group: Overview & Ops → Fleet group → Money & Billing → Customer Service → Insights/Settings.
-3. After each group: scan the route, confirm no functional regression (counts, actions, filters all still wired), move on.
+## Out of scope
 
-## Risks
+- No schema/migration changes — existing FK rules already support the new flow.
+- No changes to the "active/upcoming booking blocks delete" rule (kept as a safety net).
+- No changes to vehicle **categories** deletion — only individual VIN units.
 
-- Pages with custom dense layouts (BookingOps, ActiveRentals, Reports) may need a "wide table" variant of the card — handled inline, not a new primitive.
-- Some pages currently use shadcn `Card` with shadow; swapping to the flat bordered card is a className change only.
+## Technical notes
 
-Approve and I'll start with the four primitives and the Overview/Ops group.
+- Files touched: `src/hooks/use-vehicle-units.ts`, `src/components/admin/fleet/AllVehiclesTable.tsx`.
+- Project memory currently records a "Vehicle Deletion Restrictions" rule preserving FKs. After this change ships, that memory will be updated to reflect the new policy (hard delete with reference detach).
