@@ -1034,7 +1034,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
 // Tab 2 — Transactions (formerly Billing)
 // ═══════════════════════════════════════════════════
 
-function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd }: { methodFilter?: string | null; onClearMethodFilter?: () => void; dateStart: Date; dateEnd: Date }) {
+function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd, dateRange, setDateRange, customStart, customEnd, setCustomStart, setCustomEnd }: { methodFilter?: string | null; onClearMethodFilter?: () => void; dateStart: Date; dateEnd: Date; dateRange: DateRange; setDateRange: (r: DateRange) => void; customStart: Date; customEnd: Date; setCustomStart: (d: Date) => void; setCustomEnd: (d: Date) => void }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
