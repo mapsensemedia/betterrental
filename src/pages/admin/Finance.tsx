@@ -1357,23 +1357,23 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
   const filteredInvoices = invoices.filter((inv) => {
     if (!matchesLocation(inv.location_id)) return false;
+    if (invoiceStatusFilter !== "all" && (inv.status || "draft") !== invoiceStatusFilter) return false;
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return inv.invoice_number?.toLowerCase().includes(s) || inv.booking?.booking_code?.toLowerCase().includes(s) || inv.booking?.profile?.full_name?.toLowerCase().includes(s);
-  });
+  }).slice();
 
-  const filteredReceipts = receipts.filter((receipt) => {
+  const filteredReceiptsSorted = receipts.filter((receipt) => {
     if (!matchesLocation(receipt.location_id)) return false;
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return receipt.receipt_number?.toLowerCase().includes(s) || receipt.booking?.booking_code?.toLowerCase().includes(s) || receipt.booking?.profile?.full_name?.toLowerCase().includes(s);
-  });
+  }).slice();
 
   const filteredPayments = payments.filter((payment) => {
     if (!matchesLocation(payment.location_id)) return false;
-    // Method filter from Overview click-through
+    if (paymentStatusFilter !== "all" && payment.status !== paymentStatusFilter) return false;
     if (methodFilter && normalizeMethod(payment.payment_method) !== methodFilter) return false;
-    // Type filter
     if (typeFilter !== "all") {
       const pt = payment.payment_type?.toLowerCase();
       if (typeFilter === "rental" && !["rental", "pac", "p"].includes(pt)) return false;
@@ -1385,9 +1385,72 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return payment.booking?.booking_code?.toLowerCase().includes(s) || payment.booking?.profile?.full_name?.toLowerCase().includes(s) || payment.transaction_id?.toLowerCase().includes(s);
-  });
+  }).slice();
 
-  const filteredDepositPayments = filteredPayments.filter(p => p.payment_type === "deposit");
+  const filteredDepositPayments = payments.filter((payment) => {
+    if (payment.payment_type !== "deposit") return false;
+    if (!matchesLocation(payment.location_id)) return false;
+    if (depositStatusFilter !== "all" && payment.status !== depositStatusFilter) return false;
+    if (!searchTerm) return true;
+    const s = searchTerm.toLowerCase();
+    return payment.booking?.booking_code?.toLowerCase().includes(s) || payment.booking?.profile?.full_name?.toLowerCase().includes(s) || payment.transaction_id?.toLowerCase().includes(s);
+  }).slice();
+
+  const sortBy = <T,>(arr: T[], key: string, dir: "asc" | "desc", accessor: (row: T, key: string) => any) => {
+    const sign = dir === "asc" ? 1 : -1;
+    return arr.sort((a, b) => {
+      const av = accessor(a, key);
+      const bv = accessor(b, key);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * sign;
+      return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * sign;
+    });
+  };
+
+  const invoiceAccessor = (inv: any, key: string) => {
+    switch (key) {
+      case "invoice_number": return inv.invoice_number || "";
+      case "customer": return inv.booking?.profile?.full_name || "";
+      case "booking": return inv.booking?.booking_code || "";
+      case "grand_total": return Number(inv.grand_total || 0);
+      case "amount_due": return Number(inv.amount_due || 0);
+      case "status": return inv.status || "draft";
+      case "created_at": return new Date(inv.created_at || 0).getTime();
+      default: return "";
+    }
+  };
+  const receiptAccessor = (r: any, key: string) => {
+    switch (key) {
+      case "receipt_number": return r.receipt_number || "";
+      case "customer": return r.booking?.profile?.full_name || "";
+      case "booking": return r.booking?.booking_code || "";
+      case "amount": return Number(r.totals_json?.total || 0);
+      case "status": return r.status || "";
+      case "created_at": return new Date(r.created_at || 0).getTime();
+      default: return "";
+    }
+  };
+  const paymentAccessor = (p: any, key: string) => {
+    switch (key) {
+      case "transaction_id": return p.transaction_id || "";
+      case "customer": return p.booking?.profile?.full_name || "";
+      case "booking": return p.booking?.booking_code || "";
+      case "amount": return Number(p.amount || 0);
+      case "payment_type": return p.payment_type || "";
+      case "source": return p.source || "";
+      case "payment_method": return p.payment_method || "";
+      case "status": return p.status || "";
+      case "created_at": return new Date(p.created_at || 0).getTime();
+      default: return "";
+    }
+  };
+
+  const sortedInvoices = sortBy([...filteredInvoices], invoiceSort.key, invoiceSort.dir, invoiceAccessor);
+  const filteredReceipts = sortBy([...filteredReceiptsSorted], receiptSort.key, receiptSort.dir, receiptAccessor);
+  const sortedPayments = sortBy([...filteredPayments], paymentSort.key, paymentSort.dir, paymentAccessor);
+  const sortedDepositPayments = sortBy([...filteredDepositPayments], depositSort.key, depositSort.dir, paymentAccessor);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
