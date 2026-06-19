@@ -274,6 +274,21 @@ export default function AdminAgreements() {
               className="pl-9"
             />
           </div>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[200px]">
+              <ArrowUpDown className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="createdAt|desc">Latest first</SelectItem>
+              <SelectItem value="createdAt|asc">Oldest first</SelectItem>
+              <SelectItem value="startAt|desc">Rental start: Newest</SelectItem>
+              <SelectItem value="startAt|asc">Rental start: Oldest</SelectItem>
+              <SelectItem value="customer|asc">Customer (A–Z)</SelectItem>
+              <SelectItem value="bookingCode|asc">Booking code (A–Z)</SelectItem>
+              <SelectItem value="status|asc">Status</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Table */}
