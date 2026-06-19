@@ -1651,8 +1651,53 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 </SelectContent>
               </Select>
             )}
+            {activeTab === "invoices" && (
+              <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="issued">Issued</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="voided">Voided</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {activeTab === "deposits" && (
+              <Select value={depositStatusFilter} onValueChange={setDepositStatusFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="authorized">Authorized</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="released">Released</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             {activeTab === "payments" && (
               <div className="flex items-center gap-2">
+                <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="authorized">Authorized</SelectItem>
+                    <SelectItem value="released">Released</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Type" />
