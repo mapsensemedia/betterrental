@@ -84,6 +84,7 @@ import {
   Ban,
   Truck,
   Info,
+  Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
