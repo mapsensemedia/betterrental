@@ -1932,7 +1932,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
           <TabsContent value="deposits">
             {paymentsLoading ? (
               <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-            ) : filteredDepositPayments.length === 0 ? (
+            ) : sortedDepositPayments.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-2xl">
                 <Banknote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No deposit records found</p>
@@ -1942,17 +1942,17 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Date</TableHead>
+                      <SortHead label="Booking" sortKey="booking" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Customer" sortKey="customer" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Amount" sortKey="amount" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Status" sortKey="status" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Method" sortKey="payment_method" state={depositSort} setState={setDepositSort} />
+                      <SortHead label="Date" sortKey="created_at" state={depositSort} setState={setDepositSort} />
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDepositPayments.map((payment) => (
+                    {sortedDepositPayments.map((payment) => (
                       <TableRow key={payment.id} className="hover:bg-muted/30">
                         <TableCell>
                           <Tooltip>
