@@ -174,7 +174,7 @@ export default function FleetManagement() {
 
         {/* Tabs */}
         <Tabs defaultValue="categories" className="space-y-4">
-          <TabsList>
+          <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap whitespace-nowrap">
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="all">All Vehicles</TabsTrigger>
             <TabsTrigger value="temporary">Temporary</TabsTrigger>
