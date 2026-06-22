@@ -60,7 +60,7 @@ import {
   useOpsLocationFilter,
 } from "@/components/ops/OpsLocationFilter";
 
-type DateFilter = "today" | "next24h" | "week";
+type DateFilter = "today" | "next24h" | "week" | "month" | "all";
 
 const ReadinessBadge = ({
   ok,
