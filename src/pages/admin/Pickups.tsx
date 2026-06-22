@@ -221,6 +221,8 @@ export default function AdminPickups() {
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="next24h">Next 24 Hours</SelectItem>
               <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">Next 30 Days</SelectItem>
+              <SelectItem value="all">All Upcoming</SelectItem>
             </SelectContent>
           </Select>
           <Select value={locationFilter} onValueChange={setLocationFilter}>
