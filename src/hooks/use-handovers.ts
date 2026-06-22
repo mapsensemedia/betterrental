@@ -103,15 +103,15 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
 
       if (!bookings || bookings.length === 0) return [];
 
-      // Fetch vehicles + locations separately (no FK constraint enables PostgREST embedding)
+      // Fetch vehicle categories + locations separately (bookings.vehicle_id references vehicle_categories)
       const uniqueVehicleIds = [...new Set(bookings.map((b: any) => b.vehicle_id).filter(Boolean))];
       const uniqueLocationIds = [...new Set(bookings.map((b: any) => b.location_id).filter(Boolean))];
 
       const [vehiclesRes, locationsRes] = await Promise.all([
         uniqueVehicleIds.length
           ? supabase
-              .from("vehicles")
-              .select("id, make, model, year, image_url, is_available, cleaning_buffer_hours")
+              .from("vehicle_categories")
+              .select("id, name, image_url")
               .in("id", uniqueVehicleIds)
           : Promise.resolve({ data: [] as any[], error: null }),
         uniqueLocationIds.length
