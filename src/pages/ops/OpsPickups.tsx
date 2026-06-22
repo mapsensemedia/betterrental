@@ -60,7 +60,7 @@ import {
   useOpsLocationFilter,
 } from "@/components/ops/OpsLocationFilter";
 
-type DateFilter = "today" | "next24h" | "week";
+type DateFilter = "today" | "next24h" | "week" | "month" | "all";
 
 const ReadinessBadge = ({
   ok,
@@ -86,7 +86,7 @@ const ReadinessBadge = ({
 export default function OpsPickups() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("week");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("month");
   const locationFilter = useOpsLocationFilter();
 
   const [checklistOpen, setChecklistOpen] = useState(false);
@@ -262,6 +262,8 @@ export default function OpsPickups() {
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="next24h">Next 24 Hours</SelectItem>
               <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">Next 30 Days</SelectItem>
+              <SelectItem value="all">All Upcoming</SelectItem>
             </SelectContent>
           </Select>
           <OpsLocationFilter />

@@ -44,7 +44,7 @@ export interface HandoverBooking {
   bufferCleared: boolean;
 }
 
-type DateFilter = "today" | "next24h" | "week";
+type DateFilter = "today" | "next24h" | "week" | "month" | "all";
 
 export function useHandovers(dateFilter: DateFilter = "today", locationId?: string) {
   return useQuery<HandoverBooking[]>({
@@ -66,6 +66,14 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
         case "week":
           startDate = startOfDay(now);
           endDate = addHours(startOfDay(now), 24 * 7);
+          break;
+        case "month":
+          startDate = startOfDay(now);
+          endDate = addHours(startOfDay(now), 24 * 30);
+          break;
+        case "all":
+          startDate = startOfDay(now);
+          endDate = addHours(startOfDay(now), 24 * 365);
           break;
         default:
           startDate = startOfDay(now);
@@ -95,15 +103,15 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
 
       if (!bookings || bookings.length === 0) return [];
 
-      // Fetch vehicles + locations separately (no FK constraint enables PostgREST embedding)
+      // Fetch vehicle categories + locations separately (bookings.vehicle_id references vehicle_categories)
       const uniqueVehicleIds = [...new Set(bookings.map((b: any) => b.vehicle_id).filter(Boolean))];
       const uniqueLocationIds = [...new Set(bookings.map((b: any) => b.location_id).filter(Boolean))];
 
       const [vehiclesRes, locationsRes] = await Promise.all([
         uniqueVehicleIds.length
           ? supabase
-              .from("vehicles")
-              .select("id, make, model, year, image_url, is_available, cleaning_buffer_hours")
+              .from("vehicle_categories")
+              .select("id, name, image_url")
               .in("id", uniqueVehicleIds)
           : Promise.resolve({ data: [] as any[], error: null }),
         uniqueLocationIds.length
@@ -157,7 +165,7 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
         const vehicle = vehiclesMap.get(b.vehicle_id) || null;
         const location = locationsMap.get(b.location_id) || null;
         const lastReturn = vehicleLastReturnMap.get(b.vehicle_id);
-        const bufferHours = vehicle?.cleaning_buffer_hours || 2;
+        const bufferHours = 2;
         
         // Calculate readiness from batch-fetched payments
         let paymentStatus: "paid" | "pending" | "partial" = "pending";
@@ -171,7 +179,7 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
         }
 
         const verificationStatus = (verification as "verified" | "pending" | "rejected") || "pending";
-        const vehicleReady = vehicle?.is_available !== false;
+        const vehicleReady = true;
         
         let bufferCleared = true;
         if (lastReturn) {
@@ -194,12 +202,12 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
           pickupLng: b.pickup_lng,
           vehicle: vehicle ? {
             id: vehicle.id,
-            make: vehicle.make,
-            model: vehicle.model,
-            year: vehicle.year,
+            make: "",
+            model: vehicle.name,
+            year: new Date().getFullYear(),
             imageUrl: vehicle.image_url,
-            isAvailable: vehicle.is_available,
-            cleaningBufferHours: vehicle.cleaning_buffer_hours,
+            isAvailable: true,
+            cleaningBufferHours: bufferHours,
           } : null,
           location: location ? {
             id: location.id,

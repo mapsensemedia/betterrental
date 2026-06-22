@@ -56,7 +56,7 @@ import { useLocations } from "@/hooks/use-locations";
 import { useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useCreateAlert } from "@/hooks/use-alerts";
 
-type DateFilter = "today" | "next24h" | "week";
+type DateFilter = "today" | "next24h" | "week" | "month" | "all";
 
 // Readiness badge component
 const ReadinessBadge = ({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: any }) => (
@@ -72,7 +72,7 @@ export default function AdminPickups() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("week");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("month");
   const [locationFilter, setLocationFilter] = useState<string>("all");
   
   // Handover checklist dialog state
@@ -221,6 +221,8 @@ export default function AdminPickups() {
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="next24h">Next 24 Hours</SelectItem>
               <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">Next 30 Days</SelectItem>
+              <SelectItem value="all">All Upcoming</SelectItem>
             </SelectContent>
           </Select>
           <Select value={locationFilter} onValueChange={setLocationFilter}>
