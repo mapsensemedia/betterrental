@@ -72,7 +72,7 @@ export default function AdminPickups() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("week");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("month");
   const [locationFilter, setLocationFilter] = useState<string>("all");
   
   // Handover checklist dialog state
