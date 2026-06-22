@@ -67,6 +67,14 @@ export function useHandovers(dateFilter: DateFilter = "today", locationId?: stri
           startDate = startOfDay(now);
           endDate = addHours(startOfDay(now), 24 * 7);
           break;
+        case "month":
+          startDate = startOfDay(now);
+          endDate = addHours(startOfDay(now), 24 * 30);
+          break;
+        case "all":
+          startDate = startOfDay(now);
+          endDate = addHours(startOfDay(now), 24 * 365);
+          break;
         default:
           startDate = startOfDay(now);
           endDate = endOfDay(now);
