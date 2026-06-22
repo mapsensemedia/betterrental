@@ -86,7 +86,7 @@ const ReadinessBadge = ({
 export default function OpsPickups() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("week");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("month");
   const locationFilter = useOpsLocationFilter();
 
   const [checklistOpen, setChecklistOpen] = useState(false);
