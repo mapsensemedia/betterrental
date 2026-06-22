@@ -56,7 +56,7 @@ import { useLocations } from "@/hooks/use-locations";
 import { useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useCreateAlert } from "@/hooks/use-alerts";
 
-type DateFilter = "today" | "next24h" | "week";
+type DateFilter = "today" | "next24h" | "week" | "month" | "all";
 
 // Readiness badge component
 const ReadinessBadge = ({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: any }) => (
