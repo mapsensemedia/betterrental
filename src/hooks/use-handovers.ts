@@ -44,7 +44,7 @@ export interface HandoverBooking {
   bufferCleared: boolean;
 }
 
-type DateFilter = "today" | "next24h" | "week";
+type DateFilter = "today" | "next24h" | "week" | "month" | "all";
 
 export function useHandovers(dateFilter: DateFilter = "today", locationId?: string) {
   return useQuery<HandoverBooking[]>({
