@@ -2453,11 +2453,27 @@ function StatusCard({ label, amount, count, variant }: { label: string; amount: 
   );
 }
 
-function PaymentStatusBadge({ status }: { status: string }) {
+function PaymentStatusBadge({ status, paymentType }: { status: string; paymentType?: string }) {
   switch (status) {
     case "completed": return <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">✓ Paid</Badge>;
     case "pending": return <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-500/20">⏳ Pending</Badge>;
     case "failed": return <Badge variant="destructive" className="text-xs">✗ Failed</Badge>;
+    case "authorized": {
+      const isDeposit = paymentType === "deposit";
+      const tip = isDeposit
+        ? "Hold placed — released or captured at return."
+        : "Pre-authorized — auto-captures on pickup or within 30 minutes.";
+      return (
+        <Badge
+          variant="outline"
+          className="text-xs cursor-help"
+          title={tip}
+        >
+          authorized
+        </Badge>
+      );
+    }
     default: return <Badge variant="outline" className="text-xs">{status}</Badge>;
   }
 }
+
