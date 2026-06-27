@@ -349,17 +349,34 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
+      // Pull latest PAC status from Bambora before re-reading the cache
+      let reconciledCount = 0;
+      try {
+        const { data, error } = await supabase.functions.invoke("wl-reconcile-authorized", { body: {} });
+        if (!error && data && typeof data === "object") {
+          reconciledCount = Number((data as { reconciled_count?: number }).reconciled_count ?? 0);
+        }
+      } catch (e) {
+        console.warn("[finance.refresh] wl-reconcile-authorized failed", e);
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["payment-dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["payment-dashboard-prev"] }),
         queryClient.invalidateQueries({ queryKey: ["payment-dashboard-wl"] }),
         queryClient.invalidateQueries({ queryKey: ["payment-dashboard-unrecorded"] }),
       ]);
-      toast({ title: "Rental revenue refreshed", description: "Recalculated from latest payments." });
+      toast({
+        title: "Rental revenue refreshed",
+        description: reconciledCount > 0
+          ? `Reconciled ${reconciledCount} transaction${reconciledCount === 1 ? "" : "s"} with Bambora.`
+          : "Recalculated from latest payments.",
+      });
     } finally {
       setIsRefreshing(false);
     }
   };
+
 
 
 
@@ -1021,7 +1038,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{normalizeMethod(p.payment_method)}</TableCell>
                           <TableCell>
-                            <PaymentStatusBadge status={p.status} />
+                            <PaymentStatusBadge status={p.status} paymentType={p.payment_type} />
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {format(new Date(p.created_at), "h:mm a")}
@@ -2436,11 +2453,27 @@ function StatusCard({ label, amount, count, variant }: { label: string; amount: 
   );
 }
 
-function PaymentStatusBadge({ status }: { status: string }) {
+function PaymentStatusBadge({ status, paymentType }: { status: string; paymentType?: string }) {
   switch (status) {
     case "completed": return <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">✓ Paid</Badge>;
     case "pending": return <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-500/20">⏳ Pending</Badge>;
     case "failed": return <Badge variant="destructive" className="text-xs">✗ Failed</Badge>;
+    case "authorized": {
+      const isDeposit = paymentType === "deposit";
+      const tip = isDeposit
+        ? "Hold placed — released or captured at return."
+        : "Pre-authorized — auto-captures on pickup or within 30 minutes.";
+      return (
+        <Badge
+          variant="outline"
+          className="text-xs cursor-help"
+          title={tip}
+        >
+          authorized
+        </Badge>
+      );
+    }
     default: return <Badge variant="outline" className="text-xs">{status}</Badge>;
   }
 }
+
