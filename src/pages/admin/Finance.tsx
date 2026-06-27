@@ -343,6 +343,25 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
   setCustomEnd: (d: Date) => void;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["payment-dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["payment-dashboard-prev"] }),
+        queryClient.invalidateQueries({ queryKey: ["payment-dashboard-wl"] }),
+        queryClient.invalidateQueries({ queryKey: ["payment-dashboard-unrecorded"] }),
+      ]);
+      toast({ title: "Rental revenue refreshed", description: "Recalculated from latest payments." });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+
 
   // Locations lookup for revenue-by-location breakdown
   const { data: locationsList = [] } = useQuery({
