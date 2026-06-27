@@ -794,9 +794,11 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
             />
           </div>
         )}
-        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => refetch()}>
-          <RefreshCw className="w-4 h-4" />
+        <Button variant="outline" size="sm" className="h-9 gap-2" onClick={handleRefresh} disabled={isRefreshing}>
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
         </Button>
+
       </div>
 
       {isLoading ? (
