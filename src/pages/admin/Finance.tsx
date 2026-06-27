@@ -1038,7 +1038,7 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{normalizeMethod(p.payment_method)}</TableCell>
                           <TableCell>
-                            <PaymentStatusBadge status={p.status} />
+                            <PaymentStatusBadge status={p.status} paymentType={p.payment_type} />
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {format(new Date(p.created_at), "h:mm a")}
