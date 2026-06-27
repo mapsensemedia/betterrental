@@ -349,17 +349,34 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
+      // Pull latest PAC status from Bambora before re-reading the cache
+      let reconciledCount = 0;
+      try {
+        const { data, error } = await supabase.functions.invoke("wl-reconcile-authorized", { body: {} });
+        if (!error && data && typeof data === "object") {
+          reconciledCount = Number((data as { reconciled_count?: number }).reconciled_count ?? 0);
+        }
+      } catch (e) {
+        console.warn("[finance.refresh] wl-reconcile-authorized failed", e);
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["payment-dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["payment-dashboard-prev"] }),
         queryClient.invalidateQueries({ queryKey: ["payment-dashboard-wl"] }),
         queryClient.invalidateQueries({ queryKey: ["payment-dashboard-unrecorded"] }),
       ]);
-      toast({ title: "Rental revenue refreshed", description: "Recalculated from latest payments." });
+      toast({
+        title: "Rental revenue refreshed",
+        description: reconciledCount > 0
+          ? `Reconciled ${reconciledCount} transaction${reconciledCount === 1 ? "" : "s"} with Bambora.`
+          : "Recalculated from latest payments.",
+      });
     } finally {
       setIsRefreshing(false);
     }
   };
+
 
 
 
