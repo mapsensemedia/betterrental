@@ -48,6 +48,13 @@ const articles = [
     category: "Tips",
     readLabel: "Read rental tips for new and young BC drivers",
   },
+  {
+    slug: "c2c-vs-turo-vs-enterprise-surrey",
+    title: "C2C Rental vs Turo vs Enterprise in Surrey, BC: Which Is Best?",
+    excerpt: "Compare C2C Rental, Turo, and Enterprise in Surrey BC on ICBC coverage, pickup and delivery flexibility, and transparent pricing without hidden fees.",
+    category: "Comparison",
+    readLabel: "Compare C2C Rental vs Turo vs Enterprise in Surrey",
+  },
 ];
 
 export default function BlogIndex() {

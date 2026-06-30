@@ -25,3 +25,4 @@ C2C Rental is a locally owned car rental company serving the Fraser Valley and L
 - [How ICBC insurance works for car rentals in BC](/blog/icbc-car-rental-insurance-bc): Owner's certificate coverage, damage waivers, and renter responsibility.
 - [Best road trips from Surrey, BC](/blog/best-road-trips-from-surrey-bc): Whistler, Okanagan, Harrison Hot Springs, and more.
 - [Car rental tips for new and young drivers in BC](/blog/car-rental-tips-new-drivers-bc): Age rules, deposits, and insurance for new BC drivers.
+- [C2C Rental vs Turo vs Enterprise in Surrey](/blog/c2c-vs-turo-vs-enterprise-surrey): Comparison on ICBC coverage, delivery flexibility, and pricing transparency.
