@@ -11,36 +11,42 @@ const articles = [
     title: "Daily vs Weekly Car Rental in Surrey BC: Which Saves You More?",
     excerpt: "Not sure whether to book a daily or weekly car rental in Surrey BC? Compare rates, fees, and real scenarios. Transparent pricing and no hidden fees.",
     category: "Pricing Guide",
+    readLabel: "Compare daily vs weekly Surrey rental rates",
   },
   {
     slug: "affordable-car-rental-surrey-langley-abbotsford-bc",
     title: "Affordable Car Rental in Surrey, Langley & Abbotsford BC: A Local Guide",
     excerpt: "Find affordable, fully insured car rentals in Surrey, Langley, and Abbotsford BC without hidden fees. Transparent pricing, flexible pickup, and 24/7 support.",
     category: "Local Guide",
+    readLabel: "Read the Surrey, Langley & Abbotsford rental guide",
   },
   {
     slug: "car-rental-surrey-guide",
     title: "The Complete Guide to Renting a Car in Surrey, BC",
     excerpt: "Everything Surrey residents need to know — ICBC coverage, age rules, best vehicle types, and how C2C Rental compares to the alternatives.",
     category: "City Guide",
+    readLabel: "Read the complete Surrey car rental guide",
   },
   {
     slug: "icbc-car-rental-insurance-bc",
     title: "How ICBC Insurance Works for Car Rentals in BC",
     excerpt: "Confused about ICBC and rental car insurance? This guide explains owner's certificate coverage, damage waivers, and what renters are responsible for.",
     category: "Insurance",
+    readLabel: "Learn how ICBC insurance works for BC rentals",
   },
   {
     slug: "best-road-trips-from-surrey-bc",
     title: "Best Road Trips You Can Take from Surrey, BC",
     excerpt: "Planning a road trip from Surrey? Discover the best drives from the Fraser Valley — Whistler, Okanagan, Harrison Hot Springs, and more.",
     category: "Travel",
+    readLabel: "Explore the best road trips from Surrey",
   },
   {
     slug: "car-rental-tips-new-drivers-bc",
     title: "Car Rental Tips for New and Young Drivers in BC",
     excerpt: "New to driving in BC? Learn what you need to rent a car as a new or young driver — age rules, deposits, insurance options, and more.",
     category: "Tips",
+    readLabel: "Read rental tips for new and young BC drivers",
   },
 ];
 
