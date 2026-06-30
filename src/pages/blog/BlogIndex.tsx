@@ -83,9 +83,10 @@ export default function BlogIndex() {
                 <p className="text-muted-foreground text-sm flex-1 mb-4">{a.excerpt}</p>
                 <Link
                   to={`/blog/${a.slug}`}
+                  aria-label={a.readLabel}
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
                 >
-                  Read More <ArrowRight className="w-3.5 h-3.5" />
+                  {a.readLabel} <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </Link>
               </CardContent>
             </Card>
