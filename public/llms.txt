@@ -1,0 +1,27 @@
+# C2C Rental
+
+> Affordable, fully-insured car rentals in Surrey, Langley, and Abbotsford, BC — transparent pricing, flexible pickup, and 24/7 local support.
+
+C2C Rental is a locally owned car rental company serving the Fraser Valley and Lower Mainland in British Columbia, Canada. We rent economy sedans, mid-size SUVs, and 7-seat minivans by the day, week, and month, with pickup and delivery across Surrey Newton, Langley Centre, and Abbotsford Centre. Vehicles are insured under ICBC and maintained between every rental.
+
+## Pages
+
+- [Home](/): Overview of C2C Rental, fleet, locations, and booking entry point.
+- [Search vehicles](/search): Browse available vehicles by date, time, and location.
+- [Compare vehicles](/compare): Side-by-side comparison of vehicles in the fleet.
+- [Locations](/locations): All C2C Rental pickup locations across the Fraser Valley.
+- [Car rental in Surrey, BC](/surrey): Vehicles, rates, and pickup details at our Surrey Newton location.
+- [Car rental in Langley, BC](/langley): Vehicles, rates, and pickup details at our Langley Centre location.
+- [Car rental in Abbotsford, BC](/abbotsford): Vehicles, rates, and pickup details at our Abbotsford Centre location.
+- [About C2C Rental](/about): Company background, service area, and what makes us different.
+- [Contact](/contact): Phone, email, and location details — +1 (604) 763-4242.
+
+## Blog
+
+- [Blog index](/blog): Local car rental guides for Surrey and the Fraser Valley.
+- [The complete guide to renting a car in Surrey, BC](/blog/car-rental-surrey-guide): ICBC coverage, age rules, best vehicle types, and how C2C compares to alternatives.
+- [Affordable car rental in Surrey, Langley & Abbotsford BC](/blog/affordable-car-rental-surrey-langley-abbotsford-bc): Transparent pricing across the Fraser Valley.
+- [Daily vs weekly car rental in Surrey BC](/blog/daily-vs-weekly-car-rental-surrey-bc): When weekly rates beat daily, with worked examples.
+- [How ICBC insurance works for car rentals in BC](/blog/icbc-car-rental-insurance-bc): Owner's certificate coverage, damage waivers, and renter responsibility.
+- [Best road trips from Surrey, BC](/blog/best-road-trips-from-surrey-bc): Whistler, Okanagan, Harrison Hot Springs, and more.
+- [Car rental tips for new and young drivers in BC](/blog/car-rental-tips-new-drivers-bc): Age rules, deposits, and insurance for new BC drivers.
