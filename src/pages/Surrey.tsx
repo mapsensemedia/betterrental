@@ -12,6 +12,7 @@ import {
 import { Link } from "react-router-dom";
 import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
+import { GBP_LINKS } from "@/constants/gbpLinks";
 
 const SURREY_LOCATION_ID = "a1b2c3d4-1111-4000-8000-000000000001";
 
