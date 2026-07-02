@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "@/hooks/use-locations";
 import { LocationsMap } from "@/components/shared/LocationsMap";
+import { SEO } from "@/components/shared/SEO";
 
 // Specific Google Maps links for each location
 const LOCATION_MAPS_LINKS: Record<string, string> = {
@@ -76,6 +77,15 @@ export default function LocationDetail() {
 
   return (
     <CustomerLayout>
+      {/* Noindex — the raw UUID location URL was competing with /surrey,
+          /langley, /abbotsford in the SERP. Keep it crawlable but
+          out of the index so authority consolidates on the city pages. */}
+      <SEO
+        title={`Car Rental in ${location.city} | C2C Rental`}
+        description={`Visit our ${location.name} location at ${location.address}.`}
+        path={`/location/${location.id}`}
+        noindex
+      />
       <PageContainer className="pt-28 pb-16">
         {/* Back Button */}
         <Link

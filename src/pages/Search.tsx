@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAvailableCategories, useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
+import { SEO } from "@/components/shared/SEO";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
@@ -52,19 +53,10 @@ export default function Search() {
     rentalDays,
   } = useRentalBooking();
   
-  useEffect(() => {
-    document.title = "Browse Cars | C2C Rental BC";
+  // SEO tags (title, description, canonical, noindex) live in the <SEO>
+  // component below. The /search page is a dynamic result view — noindex
+  // prevents it from competing with the city landing pages.
 
-    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!meta) { meta = document.createElement("meta"); meta.setAttribute("name", "description"); document.head.appendChild(meta); }
-    meta.setAttribute("content", "Browse available rental cars from C2C Rental in Surrey, Langley, and Abbotsford BC. Compare economy cars, SUVs, and minivans by date.");
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) { canonical = document.createElement("link"); canonical.setAttribute("rel", "canonical"); document.head.appendChild(canonical); }
-    canonical.setAttribute("href", "https://c2crental.ca/search");
-
-    return () => { canonical?.remove(); };
-  }, []);
 
   // When arriving from homepage fleet section, clear previous search state
   // so Browse Cars loads with no prefilled location/dates (Sixt-like behavior)
@@ -192,6 +184,12 @@ export default function Search() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Browse Cars | C2C Rental BC"
+        description="Browse available rental cars from C2C Rental in Surrey, Langley, and Abbotsford BC. Compare economy cars, SUVs, and minivans by date."
+        path="/search"
+        noindex
+      />
       {/* Step Progress */}
       <div className="bg-background border-b border-border py-4">
         <div className="container mx-auto px-4">

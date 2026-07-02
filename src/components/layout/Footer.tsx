@@ -7,7 +7,10 @@ import c2cLogo from "@/assets/c2c-logo-footer.png";
 const footerLinks = {
   explore: [
   { href: "/search", label: "Browse Cars" },
-  { href: "/locations", label: "Locations" }],
+  { href: "/locations", label: "Locations" },
+  { href: "/protection", label: "Protection Plans" },
+  { href: "/add-ons", label: "Add-ons & Extras" },
+  { href: "/compare", label: "Compare vs Turo & Enterprise" }],
 
   serviceAreas: [
   { href: "/surrey", label: "Car Rental in Surrey, BC" },
@@ -17,9 +20,10 @@ const footerLinks = {
   company: [
   { href: "/about", label: "About C2C Rental" },
   { href: "/contact", label: "Contact Us" },
-  { href: "/search", label: "How It Works" },
   { href: "/surrey#requirements", label: "Insurance & Requirements" },
-  { href: "/blog", label: "Blog" }]
+  { href: "/blog", label: "Blog" },
+  { href: "/blog/car-rental-surrey-guide", label: "Surrey Rental Guide" },
+  { href: "/blog/icbc-car-rental-insurance-bc", label: "ICBC Insurance Guide" }]
 
 };
 
@@ -126,8 +130,8 @@ export function Footer() {
                 +1-(604) 763-4242
               </a>
               <span className="hidden md:inline">|</span>
-              <a href="https://c2crental.com" className="hover:text-background transition-colors">
-                c2crental.com
+              <a href="https://c2crental.ca" className="hover:text-background transition-colors">
+                c2crental.ca
               </a>
             </div>
           </div>
