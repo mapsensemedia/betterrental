@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
 import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
+import { GBP_LINKS } from "@/constants/gbpLinks";
 
 const vehicleCards = [
   {
