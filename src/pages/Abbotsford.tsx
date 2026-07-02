@@ -351,6 +351,11 @@ const AbbotsfordPage = () => {
                 <p className="text-sm text-muted-foreground leading-relaxed pt-2">
                   Serving West Abbotsford, East Abbotsford, Clearbrook, and YXX Airport. Pickup from our local service point or limited delivery within the Abbotsford area (subject to availability and fee). We also coordinate insurance replacement rentals with local body shops.
                 </p>
+                <Button asChild variant="outline" size="sm" className="mt-2">
+                  <a href={GBP_LINKS.abbotsford} target="_blank" rel="noopener noreferrer">
+                    <MapPin className="mr-2 h-4 w-4" /> View on Google &amp; Get Directions
+                  </a>
+                </Button>
               </CardContent>
             </Card>
           </div>
