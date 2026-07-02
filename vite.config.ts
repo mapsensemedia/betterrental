@@ -39,7 +39,9 @@ export default defineConfig(async ({ mode }) => {
         return prerender({
           routes: PRERENDER_ROUTES,
           renderer: new PuppeteerRenderer({
-            renderAfterTime: 4000,
+            renderAfterDocumentEvent: "seo-ready",
+            // Safety cap so a broken page can't hang the build forever.
+            timeout: 20000,
             headless: true,
           }),
         });
