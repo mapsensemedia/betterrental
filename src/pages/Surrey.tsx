@@ -12,6 +12,7 @@ import {
 import { Link } from "react-router-dom";
 import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
+import { GBP_LINKS } from "@/constants/gbpLinks";
 
 const SURREY_LOCATION_ID = "a1b2c3d4-1111-4000-8000-000000000001";
 
@@ -141,6 +142,7 @@ const surreyLocalBusinessSchema = {
     { "@type": "AdministrativeArea", name: "Metro Vancouver" },
   ],
   priceRange: "$$",
+  sameAs: [GBP_LINKS.surrey],
   openingHoursSpecification: [
     { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
     { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
@@ -292,6 +294,11 @@ const SurreyPage = () => {
           <p className="text-muted-foreground leading-relaxed">
             Limited vehicle delivery available to: Newton, Guildford, Surrey Central / Whalley, Fleetwood, and South Surrey / White Rock. Subject to availability and delivery fee. Contact us to confirm before booking.
           </p>
+          <Button asChild variant="outline" size="sm" className="w-fit">
+            <a href={GBP_LINKS.surrey} target="_blank" rel="noopener noreferrer">
+              <MapPin className="mr-2 h-4 w-4" /> View on Google &amp; Get Directions
+            </a>
+          </Button>
         </section>
 
         {/* How to Book */}

@@ -1,8 +1,15 @@
 import { Link } from "react-router-dom";
-import { Mail, MapPin, Instagram, Facebook, Phone } from "lucide-react";
+import { Mail, MapPin, Instagram, Facebook, Phone, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import c2cLogo from "@/assets/c2c-logo-footer.png";
+import { GBP_LINKS } from "@/constants/gbpLinks";
+
+const gbpLocations = [
+  { label: "Surrey Newton", url: GBP_LINKS.surrey },
+  { label: "Langley Centre", url: GBP_LINKS.langley },
+  { label: "Abbotsford Centre", url: GBP_LINKS.abbotsford },
+];
 
 const footerLinks = {
   explore: [
@@ -111,6 +118,26 @@ export function Footer() {
                 </li>
               )}
             </ul>
+          </div>
+        </div>
+
+        {/* Google Business Profiles */}
+        <div className="mt-10 pt-8 border-t border-background/10">
+          <p className="text-sm font-semibold text-background/80 mb-3 uppercase tracking-wider">Find Us on Google</p>
+          <div className="flex flex-wrap gap-3">
+            {gbpLocations.map((loc) => (
+              <a
+                key={loc.label}
+                href={loc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-background/70 hover:text-background bg-background/5 hover:bg-background/10 border border-background/10 rounded-full px-3.5 py-1.5 transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                {loc.label}
+                <ExternalLink className="w-3 h-3 opacity-60" />
+              </a>
+            ))}
           </div>
         </div>
 

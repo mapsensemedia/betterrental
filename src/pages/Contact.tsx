@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { SEO } from "@/components/shared/SEO";
 import { Link } from "react-router-dom";
-import { MapPin, Phone, Mail, Clock, Send, CheckCircle, Instagram, Facebook, ArrowRight } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Send, CheckCircle, Instagram, Facebook, ArrowRight, ExternalLink } from "lucide-react";
+import { GBP_LINKS } from "@/constants/gbpLinks";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -170,6 +171,29 @@ export default function Contact() {
                 <a href="sms:+16047634242" className="text-primary hover:underline">+1 (604) 763-4242</a>{" "}
                 and we'll reply within the hour during business hours.
               </p>
+
+              <div>
+                <p className="text-sm font-medium text-foreground mb-3">Find Us on Google</p>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { label: "Surrey Newton", url: GBP_LINKS.surrey },
+                    { label: "Langley Centre", url: GBP_LINKS.langley },
+                    { label: "Abbotsford Centre", url: GBP_LINKS.abbotsford },
+                  ].map((loc) => (
+                    <a
+                      key={loc.label}
+                      href={loc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+                    >
+                      <MapPin className="w-4 h-4 text-primary" />
+                      {loc.label}
+                      <ExternalLink className="w-3 h-3 opacity-60" />
+                    </a>
+                  ))}
+                </div>
+              </div>
 
               <div>
                 <p className="text-sm font-medium text-foreground mb-3">Follow Us</p>

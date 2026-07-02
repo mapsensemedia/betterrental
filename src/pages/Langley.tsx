@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
 import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
+import { GBP_LINKS } from "@/constants/gbpLinks";
 
 const vehicleCards = [
   {
@@ -100,6 +101,7 @@ const langleyLocalBusinessSchema = {
     { "@type": "City", name: "Abbotsford" },
   ],
   priceRange: "$$",
+  sameAs: [GBP_LINKS.langley],
   openingHoursSpecification: [
     { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
     { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
@@ -221,6 +223,11 @@ const LangleyPage = () => {
           <p className="text-muted-foreground leading-relaxed">
             C2C Rental serves drivers across the Township and City of Langley, including Willowbrook, Walnut Grove, Aldergrove, Murrayville, and Downtown Langley. Depending on your booking and vehicle availability, we can arrange convenient pickup from our local service point or limited delivery within the Langley area (subject to availability and fee). We also work with local body shops to coordinate insurance replacement rentals for Langley drivers whose vehicles are being repaired.
           </p>
+          <Button asChild variant="outline" size="sm" className="w-fit">
+            <a href={GBP_LINKS.langley} target="_blank" rel="noopener noreferrer">
+              <MapPin className="mr-2 h-4 w-4" /> View on Google &amp; Get Directions
+            </a>
+          </Button>
         </section>
 
         {/* Simple Booking Process */}
