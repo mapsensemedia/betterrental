@@ -40,7 +40,8 @@ export default defineConfig(async ({ mode }) => {
           routes: PRERENDER_ROUTES,
           renderer: new PuppeteerRenderer({
             renderAfterElementExists: "#__prerender_ready",
-            timeout: 20000,
+            maxConcurrentRoutes: 1,
+            timeout: 30000,
             headless: true,
           }),
         });
