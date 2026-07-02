@@ -127,15 +127,13 @@ const PageLoader = () => (
 
 function PrerenderReadySignal() {
   useEffect(() => {
-    // Fallback ready-signal for routes that don't render <SEO>. Fires
-    // after two RAF ticks so React commits + Helmet head mutations
-    // have flushed before Puppeteer snapshots the DOM.
-    const raf = requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        document.dispatchEvent(new Event("seo-ready"));
-      }),
-    );
-    return () => cancelAnimationFrame(raf);
+    // Fallback ready-signal for routes without <SEO>. Delay long enough
+    // that any route-level <SEO> useEffect fires first, since Puppeteer
+    // snapshots on the first "seo-ready" event.
+    const t = window.setTimeout(() => {
+      document.dispatchEvent(new Event("seo-ready"));
+    }, 2500);
+    return () => window.clearTimeout(t);
   }, []);
   return null;
 }
