@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -124,6 +125,23 @@ const PageLoader = () => (
   </div>
 );
 
+function PrerenderReadySignal() {
+  useEffect(() => {
+    // Fallback marker for routes without <SEO>. Longer delay lets any
+    // route-level <SEO> add its own marker first.
+    const t = window.setTimeout(() => {
+      if (!document.getElementById("__prerender_ready")) {
+        const el = document.createElement("div");
+        el.id = "__prerender_ready";
+        el.style.display = "none";
+        document.body.appendChild(el);
+      }
+    }, 3000);
+    return () => window.clearTimeout(t);
+  }, []);
+  return null;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -131,9 +149,11 @@ const App = () => (
         <BrowserRouter>
           <RentalBookingProvider>
             <ScrollToTop />
+            <PrerenderReadySignal />
             <Toaster />
             <Sonner />
             <Suspense fallback={<PageLoader />}>
+
               <Routes>
                 {/* Customer Routes - Critical paths */}
                 <Route path="/" element={<Index />} />

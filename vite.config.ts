@@ -21,8 +21,8 @@ const PRERENDER_ROUTES = [
   "/blog/car-rental-surrey-guide",
   "/blog/daily-vs-weekly-car-rental-surrey-bc",
   "/blog/affordable-car-rental-surrey-langley-abbotsford-bc",
-  "/blog/icbc-car-rental-insurance",
-  "/blog/car-rental-tips-new-drivers",
+  "/blog/icbc-car-rental-insurance-bc",
+  "/blog/car-rental-tips-new-drivers-bc",
   "/blog/best-road-trips-from-surrey-bc",
   "/blog/c2c-vs-turo-vs-enterprise-surrey",
 ];
@@ -39,7 +39,12 @@ export default defineConfig(async ({ mode }) => {
         return prerender({
           routes: PRERENDER_ROUTES,
           renderer: new PuppeteerRenderer({
-            renderAfterTime: 1500,
+            renderAfterElementExists: "#__prerender_ready",
+            // Backup: also resolve on time so the dangling evaluate()
+            // promise inside the renderer settles cleanly.
+            renderAfterTime: 15000,
+            maxConcurrentRoutes: 1,
+            timeout: 30000,
             headless: true,
           }),
         });

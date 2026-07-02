@@ -62,9 +62,18 @@ export default function Compare() {
       : defaultFeatures;
   };
 
+  const compareSEO = (
+    <SEO
+      title="Compare Rental Cars Side-by-Side | C2C Rental"
+      description="Compare up to 3 rental vehicles side-by-side: features, seating, fuel type, transmission, and daily rate. Book the right car with C2C Rental."
+      path="/compare"
+    />
+  );
+
   if (ids.length < 2) {
     return (
       <CustomerLayout>
+        {compareSEO}
         <PageContainer className="pt-28 pb-16">
           <div className="text-center py-16">
             <h2 className="text-xl font-semibold mb-2">Not Enough Vehicles</h2>
@@ -82,11 +91,7 @@ export default function Compare() {
 
   return (
     <CustomerLayout>
-      <SEO
-        title="Compare Rental Cars Side-by-Side | C2C Rental"
-        description="Compare up to 3 rental vehicles side-by-side: features, seating, fuel type, transmission, and daily rate. Book the right car with C2C Rental."
-        path="/compare"
-      />
+      {compareSEO}
       <PageContainer className="pt-28 pb-16">
         {/* Back Button */}
         <Link

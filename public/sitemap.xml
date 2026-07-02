@@ -49,8 +49,20 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://c2crental.ca/protection</loc>
+    <lastmod>2026-07-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://c2crental.ca/add-ons</loc>
+    <lastmod>2026-07-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://c2crental.ca/compare</loc>
-    <lastmod>2026-03-11</lastmod>
+    <lastmod>2026-07-02</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
