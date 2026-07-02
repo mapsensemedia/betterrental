@@ -1,9 +1,10 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight } from "lucide-react";
+import { SEO } from "@/components/shared/SEO";
+
 
 const articles = [
   {
@@ -58,21 +59,13 @@ const articles = [
 ];
 
 export default function BlogIndex() {
-  useEffect(() => {
-    document.title = "Car Rental Tips & Local Guides – C2C Rental Blog";
-    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
-    meta.content = "Read C2C Rental's local guides for renting a car in Surrey, Langley, and Abbotsford, BC. Tips on ICBC insurance, airport runs, winter driving, and more.";
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = "https://c2crental.com/blog";
-
-    return () => { canonical?.remove(); };
-  }, []);
-
   return (
     <CustomerLayout>
+      <SEO
+        title="Car Rental Tips & Local Guides – C2C Rental Blog"
+        description="C2C Rental's blog covers renting a car in Surrey, Langley & Abbotsford — ICBC insurance, airport runs, winter driving, road trips, and more."
+        path="/blog"
+      />
       <div className="container-page py-12 md:py-20">
         <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
           Local Car Rental Guides for Surrey &amp; the Fraser Valley
