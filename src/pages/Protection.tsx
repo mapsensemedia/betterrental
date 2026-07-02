@@ -97,7 +97,6 @@ export default function Protection() {
         title="Rental Protection Plans | C2C Rental"
         description="Choose the right protection for your rental — Basic, Standard, or Premium. Transparent deductibles and no hidden fees. Book with C2C Rental."
         path="/protection"
-        noindex
       />
       {/* Step Progress Indicator */}
       <div className="bg-background border-b border-border py-4">
