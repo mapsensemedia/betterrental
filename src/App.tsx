@@ -125,7 +125,7 @@ const PageLoader = () => (
 );
 
 function PrerenderReadySignal() {
-  React.useEffect(() => {
+  useEffect(() => {
     // Fallback ready-signal for routes that don't render <SEO>. Fires
     // after two RAF ticks so React commits + Helmet head mutations
     // have flushed before Puppeteer snapshots the DOM.
