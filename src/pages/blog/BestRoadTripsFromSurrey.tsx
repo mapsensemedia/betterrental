@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { SEO } from "@/components/shared/SEO";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { Button } from "@/components/ui/button";
 
@@ -8,58 +8,29 @@ const TITLE = "Best Road Trips You Can Take from Surrey, BC";
 const DESC = "Planning a road trip from Surrey? Discover the best drives from the Fraser Valley — Whistler, Okanagan, Harrison Hot Springs, and more. Rent with C2C Rental.";
 
 export default function BestRoadTripsFromSurrey() {
-  useEffect(() => {
-    document.title = "Best Road Trips from Surrey, BC — Rent a Car and Go | C2C Rental";
-    const CANONICAL = `https://c2crental.ca/blog/${SLUG}`;
-
-    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!meta) { meta = document.createElement("meta"); meta.setAttribute("name", "description"); document.head.appendChild(meta); }
-    meta.setAttribute("content", DESC);
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) { canonical = document.createElement("link"); canonical.setAttribute("rel", "canonical"); document.head.appendChild(canonical); }
-    canonical.setAttribute("href", CANONICAL);
-
-    let robots = document.querySelector('meta[name="robots"]');
-    if (!robots) { robots = document.createElement("meta"); robots.setAttribute("name", "robots"); document.head.appendChild(robots); }
-    robots.setAttribute("content", "index, follow");
-
-    const ogTags = [
-      { property: "og:title", content: TITLE + " | C2C Rental" },
-      { property: "og:description", content: DESC },
-      { property: "og:url", content: CANONICAL },
-      { property: "og:type", content: "article" },
-    ];
-    ogTags.forEach(({ property, content }) => {
-      let tag = document.querySelector(`meta[property="${property}"]`);
-      if (!tag) { tag = document.createElement("meta"); tag.setAttribute("property", property); document.head.appendChild(tag); }
-      tag.setAttribute("content", content);
-    });
-
-    const schema = {
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      headline: TITLE,
-      description: DESC,
-      url: CANONICAL,
-      datePublished: "2025-01-01",
-      dateModified: "2025-01-01",
-      author: { "@type": "Organization", name: "C2C Rental", "@id": "https://c2crental.ca/#localbusiness" },
-      publisher: { "@id": "https://c2crental.ca/#localbusiness" },
-      mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
-      inLanguage: "en-CA",
-    };
-    const script = document.createElement("script");
-    script.id = "blog-road-trips-jsonld";
-    script.type = "application/ld+json";
-    script.textContent = JSON.stringify(schema);
-    document.head.appendChild(script);
-
-    return () => { canonical?.remove(); document.getElementById("blog-road-trips-jsonld")?.remove(); };
-  }, []);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: TITLE,
+    description: DESC,
+    url: `https://c2crental.ca/blog/${SLUG}`,
+    datePublished: "2025-01-01",
+    dateModified: "2025-01-01",
+    author: { "@type": "Organization", name: "C2C Rental", "@id": "https://c2crental.ca/#localbusiness" },
+    publisher: { "@id": "https://c2crental.ca/#localbusiness" },
+    mainEntityOfPage: { "@type": "WebPage", "@id": `https://c2crental.ca/blog/${SLUG}` },
+    inLanguage: "en-CA",
+  };
 
   return (
     <CustomerLayout>
+      <SEO
+        title={`Best Road Trips from Surrey, BC — Rent a Car and Go | C2C Rental`}
+        description={DESC}
+        path={`/blog/${SLUG}`}
+        type="article"
+        jsonLd={jsonLd}
+      />
       <article className="container-page py-12 md:py-20 max-w-3xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">{TITLE}</h1>
         <p className="text-muted-foreground text-lg mb-10">
