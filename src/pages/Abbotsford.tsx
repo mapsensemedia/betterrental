@@ -192,6 +192,12 @@ const AbbotsfordPage = () => {
 
   return (
     <CustomerLayout>
+      <SEO
+        title={ABBOTSFORD_TITLE}
+        description={ABBOTSFORD_DESC}
+        path="/abbotsford"
+        jsonLd={[abbotsfordLocalBusinessSchema, abbotsfordFaqSchema]}
+      />
       {/* ── HERO ───────────────────────────────────────────────── */}
       <section className="bg-[#FBFAF8] pt-10 md:pt-16 pb-6 md:pb-10">
         <div className="container-page">
