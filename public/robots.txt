@@ -15,9 +15,6 @@ Disallow: /walkaround/
 Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /complete-signup
-Disallow: /compare
-Disallow: /protection
-Disallow: /add-ons
 Allow: /
 
 Sitemap: https://c2crental.ca/sitemap.xml
