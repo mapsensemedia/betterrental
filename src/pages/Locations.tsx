@@ -7,13 +7,10 @@ import { useLocations } from "@/hooks/use-locations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { LocationsMap } from "@/components/shared/LocationsMap";
+import { GBP_LINKS_BY_LOCATION_NAME } from "@/constants/gbpLinks";
 
-// Specific Google Maps links for each location
-const LOCATION_MAPS_LINKS: Record<string, string> = {
-  "Abbotsford Centre": "https://maps.app.goo.gl/LC1Ua6q2XxcMw2TA9",
-  "Langley Centre": "https://maps.app.goo.gl/ToULonCLvQ8Me9Yi7",
-  "Surrey Newton": "https://maps.app.goo.gl/LhWcpkRffqz335hH8",
-};
+// Google Business Profile links per location (used for "Get Directions").
+const LOCATION_MAPS_LINKS: Record<string, string> = GBP_LINKS_BY_LOCATION_NAME;
 
 export default function Locations() {
   const { data: locations = [], isLoading, error } = useLocations();
