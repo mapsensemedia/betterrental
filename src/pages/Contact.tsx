@@ -93,6 +93,12 @@ export default function Contact() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Contact C2C Rental – Surrey, Langley & Abbotsford Car Rental"
+        description="Get in touch with C2C Rental. Call, email, or send a message for bookings and rental inquiries in Surrey, Langley, and Abbotsford, BC."
+        path="/contact"
+        jsonLd={contactSchema}
+      />
       {/* Hero */}
       <section className="bg-background pt-24 pb-12">
         <div className="container-page max-w-3xl mx-auto text-center">
