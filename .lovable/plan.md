@@ -1,93 +1,96 @@
-# SEO Diagnosis — c2crental.ca
 
-## What the data actually shows (Semrush, CA)
+## What the uploaded files tell us
 
-- **Authority Score: 7/100**, 30 referring domains, 89 backlinks. Several are spammy PBN anchors ("high quality dofollow backlinks DA 50 PA 40 …") pointing at your domain — likely negative SEO or a bad past link-building campaign.
-- **Keyword trend is UP, not down**: 0 → 19 → 31 → 47 → 118 keywords over the last 4 months. The site is *gaining* Google visibility, not losing it. What you're likely experiencing is that you rank **positions 10–14 (page 2)** for your money terms instead of #1:
-  - `car rental surrey` (4,400/mo) — **#14**
-  - `car hire surrey bc` (1,900/mo) — **#12**
-  - `car rental companies in surrey bc` (1,900/mo) — **#11**
-  - `surrey car rental` — #10, `car rental in surrey` — #10
-- **Traffic concentration risk**: 72% of estimated traffic goes to `/`. `/surrey`, `/langley`, `/abbotsford` rank in the 28–60s — they are not competing for their own city terms.
+**Coverage (as of Jul 2, 2026)**
+- Only **6 pages indexed**, 8 not indexed.
+- Critical issues: 3 "Crawled – currently not indexed", 2 "Page with redirect", 1 "Blocked by robots.txt".
+- Impressions grew from ~10/day in April to ~150–270/day by mid-May → Google is discovering more, but not indexing the new prerendered routes.
 
-## Root causes (ranked by impact)
+**Performance – only 16 URLs are getting impressions**
+| Page | Clicks | Impr | Avg Pos |
+|---|---|---|---|
+| `/` (c2crental.ca) | 438 | 19,743 | 15.96 |
+| `/` (www.c2crental.ca) | 150 | 6,187 | 2.18 |
+| `/surrey` | 13 | 1,547 | 18.48 |
+| `/search` | 11 | 1,771 | 4.27 |
+| `/location/{uuid}` | 11 | 1,482 | 7.96 |
+| `/locations` | 4 | 557 | 7.29 |
+| `/about` | 3 | 528 | 4.68 |
+| `/abbotsford` | 0 | 5 | 3.0 |
+| `/langley` | 0 | 5 | 4.6 |
+| Most blog posts | 0 | 1–92 | — |
+| `/protection`, `/add-ons`, `/compare`, `/contact` | not appearing | — | — |
 
-### 1. No per-route metadata — every page ships the homepage `<head>` (HIGH)
+Two red flags:
+1. **`c2crental.ca` vs `www.c2crental.ca` are competing** — same content ranking as two properties, splitting authority (pos 15.96 vs 2.18).
+2. **`/search` and a raw `/location/{uuid}` page are ranking instead of the city landing pages** — thin/dynamic URLs are eating impressions that should go to `/surrey`, `/langley`, `/abbotsford`.
 
-The app is a pure client-side Vite SPA. `react-helmet-async` is **not installed**. `/surrey`, `/langley`, `/abbotsford`, `/blog/*`, `/compare` all serve the exact same `<title>`, `<meta description>`, canonical, og:*, and JSON-LD from `index.html`. Googlebot renders JS but treats duplicate titles/canonicals as one page — this is why your city and blog pages don't rank for their own terms.
+## Pages to request reindex in Google Search Console
 
-### 2. No pre-rendering / SSR (MEDIUM)
+Use "URL Inspection → Request Indexing" for each of these (10/day GSC quota — do the top block first):
 
-Googlebot executes JS but with delay and budget limits; Bing, LinkedIn, Facebook, X previews don't run JS at all. Body content only appears after hydration — social previews and secondary crawlers see the `<noscript>` fallback only. Options (pick one):
+**Priority 1 – newly prerendered, missing from index**
+```
+https://c2crental.ca/langley
+https://c2crental.ca/abbotsford
+https://c2crental.ca/protection
+https://c2crental.ca/add-ons
+https://c2crental.ca/compare
+https://c2crental.ca/contact
+https://c2crental.ca/locations
+```
 
-- `**vite-plugin-prerender` / `react-snap**` — cheapest fix. Prerenders each route to static HTML at build time. Works for the ~15 public routes here.
-- **Migrate to the Lovable TanStack SSR stack** — more work, but real SSR and per-request metadata. Overkill unless we add lots of dynamic pages.
-- Recommend prerender for now.
+**Priority 2 – blog posts not indexed**
+```
+https://c2crental.ca/blog
+https://c2crental.ca/blog/car-rental-surrey-guide
+https://c2crental.ca/blog/daily-vs-weekly-car-rental-surrey-bc
+https://c2crental.ca/blog/car-rental-tips-new-drivers-bc
+https://c2crental.ca/blog/icbc-car-rental-insurance-bc
+https://c2crental.ca/blog/best-road-trips-from-surrey-bc
+https://c2crental.ca/blog/c2c-vs-turo-vs-enterprise-surrey
+https://c2crental.ca/blog/affordable-car-rental-surrey-langley-abbotsford-bc
+```
 
-### 3. `robots.txt` blocks pages that should be indexable (MEDIUM)
+**Priority 3 – already ranking, reindex to pick up new Helmet metadata**
+```
+https://c2crental.ca/
+https://c2crental.ca/surrey
+https://c2crental.ca/about
+```
 
-Currently disallowed but publicly useful:
+## Fixes I'd ship in code alongside the reindex (build mode)
 
-- `/compare` — a comparison landing page we just built and added to the sitemap. Contradicts the sitemap.
-- `/protection`, `/add-ons` — marketing/informational; blocking them wastes crawl equity.
-Keep the transactional ones blocked (`/checkout`, `/booking/`, `/dashboard/`, `/auth/`, `/admin/`, etc.).
+1. **Kill the www / apex duplication** — pick `c2crental.ca` as canonical (already is in `<SEO>`), then set a permanent 301 from `www.c2crental.ca → c2crental.ca` at the hosting layer, and remove `www.c2crental.ca` from GSC (or set it as the alternate). Right now Google is indexing both, which explains the split rankings.
+2. **Noindex `/search`** — it's a dynamic result page; add `<meta name="robots" content="noindex,follow">` via `<SEO>` on `Search.tsx`. That reallocates ~1,700 impressions to city pages.
+3. **Investigate `/location/{uuid}`** — one UUID page is out-ranking `/langley` and `/abbotsford`. Either 301 to the matching city page, or noindex the UUID variant and keep the slug pages canonical.
+4. **Resolve the 3 "Crawled – not indexed" URLs + 2 redirect chains + 1 robots.txt block** — I need to pull the exact URLs from GSC via the Search Console API (they aren't in the export), then either fix content thinness, shorten the redirect, or unblock in `robots.txt`.
+5. **Add internal links** from `/` and `/surrey` (highest-authority pages) to `/langley`, `/abbotsford`, `/protection`, `/add-ons`, `/compare`, and top blog posts — this is the fastest way to push indexing on the new prerendered routes.
 
-### 4. City pages compete with `/` for the same anchor (MEDIUM)
+## Semrush analysis I'd run
 
-Both `/` and `/surrey` rank for `car rental surrey` — Google sees them as duplicates because their `<head>` is identical and their internal anchor text overlaps. Fix flows from #1: give each city page a unique title/description/canonical + unique H1 and body copy focused on that city.
+Point-in-time reads via the built-in tools (no connector needed for this pass):
 
-### 5. Toxic backlink profile (MEDIUM)
+| Check | Tool | Why |
+|---|---|---|
+| Overall snapshot for `c2crental.ca` | `domain_analysis` | Baseline: traffic, ranking keyword count, top organic terms |
+| Historical trend | `seo_trend` | Confirm the "used to rank first, now not visible" claim with month-over-month data |
+| Top pages driving traffic | `top_pages` | Compare against GSC top pages; find gaps |
+| Competitor discovery + gap | `competitive_analysis` | Who ranks in Surrey/Langley/Abbotsford for the terms we're losing on |
+| Head-to-head vs the strongest local competitor | `compare_domains` | Benchmark authority score & keyword overlap |
+| SERP + KDI for the 6 near-miss keywords | `serp_analysis` on each: `car rental langley`, `car rental surrey`, `car rental near me`, `car rental`, `rent a car surrey`, `surrey car rental` | Decide which are winnable and what to rewrite the city pages toward |
+| Backlink profile | `backlink_analysis` | Check whether authority dropped (likely reason for lost rankings) |
 
-Two PBN-style anchors and multiple `bisprofit.com` / `8coint.com` / `toplikevideo.com` links exist. These likely came from a black-hat "rank first page fast" service. Recommend disavowing via GSC once GSC is connected.
+Database: `ca` (Canadian market — the site is 99.5% Canada traffic per GSC).
 
-### 6. Google Search Console not connected (MEDIUM)
+If, after the snapshot, you want ongoing tracking (daily rank monitoring for those 6 keywords, competitor movement alerts, or a bulk keyword-gap export), I'd wire up the Semrush connector and build a small SEO dashboard into `/admin`.
 
-No coverage/impressions data, no ability to submit sitemap, no disavow. Flagged by Lovable's own scanner.
+## Deliverable
 
-### 7. Minor content / schema issues (LOW)
+Once you approve, in build mode I will:
+1. Run the 7 Semrush queries above and summarize findings + a keyword-priority list.
+2. Query the Search Console API to pull the exact URLs behind each Coverage issue.
+3. Ship the code fixes in "Fixes I'd ship" (noindex `/search`, resolve `/location/{uuid}`, add internal links, verify robots.txt, tighten redirect chains).
+4. Hand you the final "request indexing" checklist grouped by day so you don't blow past the GSC 10/day quota.
 
-- `LocalBusiness` openingHours 00:00–23:59 every day — Google may flag as untrustworthy. Use real hours.
-- LCP flagged slow by Lighthouse — hero image needs `fetchpriority="high"`, explicit width/height, no `loading="lazy"`.
-- Blog listings all live on one page; individual posts lack `Article` JSON-LD (they'd need per-route head first).
-- `og:image` at `/c2c-og-image.png` — verify the file exists at that path in `public/`.
-
-## Prioritized fix plan
-
-### Phase 1 — Unblock rankings (biggest lift, ~1 build)
-
-1. Install `react-helmet-async`, add `HelmetProvider` in `src/main.tsx`.
-2. Remove `<link rel="canonical">` from `index.html` (keep sitewide og:* as fallback).
-3. Add `<Helmet>` with unique **title, description, canonical, og:title, og:url, og:description, Article/LocalBusiness JSON-LD** to:
-  - `/surrey`, `/langley`, `/abbotsford`
-  - all `/blog/*` posts (Article + BreadcrumbList schema)
-  - `/compare`, `/about`, `/contact`, `/locations`
-4. Edit `public/robots.txt` — remove `Disallow: /compare`, `/protection`, `/add-ons`.
-
-### Phase 2 — Make crawlers see real HTML
-
-5. Add `vite-plugin-prerender` (or `react-snap`) to prerender the public routes listed in `sitemap.xml` at build time. Verify with `curl -A "facebookexternalhit"` that each URL returns full HTML.
-
-### Phase 3 — Content strengthening
-
-6. Rewrite `/surrey`, `/langley`, `/abbotsford` H1 + intro so each targets its own city keyword (currently near-identical copy weakens each). Add a location-specific FAQ block (FAQPage schema).
-7. Fix `LocalBusiness` openingHours to real hours.
-8. Fix homepage LCP (hero image `fetchpriority="high"`, dimensions, no lazy).
-
-### Phase 4 — Off-page cleanup
-
-9. Connect Google Search Console (Lovable connector), verify domain, submit `/sitemap.xml`.
-10. Once GSC has data, export the toxic backlink list and submit a disavow file.
-11. Start real link-building: local business directories (BBB, YellowPages CA, BC Chamber), guest posts on BC travel/relocation blogs — reference the new `/blog/c2c-vs-turo-vs-enterprise-surrey` post.
-
-## Technical detail (for the dev)
-
-- Files touched in Phase 1: `package.json`, `src/main.tsx`, `index.html`, `public/robots.txt`, `src/pages/Surrey.tsx`, `Langley.tsx`, `Abbotsford.tsx`, `Compare.tsx`, `About.tsx`, `Contact.tsx`, `Locations.tsx`, all `src/pages/blog/*.tsx`.
-- Files touched in Phase 2: `vite.config.ts`, `package.json`. Prerender reads route list from `sitemap.xml`.
-- Prerendering is compatible with all existing client-side data fetching — hydration takes over after the static HTML is served.
-- Nothing in Phase 1–2 changes any business logic, admin panel, or Supabase code.
-
-## What I'd like to confirm before building
-
-- Approve **Phase 1 + Phase 2 in one pass** (recommended), or start with Phase 1 only and validate rankings before adding prerendering?
-- OK to remove `Disallow: /compare`, `/protection`, `/add-ons` from `robots.txt`?
-- Do you want me to also queue the GSC connector prompt now, or after code changes ship?
+No changes made yet — waiting on your go-ahead.
