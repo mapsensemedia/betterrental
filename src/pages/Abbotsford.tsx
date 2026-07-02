@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { SEO } from "@/components/shared/SEO";
 import { Link } from "react-router-dom";
 import {
   ChevronDown,
@@ -144,147 +144,60 @@ const faqItems = [
   },
 ];
 
+const ABBOTSFORD_TITLE = "Car Rental Abbotsford BC | Near YXX Airport — C2C Rental";
+const ABBOTSFORD_DESC = "Affordable car rental in Abbotsford, BC near YXX Airport. Economy cars, SUVs, and minivans with cross-border docs. Book online with C2C Rental.";
+
+const abbotsfordLocalBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": ["LocalBusiness", "CarRental"],
+  "@id": "https://c2crental.ca/abbotsford#localbusiness",
+  name: "C2C Rental — Abbotsford",
+  url: "https://c2crental.ca/abbotsford",
+  description: "C2C Rental in Abbotsford, BC — affordable daily, weekly, and monthly car rentals near Abbotsford International Airport (YXX) and the Sumas US border crossing.",
+  telephone: "+1-604-763-4242",
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "32835 South Fraser Way",
+    addressLocality: "Abbotsford",
+    addressRegion: "BC",
+    addressCountry: "CA",
+  },
+  geo: { "@type": "GeoCoordinates", latitude: 49.0504, longitude: -122.3045 },
+  areaServed: [
+    { "@type": "City", name: "Abbotsford" },
+    { "@type": "City", name: "Mission" },
+    { "@type": "City", name: "Chilliwack" },
+  ],
+  priceRange: "$$",
+  openingHoursSpecification: [
+    { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
+    { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
+  ],
+};
+
 const AbbotsfordPage = () => {
   const { data: categories = [], isLoading } = useFleetCategories();
   const displayCategories = categories.filter((c) => c.is_active).slice(0, 4);
 
-  useEffect(() => {
-    document.title = "Car Rental Abbotsford BC | C2C Rental";
+  const abbotsfordFaqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
 
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement("meta");
-      metaDesc.setAttribute("name", "description");
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute(
-      "content",
-      "Affordable car rental in Abbotsford, BC near YXX Airport. Economy cars, SUVs, and minivans with cross-border docs. Book online with C2C Rental.",
-    );
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.setAttribute("rel", "canonical");
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute("href", "https://c2crental.ca/abbotsford");
-
-    const ogTags = [
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "C2C Rental" },
-      { property: "og:title", content: "Car Rental in Abbotsford, BC | Near YXX Airport – C2C Rental" },
-      {
-        property: "og:description",
-        content:
-          "Affordable car rental in Abbotsford, BC near Abbotsford Airport. Economy sedans, SUVs, and minivans available. Cross-border documentation support. Book with C2C Rental today.",
-      },
-      { property: "og:url", content: "https://c2crental.ca/abbotsford" },
-    ];
-
-    ogTags.forEach(({ property, content }) => {
-      let tag = document.querySelector(`meta[property="${property}"]`);
-      if (!tag) {
-        tag = document.createElement("meta");
-        tag.setAttribute("property", property);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", content);
-    });
-
-    const localBusinessSchema = {
-      "@context": "https://schema.org",
-      "@type": ["LocalBusiness", "CarRental"],
-      "@id": "https://c2crental.ca/abbotsford#localbusiness",
-      name: "C2C Rental — Abbotsford",
-      url: "https://c2crental.ca/abbotsford",
-      logo: "https://c2crental.ca/logo.png",
-      image: "https://c2crental.ca/og-image.jpg",
-      description:
-        "C2C Rental in Abbotsford, BC — affordable daily, weekly, and monthly car rentals near Abbotsford International Airport (YXX) and the Sumas US border crossing.",
-      telephone: "+1-604-763-4242",
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "32835 South Fraser Way",
-        addressLocality: "Abbotsford",
-        addressRegion: "BC",
-        addressCountry: "CA",
-      },
-      geo: {
-        "@type": "GeoCoordinates",
-        latitude: 49.0504,
-        longitude: -122.3045,
-      },
-      areaServed: [
-        { "@type": "City", name: "Abbotsford" },
-        { "@type": "City", name: "Mission" },
-        { "@type": "City", name: "Chilliwack" },
-      ],
-      priceRange: "$$",
-      openingHoursSpecification: [
-        {
-          "@type": "OpeningHoursSpecification",
-          dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-          opens: "08:00",
-          closes: "18:00",
-        },
-        {
-          "@type": "OpeningHoursSpecification",
-          dayOfWeek: "Sunday",
-          opens: "11:00",
-          closes: "17:00",
-        },
-      ],
-      sameAs: [
-        "https://www.instagram.com/c2crental",
-        "https://www.facebook.com/c2crental",
-      ],
-    };
-
-    const faqPageSchema = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: faqItems.map((f) => ({
-        "@type": "Question",
-        name: f.q,
-        acceptedAnswer: { "@type": "Answer", text: f.a },
-      })),
-    };
-
-    const webPageSchema = {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      "@id": "https://c2crental.ca/abbotsford#webpage",
-      url: "https://c2crental.ca/abbotsford",
-      name: "Car Rental in Abbotsford, BC | C2C Rental",
-      about: { "@id": "https://c2crental.ca/abbotsford#localbusiness" },
-      inLanguage: "en-CA",
-    };
-
-    const schemas = [
-      { id: "abbotsford-localbusiness-jsonld", data: localBusinessSchema },
-      { id: "abbotsford-faqpage-jsonld", data: faqPageSchema },
-      { id: "abbotsford-webpage-jsonld", data: webPageSchema },
-    ];
-
-    schemas.forEach(({ id, data }) => {
-      let script = document.getElementById(id);
-      if (!script) {
-        script = document.createElement("script");
-        script.id = id;
-        script.setAttribute("type", "application/ld+json");
-        document.head.appendChild(script);
-      }
-      script.textContent = JSON.stringify(data);
-    });
-
-    return () => {
-      schemas.forEach(({ id }) => document.getElementById(id)?.remove());
-    };
-  }, []);
 
   return (
     <CustomerLayout>
+      <SEO
+        title={ABBOTSFORD_TITLE}
+        description={ABBOTSFORD_DESC}
+        path="/abbotsford"
+        jsonLd={[abbotsfordLocalBusinessSchema, abbotsfordFaqSchema]}
+      />
       {/* ── HERO ───────────────────────────────────────────────── */}
       <section className="bg-[#FBFAF8] pt-10 md:pt-16 pb-6 md:pb-10">
         <div className="container-page">

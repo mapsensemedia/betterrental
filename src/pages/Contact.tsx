@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { SEO } from "@/components/shared/SEO";
 import { Link } from "react-router-dom";
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle, Instagram, Facebook, ArrowRight } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -43,55 +44,21 @@ export default function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  useEffect(() => {
-    document.title = "Contact C2C Rental – Surrey, Langley & Abbotsford Car Rental";
+  const contactSchema = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    name: "Contact C2C Rental",
+    url: "https://c2crental.ca/contact",
+    description: "Contact C2C Rental for car rental bookings and inquiries in Surrey, Langley, and Abbotsford, BC.",
+    publisher: {
+      "@type": "Organization",
+      name: "C2C Rental",
+      url: "https://c2crental.ca",
+      telephone: "+1-604-763-4242",
+      email: "info@c2crental.ca",
+    },
+  };
 
-    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
-    meta.content = "Get in touch with C2C Rental. Call, email, or send a message for bookings, questions, and rental inquiries in Surrey, Langley, and Abbotsford, BC.";
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = "https://c2crental.com/contact";
-
-    const ogTags = [
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "C2C Rental" },
-      { property: "og:title", content: "Contact C2C Rental – Surrey, Langley & Abbotsford Car Rental" },
-      { property: "og:description", content: "Get in touch with C2C Rental for bookings and inquiries in Surrey, Langley, and Abbotsford, BC." },
-      { property: "og:url", content: "https://c2crental.com/contact" },
-    ];
-    ogTags.forEach(({ property, content }) => {
-      let tag = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
-      if (!tag) { tag = document.createElement("meta"); tag.setAttribute("property", property); document.head.appendChild(tag); }
-      tag.setAttribute("content", content);
-    });
-
-    const schema = {
-      "@context": "https://schema.org",
-      "@type": "ContactPage",
-      name: "Contact C2C Rental",
-      url: "https://c2crental.com/contact",
-      description: "Contact C2C Rental for car rental bookings and inquiries in Surrey, Langley, and Abbotsford, BC.",
-      publisher: {
-        "@type": "Organization",
-        name: "C2C Rental",
-        url: "https://c2crental.com",
-        telephone: "+1-604-763-4242",
-        email: "info@c2crental.com",
-      },
-    };
-    const script = document.createElement("script");
-    script.id = "contact-jsonld";
-    script.type = "application/ld+json";
-    script.textContent = JSON.stringify(schema);
-    document.head.appendChild(script);
-
-    return () => {
-      canonical?.remove();
-      document.getElementById("contact-jsonld")?.remove();
-    };
-  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -126,6 +93,12 @@ export default function Contact() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Contact C2C Rental – Surrey, Langley & Abbotsford Car Rental"
+        description="Get in touch with C2C Rental. Call, email, or send a message for bookings and rental inquiries in Surrey, Langley, and Abbotsford, BC."
+        path="/contact"
+        jsonLd={contactSchema}
+      />
       {/* Hero */}
       <section className="bg-background pt-24 pb-12">
         <div className="container-page max-w-3xl mx-auto text-center">

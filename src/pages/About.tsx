@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { SEO } from "@/components/shared/SEO";
 import { Link } from "react-router-dom";
 import { Shield, DollarSign, CalendarRange, Car, MapPin, CheckCircle, ArrowRight, Snowflake, FileCheck } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
@@ -37,60 +37,28 @@ const fleetCategories = [
   { icon: Car, label: "Minivans" },
 ];
 
+const ABOUT_TITLE = "About C2C Rental — Surrey, Langley & Abbotsford BC";
+const ABOUT_DESC = "Local Surrey-based car rental serving the Fraser Valley. Transparent pricing, flexible pickup, and a friendlier alternative to Turo and Enterprise.";
+
+const aboutSchema = {
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  name: "About C2C Rental",
+  url: "https://c2crental.ca/about",
+  description: "C2C Rental is a Surrey-based local car rental platform serving Surrey, Langley, and Abbotsford, BC with affordable, transparent, ICBC-compliant rentals.",
+  publisher: {
+    "@type": "Organization",
+    name: "C2C Rental",
+    url: "https://c2crental.ca",
+  },
+};
+
 export default function About() {
-  useEffect(() => {
-    document.title = "About C2C Rental – Surrey, Langley & Abbotsford BC";
 
-    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!meta) { meta = document.createElement("meta"); meta.name = "description"; document.head.appendChild(meta); }
-    meta.content = "Local Surrey-based car rental serving the Fraser Valley. Transparent pricing, flexible pickup, and a friendlier alternative to Turo and Enterprise.";
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = "https://c2crental.ca/about";
-
-    // OG tags
-    const ogTags = [
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "C2C Rental" },
-      { property: "og:title", content: "About C2C Rental – Local Car Rental in Surrey, Langley & Abbotsford, BC" },
-      { property: "og:description", content: "Learn about C2C Rental — a Surrey-based local car rental platform serving the Fraser Valley." },
-      { property: "og:url", content: "https://c2crental.com/about" },
-    ];
-    ogTags.forEach(({ property, content }) => {
-      let tag = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
-      if (!tag) { tag = document.createElement("meta"); tag.setAttribute("property", property); document.head.appendChild(tag); }
-      tag.setAttribute("content", content);
-    });
-
-    // AboutPage schema
-    const schema = {
-      "@context": "https://schema.org",
-      "@type": "AboutPage",
-      name: "About C2C Rental",
-      url: "https://c2crental.com/about",
-      description: "C2C Rental is a Surrey-based local car rental platform serving Surrey, Langley, and Abbotsford, BC with affordable, transparent, ICBC-compliant rentals.",
-      publisher: {
-        "@type": "Organization",
-        name: "C2C Rental",
-        url: "https://c2crental.com",
-        logo: "https://c2crental.com/logo.png",
-      },
-    };
-    const script = document.createElement("script");
-    script.id = "about-jsonld";
-    script.type = "application/ld+json";
-    script.textContent = JSON.stringify(schema);
-    document.head.appendChild(script);
-
-    return () => {
-      canonical?.remove();
-      document.getElementById("about-jsonld")?.remove();
-    };
-  }, []);
 
   return (
     <CustomerLayout>
+      <SEO title={ABOUT_TITLE} description={ABOUT_DESC} path="/about" jsonLd={aboutSchema} />
       {/* Hero */}
       <section className="bg-background pt-24 pb-16">
         <div className="container-page max-w-3xl mx-auto text-center">
