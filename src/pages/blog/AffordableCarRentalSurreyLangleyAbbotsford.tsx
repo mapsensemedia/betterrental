@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle, ArrowLeft } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
+import { SEO } from "@/components/shared/SEO";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+
+const TITLE = "Affordable Car Rental in Surrey, Langley & Abbotsford BC (No Hidden Fees) | C2C Rental";
+const DESC = "Find affordable, fully insured car rentals in Surrey, Langley, and Abbotsford, BC—without hidden fees. C2C Rental offers transparent pricing, flexible pickup, and 24/7 support across the Lower Mainland.";
 
 const SLUG = "affordable-car-rental-surrey-langley-abbotsford-bc";
 const CANONICAL = `https://c2crental.ca/blog/${SLUG}`;
@@ -11,78 +15,32 @@ const CANONICAL = `https://c2crental.ca/blog/${SLUG}`;
 export default function AffordableCarRentalSurreyLangleyAbbotsford() {
   const [showStickyCta, setShowStickyCta] = useState(false);
 
-  useEffect(() => {
-    document.title = "Affordable Car Rental in Surrey, Langley & Abbotsford BC (No Hidden Fees) | C2C Rental";
+  const blogSchema = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: "Affordable Car Rental in Surrey, Langley & Abbotsford BC (Without Hidden Fees)",
+    description: DESC,
+    url: CANONICAL,
+    datePublished: "2025-06-01",
+    dateModified: "2025-06-01",
+    author: { "@type": "Organization", name: "C2C Rental", "@id": "https://c2crental.ca/#localbusiness" },
+    publisher: { "@id": "https://c2crental.ca/#localbusiness" },
+    mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
+    keywords: "affordable car rental Surrey BC, cheap car rental Langley, affordable car rental Abbotsford, transparent pricing car rental, fully insured car rental Lower Mainland",
+    inLanguage: "en-CA",
+  };
 
-    let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!metaDesc) { metaDesc = document.createElement("meta"); metaDesc.setAttribute("name", "description"); document.head.appendChild(metaDesc); }
-    metaDesc.setAttribute("content", "Find affordable, fully insured car rentals in Surrey, Langley, and Abbotsford, BC—without hidden fees. C2C Rental offers transparent pricing, flexible pickup, and 24/7 support across the Lower Mainland.");
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) { canonical = document.createElement("link"); canonical.setAttribute("rel", "canonical"); document.head.appendChild(canonical); }
-    canonical.setAttribute("href", CANONICAL);
-
-    let robots = document.querySelector('meta[name="robots"]');
-    if (!robots) { robots = document.createElement("meta"); robots.setAttribute("name", "robots"); document.head.appendChild(robots); }
-    robots.setAttribute("content", "index, follow");
-
-    const ogTags = [
-      { property: "og:title", content: "Affordable Car Rental in Surrey, Langley & Abbotsford BC | C2C Rental" },
-      { property: "og:description", content: "Local, transparent, fully insured car rentals across Surrey, Langley, Abbotsford and the Lower Mainland. No hidden fees. Book with C2C Rental today." },
-      { property: "og:url", content: CANONICAL },
-      { property: "og:type", content: "article" },
-    ];
-    ogTags.forEach(({ property, content }) => {
-      let tag = document.querySelector(`meta[property="${property}"]`);
-      if (!tag) { tag = document.createElement("meta"); tag.setAttribute("property", property); document.head.appendChild(tag); }
-      tag.setAttribute("content", content);
-    });
-
-    // JSON-LD: BlogPosting
-    const blogSchema = {
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      headline: "Affordable Car Rental in Surrey, Langley & Abbotsford BC (Without Hidden Fees)",
-      description: "Find affordable, fully insured car rentals in Surrey, Langley, and Abbotsford BC without hidden fees. C2C Rental offers transparent pricing, flexible pickup, and 24/7 support across the Lower Mainland.",
-      url: CANONICAL,
-      datePublished: "2025-06-01",
-      dateModified: "2025-06-01",
-      author: { "@type": "Organization", name: "C2C Rental", "@id": "https://c2crental.ca/#localbusiness" },
-      publisher: { "@id": "https://c2crental.ca/#localbusiness" },
-      mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
-      keywords: "affordable car rental Surrey BC, cheap car rental Langley, affordable car rental Abbotsford, transparent pricing car rental, fully insured car rental Lower Mainland",
-      inLanguage: "en-CA",
-    };
-    const blogScript = document.createElement("script");
-    blogScript.id = "blog-affordable-jsonld";
-    blogScript.type = "application/ld+json";
-    blogScript.textContent = JSON.stringify(blogSchema);
-    document.head.appendChild(blogScript);
-
-    // JSON-LD: FAQPage
-    const faqSchema = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: [
-        { "@type": "Question", name: "Is it cheaper to rent a car locally in Surrey than from the airport?", acceptedAnswer: { "@type": "Answer", text: "Yes. Airport rentals carry additional concession fees and higher base rates. Local providers in Surrey, Langley, and Abbotsford like C2C Rental avoid these surcharges, making the total cost substantially lower for most renters who do not need airport pickup." } },
-        { "@type": "Question", name: "Does C2C Rental include insurance in the quoted price?", acceptedAnswer: { "@type": "Answer", text: "Yes. C2C Rental vehicles are fully insured and that is reflected in the pricing upfront. You will not face confusing insurance add-ons or surprise charges at pickup." } },
-        { "@type": "Question", name: "How far in advance should I book a car rental in Surrey BC?", acceptedAnswer: { "@type": "Answer", text: "Booking at least 1 to 2 weeks in advance is recommended, especially during summer or holidays when demand across the Lower Mainland is highest." } },
-        { "@type": "Question", name: "Does C2C Rental serve areas outside Surrey?", acceptedAnswer: { "@type": "Answer", text: "Yes. C2C Rental serves Surrey, Langley, Abbotsford, and the broader Lower Mainland BC. Contact C2C Rental directly to confirm pickup availability in your specific area." } },
-        { "@type": "Question", name: "What is the difference between a daily and weekly rental rate with C2C Rental?", acceptedAnswer: { "@type": "Answer", text: "C2C Rental offers both daily and weekly rates. For trips of 5 days or more, the weekly rate typically works out to a lower average daily cost. Contact C2C Rental for a custom quote." } },
-      ],
-    };
-    const faqScript = document.createElement("script");
-    faqScript.id = "blog-affordable-faq-jsonld";
-    faqScript.type = "application/ld+json";
-    faqScript.textContent = JSON.stringify(faqSchema);
-    document.head.appendChild(faqScript);
-
-    return () => {
-      canonical?.remove();
-      document.getElementById("blog-affordable-jsonld")?.remove();
-      document.getElementById("blog-affordable-faq-jsonld")?.remove();
-    };
-  }, []);
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      { "@type": "Question", name: "Is it cheaper to rent a car locally in Surrey than from the airport?", acceptedAnswer: { "@type": "Answer", text: "Yes. Airport rentals carry additional concession fees and higher base rates. Local providers in Surrey, Langley, and Abbotsford like C2C Rental avoid these surcharges, making the total cost substantially lower for most renters who do not need airport pickup." } },
+      { "@type": "Question", name: "Does C2C Rental include insurance in the quoted price?", acceptedAnswer: { "@type": "Answer", text: "Yes. C2C Rental vehicles are fully insured and that is reflected in the pricing upfront. You will not face confusing insurance add-ons or surprise charges at pickup." } },
+      { "@type": "Question", name: "How far in advance should I book a car rental in Surrey BC?", acceptedAnswer: { "@type": "Answer", text: "Booking at least 1 to 2 weeks in advance is recommended, especially during summer or holidays when demand across the Lower Mainland is highest." } },
+      { "@type": "Question", name: "Does C2C Rental serve areas outside Surrey?", acceptedAnswer: { "@type": "Answer", text: "Yes. C2C Rental serves Surrey, Langley, Abbotsford, and the broader Lower Mainland BC. Contact C2C Rental directly to confirm pickup availability in your specific area." } },
+      { "@type": "Question", name: "What is the difference between a daily and weekly rental rate with C2C Rental?", acceptedAnswer: { "@type": "Answer", text: "C2C Rental offers both daily and weekly rates. For trips of 5 days or more, the weekly rate typically works out to a lower average daily cost. Contact C2C Rental for a custom quote." } },
+    ],
+  };
 
   // Sticky CTA on scroll
   useEffect(() => {
@@ -93,6 +51,13 @@ export default function AffordableCarRentalSurreyLangleyAbbotsford() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title={TITLE}
+        description={DESC}
+        path={`/blog/${SLUG}`}
+        type="article"
+        jsonLd={[blogSchema, faqSchema]}
+      />
       {/* ── HERO ──────────────────────────────────── */}
       <section className="relative bg-[hsl(220,30%,12%)] pt-28 pb-20 md:pt-36 md:pb-28 overflow-hidden">
         {/* subtle texture */}

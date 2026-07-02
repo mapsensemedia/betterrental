@@ -2,89 +2,45 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, CheckCircle, ArrowLeft } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
+import { SEO } from "@/components/shared/SEO";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 const SLUG = "daily-vs-weekly-car-rental-surrey-bc";
 const CANONICAL = `https://c2crental.ca/blog/${SLUG}`;
+const TITLE = "Daily vs Weekly Car Rental in Surrey BC: Which Saves You More? | C2C Rental";
+const DESC = "Not sure whether to book a daily or weekly car rental in Surrey BC? Compare rates, fees, and real scenarios. C2C Rental offers affordable options with transparent pricing and no hidden fees.";
 
 export default function DailyVsWeeklyCarRentalSurrey() {
   const [showStickyCta, setShowStickyCta] = useState(false);
 
-  useEffect(() => {
-    document.title = "Daily vs Weekly Car Rental in Surrey BC: Which Saves You More? | C2C Rental";
+  const blogSchema = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: "Daily vs Weekly Car Rental in Surrey BC: How to Choose the Best Deal",
+    description: DESC,
+    url: CANONICAL,
+    datePublished: "2025-06-08",
+    dateModified: "2025-06-08",
+    author: { "@type": "Organization", name: "C2C Rental", "@id": "https://c2crental.ca/#localbusiness" },
+    publisher: { "@id": "https://c2crental.ca/#localbusiness" },
+    mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
+    keywords: "weekly car rental Surrey, daily car rental Surrey, car rental Surrey BC price, weekly car rental Lower Mainland, Surrey car rental deals",
+    inLanguage: "en-CA",
+  };
 
-    let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!metaDesc) { metaDesc = document.createElement("meta"); metaDesc.setAttribute("name", "description"); document.head.appendChild(metaDesc); }
-    metaDesc.setAttribute("content", "Not sure whether to book a daily or weekly car rental in Surrey BC? Compare rates, fees, and real scenarios. C2C Rental offers affordable options with transparent pricing and no hidden fees.");
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      { "@type": "Question", name: "Is a weekly car rental in Surrey always cheaper than paying daily?", acceptedAnswer: { "@type": "Answer", text: "Not always. It depends on whether the provider offers genuine weekly discounts. With C2C Rental transparent pricing, you can compare both options directly with no hidden fees obscuring the real difference." } },
+      { "@type": "Question", name: "Can I switch from a daily to a weekly rental after booking with C2C Rental?", acceptedAnswer: { "@type": "Answer", text: "As a local provider, C2C Rental is generally more flexible than large national chains. Contact them early in your rental period to discuss adjusting the rate structure." } },
+      { "@type": "Question", name: "How far in advance should I book a weekly car rental in Surrey BC?", acceptedAnswer: { "@type": "Answer", text: "For peak periods such as June through August and holidays, booking 1 to 2 weeks ahead is recommended. Weekly rentals for specific vehicle types can sell out during busy months across the Lower Mainland." } },
+      { "@type": "Question", name: "Does C2C Rental offer insurance for weekly rentals?", acceptedAnswer: { "@type": "Answer", text: "Yes. All C2C Rental vehicles are fully insured regardless of whether you book daily or weekly. Insurance is included and transparent, not an optional add-on." } },
+      { "@type": "Question", name: "What vehicle types are best for a weekly rental in Surrey BC?", acceptedAnswer: { "@type": "Answer", text: "For most Surrey and Lower Mainland driving, a compact or mid-size sedan offers the best balance of cost, fuel efficiency, and parking convenience. For families or group trips, an SUV may be worth the higher weekly rate." } },
+    ],
+  };
 
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) { canonical = document.createElement("link"); canonical.setAttribute("rel", "canonical"); document.head.appendChild(canonical); }
-    canonical.setAttribute("href", CANONICAL);
-
-    let robots = document.querySelector('meta[name="robots"]');
-    if (!robots) { robots = document.createElement("meta"); robots.setAttribute("name", "robots"); document.head.appendChild(robots); }
-    robots.setAttribute("content", "index, follow");
-
-    const ogTags = [
-      { property: "og:title", content: "Daily vs Weekly Car Rental in Surrey BC | C2C Rental" },
-      { property: "og:description", content: "Compare daily vs weekly car rental rates in Surrey BC. See exactly when a weekly deal saves you money. Transparent pricing from C2C Rental." },
-      { property: "og:url", content: CANONICAL },
-      { property: "og:type", content: "article" },
-    ];
-    ogTags.forEach(({ property, content }) => {
-      let tag = document.querySelector(`meta[property="${property}"]`);
-      if (!tag) { tag = document.createElement("meta"); tag.setAttribute("property", property); document.head.appendChild(tag); }
-      tag.setAttribute("content", content);
-    });
-
-    // JSON-LD: BlogPosting
-    const blogSchema = {
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      headline: "Daily vs Weekly Car Rental in Surrey BC: How to Choose the Best Deal",
-      description: "Not sure whether to book a daily or weekly car rental in Surrey BC? Learn how rates, fees, and trip length affect your total cost and when C2C Rental weekly deal saves you the most.",
-      url: CANONICAL,
-      datePublished: "2025-06-08",
-      dateModified: "2025-06-08",
-      author: { "@type": "Organization", name: "C2C Rental", "@id": "https://c2crental.ca/#localbusiness" },
-      publisher: { "@id": "https://c2crental.ca/#localbusiness" },
-      mainEntityOfPage: { "@type": "WebPage", "@id": CANONICAL },
-      keywords: "weekly car rental Surrey, daily car rental Surrey, car rental Surrey BC price, weekly car rental Lower Mainland, Surrey car rental deals",
-      inLanguage: "en-CA",
-    };
-    const blogScript = document.createElement("script");
-    blogScript.id = "blog-daily-weekly-jsonld";
-    blogScript.type = "application/ld+json";
-    blogScript.textContent = JSON.stringify(blogSchema);
-    document.head.appendChild(blogScript);
-
-    // JSON-LD: FAQPage
-    const faqSchema = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: [
-        { "@type": "Question", name: "Is a weekly car rental in Surrey always cheaper than paying daily?", acceptedAnswer: { "@type": "Answer", text: "Not always. It depends on whether the provider offers genuine weekly discounts. With C2C Rental transparent pricing, you can compare both options directly with no hidden fees obscuring the real difference." } },
-        { "@type": "Question", name: "Can I switch from a daily to a weekly rental after booking with C2C Rental?", acceptedAnswer: { "@type": "Answer", text: "As a local provider, C2C Rental is generally more flexible than large national chains. Contact them early in your rental period to discuss adjusting the rate structure." } },
-        { "@type": "Question", name: "How far in advance should I book a weekly car rental in Surrey BC?", acceptedAnswer: { "@type": "Answer", text: "For peak periods such as June through August and holidays, booking 1 to 2 weeks ahead is recommended. Weekly rentals for specific vehicle types can sell out during busy months across the Lower Mainland." } },
-        { "@type": "Question", name: "Does C2C Rental offer insurance for weekly rentals?", acceptedAnswer: { "@type": "Answer", text: "Yes. All C2C Rental vehicles are fully insured regardless of whether you book daily or weekly. Insurance is included and transparent, not an optional add-on." } },
-        { "@type": "Question", name: "What vehicle types are best for a weekly rental in Surrey BC?", acceptedAnswer: { "@type": "Answer", text: "For most Surrey and Lower Mainland driving, a compact or mid-size sedan offers the best balance of cost, fuel efficiency, and parking convenience. For families or group trips, an SUV may be worth the higher weekly rate." } },
-      ],
-    };
-    const faqScript = document.createElement("script");
-    faqScript.id = "blog-daily-weekly-faq-jsonld";
-    faqScript.type = "application/ld+json";
-    faqScript.textContent = JSON.stringify(faqSchema);
-    document.head.appendChild(faqScript);
-
-    return () => {
-      canonical?.remove();
-      document.getElementById("blog-daily-weekly-jsonld")?.remove();
-      document.getElementById("blog-daily-weekly-faq-jsonld")?.remove();
-    };
-  }, []);
-
-  // Sticky CTA on scroll
   useEffect(() => {
     const handleScroll = () => setShowStickyCta(window.scrollY > 600);
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -93,6 +49,13 @@ export default function DailyVsWeeklyCarRentalSurrey() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title={TITLE}
+        description={DESC}
+        path={`/blog/${SLUG}`}
+        type="article"
+        jsonLd={[blogSchema, faqSchema]}
+      />
       {/* ── HERO ──────────────────────────────────── */}
       <section className="relative bg-[hsl(220,30%,12%)] pt-28 pb-20 md:pt-36 md:pb-28 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }} />

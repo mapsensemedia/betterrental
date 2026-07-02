@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useVehicle, type Vehicle } from "@/hooks/use-vehicles";
 import { PriceDisclaimer } from "@/components/shared/PriceWithDisclaimer";
 import { displayFuelType, displayTransmission } from "@/lib/utils";
+import { SEO } from "@/components/shared/SEO";
 
 const defaultFeatures = [
   "Air Conditioning",
@@ -81,6 +82,11 @@ export default function Compare() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Compare Rental Cars Side-by-Side | C2C Rental"
+        description="Compare up to 3 rental vehicles side-by-side: features, seating, fuel type, transmission, and daily rate. Book the right car with C2C Rental."
+        path="/compare"
+      />
       <PageContainer className="pt-28 pb-16">
         {/* Back Button */}
         <Link

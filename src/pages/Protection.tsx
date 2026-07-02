@@ -15,6 +15,7 @@ import { useVehicle, useCategory } from "@/hooks/use-vehicles";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
+import { SEO } from "@/components/shared/SEO";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { 
   calculateBookingPricing, 
@@ -92,6 +93,11 @@ export default function Protection() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Rental Protection Plans | C2C Rental"
+        description="Choose the right protection for your rental — Basic, Standard, or Premium. Transparent deductibles and no hidden fees. Book with C2C Rental."
+        path="/protection"
+      />
       {/* Step Progress Indicator */}
       <div className="bg-background border-b border-border py-4">
         <div className="container mx-auto px-4">
