@@ -39,7 +39,7 @@ export default defineConfig(async ({ mode }) => {
         return prerender({
           routes: PRERENDER_ROUTES,
           renderer: new PuppeteerRenderer({
-            renderAfterTime: 1500,
+            renderAfterTime: 4000,
             headless: true,
           }),
         });
