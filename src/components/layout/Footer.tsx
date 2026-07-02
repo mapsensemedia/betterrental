@@ -1,8 +1,15 @@
 import { Link } from "react-router-dom";
-import { Mail, MapPin, Instagram, Facebook, Phone } from "lucide-react";
+import { Mail, MapPin, Instagram, Facebook, Phone, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import c2cLogo from "@/assets/c2c-logo-footer.png";
+import { GBP_LINKS } from "@/constants/gbpLinks";
+
+const gbpLocations = [
+  { label: "Surrey Newton", url: GBP_LINKS.surrey },
+  { label: "Langley Centre", url: GBP_LINKS.langley },
+  { label: "Abbotsford Centre", url: GBP_LINKS.abbotsford },
+];
 
 const footerLinks = {
   explore: [
