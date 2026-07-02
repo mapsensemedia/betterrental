@@ -127,12 +127,16 @@ const PageLoader = () => (
 
 function PrerenderReadySignal() {
   useEffect(() => {
-    // Fallback ready-signal for routes without <SEO>. Delay long enough
-    // that any route-level <SEO> useEffect fires first, since Puppeteer
-    // snapshots on the first "seo-ready" event.
+    // Fallback marker for routes without <SEO>. Longer delay lets any
+    // route-level <SEO> add its own marker first.
     const t = window.setTimeout(() => {
-      document.dispatchEvent(new Event("seo-ready"));
-    }, 2500);
+      if (!document.getElementById("__prerender_ready")) {
+        const el = document.createElement("div");
+        el.id = "__prerender_ready";
+        el.style.display = "none";
+        document.body.appendChild(el);
+      }
+    }, 3000);
     return () => window.clearTimeout(t);
   }, []);
   return null;
