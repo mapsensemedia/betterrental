@@ -184,6 +184,12 @@ export default function Search() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Browse Cars | C2C Rental BC"
+        description="Browse available rental cars from C2C Rental in Surrey, Langley, and Abbotsford BC. Compare economy cars, SUVs, and minivans by date."
+        path="/search"
+        noindex
+      />
       {/* Step Progress */}
       <div className="bg-background border-b border-border py-4">
         <div className="container mx-auto px-4">
