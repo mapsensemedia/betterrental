@@ -34,11 +34,17 @@ export function SEO({
   const url = `${SITE}${path.startsWith("/") ? path : `/${path}`}`;
   const blocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 
-  // Signal prerender / Puppeteer that Helmet has flushed head tags.
-  // Delay so react-helmet-async's async head mutation completes first.
+  // Prerender marker — Puppeteer waits for #__prerender_ready via
+  // renderAfterElementExists. Adding it once Helmet has flushed its
+  // head mutations guarantees the snapshot captures per-route tags.
   useEffect(() => {
     const t = window.setTimeout(() => {
-      document.dispatchEvent(new Event("seo-ready"));
+      if (!document.getElementById("__prerender_ready")) {
+        const el = document.createElement("div");
+        el.id = "__prerender_ready";
+        el.style.display = "none";
+        document.body.appendChild(el);
+      }
     }, 800);
     return () => window.clearTimeout(t);
   }, [title, description, url]);
