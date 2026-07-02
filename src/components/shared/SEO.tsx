@@ -35,13 +35,12 @@ export function SEO({
   const blocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 
   // Signal prerender / Puppeteer that Helmet has flushed head tags.
+  // Delay so react-helmet-async's async head mutation completes first.
   useEffect(() => {
-    const raf = requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        document.dispatchEvent(new Event("seo-ready"));
-      }),
-    );
-    return () => cancelAnimationFrame(raf);
+    const t = window.setTimeout(() => {
+      document.dispatchEvent(new Event("seo-ready"));
+    }, 800);
+    return () => window.clearTimeout(t);
   }, [title, description, url]);
 
 
