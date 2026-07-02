@@ -40,6 +40,9 @@ export default defineConfig(async ({ mode }) => {
           routes: PRERENDER_ROUTES,
           renderer: new PuppeteerRenderer({
             renderAfterElementExists: "#__prerender_ready",
+            // Backup: also resolve on time so the dangling evaluate()
+            // promise inside the renderer settles cleanly.
+            renderAfterTime: 15000,
             maxConcurrentRoutes: 1,
             timeout: 30000,
             headless: true,
