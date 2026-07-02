@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { SEO } from "@/components/shared/SEO";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
@@ -74,174 +74,59 @@ const bookingSteps = [
   "Pick up your vehicle in Langley, complete walk-around inspection, and drive away",
 ];
 
+const LANGLEY_TITLE = "Car Rental Langley BC | Daily & Weekly Rates — C2C Rental";
+const LANGLEY_DESC = "Rent a car in Langley, BC from C2C Rental. Flexible daily rates, delivery available. Serving Township and City of Langley with no hidden fees.";
+
+const langleyLocalBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": ["LocalBusiness", "CarRental"],
+  "@id": "https://c2crental.ca/langley#localbusiness",
+  name: "C2C Rental — Langley",
+  url: "https://c2crental.ca/langley",
+  description: "C2C Rental — affordable daily, weekly, and monthly car rentals serving the Township and City of Langley, BC.",
+  telephone: "+1-604-763-4242",
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "20178 96 Ave",
+    addressLocality: "Langley Twp",
+    addressRegion: "BC",
+    postalCode: "V1M 0B2",
+    addressCountry: "CA",
+  },
+  geo: { "@type": "GeoCoordinates", latitude: 49.1556, longitude: -122.6784 },
+  areaServed: [
+    { "@type": "City", name: "Surrey" },
+    { "@type": "City", name: "Langley" },
+    { "@type": "City", name: "Abbotsford" },
+  ],
+  priceRange: "$$",
+  openingHoursSpecification: [
+    { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
+    { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
+  ],
+};
+
+const langleyFaqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+
 const LangleyPage = () => {
-  useEffect(() => {
-    document.title = "Car Rental Langley BC | C2C Rental";
 
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement("meta");
-      metaDesc.setAttribute("name", "description");
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute("content", "Rent a car in Langley, BC from C2C Rental. Flexible daily rates, delivery available. Serving Township and City of Langley with no hidden fees.");
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.setAttribute("rel", "canonical");
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute("href", "https://c2crental.ca/langley");
-
-    // Open Graph tags
-    const ogTags = [
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "C2C Rental" },
-      { property: "og:title", content: "Car Rental in Langley, BC | Daily & Weekly Rates – C2C Rental" },
-      { property: "og:description", content: "Rent a car in Langley, BC from C2C Rental. Flexible daily rates, delivery available. Serving Township and City of Langley with no hidden fees." },
-      { property: "og:url", content: "https://c2crental.com/langley" },
-      { property: "og:image", content: "https://c2crental.com/og-langley.jpg" },
-    ];
-
-    ogTags.forEach(({ property, content }) => {
-      let tag = document.querySelector(`meta[property="${property}"]`);
-      if (!tag) {
-        tag = document.createElement("meta");
-        tag.setAttribute("property", property);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", content);
-    });
-
-    // LocalBusiness + CarRental JSON-LD
-    const localBusinessSchema = {
-      "@context": "https://schema.org",
-      "@type": ["LocalBusiness", "CarRental"],
-      "@id": "https://c2crental.com/#organization",
-      "name": "C2C Rental",
-      "url": "https://c2crental.com",
-      "logo": "https://c2crental.com/logo.png",
-      "image": "https://c2crental.com/og-image.jpg",
-      "description": "C2C Rental is a local peer-to-peer car rental platform serving Surrey, Langley, and Abbotsford, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
-      "telephone": "+1-604-763-4242",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "20178 96 Ave",
-        "addressLocality": "Langley Twp",
-        "addressRegion": "BC",
-        "postalCode": "V1M 0B2",
-        "addressCountry": "CA"
-      },
-      "geo": {
-        "@type": "GeoCoordinates",
-        "latitude": 49.1556,
-        "longitude": -122.6784
-      },
-      "areaServed": [
-        { "@type": "City", "name": "Surrey" },
-        { "@type": "City", "name": "Langley" },
-        { "@type": "City", "name": "Abbotsford" }
-      ],
-      "serviceArea": {
-        "@type": "AdministrativeArea",
-        "name": "Fraser Valley, British Columbia"
-      },
-      "priceRange": "$$",
-      "openingHoursSpecification": [
-        {
-          "@type": "OpeningHoursSpecification",
-          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-          "opens": "08:00",
-          "closes": "18:00"
-        },
-        {
-          "@type": "OpeningHoursSpecification",
-          "dayOfWeek": "Sunday",
-          "opens": "11:00",
-          "closes": "17:00"
-        }
-      ],
-      "sameAs": [
-        "https://www.instagram.com/c2crental",
-        "https://www.facebook.com/c2crental"
-      ]
-    };
-
-    // FAQPage JSON-LD
-    const faqPageSchema = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "Is there a car rental option in Langley without a major credit card?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "C2C Rental requires a valid credit card in the renter's name for the security deposit at pickup. We do not currently accept debit cards or cash deposits for Langley rentals. If you have questions about payment options, contact our Langley team before booking and we'll do our best to help."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Can I rent an SUV in Langley for a Whistler trip?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Absolutely. C2C Rental offers SUVs and crossovers from our Langley service area that are ideal for Highway 99 and Sea-to-Sky conditions. During winter months, our AWD vehicles come equipped with winter tires. Let us know your travel dates when booking so we can match you with the right vehicle."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What documents do I need to rent a car in Langley, BC?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "You'll need a valid driver's licence (BC or accepted international licence), a credit card in your name, and in some cases proof of insurance or additional ID. International visitors renting in Langley may also need a passport and an International Driving Permit depending on their home country."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Does C2C Rental deliver vehicles in Langley?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "We offer limited vehicle delivery within the Langley area, subject to availability and a delivery fee. Coverage includes Willowbrook, Walnut Grove, Murrayville, and Downtown Langley. Contact our team to confirm delivery availability for your booking dates and address."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What is the daily rate for car rental in Langley, BC?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Daily rates for C2C Rental in Langley start at $45/day for economy and compact cars. Midsize sedans range from $65–$85/day, SUVs from $75–$110/day, and minivans from $85–$120/day. Weekly and monthly bookings often qualify for discounted rates. Visit our booking page for a live quote."
-          }
-        }
-      ]
-    };
-
-    const schemas = [
-      { id: "langley-localbusiness-jsonld", data: localBusinessSchema },
-      { id: "langley-faqpage-jsonld", data: faqPageSchema },
-    ];
-
-    schemas.forEach(({ id, data }) => {
-      let script = document.getElementById(id);
-      if (!script) {
-        script = document.createElement("script");
-        script.id = id;
-        script.setAttribute("type", "application/ld+json");
-        document.head.appendChild(script);
-      }
-      script.textContent = JSON.stringify(data);
-    });
-
-    return () => {
-      schemas.forEach(({ id }) => {
-        document.getElementById(id)?.remove();
-      });
-      canonical?.remove();
-    };
-  }, []);
 
   return (
     <CustomerLayout>
+      <SEO
+        title={LANGLEY_TITLE}
+        description={LANGLEY_DESC}
+        path="/langley"
+        jsonLd={[langleyLocalBusinessSchema, langleyFaqSchema]}
+      />
       <PageContainer className="max-w-4xl mx-auto space-y-16">
         {/* H1 + Intro */}
         <section className="space-y-6">
