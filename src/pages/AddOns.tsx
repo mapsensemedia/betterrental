@@ -14,6 +14,7 @@ import { useAddOns, isSeatAddOn } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { BookingStepper } from "@/components/shared/BookingStepper";
 import { BookingSummaryPanel } from "@/components/rental/BookingSummaryPanel";
+import { SEO } from "@/components/shared/SEO";
 import { AdditionalDriversCard, calculateAdditionalDriversCost, type AdditionalDriver } from "@/components/rental/AdditionalDriversCard";
 import { trackPageView, funnelEvents } from "@/lib/analytics";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
@@ -220,6 +221,11 @@ export default function AddOns() {
 
   return (
     <CustomerLayout>
+      <SEO
+        title="Rental Add-Ons | Car Seats, GPS, Roadside — C2C Rental"
+        description="Add extras to your rental: child seats, roadside assistance, GPS, fuel plans, and additional drivers. Transparent pricing at C2C Rental."
+        path="/add-ons"
+      />
       {/* Step Progress Indicator */}
       <div className="bg-background border-b border-border py-4">
         <div className="container mx-auto px-4">
