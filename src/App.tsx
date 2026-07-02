@@ -124,6 +124,21 @@ const PageLoader = () => (
   </div>
 );
 
+function PrerenderReadySignal() {
+  React.useEffect(() => {
+    // Fallback ready-signal for routes that don't render <SEO>. Fires
+    // after two RAF ticks so React commits + Helmet head mutations
+    // have flushed before Puppeteer snapshots the DOM.
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document.dispatchEvent(new Event("seo-ready"));
+      }),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return null;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -131,9 +146,11 @@ const App = () => (
         <BrowserRouter>
           <RentalBookingProvider>
             <ScrollToTop />
+            <PrerenderReadySignal />
             <Toaster />
             <Sonner />
             <Suspense fallback={<PageLoader />}>
+
               <Routes>
                 {/* Customer Routes - Critical paths */}
                 <Route path="/" element={<Index />} />
