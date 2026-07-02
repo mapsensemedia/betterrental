@@ -34,6 +34,18 @@ export function SEO({
   const url = `${SITE}${path.startsWith("/") ? path : `/${path}`}`;
   const blocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 
+  // Signal prerender / Puppeteer that Helmet has flushed head tags.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document.dispatchEvent(new Event("seo-ready"));
+      }),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [title, description, url]);
+
+
+
   return (
     <Helmet>
       <title>{title}</title>
