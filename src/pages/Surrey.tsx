@@ -161,6 +161,12 @@ const SurreyPage = () => {
 
   return (
     <CustomerLayout>
+      <SEO
+        title={SURREY_TITLE}
+        description={SURREY_DESC}
+        path="/surrey"
+        jsonLd={[surreyLocalBusinessSchema, surreyFaqSchema]}
+      />
       <PageContainer className="max-w-6xl mx-auto space-y-16">
         {/* Hero with embedded booking card */}
         <section className="space-y-8">
