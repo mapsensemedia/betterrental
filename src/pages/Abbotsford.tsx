@@ -25,6 +25,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
+import { GBP_LINKS } from "@/constants/gbpLinks";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { SectionHeader } from "@/components/landing/SectionHeader";
 import { CleaningBanner } from "@/components/landing/CleaningBanner";
