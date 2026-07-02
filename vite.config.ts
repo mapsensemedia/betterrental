@@ -22,7 +22,7 @@ const PRERENDER_ROUTES = [
   "/blog/daily-vs-weekly-car-rental-surrey-bc",
   "/blog/affordable-car-rental-surrey-langley-abbotsford-bc",
   "/blog/icbc-car-rental-insurance-bc",
-  "/blog/car-rental-tips-new-drivers",
+  "/blog/car-rental-tips-new-drivers-bc",
   "/blog/best-road-trips-from-surrey-bc",
   "/blog/c2c-vs-turo-vs-enterprise-surrey",
 ];
