@@ -173,6 +173,29 @@ export default function Contact() {
               </p>
 
               <div>
+                <p className="text-sm font-medium text-foreground mb-3">Find Us on Google</p>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { label: "Surrey Newton", url: GBP_LINKS.surrey },
+                    { label: "Langley Centre", url: GBP_LINKS.langley },
+                    { label: "Abbotsford Centre", url: GBP_LINKS.abbotsford },
+                  ].map((loc) => (
+                    <a
+                      key={loc.label}
+                      href={loc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+                    >
+                      <MapPin className="w-4 h-4 text-primary" />
+                      {loc.label}
+                      <ExternalLink className="w-3 h-3 opacity-60" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div>
                 <p className="text-sm font-medium text-foreground mb-3">Follow Us</p>
                 <div className="flex items-center gap-3">
                   <a
