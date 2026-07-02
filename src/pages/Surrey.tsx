@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { SEO } from "@/components/shared/SEO";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
