@@ -15,11 +15,6 @@ const CANONICAL = `https://c2crental.ca/blog/${SLUG}`;
 export default function AffordableCarRentalSurreyLangleyAbbotsford() {
   const [showStickyCta, setShowStickyCta] = useState(false);
 
-  useEffect(() => {
-    document.title = "Affordable Car Rental in Surrey, Langley & Abbotsford BC (No Hidden Fees) | C2C Rental";
-
-    let metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (!metaDesc) { metaDesc = document.createElement("meta"); metaDesc.setAttribute("name", "description"); document.head.appendChild(metaDesc); }
   const blogSchema = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
