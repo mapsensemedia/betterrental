@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAvailableCategories, useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
+import { SEO } from "@/components/shared/SEO";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { TripContextPrompt } from "@/components/shared/TripContextPrompt";
