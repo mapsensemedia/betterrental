@@ -114,113 +114,50 @@ const bookingSteps = [
   "Drive away — keys in hand, vehicle inspected, agreement signed",
 ];
 
+const SURREY_TITLE = "Car Rental Surrey BC | Affordable & Local — C2C Rental";
+const SURREY_DESC = "Affordable car rentals in Surrey, BC from $45/day. Economy cars, SUVs, and minivans across Newton, Guildford, Whalley & Cloverdale. Book online with C2C Rental.";
+
+const surreyLocalBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": ["LocalBusiness", "CarRental"],
+  "@id": "https://c2crental.ca/surrey#localbusiness",
+  name: "C2C Rental — Surrey",
+  url: "https://c2crental.ca/surrey",
+  description: "C2C Rental is a local car rental service based in Surrey, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
+  telephone: "+1-604-763-4242",
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "6786 King George Blvd",
+    addressLocality: "Surrey",
+    addressRegion: "BC",
+    postalCode: "V3W 4Z5",
+    addressCountry: "CA",
+  },
+  geo: { "@type": "GeoCoordinates", latitude: 49.1565, longitude: -122.8487 },
+  areaServed: [
+    { "@type": "City", name: "Surrey" },
+    { "@type": "City", name: "Langley" },
+    { "@type": "City", name: "Abbotsford" },
+    { "@type": "AdministrativeArea", name: "Metro Vancouver" },
+  ],
+  priceRange: "$$",
+  openingHoursSpecification: [
+    { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
+    { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
+  ],
+};
+
 const SurreyPage = () => {
-  useEffect(() => {
-    document.title = "Car Rental Surrey BC | C2C Rental";
+  const surreyFaqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((faq) => ({
+      "@type": "Question",
+      name: faq.q,
+      acceptedAnswer: { "@type": "Answer", text: faq.a },
+    })),
+  };
 
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement("meta");
-      metaDesc.setAttribute("name", "description");
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute("content", "Affordable car rentals in Surrey, BC from $30/day. Economy cars, SUVs, and minivans across Newton, Guildford, Whalley & Cloverdale. Book online.");
-
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.setAttribute("rel", "canonical");
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute("href", "https://c2crental.ca/surrey");
-
-    const ogTags = [
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "C2C Rental" },
-      { property: "og:title", content: "Car Rental in Surrey, BC | Affordable & Local – C2C Rental" },
-      { property: "og:description", content: "Economy cars, SUVs, and minivans from $45/day in Surrey, BC. No hidden fees. Local pickup in Newton. Book with C2C Rental." },
-      { property: "og:url", content: "https://c2crental.com/surrey" },
-      { property: "og:image", content: "https://c2crental.com/og-surrey.jpg" },
-    ];
-
-    ogTags.forEach(({ property, content }) => {
-      let tag = document.querySelector(`meta[property="${property}"]`);
-      if (!tag) {
-        tag = document.createElement("meta");
-        tag.setAttribute("property", property);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", content);
-    });
-
-    const localBusinessSchema = {
-      "@context": "https://schema.org",
-      "@type": ["LocalBusiness", "CarRental"],
-      "@id": "https://c2crental.com/#organization",
-      "name": "C2C Rental",
-      "url": "https://c2crental.com",
-      "logo": "https://c2crental.com/logo.png",
-      "description": "C2C Rental is a local car rental service based in Surrey, BC. Affordable daily, weekly, and monthly vehicle rentals with no hidden fees.",
-      "telephone": "+1-604-763-4242",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "6786 King George Blvd",
-        "addressLocality": "Surrey",
-        "addressRegion": "BC",
-        "postalCode": "V3W 4Z5",
-        "addressCountry": "CA"
-      },
-      "geo": { "@type": "GeoCoordinates", "latitude": 49.1565, "longitude": -122.8487 },
-      "areaServed": [
-        { "@type": "City", "name": "Surrey" },
-        { "@type": "City", "name": "Langley" },
-        { "@type": "City", "name": "Abbotsford" },
-        { "@type": "AdministrativeArea", "name": "Metro Vancouver" }
-      ],
-      "priceRange": "$$",
-      "openingHoursSpecification": [
-        { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], "opens": "08:00", "closes": "18:00" },
-        { "@type": "OpeningHoursSpecification", "dayOfWeek": "Sunday", "opens": "11:00", "closes": "17:00" }
-      ],
-      "sameAs": ["https://www.instagram.com/c2crental", "https://www.facebook.com/c2crental"]
-    };
-
-    const faqPageSchema = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": faqItems.map((faq) => ({
-        "@type": "Question",
-        "name": faq.q,
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": faq.a
-        }
-      }))
-    };
-
-    const schemas = [
-      { id: "surrey-localbusiness-jsonld", data: localBusinessSchema },
-      { id: "surrey-faqpage-jsonld", data: faqPageSchema },
-    ];
-
-    schemas.forEach(({ id, data }) => {
-      let script = document.getElementById(id);
-      if (!script) {
-        script = document.createElement("script");
-        script.id = id;
-        script.setAttribute("type", "application/ld+json");
-        document.head.appendChild(script);
-      }
-      script.textContent = JSON.stringify(data);
-    });
-
-    return () => {
-      schemas.forEach(({ id }) => {
-        document.getElementById(id)?.remove();
-      });
-      canonical?.remove();
-    };
-  }, []);
 
   return (
     <CustomerLayout>
