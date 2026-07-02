@@ -58,6 +58,7 @@ export default function About() {
 
   return (
     <CustomerLayout>
+      <SEO title={ABOUT_TITLE} description={ABOUT_DESC} path="/about" jsonLd={aboutSchema} />
       {/* Hero */}
       <section className="bg-background pt-24 pb-16">
         <div className="container-page max-w-3xl mx-auto text-center">
