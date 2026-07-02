@@ -170,6 +170,7 @@ const abbotsfordLocalBusinessSchema = {
     { "@type": "City", name: "Chilliwack" },
   ],
   priceRange: "$$",
+  sameAs: [GBP_LINKS.abbotsford],
   openingHoursSpecification: [
     { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], opens: "08:00", closes: "18:00" },
     { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "17:00" },
