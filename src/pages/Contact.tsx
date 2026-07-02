@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { SEO } from "@/components/shared/SEO";
 import { Link } from "react-router-dom";
-import { MapPin, Phone, Mail, Clock, Send, CheckCircle, Instagram, Facebook, ArrowRight } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Send, CheckCircle, Instagram, Facebook, ArrowRight, ExternalLink } from "lucide-react";
+import { GBP_LINKS } from "@/constants/gbpLinks";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
