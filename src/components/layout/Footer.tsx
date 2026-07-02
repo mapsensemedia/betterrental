@@ -121,6 +121,26 @@ export function Footer() {
           </div>
         </div>
 
+        {/* Google Business Profiles */}
+        <div className="mt-10 pt-8 border-t border-background/10">
+          <p className="text-sm font-semibold text-background/80 mb-3 uppercase tracking-wider">Find Us on Google</p>
+          <div className="flex flex-wrap gap-3">
+            {gbpLocations.map((loc) => (
+              <a
+                key={loc.label}
+                href={loc.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-background/70 hover:text-background bg-background/5 hover:bg-background/10 border border-background/10 rounded-full px-3.5 py-1.5 transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                {loc.label}
+                <ExternalLink className="w-3 h-3 opacity-60" />
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* NAP Block */}
         <div className="mt-12 pt-8 border-t border-background/10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
