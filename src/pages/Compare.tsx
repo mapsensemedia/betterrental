@@ -91,11 +91,7 @@ export default function Compare() {
 
   return (
     <CustomerLayout>
-      <SEO
-        title="Compare Rental Cars Side-by-Side | C2C Rental"
-        description="Compare up to 3 rental vehicles side-by-side: features, seating, fuel type, transmission, and daily rate. Book the right car with C2C Rental."
-        path="/compare"
-      />
+      {compareSEO}
       <PageContainer className="pt-28 pb-16">
         {/* Back Button */}
         <Link
