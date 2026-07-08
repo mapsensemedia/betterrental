@@ -41,6 +41,8 @@ import { format, subDays, startOfDay, eachDayOfInterval, startOfMonth } from "da
 import { RevenueAnalyticsTab, type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
 import { QuarterlyReportGenerator } from "@/components/admin/QuarterlyReportGenerator";
 import { DemandForecastingTab } from "@/components/admin/DemandForecastingTab";
+import { LocationDailyReport } from "@/components/admin/LocationDailyReport";
+import { MapPin } from "lucide-react";
 import { useRevenueAnalytics, type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
 import { useCollectedRevenue } from "@/hooks/use-collected-revenue";
 
