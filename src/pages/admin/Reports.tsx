@@ -447,6 +447,10 @@ export default function AdminReports() {
               <Car className="w-4 h-4" />
               Fleet
             </TabsTrigger>
+            <TabsTrigger value="location-daily" className="gap-2">
+              <MapPin className="w-4 h-4" />
+              By Location & Day
+            </TabsTrigger>
             <TabsTrigger value="demand" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               Demand
