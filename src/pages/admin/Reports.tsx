@@ -41,6 +41,8 @@ import { format, subDays, startOfDay, eachDayOfInterval, startOfMonth } from "da
 import { RevenueAnalyticsTab, type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
 import { QuarterlyReportGenerator } from "@/components/admin/QuarterlyReportGenerator";
 import { DemandForecastingTab } from "@/components/admin/DemandForecastingTab";
+import { LocationDailyReport } from "@/components/admin/LocationDailyReport";
+import { MapPin } from "lucide-react";
 import { useRevenueAnalytics, type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
 import { useCollectedRevenue } from "@/hooks/use-collected-revenue";
 
@@ -445,6 +447,10 @@ export default function AdminReports() {
               <Car className="w-4 h-4" />
               Fleet
             </TabsTrigger>
+            <TabsTrigger value="location-daily" className="gap-2">
+              <MapPin className="w-4 h-4" />
+              By Location & Day
+            </TabsTrigger>
             <TabsTrigger value="demand" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               Demand
@@ -747,6 +753,14 @@ export default function AdminReports() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="location-daily">
+            <LocationDailyReport
+              startDate={dateRange.start}
+              endDate={dateRange.end}
+              periodLabel={periodLabel}
+            />
           </TabsContent>
 
           <TabsContent value="demand">
