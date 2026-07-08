@@ -755,6 +755,14 @@ export default function AdminReports() {
             </div>
           </TabsContent>
 
+          <TabsContent value="location-daily">
+            <LocationDailyReport
+              startDate={dateRange.start}
+              endDate={dateRange.end}
+              periodLabel={periodLabel}
+            />
+          </TabsContent>
+
           <TabsContent value="demand">
             <DemandForecastingTab />
           </TabsContent>
