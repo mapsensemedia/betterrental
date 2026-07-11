@@ -308,9 +308,9 @@ export async function buildInvoicePdfData(
     lateFees: Number(invoice.late_fees || 0),
     damageCharges: Number(invoice.damage_charges || 0),
     grandTotal: fromCents(dbTotalCents),
-    paymentsReceived: actualPaymentsCollected > 0 ? actualPaymentsCollected : Number(invoice.payments_received || 0),
-    amountDue: actualPaymentsCollected > 0
-      ? Math.max(0, fromCents(dbTotalCents) - actualPaymentsCollected)
+    paymentsReceived: totalCredited > 0 ? totalCredited : Number(invoice.payments_received || 0),
+    amountDue: totalCredited > 0
+      ? Math.max(0, fromCents(dbTotalCents) - totalCredited)
       : Number(invoice.amount_due || 0),
     depositHeld: Number(invoice.deposit_held || 0),
     depositReleased: Number(invoice.deposit_released || 0),
