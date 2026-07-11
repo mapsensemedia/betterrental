@@ -51,6 +51,10 @@ export interface PaymentSummary {
   wlDepositAuthStatus: string | null;
   depositDbStatus: string | null;
   bookingStatus: string | null;
+  paidOffline: boolean;
+  offlinePaymentMethod: string | null;
+  offlinePaymentReference: string | null;
+  offlinePaidAt: string | null;
 }
 
 export function usePaymentDepositStatus(bookingId: string | null) {
