@@ -81,7 +81,8 @@ export async function buildInvoicePdfData(
       subtotal, tax_amount, total_amount, deposit_amount,
       protection_plan, different_dropoff_fee, delivery_fee,
       young_driver_fee, upgrade_daily_fee, vehicle_id, user_id,
-      location_id, return_location_id
+      location_id, return_location_id,
+      paid_offline, offline_payment_method, offline_payment_reference
     `)
     .eq("id", bookingId)
     .maybeSingle();
@@ -271,6 +272,11 @@ export async function buildInvoicePdfData(
 
   // Calculate actual payments collected from payments table
   const actualPaymentsCollected = (paymentRows || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  // Credit bank-transfer / offline payments against the grand total
+  const offlineCredit = (booking as any).paid_offline
+    ? Math.max(0, fromCents(dbTotalCents) - actualPaymentsCollected)
+    : 0;
+  const totalCredited = actualPaymentsCollected + offlineCredit;
 
   return {
     invoiceNumber: invoice.invoice_number,
@@ -302,9 +308,9 @@ export async function buildInvoicePdfData(
     lateFees: Number(invoice.late_fees || 0),
     damageCharges: Number(invoice.damage_charges || 0),
     grandTotal: fromCents(dbTotalCents),
-    paymentsReceived: actualPaymentsCollected > 0 ? actualPaymentsCollected : Number(invoice.payments_received || 0),
-    amountDue: actualPaymentsCollected > 0
-      ? Math.max(0, fromCents(dbTotalCents) - actualPaymentsCollected)
+    paymentsReceived: totalCredited > 0 ? totalCredited : Number(invoice.payments_received || 0),
+    amountDue: totalCredited > 0
+      ? Math.max(0, fromCents(dbTotalCents) - totalCredited)
       : Number(invoice.amount_due || 0),
     depositHeld: Number(invoice.deposit_held || 0),
     depositReleased: Number(invoice.deposit_released || 0),
