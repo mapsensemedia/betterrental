@@ -30,7 +30,9 @@ import {
   ShieldCheck,
   ShieldOff,
   ShieldAlert,
+  Landmark,
 } from "lucide-react";
+import { MarkBankTransferPaidDialog } from "@/components/admin/MarkBankTransferPaidDialog";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
