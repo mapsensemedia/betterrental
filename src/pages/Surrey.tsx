@@ -111,7 +111,7 @@ const bookingSteps = [
   "Enter your driver details — licence number, date of birth, any additional drivers",
   "Complete checkout — the $350 deposit is held, not charged, until return",
   "Sign your digital rental agreement by email before pickup day",
-  "Arrive at 6786 King George Blvd — we complete a walk-around with photos together",
+  "Arrive at 6768 King George Blvd — we complete a walk-around with photos together",
   "Drive away — keys in hand, vehicle inspected, agreement signed",
 ];
 
@@ -128,10 +128,10 @@ const surreyLocalBusinessSchema = {
   telephone: "+1-604-763-4242",
   address: {
     "@type": "PostalAddress",
-    streetAddress: "6786 King George Blvd",
+    streetAddress: "6768 King George Blvd",
     addressLocality: "Surrey",
     addressRegion: "BC",
-    postalCode: "V3W 4Z5",
+    postalCode: "V3W 4Z9",
     addressCountry: "CA",
   },
   geo: { "@type": "GeoCoordinates", latitude: 49.1565, longitude: -122.8487 },
@@ -186,7 +186,7 @@ const SurreyPage = () => {
               className="w-full max-w-4xl"
             />
             <p className="text-xs text-muted-foreground text-center max-w-4xl">
-              📍 Pickup at 6786 King George Blvd, Surrey — Newton location
+              📍 Pickup at 6768 King George Blvd, Surrey — Newton location
             </p>
           </div>
         </section>
@@ -289,7 +289,7 @@ const SurreyPage = () => {
             Surrey Pickup Location &amp; Delivery Area
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            C2C Rental is based at 6786 King George Blvd, Surrey, BC V3W 4Z5 — in the heart of Newton, minutes from Scott Rd Station. Free on-site parking at pickup.
+            C2C Rental is based at 6768 King George Blvd, Surrey, BC V3W 4Z9 — in the heart of Newton, minutes from Scott Rd Station. Free on-site parking at pickup.
           </p>
           <p className="text-muted-foreground leading-relaxed">
             Limited vehicle delivery available to: Newton, Guildford, Surrey Central / Whalley, Fleetwood, and South Surrey / White Rock. Subject to availability and delivery fee. Contact us to confirm before booking.

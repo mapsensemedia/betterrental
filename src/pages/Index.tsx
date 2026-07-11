@@ -149,7 +149,7 @@ const Index = () => {
       "telephone": "+1-604-763-4242",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "6786 King George Blvd",
+        "streetAddress": "6768 King George Blvd",
         "addressLocality": "Surrey",
         "addressRegion": "BC",
         "postalCode": "V3W 4Z1",
