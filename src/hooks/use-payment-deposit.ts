@@ -184,6 +184,10 @@ export function usePaymentDepositStatus(bookingId: string | null) {
         wlDepositAuthStatus: (booking as any).wl_deposit_auth_status || null,
         depositDbStatus: booking.deposit_status || null,
         bookingStatus: booking.status || null,
+        paidOffline,
+        offlinePaymentMethod: (booking as any).offline_payment_method || null,
+        offlinePaymentReference: (booking as any).offline_payment_reference || null,
+        offlinePaidAt: (booking as any).offline_paid_at || null,
       } as PaymentSummary;
     },
     enabled: !!bookingId,
