@@ -65,21 +65,37 @@ export function PaymentDepositPanel({
             <DollarSign className="h-4 w-4" />
             Payment Status
           </CardTitle>
-          {allComplete && (
+          {status.paidOffline ? (
+            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+              <Landmark className="h-3 w-3 mr-1" />
+              Paid — Bank Transfer
+            </Badge>
+          ) : allComplete ? (
             <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
               <CheckCircle className="h-3 w-3 mr-1" />
               Paid
             </Badge>
-          )}
-          {isAuthorized && (
+          ) : isAuthorized ? (
             <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
               <CreditCard className="h-3 w-3 mr-1" />
               Authorized — Capture Pending
             </Badge>
-          )}
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {status.paidOffline && (
+          <Alert className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20">
+            <Landmark className="h-4 w-4 text-emerald-600" />
+            <AlertDescription className="text-sm">
+              Paid via <strong>bank transfer</strong>
+              {status.offlinePaidAt ? ` on ${new Date(status.offlinePaidAt).toLocaleString()}` : ""}.
+              {status.offlinePaymentReference ? <> Ref: <span className="font-mono">{status.offlinePaymentReference}</span></> : null}
+              <br />
+              <span className="text-xs text-muted-foreground">Not counted in Worldline revenue.</span>
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Payment Summary */}
         <div className="p-4 rounded-lg border bg-card space-y-2">
           <div className="flex justify-between text-sm">
