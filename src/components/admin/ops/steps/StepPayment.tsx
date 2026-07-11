@@ -216,13 +216,15 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const depositIsReleased = depositDbStatus === "released" || wlDepositAuthStatus === "released";
   const hasDeposit = depositIsAuthorized || depositIsCaptured || depositIsReleased;
 
-  // Show inline payment form when there's an outstanding balance
+  const paidOffline = !!paymentStatus?.paidOffline;
+
+  // Show inline payment form when there's an outstanding balance (hidden if bank-transfer paid)
   const hasBalance = (paymentStatus?.balance ?? 0) > 0;
-  const canShowPayForm = hasBalance
+  const canShowPayForm = !paidOffline && hasBalance
     && (bookingStatus === "confirmed" || bookingStatus === "pending" || bookingStatus === "draft" || bookingStatus === "active");
 
-  // Show deposit-only form when paid but no deposit hold
-  const canShowDepositOnly = isPaid && !hasDeposit && !wlDepositTxnId;
+  // Show deposit-only form when paid but no deposit hold (offline-paid bookings skip this)
+  const canShowDepositOnly = !paidOffline && isPaid && !hasDeposit && !wlDepositTxnId;
 
   return (
     <div className="space-y-4">
