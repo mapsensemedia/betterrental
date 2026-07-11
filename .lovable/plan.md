@@ -1,96 +1,55 @@
+## Goal
 
-## What the uploaded files tell us
+Let ops mark a booking as "Paid — Bank Transfer" without inserting a Worldline-style `payments` row (so Worldline revenue stays clean), and gate the action behind an OTP sent to the admin phone `+1 (672) 755-3399`.
 
-**Coverage (as of Jul 2, 2026)**
-- Only **6 pages indexed**, 8 not indexed.
-- Critical issues: 3 "Crawled – currently not indexed", 2 "Page with redirect", 1 "Blocked by robots.txt".
-- Impressions grew from ~10/day in April to ~150–270/day by mid-May → Google is discovering more, but not indexing the new prerendered routes.
+No new dashboards, no new reports, no new feature surface — only the toggle + OTP.
 
-**Performance – only 16 URLs are getting impressions**
-| Page | Clicks | Impr | Avg Pos |
-|---|---|---|---|
-| `/` (c2crental.ca) | 438 | 19,743 | 15.96 |
-| `/` (www.c2crental.ca) | 150 | 6,187 | 2.18 |
-| `/surrey` | 13 | 1,547 | 18.48 |
-| `/search` | 11 | 1,771 | 4.27 |
-| `/location/{uuid}` | 11 | 1,482 | 7.96 |
-| `/locations` | 4 | 557 | 7.29 |
-| `/about` | 3 | 528 | 4.68 |
-| `/abbotsford` | 0 | 5 | 3.0 |
-| `/langley` | 0 | 5 | 4.6 |
-| Most blog posts | 0 | 1–92 | — |
-| `/protection`, `/add-ons`, `/compare`, `/contact` | not appearing | — | — |
+## How it works
 
-Two red flags:
-1. **`c2crental.ca` vs `www.c2crental.ca` are competing** — same content ranking as two properties, splitting authority (pos 15.96 vs 2.18).
-2. **`/search` and a raw `/location/{uuid}` page are ranking instead of the city landing pages** — thin/dynamic URLs are eating impressions that should go to `/surrey`, `/langley`, `/abbotsford`.
+1. On the booking detail (Ops + Admin panel), add a small action next to the existing payment status: **"Mark as Paid (Bank Transfer)"**. Visible only when balance > 0 and booking is not already flagged.
+2. Clicking it opens a dialog:
+   - Step 1: "Send OTP to admin" → calls edge function `send-bank-transfer-otp` which SMS's a 6-digit code to `+16727553399` via existing Twilio secrets.
+   - Step 2: Enter code + optional reference note (e.g. "e-Transfer ref #123") → calls `confirm-bank-transfer-paid`.
+3. On successful OTP verify, the edge function:
+   - Sets booking flags: `paid_offline = true`, `offline_payment_method = 'bank_transfer'`, `offline_payment_reference = <note>`, `offline_paid_at = now()`, `offline_paid_by = <user_id>`.
+   - Promotes booking `status` from `draft`/`pending` → `confirmed` (same rule as Worldline full-pay).
+   - Writes an `audit_logs` entry (`action = 'bank_transfer_marked_paid'`).
+   - Does **NOT** insert into `payments`.
+4. Booking UI shows a green **"Paid — Bank Transfer"** badge, hides "Balance Due" warnings, and the existing "Collect Payment" / Worldline actions are hidden for that booking.
+5. Revenue calculations (which derive strictly from `payments`) remain unchanged — these bookings are intentionally excluded from Worldline revenue totals, per requirement.
 
-## Pages to request reindex in Google Search Console
+## Technical details
 
-Use "URL Inspection → Request Indexing" for each of these (10/day GSC quota — do the top block first):
+**DB migration** — add columns to `bookings`:
+- `paid_offline boolean not null default false`
+- `offline_payment_method text` (only value used now: `'bank_transfer'`)
+- `offline_payment_reference text`
+- `offline_paid_at timestamptz`
+- `offline_paid_by uuid references auth.users(id)`
 
-**Priority 1 – newly prerendered, missing from index**
-```
-https://c2crental.ca/langley
-https://c2crental.ca/abbotsford
-https://c2crental.ca/protection
-https://c2crental.ca/add-ons
-https://c2crental.ca/compare
-https://c2crental.ca/contact
-https://c2crental.ca/locations
-```
+Update `block_sensitive_booking_updates` trigger to allow these new columns to remain client-blocked (writes only via service_role edge function, matching existing financial-integrity pattern).
 
-**Priority 2 – blog posts not indexed**
-```
-https://c2crental.ca/blog
-https://c2crental.ca/blog/car-rental-surrey-guide
-https://c2crental.ca/blog/daily-vs-weekly-car-rental-surrey-bc
-https://c2crental.ca/blog/car-rental-tips-new-drivers-bc
-https://c2crental.ca/blog/icbc-car-rental-insurance-bc
-https://c2crental.ca/blog/best-road-trips-from-surrey-bc
-https://c2crental.ca/blog/c2c-vs-turo-vs-enterprise-surrey
-https://c2crental.ca/blog/affordable-car-rental-surrey-langley-abbotsford-bc
-```
+**OTP storage** — reuse existing `booking_otps` table with a new `purpose = 'bank_transfer_confirm'` scoped by `booking_id`. 6-digit code, 10-min TTL, max 5 attempts, rate-limited via existing `check_rate_limit` (key: `bank_xfer_otp:<booking_id>`, 3 sends / 10 min).
 
-**Priority 3 – already ranking, reindex to pick up new Helmet metadata**
-```
-https://c2crental.ca/
-https://c2crental.ca/surrey
-https://c2crental.ca/about
-```
+**Edge functions** (both require `admin` or `staff` role via existing `requireRoleOrThrow`):
+- `send-bank-transfer-otp` — generates code, stores in `booking_otps`, sends SMS via Twilio to hardcoded admin number `+16727553399` (message: `"C2C: OTP <code> to mark booking <code> as paid by bank transfer."`).
+- `confirm-bank-transfer-paid` — validates OTP, updates booking flags + status, writes audit log.
 
-## Fixes I'd ship in code alongside the reindex (build mode)
+**Frontend** — new component `MarkBankTransferPaidDialog.tsx` used inside `PaymentDepositPanel` (admin) and `OpsPaymentAndDeposit` (ops). Add "Paid — Bank Transfer" badge in `PaymentDepositPanel` and in the ops booking header when `paid_offline = true`. Hide Worldline collect actions when flag is set.
 
-1. **Kill the www / apex duplication** — pick `c2crental.ca` as canonical (already is in `<SEO>`), then set a permanent 301 from `www.c2crental.ca → c2crental.ca` at the hosting layer, and remove `www.c2crental.ca` from GSC (or set it as the alternate). Right now Google is indexing both, which explains the split rankings.
-2. **Noindex `/search`** — it's a dynamic result page; add `<meta name="robots" content="noindex,follow">` via `<SEO>` on `Search.tsx`. That reallocates ~1,700 impressions to city pages.
-3. **Investigate `/location/{uuid}`** — one UUID page is out-ranking `/langley` and `/abbotsford`. Either 301 to the matching city page, or noindex the UUID variant and keep the slug pages canonical.
-4. **Resolve the 3 "Crawled – not indexed" URLs + 2 redirect chains + 1 robots.txt block** — I need to pull the exact URLs from GSC via the Search Console API (they aren't in the export), then either fix content thinness, shorten the redirect, or unblock in `robots.txt`.
-5. **Add internal links** from `/` and `/surrey` (highest-authority pages) to `/langley`, `/abbotsford`, `/protection`, `/add-ons`, `/compare`, and top blog posts — this is the fastest way to push indexing on the new prerendered routes.
+**Nothing else changes** — reports, revenue dashboards, invoices, agreements all stay as-is. These bookings simply won't appear in Worldline revenue (by design).
 
-## Semrush analysis I'd run
+## Files touched
 
-Point-in-time reads via the built-in tools (no connector needed for this pass):
+- New migration: `bookings` columns
+- New edge functions: `supabase/functions/send-bank-transfer-otp/index.ts`, `supabase/functions/confirm-bank-transfer-paid/index.ts`
+- New component: `src/components/admin/MarkBankTransferPaidDialog.tsx`
+- Edit: `src/components/admin/PaymentDepositPanel.tsx` (badge + button)
+- Edit: `src/components/payments/OpsPaymentAndDeposit.tsx` (badge + button, hide Worldline actions when paid_offline)
+- Regen: `src/integrations/supabase/types.ts` (auto)
 
-| Check | Tool | Why |
-|---|---|---|
-| Overall snapshot for `c2crental.ca` | `domain_analysis` | Baseline: traffic, ranking keyword count, top organic terms |
-| Historical trend | `seo_trend` | Confirm the "used to rank first, now not visible" claim with month-over-month data |
-| Top pages driving traffic | `top_pages` | Compare against GSC top pages; find gaps |
-| Competitor discovery + gap | `competitive_analysis` | Who ranks in Surrey/Langley/Abbotsford for the terms we're losing on |
-| Head-to-head vs the strongest local competitor | `compare_domains` | Benchmark authority score & keyword overlap |
-| SERP + KDI for the 6 near-miss keywords | `serp_analysis` on each: `car rental langley`, `car rental surrey`, `car rental near me`, `car rental`, `rent a car surrey`, `surrey car rental` | Decide which are winnable and what to rewrite the city pages toward |
-| Backlink profile | `backlink_analysis` | Check whether authority dropped (likely reason for lost rankings) |
+## Confirm before I build
 
-Database: `ca` (Canadian market — the site is 99.5% Canada traffic per GSC).
-
-If, after the snapshot, you want ongoing tracking (daily rank monitoring for those 6 keywords, competitor movement alerts, or a bulk keyword-gap export), I'd wire up the Semrush connector and build a small SEO dashboard into `/admin`.
-
-## Deliverable
-
-Once you approve, in build mode I will:
-1. Run the 7 Semrush queries above and summarize findings + a keyword-priority list.
-2. Query the Search Console API to pull the exact URLs behind each Coverage issue.
-3. Ship the code fixes in "Fixes I'd ship" (noindex `/search`, resolve `/location/{uuid}`, add internal links, verify robots.txt, tighten redirect chains).
-4. Hand you the final "request indexing" checklist grouped by day so you don't blow past the GSC 10/day quota.
-
-No changes made yet — waiting on your go-ahead.
+- Admin OTP number: **+1 (672) 755-3399** — correct?
+- OTP delivery: **SMS via existing Twilio** (already configured). OK, or do you also want email fallback?
+- Who can trigger it: **admin + staff (ops)**, or admin-only?

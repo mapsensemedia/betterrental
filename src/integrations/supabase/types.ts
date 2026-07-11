@@ -269,6 +269,47 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_transfer_otps: {
+        Row: {
+          attempts: number
+          booking_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          otp_hash: string
+          requested_by: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          booking_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          otp_hash: string
+          requested_by: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          booking_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          otp_hash?: string
+          requested_by?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transfer_otps_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_access_tokens: {
         Row: {
           booking_id: string
@@ -478,7 +519,12 @@ export type Database = {
           late_return_override_reason: string | null
           location_id: string
           notes: string | null
+          offline_paid_at: string | null
+          offline_paid_by: string | null
+          offline_payment_method: string | null
+          offline_payment_reference: string | null
           original_vehicle_id: string | null
+          paid_offline: boolean
           pickup_address: string | null
           pickup_contact_name: string | null
           pickup_contact_phone: string | null
@@ -573,7 +619,12 @@ export type Database = {
           late_return_override_reason?: string | null
           location_id: string
           notes?: string | null
+          offline_paid_at?: string | null
+          offline_paid_by?: string | null
+          offline_payment_method?: string | null
+          offline_payment_reference?: string | null
           original_vehicle_id?: string | null
+          paid_offline?: boolean
           pickup_address?: string | null
           pickup_contact_name?: string | null
           pickup_contact_phone?: string | null
@@ -668,7 +719,12 @@ export type Database = {
           late_return_override_reason?: string | null
           location_id?: string
           notes?: string | null
+          offline_paid_at?: string | null
+          offline_paid_by?: string | null
+          offline_payment_method?: string | null
+          offline_payment_reference?: string | null
           original_vehicle_id?: string | null
+          paid_offline?: boolean
           pickup_address?: string | null
           pickup_contact_name?: string | null
           pickup_contact_phone?: string | null

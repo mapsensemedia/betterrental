@@ -19,8 +19,11 @@ import {
   Loader2,
   Info,
   Copy,
+  Landmark,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { MarkBankTransferPaidDialog } from './MarkBankTransferPaidDialog';
 
 interface PaymentDepositPanelProps {
   bookingId: string;
@@ -32,6 +35,7 @@ export function PaymentDepositPanel({
   bookingId,
 }: PaymentDepositPanelProps) {
   const { data: status, isLoading } = usePaymentDepositStatus(bookingId);
+  const queryClient = useQueryClient();
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -61,21 +65,37 @@ export function PaymentDepositPanel({
             <DollarSign className="h-4 w-4" />
             Payment Status
           </CardTitle>
-          {allComplete && (
+          {status.paidOffline ? (
+            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+              <Landmark className="h-3 w-3 mr-1" />
+              Paid — Bank Transfer
+            </Badge>
+          ) : allComplete ? (
             <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
               <CheckCircle className="h-3 w-3 mr-1" />
               Paid
             </Badge>
-          )}
-          {isAuthorized && (
+          ) : isAuthorized ? (
             <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
               <CreditCard className="h-3 w-3 mr-1" />
               Authorized — Capture Pending
             </Badge>
-          )}
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {status.paidOffline && (
+          <Alert className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20">
+            <Landmark className="h-4 w-4 text-emerald-600" />
+            <AlertDescription className="text-sm">
+              Paid via <strong>bank transfer</strong>
+              {status.offlinePaidAt ? ` on ${new Date(status.offlinePaidAt).toLocaleString()}` : ""}.
+              {status.offlinePaymentReference ? <> Ref: <span className="font-mono">{status.offlinePaymentReference}</span></> : null}
+              <br />
+              <span className="text-xs text-muted-foreground">Not counted in Worldline revenue.</span>
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Payment Summary */}
         <div className="p-4 rounded-lg border bg-card space-y-2">
           <div className="flex justify-between text-sm">
@@ -152,6 +172,21 @@ export function PaymentDepositPanel({
             <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="font-medium">No payments recorded</p>
             <p className="text-sm mt-1">Collect payment via the Worldline counter flow.</p>
+          </div>
+        )}
+
+        {/* Bank transfer marker (OTP-gated) — only if not already paid */}
+        {!status.paidOffline && status.balance > 0 && (
+          <div className="pt-2 border-t">
+            <MarkBankTransferPaidDialog
+              bookingId={bookingId}
+              amount={status.balance}
+              onCompleted={() => queryClient.invalidateQueries({ queryKey: ['payment-deposit-status', bookingId] })}
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Use only when the customer paid the full amount by direct bank transfer.
+              Requires an OTP sent to the admin phone.
+            </p>
           </div>
         )}
 

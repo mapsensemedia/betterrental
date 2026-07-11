@@ -30,7 +30,9 @@ import {
   ShieldCheck,
   ShieldOff,
   ShieldAlert,
+  Landmark,
 } from "lucide-react";
+import { MarkBankTransferPaidDialog } from "@/components/admin/MarkBankTransferPaidDialog";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -214,13 +216,15 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const depositIsReleased = depositDbStatus === "released" || wlDepositAuthStatus === "released";
   const hasDeposit = depositIsAuthorized || depositIsCaptured || depositIsReleased;
 
-  // Show inline payment form when there's an outstanding balance
+  const paidOffline = !!paymentStatus?.paidOffline;
+
+  // Show inline payment form when there's an outstanding balance (hidden if bank-transfer paid)
   const hasBalance = (paymentStatus?.balance ?? 0) > 0;
-  const canShowPayForm = hasBalance
+  const canShowPayForm = !paidOffline && hasBalance
     && (bookingStatus === "confirmed" || bookingStatus === "pending" || bookingStatus === "draft" || bookingStatus === "active");
 
-  // Show deposit-only form when paid but no deposit hold
-  const canShowDepositOnly = isPaid && !hasDeposit && !wlDepositTxnId;
+  // Show deposit-only form when paid but no deposit hold (offline-paid bookings skip this)
+  const canShowDepositOnly = !paidOffline && isPaid && !hasDeposit && !wlDepositTxnId;
 
   return (
     <div className="space-y-4">
@@ -256,7 +260,12 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
               <CreditCard className="w-4 h-4 text-muted-foreground" />
               <CardTitle className="text-base">Payment Status</CardTitle>
             </div>
-            {isPaid ? (
+            {paidOffline ? (
+              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200">
+                <Landmark className="w-3 h-3 mr-1" />
+                Paid — Bank Transfer
+              </Badge>
+            ) : isPaid ? (
               <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200">
                 <CheckCircle2 className="w-3 h-3 mr-1" />
                 Paid
@@ -269,9 +278,11 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             )}
           </div>
           <CardDescription>
-            {isPaid 
-              ? "Payment has been received."
-              : "Awaiting payment from customer."
+            {paidOffline
+              ? "Paid via direct bank transfer. Not counted in Worldline revenue."
+              : isPaid
+                ? "Payment has been received."
+                : "Awaiting payment from customer."
             }
           </CardDescription>
         </CardHeader>
@@ -296,7 +307,38 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             </div>
           )}
 
-          {/* === RENTAL SECTION === */}
+          {/* Offline (bank transfer) marker */}
+          {paidOffline && (
+            <Alert className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20">
+              <Landmark className="h-4 w-4 text-emerald-600" />
+              <AlertDescription className="text-sm text-emerald-900 dark:text-emerald-200">
+                <p className="font-medium">Marked as paid via direct bank transfer</p>
+                {paymentStatus?.offlinePaidAt && (
+                  <p className="text-xs opacity-80">On {new Date(paymentStatus.offlinePaidAt).toLocaleString()}</p>
+                )}
+                {paymentStatus?.offlinePaymentReference && (
+                  <p className="text-xs mt-1">Ref: <span className="font-mono">{paymentStatus.offlinePaymentReference}</span></p>
+                )}
+                <p className="text-xs opacity-80 mt-1">This booking is intentionally excluded from Worldline revenue.</p>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Mark bank-transfer paid (OTP-gated) — visible when balance outstanding */}
+          {!paidOffline && hasBalance && (
+            <div className="flex flex-col gap-1.5">
+              <MarkBankTransferPaidDialog
+                bookingId={bookingId}
+                amount={paymentStatus?.balance ?? 0}
+                onCompleted={refreshData}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use only when the customer paid the full balance by direct bank transfer.
+                Requires an OTP sent to the admin phone.
+              </p>
+            </div>
+          )}
+
           {wlTransactionId && (
             <div className="p-3 rounded-md bg-muted/30 space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rental</p>

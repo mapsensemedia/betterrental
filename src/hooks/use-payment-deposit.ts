@@ -51,6 +51,10 @@ export interface PaymentSummary {
   wlDepositAuthStatus: string | null;
   depositDbStatus: string | null;
   bookingStatus: string | null;
+  paidOffline: boolean;
+  offlinePaymentMethod: string | null;
+  offlinePaymentReference: string | null;
+  offlinePaidAt: string | null;
 }
 
 export function usePaymentDepositStatus(bookingId: string | null) {
@@ -61,7 +65,7 @@ export function usePaymentDepositStatus(bookingId: string | null) {
 
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_auth_status, wl_deposit_transaction_id, wl_deposit_auth_status, status')
+        .select('total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_auth_status, wl_deposit_transaction_id, wl_deposit_auth_status, status, paid_offline, offline_payment_method, offline_payment_reference, offline_paid_at')
         .eq('id', bookingId)
         .single();
 
@@ -105,8 +109,11 @@ export function usePaymentDepositStatus(bookingId: string | null) {
       const authCoversTotal =
         rentalAuthorized && (totalAuthorizedRental + netPaid) >= totalDue;
 
+      const paidOffline = !!(booking as any).paid_offline;
       let paymentStatus: 'unpaid' | 'partial' | 'paid' | 'authorized' = 'unpaid';
-      if (netPaid >= totalDue) {
+      if (paidOffline) {
+        paymentStatus = 'paid';
+      } else if (netPaid >= totalDue) {
         paymentStatus = 'paid';
       } else if (bookingPastConfirmed && authCoversTotal) {
         paymentStatus = 'paid';
@@ -159,7 +166,7 @@ export function usePaymentDepositStatus(bookingId: string | null) {
         rentalAuthorized,
         depositRequired,
         depositHeld: hasActiveHold ? depositRequired : 0,
-        balance: Math.max(0, balance),
+        balance: paidOffline ? 0 : Math.max(0, balance),
         paymentStatus,
         depositStatus,
         depositLifecycleState,
@@ -177,6 +184,10 @@ export function usePaymentDepositStatus(bookingId: string | null) {
         wlDepositAuthStatus: (booking as any).wl_deposit_auth_status || null,
         depositDbStatus: booking.deposit_status || null,
         bookingStatus: booking.status || null,
+        paidOffline,
+        offlinePaymentMethod: (booking as any).offline_payment_method || null,
+        offlinePaymentReference: (booking as any).offline_payment_reference || null,
+        offlinePaidAt: (booking as any).offline_paid_at || null,
       } as PaymentSummary;
     },
     enabled: !!bookingId,
