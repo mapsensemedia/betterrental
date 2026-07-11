@@ -19,8 +19,11 @@ import {
   Loader2,
   Info,
   Copy,
+  Landmark,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { MarkBankTransferPaidDialog } from './MarkBankTransferPaidDialog';
 
 interface PaymentDepositPanelProps {
   bookingId: string;
@@ -32,6 +35,7 @@ export function PaymentDepositPanel({
   bookingId,
 }: PaymentDepositPanelProps) {
   const { data: status, isLoading } = usePaymentDepositStatus(bookingId);
+  const queryClient = useQueryClient();
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
