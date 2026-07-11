@@ -260,7 +260,12 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
               <CreditCard className="w-4 h-4 text-muted-foreground" />
               <CardTitle className="text-base">Payment Status</CardTitle>
             </div>
-            {isPaid ? (
+            {paidOffline ? (
+              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200">
+                <Landmark className="w-3 h-3 mr-1" />
+                Paid — Bank Transfer
+              </Badge>
+            ) : isPaid ? (
               <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200">
                 <CheckCircle2 className="w-3 h-3 mr-1" />
                 Paid
@@ -273,9 +278,11 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             )}
           </div>
           <CardDescription>
-            {isPaid 
-              ? "Payment has been received."
-              : "Awaiting payment from customer."
+            {paidOffline
+              ? "Paid via direct bank transfer. Not counted in Worldline revenue."
+              : isPaid
+                ? "Payment has been received."
+                : "Awaiting payment from customer."
             }
           </CardDescription>
         </CardHeader>
