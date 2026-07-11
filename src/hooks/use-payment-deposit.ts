@@ -166,7 +166,7 @@ export function usePaymentDepositStatus(bookingId: string | null) {
         rentalAuthorized,
         depositRequired,
         depositHeld: hasActiveHold ? depositRequired : 0,
-        balance: Math.max(0, balance),
+        balance: paidOffline ? 0 : Math.max(0, balance),
         paymentStatus,
         depositStatus,
         depositLifecycleState,
