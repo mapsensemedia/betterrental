@@ -272,6 +272,11 @@ export async function buildInvoicePdfData(
 
   // Calculate actual payments collected from payments table
   const actualPaymentsCollected = (paymentRows || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  // Credit bank-transfer / offline payments against the grand total
+  const offlineCredit = (booking as any).paid_offline
+    ? Math.max(0, fromCents(dbTotalCents) - actualPaymentsCollected)
+    : 0;
+  const totalCredited = actualPaymentsCollected + offlineCredit;
 
   return {
     invoiceNumber: invoice.invoice_number,
