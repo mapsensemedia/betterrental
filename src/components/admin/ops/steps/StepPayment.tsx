@@ -307,7 +307,38 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
             </div>
           )}
 
-          {/* === RENTAL SECTION === */}
+          {/* Offline (bank transfer) marker */}
+          {paidOffline && (
+            <Alert className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20">
+              <Landmark className="h-4 w-4 text-emerald-600" />
+              <AlertDescription className="text-sm text-emerald-900 dark:text-emerald-200">
+                <p className="font-medium">Marked as paid via direct bank transfer</p>
+                {paymentStatus?.offlinePaidAt && (
+                  <p className="text-xs opacity-80">On {new Date(paymentStatus.offlinePaidAt).toLocaleString()}</p>
+                )}
+                {paymentStatus?.offlinePaymentReference && (
+                  <p className="text-xs mt-1">Ref: <span className="font-mono">{paymentStatus.offlinePaymentReference}</span></p>
+                )}
+                <p className="text-xs opacity-80 mt-1">This booking is intentionally excluded from Worldline revenue.</p>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Mark bank-transfer paid (OTP-gated) — visible when balance outstanding */}
+          {!paidOffline && hasBalance && (
+            <div className="flex flex-col gap-1.5">
+              <MarkBankTransferPaidDialog
+                bookingId={bookingId}
+                amount={paymentStatus?.balance ?? 0}
+                onCompleted={refreshData}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use only when the customer paid the full balance by direct bank transfer.
+                Requires an OTP sent to the admin phone.
+              </p>
+            </div>
+          )}
+
           {wlTransactionId && (
             <div className="p-3 rounded-md bg-muted/30 space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rental</p>
