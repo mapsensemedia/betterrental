@@ -81,7 +81,8 @@ export async function buildInvoicePdfData(
       subtotal, tax_amount, total_amount, deposit_amount,
       protection_plan, different_dropoff_fee, delivery_fee,
       young_driver_fee, upgrade_daily_fee, vehicle_id, user_id,
-      location_id, return_location_id
+      location_id, return_location_id,
+      paid_offline, offline_payment_method, offline_payment_reference
     `)
     .eq("id", bookingId)
     .maybeSingle();
