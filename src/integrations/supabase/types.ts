@@ -1407,6 +1407,7 @@ export type Database = {
           late_fees: number | null
           line_items_json: Json
           notes: string | null
+          paid_offline_amount: number
           payments_received: number | null
           rental_subtotal: number
           status: string | null
@@ -1432,6 +1433,7 @@ export type Database = {
           late_fees?: number | null
           line_items_json?: Json
           notes?: string | null
+          paid_offline_amount?: number
           payments_received?: number | null
           rental_subtotal?: number
           status?: string | null
@@ -1457,6 +1459,7 @@ export type Database = {
           late_fees?: number | null
           line_items_json?: Json
           notes?: string | null
+          paid_offline_amount?: number
           payments_received?: number | null
           rental_subtotal?: number
           status?: string | null
@@ -3629,6 +3632,10 @@ export type Database = {
       }
       is_admin_or_staff: { Args: { _user_id: string }; Returns: boolean }
       is_support_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      recompute_invoice_totals: {
+        Args: { p_booking_id: string }
+        Returns: undefined
+      }
       release_vin_from_booking: {
         Args: { p_booking_id: string; p_new_status?: string }
         Returns: undefined
