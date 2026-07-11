@@ -175,6 +175,21 @@ export function PaymentDepositPanel({
           </div>
         )}
 
+        {/* Bank transfer marker (OTP-gated) — only if not already paid */}
+        {!status.paidOffline && status.balance > 0 && (
+          <div className="pt-2 border-t">
+            <MarkBankTransferPaidDialog
+              bookingId={bookingId}
+              amount={status.balance}
+              onCompleted={() => queryClient.invalidateQueries({ queryKey: ['payment-deposit-status', bookingId] })}
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Use only when the customer paid the full amount by direct bank transfer.
+              Requires an OTP sent to the admin phone.
+            </p>
+          </div>
+        )}
+
         {/* Info */}
         <Alert>
           <Info className="h-4 w-4" />
