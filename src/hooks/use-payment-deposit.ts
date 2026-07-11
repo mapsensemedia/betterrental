@@ -65,7 +65,7 @@ export function usePaymentDepositStatus(bookingId: string | null) {
 
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_auth_status, wl_deposit_transaction_id, wl_deposit_auth_status, status')
+        .select('total_amount, deposit_amount, deposit_status, wl_transaction_id, wl_auth_status, wl_deposit_transaction_id, wl_deposit_auth_status, status, paid_offline, offline_payment_method, offline_payment_reference, offline_paid_at')
         .eq('id', bookingId)
         .single();
 
