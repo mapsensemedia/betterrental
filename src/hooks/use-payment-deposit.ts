@@ -109,8 +109,11 @@ export function usePaymentDepositStatus(bookingId: string | null) {
       const authCoversTotal =
         rentalAuthorized && (totalAuthorizedRental + netPaid) >= totalDue;
 
+      const paidOffline = !!(booking as any).paid_offline;
       let paymentStatus: 'unpaid' | 'partial' | 'paid' | 'authorized' = 'unpaid';
-      if (netPaid >= totalDue) {
+      if (paidOffline) {
+        paymentStatus = 'paid';
+      } else if (netPaid >= totalDue) {
         paymentStatus = 'paid';
       } else if (bookingPastConfirmed && authCoversTotal) {
         paymentStatus = 'paid';
