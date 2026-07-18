@@ -3170,6 +3170,102 @@ export type Database = {
           },
         ]
       }
+      vehicle_swap_history: {
+        Row: {
+          booking_id: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_agreement_id: string | null
+          new_license_plate: string | null
+          new_start_mileage: number
+          new_unit_id: string | null
+          new_vin: string | null
+          notes: string | null
+          old_agreement_id: string | null
+          old_end_mileage: number | null
+          old_license_plate: string | null
+          old_unit_id: string | null
+          old_vin: string | null
+          reason: string | null
+          swap_effective_at: string
+        }
+        Insert: {
+          booking_id: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_agreement_id?: string | null
+          new_license_plate?: string | null
+          new_start_mileage: number
+          new_unit_id?: string | null
+          new_vin?: string | null
+          notes?: string | null
+          old_agreement_id?: string | null
+          old_end_mileage?: number | null
+          old_license_plate?: string | null
+          old_unit_id?: string | null
+          old_vin?: string | null
+          reason?: string | null
+          swap_effective_at?: string
+        }
+        Update: {
+          booking_id?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_agreement_id?: string | null
+          new_license_plate?: string | null
+          new_start_mileage?: number
+          new_unit_id?: string | null
+          new_vin?: string | null
+          notes?: string | null
+          old_agreement_id?: string | null
+          old_end_mileage?: number | null
+          old_license_plate?: string | null
+          old_unit_id?: string | null
+          old_vin?: string | null
+          reason?: string | null
+          swap_effective_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_swap_history_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_swap_history_new_agreement_id_fkey"
+            columns: ["new_agreement_id"]
+            isOneToOne: false
+            referencedRelation: "rental_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_swap_history_new_unit_id_fkey"
+            columns: ["new_unit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_swap_history_old_agreement_id_fkey"
+            columns: ["old_agreement_id"]
+            isOneToOne: false
+            referencedRelation: "rental_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_swap_history_old_unit_id_fkey"
+            columns: ["old_unit_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_units: {
         Row: {
           acquisition_cost: number
