@@ -105,8 +105,48 @@ export function ChangeVehicleDialog({
     const u = units?.find((x) => x.id === id);
     setNewLicensePlate(u?.license_plate ?? "");
     setNewVin(u?.vin ?? "");
-    setNewStartMileage(u?.current_mileage ? String(u.current_mileage) : "");
+    // Only pre-fill mileage if the unit actually has a non-zero odometer reading.
+    setNewStartMileage(u?.current_mileage && u.current_mileage > 0 ? String(u.current_mileage) : "");
+    // Focus the mileage input on next tick so the user immediately sees what's required.
+    setTimeout(() => {
+      const el = document.getElementById("new-mileage") as HTMLInputElement | null;
+      el?.focus();
+    }, 0);
   };
+
+  // ---- Validation ----
+  const errors: Record<string, string> = {};
+  if (!selectedUnitId) errors.unit = "Select a vehicle from the list above.";
+  const startMileageNum = Number(newStartMileage);
+  if (!newStartMileage.trim()) {
+    errors.newStartMileage = "Starting mileage is required.";
+  } else if (!Number.isFinite(startMileageNum) || startMileageNum < 0 || !Number.isInteger(startMileageNum)) {
+    errors.newStartMileage = "Enter a whole number of kilometres (0 or more).";
+  }
+  if (oldEndMileage.trim()) {
+    const oldNum = Number(oldEndMileage);
+    if (!Number.isFinite(oldNum) || oldNum < 0 || !Number.isInteger(oldNum)) {
+      errors.oldEndMileage = "Enter a whole number of kilometres (0 or more).";
+    }
+  }
+  if (!swapEffectiveAt || Number.isNaN(new Date(swapEffectiveAt).getTime())) {
+    errors.swapEffectiveAt = "Choose when the swap takes effect.";
+  }
+  if (newVin.trim() && !isValidVin(newVin.trim())) {
+    errors.newVin = "VIN must be 17 characters, no I, O, or Q.";
+  }
+  if (newLicensePlate.trim() && newLicensePlate.trim().length > 20) {
+    errors.newLicensePlate = "License plate is too long.";
+  }
+
+  const requiredMissing: string[] = [];
+  if (errors.unit) requiredMissing.push("vehicle");
+  if (errors.newStartMileage) requiredMissing.push("starting mileage");
+  if (errors.swapEffectiveAt) requiredMissing.push("swap time");
+  if (errors.newVin) requiredMissing.push("valid VIN");
+
+  const canSubmit = requiredMissing.length === 0;
+
 
   const swap = useMutation({
     mutationFn: async () => {
