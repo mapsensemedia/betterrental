@@ -215,6 +215,56 @@ function AssignedUnitCard({ unitId }: { unitId: string | null }) {
   );
 }
 
+function AssignedVehicleSection({ booking }: { booking: any }) {
+  const [editOpen, setEditOpen] = useState(false);
+  const { data: currentUnit } = useQuery({
+    queryKey: ["vehicle-unit", booking.assigned_unit_id],
+    queryFn: async () => {
+      if (!booking.assigned_unit_id) return null;
+      const { data, error } = await supabase
+        .from("vehicle_units")
+        .select("id, vin, license_plate, current_mileage")
+        .eq("id", booking.assigned_unit_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!booking.assigned_unit_id,
+  });
+
+  const canEdit = booking.status === "active" && !!booking.assigned_unit_id;
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <AssignedUnitCard unitId={booking.assigned_unit_id} />
+        {canEdit && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="absolute top-3 right-3 h-7 gap-1.5"
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil className="h-3 w-3" />
+            Change
+          </Button>
+        )}
+      </div>
+      <VehicleHistoryList bookingId={booking.id} />
+      {canEdit && (
+        <ChangeVehicleDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          bookingId={booking.id}
+          bookingCategoryId={booking.vehicle_id ?? null}
+          locationId={booking.location_id}
+          currentUnit={currentUnit as any}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function BookingDetail() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
