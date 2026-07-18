@@ -171,7 +171,20 @@ export function ChangeVehicleDialog({
           releaseOldUnitTo,
         },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Surface the real error message the edge function returned (409/400/etc.)
+        let detail: string | null = null;
+        const ctx = (error as unknown as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.clone().json();
+            detail = body?.error || body?.message || null;
+          } catch {
+            try { detail = await ctx.clone().text(); } catch { /* ignore */ }
+          }
+        }
+        throw new Error(detail || error.message);
+      }
       if (data?.error) throw new Error(data.error);
       return data;
     },
