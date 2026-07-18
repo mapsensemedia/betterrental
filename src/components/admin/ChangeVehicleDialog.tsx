@@ -297,13 +297,17 @@ export function ChangeVehicleDialog({
         {/* Form fields */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="swap-at">Swap effective at</Label>
+            <Label htmlFor="swap-at">Swap effective at *</Label>
             <Input
               id="swap-at"
               type="datetime-local"
               value={swapEffectiveAt}
               onChange={(e) => setSwapEffectiveAt(e.target.value)}
+              aria-invalid={!!errors.swapEffectiveAt}
             />
+            {errors.swapEffectiveAt && (
+              <p className="text-xs text-destructive">{errors.swapEffectiveAt}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="reason">Reason</Label>
@@ -327,7 +331,11 @@ export function ChangeVehicleDialog({
               value={oldEndMileage}
               onChange={(e) => setOldEndMileage(e.target.value)}
               placeholder="e.g. 45230"
+              aria-invalid={!!errors.oldEndMileage}
             />
+            {errors.oldEndMileage && (
+              <p className="text-xs text-destructive">{errors.oldEndMileage}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="new-mileage">New vehicle starting mileage *</Label>
@@ -339,7 +347,15 @@ export function ChangeVehicleDialog({
               onChange={(e) => setNewStartMileage(e.target.value)}
               placeholder="e.g. 12500"
               required
+              aria-invalid={!!errors.newStartMileage}
             />
+            {errors.newStartMileage ? (
+              <p className="text-xs text-destructive">{errors.newStartMileage}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Odometer reading of the new vehicle at swap time.
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="new-plate">New license plate</Label>
@@ -348,16 +364,25 @@ export function ChangeVehicleDialog({
               value={newLicensePlate}
               onChange={(e) => setNewLicensePlate(e.target.value)}
               placeholder="ABC-123"
+              aria-invalid={!!errors.newLicensePlate}
             />
+            {errors.newLicensePlate && (
+              <p className="text-xs text-destructive">{errors.newLicensePlate}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="new-vin">New VIN</Label>
             <Input
               id="new-vin"
               value={newVin}
-              onChange={(e) => setNewVin(e.target.value)}
+              onChange={(e) => setNewVin(e.target.value.toUpperCase())}
               placeholder="1FADP3F..."
+              maxLength={17}
+              aria-invalid={!!errors.newVin}
             />
+            {errors.newVin && (
+              <p className="text-xs text-destructive">{errors.newVin}</p>
+            )}
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="release-status">Release old vehicle as</Label>
@@ -381,22 +406,34 @@ export function ChangeVehicleDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={swap.isPending}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => swap.mutate()}
-            disabled={!selectedUnitId || !newStartMileage || swap.isPending}
-          >
-            {swap.isPending ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Swapping…</>
-            ) : (
-              "Change vehicle & regenerate agreement"
-            )}
-          </Button>
+        {errors.unit && (
+          <p className="text-xs text-destructive">{errors.unit}</p>
+        )}
+
+        <DialogFooter className="flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          {!canSubmit && !swap.isPending && (
+            <p className="text-xs text-muted-foreground sm:mr-auto">
+              Complete: {requiredMissing.join(", ")}
+            </p>
+          )}
+          <div className="flex gap-2 sm:ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={swap.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => swap.mutate()}
+              disabled={!canSubmit || swap.isPending}
+            >
+              {swap.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Swapping…</>
+              ) : (
+                "Change vehicle & regenerate agreement"
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
   );
 }
