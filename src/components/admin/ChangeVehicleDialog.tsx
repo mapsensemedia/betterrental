@@ -86,14 +86,17 @@ export function ChangeVehicleDialog({
         .from("vehicle_units")
         .select("id, vin, license_plate, color, current_mileage, status, category_id, vehicle_categories(name)")
         .eq("location_id", locationId)
-        .eq("status", "available")
+        .in("status", ["available", "maintenance"])
+        .order("status", { ascending: true })
         .order("license_plate", { ascending: true });
       if (!showAllCategories && bookingCategoryId) {
         q = q.eq("category_id", bookingCategoryId);
       }
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as unknown as UnitOption[];
+      const rows = (data ?? []) as unknown as UnitOption[];
+      // Exclude the current unit (can't swap to itself)
+      return rows.filter((u) => u.id !== currentUnit?.id);
     },
     enabled: open && !!locationId,
   });
@@ -273,7 +276,7 @@ export function ChangeVehicleDialog({
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                        <Badge variant="outline" className="text-xs">available</Badge>
+                        <Badge variant={u.status === "available" ? "outline" : "secondary"} className="text-xs">{u.status}</Badge>
                       </div>
                     </div>
                   </button>
