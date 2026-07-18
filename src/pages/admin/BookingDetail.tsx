@@ -88,6 +88,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
+import { ChangeVehicleDialog } from "@/components/admin/ChangeVehicleDialog";
+import { VehicleHistoryList } from "@/components/admin/VehicleHistoryList";
+import { Pencil } from "lucide-react";
 
 function snakeToTitle(str: string): string {
   return str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
