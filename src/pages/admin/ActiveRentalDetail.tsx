@@ -51,6 +51,56 @@ import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
 import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
 import { ActiveRentalUnitAssignCard } from "@/components/admin/ops/ActiveRentalUnitAssignCard";
+import { ChangeVehicleDialog } from "@/components/admin/ChangeVehicleDialog";
+import { VehicleHistoryList } from "@/components/admin/VehicleHistoryList";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Pencil } from "lucide-react";
+import { useState as useReactState } from "react";
+
+function ChangeVehicleSection({
+  bookingId,
+  assignedUnitId,
+  categoryId,
+  locationId,
+}: {
+  bookingId: string;
+  assignedUnitId: string;
+  categoryId: string | null;
+  locationId: string;
+}) {
+  const [open, setOpen] = useReactState(false);
+  const { data: currentUnit } = useQuery({
+    queryKey: ["vehicle-unit", assignedUnitId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vehicle_units")
+        .select("id, vin, license_plate, current_mileage")
+        .eq("id", assignedUnitId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setOpen(true)}>
+          <Pencil className="h-3 w-3" /> Change Vehicle
+        </Button>
+      </div>
+      <VehicleHistoryList bookingId={bookingId} />
+      <ChangeVehicleDialog
+        open={open}
+        onOpenChange={setOpen}
+        bookingId={bookingId}
+        bookingCategoryId={categoryId}
+        locationId={locationId}
+        currentUnit={currentUnit as any}
+      />
+    </div>
+  );
+}
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
 import {
