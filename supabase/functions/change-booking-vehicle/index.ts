@@ -72,8 +72,8 @@ serve(async (req) => {
     if (newUnit.location_id !== booking.location_id) {
       return json({ error: "New unit is not at the booking's location" }, 400, corsHeaders);
     }
-    if (newUnit.status !== "available") {
-      return json({ error: `New unit status is ${newUnit.status} — must be available` }, 400, corsHeaders);
+    if (!["available", "maintenance", "on_rent"].includes(newUnit.status)) {
+      return json({ error: `New unit status is ${newUnit.status} — must be available or maintenance` }, 400, corsHeaders);
     }
     const { data: conflict } = await supabase
       .from("bookings")
