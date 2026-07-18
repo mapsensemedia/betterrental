@@ -86,14 +86,17 @@ export function ChangeVehicleDialog({
         .from("vehicle_units")
         .select("id, vin, license_plate, color, current_mileage, status, category_id, vehicle_categories(name)")
         .eq("location_id", locationId)
-        .eq("status", "available")
+        .in("status", ["available", "maintenance"])
+        .order("status", { ascending: true })
         .order("license_plate", { ascending: true });
       if (!showAllCategories && bookingCategoryId) {
         q = q.eq("category_id", bookingCategoryId);
       }
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as unknown as UnitOption[];
+      const rows = (data ?? []) as unknown as UnitOption[];
+      // Exclude the current unit (can't swap to itself)
+      return rows.filter((u) => u.id !== currentUnit?.id);
     },
     enabled: open && !!locationId,
   });
