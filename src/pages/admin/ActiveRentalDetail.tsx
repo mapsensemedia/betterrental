@@ -524,6 +524,16 @@ export default function ActiveRentalDetail() {
             />
           )}
 
+          {/* Change vehicle + history for active rentals with an assigned unit */}
+          {rental.status === "active" && rental.assignedUnitId && rental.locationId && (
+            <ChangeVehicleSection
+              bookingId={rental.id}
+              assignedUnitId={rental.assignedUnitId}
+              categoryId={rental.vehicleId ?? null}
+              locationId={rental.locationId}
+            />
+          )}
+
           {/* Rental Details Card */}
           <Card>
             <CardHeader className="pb-3">
