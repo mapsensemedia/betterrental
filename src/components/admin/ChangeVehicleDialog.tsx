@@ -76,7 +76,7 @@ export function ChangeVehicleDialog({
   const [releaseOldUnitTo, setReleaseOldUnitTo] = useState<string>("available");
   const [notes, setNotes] = useState("");
   const [swapEffectiveAt, setSwapEffectiveAt] = useState<string>(
-    new Date().toISOString().slice(0, 16),
+    toLocalDateTimeInputValue(new Date()),
   );
 
   const { data: units, isLoading } = useQuery({
