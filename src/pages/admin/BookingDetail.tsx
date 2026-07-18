@@ -703,7 +703,7 @@ export default function BookingDetail() {
                 </Card>
 
                 {/* Assigned Vehicle Unit */}
-                <AssignedUnitCard unitId={booking.assigned_unit_id} />
+                <AssignedVehicleSection booking={booking} />
 
                 {/* Rental Period */}
                 <Card>
