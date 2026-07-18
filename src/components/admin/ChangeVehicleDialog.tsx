@@ -23,6 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertTriangle, Car, CheckCircle2, Loader2 } from "lucide-react";
+import { isValidVin } from "@/lib/schemas/vehicle";
+
+function toLocalDateTimeInputValue(d: Date): string {
+  const tzOffsetMs = d.getTimezoneOffset() * 60_000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+}
 
 interface Props {
   open: boolean;
