@@ -276,7 +276,7 @@ export function ChangeVehicleDialog({
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {selected && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                        <Badge variant="outline" className="text-xs">available</Badge>
+                        <Badge variant={u.status === "available" ? "outline" : "secondary"} className="text-xs">{u.status}</Badge>
                       </div>
                     </div>
                   </button>
