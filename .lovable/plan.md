@@ -1,59 +1,34 @@
-## Problem
+## What's actually happening
 
-In `src/components/admin/ChangeVehicleDialog.tsx`, the submit button uses:
+The edge function is working — it's rejecting the swap on purpose. The Nissan Rogue **A859JZ** (unit `d54cbab5…`) is currently **still assigned to another active booking**: **SEE8QAKY** (Naqib Noor — the one we manually reopened for the July 20 return). Its unit `status` was reset to `available`, but the `bookings.assigned_unit_id` link was never cleared, so the conflict check returns HTTP 409:
 
-```ts
-disabled={!selectedUnitId || !newStartMileage || swap.isPending}
-```
+> "Unit is already assigned to booking SEE8QAKY"
 
-Combined with the fact that mileage is only auto-filled from the selected unit's `current_mileage` (which is often `0` or `null`), and that the "swap effective at" datetime is initialized from `new Date().toISOString().slice(0,16)` (UTC — often invalid in the browser's locale for `<input type="datetime-local">`), the button can appear stuck disabled even when the user thinks the form is complete. There is also no per-field validation feedback — users can't tell which field is blocking them.
+The dialog swallows that message and only shows "Edge Function returned a non-2xx status code", which is why it looks like a generic crash.
 
-## Fix Plan (UI/presentation only)
+## Plan
 
-### 1. Robust enablement + explicit validation state
+### 1. Decide which booking should actually hold A859JZ
 
-In `ChangeVehicleDialog.tsx`, replace the ad-hoc disabled expression with a computed `validation` object:
+The Rogue can't be on two active rentals at once. Pick one:
 
-- `unit`: required — a unit must be selected.
-- `newStartMileage`: required, must parse to a finite non-negative integer.
-- `oldEndMileage`: optional, but if provided must be a finite non-negative integer ≥ current mileage (warn, not block).
-- `swapEffectiveAt`: required, must be a valid parseable datetime.
-- `newLicensePlate` / `newVin`: optional; if present, trim and (for VIN) enforce 17 chars A-HJ-NPR-Z0-9 using existing `isValidVin` from `src/lib/schemas/vehicle.ts`.
+- **Option B — AMY KERR (W9JD9JDV) gets A859JZ.** Then we clear the assignment on SEE8QAKY first (unassign the unit on that booking and, if needed, put a different unit on Naqib's booking). After that, the swap on AMY's booking will go through.
 
-Track errors in a `Record<string, string>` and only disable the button when the required-field errors set is non-empty or `swap.isPending`.
+I need you to tell me which option before I touch any data.
 
-### 2. Fix the datetime-local default
+### 2. Fix the misleading error toast (code-only)
 
-Replace `new Date().toISOString().slice(0,16)` with a local-time formatter (offset-adjusted) so the input is always pre-populated with a valid value and doesn't silently render empty in some browsers.
+Regardless of which option you pick, update `src/components/admin/ChangeVehicleDialog.tsx` so the mutation reads the JSON error the function actually returned (`data.error` on 4xx via `FunctionsHttpError.context.json()`), and shows that in the toast instead of the generic Supabase message. This is the actual "fix" — same class of issues (unit conflict, wrong location, wrong status, agreement regen failure) will all display the human-readable reason from now on.
 
-### 3. Auto-fill mileage more safely
+### 3. No other code or schema changes
 
-In `onSelect`, if the unit's `current_mileage` is null/0, leave the field empty and focus it so the user knows they must enter it. Show a small helper text under the field: "Required — enter the odometer reading of the new vehicle."
+The edge function logic is correct — a unit already linked to another active booking must block the swap. We should not weaken that check.
 
-### 4. Inline error messages
+## Technical notes
 
-Under each field, render `{errors.fieldName && <p className="text-xs text-destructive mt-1">{errors.fieldName}</p>}`. Also add a top-of-footer summary line when the button is disabled: "Complete: {list of missing fields}" so the blocker is always visible.
+- Confirmed via DB: `vehicle_units` row for A859JZ = `available` at Abbotsford, but `bookings` row `SEE8QAKY` still has `assigned_unit_id = d54cbab5…` with `status = active`.
+- Edge function line 78–87 in `supabase/functions/change-booking-vehicle/index.ts` returns the 409 with the correct booking code — no function change needed.
+- Client fix: in the `swap` mutation's `mutationFn`, when `error` is a `FunctionsHttpError`, call `await error.context.json()` (or `.text()` fallback) and throw with that `error.error` string so `onError` surfaces it.
+- If you pick Option B, the data fix is a targeted migration on booking `7cd9b812-b1a6-46b2-86c4-f7fc4948b681`: set `assigned_unit_id = null` (and optionally assign a replacement unit) plus an `audit_logs` row noting the correction.
 
-### 5. Submit path unchanged
-
-The `swap.mutate()` call and the `change-booking-vehicle` edge function stay as-is — they already:
-- release the old unit,
-- assign + update the new unit's plate/VIN/mileage,
-- void the prior agreement,
-- insert a `vehicle_swap_history` row,
-- call `generate-agreement` with `forceRegenerate: true`,
-- link the new agreement back into the history row.
-
-So the "new agreement generated + old vehicle & agreement preserved in history" behavior is already implemented on the backend; this plan only fixes the client-side gating and feedback so the button reliably activates and the user can actually submit.
-
-### 6. Verification
-
-- Open an active rental → Change vehicle → confirm button is disabled with a visible reason.
-- Pick a unit, fill mileage → button activates.
-- Submit → toast "Vehicle changed successfully" + "New rental agreement generated"; Vehicle History panel shows the prior unit with the voided agreement PDF link.
-
-### Files touched
-
-- `src/components/admin/ChangeVehicleDialog.tsx` (only)
-
-No database, edge function, or business-logic changes.
+**Which option do you want — A or B?**
