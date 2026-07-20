@@ -81,6 +81,39 @@ function getFeatureTooltip(feature: string): string {
   return FEATURE_TOOLTIPS[feature] ?? feature;
 }
 
+/**
+ * Read the JSON error body from a supabase.functions.invoke result.
+ * The SDK puts the response body inside error.context (a Response) on non-2xx,
+ * or occasionally into data on 2xx-with-error responses. Returns null if there
+ * is no error to report.
+ */
+async function readEdgeFunctionErrorBody(
+  response: { data: any; error: any },
+): Promise<any | null> {
+  if (response.data && typeof response.data === "object" && response.data.error) {
+    return response.data;
+  }
+  if (!response.error) return null;
+  const ctx = (response.error as any).context;
+  if (ctx instanceof Response) {
+    try {
+      const body = await ctx.clone().json();
+      if (body && typeof body === "object") return body;
+    } catch {
+      // fall through
+    }
+  } else if (ctx?.body) {
+    try {
+      const body = typeof ctx.body === "string" ? JSON.parse(ctx.body) : ctx.body;
+      if (body && typeof body === "object") return body;
+    } catch {
+      // fall through
+    }
+  }
+  // No structured body — synthesise minimal shape from the error message
+  return { error: "unknown", message: response.error.message || "Request failed" };
+}
+
 export default function NewCheckout() {
   const navigate = useNavigate();
   const location = useLocation();
