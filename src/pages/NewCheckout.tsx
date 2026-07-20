@@ -556,8 +556,6 @@ export default function NewCheckout() {
               locationId,
               startAt: localDateTimeToISO(formatLocalDate(searchData.pickupDate), searchData.pickupTime),
               endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate), searchData.returnTime),
-              pickupDate: formatLocalDate(searchData.pickupDate),
-              dropoffDate: formatLocalDate(searchData.returnDate),
               totalAmount: pricing.total,
               driverAgeBand,
               protectionPlan: protection,
