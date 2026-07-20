@@ -391,10 +391,21 @@ export default function NewCheckout() {
       let locationId = searchData.deliveryMode === "delivery"
         ? searchData.closestPickupCenterId
         : searchData.pickupLocationId;
-      
+
+      // For delivery: if closest hub isn't resolved yet, recompute it from delivery coords
+      if (
+        searchData.deliveryMode === "delivery" &&
+        (!locationId || !/^[0-9a-f-]{36}$/i.test(locationId)) &&
+        searchData.deliveryLat != null &&
+        searchData.deliveryLng != null
+      ) {
+        const closest = findClosestLocation(searchData.deliveryLat, searchData.deliveryLng);
+        locationId = closest.location.id;
+      }
+
       // Fallback to first database location if location ID is not a valid UUID
       if (!locationId || !/^[0-9a-f-]{36}$/i.test(locationId)) {
-        locationId = "a1b2c3d4-1111-4000-8000-000000000001"; // Downtown Hub
+        locationId = "a1b2c3d4-1111-4000-8000-000000000001"; // Surrey Newton
       }
 
       // Get session (optional - we support guest checkout)
