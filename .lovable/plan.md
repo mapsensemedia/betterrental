@@ -1,34 +1,53 @@
-## What's actually happening
+## Problem
 
-The edge function is working — it's rejecting the swap on purpose. The Nissan Rogue **A859JZ** (unit `d54cbab5…`) is currently **still assigned to another active booking**: **SEE8QAKY** (Naqib Noor — the one we manually reopened for the July 20 return). Its unit `status` was reset to `available`, but the `bookings.assigned_unit_id` link was never cleared, so the conflict check returns HTTP 409:
+Booking SEE8QAKY (Naqib Noor) — return workflow finished, deposit released, but "Close Rental" fails.
 
-> "Unit is already assigned to booking SEE8QAKY"
+## Root cause (verified)
 
-The dialog swallows that message and only shows "Edge Function returned a non-2xx status code", which is why it looks like a generic crash.
+Current DB state:
+- `status = active`
+- `return_state = closeout_done`
+- `account_closed_at = 2026-07-14 18:35:46+00` ← leftover from the original (mistaken) close
+- `final_invoices` for this booking: **none**
+- No assigned vehicle unit
 
-## Plan
+When the reopen migration reverted status back to `active` and cleared `actual_return_at`, it did **not** clear `account_closed_at` or `account_closed_by`. The `close-account` edge function guards on this field:
 
-### 1. Decide which booking should actually hold A859JZ
+```ts
+if (booking.account_closed_at && !backfillMode) {
+  return 400 "Account already closed"
+}
+```
 
-The Rogue can't be on two active rentals at once. Pick one:
+So every attempt to close now returns 400 immediately — nothing else is wrong with the return flow or deposit.
 
-- **Option B — AMY KERR (W9JD9JDV) gets A859JZ.** Then we clear the assignment on SEE8QAKY first (unassign the unit on that booking and, if needed, put a different unit on Naqib's booking). After that, the swap on AMY's booking will go through.
+## Fix (data-only, one migration)
 
-I need you to tell me which option before I touch any data.
+Clear the stale closure fields on SEE8QAKY so the standard Close Rental button works:
 
-### 2. Fix the misleading error toast (code-only)
+- `account_closed_at → NULL`
+- `account_closed_by → NULL`
+- `final_invoice_generated → false`
+- `final_invoice_id → NULL`
 
-Regardless of which option you pick, update `src/components/admin/ChangeVehicleDialog.tsx` so the mutation reads the JSON error the function actually returned (`data.error` on 4xx via `FunctionsHttpError.context.json()`), and shows that in the toast instead of the generic Supabase message. This is the actual "fix" — same class of issues (unit conflict, wrong location, wrong status, agreement regen failure) will all display the human-readable reason from now on.
+Write an `audit_logs` entry (`action = 'reopen_cleanup_account_close_fields'`) recording the before/after values and referencing the earlier reopen.
 
-### 3. No other code or schema changes
+Leave `return_state = closeout_done` alone — the user has already walked the return steps and wants to press Close now.
 
-The edge function logic is correct — a unit already linked to another active booking must block the swap. We should not weaken that check.
+## After the migration
 
-## Technical notes
+You click **Close Rental** on the booking as normal. `close-account` will then:
+1. Build the final invoice (line items + tax + PVRT/ACSRCH).
+2. Flip `status → completed`, set fresh `account_closed_at`.
+3. Promote any authorized rental payments to completed.
+4. Emit the return receipt.
 
-- Confirmed via DB: `vehicle_units` row for A859JZ = `available` at Abbotsford, but `bookings` row `SEE8QAKY` still has `assigned_unit_id = d54cbab5…` with `status = active`.
-- Edge function line 78–87 in `supabase/functions/change-booking-vehicle/index.ts` returns the 409 with the correct booking code — no function change needed.
-- Client fix: in the `swap` mutation's `mutationFn`, when `error` is a `FunctionsHttpError`, call `await error.context.json()` (or `.text()` fallback) and throw with that `error.error` string so `onError` surfaces it.
-- If you pick Option B, the data fix is a targeted migration on booking `7cd9b812-b1a6-46b2-86c4-f7fc4948b681`: set `assigned_unit_id = null` (and optionally assign a replacement unit) plus an `audit_logs` row noting the correction.
+## Preventive follow-up (recommended, separate small change)
 
-**Which option do you want — A or B?**
+Update the reopen path (and document it in `knowledgebase/runbooks/booking-recovery.md`) so any future manual reopen also clears `account_closed_at`, `account_closed_by`, `final_invoice_generated`, and `final_invoice_id`. Otherwise this same trap will re-appear the next time a booking is reopened after a premature close.
+
+## Out of scope
+
+- No edge-function logic changes.
+- No UI changes.
+- No changes to deposit/payment records (deposit is correctly released; rental payment of $625.30 is already completed and fully covers the $625.30 total).
