@@ -90,9 +90,11 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Vehicle to {categoryName}</DialogTitle>
+          <DialogTitle>{categoryName ? `Add Vehicle to ${categoryName}` : "Add Vehicle"}</DialogTitle>
           <DialogDescription>
-            Add a vehicle to this category's VIN pool.
+            {categoryName
+              ? "Add a vehicle to this category's VIN pool."
+              : "Add a vehicle to the fleet. Category is optional."}
           </DialogDescription>
         </DialogHeader>
 
