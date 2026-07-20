@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAddVinToCategory } from "@/hooks/use-fleet-categories";
+import { useAddVinToCategory, useFleetCategories } from "@/hooks/use-fleet-categories";
 import { useLocations } from "@/hooks/use-locations";
 
 interface VinFormDialogProps {
