@@ -515,6 +515,15 @@ export default function NewCheckout() {
             "reservation_expired": "Your reservation has expired. Please start over.",
             "validation_failed": serverMsg || "Please check your information and try again.",
           };
+          if (errorCode === "PRICE_MISMATCH") {
+            console.error("[create-booking] PRICE_MISMATCH", {
+              serverTotal: authErrBody.serverTotal,
+              clientPricing: pricing,
+              rentalDays,
+              startAt: localDateTimeToISO(formatLocalDate(searchData.pickupDate!), searchData.pickupTime),
+              endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate!), searchData.returnTime),
+            });
+          }
           console.error("[create-booking] error body:", authErrBody);
           throw new Error(errorMessages[errorCode] || serverMsg || "Failed to create booking.");
         }
