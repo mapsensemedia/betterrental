@@ -745,6 +745,27 @@ export async function validateClientPricing(params: {
     console.warn(
       `[price-validation] MISMATCH: client=$${params.clientTotal}, server=$${server.total}, diff=$${diff.toFixed(2)}`
     );
+    console.warn("[price-validation] server breakdown:", JSON.stringify({
+      startAt: params.startAt,
+      endAt: params.endAt,
+      days: server.days,
+      dailyRate: server.dailyRate,
+      vehicleTotal: server.vehicleTotal,
+      weekendSurcharge: server.weekendSurcharge,
+      durationDiscount: server.durationDiscount,
+      protectionDailyRate: server.protectionDailyRate,
+      protectionTotal: server.protectionTotal,
+      addOnsTotal: server.addOnsTotal,
+      youngDriverFee: server.youngDriverFee,
+      additionalDriversTotal: server.additionalDriversTotal,
+      dailyFeesTotal: server.dailyFeesTotal,
+      deliveryFee: server.deliveryFee,
+      differentDropoffFee: server.differentDropoffFee,
+      subtotal: server.subtotal,
+      taxAmount: server.taxAmount,
+      total: server.total,
+      clientTotal: params.clientTotal,
+    }));
     return {
       valid: false,
       serverTotals: server,
