@@ -595,59 +595,34 @@ export default function NewCheckout() {
           "server_error": "An unexpected error occurred. Please try again.",
         };
 
-        // Handle validation errors in response data (Supabase SDK puts 4xx JSON body in data)
-        // Check this FIRST because even with non-2xx errors, the data contains the actual error details
-        if (guestResponse.data?.error) {
-          const errorCode = guestResponse.data.error;
-          const errorMessage = guestResponse.data.message || "Validation error";
-          console.error("Guest booking validation error:", guestResponse.data);
+        const guestErrBody = await readEdgeFunctionErrorBody(guestResponse);
+        if (guestErrBody) {
+          const errorCode = guestErrBody.error;
+          const serverMsg = guestErrBody.message || "Validation error";
+          console.error("[create-guest-booking] error body:", guestErrBody);
+
           if (errorCode === "DUPLICATE_BOOKING") {
             toast({
               title: "Duplicate booking detected",
-              description: `A booking (${guestResponse.data.existingBookingCode}) for this vehicle and time range was just created. Please continue with that one.`,
+              description: `A booking (${guestErrBody.existingBookingCode}) for this vehicle and time range was just created. Please continue with that one.`,
               variant: "destructive",
             });
             return;
           }
-          throw new Error(errorMessages[errorCode] || errorMessage);
-        }
-
-
-        // Handle edge function errors (network issues, 5xx errors)
-        if (guestResponse.error) {
-          console.error("Guest booking edge function error:", guestResponse.error);
-          
-          // For non-2xx responses, try to parse the actual error body from the response context
-          if (guestResponse.error.message?.includes("non-2xx")) {
-            try {
-              const ctx = (guestResponse.error as any).context;
-              if (ctx?.body) {
-                const body = typeof ctx.body === "string" ? JSON.parse(ctx.body) : ctx.body;
-                if (body?.error) {
-                  throw new Error(errorMessages[body.error] || body.message || "Booking failed.");
-                }
-              }
-              // If context has no body, try reading from response
-              if (ctx instanceof Response) {
-                const body = await ctx.json().catch(() => null);
-                if (body?.error) {
-                  throw new Error(errorMessages[body.error] || body.message || "Booking failed.");
-                }
-              }
-            } catch (parseErr) {
-              // If it's our own re-thrown error, propagate it
-              if (parseErr instanceof Error && !parseErr.message.includes("non-2xx")) {
-                throw parseErr;
-              }
-            }
-            throw new Error("Booking service temporarily unavailable. Please try again in a moment.");
+          if (errorCode === "PRICE_MISMATCH") {
+            throw new Error(
+              `Price has changed. Server total: $${guestErrBody.serverTotal?.toFixed?.(2) || "N/A"}. Please refresh and try again.`,
+            );
           }
-          
-          if (guestResponse.error.message?.includes("Failed to fetch")) {
+          if (errorCode === "PRICE_VALIDATION_FAILED") {
+            throw new Error("Server could not validate the price. Please refresh and try again.");
+          }
+          if (errorCode === "unknown" && /failed to fetch/i.test(serverMsg)) {
             throw new Error("Unable to connect to booking service. Please check your internet connection.");
           }
-          throw new Error(guestResponse.error.message || "Failed to create booking");
+          throw new Error(errorMessages[errorCode] || serverMsg);
         }
+
 
         if (!guestResponse.data?.booking) {
           console.error("No booking in response:", guestResponse.data);
