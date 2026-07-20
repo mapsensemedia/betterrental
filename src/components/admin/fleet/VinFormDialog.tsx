@@ -37,6 +37,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
     vin: "",
     license_plate: "",
     location_id: "",
+    category_id: "",
     status: "available" as const,
     year: "",
     make: "",
@@ -47,6 +48,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
 
   const addVin = useAddVinToCategory();
   const { data: locations } = useLocations();
+  const { data: categories } = useFleetCategories();
 
   useEffect(() => {
     if (open) {
@@ -54,6 +56,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
         vin: "",
         license_plate: "",
         location_id: locations?.[0]?.id || "",
+        category_id: categoryId || "",
         status: "available",
         year: String(new Date().getFullYear()),
         make: "",
@@ -62,13 +65,13 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
         notes: "",
       });
     }
-  }, [open, locations]);
+  }, [open, locations, categoryId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     await addVin.mutateAsync({
-      category_id: categoryId,
+      category_id: formData.category_id,
       vin: formData.vin.trim(),
       license_plate: formData.license_plate.trim(),
       location_id: formData.location_id,
