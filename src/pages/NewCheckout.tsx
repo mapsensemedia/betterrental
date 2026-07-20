@@ -614,6 +614,13 @@ export default function NewCheckout() {
             return;
           }
           if (errorCode === "PRICE_MISMATCH") {
+            console.error("[create-guest-booking] PRICE_MISMATCH", {
+              serverTotal: guestErrBody.serverTotal,
+              clientPricing: pricing,
+              rentalDays,
+              startAt: localDateTimeToISO(formatLocalDate(searchData.pickupDate!), searchData.pickupTime),
+              endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate!), searchData.returnTime),
+            });
             throw new Error(
               `Price has changed. Server total: $${guestErrBody.serverTotal?.toFixed?.(2) || "N/A"}. Please refresh and try again.`,
             );
