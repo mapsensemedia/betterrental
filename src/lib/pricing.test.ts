@@ -117,3 +117,19 @@ describe("calculateBookingPricing - weekend surcharge", () => {
     expect(result.gstAmount).toBeGreaterThan(0);
   });
 });
+
+describe("rentalDays boundary rule (Math.ceil(hours/24))", () => {
+  // Mirrors src/contexts/RentalBookingContext.tsx rentalDays computation.
+  const days = (hours: number) => {
+    const ms = hours * 60 * 60 * 1000;
+    return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+  };
+
+  it("24 hours = 1 day", () => expect(days(24)).toBe(1));
+  it("24h 30m = 2 days", () => expect(days(24.5)).toBe(2));
+  it("25 hours = 2 days", () => expect(days(25)).toBe(2));
+  it("48 hours = 2 days", () => expect(days(48)).toBe(2));
+  it("49 hours = 3 days", () => expect(days(49)).toBe(3));
+  it("72 hours = 3 days", () => expect(days(72)).toBe(3));
+  it("72h 1m = 4 days", () => expect(days(72 + 1/60)).toBe(4));
+});

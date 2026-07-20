@@ -147,8 +147,8 @@ Deno.serve(async (req) => {
     try {
       priceCheck = await validateClientPricing({
         vehicleId,
-        startAt: pickupDate || startAt,
-        endAt: dropoffDate || endAt,
+        startAt,
+        endAt,
         protectionPlan,
         addOns: addOns?.map((a: { addOnId: string; quantity: number }) => ({ addOnId: a.addOnId, quantity: a.quantity })),
         additionalDrivers: (body.additionalDrivers || []).map((d: any) => ({
