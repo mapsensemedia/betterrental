@@ -64,6 +64,7 @@ import {
   computeDropoffFeeFromGroups,
 } from "@/lib/pricing";
 import { useLocations } from "@/hooks/use-locations";
+import { findClosestLocation } from "@/constants/rentalLocations";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
 import { funnelEvents } from "@/lib/analytics";
@@ -77,6 +78,39 @@ const FEATURE_TOOLTIPS: Record<string, string> = {
 
 function getFeatureTooltip(feature: string): string {
   return FEATURE_TOOLTIPS[feature] ?? feature;
+}
+
+/**
+ * Read the JSON error body from a supabase.functions.invoke result.
+ * The SDK puts the response body inside error.context (a Response) on non-2xx,
+ * or occasionally into data on 2xx-with-error responses. Returns null if there
+ * is no error to report.
+ */
+async function readEdgeFunctionErrorBody(
+  response: { data: any; error: any },
+): Promise<any | null> {
+  if (response.data && typeof response.data === "object" && response.data.error) {
+    return response.data;
+  }
+  if (!response.error) return null;
+  const ctx = (response.error as any).context;
+  if (ctx instanceof Response) {
+    try {
+      const body = await ctx.clone().json();
+      if (body && typeof body === "object") return body;
+    } catch {
+      // fall through
+    }
+  } else if (ctx?.body) {
+    try {
+      const body = typeof ctx.body === "string" ? JSON.parse(ctx.body) : ctx.body;
+      if (body && typeof body === "object") return body;
+    } catch {
+      // fall through
+    }
+  }
+  // No structured body — synthesise minimal shape from the error message
+  return { error: "unknown", message: response.error.message || "Request failed" };
 }
 
 export default function NewCheckout() {
@@ -389,10 +423,21 @@ export default function NewCheckout() {
       let locationId = searchData.deliveryMode === "delivery"
         ? searchData.closestPickupCenterId
         : searchData.pickupLocationId;
-      
+
+      // For delivery: if closest hub isn't resolved yet, recompute it from delivery coords
+      if (
+        searchData.deliveryMode === "delivery" &&
+        (!locationId || !/^[0-9a-f-]{36}$/i.test(locationId)) &&
+        searchData.deliveryLat != null &&
+        searchData.deliveryLng != null
+      ) {
+        const closest = findClosestLocation(searchData.deliveryLat, searchData.deliveryLng);
+        locationId = closest.location.id;
+      }
+
       // Fallback to first database location if location ID is not a valid UUID
       if (!locationId || !/^[0-9a-f-]{36}$/i.test(locationId)) {
-        locationId = "a1b2c3d4-1111-4000-8000-000000000001"; // Downtown Hub
+        locationId = "a1b2c3d4-1111-4000-8000-000000000001"; // Surrey Newton
       }
 
       // Get session (optional - we support guest checkout)
@@ -451,27 +496,29 @@ export default function NewCheckout() {
           throw new Error("Unable to connect to booking service. Please check your internet connection and try again.");
         }
 
-        // Handle errors from edge function
-        if (authResponse.data?.error) {
-          const errorCode = authResponse.data.error;
-          if (errorCode === "DUPLICATE_BOOKING" && authResponse.data?.existingBookingId) {
+        // Parse errors from edge function (handles both 2xx-with-error-body and non-2xx)
+        const authErrBody = await readEdgeFunctionErrorBody(authResponse);
+        if (authErrBody) {
+          const errorCode = authErrBody.error;
+          const serverMsg = authErrBody.message;
+          if (errorCode === "DUPLICATE_BOOKING" && authErrBody.existingBookingId) {
             toast({
               title: "Duplicate booking detected",
-              description: `An existing booking (${authResponse.data.existingBookingCode}) for this vehicle and time range was found. Redirecting…`,
+              description: `An existing booking (${authErrBody.existingBookingCode}) for this vehicle and time range was found. Redirecting…`,
             });
-            navigate(`/dashboard/bookings/${authResponse.data.existingBookingId}`);
+            navigate(`/dashboard/bookings/${authErrBody.existingBookingId}`);
             return;
           }
           const errorMessages: Record<string, string> = {
             "age_validation_failed": "Please confirm your age on the search page before booking.",
-            "PRICE_MISMATCH": `Price has changed. Server total: $${authResponse.data.serverTotal?.toFixed(2) || "N/A"}. Please refresh and try again.`,
+            "PRICE_MISMATCH": `Price has changed. Server total: $${authErrBody.serverTotal?.toFixed?.(2) || "N/A"}. Please refresh and try again.`,
+            "PRICE_VALIDATION_FAILED": "Server could not validate the price. Please refresh and try again.",
             "vehicle_unavailable": "This vehicle is no longer available for the selected dates.",
             "reservation_expired": "Your reservation has expired. Please start over.",
+            "validation_failed": serverMsg || "Please check your information and try again.",
           };
-          throw new Error(errorMessages[errorCode] || authResponse.data.message || "Failed to create booking.");
-        }
-        if (authResponse.error) {
-          throw new Error(authResponse.error.message || "Failed to create booking.");
+          console.error("[create-booking] error body:", authErrBody);
+          throw new Error(errorMessages[errorCode] || serverMsg || "Failed to create booking.");
         }
 
         if (!authResponse.data?.booking) {
@@ -547,59 +594,34 @@ export default function NewCheckout() {
           "server_error": "An unexpected error occurred. Please try again.",
         };
 
-        // Handle validation errors in response data (Supabase SDK puts 4xx JSON body in data)
-        // Check this FIRST because even with non-2xx errors, the data contains the actual error details
-        if (guestResponse.data?.error) {
-          const errorCode = guestResponse.data.error;
-          const errorMessage = guestResponse.data.message || "Validation error";
-          console.error("Guest booking validation error:", guestResponse.data);
+        const guestErrBody = await readEdgeFunctionErrorBody(guestResponse);
+        if (guestErrBody) {
+          const errorCode = guestErrBody.error;
+          const serverMsg = guestErrBody.message || "Validation error";
+          console.error("[create-guest-booking] error body:", guestErrBody);
+
           if (errorCode === "DUPLICATE_BOOKING") {
             toast({
               title: "Duplicate booking detected",
-              description: `A booking (${guestResponse.data.existingBookingCode}) for this vehicle and time range was just created. Please continue with that one.`,
+              description: `A booking (${guestErrBody.existingBookingCode}) for this vehicle and time range was just created. Please continue with that one.`,
               variant: "destructive",
             });
             return;
           }
-          throw new Error(errorMessages[errorCode] || errorMessage);
-        }
-
-
-        // Handle edge function errors (network issues, 5xx errors)
-        if (guestResponse.error) {
-          console.error("Guest booking edge function error:", guestResponse.error);
-          
-          // For non-2xx responses, try to parse the actual error body from the response context
-          if (guestResponse.error.message?.includes("non-2xx")) {
-            try {
-              const ctx = (guestResponse.error as any).context;
-              if (ctx?.body) {
-                const body = typeof ctx.body === "string" ? JSON.parse(ctx.body) : ctx.body;
-                if (body?.error) {
-                  throw new Error(errorMessages[body.error] || body.message || "Booking failed.");
-                }
-              }
-              // If context has no body, try reading from response
-              if (ctx instanceof Response) {
-                const body = await ctx.json().catch(() => null);
-                if (body?.error) {
-                  throw new Error(errorMessages[body.error] || body.message || "Booking failed.");
-                }
-              }
-            } catch (parseErr) {
-              // If it's our own re-thrown error, propagate it
-              if (parseErr instanceof Error && !parseErr.message.includes("non-2xx")) {
-                throw parseErr;
-              }
-            }
-            throw new Error("Booking service temporarily unavailable. Please try again in a moment.");
+          if (errorCode === "PRICE_MISMATCH") {
+            throw new Error(
+              `Price has changed. Server total: $${guestErrBody.serverTotal?.toFixed?.(2) || "N/A"}. Please refresh and try again.`,
+            );
           }
-          
-          if (guestResponse.error.message?.includes("Failed to fetch")) {
+          if (errorCode === "PRICE_VALIDATION_FAILED") {
+            throw new Error("Server could not validate the price. Please refresh and try again.");
+          }
+          if (errorCode === "unknown" && /failed to fetch/i.test(serverMsg)) {
             throw new Error("Unable to connect to booking service. Please check your internet connection.");
           }
-          throw new Error(guestResponse.error.message || "Failed to create booking");
+          throw new Error(errorMessages[errorCode] || serverMsg);
         }
+
 
         if (!guestResponse.data?.booking) {
           console.error("No booking in response:", guestResponse.data);
