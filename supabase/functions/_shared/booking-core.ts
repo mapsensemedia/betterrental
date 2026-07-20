@@ -471,18 +471,19 @@ export async function computeBookingTotals(input: {
 }): Promise<ServerPricingResult> {
   const supabase = getAdminClient();
 
-  // 1) Compute billable days — hour-based ceil so any rental over 24h rolls into the next day.
-  //    Pure date-only inputs (YYYY-MM-DD) fall back to date diff for backwards-compat.
-  let days: number;
-  if (input.startAt.length === 10 && input.endAt.length === 10) {
-    const sMs = Date.UTC(+input.startAt.slice(0,4), +input.startAt.slice(5,7)-1, +input.startAt.slice(8,10));
-    const eMs = Date.UTC(+input.endAt.slice(0,4), +input.endAt.slice(5,7)-1, +input.endAt.slice(8,10));
-    days = Math.max(1, Math.round((eMs - sMs) / (1000 * 60 * 60 * 24)));
-  } else {
-    const sMs = new Date(input.startAt).getTime();
-    const eMs = new Date(input.endAt).getTime();
-    days = Math.max(1, Math.ceil((eMs - sMs) / (1000 * 60 * 60 * 24)));
+  // 1) Compute billable days — always hour-based ceil.
+  //    Rule: up to 24h = 1 day, over 24h = 2 days, 48h = 2 days, over 48h = 3 days, etc.
+  //    Inputs MUST be full ISO timestamps. Date-only strings are rejected so we
+  //    fail closed instead of silently under-charging by counting calendar days.
+  const sMs = new Date(input.startAt).getTime();
+  const eMs = new Date(input.endAt).getTime();
+  if (!Number.isFinite(sMs) || !Number.isFinite(eMs)) {
+    throw new Error(`Invalid startAt/endAt timestamps: startAt=${input.startAt}, endAt=${input.endAt}`);
   }
+  if (eMs <= sMs) {
+    throw new Error(`endAt must be after startAt: startAt=${input.startAt}, endAt=${input.endAt}`);
+  }
+  const days = Math.max(1, Math.ceil((eMs - sMs) / (1000 * 60 * 60 * 24)));
 
   // 2) Fetch canonical daily rate — support both vehicles (legacy) and vehicle_categories IDs
   let dailyRate: number;
