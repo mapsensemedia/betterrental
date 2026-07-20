@@ -312,12 +312,17 @@ export function useAddVinToCategory() {
         throw new Error("A vehicle with this VIN already exists");
       }
 
-      // Get category info for vehicle creation
-      const { data: category } = await supabase
-        .from("vehicle_categories")
-        .select("name, daily_rate")
-        .eq("id", input.category_id)
-        .single();
+      // Coerce empty string → null so Postgres doesn't reject as invalid UUID
+      const categoryId = input.category_id && input.category_id.trim() ? input.category_id : null;
+
+      // Get category info for vehicle creation (only if a category is selected)
+      const { data: category } = categoryId
+        ? await supabase
+            .from("vehicle_categories")
+            .select("name, daily_rate")
+            .eq("id", categoryId)
+            .single()
+        : { data: null as { name: string; daily_rate: number } | null };
 
       // Create a vehicle entry (for backwards compatibility)
       const { data: vehicle, error: vehicleError } = await supabase
@@ -340,7 +345,7 @@ export function useAddVinToCategory() {
         .from("vehicle_units")
         .insert({
           vehicle_id: vehicle.id,
-          category_id: input.category_id,
+          category_id: categoryId,
           vin: input.vin.toUpperCase(),
           license_plate: input.license_plate.toUpperCase(),
           location_id: input.location_id,
