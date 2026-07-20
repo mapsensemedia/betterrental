@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAddVinToCategory } from "@/hooks/use-fleet-categories";
+import { useAddVinToCategory, useFleetCategories } from "@/hooks/use-fleet-categories";
 import { useLocations } from "@/hooks/use-locations";
 
 interface VinFormDialogProps {
@@ -37,6 +37,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
     vin: "",
     license_plate: "",
     location_id: "",
+    category_id: "",
     status: "available" as const,
     year: "",
     make: "",
@@ -47,6 +48,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
 
   const addVin = useAddVinToCategory();
   const { data: locations } = useLocations();
+  const { data: categories } = useFleetCategories();
 
   useEffect(() => {
     if (open) {
@@ -54,6 +56,7 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
         vin: "",
         license_plate: "",
         location_id: locations?.[0]?.id || "",
+        category_id: categoryId || "",
         status: "available",
         year: String(new Date().getFullYear()),
         make: "",
@@ -62,13 +65,13 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
         notes: "",
       });
     }
-  }, [open, locations]);
+  }, [open, locations, categoryId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     await addVin.mutateAsync({
-      category_id: categoryId,
+      category_id: formData.category_id,
       vin: formData.vin.trim(),
       license_plate: formData.license_plate.trim(),
       location_id: formData.location_id,
@@ -87,9 +90,11 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Vehicle to {categoryName}</DialogTitle>
+          <DialogTitle>{categoryName ? `Add Vehicle to ${categoryName}` : "Add Vehicle"}</DialogTitle>
           <DialogDescription>
-            Add a vehicle to this category's VIN pool.
+            {categoryName
+              ? "Add a vehicle to this category's VIN pool."
+              : "Add a vehicle to the fleet. Category is optional."}
           </DialogDescription>
         </DialogHeader>
 
@@ -162,7 +167,32 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
               </div>
             </div>
 
+            {!categoryId && (
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category (Optional)</Label>
+                <Select
+                  value={formData.category_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, category_id: value === "none" ? "" : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No category</SelectItem>
+                    {categories?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-4">
+
               <div className="grid gap-2">
                 <Label htmlFor="year">Year</Label>
                 <Input
