@@ -65,7 +65,6 @@ import {
 } from "@/lib/pricing";
 import { useLocations } from "@/hooks/use-locations";
 import { findClosestLocation } from "@/constants/rentalLocations";
-import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
 import { funnelEvents } from "@/lib/analytics";
