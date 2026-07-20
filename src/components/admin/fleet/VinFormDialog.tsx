@@ -167,7 +167,32 @@ export function VinFormDialog({ open, onOpenChange, categoryId, categoryName }: 
               </div>
             </div>
 
+            {!categoryId && (
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category (Optional)</Label>
+                <Select
+                  value={formData.category_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, category_id: value === "none" ? "" : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No category</SelectItem>
+                    {categories?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-4">
+
               <div className="grid gap-2">
                 <Label htmlFor="year">Year</Label>
                 <Input
