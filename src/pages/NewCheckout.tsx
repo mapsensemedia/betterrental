@@ -464,27 +464,29 @@ export default function NewCheckout() {
           throw new Error("Unable to connect to booking service. Please check your internet connection and try again.");
         }
 
-        // Handle errors from edge function
-        if (authResponse.data?.error) {
-          const errorCode = authResponse.data.error;
-          if (errorCode === "DUPLICATE_BOOKING" && authResponse.data?.existingBookingId) {
+        // Parse errors from edge function (handles both 2xx-with-error-body and non-2xx)
+        const authErrBody = await readEdgeFunctionErrorBody(authResponse);
+        if (authErrBody) {
+          const errorCode = authErrBody.error;
+          const serverMsg = authErrBody.message;
+          if (errorCode === "DUPLICATE_BOOKING" && authErrBody.existingBookingId) {
             toast({
               title: "Duplicate booking detected",
-              description: `An existing booking (${authResponse.data.existingBookingCode}) for this vehicle and time range was found. Redirecting…`,
+              description: `An existing booking (${authErrBody.existingBookingCode}) for this vehicle and time range was found. Redirecting…`,
             });
-            navigate(`/dashboard/bookings/${authResponse.data.existingBookingId}`);
+            navigate(`/dashboard/bookings/${authErrBody.existingBookingId}`);
             return;
           }
           const errorMessages: Record<string, string> = {
             "age_validation_failed": "Please confirm your age on the search page before booking.",
-            "PRICE_MISMATCH": `Price has changed. Server total: $${authResponse.data.serverTotal?.toFixed(2) || "N/A"}. Please refresh and try again.`,
+            "PRICE_MISMATCH": `Price has changed. Server total: $${authErrBody.serverTotal?.toFixed?.(2) || "N/A"}. Please refresh and try again.`,
+            "PRICE_VALIDATION_FAILED": "Server could not validate the price. Please refresh and try again.",
             "vehicle_unavailable": "This vehicle is no longer available for the selected dates.",
             "reservation_expired": "Your reservation has expired. Please start over.",
+            "validation_failed": serverMsg || "Please check your information and try again.",
           };
-          throw new Error(errorMessages[errorCode] || authResponse.data.message || "Failed to create booking.");
-        }
-        if (authResponse.error) {
-          throw new Error(authResponse.error.message || "Failed to create booking.");
+          console.error("[create-booking] error body:", authErrBody);
+          throw new Error(errorMessages[errorCode] || serverMsg || "Failed to create booking.");
         }
 
         if (!authResponse.data?.booking) {
