@@ -28,12 +28,18 @@ export const MONTHLY_DISCOUNT_RATE = 0.20; // 20% off for 21+ days
 
 // ========== LATE RETURN FEES ==========
 // Late-return policy lives in `src/lib/late-return.ts` (single source of truth).
-// Re-exported here for backward compatibility with older imports.
-export {
-  LATE_RETURN_GRACE_PERIOD_MINUTES as LATE_RETURN_GRACE_MINUTES,
+// Import + re-export for backward compatibility with older imports.
+import {
+  LATE_RETURN_GRACE_PERIOD_MINUTES,
   LATE_RETURN_SURCHARGE_HOURLY_PCT,
   LATE_RETURN_SURCHARGE_MAX_HOURS,
 } from "./late-return";
+export {
+  LATE_RETURN_GRACE_PERIOD_MINUTES,
+  LATE_RETURN_GRACE_PERIOD_MINUTES as LATE_RETURN_GRACE_MINUTES,
+  LATE_RETURN_SURCHARGE_HOURLY_PCT,
+  LATE_RETURN_SURCHARGE_MAX_HOURS,
+};
 
 // ========== AGE CONSTANTS ==========
 export const MIN_DRIVER_AGE = 20;
