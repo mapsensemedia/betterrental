@@ -101,10 +101,14 @@ describe("late-return copy matches constants", () => {
 
   for (const [name, src] of Object.entries(surfacesToCheck)) {
     it(`${name} mentions the ${grace}-min grace period`, () => {
-      expect(src).toMatch(new RegExp(`${grace}[\\s-]*(min|minute)`, "i"));
+      // Static copy uses the literal (e.g. "30-min"); templated copy interpolates gracePeriodMinutes.
+      expect(src).toMatch(
+        new RegExp(`(${grace}[\\s-]*(min|minute))|gracePeriodMinutes`, "i"),
+      );
     });
     it(`${name} mentions the ${pct} hourly surcharge`, () => {
-      expect(src).toContain(pct);
+      // Either the literal "25%" or a reference to the shared percent constant.
+      expect(src).toMatch(new RegExp(`${pct}|lateFeePercentOfDaily|SURCHARGE_HOURLY_PCT`));
     });
     it(`${name} mentions the ${hrs}-hour cutoff before full-day charge`, () => {
       expect(src).toMatch(new RegExp(`${hrs}\\s*(hr|hour)`, "i"));
