@@ -5,8 +5,12 @@
 import { differenceInMinutes, isPast } from "date-fns";
 
 // ========== LATE RETURN CONFIGURATION ==========
+// Single source of truth for the late-return policy (Rule A):
+//   30-min grace → 25% of daily rate/hour for up to 2 hrs past grace → full daily rate per subsequent day.
 export const LATE_RETURN_GRACE_PERIOD_MINUTES = 30; // 30 minutes grace period
 export const LATE_RETURN_FEE_PERCENTAGE = 0.25; // 25% of daily rate per hour after grace period
+export const LATE_RETURN_SURCHARGE_HOURLY_PCT = LATE_RETURN_FEE_PERCENTAGE; // preferred alias
+export const LATE_RETURN_SURCHARGE_MAX_HOURS = 2; // after this, switch to full daily rate
 
 export interface LateReturnInfo {
   isLate: boolean;
