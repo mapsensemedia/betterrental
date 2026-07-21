@@ -72,7 +72,7 @@ import { funnelEvents } from "@/lib/analytics";
 const FEATURE_TOOLTIPS: Record<string, string> = {
   "Third party insurance": "Mandatory third-party liability insurance is included with every rental at no extra cost.",
   "24/7 Roadside Assistance Hotline": "Access our 24/7 emergency roadside assistance hotline for breakdowns, flat tires, or lockouts.",
-  "Unlimited kilometres": "Drive without worrying about mileage limits — all rentals include unlimited kilometres.",
+  "Generous km allowance — 4,800 km/month, prorated": "1,400 km/week or 4,800 km/month, prorated to your rental length (~160 km/day). Extra km charged at $0.25/km, measured from the odometer at return.",
   "Extended Roadside Protection": "Enhanced roadside coverage included with your booking for added peace of mind.",
 };
 

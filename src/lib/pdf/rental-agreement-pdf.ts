@@ -548,7 +548,10 @@ function renderStructuredPdf(
     },
     {
       title: "7. KILOMETRE ALLOWANCE",
-      items: ["Unlimited kilometres included."]
+      items: [
+        "Allowance: 1,400 km per 7 days or 4,800 km per 30 days, prorated to the rental length (~160 km/day).",
+        "Excess kilometres are charged at $0.25/km, measured from the odometer at pickup vs. return.",
+      ]
     },
     {
       title: "8. TERMINATION",

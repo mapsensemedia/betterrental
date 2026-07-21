@@ -97,7 +97,11 @@ const faqItems = [
   },
   {
     q: "What happens if I return the car late?",
-    a: "Late returns are charged at your daily rate pro-rated by the hour (minimum 1 hour). If you know you'll be late, contact us as early as possible — we can often extend your booking if the vehicle isn't needed.",
+    a: "There's a 30-minute grace period after your scheduled return. After that, we charge 25% of your daily rate per hour for up to 2 hours. Beyond 2 hours, it becomes a full additional day at your regular daily rate — and each further calendar day past that is charged the same way. If you know you'll be late, contact us as early as possible so we can extend your booking.",
+  },
+  {
+    q: "How many kilometres are included in my rental?",
+    a: "Rentals include 1,400 km per 7 days or 4,800 km per 30 days, prorated for other lengths (about 160 km/day). Any distance over your allowance is charged at $0.25/km, measured from the odometer at pickup vs. return. Most local trips stay well under the allowance.",
   },
   {
     q: "Do you offer airport pickup or drop-off at YVR?",
