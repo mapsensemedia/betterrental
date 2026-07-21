@@ -155,15 +155,19 @@ const MID = MX + CW * 0.5; // midpoint
 
 // ── Main export ──
 
-export async function generateRentalAgreementPdf(
+/**
+ * Build the rental agreement PDF in-memory (no download).
+ * Exposed for tests and any caller that needs the raw jsPDF instance
+ * (e.g. to inspect output, upload to storage, etc).
+ */
+export async function buildRentalAgreementPdf(
   agreement: RentalAgreement,
   bookingId: string
-): Promise<void> {
+): Promise<jsPDF> {
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const logoBase64 = await loadLogo();
   const terms = agreement.terms_json as unknown as TermsJson | null;
 
-  // Load signature PNG if available
   const signaturePngUrl = (agreement as any)?.signature_png_url;
   let signatureBase64: string | null = null;
   if (signaturePngUrl) {
@@ -176,6 +180,14 @@ export async function generateRentalAgreementPdf(
     renderLegacyPdf(pdf, agreement, bookingId, logoBase64, signatureBase64);
   }
 
+  return pdf;
+}
+
+export async function generateRentalAgreementPdf(
+  agreement: RentalAgreement,
+  bookingId: string
+): Promise<void> {
+  const pdf = await buildRentalAgreementPdf(agreement, bookingId);
   const code = bookingId.slice(0, 8).toUpperCase();
   pdf.save(`C2C-Rental-${code}.pdf`);
 }
