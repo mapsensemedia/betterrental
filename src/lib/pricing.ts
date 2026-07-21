@@ -27,9 +27,13 @@ export const MONTHLY_DISCOUNT_THRESHOLD = 21; // Days for monthly discount
 export const MONTHLY_DISCOUNT_RATE = 0.20; // 20% off for 21+ days
 
 // ========== LATE RETURN FEES ==========
-export const LATE_RETURN_HOURLY_RATE = 25; // Per hour late fee
-export const LATE_RETURN_GRACE_MINUTES = 30; // Grace period before fees apply
-export const LATE_RETURN_MAX_HOURS = 24; // Cap at 24 hours (then it's another day)
+// Late-return policy lives in `src/lib/late-return.ts` (single source of truth).
+// Re-exported here for backward compatibility with older imports.
+export {
+  LATE_RETURN_GRACE_PERIOD_MINUTES as LATE_RETURN_GRACE_MINUTES,
+  LATE_RETURN_SURCHARGE_HOURLY_PCT,
+  LATE_RETURN_SURCHARGE_MAX_HOURS,
+} from "./late-return";
 
 // ========== AGE CONSTANTS ==========
 export const MIN_DRIVER_AGE = 20;
@@ -245,10 +249,14 @@ export const VERIFICATION_STATUS_STYLES: Record<string, { label: string; classNa
 };
 
 // ========== INCLUDED FEATURES ==========
+// Kilometre allowance is dynamic (see `src/lib/km-allowance.ts` +
+// `formatKmAllowanceSummary(rentalDays)`). The static list below is used
+// where rentalDays isn't known; UI surfaces that know the rental length
+// should replace the km entry with the prorated string.
 export const BOOKING_INCLUDED_FEATURES = [
   "Third party insurance",
   "24/7 Roadside Assistance Hotline",
-  "Unlimited kilometres",
+  "Generous km allowance — 4,800 km/month, prorated",
   "Extended Roadside Protection",
   "Booking option: Best price - Pay now, cancel and rebook for a fee",
 ];
