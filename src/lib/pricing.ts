@@ -325,25 +325,33 @@ export function getDurationDiscount(rentalDays: number): { rate: number; type: "
 }
 
 /**
- * Calculate late return fee based on minutes late
+ * Calculate late return fee based on minutes late.
+ *
+ * Rule A: 30-min grace → 25% of daily rate/hour for up to 2 hrs past grace →
+ * full daily rate per subsequent day.
+ *
+ * @param minutesLate How many minutes past the scheduled return.
+ * @param dailyRate   Booking's daily rate. REQUIRED for a real fee — the legacy
+ *                    flat-$25/hr fallback has been removed. Passing no rate
+ *                    returns 0 and warns.
  */
 export function calculateLateFee(minutesLate: number, dailyRate?: number): number {
-  if (minutesLate <= LATE_RETURN_GRACE_MINUTES) return 0;
-  
-  const billableMinutes = minutesLate - LATE_RETURN_GRACE_MINUTES;
-  const hoursLate = Math.ceil(billableMinutes / 60);
-  
-  // If dailyRate provided, use tiered structure
-  if (dailyRate) {
-    if (hoursLate <= 2) {
-      return hoursLate * (dailyRate * 0.25);
-    }
-    return dailyRate; // Full day charge from 3rd hour
+  if (minutesLate <= LATE_RETURN_GRACE_PERIOD_MINUTES) return 0;
+  if (!dailyRate || dailyRate <= 0) {
+    // eslint-disable-next-line no-console
+    console.warn("calculateLateFee called without a dailyRate — returning 0. Pass the booking's daily rate.");
+    return 0;
   }
-  
-  // Legacy fallback
-  const cappedHours = Math.min(hoursLate, LATE_RETURN_MAX_HOURS);
-  return cappedHours * LATE_RETURN_HOURLY_RATE;
+
+  const billableMinutes = minutesLate - LATE_RETURN_GRACE_PERIOD_MINUTES;
+  const hoursLate = Math.ceil(billableMinutes / 60);
+
+  if (hoursLate <= LATE_RETURN_SURCHARGE_MAX_HOURS) {
+    return Math.round(hoursLate * dailyRate * LATE_RETURN_SURCHARGE_HOURLY_PCT * 100) / 100;
+  }
+  // Full daily rate per additional day beyond the 2-hour hourly window
+  const extraDays = Math.ceil((hoursLate - LATE_RETURN_SURCHARGE_MAX_HOURS) / 24) || 1;
+  return Math.round(dailyRate * extraDays * 100) / 100;
 }
 
 // ========== CORE PRICING FUNCTION ==========
