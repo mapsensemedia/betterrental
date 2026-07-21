@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { calculateLateFee, LATE_RETURN_GRACE_MINUTES, LATE_RETURN_HOURLY_RATE } from "@/lib/pricing";
+import { calculateLateFee, LATE_RETURN_GRACE_PERIOD_MINUTES, LATE_RETURN_SURCHARGE_HOURLY_PCT, LATE_RETURN_SURCHARGE_MAX_HOURS } from "@/lib/pricing";
 
 interface TicketBookingSummaryProps {
   bookingId: string;
@@ -103,9 +103,10 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
   const now = new Date();
   const isOverdue = isActive && now > endDate;
   
-  // Calculate current late fee info
+  // Calculate current late fee info (tiered on daily rate)
+  const dailyRate = Number(booking.daily_rate) || 0;
   const minutesLate = isOverdue ? differenceInMinutes(now, endDate) : 0;
-  const lateFee = isOverdue ? calculateLateFee(minutesLate) : 0;
+  const lateFee = isOverdue ? calculateLateFee(minutesLate, dailyRate) : 0;
   const hoursLate = Math.floor(minutesLate / 60);
   const minsLate = minutesLate % 60;
 
@@ -202,14 +203,14 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
                 </span>
               </div>
             )}
-            {lateFee === 0 && minutesLate <= LATE_RETURN_GRACE_MINUTES && (
+            {lateFee === 0 && minutesLate <= LATE_RETURN_GRACE_PERIOD_MINUTES && (
               <p className="text-xs text-muted-foreground">
-                Within {LATE_RETURN_GRACE_MINUTES}-min grace period — no fee yet
+                Within {LATE_RETURN_GRACE_PERIOD_MINUTES}-min grace period — no fee yet
               </p>
             )}
             {lateFee > 0 && (
               <p className="text-xs text-muted-foreground">
-                ${LATE_RETURN_HOURLY_RATE} CAD/hr after {LATE_RETURN_GRACE_MINUTES}-min grace
+                {(LATE_RETURN_SURCHARGE_HOURLY_PCT * 100).toFixed(0)}% of daily rate/hr for {LATE_RETURN_SURCHARGE_MAX_HOURS} hrs after {LATE_RETURN_GRACE_PERIOD_MINUTES}-min grace, then full-day charge
               </p>
             )}
           </div>
