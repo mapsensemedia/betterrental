@@ -202,7 +202,7 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
           <li>Optional rental coverages available at pickup.</li>
           <li>No racing, towing, or off-road use permitted.</li>
           <li>Renter is responsible for all traffic violations and tolls during the rental period.</li>
-          <li>Unlimited kilometres included.</li>
+          <li>Kilometre allowance: 1,400 km per 7 days or 4,800 km per 30 days, prorated to the rental length. Excess kilometres are charged at $0.25/km, measured from the odometer at pickup vs. return.</li>
         </ul>
       </Section>
 

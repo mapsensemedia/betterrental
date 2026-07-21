@@ -27,9 +27,19 @@ export const MONTHLY_DISCOUNT_THRESHOLD = 21; // Days for monthly discount
 export const MONTHLY_DISCOUNT_RATE = 0.20; // 20% off for 21+ days
 
 // ========== LATE RETURN FEES ==========
-export const LATE_RETURN_HOURLY_RATE = 25; // Per hour late fee
-export const LATE_RETURN_GRACE_MINUTES = 30; // Grace period before fees apply
-export const LATE_RETURN_MAX_HOURS = 24; // Cap at 24 hours (then it's another day)
+// Late-return policy lives in `src/lib/late-return.ts` (single source of truth).
+// Import + re-export for backward compatibility with older imports.
+import {
+  LATE_RETURN_GRACE_PERIOD_MINUTES,
+  LATE_RETURN_SURCHARGE_HOURLY_PCT,
+  LATE_RETURN_SURCHARGE_MAX_HOURS,
+} from "./late-return";
+export {
+  LATE_RETURN_GRACE_PERIOD_MINUTES,
+  LATE_RETURN_GRACE_PERIOD_MINUTES as LATE_RETURN_GRACE_MINUTES,
+  LATE_RETURN_SURCHARGE_HOURLY_PCT,
+  LATE_RETURN_SURCHARGE_MAX_HOURS,
+};
 
 // ========== AGE CONSTANTS ==========
 export const MIN_DRIVER_AGE = 20;
@@ -245,10 +255,14 @@ export const VERIFICATION_STATUS_STYLES: Record<string, { label: string; classNa
 };
 
 // ========== INCLUDED FEATURES ==========
+// Kilometre allowance is dynamic (see `src/lib/km-allowance.ts` +
+// `formatKmAllowanceSummary(rentalDays)`). The static list below is used
+// where rentalDays isn't known; UI surfaces that know the rental length
+// should replace the km entry with the prorated string.
 export const BOOKING_INCLUDED_FEATURES = [
   "Third party insurance",
   "24/7 Roadside Assistance Hotline",
-  "Unlimited kilometres",
+  "Generous km allowance — 4,800 km/month, prorated",
   "Extended Roadside Protection",
   "Booking option: Best price - Pay now, cancel and rebook for a fee",
 ];
@@ -317,25 +331,33 @@ export function getDurationDiscount(rentalDays: number): { rate: number; type: "
 }
 
 /**
- * Calculate late return fee based on minutes late
+ * Calculate late return fee based on minutes late.
+ *
+ * Rule A: 30-min grace → 25% of daily rate/hour for up to 2 hrs past grace →
+ * full daily rate per subsequent day.
+ *
+ * @param minutesLate How many minutes past the scheduled return.
+ * @param dailyRate   Booking's daily rate. REQUIRED for a real fee — the legacy
+ *                    flat-$25/hr fallback has been removed. Passing no rate
+ *                    returns 0 and warns.
  */
 export function calculateLateFee(minutesLate: number, dailyRate?: number): number {
-  if (minutesLate <= LATE_RETURN_GRACE_MINUTES) return 0;
-  
-  const billableMinutes = minutesLate - LATE_RETURN_GRACE_MINUTES;
-  const hoursLate = Math.ceil(billableMinutes / 60);
-  
-  // If dailyRate provided, use tiered structure
-  if (dailyRate) {
-    if (hoursLate <= 2) {
-      return hoursLate * (dailyRate * 0.25);
-    }
-    return dailyRate; // Full day charge from 3rd hour
+  if (minutesLate <= LATE_RETURN_GRACE_PERIOD_MINUTES) return 0;
+  if (!dailyRate || dailyRate <= 0) {
+    // eslint-disable-next-line no-console
+    console.warn("calculateLateFee called without a dailyRate — returning 0. Pass the booking's daily rate.");
+    return 0;
   }
-  
-  // Legacy fallback
-  const cappedHours = Math.min(hoursLate, LATE_RETURN_MAX_HOURS);
-  return cappedHours * LATE_RETURN_HOURLY_RATE;
+
+  const billableMinutes = minutesLate - LATE_RETURN_GRACE_PERIOD_MINUTES;
+  const hoursLate = Math.ceil(billableMinutes / 60);
+
+  if (hoursLate <= LATE_RETURN_SURCHARGE_MAX_HOURS) {
+    return Math.round(hoursLate * dailyRate * LATE_RETURN_SURCHARGE_HOURLY_PCT * 100) / 100;
+  }
+  // Full daily rate per additional day beyond the 2-hour hourly window
+  const extraDays = Math.ceil((hoursLate - LATE_RETURN_SURCHARGE_MAX_HOURS) / 24) || 1;
+  return Math.round(dailyRate * extraDays * 100) / 100;
 }
 
 // ========== CORE PRICING FUNCTION ==========

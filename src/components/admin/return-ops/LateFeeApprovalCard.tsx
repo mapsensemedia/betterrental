@@ -30,7 +30,7 @@ import {
   Loader2,
   Info,
 } from "lucide-react";
-import { LATE_RETURN_GRACE_MINUTES, LATE_RETURN_HOURLY_RATE } from "@/lib/pricing";
+import { LATE_RETURN_GRACE_PERIOD_MINUTES, LATE_RETURN_SURCHARGE_HOURLY_PCT, LATE_RETURN_SURCHARGE_MAX_HOURS } from "@/lib/pricing";
 
 interface LateFeeApprovalCardProps {
   /** Auto-calculated late fee from the Issues step */
@@ -67,8 +67,8 @@ export function LateFeeApprovalCard({
 
   const hoursLate = Math.floor(minutesLate / 60);
   const minsLate = minutesLate % 60;
-  const isLate = minutesLate > LATE_RETURN_GRACE_MINUTES;
-  const inGrace = minutesLate > 0 && minutesLate <= LATE_RETURN_GRACE_MINUTES;
+  const isLate = minutesLate > LATE_RETURN_GRACE_PERIOD_MINUTES;
+  const inGrace = minutesLate > 0 && minutesLate <= LATE_RETURN_GRACE_PERIOD_MINUTES;
 
   // Effective fee: override > persisted > calculated
   const effectiveFee = existingOverride != null 
@@ -100,7 +100,7 @@ export function LateFeeApprovalCard({
             <Info className="h-5 w-5" />
             <div>
               <span className="font-medium text-sm">
-                {minutesLate}m past due — within {LATE_RETURN_GRACE_MINUTES}-min grace period
+                {minutesLate}m past due — within {LATE_RETURN_GRACE_PERIOD_MINUTES}-min grace period
               </span>
               <p className="text-xs text-blue-500 mt-0.5">No fee applies</p>
             </div>
@@ -173,7 +173,7 @@ export function LateFeeApprovalCard({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Rate</span>
-              <span>${LATE_RETURN_HOURLY_RATE} CAD/hr (after {LATE_RETURN_GRACE_MINUTES}-min grace)</span>
+              <span>{(LATE_RETURN_SURCHARGE_HOURLY_PCT * 100).toFixed(0)}% of daily rate/hr for {LATE_RETURN_SURCHARGE_MAX_HOURS} hrs, then full-day (after {LATE_RETURN_GRACE_PERIOD_MINUTES}-min grace)</span>
             </div>
             <div className="flex justify-between text-sm pt-2 border-t">
               <span className="flex items-center gap-1 font-medium">

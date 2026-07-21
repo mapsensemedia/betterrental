@@ -5,8 +5,12 @@
 import { differenceInMinutes, isPast } from "date-fns";
 
 // ========== LATE RETURN CONFIGURATION ==========
+// Single source of truth for the late-return policy (Rule A):
+//   30-min grace → 25% of daily rate/hour for up to 2 hrs past grace → full daily rate per subsequent day.
 export const LATE_RETURN_GRACE_PERIOD_MINUTES = 30; // 30 minutes grace period
 export const LATE_RETURN_FEE_PERCENTAGE = 0.25; // 25% of daily rate per hour after grace period
+export const LATE_RETURN_SURCHARGE_HOURLY_PCT = LATE_RETURN_FEE_PERCENTAGE; // preferred alias
+export const LATE_RETURN_SURCHARGE_MAX_HOURS = 2; // after this, switch to full daily rate
 
 export interface LateReturnInfo {
   isLate: boolean;
@@ -92,15 +96,16 @@ export function calculateLateReturnFeeWithRate(
   let fee: number;
   let message: string;
   
-  if (baseInfo.hoursLate <= 2) {
-    // 25% of daily rate per hour for first 2 hours
-    const hourlyFee = dailyRate * LATE_RETURN_FEE_PERCENTAGE;
+  if (baseInfo.hoursLate <= LATE_RETURN_SURCHARGE_MAX_HOURS) {
+    // 25% of daily rate per hour for the first 2 hours past grace
+    const hourlyFee = dailyRate * LATE_RETURN_SURCHARGE_HOURLY_PCT;
     fee = Math.round(baseInfo.hoursLate * hourlyFee * 100) / 100;
     message = `${baseInfo.hoursLate} hour${baseInfo.hoursLate !== 1 ? "s" : ""} late - CA$${fee.toFixed(2)} fee`;
   } else {
-    // From 3rd hour onward: full day charge
-    fee = Math.round(dailyRate * 100) / 100;
-    message = `${baseInfo.hoursLate} hour${baseInfo.hoursLate !== 1 ? "s" : ""} late - Full day charge CA$${fee.toFixed(2)}`;
+    // After the hourly window: full daily rate for each additional day
+    const extraDays = Math.ceil((baseInfo.hoursLate - LATE_RETURN_SURCHARGE_MAX_HOURS) / 24) || 1;
+    fee = Math.round(dailyRate * extraDays * 100) / 100;
+    message = `${baseInfo.hoursLate} hour${baseInfo.hoursLate !== 1 ? "s" : ""} late - Full-day charge × ${extraDays} = CA$${fee.toFixed(2)}`;
   }
   
   return {
