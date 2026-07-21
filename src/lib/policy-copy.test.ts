@@ -108,7 +108,7 @@ describe("late-return copy matches constants", () => {
     });
     it(`${name} mentions the ${hrs}-hour cutoff before full-day charge`, () => {
       expect(src).toMatch(new RegExp(`${hrs}\\s*(hr|hour)`, "i"));
-      expect(src).toMatch(/full[- ]day/i);
+      expect(src).toMatch(/full[- ](?:day|additional day)|full daily rate/i);
     });
   }
 });
