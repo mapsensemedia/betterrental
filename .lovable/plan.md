@@ -1,57 +1,99 @@
+# Late Return + Kilometre Allowance Reconciliation
 
-## Root cause (confirmed)
+Goal: two policies become the single source of truth everywhere, with no duplicated constants and no contradictory customer-facing copy.
 
-The intended pricing rule is **`Math.ceil(hours ÷ 24)`** — 24h = 1 day, 25h = 2 days, 48h = 2 days, 49h = 3 days. The client already does this. The server does it too, **but only when it hits the timestamp branch** in `computeBookingTotals` (`booking-core.ts` line 476–485).
+**Rule A — Late return:** 30-min grace → 25% of daily rate/hour for up to 2 hrs past grace → full daily-rate charge per additional day.
+**Rule B — Kilometres:** 1,400 km / 7 days, 4,800 km / 30 days, prorated (`allowance = MONTHLY_KM_ALLOWANCE / 30 * rentalDays`), excess $0.25/km measured from odometer at return.
 
-Both `create-booking` (line 110) and `create-guest-booking` (line 148) call `validateClientPricing` with:
+---
 
-```ts
-startAt: pickupDate || startAt,   // "YYYY-MM-DD" — length 10
-endAt:   dropoffDate || endAt,    // "YYYY-MM-DD" — length 10
-```
+## Confirmed current state (verified before planning)
 
-Because those strings are length 10, `computeBookingTotals` takes the **date-only branch** and uses `Math.round((endDate − startDate) / 86400000)` — pure calendar-day diff, ignoring hours. That's why:
+- `src/lib/late-return.ts` already implements Rule A correctly (grace 30, 25%/hr tier ≤2 hrs, full-day thereafter).
+- `src/lib/pricing.ts` has a **conflicting duplicate**: `LATE_RETURN_HOURLY_RATE = 25`, `LATE_RETURN_GRACE_MINUTES = 30`, and a flat-$25/hr `calculateLateFee()`.
+- Three UI components read the stale flat-$25/hr constants from `pricing.ts`: `TicketBookingSummary`, `StepReturnIssues`, `LateFeeApprovalCard`.
+- Website FAQ (Surrey only) states "pro-rated by the hour, min 1 hr" — inaccurate.
+- "Unlimited km" appears in: `src/lib/pricing.ts` (`BOOKING_INCLUDED_FEATURES`), `src/pages/NewCheckout.tsx`, `src/components/booking/AgreementStructuredView.tsx` (§7), `src/lib/pdf/rental-agreement-pdf.ts` (§7), and `supabase/functions/generate-agreement/index.ts` (server-embedded terms string).
+- `/terms`, `/legal`, `/privacy` all currently render `PdfViewerPage` only — no HTML policy text.
+- Odometer capture already exists: `inspection_metrics.odometer` written at pickup (via `use-walkaround.ts`) and at return (via `StepReturnIntake.tsx`). Excess-km math can hook into this cleanly at return time.
+- No km-allowance module currently exists; no per-category km rate overrides in DB — a single global set of constants is fine.
 
-- 48h rental spanning Jun 18 → Jun 20 → server gets `round(2.0) = 2` days. In this case the client got 2 days too, so the ratio should have been 1×… **but the current live mismatch (`$103.58` vs `$207.18`, exact 2×)** means the server is actually seeing **1 day** — most likely because on this delivery attempt `pickupDate` and `dropoffDate` collapsed to the same calendar day after `formatLocalDate` (a delivery flow can shift them by tz), producing `round(0) → max(1, …) = 1`. Either way, the date-only branch is the wrong tool for a rule that must count hours.
-
-The fix has to make **both** flows (delivery **and** normal pickup) use the hour-based ceil, on both the client and the server.
+---
 
 ## Plan
 
-### 1. Server — always use hour-based ceil for the customer funnel
-- `supabase/functions/_shared/booking-core.ts`: remove the date-only branch in `computeBookingTotals` (lines 476–485). Always compute `days = Math.max(1, Math.ceil((new Date(endAt) − new Date(startAt)) / 86400000))`. If either input isn't a valid ISO timestamp, throw so we fail closed instead of silently under-charging.
-- Weekend-day counting (`countWeekendDaysInRange`) still needs a start date — keep it, but derive it from the parsed `startAt` timestamp (UTC date components) so it works whether the caller sends an ISO or a date-only string.
+### 1. Single source of truth: `src/lib/late-return.ts`
+- Keep `LATE_RETURN_GRACE_PERIOD_MINUTES = 30`.
+- Add exported constants `LATE_RETURN_SURCHARGE_HOURLY_PCT = 0.25` and `LATE_RETURN_SURCHARGE_MAX_HOURS = 2` (replace the local `LATE_RETURN_FEE_PERCENTAGE` magic number wired into these).
+- `calculateLateReturnFeeWithRate()` already implements the tiered model — keep it as the only late-fee calculator.
 
-### 2. Server callers — send full ISO timestamps only
-- `supabase/functions/create-booking/index.ts` (line 110): drop `pickupDate || startAt` / `dropoffDate || endAt`; pass `startAt` and `endAt` directly. Add a 400 guard if either isn't parseable.
-- `supabase/functions/create-guest-booking/index.ts` (line 148): same change.
-- `persist-booking-extras/index.ts` and `reprice-booking/index.ts`: audit each `computeBookingTotals` call site — they already read `start_at` / `end_at` from the DB (full timestamps), so they'll pick up the stricter behavior automatically, but verify no code path is feeding date-only strings.
+### 2. New module: `src/lib/km-allowance.ts`
+Exports:
+- `WEEKLY_KM_ALLOWANCE = 1400`
+- `MONTHLY_KM_ALLOWANCE = 4800`
+- `EXCESS_KM_RATE = 0.25`
+- `calculateKmAllowance(rentalDays: number): number` → `Math.round(MONTHLY_KM_ALLOWANCE / 30 * rentalDays)` (integer km).
+- `calculateExcessKm(kmOut, kmIn, rentalDays)` → `{ kmDriven, allowance, excessKm, excessFee }` with integer-cent math for the fee.
+- `formatKmAllowanceSummary(rentalDays)` → human string for UI.
 
-### 3. Client — remove now-unused date-only fields
-- `src/pages/NewCheckout.tsx`: stop sending `pickupDate` / `dropoffDate` in the `create-booking` and `create-guest-booking` payloads (they're only used for pricing and are now ignored server-side). Keep `startAt` / `endAt`.
-- `RentalBookingContext.tsx`: already uses `Math.ceil(ms / 86400000)` on the combined `pickupDate + pickupTime` and `returnDate + returnTime` — leave it alone. This is what the server will now match.
+### 3. Purge duplicates in `src/lib/pricing.ts`
+- Remove `LATE_RETURN_HOURLY_RATE`, `LATE_RETURN_GRACE_MINUTES`, `LATE_RETURN_MAX_HOURS`, and the flat-rate branch inside `calculateLateFee()`.
+- Have `calculateLateFee()` re-export / delegate to `calculateLateReturnFeeWithRate` (kept for call-site compatibility); mark old signature deprecated in a JSDoc comment.
+- Replace the `"Unlimited kilometres"` line in `BOOKING_INCLUDED_FEATURES` with a dynamic entry: `"Includes {allowance} km — extra km at $0.25/km"` produced by a small helper that takes rentalDays (fallback copy for static contexts: `"Generous km allowance — 4,800 km/month, prorated"`).
+- `PricingBreakdown` gains optional `kmAllowance`, `excessKm`, `excessKmFee`. `PricingInput` gains optional `kmOut`, `kmIn` (used only at return-time recompute).
 
-### 4. Diagnostic + UX (small, permanent)
-- In `booking-core.ts` `validateClientPricing`, when the check fails, log a single JSON line with `{ days, dailyRate, vehicleTotal, protectionTotal, addOnsTotal, deliveryFee, differentDropoffFee, subtotal, tax, total }` (server) plus the received `clientTotal` and `startAt`/`endAt`. Makes the next incident 30 seconds instead of an hour.
-- In `NewCheckout.tsx`, when the toast fires for `PRICE_MISMATCH`, also `console.error` the outgoing payload and the client `pricing` breakdown.
+### 4. Update the three ops/support components
+`TicketBookingSummary.tsx`, `StepReturnIssues.tsx`, `LateFeeApprovalCard.tsx`:
+- Switch imports to `late-return.ts` constants and `calculateLateReturnFeeWithRate`.
+- Replace `"$25 CAD/hr after 30-min grace"` copy with tiered text produced by `getLateReturnSummary(dailyRate)`.
+- `TicketBookingSummary` and `StepReturnFees` gain a Kilometre Allowance block: allowance granted / km driven / excess km / excess fee, using data from `inspection_metrics` (pickup + return odometer).
 
-### 5. Tests — lock the rule in
-- `src/lib/pricing.test.ts`: add cases asserting `rentalDays` from `RentalBookingContext`-style inputs for the boundary cases the user called out — 24h → 1, 24h 30m → 2, 25h → 2, 48h → 2, 49h → 3.
-- Add a Deno test under `supabase/functions/_shared/` (or a small `computeBookingTotals` test) covering the same boundaries plus one delivery scenario (48h, premium protection, `deliveryFee: 49`) and assert `days === 2` and the total matches the client's `calculateBookingPricing` output within $0.50.
+### 5. Agreement structured view — `src/components/booking/AgreementStructuredView.tsx`
+- §7 Kilometre Allowance: replace the single `"Unlimited kilometres included."` list item with the tiered allowance description + excess rate.
+- Financial Summary: add itemized "Km allowance", "Km driven", "Excess km", "Excess km fee" rows, only rendered when a return with odometer data exists — mirrors how late fees are itemized.
 
-## Files touched
+### 6. PDF template + server terms string
+- `src/lib/pdf/rental-agreement-pdf.ts` §7: swap the "Unlimited kilometres included." bullet for the new tiered language and add an excess-km bullet.
+- `supabase/functions/generate-agreement/index.ts` line 492: rewrite the trailing `"Unlimited km."` clause to `"Km allowance: 1,400/week or 4,800/month prorated, excess $0.25/km."` The late-fee sentence already matches Rule A and stays.
 
-- `supabase/functions/_shared/booking-core.ts` — remove date-only branch, add mismatch logging
-- `supabase/functions/create-booking/index.ts` — send `startAt`/`endAt` only
-- `supabase/functions/create-guest-booking/index.ts` — send `startAt`/`endAt` only
-- `supabase/functions/persist-booking-extras/index.ts`, `reprice-booking/index.ts` — audit only, expected no changes
-- `src/pages/NewCheckout.tsx` — drop `pickupDate`/`dropoffDate` from both payloads, add mismatch logging
-- `src/lib/pricing.test.ts` — boundary tests
-- New Deno test for `computeBookingTotals` — parity + boundaries
+### 7. Customer-facing surfaces
+- `src/pages/Surrey.tsx` FAQ line ~99: rewrite the late-return answer to state the tiered policy exactly (30-min grace → 25% of daily rate per hour up to 2 hrs → full-day charge per additional day). Add a new FAQ entry: *"How many kilometres are included?"* with 1,400/week, 4,800/month prorated, $0.25/km excess.
+- `src/pages/NewCheckout.tsx`: replace the `"Unlimited kilometres"` tooltip entry with the new allowance description; use `calculateKmAllowance(rentalDays)` so the checkout summary shows the concrete number for that booking ("Includes X km, extra $0.25/km").
+- `src/pages/Langley.tsx` and `src/pages/Abbotsford.tsx`: no late-return / unlimited-km copy today (verified) — no change needed. If the Surrey FAQ is replicated later, the same block applies.
 
-## Explicitly NOT changed
+### 8. New HTML policy summaries at `/terms`, `/legal`, `/privacy`
+- Convert `PdfViewerPage.tsx` to render an HTML summary section **above** the embedded PDF (PDF stays as the authoritative document).
+- Summary pulls its numbers from `late-return.ts` and `km-allowance.ts` so it can never drift.
+- Two new subsections on `/terms`: *Late Returns* (Rule A) and *Kilometre Allowance* (Rule B).
 
-- Client-side `rentalDays` computation (already correct)
-- Pricing constants, protection rates, delivery-fee logic, drop-off fee logic
-- Booking creation, hold, availability, payment, or notification flows
-- The $0.50 mismatch tolerance
+### 9. Booking engine / quote flow
+- `BookingSummaryPanel` and any pricing display component that lists included features: replace the static "Unlimited kilometres" chip with `Includes {calculateKmAllowance(rentalDays)} km, $0.25/km excess`.
+- No server pricing change on the checkout path (excess km is a return-time charge, not a pre-charge). Server-side excess-fee calculation runs in the return / close-out edge function using the odometer readings.
+
+### 10. Return-time enforcement
+- Extend `StepReturnFees.tsx` and the return finalization edge function to compute `excessFee = calculateExcessKm(km_out, km_in, rentalDays).excessFee` and post it into `final_invoices` as an itemized line, following the same pattern as `late_fee_amount`.
+- Add a DB column `final_invoices.excess_km_fee_cents` (integer, default 0) via migration in the same step so the invoice ledger reflects it. GRANTs unchanged.
+
+### 11. Regression sweep (verification, not code)
+After edits, `rg` for:
+- `LATE_RETURN_HOURLY_RATE`, `LATE_RETURN_GRACE_MINUTES`, literal `"$25"` / `25 CAD/hr` fragments outside `late-return.ts`.
+- `Unlimited km`, `Unlimited kilometres`, `unlimited kilometer`, `mileage limits` — must have zero hits outside archived blog posts.
+- Confirm `pricing.test.ts` still passes and add tests for `calculateKmAllowance(7) === 1120`, `calculateKmAllowance(20) === 3200`, `calculateKmAllowance(30) === 4800`, and a late-fee test at exactly 2 hrs vs 3 hrs past grace.
+
+---
+
+## Technical notes
+
+- **Rounding:** km allowance rounded to nearest whole km; excess fee in integer cents (`Math.round(excessKm * 25)` cents).
+- **Backward compatibility:** the legacy `pricing.calculateLateFee(minutesLate)` (no dailyRate) will throw or return 0 with a `console.warn` — every current caller already passes a rate or uses the late-return.ts helper (verified via grep in step 11).
+- **DB migration:** one `ALTER TABLE public.final_invoices ADD COLUMN excess_km_fee_cents integer NOT NULL DEFAULT 0;` — no new tables, no policy changes, no GRANT changes.
+- **No changes** to pickup-time price computation, deposit logic, Worldline flow, or the RLS/trigger stack.
+- **Blog posts** (`C2cVsTuroVsEnterpriseSurrey.tsx` mentions "standard kilometres") are marketing narrative, not policy — left unchanged unless you want them rewritten too.
+
+---
+
+## Out of scope (flag before starting if you want them in)
+
+- Per-vehicle-category km overrides (all categories share the global allowance).
+- Historical bookings: excess-km recalculation only applies to bookings closed after deploy; already-closed invoices are not touched.
+- Refactoring `NewCheckout.tsx`'s hardcoded feature-tooltip map into a data-driven module.

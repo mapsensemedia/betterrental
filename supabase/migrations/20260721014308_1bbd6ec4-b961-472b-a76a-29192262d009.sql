@@ -1,0 +1,1 @@
+ALTER TABLE public.final_invoices ADD COLUMN IF NOT EXISTS excess_km_fee_cents integer NOT NULL DEFAULT 0;

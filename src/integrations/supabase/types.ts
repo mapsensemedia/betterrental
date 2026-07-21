@@ -1399,6 +1399,7 @@ export type Database = {
           deposit_captured: number | null
           deposit_held: number | null
           deposit_released: number | null
+          excess_km_fee_cents: number
           fees_total: number | null
           grand_total: number
           id: string
@@ -1425,6 +1426,7 @@ export type Database = {
           deposit_captured?: number | null
           deposit_held?: number | null
           deposit_released?: number | null
+          excess_km_fee_cents?: number
           fees_total?: number | null
           grand_total?: number
           id?: string
@@ -1451,6 +1453,7 @@ export type Database = {
           deposit_captured?: number | null
           deposit_held?: number | null
           deposit_released?: number | null
+          excess_km_fee_cents?: number
           fees_total?: number | null
           grand_total?: number
           id?: string
