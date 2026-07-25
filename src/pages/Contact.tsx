@@ -56,7 +56,7 @@ export default function Contact() {
       name: "C2C Rental",
       url: "https://c2crental.ca",
       telephone: "+1-604-763-4242",
-      email: "info@c2crental.ca",
+      email: "support@c2crental.ca",
     },
   };
 
@@ -147,8 +147,8 @@ export default function Contact() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Email</p>
-                      <a href="mailto:info@c2crental.com" className="font-medium text-foreground hover:text-primary transition-colors">
-                        info@c2crental.com
+                      <a href="mailto:support@c2crental.ca" className="font-medium text-foreground hover:text-primary transition-colors">
+                        support@c2crental.ca
                       </a>
                     </div>
                   </div>

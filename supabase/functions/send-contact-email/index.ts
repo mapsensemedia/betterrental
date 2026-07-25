@@ -148,7 +148,7 @@ serve(async (req) => {
     // Send notification email to admin
     const adminEmailResponse = await resend.emails.send({
       from: "C2C Rental <onboarding@resend.dev>",
-      to: ["info@c2crental.ca"],
+      to: ["support@c2crental.ca"],
       subject: `Contact Form: ${escapedSubject}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
