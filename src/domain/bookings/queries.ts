@@ -80,8 +80,10 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
   if (filters.tab === "pickups") {
     query = query.eq("status", "confirmed");
   } else if (filters.tab === "active") {
-    const nowIso = new Date().toISOString();
-    query = query.or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${nowIso})`);
+    // Only bookings actually activated through the pickup wizard count as
+    // active rentals. Confirmed bookings (even past their start time) belong
+    // to Pickups until staff complete handover and mark them active.
+    query = query.eq("status", "active");
   } else if (filters.tab === "returns") {
     query = query.eq("status", "active");
   } else if (filters.tab === "completed") {
