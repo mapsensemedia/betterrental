@@ -50,14 +50,14 @@ export function useActiveRentals() {
   return useQuery<ActiveRental[]>({
     queryKey: ["active-rentals"],
     queryFn: async () => {
-      const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from("bookings")
         .select(`
           *,
           locations!location_id (id, name, city)
         `)
-        .or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${nowIso})`)
+        // Only activated rentals. Confirmed-but-not-handed-over bookings stay in Pickups.
+        .eq("status", "active")
         .order("end_at", { ascending: true });
 
       if (error) {
