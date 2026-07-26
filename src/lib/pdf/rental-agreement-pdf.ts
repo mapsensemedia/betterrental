@@ -51,6 +51,8 @@ interface TermsJson {
   financial: {
     vehicleSubtotal: number;
     weekendSurcharge?: number;
+    durationDiscount?: number;
+    adjustmentLines?: Array<{ label: string; amount: number }>;
     weekendDays?: number;
     protectionTotal?: number;
     addOnsTotal: number;
