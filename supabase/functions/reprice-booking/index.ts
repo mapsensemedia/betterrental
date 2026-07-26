@@ -173,6 +173,8 @@ Deno.serve(async (req) => {
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,
         young_driver_fee: serverTotals.youngDriverFee,
+        weekend_surcharge: serverTotals.weekendSurcharge,
+        duration_discount: serverTotals.durationDiscount,
         different_dropoff_fee: serverTotals.differentDropoffFee,
       };
       if (overrideRate !== null) {
@@ -375,6 +377,8 @@ Deno.serve(async (req) => {
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,
         young_driver_fee: serverTotals.youngDriverFee,
+        weekend_surcharge: serverTotals.weekendSurcharge,
+        duration_discount: serverTotals.durationDiscount,
         different_dropoff_fee: serverTotals.differentDropoffFee,
       };
       auditAction = "protection_plan_changed";
