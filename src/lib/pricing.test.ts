@@ -3,7 +3,9 @@ import {
   countWeekendDays,
   calculateBookingPricing,
   WEEKEND_SURCHARGE_RATE,
+  deriveVehicleAdjustments,
 } from "./pricing";
+import { buildVehicleAdjustmentLines } from "./vehicle-adjustments";
 
 describe("countWeekendDays", () => {
   it("Thu→Mon (5 days) = 3 weekend days (Fri, Sat, Sun)", () => {
@@ -132,4 +134,76 @@ describe("rentalDays boundary rule (Math.ceil(hours/24))", () => {
   it("49 hours = 3 days", () => expect(days(49)).toBe(3));
   it("72 hours = 3 days", () => expect(days(72)).toBe(3));
   it("72h 1m = 4 days", () => expect(days(72 + 1/60)).toBe(4));
+});
+
+describe("weekend surcharge + duration discount (booking W9JD9JDV regression)", () => {
+  // start 2026-07-18T03:00Z = Fri Jul 17, 8:00 PM Vancouver
+  // end   2026-07-26T00:00Z = Sat Jul 25, 5:00 PM Vancouver → 8 billable days
+  const START = "2026-07-18T03:00:00Z";
+  const DAILY = 89.99;
+  const DAYS = 8;
+
+  it("counts weekend days on the business calendar, not UTC", () => {
+    // Business anchor is Fri Jul 17 → Fri 17, Sat 18, Sun 19, Fri 24 = 4
+    expect(countWeekendDays(START, DAYS)).toBe(4);
+  });
+
+  it("derives surcharge and discount as separate amounts", () => {
+    const adj = deriveVehicleAdjustments({ dailyRate: DAILY, totalDays: DAYS, startAt: START });
+    expect(adj.baseCents).toBe(71992);
+    expect(adj.weekendSurchargeCents).toBe(5399); // 89.99 × 4 × 15%
+    expect(adj.discountType).toBe("weekly");
+    expect(adj.durationDiscountCents).toBe(7739); // 10% of (719.92 + 53.99)
+  });
+
+  it("itemizes surcharge and discount as distinct signed lines (never netted)", () => {
+    const baseCents = 71992;
+    // Real vehicle amount stored for this booking: 716.52 subtotal − 20.00 daily fees
+    const remainderCents = 69652;
+    const lines = buildVehicleAdjustmentLines({
+      booking: { daily_rate: DAILY, total_days: DAYS, start_at: START },
+      vehicleBaseCents: baseCents,
+      vehicleRemainderCents: remainderCents,
+      useRemainder: true,
+    });
+
+    const surcharge = lines.find((l) => l.label.startsWith("Weekend Surcharge"));
+    const discount = lines.find((l) => l.label.startsWith("Weekly Discount"));
+    expect(surcharge?.cents).toBe(5399);
+    expect(discount?.cents).toBe(-7739);
+    expect(surcharge!.label).toContain("4 days");
+
+    // Itemization reconciles exactly to the stored vehicle amount
+    const sum = baseCents + lines.reduce((s, l) => s + l.cents, 0);
+    expect(sum).toBe(remainderCents);
+  });
+
+  it("prefers stored columns when present", () => {
+    const lines = buildVehicleAdjustmentLines({
+      booking: {
+        daily_rate: DAILY,
+        total_days: DAYS,
+        start_at: START,
+        weekend_surcharge: 53.99,
+        duration_discount: 77.39,
+      },
+      vehicleBaseCents: 71992,
+      vehicleRemainderCents: 69652,
+      useRemainder: true,
+    });
+    expect(lines.map((l) => l.cents)).toEqual([5399, -7739]);
+  });
+
+  it("evening pickup does not shift the weekend window (client === server anchor)", () => {
+    // Fri Jul 17 2026, 9:00 PM Vancouver = Sat Jul 18 04:00Z
+    const evening = "2026-07-18T04:00:00Z";
+    expect(countWeekendDays(evening, 3)).toBe(3); // Fri 17, Sat 18, Sun 19
+  });
+
+  it("full subtotal reconstruction matches the stored subtotal", () => {
+    const adj = deriveVehicleAdjustments({ dailyRate: DAILY, totalDays: DAYS, startAt: START });
+    const vehicleCents = adj.baseCents + adj.weekendSurchargeCents - adj.durationDiscountCents;
+    const dailyFeesCents = Math.round((1.5 + 1.0) * 100) * DAYS;
+    expect((vehicleCents + dailyFeesCents) / 100).toBeCloseTo(716.52, 2);
+  });
 });
