@@ -84,7 +84,7 @@ export function useReturns(dateFilter: DateFilter = "today", locationId?: string
           *,
           locations!location_id (id, name, city, address)
         `)
-        .or(`status.eq.active,and(status.eq.confirmed,start_at.lte.${nowIso})`)
+        .eq("status", "active")
         .gte("end_at", startDate.toISOString())
         .lte("end_at", endDate.toISOString())
         .order("end_at", { ascending: true });
