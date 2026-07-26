@@ -473,7 +473,7 @@ export default function AdminOverview() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* Active Rentals Monitor - Always visible */}
               <ActiveRentalsMonitor
-                bookings={bookings.filter(b => b.status === "active" || (b.status === "confirmed" && new Date(b.startAt) <= now))}
+                bookings={bookings.filter(b => b.status === "active")}
                 onOpen={(id) => navigate(`/admin/bookings/${id}`)}
               />
               
