@@ -320,16 +320,26 @@ export function isWeekendPickup(date: Date | null | undefined): boolean {
 /**
  * Count the number of weekend days (Fri/Sat/Sun) within a rental date range.
  * Each rental day is the check-in date; the range is [pickupDate, pickupDate + rentalDays - 1].
- * The anchor date is resolved on the business calendar (America/Vancouver).
+ *
+ * A `Date` is treated as an already-resolved calendar date (its local Y/M/D —
+ * what a date picker produces). A timestamp string is resolved on the business
+ * calendar (America/Vancouver) so an evening pickup does not roll into the next
+ * UTC day and shift the weekend window.
  */
 export function countWeekendDays(
   pickupDate: Date | string | null | undefined,
   rentalDays: number,
 ): number {
   if (!pickupDate || rentalDays <= 0) return 0;
-  const anchor = toBusinessDateString(pickupDate);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return 0;
-  const startMs = Date.UTC(+anchor.slice(0, 4), +anchor.slice(5, 7) - 1, +anchor.slice(8, 10));
+  let startMs: number;
+  if (pickupDate instanceof Date) {
+    if (Number.isNaN(pickupDate.getTime())) return 0;
+    startMs = Date.UTC(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
+  } else {
+    const anchor = toBusinessDateString(pickupDate);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return 0;
+    startMs = Date.UTC(+anchor.slice(0, 4), +anchor.slice(5, 7) - 1, +anchor.slice(8, 10));
+  }
   let count = 0;
   for (let i = 0; i < rentalDays; i++) {
     const day = new Date(startMs + i * 86400000).getUTCDay();
