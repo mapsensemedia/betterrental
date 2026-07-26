@@ -433,7 +433,7 @@ Deno.serve(async (req) => {
               bookingId,
               forceRegenerate: true,
               suppressNotifications: true,
-              agreementType: daysChanged ? "extension" : "initial",
+              copySignatureFromLatest: !!existingAgreement.customer_signed_at,
             },
           });
           if (regenErr) {
