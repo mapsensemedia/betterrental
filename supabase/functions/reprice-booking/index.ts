@@ -408,7 +408,47 @@ Deno.serve(async (req) => {
       new_data: { ...updateData, operation },
     });
 
+    // Keep the rental agreement in sync: when the billed days or the total change,
+    // the stored agreement is stale (it still shows the pre-change figures).
+    // Regenerate a fresh copy — generate-agreement preserves the prior record for history.
+    const daysChanged = updateData.total_days != null
+      && Number(updateData.total_days) !== Number(booking.total_days);
+    const totalChanged = updateData.total_amount != null
+      && Number(updateData.total_amount) !== Number(booking.total_amount);
+
+    if (daysChanged || totalChanged) {
+      try {
+        const { data: existingAgreement } = await supabase
+          .from("rental_agreements")
+          .select("id, customer_signed_at")
+          .eq("booking_id", bookingId)
+          .neq("status", "voided")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingAgreement) {
+          const { error: regenErr } = await supabase.functions.invoke("generate-agreement", {
+            body: {
+              bookingId,
+              forceRegenerate: true,
+              suppressNotifications: true,
+              agreementType: daysChanged ? "extension" : "initial",
+            },
+          });
+          if (regenErr) {
+            console.error("[reprice-booking] Agreement regeneration failed:", regenErr);
+          } else {
+            console.log(`[reprice-booking] Agreement regenerated for ${bookingId}`);
+          }
+        }
+      } catch (e) {
+        console.error("[reprice-booking] Agreement sync error:", e);
+      }
+    }
+
     console.log(`[reprice-booking] ${operation} on ${bookingId}: total ${updateData.total_amount}`);
+
 
     return jsonResp({
       bookingId,
