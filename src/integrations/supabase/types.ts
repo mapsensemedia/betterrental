@@ -504,6 +504,7 @@ export type Database = {
           deposit_status: string | null
           different_dropoff_fee: number | null
           driver_age_band: string | null
+          duration_discount: number
           end_at: string
           final_invoice_generated: boolean | null
           final_invoice_id: string | null
@@ -563,6 +564,7 @@ export type Database = {
           upgraded_by: string | null
           user_id: string
           vehicle_id: string
+          weekend_surcharge: number
           wl_auth_status: string | null
           wl_deposit_auth_status: string | null
           wl_deposit_transaction_id: string | null
@@ -604,6 +606,7 @@ export type Database = {
           deposit_status?: string | null
           different_dropoff_fee?: number | null
           driver_age_band?: string | null
+          duration_discount?: number
           end_at: string
           final_invoice_generated?: boolean | null
           final_invoice_id?: string | null
@@ -663,6 +666,7 @@ export type Database = {
           upgraded_by?: string | null
           user_id: string
           vehicle_id: string
+          weekend_surcharge?: number
           wl_auth_status?: string | null
           wl_deposit_auth_status?: string | null
           wl_deposit_transaction_id?: string | null
@@ -704,6 +708,7 @@ export type Database = {
           deposit_status?: string | null
           different_dropoff_fee?: number | null
           driver_age_band?: string | null
+          duration_discount?: number
           end_at?: string
           final_invoice_generated?: boolean | null
           final_invoice_id?: string | null
@@ -763,6 +768,7 @@ export type Database = {
           upgraded_by?: string | null
           user_id?: string
           vehicle_id?: string
+          weekend_surcharge?: number
           wl_auth_status?: string | null
           wl_deposit_auth_status?: string | null
           wl_deposit_transaction_id?: string | null

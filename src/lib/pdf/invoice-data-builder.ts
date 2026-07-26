@@ -5,7 +5,8 @@
  * This ensures the invoice PDF matches Ops Summary and customer views exactly.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE, countWeekendDays } from "@/lib/pricing";
+import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE } from "@/lib/pricing";
+import { buildVehicleAdjustmentLines } from "@/lib/vehicle-adjustments";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
 import type { InvoicePdfData } from "./invoice-pdf";
 
@@ -158,30 +159,20 @@ export async function buildInvoicePdfData(
   // ── Build line items (same order as FinancialBreakdown) ──
   const lineItems: InvoicePdfData["lineItems"] = [];
 
-  // Vehicle rental — always show base; surface remainder as Weekend Surcharge or Discount
-  const remainderCents = useRemainder ? vehicleRemainderCents - vehicleBaseCents : 0;
+  // Vehicle rental — always show base, then itemize weekend surcharge and
+  // duration discount as separate signed lines (never netted together).
   lineItems.push({
     description: `Vehicle Rental ($${Number(booking.daily_rate).toFixed(2)}/day × ${totalDays} days)`,
     amount: fromCents(vehicleBaseCents),
   });
 
-  if (remainderCents > 0) {
-    const weekendDays = countWeekendDays(
-      booking.start_at ? new Date(booking.start_at) : null,
-      totalDays,
-    );
-    const wkLabel = weekendDays > 0
-      ? `Weekend Surcharge (${weekendDays} day${weekendDays === 1 ? "" : "s"} × 15%)`
-      : `Weekend Surcharge (15%)`;
-    lineItems.push({
-      description: wkLabel,
-      amount: fromCents(remainderCents),
-    });
-  } else if (remainderCents < 0) {
-    lineItems.push({
-      description: "Discount",
-      amount: fromCents(remainderCents),
-    });
+  for (const line of buildVehicleAdjustmentLines({
+    booking,
+    vehicleBaseCents,
+    vehicleRemainderCents,
+    useRemainder,
+  })) {
+    lineItems.push({ description: line.label, amount: fromCents(line.cents) });
   }
 
   // Protection

@@ -251,6 +251,8 @@ Deno.serve(async (req) => {
         deposit_amount: serverTotals.depositAmount,
         total_amount: serverTotals.total,
         young_driver_fee: serverTotals.youngDriverFee,
+        weekend_surcharge: serverTotals.weekendSurcharge,
+        duration_discount: serverTotals.durationDiscount,
         different_dropoff_fee: serverTotals.differentDropoffFee,
         delivery_fee: serverTotals.deliveryFee ?? 0,
         booking_code: "",

@@ -419,17 +419,34 @@ export async function computeDropoffFee(
 
 // ========== SERVER-SIDE PRICING ==========
 
+/** Business time zone — weekend days are counted on the branch's local calendar. */
+const BUSINESS_TIME_ZONE = "America/Vancouver";
+
+function toBusinessDateString(ts: string | number | Date): string {
+  const d = ts instanceof Date ? ts : new Date(ts);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
 function isWeekendDay(d: Date): boolean {
   const day = d.getUTCDay();
   return day === 5 || day === 6 || day === 0;
 }
 
 /**
- * Count weekend days (Fri/Sat/Sun) in a rental range using UTC dates.
+ * Count weekend days (Fri/Sat/Sun) in a rental range.
+ * The anchor date is resolved on the BUSINESS calendar (America/Vancouver) so an
+ * evening pickup does not roll into the next UTC day and shift the weekend window.
  * Range: [startDate, startDate + days - 1] (each rental day).
  */
 function countWeekendDaysInRange(startDateStr: string, days: number): number {
-  const sd = startDateStr.length === 10 ? startDateStr : startDateStr.substring(0, 10);
+  const sd = startDateStr.length === 10
+    ? startDateStr
+    : toBusinessDateString(startDateStr);
   const startMs = Date.UTC(+sd.slice(0,4), +sd.slice(5,7)-1, +sd.slice(8,10));
   let count = 0;
   for (let i = 0; i < days; i++) {
@@ -829,6 +846,8 @@ export async function createBookingRecord(
       deposit_amount: serverTotals.depositAmount,
       total_amount: serverTotals.total,
       young_driver_fee: serverTotals.youngDriverFee,
+      weekend_surcharge: serverTotals.weekendSurcharge,
+      duration_discount: serverTotals.durationDiscount,
       booking_code: "",
       status: input.status || "confirmed",
       notes: input.notes?.slice(0, 1000) || null,
