@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, checkRateLimit, rateLimitResponse, getClientIp } from "../_shared/cors.ts";
 import { validateAuth } from "../_shared/auth.ts";
+import { buildVehicleAdjustmentLines } from "../_shared/vehicle-adjustments.ts";
 
 /**
  * Agreement Generator
@@ -409,31 +410,32 @@ serve(async (req) => {
     const pvrtTotal = PVRT_DAILY_FEE * rentalDays;
     const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
 
-    // Weekend surcharge — prefer pricing_snapshot, then derive from Fri/Sat/Sun count,
-    // then fall back to subtotal remainder so legacy bookings still itemise correctly.
-    const snapshotWeekendDays = Number(pricingSnapshot?.weekendDays ?? pricingSnapshot?.weekendDayCount);
-    const snapshotWeekendSurcharge = Number(pricingSnapshot?.weekendSurcharge);
-    let weekendDays = Number.isFinite(snapshotWeekendDays) && snapshotWeekendDays >= 0
-      ? Math.floor(snapshotWeekendDays)
-      : countWeekendDaysVancouver(booking.start_at, rentalDays);
-    let weekendSurcharge = Number.isFinite(snapshotWeekendSurcharge) && snapshotWeekendSurcharge >= 0
-      ? roundCents(snapshotWeekendSurcharge)
-      : roundCents(dailyRate * weekendDays * WEEKEND_SURCHARGE_RATE);
-
-    // Reconcile against DB subtotal — if a remainder exists, treat it as the true surcharge/discount line.
+    // Vehicle-line adjustments — itemize the weekend surcharge and the duration
+    // discount as SEPARATE signed lines. Netting them into one number used to hide
+    // the surcharge whenever the discount was larger (booking W9JD9JDV).
     const dropoffFee = Number(booking.different_dropoff_fee) || 0;
     const deliveryFeeAmt = Number(booking.delivery_fee) || 0;
     const knownLineItems = vehicleSubtotal + protectionTotal + addOnsTotal + driversTotal
       + youngDriverFee + pvrtTotal + acsrchTotal + dropoffFee + deliveryFeeAmt;
     const dbSubtotal = Number(booking.subtotal) || 0;
-    const remainder = roundCents(dbSubtotal - knownLineItems);
-    if (Math.abs(remainder - weekendSurcharge) > 0.02) {
-      // Snapshot/derivation disagreed with DB — trust DB so totals always reconcile in print.
-      weekendSurcharge = remainder > 0 ? remainder : 0;
-      if (weekendSurcharge > 0 && weekendDays === 0) {
-        weekendDays = countWeekendDaysVancouver(booking.start_at, rentalDays);
-      }
-    }
+    const actualAdjustmentCents = Math.round(roundCents(dbSubtotal - knownLineItems) * 100);
+
+    const adjustments = buildVehicleAdjustmentLines({
+      dailyRate: booking.daily_rate,
+      totalDays: rentalDays,
+      startAt: booking.start_at,
+      storedWeekendSurcharge: (booking as any).weekend_surcharge,
+      storedDurationDiscount: (booking as any).duration_discount,
+      actualAdjustmentCents,
+    });
+    const adjustmentLines = adjustments.lines.map((l) => ({
+      label: l.label,
+      amount: roundCents(l.cents / 100),
+    }));
+    const weekendDays = adjustments.weekendDays;
+    const weekendSurcharge = roundCents(adjustments.weekendSurchargeCents / 100);
+    const durationDiscount = roundCents(adjustments.durationDiscountCents / 100);
+
 
     // Use DB source-of-truth for subtotal, tax, total (same as FinancialBreakdown component)
     const subtotalBeforeTax = dbSubtotal;
@@ -482,11 +484,13 @@ Renter: ${displayName} | Email: ${resolvedEmail || '—'}
 Pickup: ${startDate} | Return: ${endDate} | Duration: ${booking.total_days} day(s)
 Location: ${booking.locations?.name || '—'}, ${booking.locations?.address || '—'}, ${booking.locations?.city || '—'}
 Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_plate}` : ''}
-Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}${weekendSurcharge > 0 ? `\nWeekend Surcharge: $${weekendSurcharge.toFixed(2)} (${weekendDays} day(s) × 15%)` : ''}
+Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}${adjustmentLines.map((l) => `\n${l.label}: ${l.amount < 0 ? "−" : "+"}$${Math.abs(l.amount).toFixed(2)}`).join("")}
 Protection: ${planMeta.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
 Add-ons: $${addOnsTotal.toFixed(2)}
 ${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}
-PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)} | GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
+PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)}
+Subtotal (before tax): $${subtotalBeforeTax.toFixed(2)}
+GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
 TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
 
 Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (without approval), racing, off-road, or international travel. Return with same fuel level. Late fee: 25% surcharge of daily rate per extra hour up to 2 hrs after 30-min grace; after 2 hrs, full day charge per day. Renter liable for damage & traffic violations. Third-party liability comes standard. Optional rental coverages available at pickup. Kilometre allowance: 1,400 km / 7 days or 4,800 km / 30 days (prorated); excess $0.25/km.`.trim();
@@ -569,6 +573,8 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
       financial: {
         vehicleSubtotal,
         weekendSurcharge,
+        durationDiscount,
+        adjustmentLines,
         weekendDays,
         protectionTotal,
         addOnsTotal: addOnsTotal + driversTotal,
