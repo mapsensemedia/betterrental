@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import type { RentalAgreement } from "@/hooks/use-rental-agreement";
+import { resolveAgreementAdjustmentLines } from "@/lib/agreement-adjustments";
 
 // Logo asset path
 const LOGO_PATH = "/c2c-logo.png";
