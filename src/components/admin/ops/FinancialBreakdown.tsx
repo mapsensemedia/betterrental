@@ -7,6 +7,7 @@ import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 import { Separator } from "@/components/ui/separator";
 import { Info, ChevronDown, ChevronRight } from "lucide-react";
 import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE } from "@/lib/pricing";
+import { buildVehicleAdjustmentLines } from "@/lib/vehicle-adjustments";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
 
 // Protection plan display labels
@@ -75,7 +76,14 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
   // Sanity: use remainder if positive and within 10x of base (guards against corrupt legacy data)
   const useRemainder = vehicleRemainderCents > 0 && vehicleRemainderCents <= vehicleBaseCents * 10;
   const vehicleCents = useRemainder ? vehicleRemainderCents : vehicleBaseCents;
-  const vehicleHasAdjustments = useRemainder && vehicleRemainderCents !== vehicleBaseCents;
+
+  // Itemize weekend surcharge + duration discount explicitly (never netted).
+  const adjustmentLines = buildVehicleAdjustmentLines({
+    booking,
+    vehicleBaseCents,
+    vehicleRemainderCents,
+    useRemainder,
+  });
 
   // Detect missing join rows: if no add-ons/drivers but vehicle remainder is much larger than base
   const extrasLikelyMissing = bookingAddOns.length === 0
