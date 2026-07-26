@@ -846,6 +846,8 @@ export async function createBookingRecord(
       deposit_amount: serverTotals.depositAmount,
       total_amount: serverTotals.total,
       young_driver_fee: serverTotals.youngDriverFee,
+      weekend_surcharge: serverTotals.weekendSurcharge,
+      duration_discount: serverTotals.durationDiscount,
       booking_code: "",
       status: input.status || "confirmed",
       notes: input.notes?.slice(0, 1000) || null,
