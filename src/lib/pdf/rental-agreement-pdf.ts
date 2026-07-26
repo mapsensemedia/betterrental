@@ -412,16 +412,20 @@ function renderStructuredPdf(
   finRow(pdf, `Daily Rate: ${fmt(t.rental.dailyRate)} × ${t.rental.totalDays} days`, fmt(t.financial.vehicleSubtotal), y, FONT_FIN);
   y += FIN_ROW_H;
 
-  // Weekend surcharge (Fri/Sat/Sun days @ 15%)
-  const weekendSurcharge = t.financial.weekendSurcharge ?? 0;
-  const weekendDays = t.financial.weekendDays ?? t.rental.weekendDays ?? 0;
-  if (weekendSurcharge > 0) {
-    const wkLabel = weekendDays > 0
-      ? `Weekend Surcharge (${weekendDays} day${weekendDays === 1 ? "" : "s"} × 15%)`
-      : `Weekend Surcharge (15%)`;
-    finRow(pdf, wkLabel, `+${fmt(weekendSurcharge)}`, y, FONT_FIN);
+  // Vehicle-line adjustments — weekend surcharge and duration discount are
+  // ALWAYS printed as separate signed lines (never netted into one number).
+  for (const adj of resolveAgreementAdjustmentLines(t)) {
+    finRow(
+      pdf,
+      adj.label,
+      `${adj.amount < 0 ? "-" : "+"}${fmt(Math.abs(adj.amount))}`,
+      y,
+      FONT_FIN,
+    );
     y += FIN_ROW_H;
   }
+
+
 
   // Protection plan
   const protName = t.protection?.planName || "No Extra Protection";
