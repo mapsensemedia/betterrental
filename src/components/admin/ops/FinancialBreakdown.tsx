@@ -149,18 +149,22 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
         </div>
       )}
 
-      {/* Vehicle — only show base when extras are missing (don't inflate) */}
+      {/* Vehicle base — adjustments are itemized separately below */}
       <div className="flex justify-between">
         <span className="text-muted-foreground">
-          Vehicle{vehicleHasAdjustments && !extrasLikelyMissing ? " (incl. surcharges/discounts)" : ` (${totalDays}d × $${Number(booking.daily_rate).toFixed(2)}/day)`}
+          Vehicle ({totalDays}d × ${Number(booking.daily_rate).toFixed(2)}/day)
         </span>
-        <span>${fromCents(extrasLikelyMissing ? vehicleBaseCents : vehicleCents)}</span>
+        <span>${fromCents(vehicleBaseCents)}</span>
       </div>
-      {vehicleHasAdjustments && !extrasLikelyMissing && (
-        <p className="text-[10px] text-muted-foreground pl-2">
-          Base: {totalDays}d × ${Number(booking.daily_rate).toFixed(2)}/day = ${fromCents(vehicleBaseCents)}
-        </p>
-      )}
+      {!extrasLikelyMissing && adjustmentLines.map((line) => (
+        <div
+          key={line.label}
+          className={`flex justify-between ${line.cents < 0 ? "text-emerald-600" : ""}`}
+        >
+          <span className={line.cents < 0 ? "" : "text-muted-foreground"}>{line.label}</span>
+          <span>{line.cents < 0 ? "−" : "+"}${fromCents(Math.abs(line.cents))}</span>
+        </div>
+      ))}
       {/* Show unpersisted extras remainder when join rows are missing */}
       {extrasLikelyMissing && (
         <div className="flex justify-between text-amber-600">
