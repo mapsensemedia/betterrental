@@ -4,6 +4,7 @@
  */
 import { format } from "date-fns";
 import type { RentalAgreement, AgreementTermsJson } from "@/hooks/use-rental-agreement";
+import { resolveAgreementAdjustmentLines } from "@/lib/agreement-adjustments";
 
 interface AgreementStructuredViewProps {
   agreement: RentalAgreement;
