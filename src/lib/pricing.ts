@@ -286,6 +286,24 @@ export function formatCADCompact(amount: number): string {
 // ========== HELPER FUNCTIONS ==========
 
 /**
+ * Business time zone. Weekend days are counted on the branch's local calendar
+ * so the client quote and the server charge can never diverge because of the
+ * viewer's browser time zone or a UTC date rollover on evening pickups.
+ */
+export const BUSINESS_TIME_ZONE = "America/Vancouver";
+
+/** Format a timestamp as YYYY-MM-DD on the business calendar. */
+export function toBusinessDateString(ts: string | number | Date): string {
+  const d = ts instanceof Date ? ts : new Date(ts);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+/**
  * Check if a date falls on a weekend (Friday, Saturday, or Sunday)
  */
 export function isWeekendDay(date: Date): boolean {
@@ -302,19 +320,66 @@ export function isWeekendPickup(date: Date | null | undefined): boolean {
 /**
  * Count the number of weekend days (Fri/Sat/Sun) within a rental date range.
  * Each rental day is the check-in date; the range is [pickupDate, pickupDate + rentalDays - 1].
- * Falls back to pickup-only check if returnDate not provided.
+ * The anchor date is resolved on the business calendar (America/Vancouver).
  */
 export function countWeekendDays(
-  pickupDate: Date | null | undefined,
+  pickupDate: Date | string | null | undefined,
   rentalDays: number,
 ): number {
   if (!pickupDate || rentalDays <= 0) return 0;
+  const anchor = toBusinessDateString(pickupDate);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return 0;
+  const startMs = Date.UTC(+anchor.slice(0, 4), +anchor.slice(5, 7) - 1, +anchor.slice(8, 10));
   let count = 0;
   for (let i = 0; i < rentalDays; i++) {
-    const d = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate() + i);
-    if (isWeekendDay(d)) count++;
+    const day = new Date(startMs + i * 86400000).getUTCDay();
+    if (day === 5 || day === 6 || day === 0) count++;
   }
   return count;
+}
+
+/**
+ * Derive the two vehicle-line adjustments (weekend surcharge and duration
+ * discount) for a booking. Used by display surfaces (Ops breakdown, invoice
+ * PDF) so that historic bookings without stored columns still itemize both
+ * amounts instead of netting them into one ambiguous line.
+ *
+ * Integer-cents math — mirrors the server engine exactly.
+ */
+export function deriveVehicleAdjustments(input: {
+  dailyRate: number | string | null | undefined;
+  totalDays: number;
+  startAt: string | Date | null | undefined;
+}): {
+  weekendDays: number;
+  baseCents: number;
+  weekendSurchargeCents: number;
+  durationDiscountCents: number;
+  discountRate: number;
+  discountType: "none" | "weekly" | "monthly";
+} {
+  const dailyRateCents = Math.round(Number(input.dailyRate || 0) * 100);
+  const days = Math.max(0, Number(input.totalDays) || 0);
+  const baseCents = dailyRateCents * days;
+
+  const weekendDays = countWeekendDays(input.startAt, days);
+  const weekendSurchargeCents = weekendDays > 0
+    ? Math.round(dailyRateCents * weekendDays * WEEKEND_SURCHARGE_RATE)
+    : 0;
+
+  const { rate: discountRate, type: discountType } = getDurationDiscount(days);
+  const durationDiscountCents = discountRate > 0
+    ? Math.round((baseCents + weekendSurchargeCents) * discountRate)
+    : 0;
+
+  return {
+    weekendDays,
+    baseCents,
+    weekendSurchargeCents,
+    durationDiscountCents,
+    discountRate,
+    discountType,
+  };
 }
 
 /**
