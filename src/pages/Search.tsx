@@ -115,9 +115,10 @@ export default function Search() {
   );
   const { data: allCategories = [], isLoading: loadingAll } = useFleetCategories();
 
-  // With a full search context we only ever show classes the backend says are free.
+  // Overbooking is allowed: show every class offered at the location. The
+  // backend counts are informational only (shown as "available" badges).
   const categories = hasWindow
-    ? locationCategories.filter((c) => (c.available_count ?? 0) > 0)
+    ? locationCategories
     : allCategories.filter(c => c.is_active);
   const isLoading = hasWindow ? loadingLocation : loadingAll;
   const hasValidContext = hasWindow;
