@@ -193,7 +193,13 @@ function BookingWorkflowCard({
                 {booking.bookingCode}
               </Badge>
               {booking.pickupAddress && <DeliveryBadge hasDelivery={true} />}
+              {booking.overbooked && !booking.assignedUnitId && (
+                <Badge variant="destructive" className="text-[10px]">
+                  Overbooked · needs vehicle
+                </Badge>
+              )}
               <PaymentStatusDot booking={booking} />
+
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
               <span>{booking.profile?.fullName || "Customer"}</span>
