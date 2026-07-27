@@ -1,48 +1,60 @@
-## What I found for booking G3PH8276 (Mission, BC)
+## What's actually happening
 
-The delivery fee **was** applied and charged — it is just invisible on the agreement, which makes it look like it was never added.
+The stored numbers for G3PH8276 are correct. The subtotal is not "daily rate × days + delivery"; it also contains the weekend surcharge, the weekly discount, and the regulatory fees:
 
-Verified from live data:
-- The booking row has `delivery_fee = 49`, `pickup_address = "Stave Lake Road, Mission, BC"`.
-- Its `subtotal` is $1,309.71. The itemized lines on the agreement (rental $1,274.83, weekend surcharge +$78.74, weekly discount −$135.36, PVRT $25.50, ACSRCH $17.00) add up to $1,260.71. The missing $49 is exactly the delivery fee — it is inside the taxed subtotal and the $1,466.88 total.
-- $49 is the correct fee under the existing rules (free ≤10 km, $49 for 10–50 km); Abbotsford Centre → Mission is well past 10 km.
+```text
+Vehicle          $74.99 × 17 days   = $1,274.83
+Weekend Surcharge (7 days × 15%)    +    $78.74
+Weekly Discount (10%)               −   $135.36
+Delivery Fee                        +    $49.00
+PVRT ($1.50/day × 17)               +    $25.50
+ACSRCH ($1.00/day × 17)             +    $17.00
+                                    ------------
+Subtotal                            = $1,309.71  ✓ matches the record
+```
 
-So the real defects are:
+So the arithmetic is right. The problem is the **Pricing Breakdown card on the Financial tab of the Booking Details page** (the screen you're on). It is broken in three ways:
 
-1. **The rental agreement never itemizes delivery.** `generate-agreement` computes `deliveryFeeAmt` only to derive the weekend/discount adjustment, but never writes a delivery line into the agreement text and never stores `deliveryFee` in `terms_json.financial`. The agreement PDF therefore also cannot print it, and the subtotal does not reconcile with the lines above it. The same is true for the different-drop-off fee.
-2. **The fee is client-supplied and never re-derived server-side.** `create-booking` / `create-guest-booking` store whatever `deliveryFee` the browser sends. Checkout zeroes the fee whenever `deliveryMode` is not `"delivery"` in restored state, while the delivery address is still submitted — so a state/refresh edge case can produce a delivery booking with a $0 fee and no error anywhere.
+1. It prints the all-inclusive stored subtotal under the label **"Rental Subtotal (17 days)"**, directly beneath "Daily Rate". That reads as "vehicle only", so it looks like $74.99 × 17 should equal it.
+2. It then lists Protection, Add-ons, PVRT, ACSRCH and Drop-off *below* that line as if they were additional charges — but they are already inside the number above. Anyone adding the column down gets a wrong figure.
+3. It never shows the **Weekend Surcharge**, the **Weekly/Monthly Discount**, or the **Delivery Fee** at all — the three lines that explain the gap you spotted.
 
-The invoice builder and the admin/ops financial breakdown already itemize "Delivery Fee" correctly, so those need no change.
+A correct, self-reconciling breakdown component already exists in the codebase (`FinancialBreakdown`, used on the Ops booking summary surfaces). It itemizes weekend surcharge and duration discount as explicit signed lines, shows the delivery fee, and guarantees the lines add up to the stored subtotal to the cent. The Booking Details page simply never adopted it.
 
 ## The fix
 
-**1. Make the delivery fee server-authoritative (silent, no customer-facing errors)**
+**1. Replace the hand-rolled breakdown on the Financial tab**
 
-In the shared booking core used by `create-booking` and `create-guest-booking`:
-- When a booking carries a delivery address with coordinates, compute the straight-line distance between the pickup branch (`locations.lat/lng`) and the delivery point (`pickup_lat/lng`), and resolve the tier fee with the existing `DELIVERY_TIERS` rules (free ≤10 km, $49 up to 50 km).
-- Use the higher of the client-supplied fee and the server-derived fee. Straight-line distance is always ≤ real driving distance, so this can only correct an under-charge and never inflates a legitimately quoted fee.
-- Never surface a message to the customer; the corrected fee simply flows into the totals, the booking record, and the payment amount.
-- Repricing paths (`reprice-booking`, `persist-booking-extras`) already read `delivery_fee` from the booking row, so the corrected value automatically propagates to later recalculations.
+In `src/pages/admin/BookingDetail.tsx`, swap the body of the "Pricing Breakdown" card for the shared `FinancialBreakdown` component, passing the same booking object (add-ons and additional drivers are already loaded on this page under the shapes that component expects). This removes the duplicated Daily Rate / Rental Subtotal / Protection / Add-ons / Young Driver / PVRT / ACSRCH / Drop-off / Upgrade block and replaces it with one breakdown that reads top-to-bottom:
 
-**2. Itemize delivery (and drop-off) on the rental agreement**
+```text
+Vehicle (17d × $74.99/day)          $1,274.83
+Weekend Surcharge (7 days × 15%)      +$78.74
+Weekly Discount (10%)                −$135.36
+Delivery Fee                           $49.00
+PVRT ($1.50/day)                       $25.50
+ACSRCH ($1.00/day)                     $17.00
+────────────────────────────────────────────
+Subtotal                            $1,309.71
+Tax (12%)                             $157.17
+────────────────────────────────────────────
+Total                               $1,466.88
+Deposit                               $350.00
+```
 
-In `generate-agreement`:
-- Add `Delivery Fee: $X` and `Different Drop-off Fee: $X` lines to the agreement text, shown only when greater than zero.
-- Add `deliveryFee` and `differentDropoffFee` to `terms_json.financial` so the structured record is complete.
+The existing tax split (PST/GST), late-return fee and total rows that sit below the card stay as they are; only the duplicated charge lines above the subtotal are replaced.
 
-In the agreement PDF renderer:
-- Print those two rows in the financial section between add-ons and the regulatory fees, only when non-zero, so the printed subtotal reconciles line by line.
+**2. Relabel the Overview tab's Financial Summary**
 
-**3. Repair the existing agreement for G3PH8276**
+The quick-glance card on the Overview tab shows `Daily Rate → Duration → Subtotal`, which invites the same wrong mental multiplication. Change "Subtotal" to **"Subtotal (all charges)"** and add a one-line hint that the full itemization lives on the Financial tab. No numbers change.
 
-Regenerate the agreement for this booking so its text and `terms_json` include the $49 delivery line. No money changes — the customer was already charged correctly, and the totals, taxes, payment and deposit stay exactly as they are.
+**3. Add the missing delivery line to the shared component's sibling surfaces**
 
-## Explicitly unchanged
-
-Rental rates, weekend surcharge, duration discounts, taxes, deposit logic, protection, add-ons, availability, and all UI outside the agreement output stay as they are. No new customer-facing error or warning messaging is introduced.
+`FinancialBreakdown` already renders a Delivery Fee row, so ops surfaces are fine. I'll verify the Financial tab renders it for this booking after the swap.
 
 ## Technical notes
 
-- Files touched: `supabase/functions/_shared/booking-core.ts` (delivery fee derivation), `supabase/functions/create-booking/index.ts` and `create-guest-booking/index.ts` (pass delivery coordinates/branch into the derivation), `supabase/functions/generate-agreement/index.ts` (text + `terms_json`), `src/lib/pdf/rental-agreement-pdf.ts` (two conditional rows).
-- The distance helper mirrors `DELIVERY_TIERS` / `calculateDeliveryFee` from `src/lib/rental-rules.ts`; edge functions cannot import from `src/`, so the tier table is duplicated in a shared edge helper with a comment tying it to the source of truth.
-- No schema migration is needed; `bookings.delivery_fee`, `pickup_lat`, `pickup_lng` and `locations.lat/lng` all already exist and are populated.
+- Files touched: `src/pages/admin/BookingDetail.tsx` only. `FinancialBreakdown` and `buildVehicleAdjustmentLines` are reused unchanged.
+- This is presentation-only. No pricing math, no stored amounts, no database writes, no edge functions.
+- `FinancialBreakdown` derives the vehicle line as *stored subtotal minus every other known line*, then itemizes weekend surcharge and duration discount from the stored `weekend_surcharge` / `duration_discount` columns, emitting a labelled "Rate Adjustment" line for any residue. That is why it always reconciles exactly, including for older bookings that predate those columns.
+- Verification: load booking G3PH8276 on the Financial tab and confirm the visible lines sum to $1,309.71, and spot-check a booking with no delivery and no weekend days to confirm no empty rows appear.
