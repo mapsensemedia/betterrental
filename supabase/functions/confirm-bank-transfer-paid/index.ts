@@ -104,17 +104,18 @@ serve(async (req: Request): Promise<Response> => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Supersede any outstanding authorized Worldline holds on this booking —
-    // customer paid by bank transfer, so those pre-auths are no longer the
-    // source of truth. Deposit holds stay logically active via deposit_ledger;
-    // this only clears the transactions ledger view.
-    const { error: voidErr } = await supabase
+    // Rental pre-auths become the settled rental payment (bank transfer
+    // covers the rental balance). Deposit authorizations MUST remain
+    // 'authorized' — the deposit hold is still live on the customer's card
+    // and only gets captured/voided at return time.
+    const { error: rentalErr } = await supabase
       .from("payments")
-      .update({ status: "voided" })
+      .update({ status: "completed" })
       .eq("booking_id", bookingId)
-      .eq("status", "authorized");
-    if (voidErr) {
-      console.error("[confirm-bank-transfer-paid] void authorized payments error", voidErr);
+      .eq("status", "authorized")
+      .or("payment_type.is.null,payment_type.neq.deposit");
+    if (rentalErr) {
+      console.error("[confirm-bank-transfer-paid] mark rental paid error", rentalErr);
     }
 
     await supabase.from("audit_logs").insert({
