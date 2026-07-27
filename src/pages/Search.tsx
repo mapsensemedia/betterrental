@@ -22,7 +22,7 @@ import {
 import { useAvailableCategories, useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { checkCategoryAvailability, AVAILABILITY_MESSAGES } from "@/lib/availability-check";
+import { AVAILABILITY_MESSAGES } from "@/lib/availability-check";
 import { SEO } from "@/components/shared/SEO";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
