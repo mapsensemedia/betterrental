@@ -104,6 +104,19 @@ serve(async (req: Request): Promise<Response> => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Supersede any outstanding authorized Worldline holds on this booking —
+    // customer paid by bank transfer, so those pre-auths are no longer the
+    // source of truth. Deposit holds stay logically active via deposit_ledger;
+    // this only clears the transactions ledger view.
+    const { error: voidErr } = await supabase
+      .from("payments")
+      .update({ status: "voided" })
+      .eq("booking_id", bookingId)
+      .eq("status", "authorized");
+    if (voidErr) {
+      console.error("[confirm-bank-transfer-paid] void authorized payments error", voidErr);
+    }
+
     await supabase.from("audit_logs").insert({
       action: "bank_transfer_marked_paid",
       entity_type: "booking",
