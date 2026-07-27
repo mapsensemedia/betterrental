@@ -103,14 +103,21 @@ export default function Search() {
   const endDate = searchData.returnDate;
   const ageConfirmed = searchData.ageConfirmed;
 
-  // Use category-based system - show all categories if no location, or available at location
-  const { data: locationCategories = [], isLoading: loadingLocation } = useAvailableCategories(contextLocationId);
+  // Backend is the single source of truth for availability (location + exact window)
+  const hasWindow = !!contextLocationId && !!startDate && !!endDate;
+  const { data: locationCategories = [], isLoading: loadingLocation } = useAvailableCategories(
+    contextLocationId,
+    startDate,
+    endDate,
+  );
   const { data: allCategories = [], isLoading: loadingAll } = useFleetCategories();
-  
-  // Show location-specific categories if location selected, otherwise show all active categories
-  const categories = contextLocationId ? locationCategories : allCategories.filter(c => c.is_active);
-  const isLoading = contextLocationId ? loadingLocation : loadingAll;
-  const hasValidContext = !!contextLocationId;
+
+  // With a full search context we only ever show classes the backend says are free.
+  const categories = hasWindow
+    ? locationCategories.filter((c) => (c.available_count ?? 0) > 0)
+    : allCategories.filter(c => c.is_active);
+  const isLoading = hasWindow ? loadingLocation : loadingAll;
+  const hasValidContext = hasWindow;
 
   const [showContextPrompt, setShowContextPrompt] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("recommended");
