@@ -58,6 +58,8 @@ interface TermsJson {
     protectionTotal?: number;
     addOnsTotal: number;
     youngDriverFee: number;
+    deliveryFee?: number;
+    differentDropoffFee?: number;
     pvrtTotal: number;
     acsrchTotal: number;
     subtotalBeforeTax: number;
@@ -470,6 +472,19 @@ function renderStructuredPdf(
     finRow(pdf, "Young Driver Fee", fmt(t.financial.youngDriverFee), y, FONT_FIN);
     y += FIN_ROW_H;
   }
+
+  // Delivery fee
+  if ((t.financial.deliveryFee ?? 0) > 0) {
+    finRow(pdf, "Delivery Fee", fmt(t.financial.deliveryFee as number), y, FONT_FIN);
+    y += FIN_ROW_H;
+  }
+
+  // Different drop-off fee
+  if ((t.financial.differentDropoffFee ?? 0) > 0) {
+    finRow(pdf, "Different Drop-off Fee", fmt(t.financial.differentDropoffFee as number), y, FONT_FIN);
+    y += FIN_ROW_H;
+  }
+
 
   // Subtotal divider
   pdf.setDrawColor(160, 160, 160);

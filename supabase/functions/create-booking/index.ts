@@ -121,6 +121,8 @@ Deno.serve(async (req) => {
         })),
         driverAgeBand,
         deliveryFee,
+        deliveryLat: pickupAddress ? pickupLat : null,
+        deliveryLng: pickupAddress ? pickupLng : null,
         locationId,
         returnLocationId,
         clientTotal: Number(totalAmount),

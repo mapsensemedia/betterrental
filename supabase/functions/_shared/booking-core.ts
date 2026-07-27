@@ -10,6 +10,7 @@
 
 import { getAdminClient, AuthError } from "./auth.ts";
 import { sanitizePhone } from "./cors.ts";
+import { deriveDeliveryFee } from "./delivery-pricing.ts";
 
 // ========== PRICING CONSTANTS (mirrors src/lib/pricing.ts) ==========
 const PST_RATE = 0.07;
@@ -120,6 +121,8 @@ export interface ServerPricingResult {
   additionalDriverRecords: { driverName: string | null; driverAgeBand: string; youngDriverFee: number }[];
   dailyFeesTotal: number;
   deliveryFee: number;
+  /** Amount the server added on top of the client-sent delivery fee (silent correction). */
+  deliveryFeeCorrection: number;
   differentDropoffFee: number;
   subtotal: number;
   taxAmount: number;
@@ -479,6 +482,9 @@ export async function computeBookingTotals(input: {
   additionalDrivers?: AdditionalDriverInput[];
   driverAgeBand?: string;
   deliveryFee?: number;
+  /** Delivery destination coordinates — used to re-derive the fee server-side. */
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
   differentDropoffFee?: number;
   /** If provided, server computes drop-off fee from location IDs (overrides differentDropoffFee) */
   locationId?: string;
@@ -678,7 +684,25 @@ export async function computeBookingTotals(input: {
   const dailyFeesTotal = roundCents((PVRT_DAILY_FEE + ACSRCH_DAILY_FEE) * days);
 
   // 8) Delivery + dropoff fees
-  const deliveryFee = roundCents(Number(input.deliveryFee ?? 0));
+  // Delivery is server-authoritative: re-derive the tier fee from the branch →
+  // delivery-point distance. Straight-line distance is always <= the real
+  // driving distance the quote was based on, so this can only fix an
+  // under-charge (e.g. lost client state) and never inflates a valid quote.
+  const clientDeliveryFee = roundCents(Number(input.deliveryFee ?? 0));
+  const derivedDeliveryFee = await deriveDeliveryFee({
+    locationId: input.locationId,
+    deliveryLat: input.deliveryLat,
+    deliveryLng: input.deliveryLng,
+  });
+  const deliveryFee = derivedDeliveryFee != null
+    ? roundCents(Math.max(clientDeliveryFee, derivedDeliveryFee))
+    : clientDeliveryFee;
+  const deliveryFeeCorrection = roundCents(deliveryFee - clientDeliveryFee);
+  if (deliveryFeeCorrection > 0) {
+    console.warn(
+      `[pricing] delivery fee corrected server-side: client=$${clientDeliveryFee} -> $${deliveryFee}`,
+    );
+  }
   // Always compute drop-off fee from DB via location IDs; fall back to explicit input only if no IDs
   const differentDropoffFee = (input.locationId && input.returnLocationId)
     ? await computeDropoffFee(input.locationId, input.returnLocationId)
@@ -716,6 +740,7 @@ export async function computeBookingTotals(input: {
     additionalDriverRecords,
     dailyFeesTotal,
     deliveryFee,
+    deliveryFeeCorrection,
     differentDropoffFee,
     subtotal,
     taxAmount,
@@ -738,6 +763,8 @@ export async function validateClientPricing(params: {
   additionalDrivers?: AdditionalDriverInput[];
   driverAgeBand?: string;
   deliveryFee?: number;
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
   differentDropoffFee?: number;
   locationId?: string;
   returnLocationId?: string;
@@ -752,13 +779,21 @@ export async function validateClientPricing(params: {
     additionalDrivers: params.additionalDrivers,
     driverAgeBand: params.driverAgeBand,
     deliveryFee: params.deliveryFee,
+    deliveryLat: params.deliveryLat,
+    deliveryLng: params.deliveryLng,
     differentDropoffFee: params.differentDropoffFee,
     locationId: params.locationId,
     returnLocationId: params.returnLocationId,
   });
 
+  // A server-side delivery-fee correction legitimately changes the total.
+  // Absorb it into the tolerance (tax-inclusive) so the customer never sees a
+  // price-mismatch error — the corrected total simply becomes the booking total.
+  const deliveryAllowance = roundCents(
+    server.deliveryFeeCorrection * (1 + PST_RATE + GST_RATE)
+  );
   const diff = Math.abs(roundCents(server.total) - roundCents(params.clientTotal));
-  if (diff > PRICE_MISMATCH_TOLERANCE) {
+  if (diff > PRICE_MISMATCH_TOLERANCE + deliveryAllowance) {
     console.warn(
       `[price-validation] MISMATCH: client=$${params.clientTotal}, server=$${server.total}, diff=$${diff.toFixed(2)}`
     );
