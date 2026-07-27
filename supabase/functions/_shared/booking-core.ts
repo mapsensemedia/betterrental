@@ -482,6 +482,9 @@ export async function computeBookingTotals(input: {
   additionalDrivers?: AdditionalDriverInput[];
   driverAgeBand?: string;
   deliveryFee?: number;
+  /** Delivery destination coordinates — used to re-derive the fee server-side. */
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
   differentDropoffFee?: number;
   /** If provided, server computes drop-off fee from location IDs (overrides differentDropoffFee) */
   locationId?: string;
