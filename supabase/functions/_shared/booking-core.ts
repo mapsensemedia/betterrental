@@ -684,7 +684,25 @@ export async function computeBookingTotals(input: {
   const dailyFeesTotal = roundCents((PVRT_DAILY_FEE + ACSRCH_DAILY_FEE) * days);
 
   // 8) Delivery + dropoff fees
-  const deliveryFee = roundCents(Number(input.deliveryFee ?? 0));
+  // Delivery is server-authoritative: re-derive the tier fee from the branch →
+  // delivery-point distance. Straight-line distance is always <= the real
+  // driving distance the quote was based on, so this can only fix an
+  // under-charge (e.g. lost client state) and never inflates a valid quote.
+  const clientDeliveryFee = roundCents(Number(input.deliveryFee ?? 0));
+  const derivedDeliveryFee = await deriveDeliveryFee({
+    locationId: input.locationId,
+    deliveryLat: input.deliveryLat,
+    deliveryLng: input.deliveryLng,
+  });
+  const deliveryFee = derivedDeliveryFee != null
+    ? roundCents(Math.max(clientDeliveryFee, derivedDeliveryFee))
+    : clientDeliveryFee;
+  const deliveryFeeCorrection = roundCents(deliveryFee - clientDeliveryFee);
+  if (deliveryFeeCorrection > 0) {
+    console.warn(
+      `[pricing] delivery fee corrected server-side: client=$${clientDeliveryFee} -> $${deliveryFee}`,
+    );
+  }
   // Always compute drop-off fee from DB via location IDs; fall back to explicit input only if no IDs
   const differentDropoffFee = (input.locationId && input.returnLocationId)
     ? await computeDropoffFee(input.locationId, input.returnLocationId)
