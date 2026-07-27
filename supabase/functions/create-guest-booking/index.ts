@@ -19,6 +19,7 @@ import {
   isValidPhone,
 } from "../_shared/cors.ts";
 import { getAdminClient } from "../_shared/auth.ts";
+import { assertCategoryAvailable, CATEGORY_UNAVAILABLE_MESSAGE } from "../_shared/availability.ts";
 import {
   isValidAgeBand,
   checkBookingConflicts,
@@ -184,8 +185,33 @@ Deno.serve(async (req) => {
 
     const serverTotals = priceCheck.serverTotals;
 
-    // NOTE: Availability check removed — overbooking is allowed.
-    // Staff will assign specific VIN units manually.
+    // AUTHORITATIVE availability check — backend is the single source of truth.
+    try {
+      const avail = await assertCategoryAvailable(supabaseAdmin, {
+        categoryId: vehicleId,
+        locationId,
+        startAt,
+        endAt,
+      });
+      if (!avail.available) {
+        return new Response(
+          JSON.stringify({
+            error: "CATEGORY_UNAVAILABLE",
+            message: CATEGORY_UNAVAILABLE_MESSAGE,
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    } catch (availErr) {
+      console.error("[create-guest-booking] availability check failed", availErr);
+      return new Response(
+        JSON.stringify({
+          error: "AVAILABILITY_CHECK_FAILED",
+          message: "We couldn't confirm availability just now. Please try again in a moment.",
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Create or find guest user
     let userId: string | null = null;

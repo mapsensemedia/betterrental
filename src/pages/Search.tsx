@@ -20,6 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAvailableCategories, useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { checkCategoryAvailability, AVAILABILITY_MESSAGES } from "@/lib/availability-check";
 import { SEO } from "@/components/shared/SEO";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
@@ -103,15 +106,24 @@ export default function Search() {
   const endDate = searchData.returnDate;
   const ageConfirmed = searchData.ageConfirmed;
 
-  // Use category-based system - show all categories if no location, or available at location
-  const { data: locationCategories = [], isLoading: loadingLocation } = useAvailableCategories(contextLocationId);
+  // Backend is the single source of truth for availability (location + exact window)
+  const hasWindow = !!contextLocationId && !!startDate && !!endDate;
+  const { data: locationCategories = [], isLoading: loadingLocation } = useAvailableCategories(
+    contextLocationId,
+    startDate,
+    endDate,
+  );
   const { data: allCategories = [], isLoading: loadingAll } = useFleetCategories();
-  
-  // Show location-specific categories if location selected, otherwise show all active categories
-  const categories = contextLocationId ? locationCategories : allCategories.filter(c => c.is_active);
-  const isLoading = contextLocationId ? loadingLocation : loadingAll;
-  const hasValidContext = !!contextLocationId;
 
+  // With a full search context we only ever show classes the backend says are free.
+  const categories = hasWindow
+    ? locationCategories.filter((c) => (c.available_count ?? 0) > 0)
+    : allCategories.filter(c => c.is_active);
+  const isLoading = hasWindow ? loadingLocation : loadingAll;
+  const hasValidContext = hasWindow;
+
+  const queryClient = useQueryClient();
+  const [checkingId, setCheckingId] = useState<string | null>(null);
   const [showContextPrompt, setShowContextPrompt] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("recommended");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -157,11 +169,39 @@ export default function Search() {
     return result;
   }, [categories, filters, sortBy]);
 
-  const handleCategorySelect = (category: FleetCategory) => {
+  const handleCategorySelect = async (category: FleetCategory) => {
     // If age not confirmed, prompt for it
     if (!ageConfirmed) {
       setShowContextPrompt(true);
       return;
+    }
+
+    if (!contextLocationId || !startDate || !endDate) {
+      toast.error(AVAILABILITY_MESSAGES.NO_LOCATION);
+      setShowContextPrompt(true);
+      return;
+    }
+
+    // Revalidate against the backend at the moment of selection
+    setCheckingId(category.id);
+    try {
+      const result = await checkCategoryAvailability({
+        categoryId: category.id,
+        locationId: contextLocationId,
+        startAt: startDate,
+        endAt: endDate,
+      });
+      if (!result.available) {
+        toast.error(AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE);
+        queryClient.invalidateQueries({ queryKey: ["available-categories"] });
+        return;
+      }
+    } catch (e) {
+      console.error("[availability] check failed", e);
+      toast.error(AVAILABILITY_MESSAGES.CHECK_FAILED);
+      return;
+    } finally {
+      setCheckingId(null);
     }
 
     // Track vehicle viewed event
@@ -171,14 +211,14 @@ export default function Search() {
     setSelectedVehicle(category.id);
     setSelectedAddOns([]);
     setAdditionalDrivers([]);
-    
+
     // Build URL params for protection step
     const params = new URLSearchParams();
     params.set("categoryId", category.id);
-    if (startDate) params.set("startAt", startDate.toISOString());
-    if (endDate) params.set("endAt", endDate.toISOString());
-    if (contextLocationId) params.set("locationId", contextLocationId);
-    
+    params.set("startAt", startDate.toISOString());
+    params.set("endAt", endDate.toISOString());
+    params.set("locationId", contextLocationId);
+
     navigate(`/protection?${params.toString()}`);
   };
 

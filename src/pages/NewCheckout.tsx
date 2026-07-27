@@ -68,6 +68,7 @@ import { findClosestLocation } from "@/constants/rentalLocations";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
 import { funnelEvents } from "@/lib/analytics";
+import { checkCategoryAvailability, AVAILABILITY_MESSAGES } from "@/lib/availability-check";
 
 const FEATURE_TOOLTIPS: Record<string, string> = {
   "Third party insurance": "Mandatory third-party liability insurance is included with every rental at no extra cost.",
@@ -440,6 +441,27 @@ export default function NewCheckout() {
         locationId = "a1b2c3d4-1111-4000-8000-000000000001"; // Surrey Newton
       }
 
+      // Revalidate availability immediately before creating the booking / taking payment
+      if (categoryId) {
+        try {
+          const avail = await checkCategoryAvailability({
+            categoryId,
+            locationId,
+            startAt: localDateTimeToISO(formatLocalDate(searchData.pickupDate!), searchData.pickupTime),
+            endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate!), searchData.returnTime),
+          });
+          if (!avail.available) {
+            throw new Error(AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE);
+          }
+        } catch (availErr: any) {
+          throw new Error(
+            availErr?.message === AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE
+              ? AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE
+              : AVAILABILITY_MESSAGES.CHECK_FAILED,
+          );
+        }
+      }
+
       // Get session (optional - we support guest checkout)
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -512,6 +534,8 @@ export default function NewCheckout() {
             "PRICE_MISMATCH": `Price has changed. Server total: $${authErrBody.serverTotal?.toFixed?.(2) || "N/A"}. Please refresh and try again.`,
             "PRICE_VALIDATION_FAILED": "Server could not validate the price. Please refresh and try again.",
             "vehicle_unavailable": "This vehicle is no longer available for the selected dates.",
+            "CATEGORY_UNAVAILABLE": AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE,
+            "AVAILABILITY_CHECK_FAILED": AVAILABILITY_MESSAGES.CHECK_FAILED,
             "reservation_expired": "Your reservation has expired. Please start over.",
             "validation_failed": serverMsg || "Please check your information and try again.",
           };
@@ -596,6 +620,8 @@ export default function NewCheckout() {
           "age_validation_failed": "Please confirm your age on the search page before booking.",
           "validation_failed": "Please check your information and try again.",
           "vehicle_unavailable": "This vehicle is no longer available for the selected dates. Please choose another.",
+          "CATEGORY_UNAVAILABLE": AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE,
+          "AVAILABILITY_CHECK_FAILED": AVAILABILITY_MESSAGES.CHECK_FAILED,
           "server_error": "An unexpected error occurred. Please try again.",
         };
 

@@ -18,6 +18,7 @@ import {
   isValidPhone,
 } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient } from "../_shared/auth.ts";
+import { assertCategoryAvailable, CATEGORY_UNAVAILABLE_MESSAGE } from "../_shared/availability.ts";
 import {
   validateClientPricing,
   createBookingAddOns,
@@ -196,9 +197,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Unit-level availability check: count total units vs overlapping bookings for this category
-    // NOTE: Availability check removed — overbooking is allowed.
-    // Staff will assign specific VIN units manually.
+    // AUTHORITATIVE availability check — backend is the single source of truth.
+    // Uses the same DB function customer search reads, incl. 30-min buffer,
+    // maintenance/retired units, location match, overlapping bookings and live holds.
+    try {
+      const avail = await assertCategoryAvailable(supabaseAdmin, {
+        categoryId: vehicleId,
+        locationId,
+        startAt,
+        endAt,
+      });
+      if (!avail.available) {
+        return new Response(
+          JSON.stringify({
+            error: "CATEGORY_UNAVAILABLE",
+            message: CATEGORY_UNAVAILABLE_MESSAGE,
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    } catch (availErr) {
+      console.error("[create-booking] availability check failed", availErr);
+      return new Response(
+        JSON.stringify({
+          error: "AVAILABILITY_CHECK_FAILED",
+          message: "We couldn't confirm availability just now. Please try again in a moment.",
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Duplicate-booking guard: prevent same user creating a duplicate booking for the
     // same vehicle with overlapping dates within the last 10 minutes (double-submit / two tabs).

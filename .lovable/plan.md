@@ -1,50 +1,104 @@
-## What the data actually shows for W9JD9JDV
 
-Verified from the database (booking, both agreement records, invoice, payments):
+# Fix: sedans shown available when only SUVs exist
 
-| Source | Days | Base | Surcharge | Discount | Fees | Subtotal | Tax | Total |
-|---|---|---|---|---|---|---|---|---|
-| Signed agreement (Jul 18) | 7 | $629.93 | +$40.50 (hidden) | −$67.04 (hidden) | $17.50 | $620.89 | $74.50 | $695.39 |
-| Booking row today | 8 | $719.92 | +$53.99 | −$77.39 | $20.00 | $716.52 | $85.99 | $802.51 |
+## Chain 1 — Current flow, as traced (no code changed)
 
-So there are two separate, real problems — and the customer paid only $695.39, leaving $107.12 due (invoice INV-2026-01324 confirms `amount_due = 107.12`).
+| Step | Where | What actually happens |
+|---|---|---|
+| Location + dates | `RentalSearchCard` → `RentalBookingContext` | Location and full ISO pickup/return timestamps stored |
+| Category search | `src/pages/Search.tsx` | With a location: `useAvailableCategories(locationId)`. **Without** a location: `useFleetCategories()` — every active category |
+| Availability query | `get_available_categories(p_location_id)` in Postgres | `LEFT JOIN vehicle_units`, groups by category, returns **all** active categories with an `available_count` column |
+| Fallback path | `use-fleet-categories.ts`, `domain/fleet/queries.ts` | On RPC error, reads `vehicle_units` directly from the browser |
+| Walk-in / other | `use-browse-categories.ts` | Client-side unit + booking math |
+| Selection → protection → add-ons → checkout | `Protection.tsx`, `AddOns.tsx`, `NewCheckout.tsx` | Category id carried in context/URL; **no availability re-check** |
+| Booking creation | `create-booking`, `create-guest-booking` edge functions | Pricing validated server-side; **no availability check** |
+| Payment | `wl-authorize` / deposit flow | No availability check |
 
-### Problem 1 — the agreement's own lines don't add up
+## Chain 2/3 — Evidence found
 
-The agreement prints `Daily Rate $89.99 x 7 = $629.93`, `PVRT $10.50`, `ACSRCH $7.00`, then jumps to `TOTAL $695.39`. Those visible lines sum to $647.43 + tax, not $695.39, because the weekend surcharge (+$40.50) and the 7-day 10% discount (−$67.04) were charged but never printed.
+1. **Availability checking was deliberately deleted.** Both `create-booking/index.ts` and `create-guest-booking/index.ts` contain the literal comment: `NOTE: Availability check removed — overbooking is allowed. Staff will assign specific VIN units manually.` There is no availability gate at any commit point in the funnel.
+2. **The search RPC ignores dates entirely.** `get_available_categories` accepts only `p_location_id`. No `start_at` / `end_at` parameter exists, so an overlapping booking can never be detected. Its `LEFT JOIN` also emits categories with `available_count = 0`, and no caller filters those out — a sedan category with zero free cars renders identically to one with five.
+3. **Guests cannot read the fleet at all.** `vehicle_units` has SELECT policies only for `is_admin_or_staff` and drivers; `bookings` only for staff / owner / driver. The preview network log confirms the consequence: `GET /vehicle_units?select=id,category_id,status` returned `[]` and `GET /bookings?status=eq.active` returned `[]`. Every client-side fallback therefore computes availability against an empty result set and concludes everything is free — a failed/blocked request being read as available inventory.
+4. **`use-browse-categories.ts` is broken three ways**: filters `.eq("status","active")` although real unit statuses are `available` / `on_rent` / `maintenance` / `retired`; applies **no location filter**; and its overlap test `.or(start_at.lte.END, end_at.gte.START)` is an OR where interval overlap requires an AND.
+5. **Real inventory vs. what is advertised**: `vehicle_units` currently holds 33 `on_rent`, 7 `available`, 2 `maintenance`, 2 `retired`. Eight sedan/SUV categories are listed publicly regardless.
 
-Cause, confirmed in `supabase/functions/generate-agreement/index.ts` (~lines 412-436): it derives a single `remainder = dbSubtotal − knownLineItems`. Here the remainder is **negative** (−$26.54, surcharge minus discount), and the code does `weekendSurcharge = remainder > 0 ? remainder : 0` — so the whole net adjustment is dropped from print. Same netting flaw already fixed for the Ops breakdown and invoice PDF via `src/lib/vehicle-adjustments.ts`; the agreement generator was never updated. `terms_json.financial.weekendSurcharge` is stored as `0`, so the structured view and the agreement PDF inherit the same gap.
+## Chain 4 — Root cause
 
-### Problem 2 — the agreement is stale after the extension
+Both symptoms share one cause: **there is no date-and-location-aware availability computation anywhere in the customer funnel, and the only public availability RPC is location-only and never filtered on its own count.** Sedans appear because a category is rendered whenever it exists and is active. The booking errors are the downstream consequence: the customer picks a category with no physical unit, the funnel accepts it, and the failure surfaces later as a generic error or as staff discovering only SUVs are physically present. No existing booking or payment record was corrupted by this — the defect is one of omission, not of bad writes.
 
-Both agreement records carry `endAt = 2026-07-25`, `totalDays 7`, `grandTotal 695.39`. The booking was later extended to `2026-07-26` (8 billable days, $802.51). No agreement was regenerated, so the signed document understates the rental by one day and $107.12.
+## Decisions confirmed with you
 
-## Plan
+- **Strict availability for the public funnel — no overbooking.**
+- **30-minute turnaround buffer** on both ends of every booking.
+- Unit statuses excluded: `maintenance`, `damage`, `retired`, `inactive`.
+- Bookings that block (my recommendation, included below): `confirmed`, `active`, **and `pending`** — plus unexpired `reservation_holds`, otherwise two customers in checkout can both take the last sedan. `draft`, `cancelled`, `completed` never block.
 
-### 1. Itemize adjustments in the agreement generator
-In `supabase/functions/generate-agreement/index.ts`:
-- Replace the single-remainder logic with the same explicit two-line derivation used by `src/lib/vehicle-adjustments.ts` (port it into `supabase/functions/_shared/` so both engines share one implementation): prefer the stored `weekend_surcharge` / `duration_discount` columns, recompute from the Vancouver calendar for historic bookings, and emit any leftover as a signed "Rate Adjustment" line.
-- Print them as separate signed lines after the base rate: `Weekend Surcharge: +$X (N day(s) × 15%)` and `Weekly Discount: −$Y (10%)`.
-- Add an explicit `Subtotal (before tax)` line so base + adjustments + protection + add-ons + fees visibly reconcile to it, and the subtotal + PST + GST reconcile to TOTAL.
-- Store both values (and `durationDiscount`) in `terms_json.financial` instead of the current `weekendSurcharge: 0`.
+## Chain 5 — The fix
 
-### 2. Render them downstream
-- `src/lib/pdf/rental-agreement-pdf.ts`: print the surcharge and discount lines when present in `terms_json.financial`, with the same reconciling subtotal row.
-- `src/components/booking/AgreementStructuredView.tsx`: show the two lines in the on-screen agreement breakdown.
-- Both read from `terms_json` with a recompute fallback, so already-signed historic agreements display correctly without a data backfill.
+### 1. One authoritative availability function in the database
 
-### 3. Keep agreements in sync with extensions
-- After `reprice-booking` changes `total_days`/`subtotal`/`total_amount`, mark any non-voided agreement as stale (regenerate with `forceRegenerate` for unsigned agreements; for signed ones, create an amendment record and keep the original in history).
-- Surface a "Agreement out of date — regenerate" badge on the booking detail page when the agreement's `terms_json.rental.totalDays`/`grandTotal` no longer match the booking.
+New security-definer RPC `get_category_availability(p_location_id uuid, p_start_at timestamptz, p_end_at timestamptz, p_exclude_hold uuid default null)`, granted to `anon` and `authenticated`, returning one row per active category with a truthful `available_count`. A unit counts only when **all** hold:
 
-### 4. Tests
-- Extend `src/lib/pdf/rental-agreement-pdf.test.ts` with the exact W9JD9JDV shape (7 days, +$40.50, −$67.04, $620.89 subtotal) and assert the printed lines sum to the printed subtotal and total to the cent.
-- Add a case where discount exceeds surcharge (net negative) to lock in that neither line is dropped.
+- `location_id` = requested pickup location;
+- `status` not in maintenance / damage / retired / inactive;
+- no booking in `confirmed` / `active` / `pending` on that unit overlaps `[start − 30 min, end + 30 min)`;
+- no unexpired `reservation_holds` row overlaps the same window (excluding the caller's own hold).
 
-### 5. This specific booking
-Once the generator is fixed, regenerate the agreement for W9JD9JDV so it shows 8 days / $802.51 with itemized surcharge and discount. Separately, $107.12 remains unpaid on INV-2026-01324 — tell me whether to leave it outstanding, or collect/mark it (bank transfer or terminal) and I'll handle it.
+Overlap uses the half-open test `existing.start < requested_end AND existing.end > requested_start` on `timestamptz` throughout — no date-only or local-string comparison, which eliminates the inclusive/exclusive boundary, midnight and UTC-vs-Vancouver classes of error in one move.
 
-### Technical notes
-- No pricing math changes: the charged amounts are correct; this is print/itemization plus agreement freshness.
-- New shared adjustment helper lives in `supabase/functions/_shared/` and mirrors `src/lib/vehicle-adjustments.ts` line-for-line so the two engines can't drift.
-- Weekend-day counting stays on the America/Vancouver calendar in both engines.
+A companion `check_category_availability(p_category_id, p_location_id, p_start_at, p_end_at, p_exclude_booking_id)` returns a boolean using the *identical* predicate, so search, checkout, booking creation and payment cannot drift apart.
+
+Keeping this behind an RPC rather than opening RLS means guests get correct counts without gaining read access to `vehicle_units` or `bookings`.
+
+### 2. Frontend consumes only that function
+
+- `useAvailableCategories` becomes date-aware and calls the new RPC; query key = location + both ISO timestamps.
+- Categories with `available_count = 0` are filtered out and are not selectable.
+- Search requires location + dates before listing anything; the current "show all active categories" fallback is removed, since availability is undefined without them.
+- The client-side fallback paths in `use-fleet-categories.ts` and `domain/fleet/queries.ts` that read `vehicle_units` directly are deleted — on RPC failure the UI shows the retry error state, never an optimistic list.
+- `use-browse-categories.ts` is repointed at the same RPC, removing its bogus status filter, missing location filter and OR-overlap.
+- Ops / walk-in booking keeps its current behaviour and may still overbook deliberately; only the public funnel is strict.
+- Availability `staleTime` drops to ~30 s with refetch-on-focus so a tab left open doesn't show a stale sedan.
+
+### 3. Revalidate at every commit point
+
+- **On category selection** (entering protection): re-check; if gone, bounce back to search with the message below.
+- **Before payment**: check at the top of `wl-authorize` / the deposit-authorization path, so a stale booking is stopped *before* the card is touched — the customer is never charged for a vehicle that vanished.
+- **Immediately before booking creation**: restore the deleted check in `create-booking` and `create-guest-booking`. Zero available → HTTP 409 `CATEGORY_UNAVAILABLE`, no row written.
+
+### 4. Race safety
+
+A short-lived `reservation_holds` row (category + location + window) is created when the customer moves from category selection into checkout, is counted by the availability predicate, converts on booking creation and expires otherwise. The final check inside `create-booking` runs under service role against committed rows and is performed in the same statement path as the insert, so two concurrent attempts on the last unit cannot both succeed — one gets the 409.
+
+### 5. Chain 6 — Error handling
+
+A mapper in `src/lib/edge-function-error.ts` converts codes to copy:
+
+- `CATEGORY_UNAVAILABLE` → *"This vehicle is no longer available for the selected dates. Please choose another available vehicle or adjust your rental dates."* with a button back to search, dates preserved.
+- Availability RPC/network failure → *"We couldn't complete the availability check. Please try again. You have not been charged."*
+
+No stack traces, IDs or DB messages reach the customer. Each edge function logs a single structured `console.error` line carrying timestamp, booking step, category id, location id, pickup/return timestamps, booking status, function name, error code, technical message and request id — no card data or PII. These land in the function logs.
+
+## Chain 7 — Test plan
+
+Playwright against the live preview plus direct RPC assertions:
+
+1–4. Available and unavailable sedan and SUV — unavailable ones absent from search.
+5–7. Category whose only units have an overlapping confirmed / active / started booking → hidden.
+8. Category whose only unit is in maintenance → hidden.
+9. Unit blocked for specific dates → hidden for those dates, visible outside them.
+10. Units only at another location → category hidden for the selected location.
+11. Adjacent bookings 30 min apart → blocked; 90 min apart → available.
+12–13. Pickups and returns spanning midnight and a DST boundary in America/Vancouver → counts match hand-written SQL.
+14. Vehicle taken by another customer between search and checkout → clear message, no booking, no charge.
+15. Availability RPC forced to fail → retry message, nothing bookable.
+16. Full happy path search → confirmation.
+
+Plus regressions: every RPC `available_count` cross-checked against a manual SQL count per category per location; two parallel `create-booking` calls for the last unit → exactly one succeeds; existing pricing tests (`src/lib/pricing.test.ts`, agreement PDF tests) unchanged and passing; ops walk-in and vehicle assignment unaffected.
+
+## Technical notes
+
+- New DB objects only: `get_category_availability`, `check_category_availability` — both `SECURITY DEFINER`, `SET search_path = public`, granted to `anon` + `authenticated`. No new tables, no schema changes to existing tables, no RLS relaxation.
+- Files touched: `src/hooks/use-fleet-categories.ts`, `src/hooks/use-browse-categories.ts`, `src/domain/fleet/queries.ts`, `src/pages/Search.tsx`, `src/pages/Protection.tsx` (re-check on entry only), `src/hooks/use-hold.ts`, `src/lib/edge-function-error.ts`, and edge functions `create-booking`, `create-guest-booking`, `wl-authorize`.
+- `src/lib/availability.ts` (already deprecated, still queries the legacy `vehicles` table) is left untouched and stays out of every customer path.
+- No pricing, rate, surcharge, discount, tax, add-on or protection logic is touched; no layout, styling or copy changes beyond the two new error states.
