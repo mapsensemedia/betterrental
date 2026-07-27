@@ -174,6 +174,8 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
       differentDropoffFee: Number(b.different_dropoff_fee || 0),
       customerId: b.customer_id || null,
       createdBy: b.created_by || null,
+      overbooked: Boolean((b as any).overbooked),
+      assignedUnitId: (b as any).assigned_unit_id || null,
       vehicle: category ? {
         id: category.id,
         name: category.name,
