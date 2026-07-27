@@ -931,9 +931,13 @@ export default function BookingDetail() {
                         <span className="text-right">{booking.total_days} day{booking.total_days !== 1 ? "s" : ""}</span>
                       </div>
                       <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground shrink-0">Subtotal:</span>
+                        <span className="text-muted-foreground shrink-0">Subtotal (all charges):</span>
                         <span className="text-right">${Number(booking.subtotal).toFixed(2)}</span>
                       </div>
+                      <p className="text-[11px] text-muted-foreground/80">
+                        Includes surcharges, discounts, fees and extras — see the Financial tab for the full itemization.
+                      </p>
+
                       {booking.tax_amount && (
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground shrink-0">Tax:</span>
