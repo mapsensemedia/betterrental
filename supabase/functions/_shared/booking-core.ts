@@ -740,6 +740,7 @@ export async function computeBookingTotals(input: {
     additionalDriverRecords,
     dailyFeesTotal,
     deliveryFee,
+    deliveryFeeCorrection,
     differentDropoffFee,
     subtotal,
     taxAmount,
