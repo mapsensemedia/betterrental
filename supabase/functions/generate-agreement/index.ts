@@ -487,7 +487,7 @@ Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_
 Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}${adjustmentLines.map((l) => `\n${l.label}: ${l.amount < 0 ? "−" : "+"}$${Math.abs(l.amount).toFixed(2)}`).join("")}
 Protection: ${planMeta.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
 Add-ons: $${addOnsTotal.toFixed(2)}
-${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}
+${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}${deliveryFeeAmt > 0 ? `\nDelivery Fee: $${deliveryFeeAmt.toFixed(2)}` : ''}${dropoffFee > 0 ? `\nDifferent Drop-off Fee: $${dropoffFee.toFixed(2)}` : ''}
 PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)}
 Subtotal (before tax): $${subtotalBeforeTax.toFixed(2)}
 GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
