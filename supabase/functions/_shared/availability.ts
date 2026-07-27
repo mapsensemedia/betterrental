@@ -1,7 +1,13 @@
 /**
- * Server-side availability guard — the authoritative gate before a booking row
- * is created. Uses the same DB function that customer search reads from, so
- * search results and booking creation can never disagree.
+ * Category capacity helper.
+ *
+ * C2C allows overbooking at the CATEGORY level: a customer may book any class
+ * that is offered at the location, even when every unit of that class is
+ * already assigned for the window. Staff assign a specific vehicle later.
+ *
+ * This module therefore reports capacity (and whether the reservation is an
+ * overbooking) instead of blocking the booking. Only a category that is not
+ * offered at the location at all (zero usable units) is refused.
  */
 export interface AvailabilityGuardResult {
   available: boolean;
@@ -9,7 +15,14 @@ export interface AvailabilityGuardResult {
   totalCount: number;
 }
 
-export async function assertCategoryAvailable(
+export interface CategoryCapacity extends AvailabilityGuardResult {
+  /** Category exists and is offered at this location (has usable units). */
+  offered: boolean;
+  /** Booking would exceed free inventory for the window. */
+  overbooked: boolean;
+}
+
+export async function getCategoryCapacity(
   supabaseAdmin: any,
   params: {
     categoryId: string;
@@ -18,7 +31,7 @@ export async function assertCategoryAvailable(
     endAt: string;
     excludeBookingId?: string | null;
   },
-): Promise<AvailabilityGuardResult> {
+): Promise<CategoryCapacity> {
   const { data, error } = await supabaseAdmin.rpc("check_category_availability", {
     p_category_id: params.categoryId,
     p_location_id: params.locationId,
@@ -33,12 +46,33 @@ export async function assertCategoryAvailable(
   }
 
   const row = Array.isArray(data) ? data[0] : data;
+  const availableCount = Number(row?.available_count ?? 0);
+  const totalCount = Number(row?.total_count ?? 0);
+
   return {
     available: Boolean(row?.available),
-    availableCount: Number(row?.available_count ?? 0),
-    totalCount: Number(row?.total_count ?? 0),
+    availableCount,
+    totalCount,
+    offered: totalCount > 0,
+    overbooked: availableCount <= 0,
   };
 }
 
-export const CATEGORY_UNAVAILABLE_MESSAGE =
-  "Sorry — this vehicle class just sold out for your dates at this location. Please pick another class or adjust your dates.";
+/** @deprecated kept for compatibility — capacity no longer blocks bookings. */
+export async function assertCategoryAvailable(
+  supabaseAdmin: any,
+  params: {
+    categoryId: string;
+    locationId: string;
+    startAt: string;
+    endAt: string;
+    excludeBookingId?: string | null;
+  },
+): Promise<AvailabilityGuardResult> {
+  return await getCategoryCapacity(supabaseAdmin, params);
+}
+
+export const CATEGORY_NOT_OFFERED_MESSAGE =
+  "This vehicle class isn't offered at the selected pickup location. Please choose another class or location.";
+
+export const CATEGORY_UNAVAILABLE_MESSAGE = CATEGORY_NOT_OFFERED_MESSAGE;
