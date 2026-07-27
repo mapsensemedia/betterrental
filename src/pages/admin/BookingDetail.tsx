@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
 import { PaymentDepositPanel } from "@/components/admin/PaymentDepositPanel";
+import { FinancialBreakdown } from "@/components/admin/ops/FinancialBreakdown";
 import { extractEdgeFunctionError } from "@/lib/edge-function-error";
 import { buildInvoicePdfData } from "@/lib/pdf/invoice-data-builder";
 import {
