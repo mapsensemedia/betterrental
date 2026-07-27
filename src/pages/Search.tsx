@@ -122,6 +122,8 @@ export default function Search() {
   const isLoading = hasWindow ? loadingLocation : loadingAll;
   const hasValidContext = hasWindow;
 
+  const queryClient = useQueryClient();
+  const [checkingId, setCheckingId] = useState<string | null>(null);
   const [showContextPrompt, setShowContextPrompt] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("recommended");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
