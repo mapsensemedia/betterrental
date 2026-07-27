@@ -441,26 +441,9 @@ export default function NewCheckout() {
         locationId = "a1b2c3d4-1111-4000-8000-000000000001"; // Surrey Newton
       }
 
-      // Revalidate availability immediately before creating the booking / taking payment
-      if (categoryId) {
-        try {
-          const avail = await checkCategoryAvailability({
-            categoryId,
-            locationId,
-            startAt: localDateTimeToISO(formatLocalDate(searchData.pickupDate!), searchData.pickupTime),
-            endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate!), searchData.returnTime),
-          });
-          if (!avail.available) {
-            throw new Error(AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE);
-          }
-        } catch (availErr: any) {
-          throw new Error(
-            availErr?.message === AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE
-              ? AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE
-              : AVAILABILITY_MESSAGES.CHECK_FAILED,
-          );
-        }
-      }
+      // Overbooking is allowed at the category level: no availability gate here.
+      // The backend flags the reservation as overbooked for staff follow-up.
+
 
       // Get session (optional - we support guest checkout)
       const { data: { session } } = await supabase.auth.getSession();
