@@ -14,14 +14,18 @@ export interface CategoryAvailability {
   totalCount: number;
 }
 
-/** Friendly, customer-facing messages for availability failures. */
+/**
+ * Customer-facing messages. Note: C2C allows category-level overbooking, so a
+ * fully-assigned class is NEVER a booking blocker — these cover real technical
+ * failures and classes that simply aren't offered at the chosen location.
+ */
 export const AVAILABILITY_MESSAGES = {
-  CATEGORY_UNAVAILABLE:
-    "Sorry — this vehicle class just sold out for your dates at this location. Please pick another class or adjust your dates.",
+  CATEGORY_NOT_OFFERED:
+    "This vehicle class isn't offered at the selected pickup location. Please choose another class or location.",
   NO_LOCATION:
     "Please choose a pickup location and dates so we can show what's actually available.",
   CHECK_FAILED:
-    "We couldn't confirm availability just now. Please try again in a moment.",
+    "Something went wrong while completing your booking. Please try again, or call us at +1 (604) 763-4242 and we'll finish it for you.",
 } as const;
 
 export function mapAvailabilityError(code?: string | null, fallback?: string) {
