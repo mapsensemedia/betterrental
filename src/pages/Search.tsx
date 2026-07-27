@@ -164,11 +164,39 @@ export default function Search() {
     return result;
   }, [categories, filters, sortBy]);
 
-  const handleCategorySelect = (category: FleetCategory) => {
+  const handleCategorySelect = async (category: FleetCategory) => {
     // If age not confirmed, prompt for it
     if (!ageConfirmed) {
       setShowContextPrompt(true);
       return;
+    }
+
+    if (!contextLocationId || !startDate || !endDate) {
+      toast.error(AVAILABILITY_MESSAGES.NO_LOCATION);
+      setShowContextPrompt(true);
+      return;
+    }
+
+    // Revalidate against the backend at the moment of selection
+    setCheckingId(category.id);
+    try {
+      const result = await checkCategoryAvailability({
+        categoryId: category.id,
+        locationId: contextLocationId,
+        startAt: startDate,
+        endAt: endDate,
+      });
+      if (!result.available) {
+        toast.error(AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE);
+        queryClient.invalidateQueries({ queryKey: ["available-categories"] });
+        return;
+      }
+    } catch (e) {
+      console.error("[availability] check failed", e);
+      toast.error(AVAILABILITY_MESSAGES.CHECK_FAILED);
+      return;
+    } finally {
+      setCheckingId(null);
     }
 
     // Track vehicle viewed event
@@ -178,14 +206,14 @@ export default function Search() {
     setSelectedVehicle(category.id);
     setSelectedAddOns([]);
     setAdditionalDrivers([]);
-    
+
     // Build URL params for protection step
     const params = new URLSearchParams();
     params.set("categoryId", category.id);
-    if (startDate) params.set("startAt", startDate.toISOString());
-    if (endDate) params.set("endAt", endDate.toISOString());
-    if (contextLocationId) params.set("locationId", contextLocationId);
-    
+    params.set("startAt", startDate.toISOString());
+    params.set("endAt", endDate.toISOString());
+    params.set("locationId", contextLocationId);
+
     navigate(`/protection?${params.toString()}`);
   };
 
