@@ -365,6 +365,13 @@ Deno.serve(async (req) => {
     const booking = bookingResult.booking;
     console.log("Booking created:", booking.id, booking.bookingCode);
 
+    if (isOverbooked) {
+      await supabaseAdmin
+        .from("bookings")
+        .update({ overbooked: true, overbooked_at: new Date().toISOString() })
+        .eq("id", booking.id);
+    }
+
     // Create add-ons with SERVER-COMPUTED prices
     await createBookingAddOns(booking.id, serverTotals.addOnPrices);
     // Create additional drivers with SERVER-COMPUTED fees (from computeBookingTotals)
