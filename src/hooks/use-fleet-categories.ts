@@ -121,43 +121,46 @@ export function useFleetCategories() {
   });
 }
 
-// Get available categories for customer browsing (all active categories, overbooking allowed)
-export function useAvailableCategories(locationId: string | null) {
+/**
+ * Customer-facing availability for a location + exact rental window.
+ * Backend RPC is the single source of truth — there is deliberately NO
+ * client-side fallback (guests cannot read units/bookings under RLS, so a
+ * fallback would wrongly report everything as available).
+ */
+export function useAvailableCategories(
+  locationId: string | null,
+  startAt?: Date | null,
+  endAt?: Date | null,
+) {
+  const startIso = startAt ? new Date(startAt).toISOString() : null;
+  const endIso = endAt ? new Date(endAt).toISOString() : null;
+
   return useQuery({
-    queryKey: ["available-categories", locationId],
+    queryKey: ["available-categories", locationId, startIso, endIso],
     queryFn: async () => {
-      if (!locationId) return [];
+      if (!locationId || !startIso || !endIso) return [];
 
-      // Use the database function which returns all active categories with availability counts
-      const { data, error } = await supabase
-        .rpc("get_available_categories", { p_location_id: locationId });
+      const { data, error } = await supabase.rpc("get_category_availability", {
+        p_location_id: locationId,
+        p_start_at: startIso,
+        p_end_at: endIso,
+        p_exclude_hold: null,
+        p_exclude_booking: null,
+      });
 
-      if (error) {
-        console.error("Error fetching available categories:", error);
-        // Fallback: return all active categories with counts
-        const { data: categories } = await supabase
-          .from("vehicle_categories")
-          .select("*")
-          .eq("is_active", true)
-          .order("sort_order");
-        
-        // Get available units per category at location
-        const { data: units } = await supabase
-          .from("vehicle_units")
-          .select("category_id")
-          .eq("location_id", locationId)
-          .eq("status", "available");
+      if (error) throw error;
 
-        return (categories || [])
-          .map(c => ({
-            ...c,
-            available_count: units?.filter(u => u.category_id === c.id).length || 0,
-          })) as FleetCategory[];
-      }
-
-      return data as FleetCategory[];
+      return (data || []).map((c: any) => ({
+        ...c,
+        is_active: true,
+        available_count: Number(c.available_count ?? 0),
+        total_count: Number(c.total_count ?? 0),
+      })) as FleetCategory[];
     },
-    enabled: !!locationId,
+    enabled: !!locationId && !!startIso && !!endIso,
+    staleTime: 0,
+    gcTime: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 
