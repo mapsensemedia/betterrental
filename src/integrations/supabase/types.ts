@@ -2589,36 +2589,56 @@ export type Database = {
       }
       reservation_holds: {
         Row: {
+          category_id: string | null
           created_at: string
           end_at: string
           expires_at: string
           id: string
+          location_id: string | null
           start_at: string
           status: Database["public"]["Enums"]["hold_status"]
           user_id: string
-          vehicle_id: string
+          vehicle_id: string | null
         }
         Insert: {
+          category_id?: string | null
           created_at?: string
           end_at: string
           expires_at: string
           id?: string
+          location_id?: string | null
           start_at: string
           status?: Database["public"]["Enums"]["hold_status"]
           user_id: string
-          vehicle_id: string
+          vehicle_id?: string | null
         }
         Update: {
+          category_id?: string | null
           created_at?: string
           end_at?: string
           expires_at?: string
           id?: string
+          location_id?: string | null
           start_at?: string
           status?: Database["public"]["Enums"]["hold_status"]
           user_id?: string
-          vehicle_id?: string
+          vehicle_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reservation_holds_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_holds_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reservation_holds_vehicle_id_fkey"
             columns: ["vehicle_id"]
@@ -3699,6 +3719,21 @@ export type Database = {
         }
         Returns: string
       }
+      check_category_availability: {
+        Args: {
+          p_category_id: string
+          p_end_at: string
+          p_exclude_booking?: string
+          p_exclude_hold?: string
+          p_location_id: string
+          p_start_at: string
+        }
+        Returns: {
+          available: boolean
+          available_count: number
+          total_count: number
+        }[]
+      }
       check_rate_limit: {
         Args: {
           p_key: string
@@ -3725,6 +3760,28 @@ export type Database = {
           image_url: string
           name: string
           seats: number
+          transmission: string
+        }[]
+      }
+      get_category_availability: {
+        Args: {
+          p_end_at: string
+          p_exclude_booking?: string
+          p_exclude_hold?: string
+          p_location_id: string
+          p_start_at: string
+        }
+        Returns: {
+          available_count: number
+          daily_rate: number
+          description: string
+          fuel_type: string
+          id: string
+          image_url: string
+          name: string
+          seats: number
+          sort_order: number
+          total_count: number
           transmission: string
         }[]
       }
