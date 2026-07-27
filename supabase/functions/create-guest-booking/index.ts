@@ -185,32 +185,28 @@ Deno.serve(async (req) => {
 
     const serverTotals = priceCheck.serverTotals;
 
-    // AUTHORITATIVE availability check — backend is the single source of truth.
+    // Category capacity — informational only. Overbooking at the category level
+    // is allowed; a specific vehicle is assigned later by staff.
+    let isOverbooked = false;
     try {
-      const avail = await assertCategoryAvailable(supabaseAdmin, {
+      const capacity = await getCategoryCapacity(supabaseAdmin, {
         categoryId: vehicleId,
         locationId,
         startAt,
         endAt,
       });
-      if (!avail.available) {
+      isOverbooked = capacity.overbooked;
+      if (!capacity.offered) {
         return new Response(
           JSON.stringify({
-            error: "CATEGORY_UNAVAILABLE",
-            message: CATEGORY_UNAVAILABLE_MESSAGE,
+            error: "CATEGORY_NOT_OFFERED",
+            message: CATEGORY_NOT_OFFERED_MESSAGE,
           }),
           { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
     } catch (availErr) {
-      console.error("[create-guest-booking] availability check failed", availErr);
-      return new Response(
-        JSON.stringify({
-          error: "AVAILABILITY_CHECK_FAILED",
-          message: "We couldn't confirm availability just now. Please try again in a moment.",
-        }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      console.error("[create-guest-booking] capacity lookup failed (non-fatal)", availErr);
     }
 
     // Create or find guest user
