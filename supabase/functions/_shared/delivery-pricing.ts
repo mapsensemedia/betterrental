@@ -3,7 +3,7 @@
 // calculateDeliveryFee). Edge functions cannot import from src/, so the tier
 // table is duplicated here — keep both in sync.
 
-import { getAdminClient } from "./supabase-client.ts";
+import { getAdminClient } from "./auth.ts";
 
 export interface DeliveryTier {
   maxKm: number;
