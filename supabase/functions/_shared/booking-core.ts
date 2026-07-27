@@ -763,6 +763,8 @@ export async function validateClientPricing(params: {
   additionalDrivers?: AdditionalDriverInput[];
   driverAgeBand?: string;
   deliveryFee?: number;
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
   differentDropoffFee?: number;
   locationId?: string;
   returnLocationId?: string;
@@ -777,13 +779,21 @@ export async function validateClientPricing(params: {
     additionalDrivers: params.additionalDrivers,
     driverAgeBand: params.driverAgeBand,
     deliveryFee: params.deliveryFee,
+    deliveryLat: params.deliveryLat,
+    deliveryLng: params.deliveryLng,
     differentDropoffFee: params.differentDropoffFee,
     locationId: params.locationId,
     returnLocationId: params.returnLocationId,
   });
 
+  // A server-side delivery-fee correction legitimately changes the total.
+  // Absorb it into the tolerance (tax-inclusive) so the customer never sees a
+  // price-mismatch error — the corrected total simply becomes the booking total.
+  const deliveryAllowance = roundCents(
+    server.deliveryFeeCorrection * (1 + PST_RATE + GST_RATE)
+  );
   const diff = Math.abs(roundCents(server.total) - roundCents(params.clientTotal));
-  if (diff > PRICE_MISMATCH_TOLERANCE) {
+  if (diff > PRICE_MISMATCH_TOLERANCE + deliveryAllowance) {
     console.warn(
       `[price-validation] MISMATCH: client=$${params.clientTotal}, server=$${server.total}, diff=$${diff.toFixed(2)}`
     );
