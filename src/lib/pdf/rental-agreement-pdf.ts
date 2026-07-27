@@ -58,6 +58,8 @@ interface TermsJson {
     protectionTotal?: number;
     addOnsTotal: number;
     youngDriverFee: number;
+    deliveryFee?: number;
+    differentDropoffFee?: number;
     pvrtTotal: number;
     acsrchTotal: number;
     subtotalBeforeTax: number;
