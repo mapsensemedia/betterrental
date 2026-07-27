@@ -2,7 +2,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 Deno.serve(async (req) => {
   try {
-    const { user_id, password } = await req.json();
+    const { user_id, secret_name } = await req.json();
+    const password = Deno.env.get(secret_name);
+    if (!password) return new Response(JSON.stringify({ error: 'secret not found' }), { status: 400 });
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
