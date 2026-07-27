@@ -113,7 +113,7 @@ serve(async (req: Request): Promise<Response> => {
       .update({ status: "completed" })
       .eq("booking_id", bookingId)
       .eq("status", "authorized")
-      .neq("payment_type", "deposit");
+      .or("payment_type.is.null,payment_type.neq.deposit");
     if (rentalErr) {
       console.error("[confirm-bank-transfer-paid] mark rental paid error", rentalErr);
     }
