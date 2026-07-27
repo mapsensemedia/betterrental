@@ -68,7 +68,7 @@ import { findClosestLocation } from "@/constants/rentalLocations";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { formatTimeDisplay } from "@/lib/rental-rules";
 import { funnelEvents } from "@/lib/analytics";
-import { checkCategoryAvailability, AVAILABILITY_MESSAGES } from "@/lib/availability-check";
+import { AVAILABILITY_MESSAGES } from "@/lib/availability-check";
 
 const FEATURE_TOOLTIPS: Record<string, string> = {
   "Third party insurance": "Mandatory third-party liability insurance is included with every rental at no extra cost.",
