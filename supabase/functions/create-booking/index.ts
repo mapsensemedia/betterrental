@@ -18,6 +18,7 @@ import {
   isValidPhone,
 } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient } from "../_shared/auth.ts";
+import { assertCategoryAvailable, CATEGORY_UNAVAILABLE_MESSAGE } from "../_shared/availability.ts";
 import {
   validateClientPricing,
   createBookingAddOns,
