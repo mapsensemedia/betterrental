@@ -328,6 +328,7 @@ export async function getBookingById(id: string): Promise<BookingDetail | null> 
     customerId: data.customer_id || null,
     createdBy: data.created_by || null,
     assignedUnitId: data.assigned_unit_id,
+    overbooked: Boolean((data as any).overbooked),
     assignedDriverId: data.assigned_driver_id,
     handedOverAt: data.handed_over_at,
     handedOverBy: data.handed_over_by,
