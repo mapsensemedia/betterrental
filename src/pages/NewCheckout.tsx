@@ -534,6 +534,8 @@ export default function NewCheckout() {
             "PRICE_MISMATCH": `Price has changed. Server total: $${authErrBody.serverTotal?.toFixed?.(2) || "N/A"}. Please refresh and try again.`,
             "PRICE_VALIDATION_FAILED": "Server could not validate the price. Please refresh and try again.",
             "vehicle_unavailable": "This vehicle is no longer available for the selected dates.",
+            "CATEGORY_UNAVAILABLE": AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE,
+            "AVAILABILITY_CHECK_FAILED": AVAILABILITY_MESSAGES.CHECK_FAILED,
             "reservation_expired": "Your reservation has expired. Please start over.",
             "validation_failed": serverMsg || "Please check your information and try again.",
           };
