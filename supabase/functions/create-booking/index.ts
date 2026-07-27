@@ -279,6 +279,8 @@ Deno.serve(async (req) => {
         delivery_fee: serverTotals.deliveryFee ?? 0,
         booking_code: "",
         status: initialStatus,
+        overbooked: isOverbooked,
+        overbooked_at: isOverbooked ? new Date().toISOString() : null,
         notes: notes?.slice(0, 1000) || null,
         driver_age_band: driverAgeBand,
         protection_plan: protectionPlan || null,
