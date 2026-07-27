@@ -581,6 +581,8 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         youngDriverFee,
         pvrtTotal,
         acsrchTotal,
+        deliveryFee: deliveryFeeAmt,
+        differentDropoffFee: dropoffFee,
         subtotalBeforeTax,
         pstAmount,
         gstAmount,
