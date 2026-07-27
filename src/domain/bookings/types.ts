@@ -74,6 +74,9 @@ export interface BookingSummary {
   // Walk-in customer identity (auth-independent)
   customerId: string | null;
   createdBy: string | null;
+  /** Booked while the class was fully assigned — staff must assign a unit. */
+  overbooked?: boolean;
+  assignedUnitId?: string | null;
   // Joined data
   vehicle: BookingVehicle | null;
   location: BookingLocation | null;
