@@ -525,6 +525,8 @@ export type Database = {
           offline_payment_method: string | null
           offline_payment_reference: string | null
           original_vehicle_id: string | null
+          overbooked: boolean
+          overbooked_at: string | null
           paid_offline: boolean
           pickup_address: string | null
           pickup_contact_name: string | null
@@ -627,6 +629,8 @@ export type Database = {
           offline_payment_method?: string | null
           offline_payment_reference?: string | null
           original_vehicle_id?: string | null
+          overbooked?: boolean
+          overbooked_at?: string | null
           paid_offline?: boolean
           pickup_address?: string | null
           pickup_contact_name?: string | null
@@ -729,6 +733,8 @@ export type Database = {
           offline_payment_method?: string | null
           offline_payment_reference?: string | null
           original_vehicle_id?: string | null
+          overbooked?: boolean
+          overbooked_at?: string | null
           paid_offline?: boolean
           pickup_address?: string | null
           pickup_contact_name?: string | null

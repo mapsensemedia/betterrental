@@ -18,7 +18,7 @@ import {
   isValidPhone,
 } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient } from "../_shared/auth.ts";
-import { assertCategoryAvailable, CATEGORY_UNAVAILABLE_MESSAGE } from "../_shared/availability.ts";
+import { getCategoryCapacity, CATEGORY_NOT_OFFERED_MESSAGE } from "../_shared/availability.ts";
 import {
   validateClientPricing,
   createBookingAddOns,
@@ -197,34 +197,29 @@ Deno.serve(async (req) => {
       }
     }
 
-    // AUTHORITATIVE availability check — backend is the single source of truth.
-    // Uses the same DB function customer search reads, incl. 30-min buffer,
-    // maintenance/retired units, location match, overlapping bookings and live holds.
+    // Category capacity — informational only. Overbooking at the category level
+    // is allowed; a specific vehicle is assigned later by staff.
+    let isOverbooked = false;
     try {
-      const avail = await assertCategoryAvailable(supabaseAdmin, {
+      const capacity = await getCategoryCapacity(supabaseAdmin, {
         categoryId: vehicleId,
         locationId,
         startAt,
         endAt,
       });
-      if (!avail.available) {
+      isOverbooked = capacity.overbooked;
+      if (!capacity.offered) {
         return new Response(
           JSON.stringify({
-            error: "CATEGORY_UNAVAILABLE",
-            message: CATEGORY_UNAVAILABLE_MESSAGE,
+            error: "CATEGORY_NOT_OFFERED",
+            message: CATEGORY_NOT_OFFERED_MESSAGE,
           }),
           { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
     } catch (availErr) {
-      console.error("[create-booking] availability check failed", availErr);
-      return new Response(
-        JSON.stringify({
-          error: "AVAILABILITY_CHECK_FAILED",
-          message: "We couldn't confirm availability just now. Please try again in a moment.",
-        }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      // Never block a booking on a capacity lookup failure.
+      console.error("[create-booking] capacity lookup failed (non-fatal)", availErr);
     }
 
     // Duplicate-booking guard: prevent same user creating a duplicate booking for the
@@ -284,6 +279,8 @@ Deno.serve(async (req) => {
         delivery_fee: serverTotals.deliveryFee ?? 0,
         booking_code: "",
         status: initialStatus,
+        overbooked: isOverbooked,
+        overbooked_at: isOverbooked ? new Date().toISOString() : null,
         notes: notes?.slice(0, 1000) || null,
         driver_age_band: driverAgeBand,
         protection_plan: protectionPlan || null,

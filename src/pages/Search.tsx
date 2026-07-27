@@ -22,7 +22,7 @@ import {
 import { useAvailableCategories, useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { checkCategoryAvailability, AVAILABILITY_MESSAGES } from "@/lib/availability-check";
+import { AVAILABILITY_MESSAGES } from "@/lib/availability-check";
 import { SEO } from "@/components/shared/SEO";
 import { SearchModifyBar } from "@/components/search/SearchModifyBar";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
@@ -115,9 +115,10 @@ export default function Search() {
   );
   const { data: allCategories = [], isLoading: loadingAll } = useFleetCategories();
 
-  // With a full search context we only ever show classes the backend says are free.
+  // Overbooking is allowed: show every class offered at the location. The
+  // backend counts are informational only (shown as "available" badges).
   const categories = hasWindow
-    ? locationCategories.filter((c) => (c.available_count ?? 0) > 0)
+    ? locationCategories
     : allCategories.filter(c => c.is_active);
   const isLoading = hasWindow ? loadingLocation : loadingAll;
   const hasValidContext = hasWindow;
@@ -182,27 +183,8 @@ export default function Search() {
       return;
     }
 
-    // Revalidate against the backend at the moment of selection
-    setCheckingId(category.id);
-    try {
-      const result = await checkCategoryAvailability({
-        categoryId: category.id,
-        locationId: contextLocationId,
-        startAt: startDate,
-        endAt: endDate,
-      });
-      if (!result.available) {
-        toast.error(AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE);
-        queryClient.invalidateQueries({ queryKey: ["available-categories"] });
-        return;
-      }
-    } catch (e) {
-      console.error("[availability] check failed", e);
-      toast.error(AVAILABILITY_MESSAGES.CHECK_FAILED);
-      return;
-    } finally {
-      setCheckingId(null);
-    }
+    // Category-level bookings are never blocked (overbooking is allowed).
+
 
     // Track vehicle viewed event
     funnelEvents.vehicleViewed(category.id, category.name, category.name);
