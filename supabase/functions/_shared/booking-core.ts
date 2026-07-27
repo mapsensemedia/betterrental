@@ -121,6 +121,8 @@ export interface ServerPricingResult {
   additionalDriverRecords: { driverName: string | null; driverAgeBand: string; youngDriverFee: number }[];
   dailyFeesTotal: number;
   deliveryFee: number;
+  /** Amount the server added on top of the client-sent delivery fee (silent correction). */
+  deliveryFeeCorrection: number;
   differentDropoffFee: number;
   subtotal: number;
   taxAmount: number;
