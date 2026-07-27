@@ -620,6 +620,8 @@ export default function NewCheckout() {
           "age_validation_failed": "Please confirm your age on the search page before booking.",
           "validation_failed": "Please check your information and try again.",
           "vehicle_unavailable": "This vehicle is no longer available for the selected dates. Please choose another.",
+          "CATEGORY_UNAVAILABLE": AVAILABILITY_MESSAGES.CATEGORY_UNAVAILABLE,
+          "AVAILABILITY_CHECK_FAILED": AVAILABILITY_MESSAGES.CHECK_FAILED,
           "server_error": "An unexpected error occurred. Please try again.",
         };
 
