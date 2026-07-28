@@ -62,6 +62,8 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
   const [isReleasing, setIsReleasing] = useState(false);
   const [isCapturingRental, setIsCapturingRental] = useState(false);
   const [payMode, setPayMode] = useState<"card" | "terminal">("card");
+  const [depositMode, setDepositMode] = useState<"card" | "terminal">("card");
+
   const [lastRentalError, setLastRentalError] = useState<string | null>(null);
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [manualReason, setManualReason] = useState("");
