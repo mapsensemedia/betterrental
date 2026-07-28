@@ -20,12 +20,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar, Clock, ArrowRight, TrendingUp, TrendingDown, Minus, Gauge } from "lucide-react";
-import { format, addDays, addHours } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { Calendar, Clock, ArrowRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { format, addDays } from "date-fns";
 import { previewModification, useModifyBooking, type ModificationPreview } from "@/hooks/use-booking-modification";
 import { cn } from "@/lib/utils";
+
 
 interface BookingModificationPanelProps {
   booking: {
@@ -44,58 +43,11 @@ interface BookingModificationPanelProps {
   };
 }
 
-/** Last known odometer reading: latest extension → pickup inspection → vehicle unit mileage */
-function useLastKnownOdometer(bookingId: string) {
-  return useQuery({
-    queryKey: ["last-known-odometer", bookingId],
-    queryFn: async () => {
-      const [{ data: ext }, { data: pickup }, { data: bookingRow }] = await Promise.all([
-        supabase
-          .from("booking_extensions")
-          .select("odometer_km")
-          .eq("booking_id", bookingId)
-          .not("odometer_km", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("inspection_metrics")
-          .select("odometer")
-          .eq("booking_id", bookingId)
-          .eq("phase", "pickup")
-          .maybeSingle(),
-        supabase
-          .from("bookings")
-          .select("assigned_unit_id")
-          .eq("id", bookingId)
-          .maybeSingle(),
-      ]);
-
-      if (ext?.odometer_km != null) return { km: ext.odometer_km, source: "last extension" };
-      if (pickup?.odometer != null) return { km: pickup.odometer, source: "pickup inspection" };
-
-      if (bookingRow?.assigned_unit_id) {
-        const { data: unit } = await supabase
-          .from("vehicle_units")
-          .select("current_mileage")
-          .eq("id", bookingRow.assigned_unit_id)
-          .maybeSingle();
-        if (unit?.current_mileage != null) {
-          return { km: unit.current_mileage, source: "vehicle record" };
-        }
-      }
-      return null;
-    },
-  });
-}
-
 export function BookingModificationPanel({ booking }: BookingModificationPanelProps) {
   const [newEndDate, setNewEndDate] = useState(booking.end_at);
   const [reason, setReason] = useState("");
-  const [odometerInput, setOdometerInput] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const modifyBooking = useModifyBooking();
-  const { data: lastKnownOdometer } = useLastKnownOdometer(booking.id);
 
   const canModify = ["pending", "confirmed", "active"].includes(booking.status);
 
@@ -103,22 +55,6 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
     if (!newEndDate || newEndDate === booking.end_at) return null;
     return previewModification(booking, newEndDate);
   }, [newEndDate, booking]);
-
-  const isExtension = !!newEndDate && new Date(newEndDate) > new Date(booking.end_at);
-  const odometerValue = odometerInput.trim() === "" ? null : Number(odometerInput);
-  const odometerError = (() => {
-    if (!isExtension) return null;
-    if (odometerValue == null) return "Enter the vehicle's current odometer reading.";
-    if (!Number.isFinite(odometerValue) || !Number.isInteger(odometerValue) || odometerValue < 0) {
-      return "Enter a whole number of kilometres.";
-    }
-    if (lastKnownOdometer && odometerValue < lastKnownOdometer.km) {
-      return `Must be at least ${lastKnownOdometer.km.toLocaleString()} km (last recorded reading).`;
-    }
-    return null;
-  })();
-  const odometerReady = !isExtension || (odometerValue != null && !odometerError);
-
 
   const handleQuickExtend = (days: number) => {
     const currentEnd = new Date(booking.end_at);
@@ -134,17 +70,17 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
   };
 
   const handleConfirm = () => {
-    if (!reason.trim() || !odometerReady) return;
+    if (!reason.trim()) return;
     modifyBooking.mutate(
       {
         bookingId: booking.id,
         newEndAt: newEndDate,
         reason: reason.trim(),
-        ...(isExtension && odometerValue != null ? { currentOdometerKm: odometerValue } : {}),
       },
-      { onSuccess: () => { setConfirmOpen(false); setReason(""); setOdometerInput(""); } }
+      { onSuccess: () => { setConfirmOpen(false); setReason(""); } }
     );
   };
+
 
 
   if (!canModify) {
@@ -286,39 +222,11 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
             </div>
           )}
 
-          {/* Odometer capture — required when extending the rental */}
-          {isExtension && (
-            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-              <Label htmlFor="extension-odometer" className="flex items-center gap-2 text-sm font-medium">
-                <Gauge className="h-4 w-4 text-muted-foreground" />
-                Current odometer (km) <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="extension-odometer"
-                type="number"
-                inputMode="numeric"
-                min={lastKnownOdometer?.km ?? 0}
-                step={1}
-                placeholder="e.g., 48210"
-                value={odometerInput}
-                onChange={(e) => setOdometerInput(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                {lastKnownOdometer
-                  ? `Last recorded: ${lastKnownOdometer.km.toLocaleString()} km (${lastKnownOdometer.source}).`
-                  : "No previous reading on file."}{" "}
-                This becomes the "Kilometres out" on the new extension agreement.
-              </p>
-              {odometerError && odometerInput.trim() !== "" && (
-                <p className="text-xs text-destructive">{odometerError}</p>
-              )}
-            </div>
-          )}
-
           {/* Apply button */}
           <Button
             className="w-full"
-            disabled={!preview || preview.addedDays === 0 || modifyBooking.isPending || !odometerReady}
+            disabled={!preview || preview.addedDays === 0 || modifyBooking.isPending}
+
             onClick={() => setConfirmOpen(true)}
           >
             {modifyBooking.isPending ? "Updating..." : "Apply Changes"}

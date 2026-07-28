@@ -31,9 +31,8 @@ interface TermsJson {
   condition: {
     odometerOut?: number | null;
     fuelLevelOut?: number | null;
-    odometerSource?: string | null;
-    originalOdometerOut?: number | null;
   };
+
   rental: {
     startAt: string;
     endAt: string;
@@ -372,41 +371,21 @@ function renderStructuredPdf(
     }
   }
 
-  // Condition at pickup / at extension (inline)
-  const isExtensionOdometer = t.condition.odometerSource === "extension";
+  // Condition at pickup (inline)
   pdf.setFontSize(FONT_LABEL);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(80, 80, 80);
-  pdf.text(isExtensionOdometer ? "Condition at Extension:" : "Condition at Pickup:", L, y);
+  pdf.text("Condition at Pickup:", L, y);
   pdf.setTextColor(0, 0, 0);
 
   const odometerStr = t.condition.odometerOut != null
     ? `${t.condition.odometerOut.toLocaleString()} km` : "N/A";
   const fuelStr = t.condition.fuelLevelOut != null
     ? `${t.condition.fuelLevelOut}%` : "N/A";
-  labelValue(
-    pdf,
-    isExtensionOdometer ? "Km Out (at extension):" : "Km Out:",
-    odometerStr,
-    L + 90,
-    y,
-    FONT_LABEL,
-  );
+  labelValue(pdf, "Km Out:", odometerStr, L + 90, y, FONT_LABEL);
   labelValue(pdf, "Fuel:", fuelStr, MID + 50, y, FONT_LABEL);
   y += ROW_H;
 
-  if (isExtensionOdometer && t.condition.originalOdometerOut != null) {
-    pdf.setFontSize(FONT_LABEL);
-    pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(110, 110, 110);
-    pdf.text(
-      `Original km out at pickup: ${t.condition.originalOdometerOut.toLocaleString()} km`,
-      L + 90,
-      y,
-    );
-    pdf.setTextColor(0, 0, 0);
-    y += ROW_H;
-  }
 
 
   hLine(pdf, y);

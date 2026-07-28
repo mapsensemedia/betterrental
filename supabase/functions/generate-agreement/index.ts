@@ -126,12 +126,9 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { bookingId, suppressNotifications, agreementType, forceRegenerate, copySignatureFromLatest, odometerOutOverride } = body;
+    const { bookingId, suppressNotifications, agreementType, forceRegenerate, copySignatureFromLatest } = body;
     const isExtension = agreementType === "extension";
-    const odometerOverride =
-      odometerOutOverride != null && Number.isFinite(Number(odometerOutOverride))
-        ? Math.round(Number(odometerOutOverride))
-        : null;
+
 
     // Input validation
     if (!bookingId || typeof bookingId !== "string") {
@@ -282,24 +279,9 @@ serve(async (req) => {
       pickupMetrics = inspectionData;
     }
 
-    // Odometer shown as "Km Out": an explicit override (rental extension) wins,
-    // then the most recent recorded extension reading, then the pickup inspection.
-    let latestExtensionOdometer: number | null = null;
-    if (odometerOverride == null) {
-      const { data: lastExtension } = await supabase
-        .from("booking_extensions")
-        .select("odometer_km")
-        .eq("booking_id", bookingId)
-        .not("odometer_km", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      latestExtensionOdometer = lastExtension?.odometer_km ?? null;
-    }
-    const effectiveOdometerOut =
-      odometerOverride ?? latestExtensionOdometer ?? pickupMetrics.odometer;
-    const odometerSource =
-      odometerOverride != null || latestExtensionOdometer != null ? "extension" : "pickup";
+    // "Km Out" always comes from the pickup inspection.
+    const effectiveOdometerOut = pickupMetrics.odometer;
+
 
     console.log(`Found booking: ${booking.booking_code}`);
 
@@ -560,10 +542,9 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
       },
       condition: {
         odometerOut: effectiveOdometerOut,
-        odometerSource,
-        originalOdometerOut: pickupMetrics.odometer,
         fuelLevelOut: pickupMetrics.fuel_level,
       },
+
       rental: {
         startAt: booking.start_at,
         endAt: booking.end_at,
