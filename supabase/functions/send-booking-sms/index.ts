@@ -123,6 +123,9 @@ serve(async (req) => {
     const vehicleName = vehicleCategory?.name || "Vehicle";
     const locationName = locationData?.name || "our location";
 
+    // Location-specific contact number
+    const contactPhone = formatPhoneForMessage(locationData?.phone);
+
     // Build message based on template
     let message = "";
     
@@ -132,18 +135,19 @@ serve(async (req) => {
 
     switch (templateType) {
       case "confirmation":
-        message = `${BRAND}: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView details:\n${bookingLink}`;
+        message = `${BRAND}: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${contactPhone}\n\nView details:\n${bookingLink}`;
         break;
       case "update":
-        message = `${BRAND}: Booking ${booking.booking_code} updated.\n\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView details:\n${bookingLink}`;
+        message = `${BRAND}: Booking ${booking.booking_code} updated.\n\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${contactPhone}\n\nView details:\n${bookingLink}`;
         break;
       case "cancellation":
-        message = `${BRAND}: Booking ${booking.booking_code} cancelled.\n\nQuestions? Call ${EMERGENCY_PHONE}`;
+        message = `${BRAND}: Booking ${booking.booking_code} cancelled.\n\nQuestions? Call ${contactPhone}`;
         break;
       case "reminder":
-        message = `${BRAND}: Pickup tomorrow for booking ${booking.booking_code}!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView booking:\n${bookingLink}`;
+        message = `${BRAND}: Pickup tomorrow for booking ${booking.booking_code}!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${contactPhone}\n\nView booking:\n${bookingLink}`;
         break;
     }
+
 
     // Send SMS via Twilio
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
