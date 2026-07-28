@@ -31,7 +31,7 @@ interface NotificationRequest {
 // ── Helpers ──────────────────────────────────────────────────────────
 import {
   BRAND,
-  EMERGENCY_PHONE,
+  getBookingContactPhone,
   fmtDateVan,
   fmtDateTimeVan,
   fmtMoney,
@@ -69,18 +69,21 @@ interface TemplateData {
   pickupLoc: string;
   returnLoc: string;
   signLink: string;
+  contactPhone: string;
 }
 
 function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms: string; emailBody: string } {
   const b = d.booking;
   const summary = bookingSummaryHtml(b, d.vehicleName, d.pickupLoc, d.returnLoc);
   const code = b.booking_code;
+  const phone = d.contactPhone;
+  const ask = `Questions? Call ${phone}.`;
 
   switch (stage) {
     case "payment_received":
       return {
         subject: `Payment Confirmed – Booking ${code}`,
-        sms: `${BRAND}: Payment of ${fmtMoney(b.total_amount)} received for booking ${code}. Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. We'll verify your license next.`,
+        sms: `${BRAND}: Payment of ${fmtMoney(b.total_amount)} received for booking ${code}. Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. We'll verify your license next. ${ask}`,
         emailBody: `
           <h2>Payment Confirmed ✓</h2>
           <p>We've received your payment of <strong>${fmtMoney(b.total_amount)}</strong>. Your booking is now secured!</p>
@@ -92,7 +95,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "license_approved":
       return {
         subject: `License Verified – Booking ${code}`,
-        sms: `${BRAND}: Your license is approved for booking ${code}! Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. We're preparing your ${d.vehicleName}.`,
+        sms: `${BRAND}: Your license is approved for booking ${code}! Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. We're preparing your ${d.vehicleName}. ${ask}`,
         emailBody: `
           <h2>License Verified ✓</h2>
           <p>Great news! Your driver's license has been approved.</p>
@@ -104,20 +107,20 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "license_rejected":
       return {
         subject: `Action Required – License Issue – Booking ${code}`,
-        sms: `${BRAND}: There's an issue with your license for booking ${code}. Please check your email and re-upload a clearer image. Questions? Call ${EMERGENCY_PHONE}.`,
+        sms: `${BRAND}: There's an issue with your license for booking ${code}. Please check your email and re-upload a clearer image. ${ask}`,
         emailBody: `
           <h2>License Verification Issue</h2>
           <p>We couldn't verify your driver's license for the following booking:</p>
           ${summary}
           <p><strong>What to do:</strong> Please upload a clearer photo of your license. Make sure all text is legible and the image isn't blurry or cropped.</p>
-          <p>If you have questions, reply to this email or contact us at <strong>(604) 763-4242</strong>.</p>
+          <p>If you have questions, reply to this email or contact us at <strong>${phone}</strong>.</p>
         `,
       };
 
     case "vehicle_assigned":
       return {
         subject: `Vehicle Assigned – Booking ${code}`,
-        sms: `${BRAND}: Your ${d.vehicleName} has been assigned for booking ${code}! Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}.`,
+        sms: `${BRAND}: Your ${d.vehicleName} has been assigned for booking ${code}! Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. ${ask}`,
         emailBody: `
           <h2>Vehicle Assigned ✓</h2>
           <p>Your specific vehicle has been assigned to your reservation.</p>
@@ -129,7 +132,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "agreement_generated":
       return {
         subject: `Action Required – Sign Your Agreement – Booking ${code}`,
-        sms: `${BRAND}: Your rental agreement for booking ${code} is ready. Please check your email to review and sign before pickup. Questions? Call ${EMERGENCY_PHONE}.`,
+        sms: `${BRAND}: Your rental agreement for booking ${code} is ready. Please check your email to review and sign before pickup. ${ask}`,
         emailBody: `
           <h2>Rental Agreement Ready</h2>
           <p>Your rental agreement is ready for your signature.</p>
@@ -144,7 +147,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "agreement_signed":
       return {
         subject: `Agreement Signed – Booking ${code}`,
-        sms: `${BRAND}: Agreement signed for booking ${code}! We'll complete vehicle prep and inspection next. See you ${fmtDate(b.start_at)}!`,
+        sms: `${BRAND}: Agreement signed for booking ${code}! We'll complete vehicle prep and inspection next. See you ${fmtDate(b.start_at)}! ${ask}`,
         emailBody: `
           <h2>Agreement Signed ✓</h2>
           <p>Thank you for signing the rental agreement.</p>
@@ -156,7 +159,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "checkin_complete":
       return {
         subject: `Check-In Complete – Booking ${code}`,
-        sms: `${BRAND}: You're checked in for booking ${code}! We're finalizing your ${d.vehicleName} now.`,
+        sms: `${BRAND}: You're checked in for booking ${code}! We're finalizing your ${d.vehicleName} now. ${ask}`,
         emailBody: `
           <h2>Check-In Complete ✓</h2>
           <p>You've been checked in successfully.</p>
@@ -168,7 +171,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "prep_complete":
       return {
         subject: `Your ${d.vehicleName} is Ready! – Booking ${code}`,
-        sms: `${BRAND}: Your ${d.vehicleName} is cleaned and ready for pickup at ${d.pickupLoc}! Booking ${code}. Bring your ID. Questions? Call ${EMERGENCY_PHONE}.`,
+        sms: `${BRAND}: Your ${d.vehicleName} is cleaned and ready for pickup at ${d.pickupLoc}! Booking ${code}. Bring your ID. ${ask}`,
         emailBody: `
           <h2>🚗 Your Vehicle is Ready!</h2>
           <p>Great news! Your <strong>${d.vehicleName}</strong> has been cleaned, inspected, and is ready for you.</p>
@@ -180,7 +183,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "walkaround_complete":
       return {
         subject: `Inspection Complete – Booking ${code}`,
-        sms: `${BRAND}: Vehicle inspection complete for booking ${code}. Your ${d.vehicleName} is ready for handover!`,
+        sms: `${BRAND}: Vehicle inspection complete for booking ${code}. Your ${d.vehicleName} is ready for handover! ${ask}`,
         emailBody: `
           <h2>Inspection Complete ✓</h2>
           <p>The vehicle walkaround inspection has been completed and documented.</p>
@@ -195,7 +198,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
         : `<li><strong>Return Location:</strong> ${d.pickupLoc}</li>`;
       return {
         subject: `Rental Active – Enjoy Your ${d.vehicleName}! – Booking ${code}`,
-        sms: `${BRAND}: Your ${d.vehicleName} rental is active! Booking ${code}. Return by ${fmtDateTime(b.end_at)} to ${d.returnLoc}. Emergency: ${EMERGENCY_PHONE}. Drive safe!`,
+        sms: `${BRAND}: Your ${d.vehicleName} rental is active! Booking ${code}. Return by ${fmtDateTime(b.end_at)} to ${d.returnLoc}. Emergency: ${phone}. Drive safe!`,
         emailBody: `
           <h2>🚗 You're On Your Way!</h2>
           <p>Your rental is now active. Here's everything you need:</p>
@@ -204,7 +207,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
           <ul>
             <li><strong>Return By:</strong> ${fmtDateTime(b.end_at)}</li>
             ${returnInfo}
-            <li><strong>Emergency Line:</strong> (604) 763-4242</li>
+            <li><strong>Emergency Line:</strong> ${phone}</li>
           </ul>
           <p>Drive safe and enjoy your rental! 🎉</p>
         `,
@@ -214,7 +217,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "return_initiated":
       return {
         subject: `Return Started – Booking ${code}`,
-        sms: `${BRAND}: Return started for booking ${code}. We're inspecting your ${d.vehicleName} now. You'll get a confirmation once complete.`,
+        sms: `${BRAND}: Return started for booking ${code}. We're inspecting your ${d.vehicleName} now. You'll get a confirmation once complete. ${ask}`,
         emailBody: `
           <h2>Return in Progress</h2>
           <p>Thank you for returning the vehicle. Our team is conducting the final inspection.</p>
@@ -226,7 +229,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "rental_completed":
       return {
         subject: `Rental Complete – Thank You! – Booking ${code}`,
-        sms: `${BRAND}: Booking ${code} is complete! Your deposit of ${fmtMoney(b.deposit_amount)} will be released within 5-10 business days. Thank you for choosing C2C Rental!`,
+        sms: `${BRAND}: Booking ${code} is complete! Your deposit of ${fmtMoney(b.deposit_amount)} will be released within 5-10 business days. Thank you for choosing ${BRAND}! ${ask}`,
         emailBody: `
           <h2>Thank You for Renting with C2C Rental! 🎉</h2>
           <p>Your rental has been successfully completed.</p>
@@ -241,7 +244,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "deposit_released":
       return {
         subject: `Deposit Released – Booking ${code}`,
-        sms: `${BRAND}: Your deposit of ${fmtMoney(b.deposit_amount)} for booking ${code} has been released. It should appear on your statement within 5-10 business days.`,
+        sms: `${BRAND}: Your deposit of ${fmtMoney(b.deposit_amount)} for booking ${code} has been released. It should appear on your statement within 5-10 business days. ${ask}`,
         emailBody: `
           <h2>Deposit Released ✓</h2>
           <p>Your security deposit has been released for the following booking:</p>
@@ -256,7 +259,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     default:
       return {
         subject: `Booking Update – ${code}`,
-        sms: `${BRAND}: Update for booking ${code}. Check your email for details.`,
+        sms: `${BRAND}: Update for booking ${code}. Check your email for details. ${ask}`,
         emailBody: `
           <h2>Booking Update</h2>
           <p>There's an update on your booking:</p>
@@ -267,7 +270,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
 }
 
 // ── Wrap email in branded shell ─────────────────────────────────────
-function wrapEmail(userName: string, body: string): string {
+function wrapEmail(userName: string, body: string, contactPhone: string): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -282,7 +285,7 @@ function wrapEmail(userName: string, body: string): string {
     <hr style="margin:30px 0;border:none;border-top:1px solid #ddd;">
     <p style="color:#999;font-size:11px;text-align:center;">
       C2C Rental &bull; <a href="https://c2crental.ca" style="color:#dc2626;">c2crental.ca</a><br>
-      Questions? Call us at (604) 763-4242
+      Questions? Call us at ${contactPhone}
     </p>
   </div>
 </body>
@@ -371,8 +374,11 @@ serve(async (req) => {
     const signLink = `${appUrl}/booking/${bookingId}`;
 
     // ── Get stage content ───────────────────────────────────────────
+    // ── Location-specific contact number ────────────────────────────
+    const contactPhone = await getBookingContactPhone(supabase, booking);
+
     const template = getStageContent(stage, {
-      booking, vehicleName, pickupLoc, returnLoc, signLink,
+      booking, vehicleName, pickupLoc, returnLoc, signLink, contactPhone,
     });
 
     // ── Dedup check ─────────────────────────────────────────────────
@@ -400,7 +406,7 @@ serve(async (req) => {
     if (resendApiKey && userEmail) {
       try {
         const smsText = customMessage || template.sms;
-        const emailHtml = wrapEmail(userName, template.emailBody);
+        const emailHtml = wrapEmail(userName, template.emailBody, contactPhone);
 
         const emailRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
