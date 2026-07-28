@@ -282,6 +282,25 @@ serve(async (req) => {
       pickupMetrics = inspectionData;
     }
 
+    // Odometer shown as "Km Out": an explicit override (rental extension) wins,
+    // then the most recent recorded extension reading, then the pickup inspection.
+    let latestExtensionOdometer: number | null = null;
+    if (odometerOverride == null) {
+      const { data: lastExtension } = await supabase
+        .from("booking_extensions")
+        .select("odometer_km")
+        .eq("booking_id", bookingId)
+        .not("odometer_km", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      latestExtensionOdometer = lastExtension?.odometer_km ?? null;
+    }
+    const effectiveOdometerOut =
+      odometerOverride ?? latestExtensionOdometer ?? pickupMetrics.odometer;
+    const odometerSource =
+      odometerOverride != null || latestExtensionOdometer != null ? "extension" : "pickup";
+
     console.log(`Found booking: ${booking.booking_code}`);
 
     // Fetch profile including license info
