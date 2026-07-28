@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { BRAND, EMERGENCY_PHONE, fmtDateTimeVan } from "../_shared/sms-format.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -113,13 +114,8 @@ serve(async (req) => {
     }
 
     // Format dates
-    const startDate = new Date(booking.start_at).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    const startDate = fmtDateTimeVan(booking.start_at);
+    const returnDate = fmtDateTimeVan(booking.end_at);
 
     // Access related data
     const locationData = booking.locations as any;
@@ -136,16 +132,16 @@ serve(async (req) => {
 
     switch (templateType) {
       case "confirmation":
-        message = `C2C Rental: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nLocation: ${locationName}\n\nView details:\n${bookingLink}`;
+        message = `${BRAND}: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView details:\n${bookingLink}`;
         break;
       case "update":
-        message = `C2C Rental: Booking ${booking.booking_code} updated.\n\nPickup: ${startDate}\nLocation: ${locationName}\n\nView details:\n${bookingLink}`;
+        message = `${BRAND}: Booking ${booking.booking_code} updated.\n\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView details:\n${bookingLink}`;
         break;
       case "cancellation":
-        message = `C2C Rental: Booking ${booking.booking_code} cancelled.\n\nQuestions? Contact us.`;
+        message = `${BRAND}: Booking ${booking.booking_code} cancelled.\n\nQuestions? Call ${EMERGENCY_PHONE}`;
         break;
       case "reminder":
-        message = `C2C Rental: Pickup tomorrow!\n\n${vehicleName}\n${startDate}\nLocation: ${locationName}\n\nView booking:\n${bookingLink}`;
+        message = `${BRAND}: Pickup tomorrow for booking ${booking.booking_code}!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView booking:\n${bookingLink}`;
         break;
     }
 

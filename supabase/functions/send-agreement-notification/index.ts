@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { BRAND, EMERGENCY_PHONE } from "../_shared/sms-format.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -161,7 +162,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `C2C Rental: Your rental agreement for booking ${booking.booking_code} is ready! Please sign digitally to skip paperwork at pickup. Check your email for details.`;
+        smsMessage = `${BRAND}: Your rental agreement for booking ${booking.booking_code} is ready! Please sign digitally to skip paperwork at pickup. Check your email for details. Questions? Call ${EMERGENCY_PHONE}`;
         break;
 
       case "license_verified":
@@ -179,7 +180,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `C2C Rental: Your driver's license has been verified for booking ${booking.booking_code}. Agreement coming soon!`;
+        smsMessage = `${BRAND}: Your driver's license has been verified for booking ${booking.booking_code}. Agreement coming soon! Questions? Call ${EMERGENCY_PHONE}`;
         break;
 
       case "payment_received":
@@ -198,7 +199,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `C2C Rental: Payment of $${booking.total_amount.toFixed(2)} received for booking ${booking.booking_code}. Thank you!`;
+        smsMessage = `${BRAND}: Payment of $${booking.total_amount.toFixed(2)} received for booking ${booking.booking_code}. Thank you!`;
         break;
 
       case "pickup_ready":
@@ -217,7 +218,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `C2C Rental: Your ${vehicleName} is ready at ${locationData?.name}! Show code ${booking.booking_code} at pickup. Safe travels!`;
+        smsMessage = `${BRAND}: Your ${vehicleName} is ready at ${locationData?.name}! Show code ${booking.booking_code} at pickup for booking ${booking.booking_code}. Questions? Call ${EMERGENCY_PHONE}. Safe travels!`;
         break;
     }
 
