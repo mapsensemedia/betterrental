@@ -12,6 +12,8 @@ export interface BookingModification {
   bookingId: string;
   newEndAt: string;
   reason: string;
+  /** Current odometer reading (km) — required when extending an active rental */
+  currentOdometerKm?: number;
 }
 
 export interface ModificationPreview {
