@@ -475,8 +475,48 @@ Deno.serve(async (req) => {
       entity_id: bookingId,
       user_id: authResult.userId,
       old_data: oldData,
-      new_data: { ...updateData, operation },
+      new_data: {
+        ...updateData,
+        operation,
+        ...(extensionInfo ? { extension_odometer_km: extensionInfo.odometerKm } : {}),
+      },
     });
+
+    // Record the extension (odometer reading at time of extension) and keep the
+    // vehicle's mileage in sync.
+    let extensionRowId: string | null = null;
+    if (extensionInfo) {
+      const { data: extRow, error: extErr } = await supabase
+        .from("booking_extensions")
+        .insert({
+          booking_id: bookingId,
+          previous_end_at: extensionInfo.previousEndAt,
+          new_end_at: extensionInfo.newEndAt,
+          odometer_km: extensionInfo.odometerKm,
+          previous_odometer_km: extensionInfo.previousOdometerKm,
+          reason: extensionInfo.reason,
+          price_difference:
+            updateData.total_amount != null
+              ? Number(updateData.total_amount) - Number(booking.total_amount || 0)
+              : 0,
+          recorded_by: authResult.userId,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (extErr) {
+        console.error("[reprice-booking] Failed to record extension:", extErr);
+      } else {
+        extensionRowId = extRow?.id ?? null;
+      }
+
+      if (booking.assigned_unit_id) {
+        await supabase
+          .from("vehicle_units")
+          .update({ current_mileage: extensionInfo.odometerKm, updated_at: new Date().toISOString() })
+          .eq("id", booking.assigned_unit_id);
+      }
+    }
 
     // Keep the rental agreement in sync: when the billed days or the total change,
     // the stored agreement is stale (it still shows the pre-change figures).
@@ -486,7 +526,7 @@ Deno.serve(async (req) => {
     const totalChanged = updateData.total_amount != null
       && Number(updateData.total_amount) !== Number(booking.total_amount);
 
-    if (daysChanged || totalChanged) {
+    if (daysChanged || totalChanged || extensionInfo) {
       try {
         const { data: existingAgreement } = await supabase
           .from("rental_agreements")
@@ -498,24 +538,34 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (existingAgreement) {
-          const { error: regenErr } = await supabase.functions.invoke("generate-agreement", {
+          const { data: regenData, error: regenErr } = await supabase.functions.invoke("generate-agreement", {
             body: {
               bookingId,
               forceRegenerate: true,
               suppressNotifications: true,
               copySignatureFromLatest: !!existingAgreement.customer_signed_at,
+              ...(extensionInfo
+                ? { agreementType: "extension", odometerOutOverride: extensionInfo.odometerKm }
+                : {}),
             },
           });
           if (regenErr) {
             console.error("[reprice-booking] Agreement regeneration failed:", regenErr);
           } else {
             console.log(`[reprice-booking] Agreement regenerated for ${bookingId}`);
+            if (extensionRowId && regenData?.agreementId) {
+              await supabase
+                .from("booking_extensions")
+                .update({ agreement_id: regenData.agreementId })
+                .eq("id", extensionRowId);
+            }
           }
         }
       } catch (e) {
         console.error("[reprice-booking] Agreement sync error:", e);
       }
     }
+
 
     console.log(`[reprice-booking] ${operation} on ${bookingId}: total ${updateData.total_amount}`);
 
