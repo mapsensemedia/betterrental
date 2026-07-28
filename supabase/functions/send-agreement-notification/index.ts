@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { BRAND, EMERGENCY_PHONE } from "../_shared/sms-format.ts";
+import { BRAND, formatPhoneForMessage } from "../_shared/sms-format.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,7 +88,7 @@ serve(async (req) => {
       .from("bookings")
       .select(`
         id, booking_code, start_at, end_at, status, total_amount, user_id,
-        locations!inner (name, address),
+        locations!inner (name, address, phone),
         vehicles!inner (make, model, year)
       `)
       .eq("id", bookingId)
@@ -124,6 +124,7 @@ serve(async (req) => {
     const locationData = booking.locations as any;
     const vehicleName = `${vehicleData?.year} ${vehicleData?.make} ${vehicleData?.model}`;
     const customerName = userName || "Valued Customer";
+    const contactPhone = formatPhoneForMessage(locationData?.phone);
 
     // Build notification content based on type
     let emailSubject = "";
@@ -162,7 +163,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `${BRAND}: Your rental agreement for booking ${booking.booking_code} is ready! Please sign digitally to skip paperwork at pickup. Check your email for details. Questions? Call ${EMERGENCY_PHONE}`;
+        smsMessage = `${BRAND}: Your rental agreement for booking ${booking.booking_code} is ready! Please sign digitally to skip paperwork at pickup. Check your email for details. Questions? Call ${contactPhone}`;
         break;
 
       case "license_verified":
@@ -180,7 +181,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `${BRAND}: Your driver's license has been verified for booking ${booking.booking_code}. Agreement coming soon! Questions? Call ${EMERGENCY_PHONE}`;
+        smsMessage = `${BRAND}: Your driver's license has been verified for booking ${booking.booking_code}. Agreement coming soon! Questions? Call ${contactPhone}`;
         break;
 
       case "payment_received":
@@ -199,7 +200,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `${BRAND}: Payment of $${booking.total_amount.toFixed(2)} received for booking ${booking.booking_code}. Thank you! Questions? Call ${EMERGENCY_PHONE}`;
+        smsMessage = `${BRAND}: Payment of $${booking.total_amount.toFixed(2)} received for booking ${booking.booking_code}. Thank you! Questions? Call ${contactPhone}`;
         break;
 
       case "pickup_ready":
@@ -218,7 +219,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `${BRAND}: Your ${vehicleName} is ready at ${locationData?.name}! Show code ${booking.booking_code} at pickup. Questions? Call ${EMERGENCY_PHONE}. Safe travels!`;
+        smsMessage = `${BRAND}: Your ${vehicleName} is ready at ${locationData?.name}! Show code ${booking.booking_code} at pickup. Questions? Call ${contactPhone}. Safe travels!`;
         break;
     }
 

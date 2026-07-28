@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { BRAND, EMERGENCY_PHONE, fmtDateTimeVan } from "../_shared/sms-format.ts";
+import { BRAND, formatPhoneForMessage, fmtDateTimeVan } from "../_shared/sms-format.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,7 +48,7 @@ serve(async (req) => {
       .from("bookings")
       .select(`
         id, booking_code, start_at, end_at, status, total_amount, user_id, vehicle_id,
-        locations!inner (name, address)
+        locations!inner (name, address, phone)
       `)
       .eq("id", bookingId)
       .single();
