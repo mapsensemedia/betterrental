@@ -256,6 +256,7 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
       </div>
 
       {/* Deposit hold checkbox */}
+      {!depositOnly && (
       <div className="flex items-start gap-2 pt-1">
         <Checkbox
           id="include-deposit"
@@ -272,13 +273,16 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
           </p>
         </div>
       </div>
+      )}
 
-      {includeDeposit && (
-        <div className="space-y-1.5 pl-6">
-          <Label htmlFor="deposit-receipt" className="text-xs">Deposit Receipt Number</Label>
+      {(depositOnly || includeDeposit) && (
+        <div className={`space-y-1.5 ${depositOnly ? "" : "pl-6"}`}>
+          <Label htmlFor="deposit-receipt" className="text-xs">
+            Deposit Receipt / Auth Number {depositOnly ? "*" : ""}
+          </Label>
           <Input
             id="deposit-receipt"
-            placeholder={`Defaults to ${transactions[0]?.receiptNumber.trim() || "receipt"}-DEP`}
+            placeholder={depositOnly ? "e.g. 041955" : `Defaults to ${transactions[0]?.receiptNumber.trim() || "receipt"}-DEP`}
             value={depositReceiptNumber}
             onChange={(e) => setDepositReceiptNumber(e.target.value)}
             maxLength={50}
@@ -298,10 +302,13 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
         ) : (
           <CheckCircle2 className="h-4 w-4 mr-1" />
         )}
-        {transactions.length === 1
-          ? (includeDeposit ? "Log Payment + Deposit Hold" : "Log Payment & Confirm Booking")
-          : `Log ${transactions.length} Payments`}
+        {depositOnly
+          ? "Record Deposit Hold"
+          : transactions.length === 1
+            ? (includeDeposit ? "Log Payment + Deposit Hold" : "Log Payment & Confirm Booking")
+            : `Log ${transactions.length} Payments`}
       </Button>
+
     </div>
   );
 }
