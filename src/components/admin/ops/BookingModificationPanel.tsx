@@ -133,12 +133,18 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
   };
 
   const handleConfirm = () => {
-    if (!reason.trim()) return;
+    if (!reason.trim() || !odometerReady) return;
     modifyBooking.mutate(
-      { bookingId: booking.id, newEndAt: newEndDate, reason: reason.trim() },
-      { onSuccess: () => { setConfirmOpen(false); setReason(""); } }
+      {
+        bookingId: booking.id,
+        newEndAt: newEndDate,
+        reason: reason.trim(),
+        ...(isExtension && odometerValue != null ? { currentOdometerKm: odometerValue } : {}),
+      },
+      { onSuccess: () => { setConfirmOpen(false); setReason(""); setOdometerInput(""); } }
     );
   };
+
 
   if (!canModify) {
     return (
