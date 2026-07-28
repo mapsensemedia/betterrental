@@ -493,13 +493,49 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
 
           {/* === INLINE DEPOSIT-ONLY FORM (paid, no deposit) === */}
           {canShowDepositOnly && (
-            <OpsPaymentAndDeposit
-              bookingId={bookingId}
-              rentalAmount={0}
-              depositAmount={DEFAULT_DEPOSIT_AMOUNT}
-              onUpdated={refreshData}
-            />
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={depositMode === "card" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDepositMode("card")}
+                  className="flex-1"
+                >
+                  Card on file / Online
+                </Button>
+                <Button
+                  type="button"
+                  variant={depositMode === "terminal" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDepositMode("terminal")}
+                  className="flex-1"
+                >
+                  Terminal
+                </Button>
+              </div>
+
+              <div className={depositMode === "card" ? "" : "hidden"}>
+                <OpsPaymentAndDeposit
+                  bookingId={bookingId}
+                  rentalAmount={0}
+                  depositAmount={DEFAULT_DEPOSIT_AMOUNT}
+                  onUpdated={refreshData}
+                />
+              </div>
+              <div className={depositMode === "terminal" ? "" : "hidden"}>
+                <TerminalPaymentForm
+                  bookingId={bookingId}
+                  amount={0}
+                  outstandingBalance={0}
+                  depositAmount={DEFAULT_DEPOSIT_AMOUNT}
+                  depositOnly
+                  onUpdated={refreshData}
+                />
+              </div>
+            </div>
           )}
+
 
           {/* No payment and not eligible for any form */}
           {!isPaid && !wlAuthStatus && !wlTransactionId && !canShowPayForm && (
