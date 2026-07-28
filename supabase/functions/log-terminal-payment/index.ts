@@ -195,6 +195,7 @@ Deno.serve(async (req) => {
       bookingUpdate.wl_deposit_auth_status = "authorized";
 
       bookingUpdate.deposit_status = "authorized";
+      bookingUpdate.deposit_authorized_at = new Date().toISOString();
 
       const { error: ledgerErr } = await supabase.from("deposit_ledger").insert({
         booking_id: bookingId,
@@ -219,7 +220,7 @@ Deno.serve(async (req) => {
 
     // Audit log
     await supabase.from("audit_logs").insert({
-      action: "terminal_payment_logged",
+      action: isDepositOnly ? "terminal_deposit_logged" : "terminal_payment_logged",
       entity_type: "booking",
       entity_id: bookingId,
       user_id: userId,
@@ -233,18 +234,21 @@ Deno.serve(async (req) => {
         auth_code: authCode || null,
         total_amount: requestTotal,
         fully_paid: fullyPaid,
-        ...(includeDeposit ? { deposit_hold: true, deposit_amount: depositAmount, deposit_transaction_id: depositTxnId } : {}),
+        deposit_only: isDepositOnly,
+        ...(recordDeposit ? { deposit_hold: true, deposit_amount: depositAmount, deposit_transaction_id: depositTxnId } : {}),
       },
     });
 
     return jsonResponse({
       success: true,
+      depositOnly: isDepositOnly,
       transactions: txnIds,
       totalRecorded: requestTotal,
       fullyPaid,
       bookingStatus: fullyPaid ? "confirmed" : booking.status,
-      depositHold: includeDeposit ? { transactionId: depositTxnId, amount: depositAmount } : null,
+      depositHold: recordDeposit ? { transactionId: depositTxnId, amount: depositAmount } : null,
     });
+
   } catch (err) {
     try {
       return authErrorResponse(err, corsHeaders);
