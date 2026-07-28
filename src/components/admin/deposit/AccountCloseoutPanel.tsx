@@ -79,8 +79,10 @@ export function AccountCloseoutPanel({ bookingId, onCloseComplete, className }: 
       const { data, error } = await supabase.functions.invoke("wl-capture", {
         body: { bookingId },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
+      }
       toast.success("Deposit captured successfully");
       refreshDepositState();
     } catch (err: any) {
