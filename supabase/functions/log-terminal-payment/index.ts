@@ -58,7 +58,14 @@ Deno.serve(async (req) => {
     interface Txn { receiptNumber: string; amount: number }
     let transactions: Txn[];
 
-    if (Array.isArray(txnArray) && txnArray.length > 0) {
+    if (isDepositOnly) {
+      // No rental transactions in deposit-only mode
+      const depReceipt = typeof depositReceiptNumber === "string" ? depositReceiptNumber.trim() : "";
+      if (!/^[A-Za-z0-9\-_]{3,50}$/.test(depReceipt)) {
+        return jsonResponse({ error: "A valid deposit receipt / auth number is required" }, 400);
+      }
+      transactions = [];
+    } else if (Array.isArray(txnArray) && txnArray.length > 0) {
       transactions = txnArray;
     } else if (legacyReceipt) {
       // Legacy single-entry: amount will be set to remaining balance below
@@ -66,6 +73,7 @@ Deno.serve(async (req) => {
     } else {
       return jsonResponse({ error: "transactions array or receiptNumber is required" }, 400);
     }
+
 
     // Validate each receipt format
     for (const txn of transactions) {
