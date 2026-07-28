@@ -18,17 +18,19 @@ interface TerminalPaymentFormProps {
   amount: number;
   outstandingBalance?: number;
   depositAmount?: number;
+  /** Record only a security-deposit hold taken on the terminal (no rental payment). */
+  depositOnly?: boolean;
   onUpdated: () => void;
 }
 
-export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, depositAmount = 350, onUpdated }: TerminalPaymentFormProps) {
+export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, depositAmount = 350, depositOnly = false, onUpdated }: TerminalPaymentFormProps) {
   const balance = outstandingBalance ?? amount;
   const [transactions, setTransactions] = useState<TransactionRow[]>([
     { amount: balance.toFixed(2), receiptNumber: "" },
   ]);
   const [cardLastFour, setCardLastFour] = useState("");
   const [authCode, setAuthCode] = useState("");
-  const [includeDeposit, setIncludeDeposit] = useState(false);
+  const [includeDeposit, setIncludeDeposit] = useState(depositOnly);
   const [depositReceiptNumber, setDepositReceiptNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successTxns, setSuccessTxns] = useState<{ receiptNumber: string; amount: number }[] | null>(null);
@@ -57,7 +59,11 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
   });
   const cardValid = /^\d{4}$/.test(cardLastFour);
   const totalValid = totalAmount > 0 && totalAmount <= balance + 0.01; // small float tolerance
-  const isValid = allRowsValid && cardValid && totalValid;
+  const depositReceiptValid = /^[A-Za-z0-9\-_]{3,50}$/.test(depositReceiptNumber.trim());
+  const isValid = depositOnly
+    ? cardValid && depositReceiptValid
+    : allRowsValid && cardValid && totalValid;
+
 
   const handleSubmit = async () => {
     if (!isValid) return;
@@ -66,28 +72,38 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
       const { data, error } = await supabase.functions.invoke("log-terminal-payment", {
         body: {
           bookingId,
-          transactions: transactions.map(r => ({
-            receiptNumber: r.receiptNumber.trim(),
-            amount: parseFloat(r.amount),
-          })),
+          depositOnly,
+          transactions: depositOnly
+            ? []
+            : transactions.map(r => ({
+                receiptNumber: r.receiptNumber.trim(),
+                amount: parseFloat(r.amount),
+              })),
           cardLastFour,
           authCode: authCode.trim() || undefined,
-          includeDeposit,
-          depositReceiptNumber: includeDeposit ? (depositReceiptNumber.trim() || undefined) : undefined,
+          includeDeposit: depositOnly ? true : includeDeposit,
+          depositReceiptNumber:
+            depositOnly || includeDeposit ? (depositReceiptNumber.trim() || undefined) : undefined,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      
-      setSuccessTxns(transactions.map(r => ({
-        receiptNumber: r.receiptNumber.trim(),
-        amount: parseFloat(r.amount),
-      })));
-      setDepositIncluded(includeDeposit);
+
+      setSuccessTxns(
+        depositOnly
+          ? []
+          : transactions.map(r => ({
+              receiptNumber: r.receiptNumber.trim(),
+              amount: parseFloat(r.amount),
+            }))
+      );
+      setDepositIncluded(depositOnly || includeDeposit);
       toast.success(
-        transactions.length === 1
-          ? "Terminal payment logged — booking confirmed"
-          : `${transactions.length} terminal payments logged`
+        depositOnly
+          ? "Deposit hold recorded"
+          : transactions.length === 1
+            ? "Terminal payment logged — booking confirmed"
+            : `${transactions.length} terminal payments logged`
       );
       onUpdated();
     } catch (err: any) {
@@ -97,15 +113,18 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
     }
   };
 
+
   if (successTxns) {
     return (
       <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30">
         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
         <AlertDescription className="text-emerald-800 dark:text-emerald-200">
           <p className="font-medium mb-1">
-            {successTxns.length === 1
-              ? `Terminal payment of $${successTxns[0].amount.toFixed(2)} logged.`
-              : `${successTxns.length} terminal payments logged:`}
+            {successTxns.length === 0
+              ? "Deposit hold recorded."
+              : successTxns.length === 1
+                ? `Terminal payment of $${successTxns[0].amount.toFixed(2)} logged.`
+                : `${successTxns.length} terminal payments logged:`}
           </p>
           {successTxns.length > 1 && (
             <ul className="text-sm space-y-0.5 ml-1">
@@ -119,8 +138,12 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
             </ul>
           )}
           {depositIncluded && (
-            <p className="text-sm mt-1">Deposit hold of <span className="font-mono font-medium">${depositAmount.toFixed(2)}</span> also recorded.</p>
+            <p className="text-sm mt-1">
+              Deposit hold of <span className="font-mono font-medium">${depositAmount.toFixed(2)}</span>
+              {successTxns.length === 0 ? " recorded." : " also recorded."}
+            </p>
           )}
+
         </AlertDescription>
       </Alert>
     );
@@ -130,17 +153,20 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
     <div className="space-y-3 rounded-md border border-border p-3 bg-muted/30">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Terminal className="h-4 w-4 text-muted-foreground" />
-        Log Terminal Payment
+        {depositOnly ? "Log Terminal Deposit Hold" : "Log Terminal Payment"}
       </div>
 
       <div className="p-2 rounded bg-muted/50 flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Outstanding Balance</span>
-        <span className="font-mono font-medium">${balance.toFixed(2)}</span>
+        <span className="text-muted-foreground">{depositOnly ? "Deposit Amount" : "Outstanding Balance"}</span>
+        <span className="font-mono font-medium">${(depositOnly ? depositAmount : balance).toFixed(2)}</span>
       </div>
 
+
       {/* Transaction rows */}
+      {!depositOnly && (
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Transactions</Label>
+
         {transactions.map((row, index) => (
           <div key={index} className="flex gap-2 items-end">
             <div className="flex-1 space-y-1">
@@ -190,9 +216,11 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
           Add Transaction
         </Button>
       </div>
+      )}
 
       {/* Running total */}
-      {transactions.length > 1 && (
+      {!depositOnly && transactions.length > 1 && (
+
         <div className="p-2 rounded bg-muted/50 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Total ({transactions.length} transactions)</span>
           <span className={`font-mono font-medium ${totalAmount > balance + 0.01 ? "text-destructive" : ""}`}>
@@ -228,6 +256,7 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
       </div>
 
       {/* Deposit hold checkbox */}
+      {!depositOnly && (
       <div className="flex items-start gap-2 pt-1">
         <Checkbox
           id="include-deposit"
@@ -244,13 +273,16 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
           </p>
         </div>
       </div>
+      )}
 
-      {includeDeposit && (
-        <div className="space-y-1.5 pl-6">
-          <Label htmlFor="deposit-receipt" className="text-xs">Deposit Receipt Number</Label>
+      {(depositOnly || includeDeposit) && (
+        <div className={`space-y-1.5 ${depositOnly ? "" : "pl-6"}`}>
+          <Label htmlFor="deposit-receipt" className="text-xs">
+            Deposit Receipt / Auth Number {depositOnly ? "*" : ""}
+          </Label>
           <Input
             id="deposit-receipt"
-            placeholder={`Defaults to ${transactions[0]?.receiptNumber.trim() || "receipt"}-DEP`}
+            placeholder={depositOnly ? "e.g. 041955" : `Defaults to ${transactions[0]?.receiptNumber.trim() || "receipt"}-DEP`}
             value={depositReceiptNumber}
             onChange={(e) => setDepositReceiptNumber(e.target.value)}
             maxLength={50}
@@ -270,10 +302,13 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
         ) : (
           <CheckCircle2 className="h-4 w-4 mr-1" />
         )}
-        {transactions.length === 1
-          ? (includeDeposit ? "Log Payment + Deposit Hold" : "Log Payment & Confirm Booking")
-          : `Log ${transactions.length} Payments`}
+        {depositOnly
+          ? "Record Deposit Hold"
+          : transactions.length === 1
+            ? (includeDeposit ? "Log Payment + Deposit Hold" : "Log Payment & Confirm Booking")
+            : `Log ${transactions.length} Payments`}
       </Button>
+
     </div>
   );
 }

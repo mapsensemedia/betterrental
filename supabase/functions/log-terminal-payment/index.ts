@@ -36,6 +36,8 @@ Deno.serve(async (req) => {
       authCode,
       includeDeposit,
       depositReceiptNumber,
+      // Deposit-only mode: record a terminal deposit hold with no rental payment
+      depositOnly,
       // New multi-transaction field
       transactions: txnArray,
       // Legacy single-entry fields
@@ -49,11 +51,21 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "cardLastFour must be exactly 4 digits" }, 400);
     }
 
+    const isDepositOnly = depositOnly === true;
+
+
     // Normalize into transactions array (backward compat)
     interface Txn { receiptNumber: string; amount: number }
     let transactions: Txn[];
 
-    if (Array.isArray(txnArray) && txnArray.length > 0) {
+    if (isDepositOnly) {
+      // No rental transactions in deposit-only mode
+      const depReceipt = typeof depositReceiptNumber === "string" ? depositReceiptNumber.trim() : "";
+      if (!/^[A-Za-z0-9\-_]{3,50}$/.test(depReceipt)) {
+        return jsonResponse({ error: "A valid deposit receipt / auth number is required" }, 400);
+      }
+      transactions = [];
+    } else if (Array.isArray(txnArray) && txnArray.length > 0) {
       transactions = txnArray;
     } else if (legacyReceipt) {
       // Legacy single-entry: amount will be set to remaining balance below
@@ -61,6 +73,7 @@ Deno.serve(async (req) => {
     } else {
       return jsonResponse({ error: "transactions array or receiptNumber is required" }, 400);
     }
+
 
     // Validate each receipt format
     for (const txn of transactions) {
@@ -117,60 +130,72 @@ Deno.serve(async (req) => {
 
     // Check for duplicate receipts
     const txnIds = transactions.map(t => `TERM-${t.receiptNumber}`);
-    const { data: dupes } = await supabase
-      .from("payments")
-      .select("transaction_id")
-      .in("transaction_id", txnIds);
+    if (txnIds.length > 0) {
+      const { data: dupes } = await supabase
+        .from("payments")
+        .select("transaction_id")
+        .in("transaction_id", txnIds);
 
-    if (dupes && dupes.length > 0) {
-      const dupeIds = dupes.map((d: { transaction_id: string }) => d.transaction_id);
-      return jsonResponse({
-        error: `Duplicate receipt(s): ${dupeIds.join(", ")}`,
-      }, 409);
+      if (dupes && dupes.length > 0) {
+        const dupeIds = dupes.map((d: { transaction_id: string }) => d.transaction_id);
+        return jsonResponse({
+          error: `Duplicate receipt(s): ${dupeIds.join(", ")}`,
+        }, 409);
+      }
     }
 
     // Insert payment records
-    const paymentRows = transactions.map(txn => ({
-      booking_id: bookingId,
-      amount: txn.amount,
-      payment_type: "rental",
-      payment_method: "terminal",
-      status: "completed",
-      transaction_id: `TERM-${txn.receiptNumber}`,
-      user_id: booking.user_id,
-      location_id: booking.location_id,
-    }));
+    if (transactions.length > 0) {
+      const paymentRows = transactions.map(txn => ({
+        booking_id: bookingId,
+        amount: txn.amount,
+        payment_type: "rental",
+        payment_method: "terminal",
+        status: "completed",
+        transaction_id: `TERM-${txn.receiptNumber}`,
+        user_id: booking.user_id,
+        location_id: booking.location_id,
+      }));
 
-    const { error: payErr } = await supabase.from("payments").insert(paymentRows);
-    if (payErr) {
-      console.error("Payment insert error:", payErr);
-      return jsonResponse({ error: "Failed to record payment(s)" }, 500);
+      const { error: payErr } = await supabase.from("payments").insert(paymentRows);
+      if (payErr) {
+        console.error("Payment insert error:", payErr);
+        return jsonResponse({ error: "Failed to record payment(s)" }, 500);
+      }
     }
 
     // Determine if fully paid now
     const newTotal = existingTotal + requestTotal;
-    const fullyPaid = newTotal >= Number(booking.total_amount) - 0.01;
+    const fullyPaid = !isDepositOnly && newTotal >= Number(booking.total_amount) - 0.01;
 
     // Build booking update
-    const bookingUpdate: Record<string, unknown> = {
-      wl_transaction_id: txnIds[0],
-      wl_auth_status: "completed",
-      card_last_four: cardLastFour,
-    };
-    if (fullyPaid) {
-      bookingUpdate.status = "confirmed";
+    const bookingUpdate: Record<string, unknown> = { card_last_four: cardLastFour };
+    if (!isDepositOnly) {
+      bookingUpdate.wl_transaction_id = txnIds[0];
+      bookingUpdate.wl_auth_status = "completed";
+      if (fullyPaid) {
+        bookingUpdate.status = "confirmed";
+      }
     }
 
     // Deposit hold
     let depositTxnId: string | null = null;
     const depositAmount = Number(booking.deposit_amount) || DEFAULT_DEPOSIT_AMOUNT;
+    const recordDeposit = isDepositOnly || !!includeDeposit;
 
-    if (includeDeposit) {
-      const depReceipt = depositReceiptNumber?.trim() || `${transactions[0].receiptNumber}-DEP`;
+    if (recordDeposit) {
+      const depReceipt =
+        depositReceiptNumber?.trim() ||
+        (transactions[0] ? `${transactions[0].receiptNumber}-DEP` : "");
+      if (!depReceipt) {
+        return jsonResponse({ error: "A deposit receipt / auth number is required" }, 400);
+      }
       depositTxnId = `TERM-DEP-${depReceipt}`;
       bookingUpdate.wl_deposit_transaction_id = depositTxnId;
       bookingUpdate.wl_deposit_auth_status = "authorized";
+
       bookingUpdate.deposit_status = "authorized";
+      bookingUpdate.deposit_authorized_at = new Date().toISOString();
 
       const { error: ledgerErr } = await supabase.from("deposit_ledger").insert({
         booking_id: bookingId,
@@ -195,7 +220,7 @@ Deno.serve(async (req) => {
 
     // Audit log
     await supabase.from("audit_logs").insert({
-      action: "terminal_payment_logged",
+      action: isDepositOnly ? "terminal_deposit_logged" : "terminal_payment_logged",
       entity_type: "booking",
       entity_id: bookingId,
       user_id: userId,
@@ -209,18 +234,21 @@ Deno.serve(async (req) => {
         auth_code: authCode || null,
         total_amount: requestTotal,
         fully_paid: fullyPaid,
-        ...(includeDeposit ? { deposit_hold: true, deposit_amount: depositAmount, deposit_transaction_id: depositTxnId } : {}),
+        deposit_only: isDepositOnly,
+        ...(recordDeposit ? { deposit_hold: true, deposit_amount: depositAmount, deposit_transaction_id: depositTxnId } : {}),
       },
     });
 
     return jsonResponse({
       success: true,
+      depositOnly: isDepositOnly,
       transactions: txnIds,
       totalRecorded: requestTotal,
       fullyPaid,
       bookingStatus: fullyPaid ? "confirmed" : booking.status,
-      depositHold: includeDeposit ? { transactionId: depositTxnId, amount: depositAmount } : null,
+      depositHold: recordDeposit ? { transactionId: depositTxnId, amount: depositAmount } : null,
     });
+
   } catch (err) {
     try {
       return authErrorResponse(err, corsHeaders);
