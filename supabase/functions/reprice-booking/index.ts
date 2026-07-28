@@ -88,12 +88,82 @@ Deno.serve(async (req) => {
     let oldData: Record<string, unknown> = {};
     let auditAction = "";
 
+    // Set when a modify operation pushes the return date later (a rental extension)
+    let extensionInfo: {
+      previousEndAt: string;
+      newEndAt: string;
+      odometerKm: number;
+      previousOdometerKm: number | null;
+      reason: string | null;
+    } | null = null;
+
     if (operation === "modify") {
       // Extend/shorten rental, change dates, location, optionally override daily rate
-      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices } = body;
+      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices, currentOdometerKm } = body;
       if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId) {
         return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
       }
+
+      // Rental extension: staff must record the vehicle's current odometer reading
+      const isExtension = !!newEndAt && new Date(newEndAt) > new Date(booking.end_at);
+      if (isExtension) {
+        const odo = Number(currentOdometerKm);
+        if (!Number.isFinite(odo) || !Number.isInteger(odo) || odo < 0 || odo > 2_000_000) {
+          return jsonResp(
+            { error: "A valid current odometer reading (km) is required to extend a rental" },
+            400,
+            corsHeaders,
+          );
+        }
+
+        // Previously known reading: last extension, else pickup inspection, else unit mileage
+        let previousOdometerKm: number | null = null;
+        const { data: lastExt } = await supabase
+          .from("booking_extensions")
+          .select("odometer_km")
+          .eq("booking_id", bookingId)
+          .not("odometer_km", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        previousOdometerKm = lastExt?.odometer_km ?? null;
+
+        if (previousOdometerKm == null) {
+          const { data: pickupMetrics } = await supabase
+            .from("inspection_metrics")
+            .select("odometer")
+            .eq("booking_id", bookingId)
+            .eq("phase", "pickup")
+            .maybeSingle();
+          previousOdometerKm = pickupMetrics?.odometer ?? null;
+        }
+
+        if (previousOdometerKm == null && booking.assigned_unit_id) {
+          const { data: unit } = await supabase
+            .from("vehicle_units")
+            .select("current_mileage")
+            .eq("id", booking.assigned_unit_id)
+            .maybeSingle();
+          previousOdometerKm = unit?.current_mileage ?? null;
+        }
+
+        if (previousOdometerKm != null && odo < previousOdometerKm) {
+          return jsonResp(
+            { error: `Odometer reading cannot be lower than the last recorded reading (${previousOdometerKm} km)` },
+            400,
+            corsHeaders,
+          );
+        }
+
+        extensionInfo = {
+          previousEndAt: booking.end_at,
+          newEndAt,
+          odometerKm: odo,
+          previousOdometerKm,
+          reason: typeof reason === "string" ? reason.slice(0, 500) : null,
+        };
+      }
+
 
       if (!["draft", "pending", "confirmed", "active", "overdue"].includes(booking.status)) {
         return jsonResp({ error: "Only pending/confirmed/active/overdue bookings can be modified" }, 400, corsHeaders);
