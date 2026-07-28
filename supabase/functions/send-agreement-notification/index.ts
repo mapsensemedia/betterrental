@@ -199,7 +199,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `${BRAND}: Payment of $${booking.total_amount.toFixed(2)} received for booking ${booking.booking_code}. Thank you!`;
+        smsMessage = `${BRAND}: Payment of $${booking.total_amount.toFixed(2)} received for booking ${booking.booking_code}. Thank you! Questions? Call ${EMERGENCY_PHONE}`;
         break;
 
       case "pickup_ready":
@@ -218,7 +218,7 @@ serve(async (req) => {
             </div>
           </div>
         `;
-        smsMessage = `${BRAND}: Your ${vehicleName} is ready at ${locationData?.name}! Show code ${booking.booking_code} at pickup for booking ${booking.booking_code}. Questions? Call ${EMERGENCY_PHONE}. Safe travels!`;
+        smsMessage = `${BRAND}: Your ${vehicleName} is ready at ${locationData?.name}! Show code ${booking.booking_code} at pickup. Questions? Call ${EMERGENCY_PHONE}. Safe travels!`;
         break;
     }
 
