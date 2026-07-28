@@ -129,7 +129,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "agreement_generated":
       return {
         subject: `Action Required – Sign Your Agreement – Booking ${code}`,
-        sms: `C2C Rental: Your rental agreement for booking ${code} is ready. Please sign before pickup: ${d.signLink}`,
+        sms: `C2C Rental: Your rental agreement for booking ${code} is ready. Please check your email to review and sign before pickup. Questions? Call ${EMERGENCY_PHONE}.`,
         emailBody: `
           <h2>Rental Agreement Ready</h2>
           <p>Your rental agreement is ready for your signature.</p>
