@@ -559,7 +559,9 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         tankCapacityLiters: tankCapacity,
       },
       condition: {
-        odometerOut: pickupMetrics.odometer,
+        odometerOut: effectiveOdometerOut,
+        odometerSource,
+        originalOdometerOut: pickupMetrics.odometer,
         fuelLevelOut: pickupMetrics.fuel_level,
       },
       rental: {
