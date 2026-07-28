@@ -31,6 +31,8 @@ interface TermsJson {
   condition: {
     odometerOut?: number | null;
     fuelLevelOut?: number | null;
+    odometerSource?: string | null;
+    originalOdometerOut?: number | null;
   };
   rental: {
     startAt: string;
