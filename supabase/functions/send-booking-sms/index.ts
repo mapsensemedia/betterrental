@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { BRAND, EMERGENCY_PHONE, fmtDateTimeVan } from "../_shared/sms-format.ts";
+import { BRAND, formatPhoneForMessage, fmtDateTimeVan } from "../_shared/sms-format.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,7 +48,7 @@ serve(async (req) => {
       .from("bookings")
       .select(`
         id, booking_code, start_at, end_at, status, total_amount, user_id, vehicle_id,
-        locations!inner (name, address)
+        locations!inner (name, address, phone)
       `)
       .eq("id", bookingId)
       .single();
@@ -123,6 +123,9 @@ serve(async (req) => {
     const vehicleName = vehicleCategory?.name || "Vehicle";
     const locationName = locationData?.name || "our location";
 
+    // Location-specific contact number
+    const contactPhone = formatPhoneForMessage(locationData?.phone);
+
     // Build message based on template
     let message = "";
     
@@ -132,18 +135,19 @@ serve(async (req) => {
 
     switch (templateType) {
       case "confirmation":
-        message = `${BRAND}: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView details:\n${bookingLink}`;
+        message = `${BRAND}: Booking ${booking.booking_code} confirmed!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${contactPhone}\n\nView details:\n${bookingLink}`;
         break;
       case "update":
-        message = `${BRAND}: Booking ${booking.booking_code} updated.\n\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView details:\n${bookingLink}`;
+        message = `${BRAND}: Booking ${booking.booking_code} updated.\n\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${contactPhone}\n\nView details:\n${bookingLink}`;
         break;
       case "cancellation":
-        message = `${BRAND}: Booking ${booking.booking_code} cancelled.\n\nQuestions? Call ${EMERGENCY_PHONE}`;
+        message = `${BRAND}: Booking ${booking.booking_code} cancelled.\n\nQuestions? Call ${contactPhone}`;
         break;
       case "reminder":
-        message = `${BRAND}: Pickup tomorrow for booking ${booking.booking_code}!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${EMERGENCY_PHONE}\n\nView booking:\n${bookingLink}`;
+        message = `${BRAND}: Pickup tomorrow for booking ${booking.booking_code}!\n\n${vehicleName}\nPickup: ${startDate}\nReturn: ${returnDate}\nLocation: ${locationName}\n\nQuestions? Call ${contactPhone}\n\nView booking:\n${bookingLink}`;
         break;
     }
+
 
     // Send SMS via Twilio
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
