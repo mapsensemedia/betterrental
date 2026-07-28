@@ -72,28 +72,38 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
       const { data, error } = await supabase.functions.invoke("log-terminal-payment", {
         body: {
           bookingId,
-          transactions: transactions.map(r => ({
-            receiptNumber: r.receiptNumber.trim(),
-            amount: parseFloat(r.amount),
-          })),
+          depositOnly,
+          transactions: depositOnly
+            ? []
+            : transactions.map(r => ({
+                receiptNumber: r.receiptNumber.trim(),
+                amount: parseFloat(r.amount),
+              })),
           cardLastFour,
           authCode: authCode.trim() || undefined,
-          includeDeposit,
-          depositReceiptNumber: includeDeposit ? (depositReceiptNumber.trim() || undefined) : undefined,
+          includeDeposit: depositOnly ? true : includeDeposit,
+          depositReceiptNumber:
+            depositOnly || includeDeposit ? (depositReceiptNumber.trim() || undefined) : undefined,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      
-      setSuccessTxns(transactions.map(r => ({
-        receiptNumber: r.receiptNumber.trim(),
-        amount: parseFloat(r.amount),
-      })));
-      setDepositIncluded(includeDeposit);
+
+      setSuccessTxns(
+        depositOnly
+          ? []
+          : transactions.map(r => ({
+              receiptNumber: r.receiptNumber.trim(),
+              amount: parseFloat(r.amount),
+            }))
+      );
+      setDepositIncluded(depositOnly || includeDeposit);
       toast.success(
-        transactions.length === 1
-          ? "Terminal payment logged — booking confirmed"
-          : `${transactions.length} terminal payments logged`
+        depositOnly
+          ? "Deposit hold recorded"
+          : transactions.length === 1
+            ? "Terminal payment logged — booking confirmed"
+            : `${transactions.length} terminal payments logged`
       );
       onUpdated();
     } catch (err: any) {
@@ -102,6 +112,7 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
       setIsSubmitting(false);
     }
   };
+
 
   if (successTxns) {
     return (
