@@ -426,12 +426,10 @@ Deno.serve(async (req) => {
       new_data: {
         ...updateData,
         operation,
-        ...(extensionInfo ? { extension_odometer_km: extensionInfo.odometerKm } : {}),
       },
     });
 
-    // Record the extension (odometer reading at time of extension) and keep the
-    // vehicle's mileage in sync.
+    // Record the extension for history
     let extensionRowId: string | null = null;
     if (extensionInfo) {
       const { data: extRow, error: extErr } = await supabase
@@ -440,8 +438,6 @@ Deno.serve(async (req) => {
           booking_id: bookingId,
           previous_end_at: extensionInfo.previousEndAt,
           new_end_at: extensionInfo.newEndAt,
-          odometer_km: extensionInfo.odometerKm,
-          previous_odometer_km: extensionInfo.previousOdometerKm,
           reason: extensionInfo.reason,
           price_difference:
             updateData.total_amount != null
@@ -457,14 +453,8 @@ Deno.serve(async (req) => {
       } else {
         extensionRowId = extRow?.id ?? null;
       }
-
-      if (booking.assigned_unit_id) {
-        await supabase
-          .from("vehicle_units")
-          .update({ current_mileage: extensionInfo.odometerKm, updated_at: new Date().toISOString() })
-          .eq("id", booking.assigned_unit_id);
-      }
     }
+
 
     // Keep the rental agreement in sync: when the billed days or the total change,
     // the stored agreement is stale (it still shows the pre-change figures).
