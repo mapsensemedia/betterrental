@@ -88,12 +88,82 @@ Deno.serve(async (req) => {
     let oldData: Record<string, unknown> = {};
     let auditAction = "";
 
+    // Set when a modify operation pushes the return date later (a rental extension)
+    let extensionInfo: {
+      previousEndAt: string;
+      newEndAt: string;
+      odometerKm: number;
+      previousOdometerKm: number | null;
+      reason: string | null;
+    } | null = null;
+
     if (operation === "modify") {
       // Extend/shorten rental, change dates, location, optionally override daily rate
-      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices } = body;
+      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices, currentOdometerKm } = body;
       if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId) {
         return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
       }
+
+      // Rental extension: staff must record the vehicle's current odometer reading
+      const isExtension = !!newEndAt && new Date(newEndAt) > new Date(booking.end_at);
+      if (isExtension) {
+        const odo = Number(currentOdometerKm);
+        if (!Number.isFinite(odo) || !Number.isInteger(odo) || odo < 0 || odo > 2_000_000) {
+          return jsonResp(
+            { error: "A valid current odometer reading (km) is required to extend a rental" },
+            400,
+            corsHeaders,
+          );
+        }
+
+        // Previously known reading: last extension, else pickup inspection, else unit mileage
+        let previousOdometerKm: number | null = null;
+        const { data: lastExt } = await supabase
+          .from("booking_extensions")
+          .select("odometer_km")
+          .eq("booking_id", bookingId)
+          .not("odometer_km", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        previousOdometerKm = lastExt?.odometer_km ?? null;
+
+        if (previousOdometerKm == null) {
+          const { data: pickupMetrics } = await supabase
+            .from("inspection_metrics")
+            .select("odometer")
+            .eq("booking_id", bookingId)
+            .eq("phase", "pickup")
+            .maybeSingle();
+          previousOdometerKm = pickupMetrics?.odometer ?? null;
+        }
+
+        if (previousOdometerKm == null && booking.assigned_unit_id) {
+          const { data: unit } = await supabase
+            .from("vehicle_units")
+            .select("current_mileage")
+            .eq("id", booking.assigned_unit_id)
+            .maybeSingle();
+          previousOdometerKm = unit?.current_mileage ?? null;
+        }
+
+        if (previousOdometerKm != null && odo < previousOdometerKm) {
+          return jsonResp(
+            { error: `Odometer reading cannot be lower than the last recorded reading (${previousOdometerKm} km)` },
+            400,
+            corsHeaders,
+          );
+        }
+
+        extensionInfo = {
+          previousEndAt: booking.end_at,
+          newEndAt,
+          odometerKm: odo,
+          previousOdometerKm,
+          reason: typeof reason === "string" ? reason.slice(0, 500) : null,
+        };
+      }
+
 
       if (!["draft", "pending", "confirmed", "active", "overdue"].includes(booking.status)) {
         return jsonResp({ error: "Only pending/confirmed/active/overdue bookings can be modified" }, 400, corsHeaders);
@@ -405,8 +475,48 @@ Deno.serve(async (req) => {
       entity_id: bookingId,
       user_id: authResult.userId,
       old_data: oldData,
-      new_data: { ...updateData, operation },
+      new_data: {
+        ...updateData,
+        operation,
+        ...(extensionInfo ? { extension_odometer_km: extensionInfo.odometerKm } : {}),
+      },
     });
+
+    // Record the extension (odometer reading at time of extension) and keep the
+    // vehicle's mileage in sync.
+    let extensionRowId: string | null = null;
+    if (extensionInfo) {
+      const { data: extRow, error: extErr } = await supabase
+        .from("booking_extensions")
+        .insert({
+          booking_id: bookingId,
+          previous_end_at: extensionInfo.previousEndAt,
+          new_end_at: extensionInfo.newEndAt,
+          odometer_km: extensionInfo.odometerKm,
+          previous_odometer_km: extensionInfo.previousOdometerKm,
+          reason: extensionInfo.reason,
+          price_difference:
+            updateData.total_amount != null
+              ? Number(updateData.total_amount) - Number(booking.total_amount || 0)
+              : 0,
+          recorded_by: authResult.userId,
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (extErr) {
+        console.error("[reprice-booking] Failed to record extension:", extErr);
+      } else {
+        extensionRowId = extRow?.id ?? null;
+      }
+
+      if (booking.assigned_unit_id) {
+        await supabase
+          .from("vehicle_units")
+          .update({ current_mileage: extensionInfo.odometerKm, updated_at: new Date().toISOString() })
+          .eq("id", booking.assigned_unit_id);
+      }
+    }
 
     // Keep the rental agreement in sync: when the billed days or the total change,
     // the stored agreement is stale (it still shows the pre-change figures).
@@ -416,7 +526,7 @@ Deno.serve(async (req) => {
     const totalChanged = updateData.total_amount != null
       && Number(updateData.total_amount) !== Number(booking.total_amount);
 
-    if (daysChanged || totalChanged) {
+    if (daysChanged || totalChanged || extensionInfo) {
       try {
         const { data: existingAgreement } = await supabase
           .from("rental_agreements")
@@ -428,24 +538,34 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (existingAgreement) {
-          const { error: regenErr } = await supabase.functions.invoke("generate-agreement", {
+          const { data: regenData, error: regenErr } = await supabase.functions.invoke("generate-agreement", {
             body: {
               bookingId,
               forceRegenerate: true,
               suppressNotifications: true,
               copySignatureFromLatest: !!existingAgreement.customer_signed_at,
+              ...(extensionInfo
+                ? { agreementType: "extension", odometerOutOverride: extensionInfo.odometerKm }
+                : {}),
             },
           });
           if (regenErr) {
             console.error("[reprice-booking] Agreement regeneration failed:", regenErr);
           } else {
             console.log(`[reprice-booking] Agreement regenerated for ${bookingId}`);
+            if (extensionRowId && regenData?.agreementId) {
+              await supabase
+                .from("booking_extensions")
+                .update({ agreement_id: regenData.agreementId })
+                .eq("id", extensionRowId);
+            }
           }
         }
       } catch (e) {
         console.error("[reprice-booking] Agreement sync error:", e);
       }
     }
+
 
     console.log(`[reprice-booking] ${operation} on ${bookingId}: total ${updateData.total_amount}`);
 

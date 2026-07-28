@@ -425,6 +425,66 @@ export type Database = {
           },
         ]
       }
+      booking_extensions: {
+        Row: {
+          agreement_id: string | null
+          booking_id: string
+          created_at: string
+          id: string
+          new_end_at: string | null
+          odometer_km: number | null
+          previous_end_at: string | null
+          previous_odometer_km: number | null
+          price_difference: number | null
+          reason: string | null
+          recorded_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          agreement_id?: string | null
+          booking_id: string
+          created_at?: string
+          id?: string
+          new_end_at?: string | null
+          odometer_km?: number | null
+          previous_end_at?: string | null
+          previous_odometer_km?: number | null
+          price_difference?: number | null
+          reason?: string | null
+          recorded_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agreement_id?: string | null
+          booking_id?: string
+          created_at?: string
+          id?: string
+          new_end_at?: string | null
+          odometer_km?: number | null
+          previous_end_at?: string | null
+          previous_odometer_km?: number | null
+          price_difference?: number | null
+          reason?: string | null
+          recorded_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_extensions_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "rental_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_extensions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_otps: {
         Row: {
           attempts: number | null
