@@ -39,7 +39,7 @@ serve(async (req) => {
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
-        id, booking_code, total_amount, deposit_amount, start_at, user_id,
+        id, booking_code, total_amount, deposit_amount, start_at, end_at, user_id,
         locations!inner (name, address),
         vehicles!inner (make, model, year)
       `)
