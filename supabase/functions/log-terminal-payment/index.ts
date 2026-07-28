@@ -36,6 +36,8 @@ Deno.serve(async (req) => {
       authCode,
       includeDeposit,
       depositReceiptNumber,
+      // Deposit-only mode: record a terminal deposit hold with no rental payment
+      depositOnly,
       // New multi-transaction field
       transactions: txnArray,
       // Legacy single-entry fields
@@ -48,6 +50,9 @@ Deno.serve(async (req) => {
     if (!cardLastFour || !/^\d{4}$/.test(cardLastFour)) {
       return jsonResponse({ error: "cardLastFour must be exactly 4 digits" }, 400);
     }
+
+    const isDepositOnly = depositOnly === true;
+
 
     // Normalize into transactions array (backward compat)
     interface Txn { receiptNumber: string; amount: number }
