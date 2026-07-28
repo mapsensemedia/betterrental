@@ -443,6 +443,15 @@ Deno.serve(async (req) => {
       },
     });
 
+    // 12. Send the same customer confirmation SMS/email as online bookings (non-fatal)
+    try {
+      await supabaseAdmin.functions.invoke("send-booking-sms", {
+        body: { bookingId: booking.id, templateType: "confirmation" },
+      });
+    } catch (notifyErr) {
+      console.error("[create-walk-in-booking] Confirmation SMS failed (non-fatal):", notifyErr);
+    }
+
     console.log(`[create-walk-in-booking] Created booking ${booking.id} (customer_id=${customerId}) by staff ${auth.userId}`);
 
     return new Response(

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { BRAND, EMERGENCY_PHONE, fmtDateTimeVan } from "../_shared/sms-format.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ serve(async (req) => {
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
-        id, booking_code, total_amount, deposit_amount, start_at, user_id,
+        id, booking_code, total_amount, deposit_amount, start_at, end_at, user_id,
         locations!inner (name, address),
         vehicles!inner (make, model, year)
       `)
@@ -93,13 +94,8 @@ serve(async (req) => {
     const vehicleName = `${vehicleData?.year} ${vehicleData?.make} ${vehicleData?.model}`;
     const locationName = locationData?.name || "our location";
 
-    const startDate = new Date(booking.start_at).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    const startDate = fmtDateTimeVan(booking.start_at);
+    const returnDate = fmtDateTimeVan(booking.end_at);
 
     const results: { email?: boolean; sms?: boolean } = {};
 
@@ -217,7 +213,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!existing) {
-        const smsMessage = `C2C Rental: Payment of $${totalPaid.toFixed(2)} confirmed for booking ${booking.booking_code}. ${depositHeld > 0 ? `Deposit: $${depositHeld.toFixed(2)} held. ` : ''}Pickup: ${startDate} at ${locationName}. See you soon!`;
+        const smsMessage = `${BRAND}: Payment of $${totalPaid.toFixed(2)} confirmed for booking ${booking.booking_code}. ${depositHeld > 0 ? `Deposit: $${depositHeld.toFixed(2)} held. ` : ''}Pickup: ${startDate} at ${locationName}. Return by ${returnDate}. Questions? Call ${EMERGENCY_PHONE}`;
 
         const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
         const authHeader = btoa(`${twilioSid}:${twilioToken}`);
