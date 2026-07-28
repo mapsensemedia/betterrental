@@ -285,14 +285,44 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
             </div>
           )}
 
+          {/* Odometer capture — required when extending the rental */}
+          {isExtension && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+              <Label htmlFor="extension-odometer" className="flex items-center gap-2 text-sm font-medium">
+                <Gauge className="h-4 w-4 text-muted-foreground" />
+                Current odometer (km) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="extension-odometer"
+                type="number"
+                inputMode="numeric"
+                min={lastKnownOdometer?.km ?? 0}
+                step={1}
+                placeholder="e.g., 48210"
+                value={odometerInput}
+                onChange={(e) => setOdometerInput(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {lastKnownOdometer
+                  ? `Last recorded: ${lastKnownOdometer.km.toLocaleString()} km (${lastKnownOdometer.source}).`
+                  : "No previous reading on file."}{" "}
+                This becomes the "Kilometres out" on the new extension agreement.
+              </p>
+              {odometerError && odometerInput.trim() !== "" && (
+                <p className="text-xs text-destructive">{odometerError}</p>
+              )}
+            </div>
+          )}
+
           {/* Apply button */}
           <Button
             className="w-full"
-            disabled={!preview || preview.addedDays === 0 || modifyBooking.isPending}
+            disabled={!preview || preview.addedDays === 0 || modifyBooking.isPending || !odometerReady}
             onClick={() => setConfirmOpen(true)}
           >
             {modifyBooking.isPending ? "Updating..." : "Apply Changes"}
           </Button>
+
         </CardContent>
       </Card>
 
