@@ -482,11 +482,10 @@ Deno.serve(async (req) => {
               forceRegenerate: true,
               suppressNotifications: true,
               copySignatureFromLatest: !!existingAgreement.customer_signed_at,
-              ...(extensionInfo
-                ? { agreementType: "extension", odometerOutOverride: extensionInfo.odometerKm }
-                : {}),
+              ...(extensionInfo ? { agreementType: "extension" } : {}),
             },
           });
+
           if (regenErr) {
             console.error("[reprice-booking] Agreement regeneration failed:", regenErr);
           } else {
