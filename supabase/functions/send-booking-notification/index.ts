@@ -80,7 +80,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "payment_received":
       return {
         subject: `Payment Confirmed – Booking ${code}`,
-        sms: `C2C Rental: Payment of ${fmtMoney(b.total_amount)} received for booking ${code}. Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. We'll verify your license next.`,
+        sms: `${BRAND}: Payment of ${fmtMoney(b.total_amount)} received for booking ${code}. Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. We'll verify your license next.`,
         emailBody: `
           <h2>Payment Confirmed ✓</h2>
           <p>We've received your payment of <strong>${fmtMoney(b.total_amount)}</strong>. Your booking is now secured!</p>
@@ -92,7 +92,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "license_approved":
       return {
         subject: `License Verified – Booking ${code}`,
-        sms: `C2C Rental: Your license is approved for booking ${code}! Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. We're preparing your ${d.vehicleName}.`,
+        sms: `${BRAND}: Your license is approved for booking ${code}! Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}. We're preparing your ${d.vehicleName}.`,
         emailBody: `
           <h2>License Verified ✓</h2>
           <p>Great news! Your driver's license has been approved.</p>
@@ -104,7 +104,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "license_rejected":
       return {
         subject: `Action Required – License Issue – Booking ${code}`,
-        sms: `C2C Rental: There's an issue with your license for booking ${code}. Please check your email and re-upload a clearer image.`,
+        sms: `${BRAND}: There's an issue with your license for booking ${code}. Please check your email and re-upload a clearer image. Questions? Call ${EMERGENCY_PHONE}.`,
         emailBody: `
           <h2>License Verification Issue</h2>
           <p>We couldn't verify your driver's license for the following booking:</p>
@@ -117,7 +117,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "vehicle_assigned":
       return {
         subject: `Vehicle Assigned – Booking ${code}`,
-        sms: `C2C Rental: Your ${d.vehicleName} has been assigned for booking ${code}! Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}.`,
+        sms: `${BRAND}: Your ${d.vehicleName} has been assigned for booking ${code}! Pickup: ${fmtDate(b.start_at)} at ${d.pickupLoc}.`,
         emailBody: `
           <h2>Vehicle Assigned ✓</h2>
           <p>Your specific vehicle has been assigned to your reservation.</p>
@@ -129,7 +129,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "agreement_generated":
       return {
         subject: `Action Required – Sign Your Agreement – Booking ${code}`,
-        sms: `C2C Rental: Your rental agreement for booking ${code} is ready. Please check your email to review and sign before pickup. Questions? Call ${EMERGENCY_PHONE}.`,
+        sms: `${BRAND}: Your rental agreement for booking ${code} is ready. Please check your email to review and sign before pickup. Questions? Call ${EMERGENCY_PHONE}.`,
         emailBody: `
           <h2>Rental Agreement Ready</h2>
           <p>Your rental agreement is ready for your signature.</p>
@@ -144,7 +144,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "agreement_signed":
       return {
         subject: `Agreement Signed – Booking ${code}`,
-        sms: `C2C Rental: Agreement signed for booking ${code}! We'll complete vehicle prep and inspection next. See you ${fmtDate(b.start_at)}!`,
+        sms: `${BRAND}: Agreement signed for booking ${code}! We'll complete vehicle prep and inspection next. See you ${fmtDate(b.start_at)}!`,
         emailBody: `
           <h2>Agreement Signed ✓</h2>
           <p>Thank you for signing the rental agreement.</p>
@@ -156,7 +156,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "checkin_complete":
       return {
         subject: `Check-In Complete – Booking ${code}`,
-        sms: `C2C Rental: You're checked in for booking ${code}! We're finalizing your ${d.vehicleName} now.`,
+        sms: `${BRAND}: You're checked in for booking ${code}! We're finalizing your ${d.vehicleName} now.`,
         emailBody: `
           <h2>Check-In Complete ✓</h2>
           <p>You've been checked in successfully.</p>
@@ -168,7 +168,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "prep_complete":
       return {
         subject: `Your ${d.vehicleName} is Ready! – Booking ${code}`,
-        sms: `C2C Rental: Your ${d.vehicleName} is cleaned and ready for pickup at ${d.pickupLoc}! Booking ${code}. Bring your ID.`,
+        sms: `${BRAND}: Your ${d.vehicleName} is cleaned and ready for pickup at ${d.pickupLoc}! Booking ${code}. Bring your ID. Questions? Call ${EMERGENCY_PHONE}.`,
         emailBody: `
           <h2>🚗 Your Vehicle is Ready!</h2>
           <p>Great news! Your <strong>${d.vehicleName}</strong> has been cleaned, inspected, and is ready for you.</p>
@@ -180,7 +180,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "walkaround_complete":
       return {
         subject: `Inspection Complete – Booking ${code}`,
-        sms: `C2C Rental: Vehicle inspection complete for booking ${code}. Your ${d.vehicleName} is ready for handover!`,
+        sms: `${BRAND}: Vehicle inspection complete for booking ${code}. Your ${d.vehicleName} is ready for handover!`,
         emailBody: `
           <h2>Inspection Complete ✓</h2>
           <p>The vehicle walkaround inspection has been completed and documented.</p>
@@ -195,7 +195,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
         : `<li><strong>Return Location:</strong> ${d.pickupLoc}</li>`;
       return {
         subject: `Rental Active – Enjoy Your ${d.vehicleName}! – Booking ${code}`,
-        sms: `C2C Rental: Your ${d.vehicleName} rental is active! Booking ${code}. Return by ${fmtDateTime(b.end_at)} to ${d.returnLoc}. Emergency: (604) 763-4242. Drive safe!`,
+        sms: `${BRAND}: Your ${d.vehicleName} rental is active! Booking ${code}. Return by ${fmtDateTime(b.end_at)} to ${d.returnLoc}. Emergency: ${EMERGENCY_PHONE}. Drive safe!`,
         emailBody: `
           <h2>🚗 You're On Your Way!</h2>
           <p>Your rental is now active. Here's everything you need:</p>
@@ -206,7 +206,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
             ${returnInfo}
             <li><strong>Emergency Line:</strong> (604) 763-4242</li>
           </ul>
-          <p>Drive safe and enjoy your exotic experience! 🎉</p>
+          <p>Drive safe and enjoy your rental! 🎉</p>
         `,
       };
     }
@@ -214,7 +214,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "return_initiated":
       return {
         subject: `Return Started – Booking ${code}`,
-        sms: `C2C Rental: Return started for booking ${code}. We're inspecting your ${d.vehicleName} now. You'll get a confirmation once complete.`,
+        sms: `${BRAND}: Return started for booking ${code}. We're inspecting your ${d.vehicleName} now. You'll get a confirmation once complete.`,
         emailBody: `
           <h2>Return in Progress</h2>
           <p>Thank you for returning the vehicle. Our team is conducting the final inspection.</p>
@@ -226,7 +226,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "rental_completed":
       return {
         subject: `Rental Complete – Thank You! – Booking ${code}`,
-        sms: `C2C Rental: Booking ${code} is complete! Your deposit of ${fmtMoney(b.deposit_amount)} will be released within 5-10 business days. Thank you for choosing C2C Rental!`,
+        sms: `${BRAND}: Booking ${code} is complete! Your deposit of ${fmtMoney(b.deposit_amount)} will be released within 5-10 business days. Thank you for choosing C2C Rental!`,
         emailBody: `
           <h2>Thank You for Renting with C2C Rental! 🎉</h2>
           <p>Your rental has been successfully completed.</p>
@@ -241,7 +241,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     case "deposit_released":
       return {
         subject: `Deposit Released – Booking ${code}`,
-        sms: `C2C Rental: Your deposit of ${fmtMoney(b.deposit_amount)} for booking ${code} has been released. It should appear on your statement within 5-10 business days.`,
+        sms: `${BRAND}: Your deposit of ${fmtMoney(b.deposit_amount)} for booking ${code} has been released. It should appear on your statement within 5-10 business days.`,
         emailBody: `
           <h2>Deposit Released ✓</h2>
           <p>Your security deposit has been released for the following booking:</p>
@@ -256,7 +256,7 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
     default:
       return {
         subject: `Booking Update – ${code}`,
-        sms: `C2C Rental: Update for booking ${code}. Check your email for details.`,
+        sms: `${BRAND}: Update for booking ${code}. Check your email for details.`,
         emailBody: `
           <h2>Booking Update</h2>
           <p>There's an update on your booking:</p>
