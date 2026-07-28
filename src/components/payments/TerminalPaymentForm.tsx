@@ -18,17 +18,19 @@ interface TerminalPaymentFormProps {
   amount: number;
   outstandingBalance?: number;
   depositAmount?: number;
+  /** Record only a security-deposit hold taken on the terminal (no rental payment). */
+  depositOnly?: boolean;
   onUpdated: () => void;
 }
 
-export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, depositAmount = 350, onUpdated }: TerminalPaymentFormProps) {
+export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, depositAmount = 350, depositOnly = false, onUpdated }: TerminalPaymentFormProps) {
   const balance = outstandingBalance ?? amount;
   const [transactions, setTransactions] = useState<TransactionRow[]>([
     { amount: balance.toFixed(2), receiptNumber: "" },
   ]);
   const [cardLastFour, setCardLastFour] = useState("");
   const [authCode, setAuthCode] = useState("");
-  const [includeDeposit, setIncludeDeposit] = useState(false);
+  const [includeDeposit, setIncludeDeposit] = useState(depositOnly);
   const [depositReceiptNumber, setDepositReceiptNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successTxns, setSuccessTxns] = useState<{ receiptNumber: string; amount: number }[] | null>(null);
@@ -57,7 +59,11 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
   });
   const cardValid = /^\d{4}$/.test(cardLastFour);
   const totalValid = totalAmount > 0 && totalAmount <= balance + 0.01; // small float tolerance
-  const isValid = allRowsValid && cardValid && totalValid;
+  const depositReceiptValid = /^[A-Za-z0-9\-_]{3,50}$/.test(depositReceiptNumber.trim());
+  const isValid = depositOnly
+    ? cardValid && depositReceiptValid
+    : allRowsValid && cardValid && totalValid;
+
 
   const handleSubmit = async () => {
     if (!isValid) return;
