@@ -88,15 +88,17 @@ export function useModifyBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ bookingId, newEndAt, reason }: BookingModification) => {
+    mutationFn: async ({ bookingId, newEndAt, reason, currentOdometerKm }: BookingModification) => {
       const { data, error } = await supabase.functions.invoke("reprice-booking", {
         body: {
           bookingId,
           operation: "modify",
           newEndAt,
           reason,
+          ...(currentOdometerKm != null ? { currentOdometerKm } : {}),
         },
       });
+
 
       if (error) throw new Error(error.message || "Failed to modify booking");
       if (data?.error) throw new Error(data.error);
