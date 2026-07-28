@@ -153,13 +153,14 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
     <div className="space-y-3 rounded-md border border-border p-3 bg-muted/30">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Terminal className="h-4 w-4 text-muted-foreground" />
-        Log Terminal Payment
+        {depositOnly ? "Log Terminal Deposit Hold" : "Log Terminal Payment"}
       </div>
 
       <div className="p-2 rounded bg-muted/50 flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Outstanding Balance</span>
-        <span className="font-mono font-medium">${balance.toFixed(2)}</span>
+        <span className="text-muted-foreground">{depositOnly ? "Deposit Amount" : "Outstanding Balance"}</span>
+        <span className="font-mono font-medium">${(depositOnly ? depositAmount : balance).toFixed(2)}</span>
       </div>
+
 
       {/* Transaction rows */}
       <div className="space-y-2">
