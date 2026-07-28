@@ -81,23 +81,13 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
       const { data, error } = await supabase.functions.invoke("wl-capture", {
         body: { bookingId },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
-      toast.success("Deposit captured successfully");
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("deposit_ledger").insert({
-          booking_id: bookingId,
-          action: "hold",
-          amount: paymentStatus?.depositRequired || 350,
-          reason: "Deposit captured via ops panel",
-          created_by: user?.id,
-        });
-        queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
-      } catch (ledgerErr) {
-        console.error("Failed to write deposit ledger:", ledgerErr);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
       }
+      toast.success("Deposit captured successfully");
       queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
     } catch (err: any) {
       toast.error("Capture failed: " + (err.message || "Unknown error"));
     } finally {
@@ -116,20 +106,8 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
         throw new Error(msg);
       }
       toast.success("Hold released successfully");
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("deposit_ledger").insert({
-          booking_id: bookingId,
-          action: "release",
-          amount: paymentStatus?.depositRequired || 350,
-          reason: "Deposit hold released via ops panel",
-          created_by: user?.id,
-        });
-        queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
-      } catch (ledgerErr) {
-        console.error("Failed to write deposit ledger:", ledgerErr);
-      }
       queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
     } catch (err: any) {
       toast.error("Release failed: " + (err.message || "Unknown error"));
     } finally {
@@ -143,8 +121,10 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
       const { data, error } = await supabase.functions.invoke("wl-capture", {
         body: { bookingId, kind: "rental" },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
+      }
       toast.success("Rental payment captured successfully");
       setLastRentalError(null);
       queryClient.invalidateQueries({ queryKey: ["payment-deposit-status", bookingId] });
@@ -176,8 +156,10 @@ export function StepPayment({ bookingId, completion }: StepPaymentProps) {
       const { data, error } = await supabase.functions.invoke("wl-capture", {
         body: { bookingId, kind: "rental", manualOverride: true, reason: trimmed },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
+      }
       toast.success("Rental marked as captured (manual override)");
       setManualDialogOpen(false);
       setManualReason("");

@@ -5,12 +5,23 @@
  * An authorized hold must be captured or released before the return can be finalized.
  */
 import { useState } from "react";
-import { extractEdgeFunctionError } from "@/lib/edge-function-error";
+import { extractEdgeFunctionError, extractEdgeFunctionErrorDetails } from "@/lib/edge-function-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
 import { useGenerateReturnReceipt } from "@/hooks/use-return-receipt";
 import { useCreateAuditLog } from "@/hooks/use-audit-logs";
@@ -51,6 +62,12 @@ export function StepReturnDeposit({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
+  const [lastCaptureError, setLastCaptureError] = useState<string | null>(null);
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [manualAmount, setManualAmount] = useState("");
+  const [manualReference, setManualReference] = useState("");
+  const [manualReason, setManualReason] = useState("");
+  const [isManualResolving, setIsManualResolving] = useState(false);
 
   const { data: damages = [] } = useQuery({
     queryKey: ["booking-damages", bookingId],
@@ -79,24 +96,20 @@ export function StepReturnDeposit({
         body: { bookingId },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
+      if (error || data?.error) {
+        const details = await extractEdgeFunctionErrorDetails(data, error);
+        setLastCaptureError(details.message);
+        if (details.requiresManualResolution) {
+          setManualAmount((depositData?.depositRequired || Number(booking?.deposit_amount) || 350).toFixed(2));
+          setManualReason(`Worldline capture failed: ${details.message}`);
+        }
+        throw new Error(details.message);
+      }
 
       toast.success("Deposit captured successfully");
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("deposit_ledger").insert({
-          booking_id: bookingId,
-          action: "hold",
-          amount: depositData?.depositRequired || 350,
-          reason: "Deposit captured at return — damage deduction",
-          created_by: user?.id,
-        });
-        queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
-      } catch (ledgerErr) {
-        console.error("Failed to write deposit ledger:", ledgerErr);
-      }
+      setLastCaptureError(null);
       invalidateDepositState();
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
     } catch (err: any) {
       toast.error("Capture failed: " + (err.message || "Unknown error"));
     } finally {
@@ -117,24 +130,68 @@ export function StepReturnDeposit({
       }
 
       toast.success("Hold released successfully");
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from("deposit_ledger").insert({
-          booking_id: bookingId,
-          action: "release",
-          amount: depositData?.depositRequired || 350,
-          reason: "Deposit released at return — no damages",
-          created_by: user?.id,
-        });
-        queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
-      } catch (ledgerErr) {
-        console.error("Failed to write deposit ledger:", ledgerErr);
-      }
       invalidateDepositState();
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
     } catch (err: any) {
       toast.error("Release failed: " + (err.message || "Unknown error"));
     } finally {
       setIsReleasing(false);
+    }
+  };
+
+  const openManualResolutionDialog = () => {
+    setManualAmount((depositData?.depositRequired || Number(booking?.deposit_amount) || 350).toFixed(2));
+    setManualReason(lastCaptureError ? `Worldline capture failed: ${lastCaptureError}` : "Deposit charged on terminal at return");
+    setManualDialogOpen(true);
+  };
+
+  const handleManualDepositResolution = async () => {
+    const amount = Number.parseFloat(manualAmount);
+    const reference = manualReference.trim();
+    const reason = manualReason.trim();
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid deposit amount");
+      return;
+    }
+    if (!/^[A-Za-z0-9\-_]{3,50}$/.test(reference)) {
+      toast.error("Enter a valid terminal reference / auth number");
+      return;
+    }
+    if (reason.length < 5) {
+      toast.error("Enter a reason for the manual deposit resolution");
+      return;
+    }
+
+    setIsManualResolving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("wl-capture", {
+        body: {
+          bookingId,
+          kind: "deposit",
+          amount,
+          manualOverride: true,
+          terminalReference: reference,
+          reason,
+        },
+      });
+
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError(data, error);
+        throw new Error(msg);
+      }
+
+      toast.success("Terminal deposit charge recorded");
+      setManualDialogOpen(false);
+      setManualReference("");
+      setManualReason("");
+      setLastCaptureError(null);
+      invalidateDepositState();
+      queryClient.invalidateQueries({ queryKey: ["deposit-ledger", bookingId] });
+    } catch (err: any) {
+      toast.error("Manual resolution failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsManualResolving(false);
     }
   };
 
@@ -250,15 +307,28 @@ export function StepReturnDeposit({
           </div>
 
           {hasActiveHold && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button onClick={handleCaptureDeposit} disabled={isCapturing || isReleasing}>
-                {isCapturing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
-                Capture Deposit
-              </Button>
-              <Button variant="outline" onClick={handleReleaseDeposit} disabled={isCapturing || isReleasing}>
-                {isReleasing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldOff className="h-4 w-4 mr-2" />}
-                Release Hold
-              </Button>
+            <div className="space-y-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button onClick={handleCaptureDeposit} disabled={isCapturing || isReleasing || isManualResolving}>
+                  {isCapturing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                  Capture Deposit
+                </Button>
+                <Button variant="outline" onClick={handleReleaseDeposit} disabled={isCapturing || isReleasing || isManualResolving}>
+                  {isReleasing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldOff className="h-4 w-4 mr-2" />}
+                  Release Hold
+                </Button>
+              </div>
+              {lastCaptureError && (
+                <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="space-y-2 text-amber-800 dark:text-amber-200">
+                    <p>{lastCaptureError}</p>
+                    <Button variant="outline" size="sm" onClick={openManualResolutionDialog}>
+                      Record Terminal Deposit Charge
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
 
@@ -321,6 +391,60 @@ export function StepReturnDeposit({
           )}
         </CardContent>
       </Card>
+      <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record terminal deposit charge</DialogTitle>
+            <DialogDescription>
+              Use this only after the deposit was charged on the Worldline terminal. The reference number will be stored for audit and the return can be finalized.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="manual-deposit-amount">Amount</Label>
+                <Input
+                  id="manual-deposit-amount"
+                  value={manualAmount}
+                  onChange={(event) => setManualAmount(event.target.value)}
+                  inputMode="decimal"
+                  disabled={isManualResolving}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="manual-deposit-reference">Terminal reference / auth #</Label>
+                <Input
+                  id="manual-deposit-reference"
+                  value={manualReference}
+                  onChange={(event) => setManualReference(event.target.value)}
+                  placeholder="e.g. 041955"
+                  maxLength={50}
+                  disabled={isManualResolving}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="manual-deposit-reason">Reason</Label>
+              <Textarea
+                id="manual-deposit-reason"
+                value={manualReason}
+                onChange={(event) => setManualReason(event.target.value)}
+                rows={3}
+                disabled={isManualResolving}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualDialogOpen(false)} disabled={isManualResolving}>
+              Cancel
+            </Button>
+            <Button onClick={handleManualDepositResolution} disabled={isManualResolving}>
+              {isManualResolving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+              Record Charge
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
