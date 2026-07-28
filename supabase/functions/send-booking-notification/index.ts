@@ -29,23 +29,17 @@ interface NotificationRequest {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    weekday: "short", month: "short", day: "numeric", year: "numeric",
-  });
-}
+import {
+  BRAND,
+  EMERGENCY_PHONE,
+  fmtDateVan,
+  fmtDateTimeVan,
+  fmtMoney,
+} from "../_shared/sms-format.ts";
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    weekday: "short", month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit",
-  });
-}
+const fmtDate = fmtDateVan;
+const fmtDateTime = fmtDateTimeVan;
 
-function fmtMoney(n: number | null | undefined): string {
-  if (n == null) return "$0.00";
-  return `$${Number(n).toFixed(2)}`;
-}
 
 function locationStr(loc: { name?: string; address?: string; city?: string } | null): string {
   if (!loc) return "our location";
