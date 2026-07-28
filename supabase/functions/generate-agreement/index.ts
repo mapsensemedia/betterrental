@@ -126,8 +126,12 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { bookingId, suppressNotifications, agreementType, forceRegenerate, copySignatureFromLatest } = body;
+    const { bookingId, suppressNotifications, agreementType, forceRegenerate, copySignatureFromLatest, odometerOutOverride } = body;
     const isExtension = agreementType === "extension";
+    const odometerOverride =
+      odometerOutOverride != null && Number.isFinite(Number(odometerOutOverride))
+        ? Math.round(Number(odometerOutOverride))
+        : null;
 
     // Input validation
     if (!bookingId || typeof bookingId !== "string") {
