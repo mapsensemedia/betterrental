@@ -120,9 +120,11 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
         <AlertDescription className="text-emerald-800 dark:text-emerald-200">
           <p className="font-medium mb-1">
-            {successTxns.length === 1
-              ? `Terminal payment of $${successTxns[0].amount.toFixed(2)} logged.`
-              : `${successTxns.length} terminal payments logged:`}
+            {successTxns.length === 0
+              ? "Deposit hold recorded."
+              : successTxns.length === 1
+                ? `Terminal payment of $${successTxns[0].amount.toFixed(2)} logged.`
+                : `${successTxns.length} terminal payments logged:`}
           </p>
           {successTxns.length > 1 && (
             <ul className="text-sm space-y-0.5 ml-1">
@@ -136,8 +138,12 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
             </ul>
           )}
           {depositIncluded && (
-            <p className="text-sm mt-1">Deposit hold of <span className="font-mono font-medium">${depositAmount.toFixed(2)}</span> also recorded.</p>
+            <p className="text-sm mt-1">
+              Deposit hold of <span className="font-mono font-medium">${depositAmount.toFixed(2)}</span>
+              {successTxns.length === 0 ? " recorded." : " also recorded."}
+            </p>
           )}
+
         </AlertDescription>
       </Alert>
     );
