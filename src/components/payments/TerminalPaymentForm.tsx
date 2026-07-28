@@ -163,8 +163,10 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
 
 
       {/* Transaction rows */}
+      {!depositOnly && (
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">Transactions</Label>
+
         {transactions.map((row, index) => (
           <div key={index} className="flex gap-2 items-end">
             <div className="flex-1 space-y-1">
