@@ -216,9 +216,11 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
           Add Transaction
         </Button>
       </div>
+      )}
 
       {/* Running total */}
-      {transactions.length > 1 && (
+      {!depositOnly && transactions.length > 1 && (
+
         <div className="p-2 rounded bg-muted/50 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Total ({transactions.length} transactions)</span>
           <span className={`font-mono font-medium ${totalAmount > balance + 0.01 ? "text-destructive" : ""}`}>
