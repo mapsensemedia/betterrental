@@ -546,6 +546,7 @@ function renderStructuredPdf(
     {
       title: "2. VEHICLE USE RESTRICTIONS",
       items: [
+        "Unlimited kilometres — no distance limit or excess-km charge.",
         "No smoking in the vehicle.",
         "No pets without prior written approval.",
         "No racing, towing, or off-road use.",
