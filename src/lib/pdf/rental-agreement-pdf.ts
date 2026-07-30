@@ -546,6 +546,7 @@ function renderStructuredPdf(
     {
       title: "2. VEHICLE USE RESTRICTIONS",
       items: [
+        "Unlimited kilometres — no distance limit or excess-km charge.",
         "No smoking in the vehicle.",
         "No pets without prior written approval.",
         "No racing, towing, or off-road use.",
@@ -584,21 +585,14 @@ function renderStructuredPdf(
       ]
     },
     {
-      title: "7. KILOMETRE ALLOWANCE",
-      items: [
-        "Allowance: 1,400 km per 7 days or 4,800 km per 30 days, prorated to the rental length.",
-        "Excess kilometres are charged at $0.25/km, measured from the odometer at pickup vs. return.",
-      ]
-    },
-    {
-      title: "8. TERMINATION",
+      title: "7. TERMINATION",
       items: [
         "Rental may be terminated for violation of terms.",
         "Early return does not guarantee refund.",
       ]
     },
     {
-      title: "9. CANCELLATION POLICY",
+      title: "8. CANCELLATION POLICY",
       items: [
         "Free cancellation anytime prior to scheduled pickup.",
         "Late cancellations (after pickup) or no-shows are charged one full day rental rate for the booked vehicle category.",
