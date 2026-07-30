@@ -1,76 +1,34 @@
-## Goal
-Make the return workflow reliable when staff clicks **Capture Deposit**:
-- If the Worldline hold is still capturable, capture it and update the booking/payment records.
-- If Worldline rejects the capture, show the real gateway reason instead of the generic “Edge Function returned a non-2xx status code”.
-- Provide a safe operational fallback so staff can still resolve the return without losing financial audit history.
+## What I found for booking 3X34FMYF
 
-## What I verified
-- The booking visible in your screenshot is `XX9T3V3Z` / booking id `3f1b508a-a71c-4dd7-9795-cfb9a6602ea9`.
-- Its deposit is still recorded internally as:
-  - `deposit_status = authorized`
-  - `wl_deposit_auth_status = authorized`
-  - deposit transaction id `10000878`
-  - deposit amount `$350.00`
-- The return deposit UI calls the `wl-capture` Edge Function, but its capture handlers currently throw the raw SDK error, which is why staff only sees the generic non-2xx message.
-- The backend capture function returns a non-2xx response when Worldline rejects `/payments/{depositTxnId}/completions`, but the frontend is not extracting the response body.
+Verified in the live data:
 
-## Plan
+- Status: `confirmed`. **No payments recorded and no invoice issued yet**, so repricing is safe and no refund is involved.
+- Dates: Jul 30 → Aug 5, `total_days = 7`, protection plan `smart`.
+- Category on the booking: **STANDARD SUV – Nissan Murano or Similar** → protection Group 2 → $57.99/day. That is why $57.99 is showing.
+- But the booking's stored `daily_rate` is **$99.99**, which is the Mid-Size SUV (Rav4) rate — Standard SUV is $109.99. So the booking was quoted as a Mid-Size SUV and is now pointing at the Standard SUV category.
+- `pricing_snapshot` is empty, so the protection line is recomputed from the category name every time it renders. Simply editing the stored totals would not change the $57.99 shown on screen.
 
-### 1. Fix the staff-facing error message
-Update all deposit capture buttons that call `wl-capture` so they use the existing `extractEdgeFunctionError()` helper, same as the release-hold path already does.
+## Recommended fix
 
-Files to update:
-- `src/components/admin/return-ops/steps/StepReturnDeposit.tsx`
-- `src/components/admin/ops/steps/StepPayment.tsx`
-- `src/components/admin/deposit/AccountCloseoutPanel.tsx`
+**Point the booking back to the Mid-Size SUV category, then reprice.** This matches the $99.99 daily rate already on the booking and makes the protection group resolve to Group 1 ($37.99/day) everywhere — booking detail, agreement, invoice — instead of only patching one number.
 
-Result:
-- Staff will see the actual Worldline rejection reason, for example expired hold, already completed, transaction not found, invalid state, etc.
-- The UI will no longer hide the useful error behind “Edge Function returned a non-2xx status code”.
+Steps:
 
-### 2. Harden the `wl-capture` deposit path
-Update `supabase/functions/wl-capture/index.ts` for deposit captures:
-- Validate the deposit amount before calling Worldline.
-- Prefer the dedicated `wl_deposit_transaction_id` and avoid accidentally using the rental transaction id unless it is clearly a legacy deposit case.
-- Include the gateway HTTP status/code/message in server logs.
-- Return structured error fields to the frontend, such as:
-  - `error`
-  - `gatewayStatus`
-  - `gatewayCode`
-  - `retryable`
-  - `requiresManualResolution`
+1. Set the booking's category back to `MID SIZE SUV – Toyota Rav4 or Similar`.
+2. Recompute totals with Smart protection at $37.99/day × 7 days:
+   - Protection drops from $405.93 to $265.93 (−$140.00)
+   - Subtotal: $953.87 → $813.87
+   - Tax (PST 7% + GST 5%): $114.46 → $97.66
+   - **Total: $1,068.33 → $911.53**
+   Exact figures re-derived from the live booking at execution time rather than hardcoded.
+3. Recompute through the server-side pricing path (`reprice-booking`) so the write goes through the service role and passes the booking financial-integrity triggers — client-side updates to these fields are blocked by design.
+4. Log the change to `audit_logs` with a note that the category/protection group was corrected.
+5. Verify: reload the booking detail and confirm the breakdown reads "Smart Coverage ($37.99/day × 7d)" and the total is $911.53.
 
-Result:
-- Staff gets a clear answer about whether the issue is temporary or whether the hold can no longer be captured.
-- Future debugging will not depend on guessing from the generic non-2xx message.
+## If the vehicle really is a Standard SUV
 
-### 3. Add a safe manual resolution fallback for uncapturable holds
-If Worldline says the authorization can no longer be captured, add a return-step option such as **Record Terminal Deposit Charge**.
+If the customer is actually taking a Murano, tell me and I will instead keep the Standard SUV category and apply a **one-off protection rate override of $37.99/day on this booking only** (goodwill/price-honour), leaving the category and the $109.99 rate question separate. That path needs a small `protection_rate_override` field on bookings, which the pricing display and invoice builder would respect.
 
-This will require staff to enter:
-- amount collected
-- terminal/reference/auth number
-- reason/note
+## Note on the wider issue
 
-Then the system will:
-- create a completed deposit payment record with the real terminal/reference number
-- mark the booking deposit as captured/resolved
-- write a deposit ledger entry
-- write an audit log showing who resolved it and why
-- unblock final return completion
-
-This follows the existing business rule that payment/status writes must go through backend functions and avoids fake/simulated payments.
-
-### 4. Keep release-hold behavior intact
-Do not change the existing **Release Hold** flow except for any shared error parsing improvements. If the staff chooses release, it should continue to void/release the Worldline hold and mark it released.
-
-### 5. Verify with the affected booking safely
-Because this is payment-related, I will not run test captures or simulate payments in production.
-Verification will be code/log based plus non-destructive checks:
-- Confirm `XX9T3V3Z` still shows the $350 authorized hold before the fix.
-- Confirm the UI now extracts the real backend error.
-- Confirm the fallback path records only a real staff-entered terminal/reference number.
-- Confirm final return completion is unblocked after the deposit is captured, released, or manually resolved.
-
-## Expected outcome
-Staff can either capture an active Worldline deposit hold or clearly resolve an uncapturable hold through a real terminal/reference workflow, and the return page will no longer be blocked by a vague non-2xx error.
+This is the same Mid-Size SUV vs Standard SUV protection-group confusion you raised earlier. This plan fixes the one booking only; the systemic fix (single source of truth for protection groups across online, walk-in and ops) is still outstanding and can follow separately.
