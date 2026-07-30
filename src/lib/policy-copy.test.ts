@@ -36,42 +36,45 @@ const SURFACES = {
   checkout: read("src/pages/NewCheckout.tsx"),
 };
 
-describe("no 'unlimited km' language anywhere customer-facing", () => {
-  for (const [name, src] of Object.entries(SURFACES)) {
-    it(`${name} does not mention 'unlimited km/kilometres'`, () => {
-      expect(src).not.toMatch(/unlimited\s+(km|kilometre|kilometer)/i);
+describe("agreement surfaces state unlimited kilometres", () => {
+  const agreementSurfaces = {
+    agreementView: SURFACES.agreementView,
+    pdfTemplate: SURFACES.pdfTemplate,
+    edgeAgreement: SURFACES.edgeAgreement,
+  };
+
+  for (const [name, src] of Object.entries(agreementSurfaces)) {
+    it(`${name} contains no kilometre allowance or excess-km clause`, () => {
+      expect(src).not.toMatch(/KILOMETRE ALLOWANCE/i);
+      expect(src).not.toMatch(/kilometre allowance:/i);
+      expect(src).not.toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
+      expect(src).not.toContain(`${WEEKLY_KM_ALLOWANCE.toLocaleString()} km`);
+      expect(src).not.toContain(`${MONTHLY_KM_ALLOWANCE.toLocaleString()} km`);
     });
   }
+
+  it("PDF template states unlimited kilometres", () => {
+    expect(SURFACES.pdfTemplate).toMatch(/unlimited kilometres/i);
+  });
+
+  it("edge function terms state unlimited kilometres", () => {
+    expect(SURFACES.edgeAgreement).toMatch(/unlimited kilometres/i);
+  });
+
+  it("agreement view states no kilometre limit", () => {
+    expect(SURFACES.agreementView).toMatch(/no kilometre limit/i);
+  });
 });
 
-describe("km-allowance copy matches constants", () => {
-  const weekly = WEEKLY_KM_ALLOWANCE.toLocaleString(); // "1,400"
-  const monthly = MONTHLY_KM_ALLOWANCE.toLocaleString(); // "4,800"
-  const rate = `$${EXCESS_KM_RATE.toFixed(2)}`;         // "$0.25"
+describe("marketing km-allowance copy matches constants", () => {
+  const weekly = WEEKLY_KM_ALLOWANCE.toLocaleString();
+  const monthly = MONTHLY_KM_ALLOWANCE.toLocaleString();
+  const rate = `$${EXCESS_KM_RATE.toFixed(2)}`;
 
   it("Surrey FAQ mentions weekly + monthly caps and excess rate", () => {
     expect(SURFACES.faq).toContain(weekly);
     expect(SURFACES.faq).toContain(monthly);
     expect(SURFACES.faq).toContain(rate);
-  });
-
-  it("Agreement structured view mentions caps + excess rate", () => {
-    expect(SURFACES.agreementView).toContain(weekly);
-    expect(SURFACES.agreementView).toContain(monthly);
-    expect(SURFACES.agreementView).toContain(rate);
-  });
-
-  it("PDF template section 7 mentions caps + excess rate", () => {
-    expect(SURFACES.pdfTemplate).toContain("KILOMETRE ALLOWANCE");
-    expect(SURFACES.pdfTemplate).toContain(weekly);
-    expect(SURFACES.pdfTemplate).toContain(monthly);
-    expect(SURFACES.pdfTemplate).toContain(rate);
-  });
-
-  it("Edge function terms string mentions caps + excess rate", () => {
-    expect(SURFACES.edgeAgreement).toContain(weekly);
-    expect(SURFACES.edgeAgreement).toContain(monthly);
-    expect(SURFACES.edgeAgreement).toContain(rate);
   });
 
   it("PDF viewer policy banner mentions caps + excess rate", () => {
