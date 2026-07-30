@@ -24,7 +24,6 @@ import {
   WEEKLY_KM_ALLOWANCE,
   MONTHLY_KM_ALLOWANCE,
   EXCESS_KM_RATE,
-  calculateExcessKm,
 } from "../km-allowance";
 import type { RentalAgreement } from "@/hooks/use-rental-agreement";
 
@@ -172,33 +171,22 @@ describe("rental-agreement PDF: late-return + km-allowance rendering", () => {
     });
   });
 
-  describe("kilometre allowance figures", () => {
-    const weekly = WEEKLY_KM_ALLOWANCE.toLocaleString();
-    const monthly = MONTHLY_KM_ALLOWANCE.toLocaleString();
-    const rate = `$${EXCESS_KM_RATE.toFixed(2)}`;
-
-    it("includes the KILOMETRE ALLOWANCE section header", () => {
-      expect(pdfText).toContain("KILOMETRE ALLOWANCE");
+  describe("kilometre policy", () => {
+    it("omits the KILOMETRE ALLOWANCE section header", () => {
+      expect(pdfText).not.toContain("KILOMETRE ALLOWANCE");
     });
 
-    it(`prints the weekly cap (${weekly} km / 7 days)`, () => {
-      expect(pdfText).toContain(`${weekly} km per 7 days`);
+    it("omits the weekly and monthly caps", () => {
+      expect(pdfText).not.toContain(`${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days`);
+      expect(pdfText).not.toContain(`${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days`);
     });
 
-    it(`prints the monthly cap (${monthly} km / 30 days)`, () => {
-      expect(pdfText).toContain(`${monthly} km per 30 days`);
+    it("omits the excess km rate", () => {
+      expect(pdfText).not.toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
     });
 
-    it(`prints the excess km rate (${rate}/km)`, () => {
-      expect(pdfText).toContain(`${rate}/km`);
-    });
-
-    it("excess km fee for a rental over allowance uses the constant rate", () => {
-      // 3 days ⇒ 480 km allowance; drove 700 km ⇒ 220 excess × $0.25 = $55.00
-      const b = calculateExcessKm(12_000, 12_700, RENTAL_DAYS);
-      expect(b.allowance).toBe(480);
-      expect(b.excessKm).toBe(220);
-      expect(b.excessFee).toBeCloseTo(220 * EXCESS_KM_RATE, 2);
+    it("states unlimited kilometres", () => {
+      expect(pdfText).toMatch(/unlimited kilometres/i);
     });
   });
 });

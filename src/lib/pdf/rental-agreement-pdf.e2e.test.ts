@@ -106,29 +106,22 @@ describe("rental-agreement generator — end-to-end (live DB fixture)", () => {
     });
   });
 
-  describe("kilometre allowance policy matches constants", () => {
-    it("renders the KILOMETRE ALLOWANCE section", () => {
-      expect(pdfText).toContain("KILOMETRE ALLOWANCE");
+  describe("kilometre policy", () => {
+    it("does not render a KILOMETRE ALLOWANCE section", () => {
+      expect(pdfText).not.toContain("KILOMETRE ALLOWANCE");
     });
 
-    it(`renders the weekly cap (${WEEKLY_KM_ALLOWANCE.toLocaleString()} km / 7 days)`, () => {
-      expect(pdfText).toContain(
-        `${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days`,
-      );
+    it("does not print the weekly or monthly caps", () => {
+      expect(pdfText).not.toContain(`${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days`);
+      expect(pdfText).not.toContain(`${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days`);
     });
 
-    it(`renders the monthly cap (${MONTHLY_KM_ALLOWANCE.toLocaleString()} km / 30 days)`, () => {
-      expect(pdfText).toContain(
-        `${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days`,
-      );
+    it("does not print an excess km rate", () => {
+      expect(pdfText).not.toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
     });
 
-    it(`renders the excess rate ($${EXCESS_KM_RATE.toFixed(2)}/km)`, () => {
-      expect(pdfText).toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
-    });
-
-    it("does not carry legacy 'unlimited km' copy", () => {
-      expect(pdfText).not.toMatch(/unlimited\s+(km|kilometre|kilometer)/i);
+    it("states unlimited kilometres", () => {
+      expect(pdfText).toMatch(/unlimited kilometres/i);
     });
   });
 });
