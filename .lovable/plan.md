@@ -1,28 +1,26 @@
-## Confirmed cause
+## Goal
 
-Booking **5XKC2GPA** is currently `active`, has no return recorded, and ends on **August 6, 2026**. The Admin Bookings page first fetches only the **100 most recently created non-draft bookings**, then derives the Active tab by filtering that limited result in the browser. There are **195 newer non-draft bookings** than 5XKC2GPA, so it never reaches the Active-tab filter.
+Bring back the kilometre range clause on the rental agreement, replacing the current "Unlimited kilometres" language.
 
-The earlier refresh change affected the separate active-rentals hook, but `/admin/bookings?tab=active` currently uses `useAdminBookings`, so refreshing cannot restore a row excluded by that query limit.
+## Clause content (from existing shared constants in `src/lib/km-allowance.ts`)
 
-## Implementation plan
+- 1,400 km per 7 days, or 4,800 km per 30 days, prorated (~160 km/day)
+- This booking's allowance shown as a concrete number based on its rental days
+- Excess kilometres charged at $0.25/km, calculated at return from odometer readings
 
-1. **Add a dedicated admin active-rentals query**
-   - Query bookings with `status = active` at the database level.
-   - Fetch the same customer, location, category, and payment details required by the Admin Active tab.
-   - Do not derive active rentals from the newest-100 general booking result.
+## Changes
 
-2. **Connect the Admin Active tab to the dedicated result**
-   - Feed `ActiveRentalsMonitor` from the complete active-rentals query.
-   - Use that result for the Active tab badge/count.
-   - Preserve the existing location, vehicle, and date filters.
-   - Keep the All, Pickups, Returns, and Completed tabs unchanged.
+1. **Agreement PDF** (`src/lib/pdf/rental-agreement-pdf.ts`, line ~549)
+  - Replace the "Unlimited kilometres" bullet with a `KILOMETRE ALLOWANCE` section that prints the prorated allowance for this rental (`calculateKmAllowance(totalDays)`), the weekly/monthly caps, and the $0.25/km excess rate.
+2. **On-screen agreement view** (`src/components/booking/AgreementStructuredView.tsx`, line 207)
+  - Replace "No kilometre limit applies to this rental." with the allowance bullet(s) using the same helper, reading `t.rental.totalDays` and any `policies.kmAllowance` value stored on the agreement.
+3. **Agreement generator** (`supabase/functions/generate-agreement/index.ts`)
+  - Restore km fields in `terms_json.policies` (`kmAllowance`, `excessKmRate`, weekly/monthly caps) so newly generated agreements persist the numbers.
+  - Update the plain-text `Terms:` string (line 501) to state the km allowance instead of "Unlimited kilometres".
+  - Existing agreements without those fields fall back to computing from rental days, so old records still render correctly.
+4. **Tests**
+  - Flip the assertions in `src/lib/policy-copy.test.ts`, `src/lib/pdf/rental-agreement-pdf.test.ts`, and `src/lib/pdf/rental-agreement-pdf.e2e.test.ts` back to expecting the km allowance section and rate, and no "unlimited kilometres" wording.
 
-3. **Keep active data current**
-   - Refetch on mount and browser focus.
-   - Add the existing one-minute refresh safety interval so newly activated bookings appear without a hard reload.
-   - Ensure booking-status mutations invalidate this query key.
+## Out of scope
 
-4. **Verify the regression**
-   - Confirm **5XKC2GPA** appears under `/admin/bookings?tab=active`.
-   - Confirm all database rows with `status = active` are represented, including older bookings.
-   - Verify filters still work and confirmed/pending bookings do not enter the Active tab.
+No pricing-engine changes: excess-km fees remain computed at return via the existing `calculateExcessKm` helper; marketing pages already carry the km copy.
