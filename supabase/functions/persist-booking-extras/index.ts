@@ -336,13 +336,11 @@ async function handleUpsellAdd(
   // Reprice booking totals via canonical reprice-booking edge function.
   // When mid-rental pro-rata was applied, ask reprice to preserve the row prices
   // (sum them) rather than recomputing add-ons/drivers from full duration.
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!proRataInfo);
-  if (repriceResult) return repriceResult;
+  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!proRataInfo);
+  if (reprice.errorResponse) return reprice.errorResponse;
 
-  return new Response(
-    JSON.stringify({ ok: true }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
+
 }
 
 
