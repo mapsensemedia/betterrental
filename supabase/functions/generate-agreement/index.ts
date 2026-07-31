@@ -414,6 +414,18 @@ serve(async (req) => {
     const driversTotal = (bookingDrivers || []).reduce((sum, d) => {
       return sum + (Number(d.young_driver_fee) || 0);
     }, 0);
+
+    // Itemized additional-driver lines (own section on the agreement)
+    const additionalDriversList = (bookingDrivers || []).map((d: any) => {
+      const total = roundCents(Number(d.young_driver_fee) || 0);
+      return {
+        name: d.driver_name || "Additional Driver",
+        ageBand: d.driver_age_band || "25_70",
+        dailyRate: rentalDays > 0 ? roundCents(total / rentalDays) : total,
+        total,
+      };
+    });
+
     
     // Young driver fee (primary renter)
     const youngDriverFee = Number(booking.young_driver_fee) || 0;
