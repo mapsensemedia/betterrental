@@ -109,7 +109,12 @@ export default function OpsActiveRentals() {
   const { data: bookings, isLoading } = useQuery({
     queryKey: ["ops-active-rentals"],
     queryFn: () => listBookings({ tab: "active" }),
+    staleTime: 30000,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
+
 
   // Filter by search
   const filteredBookings = (bookings || []).filter((b) => {
