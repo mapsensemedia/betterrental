@@ -412,13 +412,11 @@ async function handleUpsellRemove(
   });
 
   // Reprice booking totals via canonical reprice-booking edge function
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
-  if (repriceResult) return repriceResult;
+  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  if (reprice.errorResponse) return reprice.errorResponse;
 
-  return new Response(
-    JSON.stringify({ ok: true }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
+
 }
 
 
