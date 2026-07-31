@@ -533,13 +533,11 @@ async function handleUpsellDriverAdd(
     new_data: { driverName: newDriverRecord.driverName, driverAgeBand: newDriverRecord.driverAgeBand, computedFee: newDriverRecord.youngDriverFee, proRata: driverProRata },
   });
 
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!driverProRata);
-  if (repriceResult) return repriceResult;
+  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!driverProRata);
+  if (reprice.errorResponse) return reprice.errorResponse;
 
-  return new Response(
-    JSON.stringify({ ok: true }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
+
 }
 
 
