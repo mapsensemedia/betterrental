@@ -172,21 +172,21 @@ describe("rental-agreement PDF: late-return + km-allowance rendering", () => {
   });
 
   describe("kilometre policy", () => {
-    it("omits the KILOMETRE ALLOWANCE section header", () => {
-      expect(pdfText).not.toContain("KILOMETRE ALLOWANCE");
+    it("renders the KILOMETRE ALLOWANCE section header", () => {
+      expect(pdfText).toContain("KILOMETRE ALLOWANCE");
     });
 
-    it("omits the weekly and monthly caps", () => {
-      expect(pdfText).not.toContain(`${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days`);
-      expect(pdfText).not.toContain(`${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days`);
+    it("prints the weekly and monthly caps", () => {
+      expect(pdfText).toContain(`${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days`);
+      expect(pdfText).toContain(`${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days`);
     });
 
-    it("omits the excess km rate", () => {
-      expect(pdfText).not.toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
+    it("prints the excess km rate", () => {
+      expect(pdfText).toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
     });
 
-    it("states unlimited kilometres", () => {
-      expect(pdfText).toMatch(/unlimited kilometres/i);
+    it("does not state unlimited kilometres", () => {
+      expect(pdfText).not.toMatch(/unlimited kilometres/i);
     });
   });
 });
