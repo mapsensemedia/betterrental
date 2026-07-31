@@ -538,6 +538,10 @@ function renderStructuredPdf(
   y += 7;
 
   const p = t.policies;
+  const kmAllowance =
+    Number((p as any)?.kmAllowance) > 0
+      ? Number((p as any).kmAllowance)
+      : calculateKmAllowance(t.rental.totalDays);
 
   const tcBlocks = [
     {
