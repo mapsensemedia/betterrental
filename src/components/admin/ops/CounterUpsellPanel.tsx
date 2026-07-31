@@ -240,6 +240,47 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Price impact of the last upsell + any uncollected balance */}
+        {lastResult && (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              Booking total updated
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <span className="text-muted-foreground">Previous total</span>
+              <span className="text-right tabular-nums">${Number(lastResult.previousTotal || 0).toFixed(2)}</span>
+              <span className="text-muted-foreground">New total</span>
+              <span className="text-right tabular-nums font-medium">${Number(lastResult.newTotal || 0).toFixed(2)}</span>
+              <span className="text-muted-foreground">Already authorized / paid</span>
+              <span className="text-right tabular-nums">${Number(lastResult.authorizedTotal || 0).toFixed(2)}</span>
+              <span className="font-medium">Balance due</span>
+              <span className="text-right tabular-nums font-semibold">${Number(lastResult.balanceDue || 0).toFixed(2)}</span>
+            </div>
+            {Number(lastResult.balanceDue || 0) >= 0.01 && (
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                Collect this balance before handover — charge the card on file or take a terminal payment, then log it in the Payments section.
+              </p>
+            )}
+            {lastResult.agreementRegenerated === false && (
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <p className="text-xs text-destructive">
+                  Agreement was not regenerated{lastResult.agreementError ? `: ${lastResult.agreementError}` : "."}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => regenerateAgreement.mutate(bookingId)}
+                  disabled={regenerateAgreement.isPending}
+                >
+                  {regenerateAgreement.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Regenerate agreement"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Currently added add-ons */}
         {existingAddOns.length > 0 && (
           <div className="space-y-2">
