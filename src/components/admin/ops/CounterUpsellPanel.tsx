@@ -188,10 +188,12 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
   const { data: allAddOns = [] } = useAddOns();
   const { data: existingAddOns = [], isLoading } = useBookingAddOns(bookingId);
   const { data: existingDrivers = [], isLoading: driversLoading } = useBookingAdditionalDrivers(bookingId);
-  const addAddOn = useAddBookingAddOn();
-  const removeAddOn = useRemoveBookingAddOn();
-  const addDriver = useAddBookingDriver();
-  const removeDriver = useRemoveBookingDriver();
+  const [lastResult, setLastResult] = useState<UpsellResult | null>(null);
+  const addAddOn = useAddBookingAddOn(setLastResult);
+  const removeAddOn = useRemoveBookingAddOn(setLastResult);
+  const addDriver = useAddBookingDriver(setLastResult);
+  const removeDriver = useRemoveBookingDriver(setLastResult);
+  const regenerateAgreement = useRegenerateAgreement();
 
   const [showDriverForm, setShowDriverForm] = useState(false);
   const [newDriverName, setNewDriverName] = useState("");
