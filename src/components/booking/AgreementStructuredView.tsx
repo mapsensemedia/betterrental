@@ -164,6 +164,12 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
             ))}
             <FinRow label="Protection Total" value={fmt(protTotal)} />
             <FinRow label="Add-ons Total" value={fmt(t.financial.addOns?.reduce((s, a) => s + a.price, 0) ?? 0)} />
+            {addlDriversTotal > 0 && (
+              <FinRow
+                label={`Additional Drivers${addlDrivers.length > 0 ? ` (${addlDrivers.length})` : ""}`}
+                value={fmt(addlDriversTotal)}
+              />
+            )}
             {t.financial.youngDriverFee > 0 && <FinRow label="Young Driver Fee" value={fmt(t.financial.youngDriverFee)} />}
             <FinRow label={`PVRT (${fmt(t.taxes.pvrtDailyFee)}/day × ${t.rental.totalDays})`} value={fmt(t.financial.pvrtTotal)} />
             <FinRow label={`ACSRCH (${fmt(t.taxes.acsrchDailyFee)}/day × ${t.rental.totalDays})`} value={fmt(t.financial.acsrchTotal)} />
