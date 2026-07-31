@@ -63,9 +63,24 @@ export interface BookingFilters {
   search?: string;
 }
 
-export function useAdminBookings(filters: BookingFilters = {}) {
+interface AdminBookingsQueryOptions {
+  limit?: number;
+  queryKeyScope?: string;
+  liveRefresh?: boolean;
+}
+
+export function useAdminBookings(
+  filters: BookingFilters = {},
+  options: AdminBookingsQueryOptions = {},
+) {
+  const {
+    limit = 100,
+    queryKeyScope = "list",
+    liveRefresh = false,
+  } = options;
+
   return useQuery<BookingWithDetails[]>({
-    queryKey: ["admin-bookings", filters],
+    queryKey: ["admin-bookings", queryKeyScope, filters],
     queryFn: async () => {
       let query = supabase
         .from("bookings")
@@ -103,7 +118,7 @@ export function useAdminBookings(filters: BookingFilters = {}) {
         query = query.or(`booking_code.ilike.%${filters.search}%`);
       }
 
-      const { data: bookingsData, error } = await query.limit(100);
+      const { data: bookingsData, error } = await query.limit(limit);
 
       if (error) {
         console.error("Error fetching bookings:", error);
@@ -206,7 +221,25 @@ export function useAdminBookings(filters: BookingFilters = {}) {
       });
     },
     staleTime: 30000,
+    refetchInterval: liveRefresh ? 60000 : false,
+    refetchOnWindowFocus: liveRefresh,
+    refetchOnMount: liveRefresh ? "always" : true,
   });
+}
+
+/**
+ * Active rentals must not be derived from the capped general bookings list.
+ * Older rentals can remain active while newer bookings push them past that cap.
+ */
+export function useAdminActiveBookings() {
+  return useAdminBookings(
+    { status: "active" },
+    {
+      limit: 1000,
+      queryKeyScope: "active",
+      liveRefresh: true,
+    },
+  );
 }
 
 export function useBookingById(id: string | null) {
