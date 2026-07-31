@@ -113,6 +113,8 @@ export default function OpsActiveRentals() {
     refetchInterval: 60000,
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
+  });
+
 
   // Filter by search
   const filteredBookings = (bookings || []).filter((b) => {
