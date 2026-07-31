@@ -47,6 +47,10 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
 
   const bookingCode = (t as any).bookingCode || bookingId.slice(0, 8).toUpperCase();
   const p = t.policies;
+  const kmAllowance =
+    Number((p as any)?.kmAllowance) > 0
+      ? Number((p as any).kmAllowance)
+      : calculateKmAllowance(t.rental.totalDays);
   const tankCap = t.vehicle.tankCapacityLiters || 50;
   const displayName = t.customer.name && !t.customer.name.includes("@") ? t.customer.name : "—";
   const protName = t.protection?.planName || "No Extra Protection";
