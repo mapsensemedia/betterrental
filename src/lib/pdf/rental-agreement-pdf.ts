@@ -64,6 +64,8 @@ interface TermsJson {
     weekendDays?: number;
     protectionTotal?: number;
     addOnsTotal: number;
+    additionalDriversTotal?: number;
+    additionalDrivers?: Array<{ name?: string | null; fee: number; ageBand?: string | null }>;
     youngDriverFee: number;
     deliveryFee?: number;
     differentDropoffFee?: number;
