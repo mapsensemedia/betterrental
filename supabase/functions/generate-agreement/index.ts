@@ -602,7 +602,12 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         adjustmentLines,
         weekendDays,
         protectionTotal,
-        addOnsTotal: addOnsTotal + driversTotal,
+        // Add-ons and additional drivers are itemized separately. addOnsTotal no
+        // longer absorbs driver fees; older agreements kept the merged value.
+        addOnsTotal,
+        additionalDriversTotal: roundCents(driversTotal),
+        additionalDrivers: additionalDriversList,
+
         youngDriverFee,
         pvrtTotal,
         acsrchTotal,
