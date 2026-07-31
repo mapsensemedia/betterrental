@@ -50,7 +50,39 @@ function useBookingAdditionalDrivers(bookingId: string) {
   });
 }
 
-function useAddBookingAddOn() {
+/**
+ * Shape returned by persist-booking-extras for every upsell action.
+ * Used to surface the price delta + any uncollected balance to the operator.
+ */
+export interface UpsellResult {
+  previousTotal?: number;
+  newTotal?: number;
+  deltaTotal?: number;
+  authorizedTotal?: number;
+  balanceDue?: number;
+  agreementRegenerated?: boolean | null;
+  agreementError?: string | null;
+}
+
+function invalidateBooking(queryClient: ReturnType<typeof useQueryClient>, bookingId: string) {
+  queryClient.invalidateQueries({ queryKey: ["booking-add-ons", bookingId] });
+  queryClient.invalidateQueries({ queryKey: ["booking-additional-drivers", bookingId] });
+  queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+  queryClient.invalidateQueries({ queryKey: ["payments", bookingId] });
+}
+
+function successToast(label: string, result: UpsellResult) {
+  const delta = Number(result?.deltaTotal ?? 0);
+  const balance = Number(result?.balanceDue ?? 0);
+  const parts: string[] = [];
+  if (Math.abs(delta) >= 0.01) {
+    parts.push(`${delta > 0 ? "+" : "−"}$${Math.abs(delta).toFixed(2)} incl. tax`);
+  }
+  if (balance >= 0.01) parts.push(`Balance due $${balance.toFixed(2)}`);
+  toast.success(label, parts.length > 0 ? { description: parts.join(" · ") } : undefined);
+}
+
+function useAddBookingAddOn(onResult: (r: UpsellResult) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ bookingId, addOn }: { bookingId: string; addOn: AddOn }) => {
@@ -59,17 +91,18 @@ function useAddBookingAddOn() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return (data || {}) as UpsellResult;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["booking-add-ons", vars.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
-      toast.success("Add-on added to booking");
+    onSuccess: (result, vars) => {
+      invalidateBooking(queryClient, vars.bookingId);
+      onResult(result);
+      successToast("Add-on added to booking", result);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to add add-on."),
   });
 }
 
-function useRemoveBookingAddOn() {
+function useRemoveBookingAddOn(onResult: (r: UpsellResult) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, bookingId }: { id: string; bookingId: string }) => {
@@ -78,17 +111,18 @@ function useRemoveBookingAddOn() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return (data || {}) as UpsellResult;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["booking-add-ons", vars.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
-      toast.success("Add-on removed");
+    onSuccess: (result, vars) => {
+      invalidateBooking(queryClient, vars.bookingId);
+      onResult(result);
+      successToast("Add-on removed", result);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to remove add-on."),
   });
 }
 
-function useAddBookingDriver() {
+function useAddBookingDriver(onResult: (r: UpsellResult) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ bookingId, driverName, driverAgeBand }: { bookingId: string; driverName: string; driverAgeBand: string }) => {
@@ -97,17 +131,18 @@ function useAddBookingDriver() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return (data || {}) as UpsellResult;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["booking-additional-drivers", vars.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
-      toast.success("Additional driver added");
+    onSuccess: (result, vars) => {
+      invalidateBooking(queryClient, vars.bookingId);
+      onResult(result);
+      successToast("Additional driver added", result);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to add driver."),
   });
 }
 
-function useRemoveBookingDriver() {
+function useRemoveBookingDriver(onResult: (r: UpsellResult) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ driverRowId, bookingId }: { driverRowId: string; bookingId: string }) => {
@@ -116,15 +151,36 @@ function useRemoveBookingDriver() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return (data || {}) as UpsellResult;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["booking-additional-drivers", vars.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
-      toast.success("Driver removed");
+    onSuccess: (result, vars) => {
+      invalidateBooking(queryClient, vars.bookingId);
+      onResult(result);
+      successToast("Driver removed", result);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to remove driver."),
   });
 }
+
+/** Retry a failed agreement regeneration after an upsell changed the total. */
+function useRegenerateAgreement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { data, error } = await supabase.functions.invoke("generate-agreement", {
+        body: { bookingId, forceRegenerate: true, suppressNotifications: true, copySignatureFromLatest: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: (_, bookingId) => {
+      queryClient.invalidateQueries({ queryKey: ["rental-agreement", bookingId] });
+      toast.success("Agreement regenerated");
+    },
+    onError: (err: Error) => toast.error(err.message || "Agreement regeneration failed."),
+  });
+}
+
 
 // ── Component ────────────────────────────────────────────────────────
 
