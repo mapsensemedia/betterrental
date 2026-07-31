@@ -2,6 +2,12 @@ import jsPDF from "jspdf";
 import { format } from "date-fns";
 import type { RentalAgreement } from "@/hooks/use-rental-agreement";
 import { resolveAgreementAdjustmentLines } from "@/lib/agreement-adjustments";
+import {
+  WEEKLY_KM_ALLOWANCE,
+  MONTHLY_KM_ALLOWANCE,
+  EXCESS_KM_RATE,
+  calculateKmAllowance,
+} from "@/lib/km-allowance";
 
 // Logo asset path
 const LOGO_PATH = "/c2c-logo.png";
@@ -546,7 +552,7 @@ function renderStructuredPdf(
     {
       title: "2. VEHICLE USE RESTRICTIONS",
       items: [
-        "Unlimited kilometres — no distance limit or excess-km charge.",
+        "Kilometre allowance applies (see section 10).",
         "No smoking in the vehicle.",
         "No pets without prior written approval.",
         "No racing, towing, or off-road use.",
@@ -602,6 +608,15 @@ function renderStructuredPdf(
       title: "9. TAX INFORMATION",
       items: [
         `PST: ${(t.taxes.pstRate * 100).toFixed(0)}%, GST: ${(t.taxes.gstRate * 100).toFixed(0)}%, PVRT: ${fmt(t.taxes.pvrtDailyFee)}/day, ACSRCH: ${fmt(t.taxes.acsrchDailyFee)}/day`,
+      ]
+    },
+    {
+      title: "10. KILOMETRE ALLOWANCE",
+      items: [
+        `${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days or ${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days (prorated).`,
+        `This rental includes ${kmAllowance.toLocaleString()} km for ${t.rental.totalDays} day(s).`,
+        `Excess kilometres are charged at $${EXCESS_KM_RATE.toFixed(2)}/km.`,
+        "Excess km is calculated at return from odometer readings.",
       ]
     },
   ];
