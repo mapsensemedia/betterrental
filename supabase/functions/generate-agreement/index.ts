@@ -104,20 +104,27 @@ serve(async (req) => {
       return rateLimitResponse(rateLimit.resetAt, corsHeaders);
     }
 
-    // Validate authentication — allow service_role JWTs (server-to-server)
+    // Validate authentication — allow service_role calls (server-to-server)
     const auth = await validateAuth(req);
     const authHeader = req.headers.get("Authorization");
     let isServiceRole = false;
     if (!auth.authenticated && authHeader) {
-      // Check if this is a service_role JWT by decoding claims
-      try {
-        const token = authHeader.replace("Bearer ", "");
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload.role === "service_role") {
-          isServiceRole = true;
-        }
-      } catch (_) { /* not a valid JWT */ }
+      const token = authHeader.replace("Bearer ", "").trim();
+      // Non-JWT secret keys (sb_secret_...) cannot be decoded — compare directly.
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+      if (serviceKey && token === serviceKey) {
+        isServiceRole = true;
+      } else {
+        // Legacy JWT service_role key: inspect claims
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          if (payload.role === "service_role") {
+            isServiceRole = true;
+          }
+        } catch (_) { /* not a valid JWT */ }
+      }
     }
+
     if (!auth.authenticated && !isServiceRole) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }),
