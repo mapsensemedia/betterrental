@@ -157,8 +157,10 @@ export function useActiveRentals() {
         };
       });
     },
-    staleTime: 60000, // 1 minute - realtime handles updates now
-    refetchInterval: false, // Disabled - using realtime instead
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // Safety net if a realtime event is missed
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 }
 
