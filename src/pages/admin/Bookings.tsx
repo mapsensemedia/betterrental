@@ -8,7 +8,7 @@ import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
 import { format, isToday, isTomorrow, parseISO, isBefore, isAfter, startOfDay, endOfDay, addDays } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { useAdminBookings, type BookingFilters, type BookingWithDetails } from "@/hooks/use-bookings";
+import { useAdminActiveBookings, useAdminBookings, type BookingFilters, type BookingWithDetails } from "@/hooks/use-bookings";
 import { useLocations } from "@/hooks/use-locations";
 import { useAdminVehicles } from "@/hooks/use-inventory";
 import { Button } from "@/components/ui/button";
@@ -267,6 +267,7 @@ export default function AdminBookings() {
   const [opsFilters, setOpsFilters] = useState<OperationsFiltersState>(defaultFilters);
 
   const { data: bookings = [] as BookingWithDetails[], isLoading, refetch } = useAdminBookings(filters);
+  const { data: activeBookings = [] as BookingWithDetails[] } = useAdminActiveBookings();
   const { data: locations = [] } = useLocations();
   const { data: vehicles = [] } = useAdminVehicles({ status: "all" });
 
@@ -322,7 +323,7 @@ export default function AdminBookings() {
       pickupsPast: preRental.filter(b => 
         isBefore(parseISO(b.startAt), startOfDay(now))
       ).sort(byStartAsc),
-      active: bookings.filter(b => b.status === "active").sort(byEndAsc),
+      active: [...activeBookings].sort(byEndAsc),
       returnsToday: bookings.filter(b => 
         b.status === "active" && isToday(parseISO(b.endAt))
       ).sort(byEndAsc),
@@ -337,7 +338,7 @@ export default function AdminBookings() {
       ).sort(byEndAsc),
       completed: bookings.filter(b => b.status === "completed" || b.status === "cancelled").sort(byEndDesc),
     };
-  }, [bookings]);
+  }, [bookings, activeBookings]);
 
   // Quick stats (no needsProcessing)
   const stats = [

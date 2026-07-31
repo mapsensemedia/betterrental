@@ -1,23 +1,28 @@
-## Goal
+## Confirmed cause
 
-The rental agreement must not mention any kilometre limit or excess-kilometre charge. Marketing/FAQ pages stay as they are (not part of this change).
+Booking **5XKC2GPA** is currently `active`, has no return recorded, and ends on **August 6, 2026**. The Admin Bookings page first fetches only the **100 most recently created non-draft bookings**, then derives the Active tab by filtering that limited result in the browser. There are **195 newer non-draft bookings** than 5XKC2GPA, so it never reaches the Active-tab filter.
 
-## Changes
+The earlier refresh change affected the separate active-rentals hook, but `/admin/bookings?tab=active` currently uses `useAdminBookings`, so refreshing cannot restore a row excluded by that query limit.
 
-1. **Agreement PDF** (`src/lib/pdf/rental-agreement-pdf.ts`)
-   - Remove the "7. KILOMETRE ALLOWANCE" section (allowance + $0.25/km excess lines) and renumber the following sections (Termination, etc.).
-   - Keep the "Km Out" odometer field in the vehicle-condition block — it records vehicle state, not a limit.
+## Implementation plan
 
-2. **On-screen agreement view** (`src/components/booking/AgreementStructuredView.tsx`)
-   - Remove the terms bullet listing the kilometre allowance and excess-km charge.
+1. **Add a dedicated admin active-rentals query**
+   - Query bookings with `status = active` at the database level.
+   - Fetch the same customer, location, category, and payment details required by the Admin Active tab.
+   - Do not derive active rentals from the newest-100 general booking result.
 
-3. **Agreement text generated server-side** (`supabase/functions/generate-agreement/index.ts`)
-   - Remove the trailing "Kilometre allowance: 1,400 km / 7 days or 4,800 km / 30 days (prorated); excess $0.25/km." sentence from the stored terms paragraph. Redeploy the function.
+2. **Connect the Admin Active tab to the dedicated result**
+   - Feed `ActiveRentalsMonitor` from the complete active-rentals query.
+   - Use that result for the Active tab badge/count.
+   - Preserve the existing location, vehicle, and date filters.
+   - Keep the All, Pickups, Returns, and Completed tabs unchanged.
 
-4. **Tests**
-   - Update `src/lib/pdf/rental-agreement-pdf.test.ts` / `policy-copy.test.ts` assertions that expect the allowance clause, so the suite asserts the clause is absent instead.
+3. **Keep active data current**
+   - Refetch on mount and browser focus.
+   - Add the existing one-minute refresh safety interval so newly activated bookings appear without a hard reload.
+   - Ensure booking-status mutations invalidate this query key.
 
-## Notes
-
-- Existing agreements already generated keep their stored text; regenerating an agreement will produce the new clause-free version.
-- The `km-allowance.ts` helper and `excess_km_fee_cents` invoice column are left in place but no longer referenced by the agreement; say the word if you also want excess-km charging removed from the return/closeout flow.
+4. **Verify the regression**
+   - Confirm **5XKC2GPA** appears under `/admin/bookings?tab=active`.
+   - Confirm all database rows with `status = active` are represented, including older bookings.
+   - Verify filters still work and confirmed/pending bookings do not enter the Active tab.
