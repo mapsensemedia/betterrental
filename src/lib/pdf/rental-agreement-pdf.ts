@@ -476,11 +476,30 @@ function renderStructuredPdf(
   finRow(pdf, `ACSRCH: ${fmt(t.taxes.acsrchDailyFee)}/day × ${t.rental.totalDays}`, fmt(t.financial.acsrchTotal), y, FONT_FIN);
   y += FIN_ROW_H;
 
+  // Additional drivers (itemized separately from add-ons so counter upsells are visible)
+  const addlDrivers = t.financial.additionalDrivers ?? [];
+  const addlDriversTotal = t.financial.additionalDriversTotal
+    ?? addlDrivers.reduce((s, d) => s + (Number(d.fee) || 0), 0);
+  if (addlDrivers.length > 0 || addlDriversTotal > 0) {
+    finSectionHead(pdf, "ADDITIONAL DRIVERS", L, y, FONT_FIN);
+    y += FIN_HEAD_H;
+    if (addlDrivers.length > 0) {
+      for (const d of addlDrivers) {
+        finRow(pdf, d.name || "Additional Driver", fmt(Number(d.fee) || 0), y, FONT_FIN);
+        y += FIN_ROW_H;
+      }
+    } else {
+      finRow(pdf, "Additional Drivers", fmt(addlDriversTotal), y, FONT_FIN);
+      y += FIN_ROW_H;
+    }
+  }
+
   // Young driver fee
   if (t.financial.youngDriverFee > 0) {
     finRow(pdf, "Young Driver Fee", fmt(t.financial.youngDriverFee), y, FONT_FIN);
     y += FIN_ROW_H;
   }
+
 
   // Delivery fee
   if ((t.financial.deliveryFee ?? 0) > 0) {
