@@ -5,6 +5,12 @@
 import { format } from "date-fns";
 import type { RentalAgreement, AgreementTermsJson } from "@/hooks/use-rental-agreement";
 import { resolveAgreementAdjustmentLines } from "@/lib/agreement-adjustments";
+import {
+  WEEKLY_KM_ALLOWANCE,
+  MONTHLY_KM_ALLOWANCE,
+  EXCESS_KM_RATE,
+  calculateKmAllowance,
+} from "@/lib/km-allowance";
 
 interface AgreementStructuredViewProps {
   agreement: RentalAgreement;
@@ -41,6 +47,10 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
 
   const bookingCode = (t as any).bookingCode || bookingId.slice(0, 8).toUpperCase();
   const p = t.policies;
+  const kmAllowance =
+    Number((p as any)?.kmAllowance) > 0
+      ? Number((p as any).kmAllowance)
+      : calculateKmAllowance(t.rental.totalDays);
   const tankCap = t.vehicle.tankCapacityLiters || 50;
   const displayName = t.customer.name && !t.customer.name.includes("@") ? t.customer.name : "—";
   const protName = t.protection?.planName || "No Extra Protection";
@@ -204,7 +214,11 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
           <li>Optional rental coverages available at pickup.</li>
           <li>No racing, towing, or off-road use permitted.</li>
           <li>Renter is responsible for all traffic violations and tolls during the rental period.</li>
-          <li>No kilometre limit applies to this rental.</li>
+          <li>
+            Kilometre allowance: {WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days or {MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days (prorated).
+            This rental includes {kmAllowance.toLocaleString()} km for {t.rental.totalDays} day(s).
+          </li>
+          <li>Excess kilometres are charged at ${EXCESS_KM_RATE.toFixed(2)}/km, calculated at return from odometer readings.</li>
         </ul>
       </Section>
 

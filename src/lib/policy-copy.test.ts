@@ -36,7 +36,7 @@ const SURFACES = {
   checkout: read("src/pages/NewCheckout.tsx"),
 };
 
-describe("agreement surfaces state unlimited kilometres", () => {
+describe("agreement surfaces state the kilometre allowance", () => {
   const agreementSurfaces = {
     agreementView: SURFACES.agreementView,
     pdfTemplate: SURFACES.pdfTemplate,
@@ -44,25 +44,36 @@ describe("agreement surfaces state unlimited kilometres", () => {
   };
 
   for (const [name, src] of Object.entries(agreementSurfaces)) {
-    it(`${name} contains no kilometre allowance or excess-km clause`, () => {
-      expect(src).not.toMatch(/KILOMETRE ALLOWANCE/i);
-      expect(src).not.toMatch(/kilometre allowance:/i);
-      expect(src).not.toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
-      expect(src).not.toContain(`${WEEKLY_KM_ALLOWANCE.toLocaleString()} km`);
-      expect(src).not.toContain(`${MONTHLY_KM_ALLOWANCE.toLocaleString()} km`);
+    it(`${name} contains no "unlimited kilometres" language`, () => {
+      expect(src).not.toMatch(/unlimited kilometres/i);
+      expect(src).not.toMatch(/no kilometre limit/i);
+    });
+
+    it(`${name} references the excess-km rate`, () => {
+      expect(src).toMatch(
+        new RegExp(
+          `\\$\\{?${EXCESS_KM_RATE.toFixed(2)}|EXCESS_KM_RATE|excessKmRate`,
+        ),
+      );
     });
   }
 
-  it("PDF template states unlimited kilometres", () => {
-    expect(SURFACES.pdfTemplate).toMatch(/unlimited kilometres/i);
+  it("PDF template renders a KILOMETRE ALLOWANCE section", () => {
+    expect(SURFACES.pdfTemplate).toMatch(/KILOMETRE ALLOWANCE/i);
   });
 
-  it("edge function terms state unlimited kilometres", () => {
-    expect(SURFACES.edgeAgreement).toMatch(/unlimited kilometres/i);
+  it("agreement view states the kilometre allowance", () => {
+    expect(SURFACES.agreementView).toMatch(/kilometre allowance/i);
   });
 
-  it("agreement view states no kilometre limit", () => {
-    expect(SURFACES.agreementView).toMatch(/no kilometre limit/i);
+  it("edge function terms state the kilometre allowance", () => {
+    expect(SURFACES.edgeAgreement).toMatch(/kilometre allowance/i);
+    expect(SURFACES.edgeAgreement).toContain(
+      `${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days`,
+    );
+    expect(SURFACES.edgeAgreement).toContain(
+      `${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days`,
+    );
   });
 });
 
