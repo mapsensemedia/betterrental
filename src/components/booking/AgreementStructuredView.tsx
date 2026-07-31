@@ -57,6 +57,12 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
   const protTotal = t.protection?.total ?? (t.financial as any).protectionTotal ?? 0;
   const protDaily = t.protection?.dailyRate ?? 0;
   const protDeductible = (t.protection as any)?.deductible ?? null;
+  // Additional drivers are itemized separately from add-ons
+  const addlDrivers: Array<{ name?: string | null; fee: number }> =
+    (t.financial as any).additionalDrivers ?? [];
+  const addlDriversTotal: number =
+    (t.financial as any).additionalDriversTotal ??
+    addlDrivers.reduce((s, d) => s + (Number(d.fee) || 0), 0);
 
   const pickupLines = [t.locations.pickup.name, t.locations.pickup.address, t.locations.pickup.city ? `${t.locations.pickup.city}, BC` : null].filter(Boolean);
   const dropoffLines = [t.locations.dropoff.name, t.locations.dropoff.address, t.locations.dropoff.city ? `${t.locations.dropoff.city}, BC` : null].filter(Boolean);
@@ -164,6 +170,12 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
             ))}
             <FinRow label="Protection Total" value={fmt(protTotal)} />
             <FinRow label="Add-ons Total" value={fmt(t.financial.addOns?.reduce((s, a) => s + a.price, 0) ?? 0)} />
+            {addlDriversTotal > 0 && (
+              <FinRow
+                label={`Additional Drivers${addlDrivers.length > 0 ? ` (${addlDrivers.length})` : ""}`}
+                value={fmt(addlDriversTotal)}
+              />
+            )}
             {t.financial.youngDriverFee > 0 && <FinRow label="Young Driver Fee" value={fmt(t.financial.youngDriverFee)} />}
             <FinRow label={`PVRT (${fmt(t.taxes.pvrtDailyFee)}/day × ${t.rental.totalDays})`} value={fmt(t.financial.pvrtTotal)} />
             <FinRow label={`ACSRCH (${fmt(t.taxes.acsrchDailyFee)}/day × ${t.rental.totalDays})`} value={fmt(t.financial.acsrchTotal)} />

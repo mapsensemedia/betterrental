@@ -336,13 +336,11 @@ async function handleUpsellAdd(
   // Reprice booking totals via canonical reprice-booking edge function.
   // When mid-rental pro-rata was applied, ask reprice to preserve the row prices
   // (sum them) rather than recomputing add-ons/drivers from full duration.
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!proRataInfo);
-  if (repriceResult) return repriceResult;
+  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!proRataInfo);
+  if (reprice.errorResponse) return reprice.errorResponse;
 
-  return new Response(
-    JSON.stringify({ ok: true }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
+
 }
 
 
@@ -414,13 +412,11 @@ async function handleUpsellRemove(
   });
 
   // Reprice booking totals via canonical reprice-booking edge function
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
-  if (repriceResult) return repriceResult;
+  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  if (reprice.errorResponse) return reprice.errorResponse;
 
-  return new Response(
-    JSON.stringify({ ok: true }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
+
 }
 
 
@@ -537,13 +533,11 @@ async function handleUpsellDriverAdd(
     new_data: { driverName: newDriverRecord.driverName, driverAgeBand: newDriverRecord.driverAgeBand, computedFee: newDriverRecord.youngDriverFee, proRata: driverProRata },
   });
 
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!driverProRata);
-  if (repriceResult) return repriceResult;
+  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!driverProRata);
+  if (reprice.errorResponse) return reprice.errorResponse;
 
-  return new Response(
-    JSON.stringify({ ok: true }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
+
 }
 
 
@@ -601,13 +595,11 @@ async function handleUpsellDriverRemove(
     new_data: null,
   });
 
-  const repriceResult = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
-  if (repriceResult) return repriceResult;
+  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  if (reprice.errorResponse) return reprice.errorResponse;
 
-  return new Response(
-    JSON.stringify({ ok: true }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
+
 }
 
 
@@ -623,20 +615,28 @@ function computeRemainingDays(endAt: string): number {
 }
 
 // ── Invoke reprice-booking edge function (canonical totals writer) ──
+interface RepriceOutcome {
+  errorResponse: Response | null;
+  data: any;
+}
+
 async function invokeRepriceBooking(
   bookingId: string,
   currentEndAt: string,
   originalReq: Request,
   corsHeaders: Record<string, string>,
   preserveExtrasPrices = false,
-): Promise<Response | null> {
+): Promise<RepriceOutcome> {
   const authHeader = originalReq.headers.get("Authorization");
   if (!authHeader) {
     console.error("[persist-booking-extras] invokeRepriceBooking: missing Authorization header");
-    return new Response(
-      JSON.stringify({ error: "REPRICE_FAILED", errorCode: "MISSING_AUTH", details: "No Authorization header available for reprice call" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return {
+      data: null,
+      errorResponse: new Response(
+        JSON.stringify({ error: "REPRICE_FAILED", errorCode: "MISSING_AUTH", details: "No Authorization header available for reprice call" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      ),
+    };
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -661,14 +661,82 @@ async function invokeRepriceBooking(
     },
   );
 
+  const bodyText = await resp.text();
+
   if (!resp.ok) {
-    const errBody = await resp.text();
-    console.error("[persist-booking-extras] reprice-booking failed:", resp.status, errBody);
-    return new Response(
-      JSON.stringify({ error: "REPRICE_FAILED", errorCode: "REPRICE_ERROR", details: errBody }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    console.error("[persist-booking-extras] reprice-booking failed:", resp.status, bodyText);
+    return {
+      data: null,
+      errorResponse: new Response(
+        JSON.stringify({ error: "REPRICE_FAILED", errorCode: "REPRICE_ERROR", details: bodyText }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      ),
+    };
   }
 
-  return null; // success
+  let data: any = null;
+  try { data = JSON.parse(bodyText); } catch (_) { /* non-JSON body */ }
+
+  return { errorResponse: null, data };
 }
+
+// ── Build the upsell response: price delta + outstanding balance ─────
+// Every counter upsell changes the booking total. Returning the delta and the
+// amount already authorized prevents a silent uncollected balance (7HNPMA5E).
+async function buildUpsellResponse(
+  supabaseAdmin: any,
+  bookingId: string,
+  repriceData: any,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  let previousTotal = 0;
+  let newTotal = 0;
+  let authorizedTotal = 0;
+
+  try {
+    previousTotal = round2(Number(repriceData?.oldTotal) || 0);
+
+    const { data: bookingRow } = await supabaseAdmin
+      .from("bookings")
+      .select("total_amount")
+      .eq("id", bookingId)
+      .maybeSingle();
+
+    newTotal = round2(Number(bookingRow?.total_amount ?? repriceData?.total) || 0);
+
+    // Rental money already secured (authorizations + captures), deposits excluded.
+    const { data: paymentRows } = await supabaseAdmin
+      .from("payments")
+      .select("amount, status, payment_type")
+      .eq("booking_id", bookingId);
+
+    authorizedTotal = round2(
+      (paymentRows || [])
+        .filter((p: any) =>
+          (p.payment_type || "rental") !== "deposit" &&
+          ["authorized", "completed", "captured", "paid"].includes(String(p.status || "").toLowerCase())
+        )
+        .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0)
+    );
+  } catch (e) {
+    console.error("[persist-booking-extras] buildUpsellResponse failed:", e);
+  }
+
+  const deltaTotal = round2(newTotal - previousTotal);
+  const balanceDue = round2(Math.max(newTotal - authorizedTotal, 0));
+
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      previousTotal,
+      newTotal,
+      deltaTotal,
+      authorizedTotal,
+      balanceDue,
+      agreementRegenerated: repriceData?.agreementRegenerated ?? null,
+      agreementError: repriceData?.agreementError ?? null,
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}
+

@@ -1,31 +1,42 @@
-## Goal
-Booking **7HNPMA5E** currently bills 6 days even though pickup/return are unchanged. Keep the dates and times exactly as they are, but count and charge it as **5 days**. This is a one-off data correction for this booking only — no pricing-engine or hour-based-billing code changes.
+# Goal
 
-## Current state (verified in the database)
-- Booking id `85ad3a78-…c1c2b291`, status `confirmed`, no payments recorded yet, no add-ons, no additional drivers
-- start `2026-08-01 03:00Z` → end `2026-08-06 03:00Z` (dates stay untouched)
-- `total_days` = 6, daily rate $87.99, protection `smart` @ $37.99/day
-- Subtotal $810.48 = base $527.94 + weekend surcharge $39.60 + protection $227.94 + regulatory fees $15.00
-- Tax $97.25 (12%), total $907.73, deposit $350.00
+No changes to booking 7HNPMA5E (or any existing booking). Only prevent this from happening again on future bookings.
 
-## New 5-day figures
-| Line | Old (6 d) | New (5 d) |
-|---|---|---|
-| Base rate 87.99/day | 527.94 | 439.95 |
-| Weekend surcharge (3 weekend days, unchanged) | 39.60 | 39.60 |
-| Smart protection 37.99/day | 227.94 | 189.95 |
-| PVRT 1.50 + ACSRCH 1.00 per day | 15.00 | 12.50 |
-| **Subtotal** | **810.48** | **682.00** |
-| Tax 12% (PST 7 + GST 5) | 97.25 | 81.84 |
-| **Total** | **907.73** | **763.84** |
-| Deposit (unchanged) | 350.00 | 350.00 |
+# What actually went wrong (verified in the database)
 
-## Changes
-1. Update this single booking row: `total_days = 5`, `subtotal = 682.00`, `tax_amount = 81.84`, `total_amount = 763.84`. Leave `start_at`, `end_at`, `daily_rate`, `weekend_surcharge`, and `deposit_amount` untouched.
-2. Write an `audit_logs` entry (`action = 'manual_reprice'`, entity `booking`) with the old/new totals and the reason "manual override: bill as 5 days per management approval".
-3. Refresh derived documents for this booking so the customer-facing figures match: recompute any `final_invoices` totals for it (none expected, will confirm) and regenerate the rental agreement so its terms/PDF show 5 days and $763.84.
+For 7HNPMA5E the driver fees **were** added to the booking price: subtotal $682.00 → $761.95 → $841.90, total now **$942.93**, with two `booking_additional_drivers` rows at $79.95 each (15.99/day × 5 days).
+
+What silently did **not** happen:
+
+1. **No charge for the delta.** `payments` only holds the original $763.84 rental authorization (created 23:28), while the drivers were added at 23:29 and 23:30. The $179.09 difference was never requested and nothing warned the operator.
+2. **The agreement was never refreshed.** The one agreement row still shows `grandTotal: 763.84` and no drivers. `reprice-booking` does have a regeneration step for total changes, but no updated agreement exists — it failed or was skipped silently.
+3. **Drivers are never itemized on the agreement anyway.** `generate-agreement` folds `driversTotal` into `addOnsTotal`, so additional drivers have no line of their own.
+
+# Prevention plan (no data edits)
+
+## 1. Never let a price increase go uncollected
+
+- `persist-booking-extras` returns the delta on every upsell action: `previousTotal`, `newTotal`, `deltaTotal`, and `authorizedTotal` (non-voided rental payments).
+- `CounterUpsellPanel` replaces its plain success toast with a result panel: "Driver added — +$89.54 incl. tax. Balance due $179.09" plus a **Collect balance** button that opens the existing Worldline/terminal payment surface pre-filled with the delta.
+- A persistent **Balance due** badge appears on the booking financial panel whenever `total_amount − non-voided rental payments > $0.50`, so any future gap is visible without hunting.
+
+## 2. Make agreement regeneration reliable and loud
+
+- `reprice-booking` returns `agreementRegenerated` / `agreementError` instead of only logging on failure; `persist-booking-extras` passes it through.
+- `CounterUpsellPanel` shows "Agreement needs regeneration" with a one-click retry when regeneration fails.
+- Booking detail shows an "Agreement out of date — regenerate" banner when the latest non-voided agreement's `terms_json.financial.grandTotal` differs from `bookings.total_amount`.
+- Switch the internal `generate-agreement` call in `reprice-booking` to a service-role invocation so it can't fail on a forwarded staff token.
+
+## 3. Itemize additional drivers going forward
+
+- `generate-agreement` stops merging drivers into add-ons: adds `additionalDriversTotal` and `additionalDrivers: [{ name, ageBand, dailyRate, total }]` to `terms_json.financial`.
+- Agreement PDF (`src/lib/pdf/rental-agreement-pdf.ts`) and `AgreementStructuredView.tsx` render a dedicated "Additional Drivers" section, falling back to the merged value for older agreements.
+- Update the agreement PDF tests for the new line.
+
+## Explicitly out of scope
+
+7HNPMA5E stays exactly as it is — no reprice, no repayment, no agreement regeneration, no data patch.
 
 ## Technical notes
-- Applied via a data update (not a migration); financial columns are trigger-protected against client writes but service-level data updates are allowed.
-- Because `total_days` is the field the UI and PDF read for duration, the admin Financial Breakdown, invoice, and agreement will all display 5 days after the update.
-- No changes to `computeBookingTotals`, the hours→days ceiling rule, or any shared pricing code, so all other and future bookings keep the current hour-based day counting.
+
+Files: `supabase/functions/persist-booking-extras/index.ts`, `supabase/functions/reprice-booking/index.ts`, `supabase/functions/generate-agreement/index.ts`, `src/components/admin/ops/CounterUpsellPanel.tsx`, `src/components/admin/ops/FinancialBreakdown.tsx`, `src/lib/pdf/rental-agreement-pdf.ts`, `src/components/booking/AgreementStructuredView.tsx`, plus tests. Money math stays in integer cents; driver rates in `system_settings` (standard 15.99, young 15.00) are unchanged; no schema changes — balance due is derived.

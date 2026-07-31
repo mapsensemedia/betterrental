@@ -464,6 +464,9 @@ Deno.serve(async (req) => {
     const totalChanged = updateData.total_amount != null
       && Number(updateData.total_amount) !== Number(booking.total_amount);
 
+    let agreementRegenerated: boolean | null = null;
+    let agreementError: string | null = null;
+
     if (daysChanged || totalChanged || extensionInfo) {
       try {
         const { data: existingAgreement } = await supabase
@@ -476,19 +479,36 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (existingAgreement) {
-          const { data: regenData, error: regenErr } = await supabase.functions.invoke("generate-agreement", {
-            body: {
+          agreementRegenerated = false;
+          // Direct service-role call: supabase.functions.invoke() would forward a
+          // key generate-agreement may not accept, and the failure was silent.
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const resp = await fetch(`${supabaseUrl}/functions/v1/generate-agreement`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+              apikey: serviceKey,
+            },
+            body: JSON.stringify({
               bookingId,
               forceRegenerate: true,
               suppressNotifications: true,
               copySignatureFromLatest: !!existingAgreement.customer_signed_at,
               ...(extensionInfo ? { agreementType: "extension" } : {}),
-            },
+            }),
           });
 
-          if (regenErr) {
-            console.error("[reprice-booking] Agreement regeneration failed:", regenErr);
+          const regenText = await resp.text();
+          let regenData: any = null;
+          try { regenData = JSON.parse(regenText); } catch (_) { /* non-JSON */ }
+
+          if (!resp.ok) {
+            agreementError = `generate-agreement ${resp.status}: ${regenText.slice(0, 300)}`;
+            console.error("[reprice-booking] Agreement regeneration failed:", agreementError);
           } else {
+            agreementRegenerated = true;
             console.log(`[reprice-booking] Agreement regenerated for ${bookingId}`);
             if (extensionRowId && regenData?.agreementId) {
               await supabase
@@ -499,6 +519,8 @@ Deno.serve(async (req) => {
           }
         }
       } catch (e) {
+        agreementRegenerated = false;
+        agreementError = e instanceof Error ? e.message : String(e);
         console.error("[reprice-booking] Agreement sync error:", e);
       }
     }
@@ -514,7 +536,10 @@ Deno.serve(async (req) => {
       taxAmount: updateData.tax_amount ?? booking.tax_amount,
       total: updateData.total_amount ?? booking.total_amount,
       oldTotal: booking.total_amount,
+      agreementRegenerated,
+      agreementError,
     }, 200, corsHeaders);
+
 
   } catch (err) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);

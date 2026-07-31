@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Plus, X, Loader2, Users, UserPlus } from "lucide-react";
+import { ShoppingCart, Plus, X, Loader2, Users, UserPlus, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAddOns, type AddOn, isFuelAddOn, isAdditionalDriverAddOn } from "@/hooks/use-add-ons";
 
@@ -50,7 +50,39 @@ function useBookingAdditionalDrivers(bookingId: string) {
   });
 }
 
-function useAddBookingAddOn() {
+/**
+ * Shape returned by persist-booking-extras for every upsell action.
+ * Used to surface the price delta + any uncollected balance to the operator.
+ */
+export interface UpsellResult {
+  previousTotal?: number;
+  newTotal?: number;
+  deltaTotal?: number;
+  authorizedTotal?: number;
+  balanceDue?: number;
+  agreementRegenerated?: boolean | null;
+  agreementError?: string | null;
+}
+
+function invalidateBooking(queryClient: ReturnType<typeof useQueryClient>, bookingId: string) {
+  queryClient.invalidateQueries({ queryKey: ["booking-add-ons", bookingId] });
+  queryClient.invalidateQueries({ queryKey: ["booking-additional-drivers", bookingId] });
+  queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+  queryClient.invalidateQueries({ queryKey: ["payments", bookingId] });
+}
+
+function successToast(label: string, result: UpsellResult) {
+  const delta = Number(result?.deltaTotal ?? 0);
+  const balance = Number(result?.balanceDue ?? 0);
+  const parts: string[] = [];
+  if (Math.abs(delta) >= 0.01) {
+    parts.push(`${delta > 0 ? "+" : "−"}$${Math.abs(delta).toFixed(2)} incl. tax`);
+  }
+  if (balance >= 0.01) parts.push(`Balance due $${balance.toFixed(2)}`);
+  toast.success(label, parts.length > 0 ? { description: parts.join(" · ") } : undefined);
+}
+
+function useAddBookingAddOn(onResult: (r: UpsellResult) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ bookingId, addOn }: { bookingId: string; addOn: AddOn }) => {
@@ -59,17 +91,18 @@ function useAddBookingAddOn() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return (data || {}) as UpsellResult;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["booking-add-ons", vars.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
-      toast.success("Add-on added to booking");
+    onSuccess: (result, vars) => {
+      invalidateBooking(queryClient, vars.bookingId);
+      onResult(result);
+      successToast("Add-on added to booking", result);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to add add-on."),
   });
 }
 
-function useRemoveBookingAddOn() {
+function useRemoveBookingAddOn(onResult: (r: UpsellResult) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, bookingId }: { id: string; bookingId: string }) => {
@@ -78,17 +111,18 @@ function useRemoveBookingAddOn() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return (data || {}) as UpsellResult;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["booking-add-ons", vars.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
-      toast.success("Add-on removed");
+    onSuccess: (result, vars) => {
+      invalidateBooking(queryClient, vars.bookingId);
+      onResult(result);
+      successToast("Add-on removed", result);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to remove add-on."),
   });
 }
 
-function useAddBookingDriver() {
+function useAddBookingDriver(onResult: (r: UpsellResult) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ bookingId, driverName, driverAgeBand }: { bookingId: string; driverName: string; driverAgeBand: string }) => {
@@ -97,17 +131,18 @@ function useAddBookingDriver() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return (data || {}) as UpsellResult;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["booking-additional-drivers", vars.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
-      toast.success("Additional driver added");
+    onSuccess: (result, vars) => {
+      invalidateBooking(queryClient, vars.bookingId);
+      onResult(result);
+      successToast("Additional driver added", result);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to add driver."),
   });
 }
 
-function useRemoveBookingDriver() {
+function useRemoveBookingDriver(onResult: (r: UpsellResult) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ driverRowId, bookingId }: { driverRowId: string; bookingId: string }) => {
@@ -116,15 +151,36 @@ function useRemoveBookingDriver() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      return (data || {}) as UpsellResult;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["booking-additional-drivers", vars.bookingId] });
-      queryClient.invalidateQueries({ queryKey: ["booking", vars.bookingId] });
-      toast.success("Driver removed");
+    onSuccess: (result, vars) => {
+      invalidateBooking(queryClient, vars.bookingId);
+      onResult(result);
+      successToast("Driver removed", result);
     },
     onError: (err: Error) => toast.error(err.message || "Failed to remove driver."),
   });
 }
+
+/** Retry a failed agreement regeneration after an upsell changed the total. */
+function useRegenerateAgreement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { data, error } = await supabase.functions.invoke("generate-agreement", {
+        body: { bookingId, forceRegenerate: true, suppressNotifications: true, copySignatureFromLatest: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: (_, bookingId) => {
+      queryClient.invalidateQueries({ queryKey: ["rental-agreement", bookingId] });
+      toast.success("Agreement regenerated");
+    },
+    onError: (err: Error) => toast.error(err.message || "Agreement regeneration failed."),
+  });
+}
+
 
 // ── Component ────────────────────────────────────────────────────────
 
@@ -132,10 +188,12 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
   const { data: allAddOns = [] } = useAddOns();
   const { data: existingAddOns = [], isLoading } = useBookingAddOns(bookingId);
   const { data: existingDrivers = [], isLoading: driversLoading } = useBookingAdditionalDrivers(bookingId);
-  const addAddOn = useAddBookingAddOn();
-  const removeAddOn = useRemoveBookingAddOn();
-  const addDriver = useAddBookingDriver();
-  const removeDriver = useRemoveBookingDriver();
+  const [lastResult, setLastResult] = useState<UpsellResult | null>(null);
+  const addAddOn = useAddBookingAddOn(setLastResult);
+  const removeAddOn = useRemoveBookingAddOn(setLastResult);
+  const addDriver = useAddBookingDriver(setLastResult);
+  const removeDriver = useRemoveBookingDriver(setLastResult);
+  const regenerateAgreement = useRegenerateAgreement();
 
   const [showDriverForm, setShowDriverForm] = useState(false);
   const [newDriverName, setNewDriverName] = useState("");
@@ -182,6 +240,47 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Price impact of the last upsell + any uncollected balance */}
+        {lastResult && (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              Booking total updated
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <span className="text-muted-foreground">Previous total</span>
+              <span className="text-right tabular-nums">${Number(lastResult.previousTotal || 0).toFixed(2)}</span>
+              <span className="text-muted-foreground">New total</span>
+              <span className="text-right tabular-nums font-medium">${Number(lastResult.newTotal || 0).toFixed(2)}</span>
+              <span className="text-muted-foreground">Already authorized / paid</span>
+              <span className="text-right tabular-nums">${Number(lastResult.authorizedTotal || 0).toFixed(2)}</span>
+              <span className="font-medium">Balance due</span>
+              <span className="text-right tabular-nums font-semibold">${Number(lastResult.balanceDue || 0).toFixed(2)}</span>
+            </div>
+            {Number(lastResult.balanceDue || 0) >= 0.01 && (
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                Collect this balance before handover — charge the card on file or take a terminal payment, then log it in the Payments section.
+              </p>
+            )}
+            {lastResult.agreementRegenerated === false && (
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <p className="text-xs text-destructive">
+                  Agreement was not regenerated{lastResult.agreementError ? `: ${lastResult.agreementError}` : "."}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => regenerateAgreement.mutate(bookingId)}
+                  disabled={regenerateAgreement.isPending}
+                >
+                  {regenerateAgreement.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Regenerate agreement"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Currently added add-ons */}
         {existingAddOns.length > 0 && (
           <div className="space-y-2">
