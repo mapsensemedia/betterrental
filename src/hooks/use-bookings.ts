@@ -247,6 +247,23 @@ export function useAdminActiveBookings() {
   );
 }
 
+/**
+ * Pickups (pending + confirmed) must not be derived from the capped general
+ * bookings list either — a booking created months ago for a pickup today gets
+ * pushed past the created_at cap and disappears from the Pickups tab.
+ */
+export function useAdminPickupBookings() {
+  return useAdminBookings(
+    { statuses: ["pending", "confirmed"] },
+    {
+      limit: 1000,
+      queryKeyScope: "pickups",
+      liveRefresh: true,
+    },
+  );
+}
+
+
 export function useBookingById(id: string | null) {
   return useQuery({
     queryKey: ["booking", id],
