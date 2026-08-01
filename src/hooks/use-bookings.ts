@@ -57,11 +57,13 @@ export interface BookingWithDetails {
 
 export interface BookingFilters {
   status?: BookingStatus | "all";
+  statuses?: BookingStatus[];
   dateRange?: { start: string; end: string } | null;
   locationId?: string;
   vehicleId?: string;
   search?: string;
 }
+
 
 interface AdminBookingsQueryOptions {
   limit?: number;
@@ -91,12 +93,15 @@ export function useAdminBookings(
         .order("created_at", { ascending: false });
 
       // Apply filters
-      if (filters.status && filters.status !== "all") {
+      if (filters.statuses && filters.statuses.length > 0) {
+        query = query.in("status", filters.statuses);
+      } else if (filters.status && filters.status !== "all") {
         query = query.eq("status", filters.status);
       } else {
         // By default exclude "draft" bookings (unpaid Pay Now) from admin views
         query = query.neq("status", "draft");
       }
+
 
       if (filters.dateRange?.start) {
         query = query.gte("start_at", filters.dateRange.start);
@@ -241,6 +246,23 @@ export function useAdminActiveBookings() {
     },
   );
 }
+
+/**
+ * Pickups (pending + confirmed) must not be derived from the capped general
+ * bookings list either — a booking created months ago for a pickup today gets
+ * pushed past the created_at cap and disappears from the Pickups tab.
+ */
+export function useAdminPickupBookings() {
+  return useAdminBookings(
+    { statuses: ["pending", "confirmed"] },
+    {
+      limit: 1000,
+      queryKeyScope: "pickups",
+      liveRefresh: true,
+    },
+  );
+}
+
 
 export function useBookingById(id: string | null) {
   return useQuery({

@@ -8,7 +8,7 @@ import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
 import { format, isToday, isTomorrow, parseISO, isBefore, isAfter, startOfDay, endOfDay, addDays } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { useAdminActiveBookings, useAdminBookings, type BookingFilters, type BookingWithDetails } from "@/hooks/use-bookings";
+import { useAdminActiveBookings, useAdminBookings, useAdminPickupBookings, type BookingFilters, type BookingWithDetails } from "@/hooks/use-bookings";
 import { useLocations } from "@/hooks/use-locations";
 import { useAdminVehicles } from "@/hooks/use-inventory";
 import { Button } from "@/components/ui/button";
@@ -268,6 +268,8 @@ export default function AdminBookings() {
 
   const { data: bookings = [] as BookingWithDetails[], isLoading, refetch } = useAdminBookings(filters);
   const { data: activeBookings = [] as BookingWithDetails[] } = useAdminActiveBookings();
+  const { data: pickupBookings = [] as BookingWithDetails[] } = useAdminPickupBookings();
+
   const { data: locations = [] } = useLocations();
   const { data: vehicles = [] } = useAdminVehicles({ status: "all" });
 
@@ -300,8 +302,16 @@ export default function AdminBookings() {
   const categorizedBookings = useMemo(() => {
     const now = new Date();
     const endOfTomorrow = endOfDay(addDays(startOfDay(now), 1));
-    const preRental = bookings.filter(b => b.status === "pending" || b.status === "confirmed");
-    
+    // Pickups come from the dedicated uncapped pending/confirmed query so old
+    // bookings with an upcoming pickup date never fall off the list.
+    const searchTerm = (filters.search || "").trim().toLowerCase();
+    const preRental = pickupBookings.filter(b => {
+      if (b.status !== "pending" && b.status !== "confirmed") return false;
+      if (filters.status && filters.status !== "all" && b.status !== filters.status) return false;
+      if (searchTerm && !b.bookingCode?.toLowerCase().includes(searchTerm)) return false;
+      return true;
+    });
+
     const byStartAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
       parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime();
     const byEndAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
@@ -310,8 +320,8 @@ export default function AdminBookings() {
       parseISO(b.endAt).getTime() - parseISO(a.endAt).getTime();
 
     return {
-      pending: bookings.filter(b => b.status === "pending").sort(byStartAsc),
-      confirmed: bookings.filter(b => b.status === "confirmed").sort(byStartAsc),
+      pending: preRental.filter(b => b.status === "pending").sort(byStartAsc),
+      confirmed: preRental.filter(b => b.status === "confirmed").sort(byStartAsc),
       allPickups: [...preRental].sort(byStartAsc),
       pickupsToday: preRental.filter(b => isToday(parseISO(b.startAt))).sort(byStartAsc),
       pickupsTomorrow: preRental.filter(b => isTomorrow(parseISO(b.startAt))).sort(byStartAsc),
@@ -323,22 +333,24 @@ export default function AdminBookings() {
       pickupsPast: preRental.filter(b => 
         isBefore(parseISO(b.startAt), startOfDay(now))
       ).sort(byStartAsc),
+
       active: [...activeBookings].sort(byEndAsc),
-      returnsToday: bookings.filter(b => 
-        b.status === "active" && isToday(parseISO(b.endAt))
+      returnsToday: activeBookings.filter(b => 
+        isToday(parseISO(b.endAt))
       ).sort(byEndAsc),
-      returnsTomorrow: bookings.filter(b => 
-        b.status === "active" && isTomorrow(parseISO(b.endAt))
+      returnsTomorrow: activeBookings.filter(b => 
+        isTomorrow(parseISO(b.endAt))
       ).sort(byEndAsc),
-      returnsFuture: bookings.filter(b => 
-        b.status === "active" && isAfter(parseISO(b.endAt), endOfTomorrow) 
+      returnsFuture: activeBookings.filter(b => 
+        isAfter(parseISO(b.endAt), endOfTomorrow) 
       ).sort(byEndAsc),
-      overdue: bookings.filter(b => 
-        b.status === "active" && isBefore(parseISO(b.endAt), now)
+      overdue: activeBookings.filter(b => 
+        isBefore(parseISO(b.endAt), now)
       ).sort(byEndAsc),
       completed: bookings.filter(b => b.status === "completed" || b.status === "cancelled").sort(byEndDesc),
     };
-  }, [bookings, activeBookings]);
+  }, [bookings, activeBookings, pickupBookings, filters.search, filters.status]);
+
 
   // Quick stats (no needsProcessing)
   const stats = [
