@@ -93,12 +93,15 @@ export function useAdminBookings(
         .order("created_at", { ascending: false });
 
       // Apply filters
-      if (filters.status && filters.status !== "all") {
+      if (filters.statuses && filters.statuses.length > 0) {
+        query = query.in("status", filters.statuses);
+      } else if (filters.status && filters.status !== "all") {
         query = query.eq("status", filters.status);
       } else {
         // By default exclude "draft" bookings (unpaid Pay Now) from admin views
         query = query.neq("status", "draft");
       }
+
 
       if (filters.dateRange?.start) {
         query = query.gte("start_at", filters.dateRange.start);
