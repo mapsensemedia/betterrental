@@ -57,11 +57,13 @@ export interface BookingWithDetails {
 
 export interface BookingFilters {
   status?: BookingStatus | "all";
+  statuses?: BookingStatus[];
   dateRange?: { start: string; end: string } | null;
   locationId?: string;
   vehicleId?: string;
   search?: string;
 }
+
 
 interface AdminBookingsQueryOptions {
   limit?: number;
