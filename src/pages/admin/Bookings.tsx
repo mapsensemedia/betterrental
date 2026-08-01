@@ -302,8 +302,16 @@ export default function AdminBookings() {
   const categorizedBookings = useMemo(() => {
     const now = new Date();
     const endOfTomorrow = endOfDay(addDays(startOfDay(now), 1));
-    const preRental = bookings.filter(b => b.status === "pending" || b.status === "confirmed");
-    
+    // Pickups come from the dedicated uncapped pending/confirmed query so old
+    // bookings with an upcoming pickup date never fall off the list.
+    const searchTerm = (filters.search || "").trim().toLowerCase();
+    const preRental = pickupBookings.filter(b => {
+      if (b.status !== "pending" && b.status !== "confirmed") return false;
+      if (filters.status && filters.status !== "all" && b.status !== filters.status) return false;
+      if (searchTerm && !b.bookingCode?.toLowerCase().includes(searchTerm)) return false;
+      return true;
+    });
+
     const byStartAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
       parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime();
     const byEndAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
@@ -312,8 +320,8 @@ export default function AdminBookings() {
       parseISO(b.endAt).getTime() - parseISO(a.endAt).getTime();
 
     return {
-      pending: bookings.filter(b => b.status === "pending").sort(byStartAsc),
-      confirmed: bookings.filter(b => b.status === "confirmed").sort(byStartAsc),
+      pending: preRental.filter(b => b.status === "pending").sort(byStartAsc),
+      confirmed: preRental.filter(b => b.status === "confirmed").sort(byStartAsc),
       allPickups: [...preRental].sort(byStartAsc),
       pickupsToday: preRental.filter(b => isToday(parseISO(b.startAt))).sort(byStartAsc),
       pickupsTomorrow: preRental.filter(b => isTomorrow(parseISO(b.startAt))).sort(byStartAsc),
@@ -325,6 +333,7 @@ export default function AdminBookings() {
       pickupsPast: preRental.filter(b => 
         isBefore(parseISO(b.startAt), startOfDay(now))
       ).sort(byStartAsc),
+
       active: [...activeBookings].sort(byEndAsc),
       returnsToday: bookings.filter(b => 
         b.status === "active" && isToday(parseISO(b.endAt))
