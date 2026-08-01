@@ -268,6 +268,8 @@ export default function AdminBookings() {
 
   const { data: bookings = [] as BookingWithDetails[], isLoading, refetch } = useAdminBookings(filters);
   const { data: activeBookings = [] as BookingWithDetails[] } = useAdminActiveBookings();
+  const { data: pickupBookings = [] as BookingWithDetails[] } = useAdminPickupBookings();
+
   const { data: locations = [] } = useLocations();
   const { data: vehicles = [] } = useAdminVehicles({ status: "all" });
 
