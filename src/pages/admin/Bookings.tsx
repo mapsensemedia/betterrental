@@ -335,21 +335,22 @@ export default function AdminBookings() {
       ).sort(byStartAsc),
 
       active: [...activeBookings].sort(byEndAsc),
-      returnsToday: bookings.filter(b => 
-        b.status === "active" && isToday(parseISO(b.endAt))
+      returnsToday: activeBookings.filter(b => 
+        isToday(parseISO(b.endAt))
       ).sort(byEndAsc),
-      returnsTomorrow: bookings.filter(b => 
-        b.status === "active" && isTomorrow(parseISO(b.endAt))
+      returnsTomorrow: activeBookings.filter(b => 
+        isTomorrow(parseISO(b.endAt))
       ).sort(byEndAsc),
-      returnsFuture: bookings.filter(b => 
-        b.status === "active" && isAfter(parseISO(b.endAt), endOfTomorrow) 
+      returnsFuture: activeBookings.filter(b => 
+        isAfter(parseISO(b.endAt), endOfTomorrow) 
       ).sort(byEndAsc),
-      overdue: bookings.filter(b => 
-        b.status === "active" && isBefore(parseISO(b.endAt), now)
+      overdue: activeBookings.filter(b => 
+        isBefore(parseISO(b.endAt), now)
       ).sort(byEndAsc),
       completed: bookings.filter(b => b.status === "completed" || b.status === "cancelled").sort(byEndDesc),
     };
-  }, [bookings, activeBookings]);
+  }, [bookings, activeBookings, pickupBookings, filters.search, filters.status]);
+
 
   // Quick stats (no needsProcessing)
   const stats = [
