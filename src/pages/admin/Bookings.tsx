@@ -8,7 +8,7 @@ import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
 import { format, isToday, isTomorrow, parseISO, isBefore, isAfter, startOfDay, endOfDay, addDays } from "date-fns";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { useAdminActiveBookings, useAdminBookings, type BookingFilters, type BookingWithDetails } from "@/hooks/use-bookings";
+import { useAdminActiveBookings, useAdminBookings, useAdminPickupBookings, type BookingFilters, type BookingWithDetails } from "@/hooks/use-bookings";
 import { useLocations } from "@/hooks/use-locations";
 import { useAdminVehicles } from "@/hooks/use-inventory";
 import { Button } from "@/components/ui/button";
