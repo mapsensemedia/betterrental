@@ -142,12 +142,19 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
       if (error) throw new Error(error.message || "Failed to apply upgrade");
       if (data?.error) throw new Error(data.error);
 
-      return { newTotal: data.total };
+      return { newTotal: data.total, pricingDrift: data.pricingDrift };
     },
     onSuccess: (data) => {
       toast.success(
         `Upgrade applied! Total: $${data.newTotal.toFixed(2)} CAD${selectedUnit ? ` — Unit ${selectedUnit.license_plate} assigned` : ""}`
       );
+      if (data.pricingDrift) {
+        const diff = Number(data.pricingDrift.difference) || 0;
+        toast.warning("Pricing drift detected", {
+          description: `Agreed price is $${Math.abs(diff).toFixed(2)} ${diff > 0 ? "higher" : "lower"} than the current rate card. Only the upgrade fee was applied — the agreed price was left unchanged.`,
+          duration: 10000,
+        });
+      }
       ["booking", "bookings", "category-available-units", "current-assigned-unit"].forEach((k) =>
         queryClient.invalidateQueries({ queryKey: [k] })
       );
