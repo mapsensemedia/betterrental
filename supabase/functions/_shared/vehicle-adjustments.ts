@@ -8,10 +8,12 @@
  */
 
 export const WEEKEND_SURCHARGE_RATE = 0.15;
+// Duration discounts are RETIRED — rates kept at 0 (historic bookings still
+// itemize from their stored duration_discount value).
 export const WEEKLY_DISCOUNT_THRESHOLD = 7;
-export const WEEKLY_DISCOUNT_RATE = 0.1;
+export const WEEKLY_DISCOUNT_RATE = 0;
 export const MONTHLY_DISCOUNT_THRESHOLD = 21;
-export const MONTHLY_DISCOUNT_RATE = 0.2;
+export const MONTHLY_DISCOUNT_RATE = 0;
 
 export interface AdjustmentLine {
   label: string;
