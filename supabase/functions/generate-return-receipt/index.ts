@@ -57,7 +57,8 @@ serve(async (req) => {
       .select(`
         id, booking_code, user_id, daily_rate, total_days, subtotal, 
         tax_amount, total_amount, deposit_amount, start_at, end_at,
-        actual_return_at, young_driver_fee, vehicle_id, location_id
+        actual_return_at, young_driver_fee, vehicle_id, location_id,
+        delivery_fee, different_dropoff_fee, upgrade_daily_fee
       `)
       .eq("id", bookingId)
       .single();
