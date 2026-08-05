@@ -208,4 +208,3 @@ describe("weekend surcharge + duration discount (booking W9JD9JDV regression)", 
     expect((vehicleCents + dailyFeesCents) / 100).toBeCloseTo(716.52, 2);
   });
 });
-});
