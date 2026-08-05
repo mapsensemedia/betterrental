@@ -19,10 +19,11 @@ const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
 const YOUNG_DRIVER_FEE = 15;
 const WEEKEND_SURCHARGE_RATE = 0.15;
+// Duration discounts (weekly 7+ days, monthly 21+ days) are RETIRED — rates are 0.
 const WEEKLY_DISCOUNT_THRESHOLD = 7;
-const WEEKLY_DISCOUNT_RATE = 0.10;
+const WEEKLY_DISCOUNT_RATE = 0;
 const MONTHLY_DISCOUNT_THRESHOLD = 21;
-const MONTHLY_DISCOUNT_RATE = 0.20;
+const MONTHLY_DISCOUNT_RATE = 0;
 
 // BUSINESS RULE: Deposit is ALWAYS required - minimum $350 CAD
 const MINIMUM_DEPOSIT_AMOUNT = 350;

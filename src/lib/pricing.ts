@@ -20,11 +20,13 @@ export const ACSRCH_DAILY_FEE = 1.00; // Airport Concession/Surcharge
 // ========== WEEKEND PRICING ==========
 export const WEEKEND_SURCHARGE_RATE = 0.15; // 15% weekend surcharge per weekend day (Fri/Sat/Sun)
 
-// ========== DURATION DISCOUNTS ==========
-export const WEEKLY_DISCOUNT_THRESHOLD = 7; // Days for weekly discount
-export const WEEKLY_DISCOUNT_RATE = 0.10; // 10% off for 7+ days
-export const MONTHLY_DISCOUNT_THRESHOLD = 21; // Days for monthly discount
-export const MONTHLY_DISCOUNT_RATE = 0.20; // 20% off for 21+ days
+// ========== DURATION DISCOUNTS (RETIRED) ==========
+// Weekly (7+ day) and monthly (21+ day) duration discounts were retired.
+// Rates are kept at 0 so historic imports/tests keep compiling.
+export const WEEKLY_DISCOUNT_THRESHOLD = 7; // Days for weekly discount (retired)
+export const WEEKLY_DISCOUNT_RATE = 0; // Retired — no weekly discount
+export const MONTHLY_DISCOUNT_THRESHOLD = 21; // Days for monthly discount (retired)
+export const MONTHLY_DISCOUNT_RATE = 0; // Retired — no monthly discount
 
 // ========== LATE RETURN FEES ==========
 // Late-return policy lives in `src/lib/late-return.ts` (single source of truth).
@@ -393,15 +395,10 @@ export function deriveVehicleAdjustments(input: {
 }
 
 /**
- * Get applicable duration discount
+ * Duration discounts (weekly / monthly) are RETIRED — always returns no discount.
+ * Kept as a function so historic call sites and itemization helpers keep working.
  */
-export function getDurationDiscount(rentalDays: number): { rate: number; type: "none" | "weekly" | "monthly" } {
-  if (rentalDays >= MONTHLY_DISCOUNT_THRESHOLD) {
-    return { rate: MONTHLY_DISCOUNT_RATE, type: "monthly" };
-  }
-  if (rentalDays >= WEEKLY_DISCOUNT_THRESHOLD) {
-    return { rate: WEEKLY_DISCOUNT_RATE, type: "weekly" };
-  }
+export function getDurationDiscount(_rentalDays: number): { rate: number; type: "none" | "weekly" | "monthly" } {
   return { rate: 0, type: "none" };
 }
 

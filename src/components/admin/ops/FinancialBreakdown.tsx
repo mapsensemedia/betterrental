@@ -51,12 +51,21 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
     return sum + toCents(a.price);
   }, 0);
 
-  const driversCents = additionalDrivers.reduce((sum: number, d: any) => {
-    const fee = Number(d.young_driver_fee);
-    if (fee > 0) return sum + toCents(fee);
+  // Driver fees are recomputed from rate × current total_days. The stored
+  // young_driver_fee can go stale when a rental is shortened/extended after the
+  // driver was added (the engine reprices the subtotal but not the row), which
+  // previously surfaced as a phantom "Discount / Adjustment" line.
+  const driverCentsFor = (d: any): number => {
     const rate = d.driver_age_band === "20_24" ? youngDriverDailyRate : driverDailyRate;
-    return sum + toCents(rate) * totalDays;
-  }, 0);
+    const derived = toCents(rate) * totalDays;
+    if (derived > 0) return derived;
+    return toCents(d.young_driver_fee);
+  };
+
+  const driversCents = additionalDrivers.reduce(
+    (sum: number, d: any) => sum + driverCentsFor(d),
+    0,
+  );
 
   const youngRenterCents = toCents(booking.young_driver_fee);
   const dropoffCents = toCents(booking.different_dropoff_fee);
@@ -215,9 +224,7 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
       {/* Additional Drivers from DB rows */}
       {additionalDrivers.map((d: any, i: number) => {
         const isYoung = d.driver_age_band === "20_24";
-        const fee = Number(d.young_driver_fee);
-        const rate = isYoung ? youngDriverDailyRate : driverDailyRate;
-        const displayCents = fee > 0 ? toCents(fee) : toCents(rate) * totalDays;
+        const displayCents = driverCentsFor(d);
         const rateLabel = isYoung ? `Young $${youngDriverDailyRate.toFixed(2)}` : `Standard $${driverDailyRate.toFixed(2)}`;
         return (
           <div key={d.id || i} className="flex justify-between">
