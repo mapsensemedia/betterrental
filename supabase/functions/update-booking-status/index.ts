@@ -137,7 +137,10 @@ Deno.serve(async (req) => {
       updateData.return_issues_reviewed_by = null;
       updateData.return_is_exception = null;
       updateData.return_exception_reason = null;
+      updateData.account_closed_at = null;
+      updateData.account_closed_by = null;
     }
+
     if (notes) {
       updateData.notes = notes;
     }

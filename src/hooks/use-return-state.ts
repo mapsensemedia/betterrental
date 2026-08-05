@@ -42,7 +42,15 @@ export function useReturnStateTransition() {
 
       if (fetchError) throw fetchError;
       
-      const currentState = (booking.return_state || "not_started") as ReturnState;
+      const rawState = (booking.return_state || "not_started") as ReturnState;
+
+      // A rental that was reopened after being closed by mistake can still be
+      // carrying close-out progress. That would make every transition illegal
+      // and the rental impossible to close again — treat it as a fresh return.
+      const isStaleCloseout =
+        booking.status === "active" && isStateAtLeast(rawState, "closeout_done");
+      const currentState: ReturnState = isStaleCloseout ? "not_started" : rawState;
+
 
       // CRITICAL: Server-side validation - only allow valid transitions
       if (!canTransitionTo(currentState, targetState)) {
@@ -80,11 +88,13 @@ export function useReturnStateTransition() {
         case "closeout_done":
           // Status change to "completed" is handled by close-account edge function
           // which runs with service_role to bypass the security trigger.
-          // Only set actual_return_at if not already recorded during intake.
-          if (!booking.actual_return_at) {
+          // Only set actual_return_at if not already recorded during intake
+          // (or if it is stale data left over from an earlier accidental close).
+          if (isStaleCloseout || !booking.actual_return_at) {
             updateData.actual_return_at = new Date().toISOString();
           }
           break;
+
       }
 
       const { error } = await supabase
@@ -153,18 +163,23 @@ export function useInitiateReturn() {
       // First check current state - don't error if already initiated
       const { data: booking, error: fetchError } = await supabase
         .from("bookings")
-        .select("return_state")
+        .select("return_state, status")
         .eq("id", bookingId)
         .single();
 
       if (fetchError) throw fetchError;
-      
-      const currentState = (booking.return_state || "not_started") as ReturnState;
-      
+
+      const rawState = (booking.return_state || "not_started") as ReturnState;
+      // Reopened-after-close bookings carry stale close-out progress; restart.
+      const isStaleCloseout =
+        booking.status === "active" && isStateAtLeast(rawState, "closeout_done");
+      const currentState: ReturnState = isStaleCloseout ? "not_started" : rawState;
+
       // If already initiated or beyond, just return success
       if (currentState !== "not_started") {
         return { alreadyInitiated: true, currentState };
       }
+
 
       // Actually initiate
       const { error } = await supabase
