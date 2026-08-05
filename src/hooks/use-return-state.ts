@@ -42,7 +42,15 @@ export function useReturnStateTransition() {
 
       if (fetchError) throw fetchError;
       
-      const currentState = (booking.return_state || "not_started") as ReturnState;
+      const rawState = (booking.return_state || "not_started") as ReturnState;
+
+      // A rental that was reopened after being closed by mistake can still be
+      // carrying close-out progress. That would make every transition illegal
+      // and the rental impossible to close again — treat it as a fresh return.
+      const isStaleCloseout =
+        booking.status === "active" && isStateAtLeast(rawState, "closeout_done");
+      const currentState: ReturnState = isStaleCloseout ? "not_started" : rawState;
+
 
       // CRITICAL: Server-side validation - only allow valid transitions
       if (!canTransitionTo(currentState, targetState)) {
