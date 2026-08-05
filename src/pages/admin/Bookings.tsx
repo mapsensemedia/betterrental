@@ -685,6 +685,25 @@ export default function AdminBookings() {
           <TabsContent value="pickups" className="space-y-4">
             <OperationsFilters filters={opsFilters} onFiltersChange={setOpsFilters} locations={locations} vehicles={vehicles} />
 
+            {/* Late — pickup date passed, rental still open, nothing started */}
+            {applyOpsFilters(categorizedBookings.pickupsLate).length > 0 && (
+              <Card className="border-destructive/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                    <Clock className="w-4 h-4" />
+                    Late Pickups
+                    <Badge variant="destructive">{applyOpsFilters(categorizedBookings.pickupsLate).length}</Badge>
+                  </CardTitle>
+                  <CardDescription>Pickup date has passed and the handover has not been started</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {applyOpsFilters(categorizedBookings.pickupsLate).map((booking) => (
+                    <BookingWorkflowCard key={booking.id} booking={booking} onOpen={handleOpenBooking} showAction="pickup" highlightDate />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Needs attention — stale/backdated bookings, grouped by why */}
             {applyOpsFilters(categorizedBookings.needsAttention).length > 0 && (
               <Card className="border-amber-500/50">
