@@ -35,6 +35,13 @@ import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { OperationsFilters, defaultFilters, type OperationsFiltersState } from "@/components/admin/OperationsFilters";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
+import { usePickupProgress } from "@/hooks/use-pickup-progress";
+import {
+  classifyPickupAttention,
+  ATTENTION_LABELS,
+  ATTENTION_DESCRIPTIONS,
+  type PickupAttentionReason,
+} from "@/lib/pickup-progress";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -298,6 +305,12 @@ export default function AdminBookings() {
     });
   };
 
+  // Progress signals (agreement / check-in / walkaround / payment) for the
+  // pickup candidates, so we can tell a real upcoming pickup apart from a
+  // handed-over or abandoned one that only *looks* pending.
+  const pickupIds = useMemo(() => pickupBookings.map(b => b.id), [pickupBookings]);
+  const { data: pickupProgress } = usePickupProgress(pickupIds);
+
   // Categorize bookings
   const categorizedBookings = useMemo(() => {
     const now = new Date();
@@ -312,27 +325,51 @@ export default function AdminBookings() {
       return true;
     });
 
-    const byStartAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+    const attentionOf = (b: BookingWithDetails) => classifyPickupAttention({
+      startAt: b.startAt,
+      endAt: b.endAt,
+      handedOverAt: b.handedOverAt,
+      activatedAt: b.activatedAt,
+      progress: pickupProgress?.get(b.id),
+      now,
+    });
+
+    // Anything flagged for attention is stale/handled and must not sit in the
+    // normal Today / Tomorrow / Upcoming queues.
+    const needsAttention = preRental.filter(b => attentionOf(b) !== null);
+    const attentionIds = new Set(needsAttention.map(b => b.id));
+    const cleanPickups = preRental.filter(b => !attentionIds.has(b.id));
+
+    const byStartAsc = (a: BookingWithDetails, b: BookingWithDetails) =>
       parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime();
-    const byEndAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+    const byEndAsc = (a: BookingWithDetails, b: BookingWithDetails) =>
       parseISO(a.endAt).getTime() - parseISO(b.endAt).getTime();
-    const byEndDesc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+    const byEndDesc = (a: BookingWithDetails, b: BookingWithDetails) =>
       parseISO(b.endAt).getTime() - parseISO(a.endAt).getTime();
 
+    const attentionByReason = (reason: PickupAttentionReason) =>
+      needsAttention.filter(b => attentionOf(b) === reason).sort(byStartAsc);
+
     return {
-      pending: preRental.filter(b => b.status === "pending").sort(byStartAsc),
-      confirmed: preRental.filter(b => b.status === "confirmed").sort(byStartAsc),
-      allPickups: [...preRental].sort(byStartAsc),
-      pickupsToday: preRental.filter(b => isToday(parseISO(b.startAt))).sort(byStartAsc),
-      pickupsTomorrow: preRental.filter(b => isTomorrow(parseISO(b.startAt))).sort(byStartAsc),
-      pickupsUpcoming: preRental.filter(b => 
+      pending: cleanPickups.filter(b => b.status === "pending").sort(byStartAsc),
+      confirmed: cleanPickups.filter(b => b.status === "confirmed").sort(byStartAsc),
+      allPickups: [...cleanPickups].sort(byStartAsc),
+      pickupsToday: cleanPickups.filter(b => isToday(parseISO(b.startAt))).sort(byStartAsc),
+      pickupsTomorrow: cleanPickups.filter(b => isTomorrow(parseISO(b.startAt))).sort(byStartAsc),
+      pickupsUpcoming: cleanPickups.filter(b => 
         !isToday(parseISO(b.startAt)) && 
         !isTomorrow(parseISO(b.startAt)) &&
         isAfter(parseISO(b.startAt), now)
       ).sort(byStartAsc),
-      pickupsPast: preRental.filter(b => 
+      // Pickup time slipped past on an earlier day but the rental window is
+      // still open and nothing was started — genuinely still needs processing.
+      pickupsLate: cleanPickups.filter(b =>
         isBefore(parseISO(b.startAt), startOfDay(now))
       ).sort(byStartAsc),
+      needsAttention: [...needsAttention].sort(byStartAsc),
+      attentionHandedOver: attentionByReason("handed_over_not_activated"),
+      attentionInProgress: attentionByReason("in_progress"),
+      attentionExpired: attentionByReason("expired_no_show"),
 
       active: [...activeBookings].sort(byEndAsc),
       returnsToday: activeBookings.filter(b => 
@@ -349,7 +386,7 @@ export default function AdminBookings() {
       ).sort(byEndAsc),
       completed: bookings.filter(b => b.status === "completed" || b.status === "cancelled").sort(byEndDesc),
     };
-  }, [bookings, activeBookings, pickupBookings, filters.search, filters.status]);
+  }, [bookings, activeBookings, pickupBookings, pickupProgress, filters.search, filters.status]);
 
 
   // Quick stats (no needsProcessing)
@@ -648,21 +685,61 @@ export default function AdminBookings() {
           <TabsContent value="pickups" className="space-y-4">
             <OperationsFilters filters={opsFilters} onFiltersChange={setOpsFilters} locations={locations} vehicles={vehicles} />
 
-            {/* Need Processing (past pickup date) */}
-            {applyOpsFilters(categorizedBookings.pickupsPast).length > 0 && (
+            {/* Late — pickup date passed, rental still open, nothing started */}
+            {applyOpsFilters(categorizedBookings.pickupsLate).length > 0 && (
+              <Card className="border-destructive/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                    <Clock className="w-4 h-4" />
+                    Late Pickups
+                    <Badge variant="destructive">{applyOpsFilters(categorizedBookings.pickupsLate).length}</Badge>
+                  </CardTitle>
+                  <CardDescription>Pickup date has passed and the handover has not been started</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {applyOpsFilters(categorizedBookings.pickupsLate).map((booking) => (
+                    <BookingWorkflowCard key={booking.id} booking={booking} onOpen={handleOpenBooking} showAction="pickup" highlightDate />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Needs attention — stale/backdated bookings, grouped by why */}
+            {applyOpsFilters(categorizedBookings.needsAttention).length > 0 && (
               <Card className="border-amber-500/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2 text-amber-600">
-                    <Clock className="w-4 h-4" />
-                    Need Processing
-                    <Badge className="bg-amber-500">{applyOpsFilters(categorizedBookings.pickupsPast).length}</Badge>
+                    <AlertCircle className="w-4 h-4" />
+                    Needs Attention
+                    <Badge className="bg-amber-500">{applyOpsFilters(categorizedBookings.needsAttention).length}</Badge>
                   </CardTitle>
-                  <CardDescription>Bookings ready for pickup - pickup date has arrived or passed</CardDescription>
+                  <CardDescription>
+                    Backdated or already-handled bookings still sitting in pending/confirmed — these are not pickups to process
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {applyOpsFilters(categorizedBookings.pickupsPast).map((booking) => (
-                    <BookingWorkflowCard key={booking.id} booking={booking} onOpen={handleOpenBooking} showAction="pickup" highlightDate />
-                  ))}
+                <CardContent className="space-y-4">
+                  {([
+                    ["handed_over_not_activated", categorizedBookings.attentionHandedOver],
+                    ["in_progress", categorizedBookings.attentionInProgress],
+                    ["expired_no_show", categorizedBookings.attentionExpired],
+                  ] as [PickupAttentionReason, BookingWithDetails[]][]).map(([reason, list]) => {
+                    const filtered = applyOpsFilters(list);
+                    if (filtered.length === 0) return null;
+                    return (
+                      <div key={reason} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {ATTENTION_LABELS[reason]}
+                          </span>
+                          <Badge variant="outline" className="text-[10px]">{filtered.length}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{ATTENTION_DESCRIPTIONS[reason]}</p>
+                        {filtered.map((booking) => (
+                          <BookingWorkflowCard key={booking.id} booking={booking} onOpen={handleOpenBooking} showAction="view" highlightDate />
+                        ))}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}

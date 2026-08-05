@@ -14,6 +14,8 @@ export interface BookingWithDetails {
   startAt: string;
   endAt: string;
   actualReturnAt: string | null;
+  handedOverAt: string | null;
+  activatedAt: string | null;
   dailyRate: number;
   totalDays: number;
   subtotal: number;
@@ -184,6 +186,8 @@ export function useAdminBookings(
           startAt: b.start_at,
           endAt: b.end_at,
           actualReturnAt: b.actual_return_at,
+          handedOverAt: b.handed_over_at ?? null,
+          activatedAt: b.activated_at ?? null,
           dailyRate: Number(b.daily_rate),
           totalDays: b.total_days,
           subtotal: Number(b.subtotal),
