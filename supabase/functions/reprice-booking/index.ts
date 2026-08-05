@@ -88,6 +88,9 @@ Deno.serve(async (req) => {
     let oldData: Record<string, unknown> = {};
     let auditAction = "";
 
+    // Set when the stored (agreed) price differs from today's canonical price list.
+    let pricingDrift: PricingDrift | null = null;
+
     // Set when a modify operation pushes the return date later (a rental extension)
     let extensionInfo: {
       previousEndAt: string;
@@ -581,6 +584,7 @@ Deno.serve(async (req) => {
       oldTotal: booking.total_amount,
       agreementRegenerated,
       agreementError,
+      pricingDrift,
     }, 200, corsHeaders);
 
 
@@ -590,6 +594,65 @@ Deno.serve(async (req) => {
     return jsonResp({ error: "Internal server error" }, 500, corsHeaders);
   }
 });
+
+interface PricingDrift {
+  storedSubtotal: number;
+  canonicalSubtotal: number;
+  difference: number;
+}
+
+/**
+ * Compares the booking's stored (customer-agreed) subtotal against the canonical
+ * engine price. Purely informational: the caller applies a delta and reports drift
+ * instead of silently absorbing it into the new total.
+ */
+async function detectPricingDrift(
+  supabase: any,
+  booking: any,
+  addOnInputs: { addOnId: string; quantity: number }[],
+  driverInputs: any[],
+  deliveryFee: number,
+  storedSubtotalExUpgrade: number,
+): Promise<PricingDrift | null> {
+  try {
+    const canonical = await computeBookingTotals({
+      vehicleId: booking.vehicle_id,
+      startAt: booking.start_at,
+      endAt: booking.end_at,
+      protectionPlan: booking.protection_plan || undefined,
+      addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
+      additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
+      driverAgeBand: booking.driver_age_band || undefined,
+      deliveryFee,
+      locationId: booking.location_id,
+      returnLocationId: booking.return_location_id,
+      overrideDailyRate: Number(booking.daily_rate),
+    });
+
+    const difference = roundCents(storedSubtotalExUpgrade - canonical.subtotal);
+    if (Math.abs(difference) <= 0.5) return null;
+
+    const drift: PricingDrift = {
+      storedSubtotal: storedSubtotalExUpgrade,
+      canonicalSubtotal: roundCents(canonical.subtotal),
+      difference,
+    };
+
+    await supabase.from("audit_logs").insert({
+      action: "pricing_drift",
+      entity_type: "booking",
+      entity_id: booking.id,
+      old_data: { stored_subtotal: drift.storedSubtotal },
+      new_data: { canonical_subtotal: drift.canonicalSubtotal, difference },
+    });
+
+    console.warn(`[reprice-booking] pricing drift on ${booking.id}:`, drift);
+    return drift;
+  } catch (e) {
+    console.error("[reprice-booking] drift check failed:", e);
+    return null;
+  }
+}
 
 function jsonResp(body: unknown, status: number, headers: Record<string, string>) {
   return new Response(JSON.stringify(body), {
