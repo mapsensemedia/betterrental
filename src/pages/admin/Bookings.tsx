@@ -35,6 +35,13 @@ import { ActiveRentalsMonitor } from "@/components/admin/ActiveRentalsMonitor";
 import { OperationsFilters, defaultFilters, type OperationsFiltersState } from "@/components/admin/OperationsFilters";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
+import { usePickupProgress } from "@/hooks/use-pickup-progress";
+import {
+  classifyPickupAttention,
+  ATTENTION_LABELS,
+  ATTENTION_DESCRIPTIONS,
+  type PickupAttentionReason,
+} from "@/lib/pickup-progress";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
