@@ -188,14 +188,16 @@ export default function DeliveryWalkIn() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="customerEmail">Email</Label>
+                  <Label htmlFor="customerEmail">Email *</Label>
                   <Input
                     id="customerEmail"
                     type="email"
+                    required
                     value={formData.customerEmail}
                     onChange={(e) => handleChange("customerEmail", e.target.value)}
                     placeholder="email@example.com"
                   />
+
                 </div>
               </div>
             </CardContent>
