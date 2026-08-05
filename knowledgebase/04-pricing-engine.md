@@ -52,12 +52,14 @@ weekendSurcharge = dailyRate × weekendDayCount × 0.15
 ```
 Applied only to weekend days within the range, not the entire booking.
 
-### 4. Duration Discount
+### 4. Duration Discount — RETIRED
 ```
-if days >= 21:  discount = 20% of (vehicleBaseTotal + weekendSurcharge)
-elif days >= 7: discount = 10% of (vehicleBaseTotal + weekendSurcharge)
-vehicleTotal = vehicleBaseTotal + weekendSurcharge - durationDiscount
+No weekly (7+ day) or monthly (21+ day) discount is applied.
+durationDiscount = 0 for all durations.
+vehicleTotal = vehicleBaseTotal + weekendSurcharge
 ```
+Historic bookings keep their stored `duration_discount` value and still itemize it
+on agreements/invoices; new bookings and repricings never generate one.
 
 ### 5. Protection
 ```
@@ -168,8 +170,8 @@ PVRT_DAILY_FEE = 1.50
 ACSRCH_DAILY_FEE = 1.00
 YOUNG_DRIVER_FEE = 15
 WEEKEND_SURCHARGE_RATE = 0.15 (per weekend day, not entire booking)
-WEEKLY_DISCOUNT_THRESHOLD = 7 → 10%
-MONTHLY_DISCOUNT_THRESHOLD = 21 → 20%
+WEEKLY_DISCOUNT_RATE = 0 (retired)
+MONTHLY_DISCOUNT_RATE = 0 (retired)
 ```
 
 **Invariant**: Any change to pricing constants must be applied to BOTH files. The $0.50 tolerance exists to absorb minor rounding differences, not to allow intentional drift.
