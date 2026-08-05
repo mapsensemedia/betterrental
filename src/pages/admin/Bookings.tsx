@@ -298,6 +298,12 @@ export default function AdminBookings() {
     });
   };
 
+  // Progress signals (agreement / check-in / walkaround / payment) for the
+  // pickup candidates, so we can tell a real upcoming pickup apart from a
+  // handed-over or abandoned one that only *looks* pending.
+  const pickupIds = useMemo(() => pickupBookings.map(b => b.id), [pickupBookings]);
+  const { data: pickupProgress } = usePickupProgress(pickupIds);
+
   // Categorize bookings
   const categorizedBookings = useMemo(() => {
     const now = new Date();
@@ -312,27 +318,46 @@ export default function AdminBookings() {
       return true;
     });
 
-    const byStartAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+    const attentionOf = (b: BookingWithDetails) => classifyPickupAttention({
+      startAt: b.startAt,
+      endAt: b.endAt,
+      handedOverAt: b.handedOverAt,
+      activatedAt: b.activatedAt,
+      progress: pickupProgress?.get(b.id),
+      now,
+    });
+
+    // Anything flagged for attention is stale/handled and must not sit in the
+    // normal Today / Tomorrow / Upcoming queues.
+    const needsAttention = preRental.filter(b => attentionOf(b) !== null);
+    const attentionIds = new Set(needsAttention.map(b => b.id));
+    const cleanPickups = preRental.filter(b => !attentionIds.has(b.id));
+
+    const byStartAsc = (a: BookingWithDetails, b: BookingWithDetails) =>
       parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime();
-    const byEndAsc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+    const byEndAsc = (a: BookingWithDetails, b: BookingWithDetails) =>
       parseISO(a.endAt).getTime() - parseISO(b.endAt).getTime();
-    const byEndDesc = (a: typeof bookings[0], b: typeof bookings[0]) =>
+    const byEndDesc = (a: BookingWithDetails, b: BookingWithDetails) =>
       parseISO(b.endAt).getTime() - parseISO(a.endAt).getTime();
 
+    const attentionByReason = (reason: PickupAttentionReason) =>
+      needsAttention.filter(b => attentionOf(b) === reason).sort(byStartAsc);
+
     return {
-      pending: preRental.filter(b => b.status === "pending").sort(byStartAsc),
-      confirmed: preRental.filter(b => b.status === "confirmed").sort(byStartAsc),
-      allPickups: [...preRental].sort(byStartAsc),
-      pickupsToday: preRental.filter(b => isToday(parseISO(b.startAt))).sort(byStartAsc),
-      pickupsTomorrow: preRental.filter(b => isTomorrow(parseISO(b.startAt))).sort(byStartAsc),
-      pickupsUpcoming: preRental.filter(b => 
+      pending: cleanPickups.filter(b => b.status === "pending").sort(byStartAsc),
+      confirmed: cleanPickups.filter(b => b.status === "confirmed").sort(byStartAsc),
+      allPickups: [...cleanPickups].sort(byStartAsc),
+      pickupsToday: cleanPickups.filter(b => isToday(parseISO(b.startAt))).sort(byStartAsc),
+      pickupsTomorrow: cleanPickups.filter(b => isTomorrow(parseISO(b.startAt))).sort(byStartAsc),
+      pickupsUpcoming: cleanPickups.filter(b => 
         !isToday(parseISO(b.startAt)) && 
         !isTomorrow(parseISO(b.startAt)) &&
         isAfter(parseISO(b.startAt), now)
       ).sort(byStartAsc),
-      pickupsPast: preRental.filter(b => 
-        isBefore(parseISO(b.startAt), startOfDay(now))
-      ).sort(byStartAsc),
+      needsAttention: [...needsAttention].sort(byStartAsc),
+      attentionHandedOver: attentionByReason("handed_over_not_activated"),
+      attentionInProgress: attentionByReason("in_progress"),
+      attentionExpired: attentionByReason("expired_no_show"),
 
       active: [...activeBookings].sort(byEndAsc),
       returnsToday: activeBookings.filter(b => 
@@ -349,7 +374,7 @@ export default function AdminBookings() {
       ).sort(byEndAsc),
       completed: bookings.filter(b => b.status === "completed" || b.status === "cancelled").sort(byEndDesc),
     };
-  }, [bookings, activeBookings, pickupBookings, filters.search, filters.status]);
+  }, [bookings, activeBookings, pickupBookings, pickupProgress, filters.search, filters.status]);
 
 
   // Quick stats (no needsProcessing)
