@@ -680,21 +680,42 @@ export default function AdminBookings() {
           <TabsContent value="pickups" className="space-y-4">
             <OperationsFilters filters={opsFilters} onFiltersChange={setOpsFilters} locations={locations} vehicles={vehicles} />
 
-            {/* Need Processing (past pickup date) */}
-            {applyOpsFilters(categorizedBookings.pickupsPast).length > 0 && (
+            {/* Needs attention — stale/backdated bookings, grouped by why */}
+            {applyOpsFilters(categorizedBookings.needsAttention).length > 0 && (
               <Card className="border-amber-500/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2 text-amber-600">
-                    <Clock className="w-4 h-4" />
-                    Need Processing
-                    <Badge className="bg-amber-500">{applyOpsFilters(categorizedBookings.pickupsPast).length}</Badge>
+                    <AlertCircle className="w-4 h-4" />
+                    Needs Attention
+                    <Badge className="bg-amber-500">{applyOpsFilters(categorizedBookings.needsAttention).length}</Badge>
                   </CardTitle>
-                  <CardDescription>Bookings ready for pickup - pickup date has arrived or passed</CardDescription>
+                  <CardDescription>
+                    Backdated or already-handled bookings still sitting in pending/confirmed — these are not pickups to process
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {applyOpsFilters(categorizedBookings.pickupsPast).map((booking) => (
-                    <BookingWorkflowCard key={booking.id} booking={booking} onOpen={handleOpenBooking} showAction="pickup" highlightDate />
-                  ))}
+                <CardContent className="space-y-4">
+                  {([
+                    ["handed_over_not_activated", categorizedBookings.attentionHandedOver],
+                    ["in_progress", categorizedBookings.attentionInProgress],
+                    ["expired_no_show", categorizedBookings.attentionExpired],
+                  ] as [PickupAttentionReason, BookingWithDetails[]][]).map(([reason, list]) => {
+                    const filtered = applyOpsFilters(list);
+                    if (filtered.length === 0) return null;
+                    return (
+                      <div key={reason} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {ATTENTION_LABELS[reason]}
+                          </span>
+                          <Badge variant="outline" className="text-[10px]">{filtered.length}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{ATTENTION_DESCRIPTIONS[reason]}</p>
+                        {filtered.map((booking) => (
+                          <BookingWorkflowCard key={booking.id} booking={booking} onOpen={handleOpenBooking} showAction="view" highlightDate />
+                        ))}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
