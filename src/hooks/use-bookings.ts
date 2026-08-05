@@ -14,6 +14,8 @@ export interface BookingWithDetails {
   startAt: string;
   endAt: string;
   actualReturnAt: string | null;
+  handedOverAt: string | null;
+  activatedAt: string | null;
   dailyRate: number;
   totalDays: number;
   subtotal: number;
