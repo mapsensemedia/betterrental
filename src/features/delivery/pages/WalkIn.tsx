@@ -50,9 +50,14 @@ export default function DeliveryWalkIn() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.customerName || !formData.customerPhone || !formData.locationId || !formData.categoryId) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!formData.customerEmail) {
+      toast.error("Customer email is required so the booking links to a real customer");
       return;
     }
 
@@ -65,14 +70,7 @@ export default function DeliveryWalkIn() {
     setIsSubmitting(true);
 
     try {
-      // Get current user (the staff member creating this)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.id) {
-        throw new Error("User not authenticated");
-      }
-
-      // Get selected category for pricing
-      const selectedCategory = categories?.find(c => c.id === formData.categoryId);
+      const selectedCategory = categories?.find((c) => c.id === formData.categoryId);
       if (!selectedCategory) {
         throw new Error("Category not found");
       }
@@ -81,64 +79,44 @@ export default function DeliveryWalkIn() {
       const endAt = new Date(formData.endDate);
       const days = Math.ceil((endAt.getTime() - startAt.getTime()) / (1000 * 60 * 60 * 24)) || 1;
       const dailyRate = selectedCategory.dailyRate || 50;
+
+      // Display-only estimate; the edge function computes the authoritative totals.
       const pricing = calculateBookingPricing({
         vehicleDailyRate: dailyRate,
         rentalDays: days,
         pickupDate: startAt,
         driverAgeBand: formData.driverAgeBand,
       });
-      const subtotal = pricing.subtotal;
-      const taxAmount = pricing.taxAmount;
-      const totalAmount = pricing.total;
 
-      // Create the booking (DON'T auto-assign current user as driver)
-      const { data: booking, error } = await supabase
-        .from("bookings")
-        .insert([{
-          user_id: user.id, // Created by this staff member (as customer placeholder)
-          vehicle_id: formData.categoryId,
-          location_id: formData.locationId,
-          start_at: startAt.toISOString(),
-          end_at: endAt.toISOString(),
-          status: "confirmed" as const,
-          daily_rate: dailyRate,
-          total_days: days,
-          subtotal,
-          tax_amount: taxAmount,
-          total_amount: totalAmount,
-          booking_source: "walk_in",
-          pickup_contact_name: formData.customerName,
-          pickup_contact_phone: formData.customerPhone,
-          pickup_address: formData.deliveryAddress, // NEW: Required delivery address
+      const { data, error } = await supabase.functions.invoke("create-walk-in-booking", {
+        body: {
+          locationId: formData.locationId,
+          categoryId: formData.categoryId,
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
+          customerName: formData.customerName,
+          customerPhone: formData.customerPhone,
+          customerEmail: formData.customerEmail,
           notes: formData.notes || null,
-          // NOT setting assigned_driver_id - let ops assign a driver
-          booking_code: `WI${Date.now().toString(36).toUpperCase()}`,
-        }])
-        .select()
-        .single();
+          dailyRate,
+          driverAgeBand: formData.driverAgeBand,
+          totalDays: days,
+          subtotal: pricing.subtotal,
+          taxAmount: pricing.taxAmount,
+          totalAmount: pricing.total,
+          pickupAddress: formData.deliveryAddress,
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Create initial delivery status as unassigned
-      const { error: statusError } = await supabase
-        .from("delivery_statuses")
-        .insert({
-          booking_id: booking.id,
-          status: "unassigned",
-          notes: "Walk-in booking created - awaiting driver assignment",
-          updated_by: user.id,
-        });
-
-      if (statusError) {
-        console.warn("Failed to create delivery status:", statusError);
-        // Don't fail the booking creation for this
-      }
-
+      const bookingId = data?.booking?.id;
       toast.success("Walk-in booking created successfully");
-      navigate(`/delivery/${booking.id}`);
-    } catch (error) {
+      navigate(bookingId ? `/delivery/${bookingId}` : "/delivery");
+    } catch (error: any) {
       console.error("Error creating walk-in booking:", error);
-      toast.error("Failed to create booking. Please try again.");
+      toast.error(error?.message || "Failed to create booking. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
