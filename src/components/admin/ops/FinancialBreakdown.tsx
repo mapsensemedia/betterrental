@@ -224,9 +224,7 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
       {/* Additional Drivers from DB rows */}
       {additionalDrivers.map((d: any, i: number) => {
         const isYoung = d.driver_age_band === "20_24";
-        const fee = Number(d.young_driver_fee);
-        const rate = isYoung ? youngDriverDailyRate : driverDailyRate;
-        const displayCents = fee > 0 ? toCents(fee) : toCents(rate) * totalDays;
+        const displayCents = driverCentsFor(d);
         const rateLabel = isYoung ? `Young $${youngDriverDailyRate.toFixed(2)}` : `Standard $${driverDailyRate.toFixed(2)}`;
         return (
           <div key={d.id || i} className="flex justify-between">
