@@ -216,38 +216,37 @@ Deno.serve(async (req) => {
       auditAction = "booking_modified";
 
     } else if (operation === "upgrade") {
-      // Apply upgrade fee
+      // Apply upgrade fee — DELTA ONLY. The customer's agreed price is preserved;
+      // we never silently re-derive the whole booking from current rate cards.
       const { upgradeDailyFee, showToCustomer, categoryLabel, upgradeReason, assignUnitId, assignUnitCategoryId } = body;
       const fee = Number(upgradeDailyFee) || 0;
 
       const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
+      const days = Number(booking.total_days) || 1;
 
-      // Compute canonical totals (without upgrade fee) then add upgrade
-      // Always use the booking's stored daily_rate so category changes don't override admin-intended rate
-      const serverTotals = await computeBookingTotals({
-        vehicleId: booking.vehicle_id,
-        startAt: booking.start_at,
-        endAt: booking.end_at,
-        protectionPlan: booking.protection_plan || undefined,
-        addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
-        additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
-        driverAgeBand: booking.driver_age_band || undefined,
-        deliveryFee,
-        locationId: booking.location_id,
-        returnLocationId: booking.return_location_id,
-        overrideDailyRate: Number(booking.daily_rate),
-      });
+      const storedSubtotal = roundCents(Number(booking.subtotal) || 0);
+      const currentUpgradeTotal = roundCents(currentUpgradeFee * days);
+      const newUpgradeTotal = roundCents(fee * days);
 
-      // Add upgrade fee on top of canonical totals
-      const upgradeTotal = roundCents(fee * serverTotals.days);
-      const finalSubtotal = roundCents(serverTotals.subtotal + upgradeTotal);
+      const finalSubtotal = roundCents(storedSubtotal - currentUpgradeTotal + newUpgradeTotal);
       const pst = roundCents(finalSubtotal * 0.07);
       const gst = roundCents(finalSubtotal * 0.05);
       const finalTaxAmount = roundCents(pst + gst);
       const finalTotal = roundCents(finalSubtotal + finalTaxAmount);
 
+      // Drift check (informational only — never applied silently)
+      pricingDrift = await detectPricingDrift(
+        supabase,
+        booking,
+        addOnInputs,
+        driverInputs,
+        deliveryFee,
+        roundCents(storedSubtotal - currentUpgradeTotal),
+      );
+
       oldData = {
         total_amount: booking.total_amount,
+        subtotal: booking.subtotal,
         upgrade_daily_fee: currentUpgradeFee,
         vehicle_id: booking.vehicle_id,
       };
@@ -259,11 +258,9 @@ Deno.serve(async (req) => {
         upgrade_reason: upgradeReason || null,
         upgraded_at: new Date().toISOString(),
         upgraded_by: authResult.userId,
-        total_days: serverTotals.days,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,
-        different_dropoff_fee: serverTotals.differentDropoffFee,
       };
 
       // Handle unit assignment if provided
@@ -283,26 +280,31 @@ Deno.serve(async (req) => {
       auditAction = assignUnitId ? "vehicle_upgrade_with_unit" : "upgrade_fee_applied";
 
     } else if (operation === "remove_upgrade") {
+      // Remove upgrade fee — DELTA ONLY (mirror of the upgrade branch).
       const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
+      const days = Number(booking.total_days) || 1;
 
-      // Compute canonical totals (no upgrade fee)
-      // Use booking's stored daily_rate to preserve admin-intended rate after category changes
-      const serverTotals = await computeBookingTotals({
-        vehicleId: booking.vehicle_id,
-        startAt: booking.start_at,
-        endAt: booking.end_at,
-        protectionPlan: booking.protection_plan || undefined,
-        addOns: addOnInputs.length > 0 ? addOnInputs : undefined,
-        additionalDrivers: driverInputs.length > 0 ? driverInputs : undefined,
-        driverAgeBand: booking.driver_age_band || undefined,
+      const storedSubtotal = roundCents(Number(booking.subtotal) || 0);
+      const currentUpgradeTotal = roundCents(currentUpgradeFee * days);
+
+      const finalSubtotal = roundCents(Math.max(storedSubtotal - currentUpgradeTotal, 0));
+      const pst = roundCents(finalSubtotal * 0.07);
+      const gst = roundCents(finalSubtotal * 0.05);
+      const finalTaxAmount = roundCents(pst + gst);
+      const finalTotal = roundCents(finalSubtotal + finalTaxAmount);
+
+      pricingDrift = await detectPricingDrift(
+        supabase,
+        booking,
+        addOnInputs,
+        driverInputs,
         deliveryFee,
-        locationId: booking.location_id,
-        returnLocationId: booking.return_location_id,
-        overrideDailyRate: Number(booking.daily_rate),
-      });
+        finalSubtotal,
+      );
 
       oldData = {
         upgrade_daily_fee: currentUpgradeFee,
+        subtotal: booking.subtotal,
         total_amount: booking.total_amount,
       };
 
@@ -310,13 +312,12 @@ Deno.serve(async (req) => {
         upgrade_daily_fee: 0,
         upgrade_category_label: null,
         upgrade_visible_to_customer: false,
-        total_days: serverTotals.days,
-        subtotal: serverTotals.subtotal,
-        tax_amount: serverTotals.taxAmount,
-        total_amount: serverTotals.total,
-        different_dropoff_fee: serverTotals.differentDropoffFee,
+        subtotal: finalSubtotal,
+        tax_amount: finalTaxAmount,
+        total_amount: finalTotal,
       };
       auditAction = "upgrade_fee_removed";
+
 
     } else if (operation === "update_time_only") {
       // Update pickup/return timestamps WITHOUT recalculating any financial fields
