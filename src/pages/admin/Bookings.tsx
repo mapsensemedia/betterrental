@@ -373,7 +373,7 @@ export default function AdminBookings() {
       needsAttention: [...needsAttention].sort(byStartAsc),
       attentionHandedOver: attentionByReason("handed_over_not_activated"),
       attentionInProgress: attentionByReason("in_progress"),
-      attentionExpired: attentionByReason("expired_no_show"),
+      
 
       active: [...activeBookings].sort(byEndAsc),
       returnsToday: activeBookings.filter(b => 
@@ -725,7 +725,7 @@ export default function AdminBookings() {
                   {([
                     ["handed_over_not_activated", categorizedBookings.attentionHandedOver],
                     ["in_progress", categorizedBookings.attentionInProgress],
-                    ["expired_no_show", categorizedBookings.attentionExpired],
+                    
                   ] as [PickupAttentionReason, BookingWithDetails[]][]).map(([reason, list]) => {
                     const filtered = applyOpsFilters(list);
                     if (filtered.length === 0) return null;
