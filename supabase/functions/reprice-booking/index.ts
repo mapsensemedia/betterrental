@@ -416,6 +416,48 @@ Deno.serve(async (req) => {
       return jsonResp({ error: "Failed to update booking" }, 500, corsHeaders);
     }
 
+    // Keep booking_additional_drivers.young_driver_fee in sync with the billed
+    // duration. The pricing engine recomputes driver fees into the subtotal on
+    // every reprice, so a stale row (e.g. 5-day fee on a shortened 4-day rental)
+    // makes itemized breakdowns fail to reconcile and surfaces a phantom
+    // "Discount / Adjustment" line. Skipped when extras prices are intentionally
+    // preserved (mid-rental pro-rated upsells).
+    const newTotalDays = updateData.total_days != null ? Number(updateData.total_days) : null;
+    const preserveExtras = operation === "modify" && !!body?.preserveExtrasPrices;
+    if (newTotalDays && newTotalDays > 0 && !preserveExtras
+      && newTotalDays !== Number(booking.total_days)) {
+      try {
+        const { data: settingsRows } = await supabase
+          .from("system_settings")
+          .select("key, value")
+          .in("key", ["additional_driver_daily_rate_standard", "additional_driver_daily_rate_young"]);
+        const settings = new Map((settingsRows || []).map((r: any) => [r.key, Number(r.value)]));
+        const standardRate = Number(settings.get("additional_driver_daily_rate_standard")) || 14.99;
+        const youngRate = Number(settings.get("additional_driver_daily_rate_young")) || 19.99;
+
+        const { data: rows } = await supabase
+          .from("booking_additional_drivers")
+          .select("id, driver_age_band, young_driver_fee")
+          .eq("booking_id", bookingId);
+
+        for (const row of rows || []) {
+          const rate = row.driver_age_band === "20_24" ? youngRate : standardRate;
+          const expected = roundCents(rate * newTotalDays);
+          if (Number(row.young_driver_fee || 0) !== expected) {
+            const { error: dErr } = await supabase
+              .from("booking_additional_drivers")
+              .update({ young_driver_fee: expected })
+              .eq("id", row.id);
+            if (dErr) {
+              console.error("[reprice-booking] Failed to sync driver fee:", dErr);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[reprice-booking] Driver fee sync failed:", e);
+      }
+    }
+
     // Audit log
     await supabase.from("audit_logs").insert({
       action: auditAction,
