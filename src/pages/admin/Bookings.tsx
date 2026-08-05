@@ -336,9 +336,13 @@ export default function AdminBookings() {
 
     // Anything flagged for attention is stale/handled and must not sit in the
     // normal Today / Tomorrow / Upcoming queues.
-    const needsAttention = preRental.filter(b => attentionOf(b) !== null);
-    const attentionIds = new Set(needsAttention.map(b => b.id));
-    const cleanPickups = preRental.filter(b => !attentionIds.has(b.id));
+    // Expired / no-show reservations are dropped from Pickups entirely — they
+    // are dead reservations, not work; they stay visible under All Bookings.
+    const flagged = preRental.filter(b => attentionOf(b) !== null);
+    const needsAttention = flagged.filter(b => attentionOf(b) !== "expired_no_show");
+    const flaggedIds = new Set(flagged.map(b => b.id));
+    const cleanPickups = preRental.filter(b => !flaggedIds.has(b.id));
+
 
     const byStartAsc = (a: BookingWithDetails, b: BookingWithDetails) =>
       parseISO(a.startAt).getTime() - parseISO(b.startAt).getTime();
