@@ -57,7 +57,8 @@ serve(async (req) => {
       .select(`
         id, booking_code, user_id, daily_rate, total_days, subtotal, 
         tax_amount, total_amount, deposit_amount, start_at, end_at,
-        actual_return_at, young_driver_fee, vehicle_id, location_id
+        actual_return_at, young_driver_fee, vehicle_id, location_id,
+        delivery_fee, different_dropoff_fee, upgrade_daily_fee
       `)
       .eq("id", bookingId)
       .single();
@@ -93,6 +94,12 @@ serve(async (req) => {
       .select("price, quantity, add_on:add_ons(name)")
       .eq("booking_id", bookingId);
 
+    // Fetch additional drivers (their fees are already inside booking.subtotal)
+    const { data: additionalDrivers } = await supabase
+      .from("booking_additional_drivers")
+      .select("driver_name, young_driver_fee")
+      .eq("booking_id", bookingId);
+
     // Fetch user profile
     const { data: profile } = await supabase
       .from("profiles")
@@ -115,98 +122,156 @@ serve(async (req) => {
     const PVRT_DAILY_FEE = 1.50;
     const ACSRCH_DAILY_FEE = 1.00;
 
+    const cents = (n: number | string | null | undefined) => Math.round(Number(n || 0) * 100);
+    const money = (c: number) => Math.round(c) / 100;
+
+    const totalDays = Number(booking.total_days) || 1;
+
     // Build line items
     const lineItems: { description: string; quantity: number; unitPrice: number; total: number }[] = [];
 
-    // Base rental
+    // --- Component charges that are ALREADY inside booking.subtotal ---
+    const youngDriverCents = cents(booking.young_driver_fee);
+    const pvrtCents = cents(PVRT_DAILY_FEE) * totalDays;
+    const acsrchCents = cents(ACSRCH_DAILY_FEE) * totalDays;
+    const addOnCents = (addOns || []).reduce(
+      (sum: number, a: any) => sum + cents(a.price),
+      0,
+    );
+    const driverCents = (additionalDrivers || []).reduce(
+      (sum: number, d: any) => sum + cents(d.young_driver_fee),
+      0,
+    );
+    const deliveryCents = cents(booking.delivery_fee);
+    const dropoffCents = cents(booking.different_dropoff_fee);
+    const upgradeCents = cents(booking.upgrade_daily_fee) * totalDays;
+
+    const subtotalCents = cents(booking.subtotal);
+    const componentCents = youngDriverCents + pvrtCents + acsrchCents + addOnCents
+      + driverCents + deliveryCents + dropoffCents + upgradeCents;
+
+    // Vehicle rental line = remainder, so no charge appears twice.
+    let vehicleCents = subtotalCents - componentCents;
+    if (vehicleCents < 0) {
+      console.warn(
+        `[RECEIPT] Component charges exceed stored subtotal for booking ${booking.booking_code}: ` +
+        `subtotal=${money(subtotalCents)}, components=${money(componentCents)}`
+      );
+      vehicleCents = 0;
+    }
+
     lineItems.push({
-      description: `Vehicle Rental (${booking.total_days} days @ $${booking.daily_rate}/day)`,
-      quantity: booking.total_days,
-      unitPrice: Number(booking.daily_rate),
-      total: Number(booking.subtotal),
+      description: `Vehicle Rental (${totalDays} day${totalDays !== 1 ? "s" : ""} @ $${Number(booking.daily_rate).toFixed(2)}/day)`,
+      quantity: totalDays,
+      unitPrice: money(cents(booking.daily_rate)),
+      total: money(vehicleCents),
     });
 
-    // Young driver fee (daily)
-    if (booking.young_driver_fee && Number(booking.young_driver_fee) > 0) {
-      const youngFeePerDay = Number(booking.young_driver_fee) / booking.total_days;
+    // Upgrade fee
+    if (upgradeCents > 0) {
       lineItems.push({
-        description: `Young Driver Fee (${booking.total_days} days @ $${youngFeePerDay.toFixed(2)}/day)`,
-        quantity: booking.total_days,
-        unitPrice: youngFeePerDay,
-        total: Number(booking.young_driver_fee),
+        description: `Vehicle Upgrade (${totalDays} days @ $${Number(booking.upgrade_daily_fee).toFixed(2)}/day)`,
+        quantity: totalDays,
+        unitPrice: money(cents(booking.upgrade_daily_fee)),
+        total: money(upgradeCents),
       });
     }
 
+    // Young driver fee (daily)
+    if (youngDriverCents > 0) {
+      const perDay = youngDriverCents / totalDays;
+      lineItems.push({
+        description: `Young Driver Fee (${totalDays} days @ $${money(perDay).toFixed(2)}/day)`,
+        quantity: totalDays,
+        unitPrice: money(perDay),
+        total: money(youngDriverCents),
+      });
+    }
+
+    // Additional drivers
+    (additionalDrivers || []).forEach((d: any) => {
+      const fee = cents(d.young_driver_fee);
+      if (fee <= 0) return;
+      lineItems.push({
+        description: `Additional Driver${d.driver_name ? `: ${d.driver_name}` : ""}`,
+        quantity: 1,
+        unitPrice: money(fee),
+        total: money(fee),
+      });
+    });
+
     // Daily regulatory fees
-    const pvrtTotal = PVRT_DAILY_FEE * booking.total_days;
-    const acsrchTotal = ACSRCH_DAILY_FEE * booking.total_days;
-    
+    const pvrtTotal = money(pvrtCents);
+    const acsrchTotal = money(acsrchCents);
+
     lineItems.push({
-      description: `PVRT (${booking.total_days} days @ $${PVRT_DAILY_FEE}/day)`,
-      quantity: booking.total_days,
+      description: `PVRT (${totalDays} days @ $${PVRT_DAILY_FEE.toFixed(2)}/day)`,
+      quantity: totalDays,
       unitPrice: PVRT_DAILY_FEE,
       total: pvrtTotal,
     });
-    
+
     lineItems.push({
-      description: `ACSRCH (${booking.total_days} days @ $${ACSRCH_DAILY_FEE}/day)`,
-      quantity: booking.total_days,
+      description: `ACSRCH (${totalDays} days @ $${ACSRCH_DAILY_FEE.toFixed(2)}/day)`,
+      quantity: totalDays,
       unitPrice: ACSRCH_DAILY_FEE,
       total: acsrchTotal,
     });
 
-    // Add-ons
+    // Delivery / drop-off fees
+    if (deliveryCents > 0) {
+      lineItems.push({
+        description: "Delivery Fee",
+        quantity: 1,
+        unitPrice: money(deliveryCents),
+        total: money(deliveryCents),
+      });
+    }
+    if (dropoffCents > 0) {
+      lineItems.push({
+        description: "Different Drop-off Fee",
+        quantity: 1,
+        unitPrice: money(dropoffCents),
+        total: money(dropoffCents),
+      });
+    }
+
+    // Add-ons — stored price is ALREADY the full line total (qty × days × rate)
     (addOns || []).forEach((addon: any) => {
       lineItems.push({
         description: addon.add_on?.name || "Add-on",
         quantity: addon.quantity || 1,
-        unitPrice: Number(addon.price),
-        total: Number(addon.price) * (addon.quantity || 1),
+        unitPrice: money(cents(addon.price) / (addon.quantity || 1)),
+        total: money(cents(addon.price)),
       });
     });
 
-    // Deposit section
+    // Deposit is NOT a rental charge — reported separately in totals only.
     const depositAmount = Number(booking.deposit_amount) || 0;
-    if (depositAmount > 0) {
-      lineItems.push({
-        description: "Security Deposit (Collected)",
-        quantity: 1,
-        unitPrice: depositAmount,
-        total: depositAmount,
-      });
 
-      if (depositReleased > 0) {
-        lineItems.push({
-          description: "Security Deposit (Released)",
-          quantity: 1,
-          unitPrice: -depositReleased,
-          total: -depositReleased,
-        });
-      }
+    // Tax comes from the booking record (authoritative), split for display only.
+    const storedTaxCents = cents(booking.tax_amount);
+    const pstShare = Math.round(subtotalCents * PST_RATE);
+    const gstShare = storedTaxCents - pstShare;
+    const pstAmount = money(pstShare);
+    const gstAmount = money(gstShare >= 0 ? gstShare : Math.round(subtotalCents * GST_RATE));
+    const totalTax = money(storedTaxCents);
 
-      if (depositWithheld > 0) {
-        lineItems.push({
-          description: `Deposit Withheld${withholdReason ? `: ${withholdReason}` : ""}`,
-          quantity: 1,
-          unitPrice: 0,
-          total: 0, // Not charged extra, just retained
-        });
-      }
+    const totalCents = cents(booking.total_amount);
+    if (Math.abs(subtotalCents + storedTaxCents - totalCents) > 1) {
+      console.warn(
+        `[RECEIPT] Totals mismatch for booking ${booking.booking_code}: ` +
+        `subtotal=${money(subtotalCents)} + tax=${money(storedTaxCents)} != total=${money(totalCents)}`
+      );
     }
-
-    // Calculate tax breakdown
-    const subtotal = Number(booking.subtotal) + pvrtTotal + acsrchTotal + Number(booking.young_driver_fee || 0);
-    const pstAmount = subtotal * PST_RATE;
-    const gstAmount = subtotal * GST_RATE;
-    const totalTax = pstAmount + gstAmount;
 
     // Calculate totals
     const totals = {
-      subtotal: subtotal,
+      subtotal: money(subtotalCents),
       pst: pstAmount,
       gst: gstAmount,
       tax: totalTax,
-      total: Number(booking.total_amount),
+      total: money(totalCents),
       depositCollected: depositAmount,
       depositReleased: depositReleased,
       depositWithheld: depositWithheld,

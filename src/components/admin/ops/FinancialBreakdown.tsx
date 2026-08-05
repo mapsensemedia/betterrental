@@ -94,6 +94,11 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
     useRemainder,
   });
 
+  // Extras exist as DB rows but were never included in the stored subtotal
+  // (walk-in bookings created before extras were priced). Never render this as a
+  // discount — surface it as money that was NOT charged.
+  const unbilledExtrasCents = vehicleRemainderCents < 0 ? -vehicleRemainderCents : 0;
+
   // Detect missing join rows: if no add-ons/drivers but vehicle remainder is much larger than base
   const extrasLikelyMissing = bookingAddOns.length === 0
     && additionalDrivers.length === 0
@@ -163,6 +168,17 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
         <div className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-2 py-1 mb-1">
           <Info className="h-3 w-3 shrink-0" />
           <span>Add-ons/drivers not persisted — breakdown may be inaccurate</span>
+        </div>
+      )}
+
+      {/* Warning: extras recorded but never billed */}
+      {unbilledExtrasCents > 0 && (
+        <div className="flex items-center gap-1 text-[10px] text-destructive bg-destructive/10 rounded px-2 py-1 mb-1">
+          <Info className="h-3 w-3 shrink-0" />
+          <span>
+            Unbilled extras: ${fromCents(unbilledExtrasCents)} of add-ons/driver fees are
+            recorded but not included in the charged total
+          </span>
         </div>
       )}
 

@@ -88,6 +88,8 @@ Deno.serve(async (req) => {
       useCustomerId,
       // Optional add-ons array: [{ addOnId, quantity }]
       addOns,
+      // Optional delivery address (delivery walk-ins)
+      pickupAddress,
     } = body;
 
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
@@ -310,9 +312,40 @@ Deno.serve(async (req) => {
       (new Date(endAt).getTime() - new Date(startAt).getTime()) / (1000 * 60 * 60 * 24),
     ));
     const youngDriverFee = resolvedAgeBand === "20_24" ? 15 * computedDays : 0;
-    const computedSubtotal = subtotal ?? (dailyRate * computedDays + youngDriverFee);
-    const computedTax = taxAmount ?? Math.round(computedSubtotal * 0.12 * 100) / 100;
-    const computedTotal = totalAmount ?? computedSubtotal + computedTax;
+
+    // 7a. Price add-ons FIRST so they are billed, not just recorded.
+    const addOnRowsToInsert: { add_on_id: string; quantity: number; price: number }[] = [];
+    if (Array.isArray(addOns) && addOns.length > 0) {
+      const addOnIds = addOns.map((a: { addOnId: string }) => a.addOnId).filter(Boolean);
+      if (addOnIds.length > 0) {
+        const { data: addOnRecords } = await supabaseAdmin
+          .from("add_ons")
+          .select("id, daily_rate, one_time_fee, name")
+          .in("id", addOnIds)
+          .eq("is_active", true);
+
+        for (const ao of addOnRecords || []) {
+          const input = addOns.find((a: { addOnId: string; quantity?: number }) => a.addOnId === ao.id);
+          const qty = Math.min(Math.max(Number(input?.quantity) || 1, 1), 10);
+          const price = Math.round(
+            ((Number(ao.daily_rate) || 0) * computedDays + (Number(ao.one_time_fee) || 0)) * qty * 100,
+          ) / 100;
+          addOnRowsToInsert.push({ add_on_id: ao.id, quantity: qty, price });
+        }
+      }
+    }
+    const addOnsTotal = Math.round(
+      addOnRowsToInsert.reduce((s, r) => s + r.price, 0) * 100,
+    ) / 100;
+
+    const baseSubtotal = subtotal ?? (dailyRate * computedDays + youngDriverFee);
+    const computedSubtotal = Math.round((baseSubtotal + addOnsTotal) * 100) / 100;
+    const computedTax = taxAmount != null && addOnsTotal === 0
+      ? taxAmount
+      : Math.round(computedSubtotal * 0.12 * 100) / 100;
+    const computedTotal = totalAmount != null && addOnsTotal === 0
+      ? totalAmount
+      : Math.round((computedSubtotal + computedTax) * 100) / 100;
 
     // 7b. Duplicate detection — check for recent walk-in with same user/category/dates
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
@@ -366,6 +399,7 @@ Deno.serve(async (req) => {
         deposit_amount: depositAmount ?? 350,
         pickup_contact_name: customerName.trim(),
         pickup_contact_phone: sanitizedPhoneVal,
+        pickup_address: typeof pickupAddress === "string" && pickupAddress.trim() ? pickupAddress.trim() : null,
         notes: notes || null,
         assigned_driver_id: auth.userId,
       })
@@ -380,41 +414,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 9. Persist optional add-ons if provided
-    if (Array.isArray(addOns) && addOns.length > 0) {
-      // Fetch add-on details for price calculation
-      const addOnIds = addOns.map((a: { addOnId: string }) => a.addOnId).filter(Boolean);
-      if (addOnIds.length > 0) {
-        const { data: addOnRecords } = await supabaseAdmin
-          .from("add_ons")
-          .select("id, daily_rate, one_time_fee, name")
-          .in("id", addOnIds)
-          .eq("is_active", true);
+    // 9. Persist add-ons using the SAME prices already billed in the subtotal
+    if (addOnRowsToInsert.length > 0) {
+      const { error: addOnInsertError } = await supabaseAdmin
+        .from("booking_add_ons")
+        .insert(addOnRowsToInsert.map((r) => ({ ...r, booking_id: booking.id })));
 
-        if (addOnRecords && addOnRecords.length > 0) {
-          const addOnRows = addOnRecords.map(ao => {
-            const input = addOns.find((a: { addOnId: string; quantity?: number }) => a.addOnId === ao.id);
-            const qty = input?.quantity || 1;
-            const price = (Number(ao.daily_rate) * computedDays + (Number(ao.one_time_fee) || 0)) * qty;
-            return {
-              booking_id: booking.id,
-              add_on_id: ao.id,
-              quantity: qty,
-              price,
-            };
-          });
-
-          const { error: addOnInsertError } = await supabaseAdmin
-            .from("booking_add_ons")
-            .insert(addOnRows);
-
-          if (addOnInsertError) {
-            console.error("[walkin] Failed to insert add-ons:", addOnInsertError);
-            // Non-fatal — booking was created successfully
-          } else {
-            console.log(`[walkin] Inserted ${addOnRows.length} add-on(s) for booking ${booking.id}`);
-          }
-        }
+      if (addOnInsertError) {
+        console.error("[walkin] Failed to insert add-ons:", addOnInsertError);
+        // Charges were included in the subtotal — flag loudly so ops can reconcile.
+        await supabaseAdmin.from("audit_logs").insert({
+          action: "walkin_addons_persist_failed",
+          entity_type: "booking",
+          entity_id: booking.id,
+          user_id: auth.userId,
+          new_data: { addOnsTotal, rows: addOnRowsToInsert, error: addOnInsertError.message },
+        });
+      } else {
+        console.log(
+          `[walkin] Billed and inserted ${addOnRowsToInsert.length} add-on(s) ($${addOnsTotal.toFixed(2)}) for booking ${booking.id}`,
+        );
       }
     }
 
