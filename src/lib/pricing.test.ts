@@ -148,15 +148,15 @@ describe("weekend surcharge + duration discount (booking W9JD9JDV regression)", 
     expect(countWeekendDays(START, DAYS)).toBe(4);
   });
 
-  it("derives surcharge and discount as separate amounts", () => {
+  it("derives the surcharge and applies no duration discount (discounts retired)", () => {
     const adj = deriveVehicleAdjustments({ dailyRate: DAILY, totalDays: DAYS, startAt: START });
     expect(adj.baseCents).toBe(71992);
     expect(adj.weekendSurchargeCents).toBe(5399); // 89.99 × 4 × 15%
-    expect(adj.discountType).toBe("weekly");
-    expect(adj.durationDiscountCents).toBe(7739); // 10% of (719.92 + 53.99)
+    expect(adj.discountType).toBe("none");
+    expect(adj.durationDiscountCents).toBe(0);
   });
 
-  it("itemizes surcharge and discount as distinct signed lines (never netted)", () => {
+  it("itemizes surcharge and the legacy discount remainder as distinct signed lines", () => {
     const baseCents = 71992;
     // Real vehicle amount stored for this booking: 716.52 subtotal − 20.00 daily fees
     const remainderCents = 69652;
@@ -168,7 +168,7 @@ describe("weekend surcharge + duration discount (booking W9JD9JDV regression)", 
     });
 
     const surcharge = lines.find((l) => l.label.startsWith("Weekend Surcharge"));
-    const discount = lines.find((l) => l.label.startsWith("Weekly Discount"));
+    const discount = lines.find((l) => l.label === "Discount / Adjustment");
     expect(surcharge?.cents).toBe(5399);
     expect(discount?.cents).toBe(-7739);
     expect(surcharge!.label).toContain("4 days");
@@ -200,10 +200,12 @@ describe("weekend surcharge + duration discount (booking W9JD9JDV regression)", 
     expect(countWeekendDays(evening, 3)).toBe(3); // Fri 17, Sat 18, Sun 19
   });
 
-  it("full subtotal reconstruction matches the stored subtotal", () => {
+  it("full subtotal reconstruction matches the stored subtotal (legacy stored discount)", () => {
     const adj = deriveVehicleAdjustments({ dailyRate: DAILY, totalDays: DAYS, startAt: START });
-    const vehicleCents = adj.baseCents + adj.weekendSurchargeCents - adj.durationDiscountCents;
+    const storedDiscountCents = 7739; // discount stored on this legacy booking
+    const vehicleCents = adj.baseCents + adj.weekendSurchargeCents - storedDiscountCents;
     const dailyFeesCents = Math.round((1.5 + 1.0) * 100) * DAYS;
     expect((vehicleCents + dailyFeesCents) / 100).toBeCloseTo(716.52, 2);
   });
+});
 });
