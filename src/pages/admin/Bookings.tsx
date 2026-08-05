@@ -361,6 +361,11 @@ export default function AdminBookings() {
         !isTomorrow(parseISO(b.startAt)) &&
         isAfter(parseISO(b.startAt), now)
       ).sort(byStartAsc),
+      // Pickup time slipped past on an earlier day but the rental window is
+      // still open and nothing was started — genuinely still needs processing.
+      pickupsLate: cleanPickups.filter(b =>
+        isBefore(parseISO(b.startAt), startOfDay(now))
+      ).sort(byStartAsc),
       needsAttention: [...needsAttention].sort(byStartAsc),
       attentionHandedOver: attentionByReason("handed_over_not_activated"),
       attentionInProgress: attentionByReason("in_progress"),
