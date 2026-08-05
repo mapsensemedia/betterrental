@@ -411,41 +411,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 9. Persist optional add-ons if provided
-    if (Array.isArray(addOns) && addOns.length > 0) {
-      // Fetch add-on details for price calculation
-      const addOnIds = addOns.map((a: { addOnId: string }) => a.addOnId).filter(Boolean);
-      if (addOnIds.length > 0) {
-        const { data: addOnRecords } = await supabaseAdmin
-          .from("add_ons")
-          .select("id, daily_rate, one_time_fee, name")
-          .in("id", addOnIds)
-          .eq("is_active", true);
+    // 9. Persist add-ons using the SAME prices already billed in the subtotal
+    if (addOnRowsToInsert.length > 0) {
+      const { error: addOnInsertError } = await supabaseAdmin
+        .from("booking_add_ons")
+        .insert(addOnRowsToInsert.map((r) => ({ ...r, booking_id: booking.id })));
 
-        if (addOnRecords && addOnRecords.length > 0) {
-          const addOnRows = addOnRecords.map(ao => {
-            const input = addOns.find((a: { addOnId: string; quantity?: number }) => a.addOnId === ao.id);
-            const qty = input?.quantity || 1;
-            const price = (Number(ao.daily_rate) * computedDays + (Number(ao.one_time_fee) || 0)) * qty;
-            return {
-              booking_id: booking.id,
-              add_on_id: ao.id,
-              quantity: qty,
-              price,
-            };
-          });
-
-          const { error: addOnInsertError } = await supabaseAdmin
-            .from("booking_add_ons")
-            .insert(addOnRows);
-
-          if (addOnInsertError) {
-            console.error("[walkin] Failed to insert add-ons:", addOnInsertError);
-            // Non-fatal — booking was created successfully
-          } else {
-            console.log(`[walkin] Inserted ${addOnRows.length} add-on(s) for booking ${booking.id}`);
-          }
-        }
+      if (addOnInsertError) {
+        console.error("[walkin] Failed to insert add-ons:", addOnInsertError);
+        // Charges were included in the subtotal — flag loudly so ops can reconcile.
+        await supabaseAdmin.from("audit_logs").insert({
+          action: "walkin_addons_persist_failed",
+          entity_type: "booking",
+          entity_id: booking.id,
+          user_id: auth.userId,
+          new_data: { addOnsTotal, rows: addOnRowsToInsert, error: addOnInsertError.message },
+        });
+      } else {
+        console.log(
+          `[walkin] Billed and inserted ${addOnRowsToInsert.length} add-on(s) ($${addOnsTotal.toFixed(2)}) for booking ${booking.id}`,
+        );
       }
     }
 
