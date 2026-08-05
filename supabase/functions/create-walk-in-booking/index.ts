@@ -88,6 +88,8 @@ Deno.serve(async (req) => {
       useCustomerId,
       // Optional add-ons array: [{ addOnId, quantity }]
       addOns,
+      // Optional delivery address (delivery walk-ins)
+      pickupAddress,
     } = body;
 
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
@@ -397,6 +399,7 @@ Deno.serve(async (req) => {
         deposit_amount: depositAmount ?? 350,
         pickup_contact_name: customerName.trim(),
         pickup_contact_phone: sanitizedPhoneVal,
+        pickup_address: typeof pickupAddress === "string" && pickupAddress.trim() ? pickupAddress.trim() : null,
         notes: notes || null,
         assigned_driver_id: auth.userId,
       })
