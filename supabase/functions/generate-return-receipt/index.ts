@@ -94,6 +94,12 @@ serve(async (req) => {
       .select("price, quantity, add_on:add_ons(name)")
       .eq("booking_id", bookingId);
 
+    // Fetch additional drivers (their fees are already inside booking.subtotal)
+    const { data: additionalDrivers } = await supabase
+      .from("booking_additional_drivers")
+      .select("driver_name, young_driver_fee")
+      .eq("booking_id", bookingId);
+
     // Fetch user profile
     const { data: profile } = await supabase
       .from("profiles")
