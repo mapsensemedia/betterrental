@@ -310,9 +310,40 @@ Deno.serve(async (req) => {
       (new Date(endAt).getTime() - new Date(startAt).getTime()) / (1000 * 60 * 60 * 24),
     ));
     const youngDriverFee = resolvedAgeBand === "20_24" ? 15 * computedDays : 0;
-    const computedSubtotal = subtotal ?? (dailyRate * computedDays + youngDriverFee);
-    const computedTax = taxAmount ?? Math.round(computedSubtotal * 0.12 * 100) / 100;
-    const computedTotal = totalAmount ?? computedSubtotal + computedTax;
+
+    // 7a. Price add-ons FIRST so they are billed, not just recorded.
+    const addOnRowsToInsert: { add_on_id: string; quantity: number; price: number }[] = [];
+    if (Array.isArray(addOns) && addOns.length > 0) {
+      const addOnIds = addOns.map((a: { addOnId: string }) => a.addOnId).filter(Boolean);
+      if (addOnIds.length > 0) {
+        const { data: addOnRecords } = await supabaseAdmin
+          .from("add_ons")
+          .select("id, daily_rate, one_time_fee, name")
+          .in("id", addOnIds)
+          .eq("is_active", true);
+
+        for (const ao of addOnRecords || []) {
+          const input = addOns.find((a: { addOnId: string; quantity?: number }) => a.addOnId === ao.id);
+          const qty = Math.min(Math.max(Number(input?.quantity) || 1, 1), 10);
+          const price = Math.round(
+            ((Number(ao.daily_rate) || 0) * computedDays + (Number(ao.one_time_fee) || 0)) * qty * 100,
+          ) / 100;
+          addOnRowsToInsert.push({ add_on_id: ao.id, quantity: qty, price });
+        }
+      }
+    }
+    const addOnsTotal = Math.round(
+      addOnRowsToInsert.reduce((s, r) => s + r.price, 0) * 100,
+    ) / 100;
+
+    const baseSubtotal = subtotal ?? (dailyRate * computedDays + youngDriverFee);
+    const computedSubtotal = Math.round((baseSubtotal + addOnsTotal) * 100) / 100;
+    const computedTax = taxAmount != null && addOnsTotal === 0
+      ? taxAmount
+      : Math.round(computedSubtotal * 0.12 * 100) / 100;
+    const computedTotal = totalAmount != null && addOnsTotal === 0
+      ? totalAmount
+      : Math.round((computedSubtotal + computedTax) * 100) / 100;
 
     // 7b. Duplicate detection — check for recent walk-in with same user/category/dates
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
