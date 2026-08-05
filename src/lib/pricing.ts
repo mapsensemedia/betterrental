@@ -395,15 +395,10 @@ export function deriveVehicleAdjustments(input: {
 }
 
 /**
- * Get applicable duration discount
+ * Duration discounts (weekly / monthly) are RETIRED — always returns no discount.
+ * Kept as a function so historic call sites and itemization helpers keep working.
  */
-export function getDurationDiscount(rentalDays: number): { rate: number; type: "none" | "weekly" | "monthly" } {
-  if (rentalDays >= MONTHLY_DISCOUNT_THRESHOLD) {
-    return { rate: MONTHLY_DISCOUNT_RATE, type: "monthly" };
-  }
-  if (rentalDays >= WEEKLY_DISCOUNT_THRESHOLD) {
-    return { rate: WEEKLY_DISCOUNT_RATE, type: "weekly" };
-  }
+export function getDurationDiscount(_rentalDays: number): { rate: number; type: "none" | "weekly" | "monthly" } {
   return { rate: 0, type: "none" };
 }
 
