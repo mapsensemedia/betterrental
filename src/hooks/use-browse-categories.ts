@@ -45,7 +45,7 @@ function buildCategoryData(
   }>();
 
   (units || []).forEach((unit: any) => {
-    if (!unit.category_id || !unit.vehicle) return;
+    if (!unit.category_id) return;
 
     const current = categoryMap.get(unit.category_id) || {
       totalCount: 0,
@@ -59,12 +59,14 @@ function buildCategoryData(
 
     current.totalCount++;
 
-    // Check if this unit is available
+    // A unit only counts as available when it is idle and not booked in the window
     const isBooked = bookedUnitIds.has(unit.id);
-    const isVehicleAvailable = unit.vehicle.is_available !== false;
-    if (!isBooked && isVehicleAvailable) {
+    const isVehicleAvailable = unit.vehicle?.is_available !== false;
+    const isIdle = String(unit.status || "").toLowerCase() === "available";
+    if (isIdle && !isBooked && isVehicleAvailable) {
       current.availableCount++;
     }
+
 
     // Track lowest rate
     const rate = Number(unit.vehicle.daily_rate || 0);
