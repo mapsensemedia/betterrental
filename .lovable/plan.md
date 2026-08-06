@@ -12,12 +12,13 @@ Two modifications were made to this booking tonight:
 
 Payments on file total $1,096.48, so pending = $1,317.01 - $1,096.48 = **$220.53**.
 
-That splits cleanly into two parts:
+**It is not a previous due amount.** Before tonight's two edits the stored total was $1,096.48 and the three collected payments (all `rental`, all `completed`) add up to exactly $1,096.48 — nothing was outstanding, and there is no invoice record carrying a balance for this booking. The whole $220.53 was created by tonight's edits:
 
 - **$113.68 — the correct one-day extension.** The 02:39 step added exactly $101.50 to the subtotal ($99 day + $1.50 PVRT + $1.00 ACSRCH) = $113.68 with 12% tax. The extension itself is right.
 - **$106.85 — an unintended re-price from the 02:36 rate change.** Changing the rate from $100 to $99 did not apply a $1/day adjustment; it rebuilt the whole 10-day booking from today's rate card ($990 vehicle + $59.40 weekend + $25.00 daily fees = $1,074.40), which erased the $106.00 legacy duration discount baked into the agreed $979.00. Net effect: subtotal +$95.40, total +$106.85.
 
-So the customer is being quoted the legitimate $113.68 plus $106.85 of re-priced history.
+$113.68 + $106.85 = $220.53 — so the customer is being quoted the legitimate extension plus $106.85 of re-priced history, not an old balance.
+
 
 ## Fix
 
