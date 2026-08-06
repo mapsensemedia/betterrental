@@ -638,6 +638,9 @@ Deno.serve(async (req) => {
       agreementRegenerated,
       agreementError,
       pricingDrift,
+      deltaSubtotal: deltaInfo?.deltaSubtotal ?? null,
+      deltaTotal: deltaInfo?.deltaTotal ?? null,
+
     }, 200, corsHeaders);
 
 
