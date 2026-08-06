@@ -27,6 +27,10 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
+import { isWithinBusinessHours } from "@/lib/rental-rules";
+
+const BUSINESS_HOURS_LABEL = "9:00 AM and 8:00 PM";
+
 
 
 interface BookingModificationPanelProps {
