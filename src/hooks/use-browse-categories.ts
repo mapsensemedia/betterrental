@@ -83,14 +83,32 @@ function buildCategoryData(
   return categories
     .map((cat): BrowseCategory | null => {
       const data = categoryMap.get(cat.id);
-      if (!data || data.totalCount === 0) return null;
+      const catRate = Number(cat.daily_rate || 0);
+
+      // Categories with no units still need to be bookable (overbooking policy),
+      // so fall back to the category's own rate card.
+      if (!data || data.totalCount === 0) {
+        if (cat.is_active === false) return null;
+        return {
+          id: cat.id,
+          name: cat.name,
+          description: cat.description,
+          dailyRate: catRate,
+          imageUrl: cat.image_url ?? null,
+          availableCount: 0,
+          totalCount: 0,
+          seats: cat.seats ?? 5,
+          fuelType: cat.fuel_type ?? "Petrol",
+          transmission: cat.transmission ?? "Automatic",
+        };
+      }
 
       return {
         id: cat.id,
         name: cat.name,
         description: cat.description,
-        dailyRate: data.lowestRate === Infinity ? 0 : data.lowestRate,
-        imageUrl: data.imageUrl,
+        dailyRate: data.lowestRate === Infinity ? catRate : data.lowestRate,
+        imageUrl: data.imageUrl ?? cat.image_url ?? null,
         availableCount: data.availableCount,
         totalCount: data.totalCount,
         seats: data.seats,
@@ -99,6 +117,7 @@ function buildCategoryData(
       };
     })
     .filter((c): c is BrowseCategory => c !== null);
+
 }
 
 export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
