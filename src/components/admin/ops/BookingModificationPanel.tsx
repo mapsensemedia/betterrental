@@ -331,7 +331,7 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
           )}
 
           {/* Preview */}
-          {preview && (
+          {preview && !isTimeOnly && !validationError && (
             <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
