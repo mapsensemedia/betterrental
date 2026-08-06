@@ -219,10 +219,11 @@ export function useModifyBooking() {
           ? " Agreement could not be regenerated — check it manually."
           : "";
       toast.success(
-        "Booking duration updated",
+        result.timeOnly ? "Rental times updated" : "Booking duration updated",
         {
-          description:
-            (diff > 0
+          description: result.timeOnly
+            ? "Time change only — no price change." + agreementNote
+            : (diff > 0
               ? `Additional charge: $${diff.toFixed(2)} CAD`
               : diff < 0
                 ? `Refund: $${Math.abs(diff).toFixed(2)} CAD`
