@@ -69,14 +69,15 @@ function buildCategoryData(
 
 
     // Track lowest rate
-    const rate = Number(unit.vehicle.daily_rate || 0);
+    const rate = Number(unit.vehicle?.daily_rate || 0);
     if (rate > 0 && rate < current.lowestRate) {
       current.lowestRate = rate;
-      current.imageUrl = unit.vehicle.image_url;
-      current.seats = unit.vehicle.seats || 5;
-      current.fuelType = unit.vehicle.fuel_type || "Petrol";
-      current.transmission = unit.vehicle.transmission || "Automatic";
+      current.imageUrl = unit.vehicle?.image_url ?? null;
+      current.seats = unit.vehicle?.seats || 5;
+      current.fuelType = unit.vehicle?.fuel_type || "Petrol";
+      current.transmission = unit.vehicle?.transmission || "Automatic";
     }
+
 
     categoryMap.set(unit.category_id, current);
   });
