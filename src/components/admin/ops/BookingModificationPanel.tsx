@@ -462,8 +462,7 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
           {/* Apply button */}
           <Button
             className="w-full"
-            disabled={!preview || preview.addedDays === 0 || modifyBooking.isPending}
-
+            disabled={!anyChange || !!validationError || modifyBooking.isPending}
             onClick={() => setConfirmOpen(true)}
           >
             {modifyBooking.isPending ? "Updating..." : "Apply Changes"}
@@ -480,9 +479,13 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
             <AlertDialogDescription>
               {preview && (
                 <span>
-                  This will change the rental from {preview.originalDays} to {preview.newDays} days.
-                  {priceDiff > 0 && ` Additional charge: $${priceDiff.toFixed(2)} CAD.`}
-                  {priceDiff < 0 && ` Refund: $${Math.abs(priceDiff).toFixed(2)} CAD.`}
+                  Pickup {format(new Date(newStartDate), "MMM d, h:mm a")} → return{" "}
+                  {format(new Date(newEndDate), "MMM d, h:mm a")}.{" "}
+                  {isTimeOnly
+                    ? `Billable days stay at ${preview.newDays} — no price change.`
+                    : `This will change the rental from ${preview.originalDays} to ${preview.newDays} days.`}
+                  {!isTimeOnly && priceDiff > 0 && ` Additional charge: $${priceDiff.toFixed(2)} CAD.`}
+                  {!isTimeOnly && priceDiff < 0 && ` Refund: $${Math.abs(priceDiff).toFixed(2)} CAD.`}
                 </span>
               )}
             </AlertDialogDescription>
