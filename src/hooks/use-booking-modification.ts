@@ -109,7 +109,8 @@ export function previewModification(
   const newDays = Math.max(1, Math.ceil(hoursDiff / 24));
   const oldDays = Math.max(
     1,
-    booking.total_days || Math.ceil(differenceInHours(new Date(booking.end_at), start) / 24),
+    booking.total_days ||
+      Math.ceil(differenceInHours(new Date(booking.end_at), originalStart) / 24),
   );
 
   const ageBand = booking.driver_age_band === "20_24" ? "20_24" as DriverAgeBand : null;
