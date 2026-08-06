@@ -92,9 +92,23 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
     setOpen(nextOpen);
   };
 
+  // Preview mirrors the server's upgrade branch exactly (delta on the stored
+  // subtotal, then PST 7% + GST 5% on the new subtotal) so staff never quote a
+  // pre-tax figure to the customer.
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   const feeNum = parseFloat(dailyFee) || 0;
-  const totalUpgradeCharge = feeNum * booking.total_days;
-  const newTotal = booking.total_amount + totalUpgradeCharge;
+  const days = Number(booking.total_days) || 1;
+  const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
+  const currentUpgradeTotal = round2(currentUpgradeFee * days);
+  const totalUpgradeCharge = round2(feeNum * days);
+  const storedSubtotal = round2(Number(booking.subtotal) || 0);
+  const newSubtotal = round2(storedSubtotal - currentUpgradeTotal + totalUpgradeCharge);
+  const newPst = round2(newSubtotal * 0.07);
+  const newGst = round2(newSubtotal * 0.05);
+  const newTotal = round2(newSubtotal + newPst + newGst);
+  const upgradeSubtotalDelta = round2(totalUpgradeCharge - currentUpgradeTotal);
+  const upgradeTaxDelta = round2(upgradeSubtotalDelta * 0.12);
+  const totalDelta = round2(newTotal - Number(booking.total_amount || 0));
 
   // Search for units by VIN or license plate
   const { data: searchResults = [], isLoading: searching } = useQuery({
@@ -306,33 +320,61 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
               </div>
             </div>
 
-            {/* Price summary */}
+            {/* Price summary — tax-inclusive, mirrors server pricing */}
             <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-2 border">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Current Total</span>
-                <span>${booking.total_amount.toFixed(2)}</span>
+                <span className="text-muted-foreground">Current Total (incl. tax)</span>
+                <span>${Number(booking.total_amount || 0).toFixed(2)}</span>
               </div>
-              {feeNum > 0 && (
+              {currentUpgradeTotal > 0 && (
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">
-                    + Upgrade fee CA${feeNum.toFixed(2)}/day × {booking.total_days} days
+                    − Existing upgrade CA${currentUpgradeFee.toFixed(2)}/day × {days} days
                   </span>
-                  <span>CA${totalUpgradeCharge.toFixed(2)}</span>
+                  <span>−CA${currentUpgradeTotal.toFixed(2)}</span>
                 </div>
               )}
+              {feeNum > 0 && (
+                <>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      + Upgrade fee CA${feeNum.toFixed(2)}/day × {days} days
+                    </span>
+                    <span>CA${totalUpgradeCharge.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      + Tax on upgrade (PST 7% + GST 5%)
+                    </span>
+                    <span>CA${upgradeTaxDelta.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
               <Separator />
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">New Subtotal</span>
+                <span>${newSubtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">PST (7%) + GST (5%)</span>
+                <span>${round2(newPst + newGst).toFixed(2)}</span>
+              </div>
               <div className="flex justify-between font-semibold">
-                <span>New Total</span>
+                <span>New Total (incl. tax)</span>
                 <span>${newTotal.toFixed(2)} CAD</span>
               </div>
-              {feeNum > 0 && (
-                <div className="flex justify-end">
+              {Math.abs(totalDelta) >= 0.01 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">
+                    Estimated — confirmed against the server after applying
+                  </span>
                   <Badge variant="default" className="text-[10px]">
-                    +${totalUpgradeCharge.toFixed(2)}
+                    {totalDelta > 0 ? "+" : "−"}${Math.abs(totalDelta).toFixed(2)} to collect
                   </Badge>
                 </div>
               )}
             </div>
+
 
             <Separator />
 

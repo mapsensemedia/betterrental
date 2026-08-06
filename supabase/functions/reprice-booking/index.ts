@@ -513,6 +513,37 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error("[reprice-booking] Driver fee sync failed:", e);
       }
+
+      // Keep booking_add_ons.price in sync with the billed duration for the same
+      // reason: the engine recomputes add-on charges into the subtotal, so a row
+      // still priced for the old (shorter/longer) period makes the itemized
+      // breakdown disagree with the stored total.
+      try {
+        const { data: addOnRows } = await supabase
+          .from("booking_add_ons")
+          .select("id, quantity, price, add_on_id, add_on:add_ons(daily_rate, one_time_fee)")
+          .eq("booking_id", bookingId);
+
+        for (const row of addOnRows || []) {
+          const meta = (row as any).add_on;
+          if (!meta) continue;
+          const qty = Number((row as any).quantity) || 1;
+          const dailyRate = Number(meta.daily_rate || 0);
+          const oneTime = Number(meta.one_time_fee || 0);
+          const expected = roundCents((dailyRate * newTotalDays + oneTime) * qty);
+          if (Number((row as any).price || 0) !== expected) {
+            const { error: aErr } = await supabase
+              .from("booking_add_ons")
+              .update({ price: expected })
+              .eq("id", (row as any).id);
+            if (aErr) {
+              console.error("[reprice-booking] Failed to sync add-on price:", aErr);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[reprice-booking] Add-on price sync failed:", e);
+      }
     }
 
     // Audit log

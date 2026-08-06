@@ -169,6 +169,8 @@ export interface InvoicePdfData {
   gstAmount?: number;
   lateFees: number;
   damageCharges: number;
+  /** Any charge on the invoice record not covered by the itemized lines above. */
+  otherCharges?: number;
   grandTotal: number;
   paymentsReceived: number;
   amountDue: number;
@@ -360,6 +362,12 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
     pdf.setTextColor(200, 50, 50);
     finRow(pdf, "Damage Charges", fmt(data.damageCharges), y);
     pdf.setTextColor(0, 0, 0);
+    y += FIN_ROW_H;
+  }
+
+  // Any remaining charge recorded on the invoice but not itemized above.
+  if (data.otherCharges != null && Math.abs(data.otherCharges) >= 0.01) {
+    finRow(pdf, "Other Charges", fmt(data.otherCharges), y);
     y += FIN_ROW_H;
   }
 

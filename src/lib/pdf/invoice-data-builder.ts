@@ -261,11 +261,35 @@ export async function buildInvoicePdfData(
   // Location formatting
   const fmtLoc = (loc: any) => loc ? `${loc.name}${loc.address ? `, ${loc.address}` : ""}${loc.city ? `, ${loc.city}` : ""}` : undefined;
 
+  // ── Grand total comes from the INVOICE RECORD, never recomputed here ──
+  // The invoice record is the system's source of truth: it already includes
+  // post-rental charges (late fees, damage, other fees) on top of the booking
+  // total. Deriving the total from bookings.total_amount used to print a
+  // document that understated what the customer actually owed.
+  const lateFeeCents = toCents(invoice.late_fees);
+  const damageCents = toCents(invoice.damage_charges);
+  const invoiceGrandCents = toCents(invoice.grand_total);
+  const grandTotalCents = invoiceGrandCents > 0
+    ? invoiceGrandCents
+    : dbTotalCents + lateFeeCents + damageCents;
+
+  // Reconciliation guard: everything itemized must add up to the grand total.
+  // Whatever is left over is surfaced explicitly instead of silently dropped.
+  const itemizedCents = dbSubtotalCents + dbTaxCents + lateFeeCents + damageCents;
+  const otherChargesCents = grandTotalCents - itemizedCents;
+  if (Math.abs(otherChargesCents) >= 1) {
+    console.warn(
+      `[invoice-pdf] ${invoice.invoice_number}: itemized lines ($${fromCents(itemizedCents).toFixed(2)}) ` +
+      `do not match invoice grand total ($${fromCents(grandTotalCents).toFixed(2)}). ` +
+      `Showing $${fromCents(otherChargesCents).toFixed(2)} as "Other Charges".`
+    );
+  }
+
   // Calculate actual payments collected from payments table
   const actualPaymentsCollected = (paymentRows || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
   // Credit bank-transfer / offline payments against the grand total
   const offlineCredit = (booking as any).paid_offline
-    ? Math.max(0, fromCents(dbTotalCents) - actualPaymentsCollected)
+    ? Math.max(0, fromCents(grandTotalCents) - actualPaymentsCollected)
     : 0;
   const totalCredited = actualPaymentsCollected + offlineCredit;
 
@@ -296,13 +320,14 @@ export async function buildInvoicePdfData(
     taxesTotal: fromCents(dbTaxCents),
     pstAmount: fromCents(pstCents),
     gstAmount: fromCents(gstCents),
-    lateFees: Number(invoice.late_fees || 0),
-    damageCharges: Number(invoice.damage_charges || 0),
-    grandTotal: fromCents(dbTotalCents),
+    lateFees: fromCents(lateFeeCents),
+    damageCharges: fromCents(damageCents),
+    otherCharges: Math.abs(otherChargesCents) >= 1 ? fromCents(otherChargesCents) : undefined,
+    grandTotal: fromCents(grandTotalCents),
     paymentsReceived: totalCredited > 0 ? totalCredited : Number(invoice.payments_received || 0),
     amountDue: totalCredited > 0
-      ? Math.max(0, fromCents(dbTotalCents) - totalCredited)
-      : Number(invoice.amount_due || 0),
+      ? Math.max(0, fromCents(grandTotalCents) - totalCredited)
+      : Number(invoice.amount_due ?? fromCents(grandTotalCents)),
     depositHeld: Number(invoice.deposit_held || 0),
     depositReleased: Number(invoice.deposit_released || 0),
     depositCaptured: Number(invoice.deposit_captured || 0),
