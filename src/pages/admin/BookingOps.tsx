@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
+import { ModifyRentalPanel } from "@/components/admin/ops/ModifyRentalPanel";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -591,14 +592,19 @@ export default function BookingOps() {
 
       {/* Edit Booking Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Booking Details</DialogTitle>
+            <DialogTitle>Modify Rental</DialogTitle>
             <DialogDescription>
-              Update dates, location, or other booking information.
+              Dates, vehicle, protection, extras, rate — plus contact details and notes.
             </DialogDescription>
           </DialogHeader>
-          {booking && <BookingEditPanel booking={booking} />}
+          {booking && (
+            <div className="space-y-4">
+              <ModifyRentalPanel booking={booking as any} />
+              <BookingEditPanel booking={booking} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </PanelShell>

@@ -48,8 +48,7 @@ import {
 import { format, formatDistanceToNow } from "date-fns";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
-import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
-import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
+import { ModifyRentalPanel } from "@/components/admin/ops/ModifyRentalPanel";
 import { ActiveRentalUnitAssignCard } from "@/components/admin/ops/ActiveRentalUnitAssignCard";
 import { ChangeVehicleDialog } from "@/components/admin/ChangeVehicleDialog";
 import { VehicleHistoryList } from "@/components/admin/VehicleHistoryList";
@@ -791,19 +790,9 @@ export default function ActiveRentalDetail() {
 
         {/* Modify Booking - Protection, Add-ons, Edit */}
         {fullBooking && (
-          <div className="grid md:grid-cols-2 gap-6">
-            <ProtectionChangePanel 
-              bookingId={rental.id} 
-              booking={fullBooking} 
-              categoryName={rental.vehicle?.category} 
-            />
-            <CounterUpsellPanel 
-              bookingId={rental.id} 
-              rentalDays={fullBooking.total_days || 1} 
-            />
-            <div className="md:col-span-2">
-              <BookingEditPanel booking={fullBooking} />
-            </div>
+          <div className="space-y-6">
+            <ModifyRentalPanel booking={fullBooking as any} />
+            <BookingEditPanel booking={fullBooking} />
           </div>
         )}
 

@@ -40,8 +40,7 @@ import { StepReturnCloseout } from "@/components/admin/return-ops/steps/StepRetu
 import { StepReturnDeposit } from "@/components/admin/return-ops/steps/StepReturnDeposit";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { BookingEditPanel } from "@/components/admin/ops/BookingEditPanel";
-import { ProtectionChangePanel } from "@/components/admin/ops/ProtectionChangePanel";
-import { CounterUpsellPanel } from "@/components/admin/ops/CounterUpsellPanel";
+import { ModifyRentalPanel } from "@/components/admin/ops/ModifyRentalPanel";
 import { ArrowLeft, X, Loader2, ArrowRight, Lock, AlertTriangle, Wrench, Pencil } from "lucide-react";
 
 export default function ReturnOps() {
@@ -400,18 +399,10 @@ export default function ReturnOps() {
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Booking Details</DialogTitle>
+              <DialogTitle>Modify Rental</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <ProtectionChangePanel 
-                bookingId={booking.id} 
-                booking={booking} 
-                categoryName={booking.vehicles?.category} 
-              />
-              <CounterUpsellPanel 
-                bookingId={booking.id} 
-                rentalDays={booking.total_days || 1} 
-              />
+              <ModifyRentalPanel booking={booking as any} />
               <BookingEditPanel booking={booking} />
             </div>
           </DialogContent>
