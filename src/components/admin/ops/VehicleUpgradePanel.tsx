@@ -320,33 +320,61 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
               </div>
             </div>
 
-            {/* Price summary */}
+            {/* Price summary — tax-inclusive, mirrors server pricing */}
             <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-2 border">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Current Total</span>
-                <span>${booking.total_amount.toFixed(2)}</span>
+                <span className="text-muted-foreground">Current Total (incl. tax)</span>
+                <span>${Number(booking.total_amount || 0).toFixed(2)}</span>
               </div>
-              {feeNum > 0 && (
+              {currentUpgradeTotal > 0 && (
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">
-                    + Upgrade fee CA${feeNum.toFixed(2)}/day × {booking.total_days} days
+                    − Existing upgrade CA${currentUpgradeFee.toFixed(2)}/day × {days} days
                   </span>
-                  <span>CA${totalUpgradeCharge.toFixed(2)}</span>
+                  <span>−CA${currentUpgradeTotal.toFixed(2)}</span>
                 </div>
               )}
+              {feeNum > 0 && (
+                <>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      + Upgrade fee CA${feeNum.toFixed(2)}/day × {days} days
+                    </span>
+                    <span>CA${totalUpgradeCharge.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      + Tax on upgrade (PST 7% + GST 5%)
+                    </span>
+                    <span>CA${upgradeTaxDelta.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
               <Separator />
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">New Subtotal</span>
+                <span>${newSubtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">PST (7%) + GST (5%)</span>
+                <span>${round2(newPst + newGst).toFixed(2)}</span>
+              </div>
               <div className="flex justify-between font-semibold">
-                <span>New Total</span>
+                <span>New Total (incl. tax)</span>
                 <span>${newTotal.toFixed(2)} CAD</span>
               </div>
-              {feeNum > 0 && (
-                <div className="flex justify-end">
+              {Math.abs(totalDelta) >= 0.01 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">
+                    Estimated — confirmed against the server after applying
+                  </span>
                   <Badge variant="default" className="text-[10px]">
-                    +${totalUpgradeCharge.toFixed(2)}
+                    {totalDelta > 0 ? "+" : "−"}${Math.abs(totalDelta).toFixed(2)} to collect
                   </Badge>
                 </div>
               )}
             </div>
+
 
             <Separator />
 
