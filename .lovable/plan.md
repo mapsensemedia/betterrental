@@ -72,4 +72,6 @@ After a date change is applied, the rental agreement must be reissued so the sig
 - `supabase/functions/reprice-booking/index.ts` — `operation === "modify"`: compute `computeBookingTotals()` for both the old and the new date range, derive `deltaSubtotal`, apply to `booking.subtotal`; recompute PST 7% / GST 5% on the new subtotal. Keep the existing `preserveExtrasPrices` extras-sync behaviour and the additional-driver fee re-sync. Continue writing `weekend_surcharge` / `duration_discount` / `different_dropoff_fee` from the engine, but as deltas against the stored values so the itemisation stays consistent. Return `pricingDrift` in the response payload.
 - `src/hooks/use-booking-modification.ts` — surface the returned delta and drift in the success toast; `previewModification()` switches to delta-based preview against the stored total instead of a full recompute.
 - `src/components/admin/ops/` extension dialog — render the delta line and the drift warning.
-- Data repair via two `UPDATE` statements plus audit-log inserts.
+- Agreement reissue: call the existing agreement generation path (`rental_agreements` + `src/lib/pdf/rental-agreement-pdf.ts`) after an extension, so `terms_json` reflects the new `end_at`, `total_days` and corrected financial lines.
+- Data repair via two `UPDATE` statements plus audit-log inserts, followed by an agreement regeneration for each booking.
+
