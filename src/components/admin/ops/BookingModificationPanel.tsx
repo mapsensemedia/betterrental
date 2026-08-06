@@ -223,17 +223,18 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Clock className="w-4 h-4" />
-            Modify Rental Duration
+            Modify Rental Dates & Times
           </CardTitle>
           <CardDescription>
-            Extend or shorten the rental period — pricing will be recalculated automatically.
+            Change the pickup or return date/time — pricing is recalculated automatically. Times
+            must fall between {BUSINESS_HOURS_LABEL}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Current dates */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <span className="text-muted-foreground">Pickup</span>
+              <span className="text-muted-foreground">Current Pickup</span>
               <p className="font-medium">{format(new Date(booking.start_at), "MMM d, h:mm a")}</p>
             </div>
             <div>
@@ -243,6 +244,39 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
           </div>
 
           <Separator />
+
+          {/* Pickup date & time */}
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="new-start-date" className="text-sm font-medium">
+                Pickup Date & Time
+              </Label>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleShiftStart(-1)}>
+                  -1h
+                </Button>
+                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleShiftStart(1)}>
+                  +1h
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs h-7"
+                  onClick={() => setNewStartDate(booking.start_at)}
+                  disabled={!startChanged}
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
+            <input
+              id="new-start-date"
+              type="datetime-local"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1.5"
+              value={formatLocalDatetime(newStartDate)}
+              onChange={(e) => handleStartDateTimeChange(e.target.value)}
+            />
+          </div>
 
           {/* Quick extend buttons */}
           <div>
@@ -265,17 +299,36 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
           {/* Custom date picker */}
           <div>
             <Label htmlFor="new-end-date" className="text-sm font-medium">
-              New Return Date & Time
+              Return Date & Time
             </Label>
             <input
               id="new-end-date"
               type="datetime-local"
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1.5"
               value={formatLocalDatetime(newEndDate)}
-              min={formatLocalDatetime(booking.start_at)}
+              min={formatLocalDatetime(newStartDate)}
               onChange={(e) => handleDateTimeChange(e.target.value)}
             />
           </div>
+
+          {validationError && (
+            <p className="text-xs text-destructive">{validationError}</p>
+          )}
+
+          {isTimeOnly && !validationError && (
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+              <p className="font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Time change only — no price change
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Still {preview?.newDays} day{preview?.newDays === 1 ? "" : "s"} billable.
+                {" "}{format(new Date(newStartDate), "MMM d, h:mm a")} →{" "}
+                {format(new Date(newEndDate), "MMM d, h:mm a")}. The customer's agreed price,
+                taxes, protection and extras stay untouched.
+              </p>
+            </div>
+          )}
 
           {/* Preview */}
           {preview && (
