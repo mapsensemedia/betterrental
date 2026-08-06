@@ -192,18 +192,15 @@ Deno.serve(async (req) => {
       let finalWeekendSurcharge = serverTotals.weekendSurcharge;
       let finalDurationDiscount = serverTotals.durationDiscount;
 
-      if (overrideRate !== null) {
-        // Deliberate rate change: the vehicle line is intentionally reset from the
-        // rate card (existing behaviour).
-        finalSubtotal = roundCents(serverTotals.subtotal + extrasRowsTotal);
-        if (upgradeFee > 0) {
-          finalSubtotal = roundCents(finalSubtotal + roundCents(upgradeFee * serverTotals.days));
-        }
-        deltaSubtotal = roundCents(finalSubtotal - storedSubtotal);
-      } else {
-        // DELTA ONLY: never rebuild the whole booking from today's rate card.
-        // Long-term / negotiated prices below the current card would otherwise be
-        // silently re-priced and absorbed into the "extension" charge.
+      {
+        // DELTA ONLY — for duration AND rate changes alike. Never rebuild the whole
+        // booking from today's rate card: long-term / negotiated prices below the
+        // current card (and retired discounts baked into the agreed subtotal) would
+        // otherwise be silently re-priced and billed as part of the "extension".
+        //
+        // engineOld runs the OLD dates at the OLD stored rate, engineNew (serverTotals)
+        // the new dates at the new rate, so the delta carries both the duration change
+        // and the rate difference across the billed days — and nothing else.
         const engineOld = await computeBookingTotals({
           vehicleId: booking.vehicle_id,
           startAt: booking.start_at,
@@ -215,7 +212,7 @@ Deno.serve(async (req) => {
           deliveryFee,
           locationId: booking.location_id,
           returnLocationId: booking.return_location_id,
-          overrideDailyRate: effectiveDailyRate,
+          overrideDailyRate: storedDailyRate,
         });
 
         deltaSubtotal = roundCents(serverTotals.subtotal - engineOld.subtotal);
@@ -224,9 +221,9 @@ Deno.serve(async (req) => {
         const newBase = roundCents(Math.max(baseStored + deltaSubtotal, 0));
         finalSubtotal = roundCents(newBase + roundCents(upgradeFee * serverTotals.days));
 
-        // Carry the stored itemization forward by the duration delta only. A
-        // retired discount that is baked into the agreed subtotal stays on the
-        // record; it is never silently zeroed out (or re-derived) here.
+        // Carry the stored itemization forward by the engine delta only. A retired
+        // discount that is baked into the agreed subtotal stays on the record; it is
+        // never silently zeroed out (or re-derived) here.
         finalWeekendSurcharge = roundCents(
           Math.max(
             (Number(booking.weekend_surcharge) || 0) +
@@ -241,6 +238,7 @@ Deno.serve(async (req) => {
             0,
           ),
         );
+
 
         // Drift is reported, never applied.
         pricingDrift = await detectPricingDrift(
