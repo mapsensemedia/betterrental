@@ -15,6 +15,18 @@ export interface BookingModification {
 }
 
 
+export interface ModificationLineBreakdown {
+  vehicle: number;
+  protection: number;
+  addOns: number;
+  additionalDrivers: number;
+  regulatoryFees: number;
+  youngRenterFee: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+}
+
 export interface ModificationPreview {
   originalDays: number;
   newDays: number;
@@ -27,6 +39,19 @@ export interface ModificationPreview {
   dailyRate: number;
   /** Difference between the booking's stored (agreed) price and today's rate card. */
   pricingDrift: number;
+  /** Itemized before/after so staff quote the full amount, not just the car. */
+  before: ModificationLineBreakdown;
+  after: ModificationLineBreakdown;
+}
+
+/** Extras the booking already carries — must be included or the quote under-charges. */
+export interface ModificationExtras {
+  protectionDailyRate?: number;
+  addOnsPerDay?: number;
+  addOnsOneTime?: number;
+  additionalDriversPerDay?: number;
+  deliveryFee?: number;
+  differentDropoffFee?: number;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -38,6 +63,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * difference is applied to the booking's stored (customer-agreed) price. A
  * booking priced below today's rate card (negotiated long-term rate) must never
  * be silently rebuilt from the current rate card.
+ *
+ * The preview MUST receive the booking's protection plan rate, add-ons and
+ * additional-driver rates. Pricing the car alone under-quotes the customer,
+ * because the server charges for all of them.
  */
 export function previewModification(
   booking: {
@@ -53,10 +82,17 @@ export function previewModification(
     young_driver_fee: number | null;
   },
   newEndAt: string,
-  protectionDailyRate: number = 0,
-  addOnsPerDay: number = 0,
-  deliveryFee: number = 0,
+  extras: ModificationExtras = {},
 ): ModificationPreview {
+  const {
+    protectionDailyRate = 0,
+    addOnsPerDay = 0,
+    addOnsOneTime = 0,
+    additionalDriversPerDay = 0,
+    deliveryFee = 0,
+    differentDropoffFee = 0,
+  } = extras;
+
   const start = new Date(booking.start_at);
   const newEnd = new Date(newEndAt);
 
@@ -74,8 +110,10 @@ export function previewModification(
       vehicleDailyRate: booking.daily_rate,
       rentalDays: days,
       protectionDailyRate,
-      addOnsTotal: addOnsPerDay * days,
+      // Add-ons and additional drivers are both charged per day by the server.
+      addOnsTotal: round2(addOnsPerDay * days + addOnsOneTime + additionalDriversPerDay * days),
       deliveryFee,
+      differentDropoffFee,
       driverAgeBand: ageBand,
       pickupDate: start,
     });
@@ -89,6 +127,21 @@ export function previewModification(
   const newTaxAmount = round2(round2(newSubtotal * 0.07) + round2(newSubtotal * 0.05));
   const newTotal = round2(newSubtotal + newTaxAmount);
 
+  const breakdownFor = (days: number, engine: ReturnType<typeof calculateBookingPricing>, subtotal: number): ModificationLineBreakdown => {
+    const tax = round2(round2(subtotal * 0.07) + round2(subtotal * 0.05));
+    return {
+      vehicle: round2(engine.vehicleTotal),
+      protection: round2(protectionDailyRate * days),
+      addOns: round2(addOnsPerDay * days + addOnsOneTime),
+      additionalDrivers: round2(additionalDriversPerDay * days),
+      regulatoryFees: round2(engine.dailyFeesTotal ?? 0),
+      youngRenterFee: round2(engine.youngDriverFee ?? 0),
+      subtotal,
+      tax,
+      total: round2(subtotal + tax),
+    };
+  };
+
   return {
     originalDays: oldDays,
     newDays,
@@ -100,8 +153,11 @@ export function previewModification(
     newTaxAmount,
     dailyRate: booking.daily_rate,
     pricingDrift: round2(storedSubtotal - enginePrevious.subtotal),
+    before: breakdownFor(oldDays, enginePrevious, storedSubtotal),
+    after: breakdownFor(newDays, engineNew, newSubtotal),
   };
 }
+
 
 
 /**
