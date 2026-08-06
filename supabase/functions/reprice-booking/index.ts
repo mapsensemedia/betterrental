@@ -134,9 +134,18 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "Return date must be after pickup date" }, 400, corsHeaders);
       }
 
-      // If daily rate override provided, use it; otherwise preserve booking's stored rate
-      const overrideRate = newDailyRate ? Number(newDailyRate) : null;
-      const effectiveDailyRate = overrideRate ?? Number(booking.daily_rate);
+      // A rate override is only a real override when it DIFFERS from the stored
+      // (customer-agreed) rate. Screens pre-fill the rate input with the booking's
+      // own rate; treating that as an override would rebuild the whole booking
+      // from today's rate card and silently bill the drift as "extension".
+      const requestedRate = newDailyRate ? Number(newDailyRate) : null;
+      const storedDailyRate = Number(booking.daily_rate) || 0;
+      const overrideRate =
+        requestedRate !== null && Number.isFinite(requestedRate) && requestedRate > 0 &&
+        roundCents(requestedRate) !== roundCents(storedDailyRate)
+          ? requestedRate
+          : null;
+      const effectiveDailyRate = overrideRate ?? storedDailyRate;
 
       // When preserveExtrasPrices is set (mid-rental upsell), compute the engine
       // WITHOUT add-ons/drivers and then add the actual persisted row sums.
