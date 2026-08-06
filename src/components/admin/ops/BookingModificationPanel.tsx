@@ -209,6 +209,24 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
                 </Badge>
               </div>
 
+              {preview.addedDays !== 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {preview.addedDays > 0
+                    ? `${preview.addedDays} extra day${preview.addedDays > 1 ? "s" : ""} charged at the booking's agreed rate — the rest of the rental keeps its original price.`
+                    : `${Math.abs(preview.addedDays)} day${Math.abs(preview.addedDays) > 1 ? "s" : ""} removed from the booking's agreed price.`}
+                </p>
+              )}
+
+              {Math.abs(preview.pricingDrift) > 0.5 && (
+                <p className="text-xs text-amber-600">
+                  Note: this booking's agreed price is $
+                  {Math.abs(preview.pricingDrift).toFixed(2)}{" "}
+                  {preview.pricingDrift < 0 ? "above" : "below"} today's rate card
+                  (negotiated / legacy pricing). Only the duration difference is charged — the
+                  agreed price is preserved.
+                </p>
+              )}
+
               {priceDiff > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Additional payment of ${priceDiff.toFixed(2)} CAD will need to be collected.
@@ -219,6 +237,7 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
                   A refund of ${Math.abs(priceDiff).toFixed(2)} CAD may be applicable.
                 </p>
               )}
+
             </div>
           )}
 
