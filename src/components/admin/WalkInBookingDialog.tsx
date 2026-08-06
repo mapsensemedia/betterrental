@@ -31,7 +31,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocations } from "@/hooks/use-locations";
-import { useVehicles } from "@/hooks/use-vehicles";
+import { useBrowseCategories } from "@/hooks/use-browse-categories";
 import { cn } from "@/lib/utils";
 import { 
   Loader2, 
@@ -69,7 +69,9 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: locations } = useLocations();
-  const { data: allVehicles } = useVehicles();
+  // Categories are the single source of truth across the whole app — the legacy
+  // `vehicles` table must never be used for booking references.
+  const { data: allCategories } = useBrowseCategories();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createdBookingRef = useRef<{ id: string; bookingCode: string } | null>(null);
@@ -85,7 +87,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     phone: "",
     // Booking info
     locationId: "",
-    vehicleId: "",
+    categoryId: "",
     startDate: new Date(),
     endDate: addDays(new Date(), 1),
     pickupTime: DEFAULT_PICKUP_TIME,
@@ -96,11 +98,9 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     notes: "",
   });
 
-  // Filter vehicles by selected location
-  const availableVehicles = allVehicles?.filter(v => 
-    v.isAvailable && 
-    (!formData.locationId || v.locationId === formData.locationId || !v.locationId)
-  );
+  // Categories are location-independent; the location only decides which VIN is
+  // assigned later, so show every active category.
+  const availableCategories = allCategories;
 
   // Calculate totals using central pricing utility
   const totalDays = Math.max(1, Math.ceil(
@@ -127,7 +127,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
         email: "",
         phone: "",
         locationId: "",
-        vehicleId: "",
+        categoryId: "",
         startDate: new Date(),
         endDate: addDays(new Date(), 1),
         pickupTime: DEFAULT_PICKUP_TIME,
@@ -137,23 +137,23 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
         depositAmount: DEFAULT_DEPOSIT_AMOUNT,
         notes: "",
       });
-      prevVehicleIdRef.current = "";
+      prevCategoryIdRef.current = "";
       createdBookingRef.current = null;
       setCustomerConflict(null);
     }
   }, [open]);
 
   // Auto-set daily rate ONLY when vehicle selection changes (not on every render)
-  const prevVehicleIdRef = useState({ current: "" })[0];
+  const prevCategoryIdRef = useState({ current: "" })[0];
   useEffect(() => {
-    if (formData.vehicleId && formData.vehicleId !== prevVehicleIdRef.current) {
-      prevVehicleIdRef.current = formData.vehicleId;
-      const vehicle = allVehicles?.find(v => v.id === formData.vehicleId);
+    if (formData.categoryId && formData.categoryId !== prevCategoryIdRef.current) {
+      prevCategoryIdRef.current = formData.categoryId;
+      const vehicle = allCategories?.find(v => v.id === formData.categoryId);
       if (vehicle) {
         setFormData(prev => ({ ...prev, dailyRate: Number(vehicle.dailyRate) }));
       }
     }
-  }, [formData.vehicleId, allVehicles]);
+  }, [formData.categoryId, allCategories]);
 
   const generateBookingCode = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -183,8 +183,8 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       toast.error("Please select a location");
       return;
     }
-    if (!formData.vehicleId) {
-      toast.error("Please select a vehicle");
+    if (!formData.categoryId) {
+      toast.error("Please select a vehicle category");
       return;
     }
     if (!formData.dailyRate || formData.dailyRate <= 0) {
@@ -211,7 +211,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       const { data, error } = await supabase.functions.invoke("create-walk-in-booking", {
         body: {
           locationId: formData.locationId,
-          categoryId: formData.vehicleId,
+          categoryId: formData.categoryId,
           startAt: startAtDate.toISOString(),
           endAt: endAtDate.toISOString(),
           customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
@@ -310,7 +310,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     await submitBooking();
   };
 
-  const selectedVehicle = availableVehicles?.find(v => v.id === formData.vehicleId);
+  const selectedCategory = availableCategories?.find(v => v.id === formData.categoryId);
   const selectedLocation = locations?.find(l => l.id === formData.locationId);
 
   return (
@@ -451,7 +451,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                   onValueChange={(value) => setFormData(prev => ({ 
                     ...prev, 
                     locationId: value,
-                    vehicleId: "", // Reset vehicle when location changes
+                    categoryId: "", // Reset vehicle when location changes
                   }))}
                 >
                   <SelectTrigger>
@@ -470,23 +470,23 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Vehicle *</Label>
+                <Label>Vehicle Category *</Label>
                 <Select
-                  value={formData.vehicleId}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, vehicleId: value }))}
+                  value={formData.categoryId}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
                   disabled={!formData.locationId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={formData.locationId ? "Select vehicle" : "Select location first"} />
+                    <SelectValue placeholder={formData.locationId ? "Select category" : "Select location first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableVehicles?.map((vehicle) => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                    {availableCategories?.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
                         <div className="flex items-center gap-2">
                           <Car className="h-3 w-3" />
-                          {vehicle.year} {vehicle.make} {vehicle.model}
+                          {category.name}
                           <Badge variant="secondary" className="ml-1 text-xs">
-                            ${vehicle.dailyRate}/day
+                            ${category.dailyRate}/day
                           </Badge>
                         </div>
                       </SelectItem>
