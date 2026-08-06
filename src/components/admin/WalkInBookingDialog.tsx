@@ -98,11 +98,9 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
     notes: "",
   });
 
-  // Filter vehicles by selected location
-  const availableVehicles = allVehicles?.filter(v => 
-    v.isAvailable && 
-    (!formData.locationId || v.locationId === formData.locationId || !v.locationId)
-  );
+  // Categories are location-independent; the location only decides which VIN is
+  // assigned later, so show every active category.
+  const availableCategories = allCategories;
 
   // Calculate totals using central pricing utility
   const totalDays = Math.max(1, Math.ceil(
