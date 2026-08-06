@@ -11,6 +11,13 @@ import { differenceInHours } from "date-fns";
 export interface BookingModification {
   bookingId: string;
   newEndAt: string;
+  /** Optional new pickup timestamp (ISO). Omit to keep the stored pickup. */
+  newStartAt?: string;
+  /**
+   * True when only the timestamps move and the billable day count is unchanged —
+   * applied via `update_time_only` so the agreed price stays untouched.
+   */
+  timeOnly?: boolean;
   reason: string;
 }
 
@@ -83,6 +90,7 @@ export function previewModification(
   },
   newEndAt: string,
   extras: ModificationExtras = {},
+  newStartAt?: string,
 ): ModificationPreview {
   const {
     protectionDailyRate = 0,
@@ -93,14 +101,16 @@ export function previewModification(
     differentDropoffFee = 0,
   } = extras;
 
-  const start = new Date(booking.start_at);
+  const originalStart = new Date(booking.start_at);
+  const start = newStartAt ? new Date(newStartAt) : originalStart;
   const newEnd = new Date(newEndAt);
 
   const hoursDiff = differenceInHours(newEnd, start);
   const newDays = Math.max(1, Math.ceil(hoursDiff / 24));
   const oldDays = Math.max(
     1,
-    booking.total_days || Math.ceil(differenceInHours(new Date(booking.end_at), start) / 24),
+    booking.total_days ||
+      Math.ceil(differenceInHours(new Date(booking.end_at), originalStart) / 24),
   );
 
   const ageBand = booking.driver_age_band === "20_24" ? "20_24" as DriverAgeBand : null;
@@ -167,28 +177,31 @@ export function useModifyBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ bookingId, newEndAt, reason }: BookingModification) => {
+    mutationFn: async ({ bookingId, newEndAt, newStartAt, timeOnly, reason }: BookingModification) => {
       const { data, error } = await supabase.functions.invoke("reprice-booking", {
         body: {
           bookingId,
-          operation: "modify",
+          operation: timeOnly ? "update_time_only" : "modify",
           newEndAt,
+          newStartAt: newStartAt || undefined,
           reason,
         },
       });
-
-
 
       if (error) throw new Error(error.message || "Failed to modify booking");
       if (data?.error) throw new Error(data.error);
 
       return {
         bookingId,
+        timeOnly: !!timeOnly,
         oldTotal: data.oldTotal,
         newTotal: data.total,
-        priceDifference:
-          data.deltaTotal != null ? Number(data.deltaTotal) : data.total - data.oldTotal,
-        pricingDrift: data.pricingDrift ?? null,
+        priceDifference: timeOnly
+          ? 0
+          : data.deltaTotal != null
+            ? Number(data.deltaTotal)
+            : data.total - data.oldTotal,
+        pricingDrift: timeOnly ? null : (data.pricingDrift ?? null),
         agreementRegenerated: data.agreementRegenerated ?? null,
         newDays: 0, // Will be refreshed from query invalidation
         oldDays: 0,
@@ -206,10 +219,11 @@ export function useModifyBooking() {
           ? " Agreement could not be regenerated — check it manually."
           : "";
       toast.success(
-        "Booking duration updated",
+        result.timeOnly ? "Rental times updated" : "Booking duration updated",
         {
-          description:
-            (diff > 0
+          description: result.timeOnly
+            ? "Time change only — no price change." + agreementNote
+            : (diff > 0
               ? `Additional charge: $${diff.toFixed(2)} CAD`
               : diff < 0
                 ? `Refund: $${Math.abs(diff).toFixed(2)} CAD`

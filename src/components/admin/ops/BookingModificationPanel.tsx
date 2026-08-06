@@ -27,6 +27,10 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
+import { isWithinBusinessHours } from "@/lib/rental-rules";
+
+const BUSINESS_HOURS_LABEL = "9:00 AM and 8:00 PM";
+
 
 
 interface BookingModificationPanelProps {
@@ -47,6 +51,7 @@ interface BookingModificationPanelProps {
 }
 
 export function BookingModificationPanel({ booking }: BookingModificationPanelProps) {
+  const [newStartDate, setNewStartDate] = useState(booking.start_at);
   const [newEndDate, setNewEndDate] = useState(booking.end_at);
   const [reason, setReason] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -114,15 +119,54 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
     staleTime: 30_000,
   });
 
+  const startChanged = !!newStartDate && newStartDate !== booking.start_at;
+  const endChanged = !!newEndDate && newEndDate !== booking.end_at;
+  const anyChange = startChanged || endChanged;
+
   const preview = useMemo<ModificationPreview | null>(() => {
-    if (!newEndDate || newEndDate === booking.end_at) return null;
-    return previewModification(booking, newEndDate, extras ?? {});
-  }, [newEndDate, booking, extras]);
+    if (!anyChange || !newEndDate) return null;
+    return previewModification(
+      booking,
+      newEndDate,
+      extras ?? {},
+      startChanged ? newStartDate : undefined,
+    );
+  }, [anyChange, startChanged, newStartDate, newEndDate, booking, extras]);
+
+  /** Times must land inside the 9:00 AM – 8:00 PM operating window. */
+  const outOfHours = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return true;
+    return !isWithinBusinessHours(d);
+  };
+
+  const validationError = (() => {
+    if (!anyChange) return null;
+    if (startChanged && outOfHours(newStartDate)) {
+      return `Pickup time must be between ${BUSINESS_HOURS_LABEL}.`;
+    }
+    if (endChanged && outOfHours(newEndDate)) {
+      return `Return time must be between ${BUSINESS_HOURS_LABEL}.`;
+    }
+    if (new Date(newEndDate) <= new Date(newStartDate)) {
+      return "Return must be after pickup.";
+    }
+    return null;
+  })();
+
+  /** No change in billable days → timestamps only, agreed price untouched. */
+  const isTimeOnly = !!preview && preview.addedDays === 0;
 
   const handleQuickExtend = (days: number) => {
     const currentEnd = new Date(booking.end_at);
     const newEnd = addDays(currentEnd, days);
     setNewEndDate(newEnd.toISOString());
+  };
+
+  const handleShiftStart = (hours: number) => {
+    const next = new Date(newStartDate);
+    next.setHours(next.getHours() + hours);
+    setNewStartDate(next.toISOString());
   };
 
   const handleDateTimeChange = (value: string) => {
@@ -132,12 +176,20 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
     }
   };
 
+  const handleStartDateTimeChange = (value: string) => {
+    if (value) {
+      setNewStartDate(new Date(value).toISOString());
+    }
+  };
+
   const handleConfirm = () => {
-    if (!reason.trim()) return;
+    if (!reason.trim() || validationError) return;
     modifyBooking.mutate(
       {
         bookingId: booking.id,
         newEndAt: newEndDate,
+        newStartAt: startChanged ? newStartDate : undefined,
+        timeOnly: isTimeOnly,
         reason: reason.trim(),
       },
       { onSuccess: () => { setConfirmOpen(false); setReason(""); } }
@@ -171,17 +223,18 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Clock className="w-4 h-4" />
-            Modify Rental Duration
+            Modify Rental Dates & Times
           </CardTitle>
           <CardDescription>
-            Extend or shorten the rental period — pricing will be recalculated automatically.
+            Change the pickup or return date/time — pricing is recalculated automatically. Times
+            must fall between {BUSINESS_HOURS_LABEL}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Current dates */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <span className="text-muted-foreground">Pickup</span>
+              <span className="text-muted-foreground">Current Pickup</span>
               <p className="font-medium">{format(new Date(booking.start_at), "MMM d, h:mm a")}</p>
             </div>
             <div>
@@ -191,6 +244,39 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
           </div>
 
           <Separator />
+
+          {/* Pickup date & time */}
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="new-start-date" className="text-sm font-medium">
+                Pickup Date & Time
+              </Label>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleShiftStart(-1)}>
+                  -1h
+                </Button>
+                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleShiftStart(1)}>
+                  +1h
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs h-7"
+                  onClick={() => setNewStartDate(booking.start_at)}
+                  disabled={!startChanged}
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
+            <input
+              id="new-start-date"
+              type="datetime-local"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1.5"
+              value={formatLocalDatetime(newStartDate)}
+              onChange={(e) => handleStartDateTimeChange(e.target.value)}
+            />
+          </div>
 
           {/* Quick extend buttons */}
           <div>
@@ -213,20 +299,39 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
           {/* Custom date picker */}
           <div>
             <Label htmlFor="new-end-date" className="text-sm font-medium">
-              New Return Date & Time
+              Return Date & Time
             </Label>
             <input
               id="new-end-date"
               type="datetime-local"
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1.5"
               value={formatLocalDatetime(newEndDate)}
-              min={formatLocalDatetime(booking.start_at)}
+              min={formatLocalDatetime(newStartDate)}
               onChange={(e) => handleDateTimeChange(e.target.value)}
             />
           </div>
 
+          {validationError && (
+            <p className="text-xs text-destructive">{validationError}</p>
+          )}
+
+          {isTimeOnly && !validationError && (
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+              <p className="font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Time change only — no price change
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Still {preview?.newDays} day{preview?.newDays === 1 ? "" : "s"} billable.
+                {" "}{format(new Date(newStartDate), "MMM d, h:mm a")} →{" "}
+                {format(new Date(newEndDate), "MMM d, h:mm a")}. The customer's agreed price,
+                taxes, protection and extras stay untouched.
+              </p>
+            </div>
+          )}
+
           {/* Preview */}
-          {preview && (
+          {preview && !isTimeOnly && !validationError && (
             <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -357,8 +462,7 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
           {/* Apply button */}
           <Button
             className="w-full"
-            disabled={!preview || preview.addedDays === 0 || modifyBooking.isPending}
-
+            disabled={!anyChange || !!validationError || modifyBooking.isPending}
             onClick={() => setConfirmOpen(true)}
           >
             {modifyBooking.isPending ? "Updating..." : "Apply Changes"}
@@ -375,9 +479,13 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
             <AlertDialogDescription>
               {preview && (
                 <span>
-                  This will change the rental from {preview.originalDays} to {preview.newDays} days.
-                  {priceDiff > 0 && ` Additional charge: $${priceDiff.toFixed(2)} CAD.`}
-                  {priceDiff < 0 && ` Refund: $${Math.abs(priceDiff).toFixed(2)} CAD.`}
+                  Pickup {format(new Date(newStartDate), "MMM d, h:mm a")} → return{" "}
+                  {format(new Date(newEndDate), "MMM d, h:mm a")}.{" "}
+                  {isTimeOnly
+                    ? `Billable days stay at ${preview.newDays} — no price change.`
+                    : `This will change the rental from ${preview.originalDays} to ${preview.newDays} days.`}
+                  {!isTimeOnly && priceDiff > 0 && ` Additional charge: $${priceDiff.toFixed(2)} CAD.`}
+                  {!isTimeOnly && priceDiff < 0 && ` Refund: $${Math.abs(priceDiff).toFixed(2)} CAD.`}
                 </span>
               )}
             </AlertDialogDescription>
