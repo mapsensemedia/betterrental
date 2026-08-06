@@ -169,6 +169,8 @@ export interface InvoicePdfData {
   gstAmount?: number;
   lateFees: number;
   damageCharges: number;
+  /** Any charge on the invoice record not covered by the itemized lines above. */
+  otherCharges?: number;
   grandTotal: number;
   paymentsReceived: number;
   amountDue: number;
