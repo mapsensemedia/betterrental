@@ -69,7 +69,9 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: locations } = useLocations();
-  const { data: allVehicles } = useVehicles();
+  // Categories are the single source of truth across the whole app — the legacy
+  // `vehicles` table must never be used for booking references.
+  const { data: allCategories } = useBrowseCategories();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createdBookingRef = useRef<{ id: string; bookingCode: string } | null>(null);
