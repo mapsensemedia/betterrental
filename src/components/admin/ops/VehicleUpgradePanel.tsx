@@ -92,9 +92,23 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
     setOpen(nextOpen);
   };
 
+  // Preview mirrors the server's upgrade branch exactly (delta on the stored
+  // subtotal, then PST 7% + GST 5% on the new subtotal) so staff never quote a
+  // pre-tax figure to the customer.
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   const feeNum = parseFloat(dailyFee) || 0;
-  const totalUpgradeCharge = feeNum * booking.total_days;
-  const newTotal = booking.total_amount + totalUpgradeCharge;
+  const days = Number(booking.total_days) || 1;
+  const currentUpgradeFee = Number(booking.upgrade_daily_fee) || 0;
+  const currentUpgradeTotal = round2(currentUpgradeFee * days);
+  const totalUpgradeCharge = round2(feeNum * days);
+  const storedSubtotal = round2(Number(booking.subtotal) || 0);
+  const newSubtotal = round2(storedSubtotal - currentUpgradeTotal + totalUpgradeCharge);
+  const newPst = round2(newSubtotal * 0.07);
+  const newGst = round2(newSubtotal * 0.05);
+  const newTotal = round2(newSubtotal + newPst + newGst);
+  const upgradeSubtotalDelta = round2(totalUpgradeCharge - currentUpgradeTotal);
+  const upgradeTaxDelta = round2(upgradeSubtotalDelta * 0.12);
+  const totalDelta = round2(newTotal - Number(booking.total_amount || 0));
 
   // Search for units by VIN or license plate
   const { data: searchResults = [], isLoading: searching } = useQuery({
