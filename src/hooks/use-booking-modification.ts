@@ -90,6 +90,7 @@ export function previewModification(
   },
   newEndAt: string,
   extras: ModificationExtras = {},
+  newStartAt?: string,
 ): ModificationPreview {
   const {
     protectionDailyRate = 0,
@@ -100,7 +101,8 @@ export function previewModification(
     differentDropoffFee = 0,
   } = extras;
 
-  const start = new Date(booking.start_at);
+  const originalStart = new Date(booking.start_at);
+  const start = newStartAt ? new Date(newStartAt) : originalStart;
   const newEnd = new Date(newEndAt);
 
   const hoursDiff = differenceInHours(newEnd, start);
