@@ -57,9 +57,21 @@ ZKFF584Q    928.62 + 51.50 =   980.12  tax 117.61  total 1,097.73
 
 The extension dialog will show the delta it is about to add ("1 extra day — $61.50 + tax = $68.88") so staff can see the amount before confirming, and a warning line if the booking's stored price is below the current rate card.
 
+## Regenerate the extended rental agreement
+
+After a date change is applied, the rental agreement must be reissued so the signed document matches the new return date and corrected totals:
+
+- Regenerate the agreement for **L2J4F7JK** (new return Aug 7) and **ZKFF584Q** (new return Aug 8 local) as part of the data repair.
+- Going forward, a successful `modify` that extends the return date triggers agreement regeneration automatically, using the corrected delta-based totals and carrying over the original Km Out from the pickup inspection.
+- The new agreement version is issued for customer signature and the previous version is retained for the record.
+
+
+
 ## Technical detail
 
 - `supabase/functions/reprice-booking/index.ts` — `operation === "modify"`: compute `computeBookingTotals()` for both the old and the new date range, derive `deltaSubtotal`, apply to `booking.subtotal`; recompute PST 7% / GST 5% on the new subtotal. Keep the existing `preserveExtrasPrices` extras-sync behaviour and the additional-driver fee re-sync. Continue writing `weekend_surcharge` / `duration_discount` / `different_dropoff_fee` from the engine, but as deltas against the stored values so the itemisation stays consistent. Return `pricingDrift` in the response payload.
 - `src/hooks/use-booking-modification.ts` — surface the returned delta and drift in the success toast; `previewModification()` switches to delta-based preview against the stored total instead of a full recompute.
 - `src/components/admin/ops/` extension dialog — render the delta line and the drift warning.
-- Data repair via two `UPDATE` statements plus audit-log inserts.
+- Agreement reissue: call the existing agreement generation path (`rental_agreements` + `src/lib/pdf/rental-agreement-pdf.ts`) after an extension, so `terms_json` reflects the new `end_at`, `total_days` and corrected financial lines.
+- Data repair via two `UPDATE` statements plus audit-log inserts, followed by an agreement regeneration for each booking.
+
