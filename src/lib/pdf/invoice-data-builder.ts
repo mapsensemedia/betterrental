@@ -320,13 +320,14 @@ export async function buildInvoicePdfData(
     taxesTotal: fromCents(dbTaxCents),
     pstAmount: fromCents(pstCents),
     gstAmount: fromCents(gstCents),
-    lateFees: Number(invoice.late_fees || 0),
-    damageCharges: Number(invoice.damage_charges || 0),
-    grandTotal: fromCents(dbTotalCents),
+    lateFees: fromCents(lateFeeCents),
+    damageCharges: fromCents(damageCents),
+    otherCharges: Math.abs(otherChargesCents) >= 1 ? fromCents(otherChargesCents) : undefined,
+    grandTotal: fromCents(grandTotalCents),
     paymentsReceived: totalCredited > 0 ? totalCredited : Number(invoice.payments_received || 0),
     amountDue: totalCredited > 0
-      ? Math.max(0, fromCents(dbTotalCents) - totalCredited)
-      : Number(invoice.amount_due || 0),
+      ? Math.max(0, fromCents(grandTotalCents) - totalCredited)
+      : Number(invoice.amount_due ?? fromCents(grandTotalCents)),
     depositHeld: Number(invoice.deposit_held || 0),
     depositReleased: Number(invoice.deposit_released || 0),
     depositCaptured: Number(invoice.deposit_captured || 0),
