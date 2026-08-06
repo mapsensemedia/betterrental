@@ -47,6 +47,7 @@ interface BookingModificationPanelProps {
 }
 
 export function BookingModificationPanel({ booking }: BookingModificationPanelProps) {
+  const [newStartDate, setNewStartDate] = useState(booking.start_at);
   const [newEndDate, setNewEndDate] = useState(booking.end_at);
   const [reason, setReason] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
