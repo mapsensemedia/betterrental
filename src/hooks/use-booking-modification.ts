@@ -130,7 +130,10 @@ export function useModifyBooking() {
         bookingId,
         oldTotal: data.oldTotal,
         newTotal: data.total,
-        priceDifference: data.total - data.oldTotal,
+        priceDifference:
+          data.deltaTotal != null ? Number(data.deltaTotal) : data.total - data.oldTotal,
+        pricingDrift: data.pricingDrift ?? null,
+        agreementRegenerated: data.agreementRegenerated ?? null,
         newDays: 0, // Will be refreshed from query invalidation
         oldDays: 0,
       };
@@ -139,12 +142,33 @@ export function useModifyBooking() {
       queryClient.invalidateQueries({ queryKey: ["booking", result.bookingId] });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["booking-activity-timeline", result.bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["rental-agreement", result.bookingId] });
       const diff = result.priceDifference;
+      const agreementNote = result.agreementRegenerated
+        ? " Rental agreement regenerated."
+        : result.agreementRegenerated === false
+          ? " Agreement could not be regenerated — check it manually."
+          : "";
       toast.success(
         "Booking duration updated",
-        { description: diff > 0 ? `Additional charge: $${diff.toFixed(2)} CAD` : diff < 0 ? `Refund: $${Math.abs(diff).toFixed(2)} CAD` : "No price change" }
+        {
+          description:
+            (diff > 0
+              ? `Additional charge: $${diff.toFixed(2)} CAD`
+              : diff < 0
+                ? `Refund: $${Math.abs(diff).toFixed(2)} CAD`
+                : "No price change") + agreementNote,
+        }
       );
+      if (result.pricingDrift) {
+        const d = Number(result.pricingDrift.difference || 0);
+        toast.warning("Agreed price differs from current rate card", {
+          description: `Stored price is $${Math.abs(d).toFixed(2)} ${d < 0 ? "above" : "below"} today's rate card. Only the duration difference was charged.`,
+          duration: 10000,
+        });
+      }
     },
+
     onError: (err: Error) => {
       toast.error(err.message || "Failed to modify booking. Please try again.");
     },
