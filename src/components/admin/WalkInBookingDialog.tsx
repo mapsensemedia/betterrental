@@ -184,7 +184,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
       return;
     }
     if (!formData.categoryId) {
-      toast.error("Please select a vehicle");
+      toast.error("Please select a vehicle category");
       return;
     }
     if (!formData.dailyRate || formData.dailyRate <= 0) {
