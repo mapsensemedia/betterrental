@@ -45,7 +45,7 @@ function buildCategoryData(
   }>();
 
   (units || []).forEach((unit: any) => {
-    if (!unit.category_id || !unit.vehicle) return;
+    if (!unit.category_id) return;
 
     const current = categoryMap.get(unit.category_id) || {
       totalCount: 0,
@@ -59,22 +59,25 @@ function buildCategoryData(
 
     current.totalCount++;
 
-    // Check if this unit is available
+    // A unit only counts as available when it is idle and not booked in the window
     const isBooked = bookedUnitIds.has(unit.id);
-    const isVehicleAvailable = unit.vehicle.is_available !== false;
-    if (!isBooked && isVehicleAvailable) {
+    const isVehicleAvailable = unit.vehicle?.is_available !== false;
+    const isIdle = String(unit.status || "").toLowerCase() === "available";
+    if (isIdle && !isBooked && isVehicleAvailable) {
       current.availableCount++;
     }
 
+
     // Track lowest rate
-    const rate = Number(unit.vehicle.daily_rate || 0);
+    const rate = Number(unit.vehicle?.daily_rate || 0);
     if (rate > 0 && rate < current.lowestRate) {
       current.lowestRate = rate;
-      current.imageUrl = unit.vehicle.image_url;
-      current.seats = unit.vehicle.seats || 5;
-      current.fuelType = unit.vehicle.fuel_type || "Petrol";
-      current.transmission = unit.vehicle.transmission || "Automatic";
+      current.imageUrl = unit.vehicle?.image_url ?? null;
+      current.seats = unit.vehicle?.seats || 5;
+      current.fuelType = unit.vehicle?.fuel_type || "Petrol";
+      current.transmission = unit.vehicle?.transmission || "Automatic";
     }
+
 
     categoryMap.set(unit.category_id, current);
   });
@@ -83,14 +86,32 @@ function buildCategoryData(
   return categories
     .map((cat): BrowseCategory | null => {
       const data = categoryMap.get(cat.id);
-      if (!data || data.totalCount === 0) return null;
+      const catRate = Number(cat.daily_rate || 0);
+
+      // Categories with no units still need to be bookable (overbooking policy),
+      // so fall back to the category's own rate card.
+      if (!data || data.totalCount === 0) {
+        if (cat.is_active === false) return null;
+        return {
+          id: cat.id,
+          name: cat.name,
+          description: cat.description,
+          dailyRate: catRate,
+          imageUrl: cat.image_url ?? null,
+          availableCount: 0,
+          totalCount: 0,
+          seats: cat.seats ?? 5,
+          fuelType: cat.fuel_type ?? "Petrol",
+          transmission: cat.transmission ?? "Automatic",
+        };
+      }
 
       return {
         id: cat.id,
         name: cat.name,
         description: cat.description,
-        dailyRate: data.lowestRate === Infinity ? 0 : data.lowestRate,
-        imageUrl: data.imageUrl,
+        dailyRate: data.lowestRate === Infinity ? catRate : data.lowestRate,
+        imageUrl: data.imageUrl ?? cat.image_url ?? null,
         availableCount: data.availableCount,
         totalCount: data.totalCount,
         seats: data.seats,
@@ -99,6 +120,7 @@ function buildCategoryData(
       };
     })
     .filter((c): c is BrowseCategory => c !== null);
+
 }
 
 export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
@@ -109,7 +131,9 @@ export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
       const { data: categories, error: catError } = await supabase
         .from("vehicle_categories")
         .select("*")
+        .eq("is_active", true)
         .order("name");
+
 
       if (catError) throw catError;
       if (!categories?.length) return [];
@@ -131,7 +155,7 @@ export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
             is_available
           )
         `)
-        .eq("status", "active");
+        .not("status", "in", '("retired","inactive","sold","out_of_service")');
 
       if (unitError) throw unitError;
 
