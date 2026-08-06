@@ -51,10 +51,70 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
 
   const canModify = ["pending", "confirmed", "active"].includes(booking.status);
 
+  // The preview must know about protection, add-ons and additional drivers —
+  // the server charges for all of them, so pricing the car alone under-quotes.
+  const { data: extras } = useQuery({
+    queryKey: ["booking-modification-extras", booking.id],
+    queryFn: async () => {
+      const [addOnsRes, driversRes, settingsRes, categoryRes] = await Promise.all([
+        supabase
+          .from("booking_add_ons")
+          .select("quantity, add_on:add_ons(daily_rate, one_time_fee)")
+          .eq("booking_id", booking.id),
+        supabase
+          .from("booking_additional_drivers")
+          .select("driver_age_band")
+          .eq("booking_id", booking.id),
+        supabase
+          .from("system_settings")
+          .select("key, value")
+          .in("key", [
+            "additional_driver_daily_rate_standard",
+            "additional_driver_daily_rate_young",
+          ]),
+        supabase.from("vehicle_categories").select("name").eq("id", (booking as any).vehicle_id ?? "").maybeSingle(),
+      ]);
+
+      const settings = new Map(
+        ((settingsRes.data ?? []) as any[]).map((r) => [r.key, Number(r.value)]),
+      );
+      const standardRate = Number(settings.get("additional_driver_daily_rate_standard")) || 14.99;
+      const youngRate = Number(settings.get("additional_driver_daily_rate_young")) || 19.99;
+
+      const addOnsPerDay = ((addOnsRes.data ?? []) as any[]).reduce((sum, r) => {
+        const qty = Number(r.quantity) || 1;
+        return sum + Number(r.add_on?.daily_rate || 0) * qty;
+      }, 0);
+      const addOnsOneTime = ((addOnsRes.data ?? []) as any[]).reduce((sum, r) => {
+        const qty = Number(r.quantity) || 1;
+        return sum + Number(r.add_on?.one_time_fee || 0) * qty;
+      }, 0);
+      const additionalDriversPerDay = ((driversRes.data ?? []) as any[]).reduce(
+        (sum, d) => sum + (d.driver_age_band === "20_24" ? youngRate : standardRate),
+        0,
+      );
+
+      const plan = booking.protection_plan && booking.protection_plan !== "none"
+        ? getProtectionRateForCategory(booking.protection_plan, categoryRes.data?.name || "")
+        : null;
+
+      return {
+        protectionDailyRate: plan?.rate ?? 0,
+        addOnsPerDay,
+        addOnsOneTime,
+        additionalDriversPerDay,
+        deliveryFee: Number((booking as any).delivery_fee || 0),
+        differentDropoffFee: Number((booking as any).different_dropoff_fee || 0),
+      } satisfies ModificationExtras;
+    },
+    enabled: canModify,
+    staleTime: 30_000,
+  });
+
   const preview = useMemo<ModificationPreview | null>(() => {
     if (!newEndDate || newEndDate === booking.end_at) return null;
-    return previewModification(booking, newEndDate);
-  }, [newEndDate, booking]);
+    return previewModification(booking, newEndDate, extras ?? {});
+  }, [newEndDate, booking, extras]);
 
   const handleQuickExtend = (days: number) => {
     const currentEnd = new Date(booking.end_at);
