@@ -251,6 +251,56 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
 
               <Separator />
 
+              {/* Itemized before / after — includes protection, extras and drivers */}
+              <div className="text-xs">
+                <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-1">
+                  <span className="text-muted-foreground font-medium">Item</span>
+                  <span className="text-muted-foreground font-medium text-right w-16">Before</span>
+                  <span className="text-muted-foreground font-medium text-right w-16">After</span>
+                  {([
+                    ["Vehicle", "vehicle"],
+                    ["Protection", "protection"],
+                    ["Add-ons", "addOns"],
+                    ["Additional drivers", "additionalDrivers"],
+                    ["Young renter fee", "youngRenterFee"],
+                    ["PVRT + ACSRCH", "regulatoryFees"],
+                  ] as const).map(([label, key]) => {
+                    const b = preview.before[key];
+                    const a = preview.after[key];
+                    if (b === 0 && a === 0) return null;
+                    return (
+                      <div key={key} className="contents">
+                        <span>{label}</span>
+                        <span className="text-right w-16 text-muted-foreground">${b.toFixed(2)}</span>
+                        <span className="text-right w-16">${a.toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
+                  <div className="contents font-medium">
+                    <span>Subtotal</span>
+                    <span className="text-right w-16 text-muted-foreground">${preview.before.subtotal.toFixed(2)}</span>
+                    <span className="text-right w-16">${preview.after.subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="contents">
+                    <span>Tax (PST 7% + GST 5%)</span>
+                    <span className="text-right w-16 text-muted-foreground">${preview.before.tax.toFixed(2)}</span>
+                    <span className="text-right w-16">${preview.after.tax.toFixed(2)}</span>
+                  </div>
+                  <div className="contents font-semibold">
+                    <span>Total (incl. tax)</span>
+                    <span className="text-right w-16 text-muted-foreground">${preview.originalTotal.toFixed(2)}</span>
+                    <span className="text-right w-16">${preview.newTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+                <p className="mt-1.5 text-[10px] text-muted-foreground">
+                  Includes protection, add-ons and additional drivers — reconciled against the
+                  server after applying.
+                </p>
+              </div>
+
+              <Separator />
+
+
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Price Difference</span>
                 <Badge
