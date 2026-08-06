@@ -115,15 +115,54 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
     staleTime: 30_000,
   });
 
+  const startChanged = !!newStartDate && newStartDate !== booking.start_at;
+  const endChanged = !!newEndDate && newEndDate !== booking.end_at;
+  const anyChange = startChanged || endChanged;
+
   const preview = useMemo<ModificationPreview | null>(() => {
-    if (!newEndDate || newEndDate === booking.end_at) return null;
-    return previewModification(booking, newEndDate, extras ?? {});
-  }, [newEndDate, booking, extras]);
+    if (!anyChange || !newEndDate) return null;
+    return previewModification(
+      booking,
+      newEndDate,
+      extras ?? {},
+      startChanged ? newStartDate : undefined,
+    );
+  }, [anyChange, startChanged, newStartDate, newEndDate, booking, extras]);
+
+  /** Times must land inside the 9:00 AM – 8:00 PM operating window. */
+  const outOfHours = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return true;
+    return !isWithinBusinessHours(d);
+  };
+
+  const validationError = (() => {
+    if (!anyChange) return null;
+    if (startChanged && outOfHours(newStartDate)) {
+      return `Pickup time must be between ${BUSINESS_HOURS_LABEL}.`;
+    }
+    if (endChanged && outOfHours(newEndDate)) {
+      return `Return time must be between ${BUSINESS_HOURS_LABEL}.`;
+    }
+    if (new Date(newEndDate) <= new Date(newStartDate)) {
+      return "Return must be after pickup.";
+    }
+    return null;
+  })();
+
+  /** No change in billable days → timestamps only, agreed price untouched. */
+  const isTimeOnly = !!preview && preview.addedDays === 0;
 
   const handleQuickExtend = (days: number) => {
     const currentEnd = new Date(booking.end_at);
     const newEnd = addDays(currentEnd, days);
     setNewEndDate(newEnd.toISOString());
+  };
+
+  const handleShiftStart = (hours: number) => {
+    const next = new Date(newStartDate);
+    next.setHours(next.getHours() + hours);
+    setNewStartDate(next.toISOString());
   };
 
   const handleDateTimeChange = (value: string) => {
@@ -133,12 +172,20 @@ export function BookingModificationPanel({ booking }: BookingModificationPanelPr
     }
   };
 
+  const handleStartDateTimeChange = (value: string) => {
+    if (value) {
+      setNewStartDate(new Date(value).toISOString());
+    }
+  };
+
   const handleConfirm = () => {
-    if (!reason.trim()) return;
+    if (!reason.trim() || validationError) return;
     modifyBooking.mutate(
       {
         bookingId: booking.id,
         newEndAt: newEndDate,
+        newStartAt: startChanged ? newStartDate : undefined,
+        timeOnly: isTimeOnly,
         reason: reason.trim(),
       },
       { onSuccess: () => { setConfirmOpen(false); setReason(""); } }
