@@ -134,9 +134,18 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "Return date must be after pickup date" }, 400, corsHeaders);
       }
 
-      // If daily rate override provided, use it; otherwise preserve booking's stored rate
-      const overrideRate = newDailyRate ? Number(newDailyRate) : null;
-      const effectiveDailyRate = overrideRate ?? Number(booking.daily_rate);
+      // A rate override is only a real override when it DIFFERS from the stored
+      // (customer-agreed) rate. Screens pre-fill the rate input with the booking's
+      // own rate; treating that as an override would rebuild the whole booking
+      // from today's rate card and silently bill the drift as "extension".
+      const requestedRate = newDailyRate ? Number(newDailyRate) : null;
+      const storedDailyRate = Number(booking.daily_rate) || 0;
+      const overrideRate =
+        requestedRate !== null && Number.isFinite(requestedRate) && requestedRate > 0 &&
+        roundCents(requestedRate) !== roundCents(storedDailyRate)
+          ? requestedRate
+          : null;
+      const effectiveDailyRate = overrideRate ?? storedDailyRate;
 
       // When preserveExtrasPrices is set (mid-rental upsell), compute the engine
       // WITHOUT add-ons/drivers and then add the actual persisted row sums.
@@ -177,6 +186,11 @@ Deno.serve(async (req) => {
       let finalTaxAmount: number;
       let finalTotal: number;
       let deltaSubtotal = 0;
+      // Itemization fields must move with the SAME delta as the subtotal, otherwise
+      // the stored breakdown (weekend surcharge / duration discount) contradicts
+      // the money and screens show inflated vehicle lines.
+      let finalWeekendSurcharge = serverTotals.weekendSurcharge;
+      let finalDurationDiscount = serverTotals.durationDiscount;
 
       if (overrideRate !== null) {
         // Deliberate rate change: the vehicle line is intentionally reset from the
@@ -210,6 +224,24 @@ Deno.serve(async (req) => {
         const newBase = roundCents(Math.max(baseStored + deltaSubtotal, 0));
         finalSubtotal = roundCents(newBase + roundCents(upgradeFee * serverTotals.days));
 
+        // Carry the stored itemization forward by the duration delta only. A
+        // retired discount that is baked into the agreed subtotal stays on the
+        // record; it is never silently zeroed out (or re-derived) here.
+        finalWeekendSurcharge = roundCents(
+          Math.max(
+            (Number(booking.weekend_surcharge) || 0) +
+              roundCents(serverTotals.weekendSurcharge - engineOld.weekendSurcharge),
+            0,
+          ),
+        );
+        finalDurationDiscount = roundCents(
+          Math.max(
+            (Number(booking.duration_discount) || 0) +
+              roundCents(serverTotals.durationDiscount - engineOld.durationDiscount),
+            0,
+          ),
+        );
+
         // Drift is reported, never applied.
         pricingDrift = await detectPricingDrift(
           supabase,
@@ -242,8 +274,8 @@ Deno.serve(async (req) => {
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,
         young_driver_fee: serverTotals.youngDriverFee,
-        weekend_surcharge: serverTotals.weekendSurcharge,
-        duration_discount: serverTotals.durationDiscount,
+        weekend_surcharge: finalWeekendSurcharge,
+        duration_discount: finalDurationDiscount,
         different_dropoff_fee: serverTotals.differentDropoffFee,
       };
       deltaInfo = {

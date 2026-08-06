@@ -61,6 +61,7 @@ export function RateLocationPanel({ booking }: RateLocationPanelProps) {
       {
         bookingId: booking.id,
         dailyRate: rateChanged ? parsedRate : undefined,
+        currentDailyRate: booking.daily_rate,
         locationId: locationChanged ? locationId : undefined,
         reason: reason.trim(),
       },

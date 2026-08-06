@@ -18,6 +18,8 @@ export interface BookingEditPayload {
   endAt?: string;
   locationId?: string;
   dailyRate?: number;
+  /** Stored rate — used to drop a rate that has not actually changed. */
+  currentDailyRate?: number;
   reason: string;
   timeOnly?: boolean;
 }
@@ -103,14 +105,22 @@ export function useEditBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ bookingId, startAt, endAt, locationId, dailyRate, reason, timeOnly }: BookingEditPayload) => {
+    mutationFn: async ({ bookingId, startAt, endAt, locationId, dailyRate, currentDailyRate, reason, timeOnly }: BookingEditPayload) => {
+      // Only forward a rate that DIFFERS from the stored one. Sending the booking's
+      // own rate back makes the server treat it as a deliberate override and
+      // rebuild the whole booking from today's rate card, billing the drift.
+      const rateChanged =
+        dailyRate != null &&
+        Number.isFinite(dailyRate) &&
+        dailyRate > 0 &&
+        (currentDailyRate == null || Math.round(dailyRate * 100) !== Math.round(currentDailyRate * 100));
       const { data, error } = await supabase.functions.invoke("reprice-booking", {
         body: {
           bookingId,
           operation: timeOnly ? "update_time_only" : "modify",
           newStartAt: startAt || undefined,
           newEndAt: endAt || undefined,
-          newDailyRate: timeOnly ? undefined : (dailyRate || undefined),
+          newDailyRate: timeOnly || !rateChanged ? undefined : dailyRate,
           newLocationId: timeOnly ? undefined : (locationId || undefined),
           reason,
         },
