@@ -689,50 +689,31 @@ export function BookingOpsDrawer({ bookingId, open, onClose }: BookingOpsDrawerP
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* Counter Upsell */}
-                  {(booking.status === "pending" || booking.status === "confirmed" || booking.status === "active") && (
-                    <AccordionItem value="upsell" className="border rounded-lg">
-                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <ShoppingCart className="w-4 h-4" />
-                          Counter Upsell
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days} />
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-
-                  {/* Edit Booking Details */}
-                  <AccordionItem value="edit-booking" className="border rounded-lg">
+                  {/* Modify Rental — one box for dates, vehicle, protection, extras, rate */}
+                  <AccordionItem value="modify" className="border rounded-lg">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <CalendarClock className="w-4 h-4" />
-                        {(booking.status === "pending" || booking.status === "confirmed") 
-                          ? "Edit Booking Details" 
-                          : "Booking Details"}
+                        Modify Rental
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <ModifyRentalPanel booking={booking} />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Contact details & notes */}
+                  <AccordionItem value="edit-booking" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <ShoppingCart className="w-4 h-4" />
+                        Contact Details & Notes
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
                       <BookingEditPanel booking={booking} />
                     </AccordionContent>
                   </AccordionItem>
-
-                  {/* Modify Rental Duration (for active bookings) */}
-                  {booking.status === "active" && (
-                    <AccordionItem value="modify" className="border rounded-lg">
-                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <CalendarClock className="w-4 h-4" />
-                          Extend Rental Duration
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <BookingModificationPanel booking={booking} />
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
                 </Accordion>
               </div>
             ) : (
