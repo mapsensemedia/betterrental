@@ -91,6 +91,10 @@ Deno.serve(async (req) => {
     // Set when the stored (agreed) price differs from today's canonical price list.
     let pricingDrift: PricingDrift | null = null;
 
+    // Delta actually applied by a modify (extension / shortening) operation.
+    let deltaInfo: { deltaSubtotal: number; deltaTotal: number } | null = null;
+
+
     // Set when a modify operation pushes the return date later (a rental extension)
     let extensionInfo: {
       previousEndAt: string;
