@@ -470,23 +470,23 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Vehicle *</Label>
+                <Label>Vehicle Category *</Label>
                 <Select
                   value={formData.categoryId}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
                   disabled={!formData.locationId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={formData.locationId ? "Select vehicle" : "Select location first"} />
+                    <SelectValue placeholder={formData.locationId ? "Select category" : "Select location first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableCategories?.map((vehicle) => (
-                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                    {availableCategories?.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
                         <div className="flex items-center gap-2">
                           <Car className="h-3 w-3" />
-                          {vehicle.year} {vehicle.make} {vehicle.model}
+                          {category.name}
                           <Badge variant="secondary" className="ml-1 text-xs">
-                            ${vehicle.dailyRate}/day
+                            ${category.dailyRate}/day
                           </Badge>
                         </div>
                       </SelectItem>
