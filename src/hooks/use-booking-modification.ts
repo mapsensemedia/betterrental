@@ -11,6 +11,13 @@ import { differenceInHours } from "date-fns";
 export interface BookingModification {
   bookingId: string;
   newEndAt: string;
+  /** Optional new pickup timestamp (ISO). Omit to keep the stored pickup. */
+  newStartAt?: string;
+  /**
+   * True when only the timestamps move and the billable day count is unchanged —
+   * applied via `update_time_only` so the agreed price stays untouched.
+   */
+  timeOnly?: boolean;
   reason: string;
 }
 
