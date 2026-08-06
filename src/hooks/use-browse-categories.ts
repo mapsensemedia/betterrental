@@ -152,7 +152,7 @@ export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
             is_available
           )
         `)
-        .eq("status", "active");
+        .not("status", "in", '("retired","inactive","sold","out_of_service")');
 
       if (unitError) throw unitError;
 
