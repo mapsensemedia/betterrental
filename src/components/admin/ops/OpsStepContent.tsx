@@ -42,11 +42,9 @@ import { StepIntake } from "./steps/StepIntake";
 import { StepReadyLine } from "./steps/StepReadyLine";
 import { StepDispatch } from "./steps/StepDispatch";
 import { OpsBackupActivation } from "./steps/OpsBackupActivation";
-import { CounterUpsellPanel } from "./CounterUpsellPanel";
 import { BookingEditPanel } from "./BookingEditPanel";
 import { ModifyRentalPanel } from "./ModifyRentalPanel";
 import { UnifiedVehicleManager } from "../UnifiedVehicleManager";
-import { VehicleUpgradePanel } from "./VehicleUpgradePanel";
 
 type BookingStatus = "draft" | "pending" | "confirmed" | "active" | "completed" | "cancelled";
 
