@@ -365,6 +365,12 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
     y += FIN_ROW_H;
   }
 
+  // Any remaining charge recorded on the invoice but not itemized above.
+  if (data.otherCharges != null && Math.abs(data.otherCharges) >= 0.01) {
+    finRow(pdf, "Other Charges", fmt(data.otherCharges), y);
+    y += FIN_ROW_H;
+  }
+
   // Grand total box
   y = checkPageBreak(pdf, y, 20);
   pdf.setFillColor(240, 240, 240);
