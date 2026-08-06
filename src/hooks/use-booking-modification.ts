@@ -177,28 +177,31 @@ export function useModifyBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ bookingId, newEndAt, reason }: BookingModification) => {
+    mutationFn: async ({ bookingId, newEndAt, newStartAt, timeOnly, reason }: BookingModification) => {
       const { data, error } = await supabase.functions.invoke("reprice-booking", {
         body: {
           bookingId,
-          operation: "modify",
+          operation: timeOnly ? "update_time_only" : "modify",
           newEndAt,
+          newStartAt: newStartAt || undefined,
           reason,
         },
       });
-
-
 
       if (error) throw new Error(error.message || "Failed to modify booking");
       if (data?.error) throw new Error(data.error);
 
       return {
         bookingId,
+        timeOnly: !!timeOnly,
         oldTotal: data.oldTotal,
         newTotal: data.total,
-        priceDifference:
-          data.deltaTotal != null ? Number(data.deltaTotal) : data.total - data.oldTotal,
-        pricingDrift: data.pricingDrift ?? null,
+        priceDifference: timeOnly
+          ? 0
+          : data.deltaTotal != null
+            ? Number(data.deltaTotal)
+            : data.total - data.oldTotal,
+        pricingDrift: timeOnly ? null : (data.pricingDrift ?? null),
         agreementRegenerated: data.agreementRegenerated ?? null,
         newDays: 0, // Will be refreshed from query invalidation
         oldDays: 0,
