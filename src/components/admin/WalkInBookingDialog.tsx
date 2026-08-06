@@ -31,7 +31,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocations } from "@/hooks/use-locations";
-import { useVehicles } from "@/hooks/use-vehicles";
+import { useBrowseCategories } from "@/hooks/use-browse-categories";
 import { cn } from "@/lib/utils";
 import { 
   Loader2, 
