@@ -165,15 +165,59 @@ Deno.serve(async (req) => {
         extrasRowsTotal = roundCents(addOnSum + driverSum);
       }
 
-      // If upgrade fee exists, add it to the canonical totals
-      let finalSubtotal = roundCents(serverTotals.subtotal + extrasRowsTotal);
-      let finalTaxAmount = preserveExtrasPrices
-        ? roundCents(finalSubtotal * 0.07) + roundCents(finalSubtotal * 0.05)
-        : serverTotals.taxAmount;
-      let finalTotal = roundCents(finalSubtotal + finalTaxAmount);
-      if (upgradeFee > 0) {
-        const upgradeTotal = roundCents(upgradeFee * serverTotals.days);
-        finalSubtotal = roundCents(finalSubtotal + upgradeTotal);
+      const oldDays = Number(booking.total_days) || 0;
+      const storedSubtotal = roundCents(Number(booking.subtotal) || 0);
+      const storedUpgradeTotal = roundCents(upgradeFee * (oldDays || serverTotals.days));
+
+      let finalSubtotal: number;
+      let finalTaxAmount: number;
+      let finalTotal: number;
+      let deltaSubtotal = 0;
+
+      if (overrideRate !== null) {
+        // Deliberate rate change: the vehicle line is intentionally reset from the
+        // rate card (existing behaviour).
+        finalSubtotal = roundCents(serverTotals.subtotal + extrasRowsTotal);
+        if (upgradeFee > 0) {
+          finalSubtotal = roundCents(finalSubtotal + roundCents(upgradeFee * serverTotals.days));
+        }
+        deltaSubtotal = roundCents(finalSubtotal - storedSubtotal);
+      } else {
+        // DELTA ONLY: never rebuild the whole booking from today's rate card.
+        // Long-term / negotiated prices below the current card would otherwise be
+        // silently re-priced and absorbed into the "extension" charge.
+        const engineOld = await computeBookingTotals({
+          vehicleId: booking.vehicle_id,
+          startAt: booking.start_at,
+          endAt: booking.end_at,
+          protectionPlan: booking.protection_plan || undefined,
+          addOns: preserveExtrasPrices ? undefined : (addOnInputs.length > 0 ? addOnInputs : undefined),
+          additionalDrivers: preserveExtrasPrices ? undefined : (driverInputs.length > 0 ? driverInputs : undefined),
+          driverAgeBand: booking.driver_age_band || undefined,
+          deliveryFee,
+          locationId: booking.location_id,
+          returnLocationId: booking.return_location_id,
+          overrideDailyRate: effectiveDailyRate,
+        });
+
+        deltaSubtotal = roundCents(serverTotals.subtotal - engineOld.subtotal);
+
+        const baseStored = roundCents(storedSubtotal - storedUpgradeTotal);
+        const newBase = roundCents(Math.max(baseStored + deltaSubtotal, 0));
+        finalSubtotal = roundCents(newBase + roundCents(upgradeFee * serverTotals.days));
+
+        // Drift is reported, never applied.
+        pricingDrift = await detectPricingDrift(
+          supabase,
+          booking,
+          addOnInputs,
+          driverInputs,
+          deliveryFee,
+          baseStored,
+        );
+      }
+
+      {
         const pst = roundCents(finalSubtotal * 0.07);
         const gst = roundCents(finalSubtotal * 0.05);
         finalTaxAmount = roundCents(pst + gst);
@@ -198,9 +242,14 @@ Deno.serve(async (req) => {
         duration_discount: serverTotals.durationDiscount,
         different_dropoff_fee: serverTotals.differentDropoffFee,
       };
+      deltaInfo = {
+        deltaSubtotal,
+        deltaTotal: roundCents(finalTotal - (Number(booking.total_amount) || 0)),
+      };
       if (overrideRate !== null) {
         updateData.daily_rate = overrideRate;
       }
+
       // Handle location change
       if (newLocationId && newLocationId !== booking.location_id) {
         updateData.location_id = newLocationId;
