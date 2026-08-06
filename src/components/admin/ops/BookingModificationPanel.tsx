@@ -22,8 +22,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Calendar, Clock, ArrowRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, addDays } from "date-fns";
-import { previewModification, useModifyBooking, type ModificationPreview } from "@/hooks/use-booking-modification";
+import { previewModification, useModifyBooking, type ModificationPreview, type ModificationExtras } from "@/hooks/use-booking-modification";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { getProtectionRateForCategory } from "@/lib/protection-groups";
 
 
 interface BookingModificationPanelProps {
