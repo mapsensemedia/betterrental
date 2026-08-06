@@ -128,7 +128,9 @@ export function useBrowseCategories(params?: UseBrowseCategoriesParams) {
       const { data: categories, error: catError } = await supabase
         .from("vehicle_categories")
         .select("*")
+        .eq("is_active", true)
         .order("name");
+
 
       if (catError) throw catError;
       if (!categories?.length) return [];
