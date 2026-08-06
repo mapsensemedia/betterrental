@@ -44,7 +44,7 @@ import { StepDispatch } from "./steps/StepDispatch";
 import { OpsBackupActivation } from "./steps/OpsBackupActivation";
 import { CounterUpsellPanel } from "./CounterUpsellPanel";
 import { BookingEditPanel } from "./BookingEditPanel";
-import { ProtectionChangePanel } from "./ProtectionChangePanel";
+import { ModifyRentalPanel } from "./ModifyRentalPanel";
 import { UnifiedVehicleManager } from "../UnifiedVehicleManager";
 import { VehicleUpgradePanel } from "./VehicleUpgradePanel";
 
@@ -190,25 +190,17 @@ export function OpsStepContent({
                 onStepComplete={onCompleteStep}
                 vehicleName={booking.vehicle_categories?.name || "Vehicle"}
               />
-              {/* Edit Booking Details — available for non-terminal bookings */}
+              {/* Modify Rental — dates, vehicle, protection, extras, rate */}
               {!isBookingCompleted && !isBookingCancelled && (
-                <BookingEditPanel booking={booking} />
+                <ModifyRentalPanel booking={booking as any} />
               )}
               {/* Vehicle & Category Management — unified component */}
               {!isBookingCompleted && !isBookingCancelled && (
                 <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
               )}
-              {/* Protection Plan Change */}
+              {/* Contact details & notes */}
               {!isBookingCompleted && !isBookingCancelled && (
-                <ProtectionChangePanel bookingId={booking.id} booking={booking} categoryName={booking.vehicles?.category} />
-              )}
-               {/* Counter Upsell */}
-              {!isBookingCompleted && !isBookingCancelled && (
-                <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
-              )}
-              {/* Vehicle Upgrade Fee */}
-              {!isBookingCompleted && !isBookingCancelled && (
-                <VehicleUpgradePanel booking={booking} />
+                <BookingEditPanel booking={booking} />
               )}
             </>
           )}
@@ -297,10 +289,8 @@ export function OpsStepContent({
               {!isBookingCompleted && !isBookingCancelled && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-sm font-medium text-muted-foreground">Quick Actions</h3>
-                  <ProtectionChangePanel bookingId={booking.id} booking={booking} categoryName={booking.vehicles?.category} />
-                  <CounterUpsellPanel bookingId={booking.id} rentalDays={booking.total_days || 1} />
+                  <ModifyRentalPanel booking={booking as any} />
                   <UnifiedVehicleManager bookingId={booking.id} booking={booking} />
-                  <VehicleUpgradePanel booking={booking} />
                   <BookingEditPanel booking={booking} />
                 </div>
               )}
