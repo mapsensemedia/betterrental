@@ -186,6 +186,11 @@ Deno.serve(async (req) => {
       let finalTaxAmount: number;
       let finalTotal: number;
       let deltaSubtotal = 0;
+      // Itemization fields must move with the SAME delta as the subtotal, otherwise
+      // the stored breakdown (weekend surcharge / duration discount) contradicts
+      // the money and screens show inflated vehicle lines.
+      let finalWeekendSurcharge = serverTotals.weekendSurcharge;
+      let finalDurationDiscount = serverTotals.durationDiscount;
 
       if (overrideRate !== null) {
         // Deliberate rate change: the vehicle line is intentionally reset from the
@@ -219,6 +224,24 @@ Deno.serve(async (req) => {
         const newBase = roundCents(Math.max(baseStored + deltaSubtotal, 0));
         finalSubtotal = roundCents(newBase + roundCents(upgradeFee * serverTotals.days));
 
+        // Carry the stored itemization forward by the duration delta only. A
+        // retired discount that is baked into the agreed subtotal stays on the
+        // record; it is never silently zeroed out (or re-derived) here.
+        finalWeekendSurcharge = roundCents(
+          Math.max(
+            (Number(booking.weekend_surcharge) || 0) +
+              roundCents(serverTotals.weekendSurcharge - engineOld.weekendSurcharge),
+            0,
+          ),
+        );
+        finalDurationDiscount = roundCents(
+          Math.max(
+            (Number(booking.duration_discount) || 0) +
+              roundCents(serverTotals.durationDiscount - engineOld.durationDiscount),
+            0,
+          ),
+        );
+
         // Drift is reported, never applied.
         pricingDrift = await detectPricingDrift(
           supabase,
@@ -251,8 +274,8 @@ Deno.serve(async (req) => {
         tax_amount: finalTaxAmount,
         total_amount: finalTotal,
         young_driver_fee: serverTotals.youngDriverFee,
-        weekend_surcharge: serverTotals.weekendSurcharge,
-        duration_discount: serverTotals.durationDiscount,
+        weekend_surcharge: finalWeekendSurcharge,
+        duration_discount: finalDurationDiscount,
         different_dropoff_fee: serverTotals.differentDropoffFee,
       };
       deltaInfo = {
