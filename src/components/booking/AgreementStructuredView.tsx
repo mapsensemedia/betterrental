@@ -47,6 +47,7 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
 
   const bookingCode = (t as any).bookingCode || bookingId.slice(0, 8).toUpperCase();
   const p = t.policies;
+  const unlimitedKm = isUnlimitedKm(t.rental.totalDays);
   const kmAllowance =
     Number((p as any)?.kmAllowance) > 0
       ? Number((p as any).kmAllowance)
