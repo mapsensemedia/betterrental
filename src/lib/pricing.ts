@@ -264,7 +264,7 @@ export const VERIFICATION_STATUS_STYLES: Record<string, { label: string; classNa
 export const BOOKING_INCLUDED_FEATURES = [
   "Third party insurance",
   "24/7 Roadside Assistance Hotline",
-  "Generous km allowance — 4,800 km/month, prorated",
+  "Unlimited kilometres on rentals up to 7 days",
   "Extended Roadside Protection",
   "Booking option: Best price - Pay now, cancel and rebook for a fee",
 ];
