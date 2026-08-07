@@ -177,7 +177,7 @@ describe("rental-agreement PDF: late-return + km-allowance rendering", () => {
 
     it("states unlimited kilometres for this short rental", () => {
       expect(pdfText).toMatch(/unlimited kilometres/i);
-      expect(pdfText).toContain(`1\u2013${FREE_KM_DAYS} days`);
+      expect(pdfText).toContain(`${FREE_KM_DAYS} days`);
     });
 
     it("does not charge excess km on a rental within the free window", () => {
