@@ -21,8 +21,7 @@ import {
   calculateLateReturnFeeWithRate,
 } from "../late-return";
 import {
-  WEEKLY_KM_ALLOWANCE,
-  MONTHLY_KM_ALLOWANCE,
+  FREE_KM_DAYS,
   EXCESS_KM_RATE,
 } from "../km-allowance";
 import type { RentalAgreement } from "@/hooks/use-rental-agreement";
@@ -176,17 +175,13 @@ describe("rental-agreement PDF: late-return + km-allowance rendering", () => {
       expect(pdfText).toContain("KILOMETRE ALLOWANCE");
     });
 
-    it("prints the weekly and monthly caps", () => {
-      expect(pdfText).toContain(`${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days`);
-      expect(pdfText).toContain(`${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days`);
+    it("states unlimited kilometres for this short rental", () => {
+      expect(pdfText).toMatch(/unlimited kilometres/i);
+      expect(pdfText).toContain(`${FREE_KM_DAYS} days`);
     });
 
-    it("prints the excess km rate", () => {
-      expect(pdfText).toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
-    });
-
-    it("does not state unlimited kilometres", () => {
-      expect(pdfText).not.toMatch(/unlimited kilometres/i);
+    it("does not charge excess km on a rental within the free window", () => {
+      expect(pdfText).not.toContain(`$${EXCESS_KM_RATE.toFixed(2)}/km`);
     });
   });
 });

@@ -517,7 +517,7 @@ Subtotal (before tax): $${subtotalBeforeTax.toFixed(2)}
 GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
 TOTAL: $${grandTotal.toFixed(2)} CAD | Deposit: $${Number(booking.deposit_amount || 350).toFixed(2)} (refundable)
 
-Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (without approval), racing, off-road, or international travel. Return with same fuel level. Late fee: 25% surcharge of daily rate per extra hour up to 2 hrs after 30-min grace; after 2 hrs, full day charge per day. Renter liable for damage & traffic violations. Third-party liability comes standard. Optional rental coverages available at pickup. Kilometre allowance: 1,400 km per 7 days or 4,800 km per 30 days (prorated) — this rental includes ${Math.round((4800 / 30) * rentalDays).toLocaleString()} km; excess kilometres $0.25/km from odometer readings.`.trim();
+Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (without approval), racing, off-road, or international travel. Return with same fuel level. Late fee: 25% surcharge of daily rate per extra hour up to 2 hrs after 30-min grace; after 2 hrs, full day charge per day. Renter liable for damage & traffic violations. Third-party liability comes standard. Optional rental coverages available at pickup. Kilometre allowance: unlimited kilometres on rentals of 1–7 days${rentalDays <= 7 ? ` — this rental (${rentalDays} day(s)) includes unlimited kilometres with no excess kilometre charge` : ` — beyond day 7, 160 km is included per additional day, so this rental includes ${Math.round((4800 / 30) * (rentalDays - 7)).toLocaleString()} km; excess kilometres $0.25/km from odometer readings`}.`.trim();
 
     // Build add-ons list including additional drivers and upgrades
     const addOnsList = (bookingAddOns || []).map(addon => ({
@@ -631,9 +631,10 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         smokingAllowed: false,
         petsAllowed: false,
         internationalTravel: false,
-        kmAllowance: Math.round((4800 / 30) * rentalDays),
-        weeklyKmAllowance: 1400,
-        monthlyKmAllowance: 4800,
+        // Mirrors src/lib/km-allowance.ts: 1–7 days = unlimited, then 160 km/day past day 7.
+        unlimitedKm: rentalDays <= 7,
+        freeKmDays: 7,
+        kmAllowance: rentalDays <= 7 ? null : Math.round((4800 / 30) * (rentalDays - 7)),
         excessKmRate: 0.25,
       },
       taxes: {

@@ -60,7 +60,7 @@ function PdfViewerPage({ pdfPath, title }: PdfViewerPageProps) {
           <strong className="text-foreground">Late return:</strong> 30-min grace, then 25% of daily rate per hour for up to 2 hrs, then full daily rate per additional day.
         </p>
         <p className="leading-snug">
-          <strong className="text-foreground">Kilometres:</strong> 1,400 km / 7 days or 4,800 km / 30 days (prorated, ~160 km/day). Excess $0.25/km, from odometer readings.
+          <strong className="text-foreground">Kilometres:</strong> Unlimited on rentals of 1–7 days. Beyond day 7, 160 km included per additional day; excess $0.25/km, from odometer readings.
         </p>
       </aside>
 

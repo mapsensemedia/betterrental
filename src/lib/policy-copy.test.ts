@@ -3,9 +3,9 @@
  *
  * These read the actual source of the customer-facing surfaces (FAQ page,
  * agreement view, PDF template, edge-function terms string) and assert that:
- *   - the km-allowance figures match `src/lib/km-allowance.ts`
+ *   - the km-allowance copy matches `src/lib/km-allowance.ts`
+ *     (unlimited for 1–7 days, then 160 km/day past day 7)
  *   - the late-return copy matches `src/lib/late-return.ts`
- *   - no "unlimited kilometres" language slipped back in
  *
  * String-based assertions are enough here — the goal is to catch drift
  * between the constants and the human-readable copy without booting the UI.
@@ -13,11 +13,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  WEEKLY_KM_ALLOWANCE,
-  MONTHLY_KM_ALLOWANCE,
-  EXCESS_KM_RATE,
-} from "./km-allowance";
+import { FREE_KM_DAYS, EXCESS_KM_RATE } from "./km-allowance";
 import {
   LATE_RETURN_GRACE_PERIOD_MINUTES,
   LATE_RETURN_SURCHARGE_HOURLY_PCT,
@@ -36,7 +32,7 @@ const SURFACES = {
   checkout: read("src/pages/NewCheckout.tsx"),
 };
 
-describe("agreement surfaces state the kilometre allowance", () => {
+describe("agreement surfaces state the kilometre policy", () => {
   const agreementSurfaces = {
     agreementView: SURFACES.agreementView,
     pdfTemplate: SURFACES.pdfTemplate,
@@ -44,17 +40,20 @@ describe("agreement surfaces state the kilometre allowance", () => {
   };
 
   for (const [name, src] of Object.entries(agreementSurfaces)) {
-    it(`${name} contains no "unlimited kilometres" language`, () => {
-      expect(src).not.toMatch(/unlimited kilometres/i);
-      expect(src).not.toMatch(/no kilometre limit/i);
+    it(`${name} states unlimited kilometres for short rentals`, () => {
+      expect(src).toMatch(/unlimited kilometres/i);
     });
 
-    it(`${name} references the excess-km rate`, () => {
+    it(`${name} references the excess-km rate for longer rentals`, () => {
       expect(src).toMatch(
         new RegExp(
           `\\$\\{?${EXCESS_KM_RATE.toFixed(2)}|EXCESS_KM_RATE|excessKmRate`,
         ),
       );
+    });
+
+    it(`${name} references the ${FREE_KM_DAYS}-day free window`, () => {
+      expect(src).toMatch(new RegExp(`FREE_KM_DAYS|${FREE_KM_DAYS} day`));
     });
   }
 
@@ -68,37 +67,29 @@ describe("agreement surfaces state the kilometre allowance", () => {
 
   it("edge function terms state the kilometre allowance", () => {
     expect(SURFACES.edgeAgreement).toMatch(/kilometre allowance/i);
-    expect(SURFACES.edgeAgreement).toContain(
-      `${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days`,
-    );
-    expect(SURFACES.edgeAgreement).toContain(
-      `${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days`,
-    );
   });
 });
 
-describe("marketing km-allowance copy matches constants", () => {
-  const weekly = WEEKLY_KM_ALLOWANCE.toLocaleString();
-  const monthly = MONTHLY_KM_ALLOWANCE.toLocaleString();
+describe("marketing km copy matches the policy", () => {
   const rate = `$${EXCESS_KM_RATE.toFixed(2)}`;
 
-  it("Surrey FAQ mentions weekly + monthly caps and excess rate", () => {
-    expect(SURFACES.faq).toContain(weekly);
-    expect(SURFACES.faq).toContain(monthly);
+  it("Surrey FAQ leads with unlimited km and states the excess rate", () => {
+    expect(SURFACES.faq).toMatch(/unlimited kilometres/i);
+    expect(SURFACES.faq).toContain(`${FREE_KM_DAYS} day`);
     expect(SURFACES.faq).toContain(rate);
   });
 
-  it("PDF viewer policy banner mentions caps + excess rate", () => {
-    expect(SURFACES.pdfViewer).toContain(weekly);
-    expect(SURFACES.pdfViewer).toContain(monthly);
+  it("PDF viewer policy banner mentions unlimited km + excess rate", () => {
+    expect(SURFACES.pdfViewer).toMatch(/unlimited/i);
     expect(SURFACES.pdfViewer).toContain(rate);
   });
 
-  it("Checkout tooltip references the monthly cap + excess rate", () => {
-    expect(SURFACES.checkout).toContain(monthly);
+  it("Checkout tooltip mentions unlimited km + excess rate", () => {
+    expect(SURFACES.checkout).toMatch(/unlimited kilometres/i);
     expect(SURFACES.checkout).toContain(rate);
   });
 });
+
 
 describe("late-return copy matches constants", () => {
   const grace = String(LATE_RETURN_GRACE_PERIOD_MINUTES);          // "30"

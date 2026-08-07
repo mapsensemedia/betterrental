@@ -101,7 +101,7 @@ const faqItems = [
   },
   {
     q: "How many kilometres are included in my rental?",
-    a: "Rentals include 1,400 km per 7 days or 4,800 km per 30 days, prorated for other lengths (about 160 km/day). Any distance over your allowance is charged at $0.25/km, measured from the odometer at pickup vs. return. Most local trips stay well under the allowance.",
+    a: "Rentals of 1–7 days include unlimited kilometres — drive as far as you like with no distance charge. For longer rentals, the first 7 days are still unlimited and 160 km is included for each additional day (for example, a 10-day rental includes 480 km). Any distance over that allowance is charged at $0.25/km, measured from the odometer at pickup vs. return.",
   },
   {
     q: "Do you offer airport pickup or drop-off at YVR?",
