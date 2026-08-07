@@ -1,34 +1,47 @@
 import { describe, it, expect } from "vitest";
 import {
-  WEEKLY_KM_ALLOWANCE,
-  MONTHLY_KM_ALLOWANCE,
+  FREE_KM_DAYS,
   EXCESS_KM_RATE,
+  KM_PER_DAY,
   calculateKmAllowance,
   calculateExcessKm,
   formatKmAllowanceSummary,
+  isUnlimitedKm,
 } from "./km-allowance";
 
 describe("km-allowance constants", () => {
   it("matches the published policy", () => {
-    expect(WEEKLY_KM_ALLOWANCE).toBe(1400);
-    expect(MONTHLY_KM_ALLOWANCE).toBe(4800);
+    expect(FREE_KM_DAYS).toBe(7);
+    expect(KM_PER_DAY).toBe(160);
     expect(EXCESS_KM_RATE).toBe(0.25);
   });
 });
 
-describe("calculateKmAllowance (prorated)", () => {
-  it("30 days = 4,800 km (monthly cap)", () => {
-    expect(calculateKmAllowance(30)).toBe(4800);
+describe("isUnlimitedKm", () => {
+  it("is unlimited for 1–7 day rentals", () => {
+    expect(isUnlimitedKm(1)).toBe(true);
+    expect(isUnlimitedKm(7)).toBe(true);
   });
-  it("7 days = 1,120 km (prorated on ~160/day, not the weekly 1,400)", () => {
-    // Intentional: docs example says 4,800/30*20 = 3,200, so we prorate off the monthly base.
-    expect(calculateKmAllowance(7)).toBe(Math.round(4800 / 30 * 7));
+  it("is not unlimited beyond 7 days", () => {
+    expect(isUnlimitedKm(8)).toBe(false);
+    expect(isUnlimitedKm(30)).toBe(false);
   });
-  it("20 days = 3,200 km (docs example)", () => {
-    expect(calculateKmAllowance(20)).toBe(3200);
+  it("is not unlimited for zero/negative days", () => {
+    expect(isUnlimitedKm(0)).toBe(false);
+    expect(isUnlimitedKm(-3)).toBe(false);
   });
-  it("1 day = 160 km", () => {
-    expect(calculateKmAllowance(1)).toBe(160);
+});
+
+describe("calculateKmAllowance", () => {
+  it("returns Infinity for rentals up to 7 days", () => {
+    expect(calculateKmAllowance(1)).toBe(Infinity);
+    expect(calculateKmAllowance(7)).toBe(Infinity);
+  });
+  it("10 days = 480 km (3 chargeable days)", () => {
+    expect(calculateKmAllowance(10)).toBe(480);
+  });
+  it("30 days = 3,680 km (23 chargeable days)", () => {
+    expect(calculateKmAllowance(30)).toBe(Math.round(160 * 23));
   });
   it("0 or negative days = 0", () => {
     expect(calculateKmAllowance(0)).toBe(0);
@@ -37,44 +50,56 @@ describe("calculateKmAllowance (prorated)", () => {
 });
 
 describe("calculateExcessKm", () => {
-  it("no excess when driven ≤ allowance", () => {
-    const r = calculateExcessKm(10_000, 13_200, 20); // drove 3,200 km on 3,200 allowance
-    expect(r.kmDriven).toBe(3200);
+  it("never charges excess on a 1–7 day rental", () => {
+    const r = calculateExcessKm(10_000, 15_000, 3);
+    expect(r.kmDriven).toBe(5000);
+    expect(r.unlimited).toBe(true);
     expect(r.excessKm).toBe(0);
     expect(r.excessFee).toBe(0);
     expect(r.excessFeeCents).toBe(0);
   });
 
-  it("charges $0.25/km over the allowance", () => {
-    const r = calculateExcessKm(10_000, 13_300, 20); // 100 km over
+  it("no excess when driven ≤ allowance on a long rental", () => {
+    const r = calculateExcessKm(10_000, 10_480, 10); // 480 km on 480 allowance
+    expect(r.kmDriven).toBe(480);
+    expect(r.excessKm).toBe(0);
+    expect(r.excessFeeCents).toBe(0);
+  });
+
+  it("charges $0.25/km over the allowance on a long rental", () => {
+    const r = calculateExcessKm(10_000, 10_580, 10); // 100 km over
+    expect(r.unlimited).toBe(false);
     expect(r.excessKm).toBe(100);
     expect(r.excessFeeCents).toBe(2500);
     expect(r.excessFee).toBe(25);
   });
 
   it("clamps negative driven distance to zero", () => {
-    const r = calculateExcessKm(500, 400, 5);
+    const r = calculateExcessKm(500, 400, 10);
     expect(r.kmDriven).toBe(0);
     expect(r.excessKm).toBe(0);
   });
 
   it("handles null odometer values", () => {
-    const r = calculateExcessKm(null, null, 7);
+    const r = calculateExcessKm(null, null, 10);
     expect(r.kmDriven).toBe(0);
     expect(r.excessKm).toBe(0);
   });
 });
 
 describe("formatKmAllowanceSummary", () => {
-  it("prorated string mentions the calculated allowance and rate", () => {
-    const s = formatKmAllowanceSummary(20);
-    expect(s).toContain("3,200 km");
+  it("short rentals read as unlimited", () => {
+    expect(formatKmAllowanceSummary(3)).toMatch(/unlimited/i);
+  });
+  it("long rentals mention the included km and excess rate", () => {
+    const s = formatKmAllowanceSummary(10);
+    expect(s).toContain("480 km");
     expect(s).toContain("0.25");
   });
-  it("static string mentions weekly and monthly caps", () => {
+  it("static string mentions the 7-day unlimited window and rate", () => {
     const s = formatKmAllowanceSummary();
-    expect(s).toContain("1,400");
-    expect(s).toContain("4,800");
+    expect(s).toMatch(/unlimited/i);
+    expect(s).toContain("7");
     expect(s).toContain("0.25");
   });
 });
