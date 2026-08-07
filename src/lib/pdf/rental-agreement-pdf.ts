@@ -638,12 +638,18 @@ function renderStructuredPdf(
     },
     {
       title: "10. KILOMETRE ALLOWANCE",
-      items: [
-        `${WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days or ${MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days (prorated).`,
-        `This rental includes ${kmAllowance.toLocaleString()} km for ${t.rental.totalDays} day(s).`,
-        `Excess kilometres are charged at $${EXCESS_KM_RATE.toFixed(2)}/km.`,
-        "Excess km is calculated at return from odometer readings.",
-      ]
+      items: unlimitedKm
+        ? [
+            `Unlimited kilometres on rentals of 1–${FREE_KM_DAYS} days.`,
+            `This rental (${t.rental.totalDays} day(s)) includes unlimited kilometres.`,
+            "No excess kilometre charge applies to this rental.",
+          ]
+        : [
+            `Unlimited kilometres for the first ${FREE_KM_DAYS} days of the rental.`,
+            `Beyond day ${FREE_KM_DAYS}, 160 km is included for each additional day.`,
+            `This rental includes ${kmAllowance.toLocaleString()} km for ${t.rental.totalDays} day(s).`,
+            `Excess kilometres are charged at $${EXCESS_KM_RATE.toFixed(2)}/km, calculated at return from odometer readings.`,
+          ]
     },
   ];
 
