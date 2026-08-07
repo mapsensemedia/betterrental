@@ -6,10 +6,10 @@ import { format } from "date-fns";
 import type { RentalAgreement, AgreementTermsJson } from "@/hooks/use-rental-agreement";
 import { resolveAgreementAdjustmentLines } from "@/lib/agreement-adjustments";
 import {
-  WEEKLY_KM_ALLOWANCE,
-  MONTHLY_KM_ALLOWANCE,
+  FREE_KM_DAYS,
   EXCESS_KM_RATE,
   calculateKmAllowance,
+  isUnlimitedKm,
 } from "@/lib/km-allowance";
 
 interface AgreementStructuredViewProps {
