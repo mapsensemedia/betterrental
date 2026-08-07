@@ -559,6 +559,7 @@ function renderStructuredPdf(
   y += 7;
 
   const p = t.policies;
+  const unlimitedKm = isUnlimitedKm(t.rental.totalDays);
   const kmAllowance =
     Number((p as any)?.kmAllowance) > 0
       ? Number((p as any).kmAllowance)
