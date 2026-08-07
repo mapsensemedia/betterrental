@@ -226,11 +226,20 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
           <li>Optional rental coverages available at pickup.</li>
           <li>No racing, towing, or off-road use permitted.</li>
           <li>Renter is responsible for all traffic violations and tolls during the rental period.</li>
-          <li>
-            Kilometre allowance: {WEEKLY_KM_ALLOWANCE.toLocaleString()} km per 7 days or {MONTHLY_KM_ALLOWANCE.toLocaleString()} km per 30 days (prorated).
-            This rental includes {kmAllowance.toLocaleString()} km for {t.rental.totalDays} day(s).
-          </li>
-          <li>Excess kilometres are charged at ${EXCESS_KM_RATE.toFixed(2)}/km, calculated at return from odometer readings.</li>
+          {unlimitedKm ? (
+            <li>
+              Kilometre allowance: unlimited kilometres on rentals of 1–{FREE_KM_DAYS} days.
+              This rental ({t.rental.totalDays} day(s)) includes unlimited kilometres, with no excess kilometre charge.
+            </li>
+          ) : (
+            <>
+              <li>
+                Kilometre allowance: unlimited kilometres for the first {FREE_KM_DAYS} days, then 160 km included for each additional day.
+                This rental includes {kmAllowance.toLocaleString()} km for {t.rental.totalDays} day(s).
+              </li>
+              <li>Excess kilometres are charged at ${EXCESS_KM_RATE.toFixed(2)}/km, calculated at return from odometer readings.</li>
+            </>
+          )}
         </ul>
       </Section>
 
