@@ -1,0 +1,2 @@
+UPDATE public.customers SET full_name = 'Meghan Ashley Baquian', updated_at = now() WHERE id = '4c1793ee-b6ba-4eff-908c-be575f5a745a';
+UPDATE public.profiles SET full_name = 'Meghan Ashley Baquian', updated_at = now() WHERE id = '4a65546f-fbb0-4604-af4b-c438f3c0e0e1';
