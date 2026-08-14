@@ -105,9 +105,25 @@ Deno.serve(async (req) => {
     if (operation === "modify") {
       // Extend/shorten rental, change dates, location, optionally override daily rate
       const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices } = body;
-      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId) {
+
+      // Extras (add-on / additional driver) charge that was just persisted by
+      // persist-booking-extras and must be billed on top of any duration/rate
+      // delta. Positive = added charge, negative = removed charge. Without this
+      // an upsell with unchanged dates produces a $0 delta, the charge is never
+      // added to the subtotal, and screens surface the gap as a fake discount.
+      const rawExtrasDelta = Number(body?.extrasDeltaSubtotal ?? 0);
+      const extrasDeltaSubtotal =
+        Number.isFinite(rawExtrasDelta) && Math.abs(rawExtrasDelta) <= 100000
+          ? roundCents(rawExtrasDelta)
+          : 0;
+      if (rawExtrasDelta && !extrasDeltaSubtotal) {
+        console.error("[reprice-booking] Rejected invalid extrasDeltaSubtotal:", rawExtrasDelta);
+      }
+
+      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId && !extrasDeltaSubtotal) {
         return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
       }
+
 
       const isExtension = !!newEndAt && new Date(newEndAt) > new Date(booking.end_at);
       if (isExtension) {
