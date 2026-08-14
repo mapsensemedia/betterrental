@@ -336,7 +336,8 @@ async function handleUpsellAdd(
   // Reprice booking totals via canonical reprice-booking edge function.
   // When mid-rental pro-rata was applied, ask reprice to preserve the row prices
   // (sum them) rather than recomputing add-ons/drivers from full duration.
-  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!proRataInfo);
+  const addOnDelta = round2(computedEntry.price - Number(oldData?.price ?? 0));
+  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!proRataInfo, addOnDelta);
   if (reprice.errorResponse) return reprice.errorResponse;
 
   return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
@@ -411,8 +412,11 @@ async function handleUpsellRemove(
     new_data: null,
   });
 
-  // Reprice booking totals via canonical reprice-booking edge function
-  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  // Reprice booking totals via canonical reprice-booking edge function.
+  // The removed line price must come off the charged subtotal.
+  const reprice = await invokeRepriceBooking(
+    bookingId, booking.end_at, req, corsHeaders, false, -round2(Number(existing.price) || 0),
+  );
   if (reprice.errorResponse) return reprice.errorResponse;
 
   return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
@@ -533,7 +537,10 @@ async function handleUpsellDriverAdd(
     new_data: { driverName: newDriverRecord.driverName, driverAgeBand: newDriverRecord.driverAgeBand, computedFee: newDriverRecord.youngDriverFee, proRata: driverProRata },
   });
 
-  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders, !!driverProRata);
+  const reprice = await invokeRepriceBooking(
+    bookingId, booking.end_at, req, corsHeaders, !!driverProRata,
+    round2(Number(newDriverRecord.youngDriverFee) || 0),
+  );
   if (reprice.errorResponse) return reprice.errorResponse;
 
   return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
@@ -595,7 +602,10 @@ async function handleUpsellDriverRemove(
     new_data: null,
   });
 
-  const reprice = await invokeRepriceBooking(bookingId, booking.end_at, req, corsHeaders);
+  const reprice = await invokeRepriceBooking(
+    bookingId, booking.end_at, req, corsHeaders, false,
+    -round2(Number(existing.young_driver_fee) || 0),
+  );
   if (reprice.errorResponse) return reprice.errorResponse;
 
   return await buildUpsellResponse(supabaseAdmin, bookingId, reprice.data, corsHeaders);
@@ -626,6 +636,7 @@ async function invokeRepriceBooking(
   originalReq: Request,
   corsHeaders: Record<string, string>,
   preserveExtrasPrices = false,
+  extrasDeltaSubtotal = 0,
 ): Promise<RepriceOutcome> {
   const authHeader = originalReq.headers.get("Authorization");
   if (!authHeader) {
@@ -657,6 +668,7 @@ async function invokeRepriceBooking(
         newEndAt: currentEndAt,
         reason: "upsell_reprice",
         preserveExtrasPrices,
+        extrasDeltaSubtotal: round2(extrasDeltaSubtotal),
       }),
     },
   );
