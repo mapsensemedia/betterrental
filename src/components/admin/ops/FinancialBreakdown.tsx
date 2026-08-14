@@ -51,16 +51,23 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
     return sum + toCents(a.price);
   }, 0);
 
-  // Driver fees are recomputed from rate × current total_days. The stored
-  // young_driver_fee can go stale when a rental is shortened/extended after the
-  // driver was added (the engine reprices the subtotal but not the row), which
-  // previously surfaced as a phantom "Discount / Adjustment" line.
+  // The stored young_driver_fee is what the driver was actually charged — it is
+  // the pro-rated amount when the driver was added mid-rental. Only fall back to
+  // rate × total_days when the row carries no amount at all (legacy rows).
   const driverCentsFor = (d: any): number => {
+    const stored = toCents(d.young_driver_fee);
+    if (stored > 0) return stored;
     const rate = d.driver_age_band === "20_24" ? youngDriverDailyRate : driverDailyRate;
-    const derived = toCents(rate) * totalDays;
-    if (derived > 0) return derived;
-    return toCents(d.young_driver_fee);
+    return toCents(rate) * totalDays;
   };
+
+  const isProRatedDriver = (d: any): boolean => {
+    const stored = toCents(d.young_driver_fee);
+    const rate = d.driver_age_band === "20_24" ? youngDriverDailyRate : driverDailyRate;
+    const full = toCents(rate) * totalDays;
+    return stored > 0 && full > 0 && stored < full - 1;
+  };
+
 
   const driversCents = additionalDrivers.reduce(
     (sum: number, d: any) => sum + driverCentsFor(d),
