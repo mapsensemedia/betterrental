@@ -521,8 +521,13 @@ Deno.serve(async (req) => {
     // preserved (mid-rental pro-rated upsells).
     const newTotalDays = updateData.total_days != null ? Number(updateData.total_days) : null;
     const preserveExtras = operation === "modify" && !!body?.preserveExtrasPrices;
-    if (newTotalDays && newTotalDays > 0 && !preserveExtras
+    // An extras upsell bills the exact persisted (possibly pro-rated) amount —
+    // never re-derive those rows to rate × total_days on the same call.
+    const extrasDeltaApplied = operation === "modify"
+      && Number(body?.extrasDeltaSubtotal ?? 0) !== 0;
+    if (newTotalDays && newTotalDays > 0 && !preserveExtras && !extrasDeltaApplied
       && newTotalDays !== Number(booking.total_days)) {
+
       try {
         const { data: settingsRows } = await supabase
           .from("system_settings")
