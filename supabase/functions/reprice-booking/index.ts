@@ -219,7 +219,13 @@ Deno.serve(async (req) => {
           overrideDailyRate: storedDailyRate,
         });
 
-        deltaSubtotal = roundCents(serverTotals.subtotal - engineOld.subtotal);
+        // Duration/rate delta from the engine, plus the extras charge that was
+        // just persisted (add-on line price or additional-driver fee, already
+        // pro-rated when added mid-rental).
+        deltaSubtotal = roundCents(
+          (serverTotals.subtotal - engineOld.subtotal) + extrasDeltaSubtotal,
+        );
+
 
         const baseStored = roundCents(storedSubtotal - storedUpgradeTotal);
         const newBase = roundCents(Math.max(baseStored + deltaSubtotal, 0));
