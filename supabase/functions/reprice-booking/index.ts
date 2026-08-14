@@ -105,9 +105,25 @@ Deno.serve(async (req) => {
     if (operation === "modify") {
       // Extend/shorten rental, change dates, location, optionally override daily rate
       const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices } = body;
-      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId) {
+
+      // Extras (add-on / additional driver) charge that was just persisted by
+      // persist-booking-extras and must be billed on top of any duration/rate
+      // delta. Positive = added charge, negative = removed charge. Without this
+      // an upsell with unchanged dates produces a $0 delta, the charge is never
+      // added to the subtotal, and screens surface the gap as a fake discount.
+      const rawExtrasDelta = Number(body?.extrasDeltaSubtotal ?? 0);
+      const extrasDeltaSubtotal =
+        Number.isFinite(rawExtrasDelta) && Math.abs(rawExtrasDelta) <= 100000
+          ? roundCents(rawExtrasDelta)
+          : 0;
+      if (rawExtrasDelta && !extrasDeltaSubtotal) {
+        console.error("[reprice-booking] Rejected invalid extrasDeltaSubtotal:", rawExtrasDelta);
+      }
+
+      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId && !extrasDeltaSubtotal) {
         return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
       }
+
 
       const isExtension = !!newEndAt && new Date(newEndAt) > new Date(booking.end_at);
       if (isExtension) {
@@ -163,20 +179,8 @@ Deno.serve(async (req) => {
         overrideDailyRate: effectiveDailyRate,
       });
 
-      let extrasRowsTotal = 0;
-      if (preserveExtrasPrices) {
-        const { data: addOnPriceRows } = await supabase
-          .from("booking_add_ons")
-          .select("price")
-          .eq("booking_id", bookingId);
-        const { data: driverFeeRows } = await supabase
-          .from("booking_additional_drivers")
-          .select("young_driver_fee")
-          .eq("booking_id", bookingId);
-        const addOnSum = (addOnPriceRows || []).reduce((s: number, r: any) => s + Number(r.price || 0), 0);
-        const driverSum = (driverFeeRows || []).reduce((s: number, r: any) => s + Number(r.young_driver_fee || 0), 0);
-        extrasRowsTotal = roundCents(addOnSum + driverSum);
-      }
+
+
 
       const oldDays = Number(booking.total_days) || 0;
       const storedSubtotal = roundCents(Number(booking.subtotal) || 0);
@@ -215,7 +219,13 @@ Deno.serve(async (req) => {
           overrideDailyRate: storedDailyRate,
         });
 
-        deltaSubtotal = roundCents(serverTotals.subtotal - engineOld.subtotal);
+        // Duration/rate delta from the engine, plus the extras charge that was
+        // just persisted (add-on line price or additional-driver fee, already
+        // pro-rated when added mid-rental).
+        deltaSubtotal = roundCents(
+          (serverTotals.subtotal - engineOld.subtotal) + extrasDeltaSubtotal,
+        );
+
 
         const baseStored = roundCents(storedSubtotal - storedUpgradeTotal);
         const newBase = roundCents(Math.max(baseStored + deltaSubtotal, 0));
@@ -511,8 +521,13 @@ Deno.serve(async (req) => {
     // preserved (mid-rental pro-rated upsells).
     const newTotalDays = updateData.total_days != null ? Number(updateData.total_days) : null;
     const preserveExtras = operation === "modify" && !!body?.preserveExtrasPrices;
-    if (newTotalDays && newTotalDays > 0 && !preserveExtras
+    // An extras upsell bills the exact persisted (possibly pro-rated) amount —
+    // never re-derive those rows to rate × total_days on the same call.
+    const extrasDeltaApplied = operation === "modify"
+      && Number(body?.extrasDeltaSubtotal ?? 0) !== 0;
+    if (newTotalDays && newTotalDays > 0 && !preserveExtras && !extrasDeltaApplied
       && newTotalDays !== Number(booking.total_days)) {
+
       try {
         const { data: settingsRows } = await supabase
           .from("system_settings")
