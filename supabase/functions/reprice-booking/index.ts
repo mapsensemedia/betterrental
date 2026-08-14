@@ -179,20 +179,8 @@ Deno.serve(async (req) => {
         overrideDailyRate: effectiveDailyRate,
       });
 
-      let extrasRowsTotal = 0;
-      if (preserveExtrasPrices) {
-        const { data: addOnPriceRows } = await supabase
-          .from("booking_add_ons")
-          .select("price")
-          .eq("booking_id", bookingId);
-        const { data: driverFeeRows } = await supabase
-          .from("booking_additional_drivers")
-          .select("young_driver_fee")
-          .eq("booking_id", bookingId);
-        const addOnSum = (addOnPriceRows || []).reduce((s: number, r: any) => s + Number(r.price || 0), 0);
-        const driverSum = (driverFeeRows || []).reduce((s: number, r: any) => s + Number(r.young_driver_fee || 0), 0);
-        extrasRowsTotal = roundCents(addOnSum + driverSum);
-      }
+
+
 
       const oldDays = Number(booking.total_days) || 0;
       const storedSubtotal = roundCents(Number(booking.subtotal) || 0);
