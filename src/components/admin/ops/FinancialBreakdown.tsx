@@ -248,16 +248,19 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
       {additionalDrivers.map((d: any, i: number) => {
         const isYoung = d.driver_age_band === "20_24";
         const displayCents = driverCentsFor(d);
+        const proRated = isProRatedDriver(d);
         const rateLabel = isYoung ? `Young $${youngDriverDailyRate.toFixed(2)}` : `Standard $${driverDailyRate.toFixed(2)}`;
         return (
           <div key={d.id || i} className="flex justify-between">
             <span className="text-muted-foreground">
-              {d.driver_name || `Driver ${i + 1}`} ({rateLabel}/day × {totalDays}d)
+              {d.driver_name || `Driver ${i + 1}`} ({rateLabel}/day
+              {proRated ? ", pro-rated" : ` × ${totalDays}d`})
             </span>
             <span>${fromCents(displayCents)}</span>
           </div>
         );
       })}
+
 
       {/* Young Renter Fee (primary renter) */}
       {youngRenterCents > 0 && (
