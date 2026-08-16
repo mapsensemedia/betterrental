@@ -102,11 +102,9 @@ export function findClosestLocation(
 }
 
 /**
- * Delivery fee calculation based on distance
- * Pricing tiers:
- * - Free for ≤10km
- * - $49 for 10-50km
- * - Not available beyond 50km
+ * Delivery fee calculation
+ * Flat $50 delivery fee for any distance within the 50km service area.
+ * Not available beyond 50km.
  */
 export interface DeliveryFeeResult {
   fee: number;
@@ -115,12 +113,12 @@ export interface DeliveryFeeResult {
   bracket: string;
 }
 
+export const FLAT_DELIVERY_FEE = 50;
+
 export function calculateDeliveryFee(distanceKm: number): DeliveryFeeResult {
-  if (distanceKm <= 10) {
-    return { fee: 0, eligible: true, exceeds50km: false, bracket: "≤10km (Free)" };
-  }
   if (distanceKm <= 50) {
-    return { fee: 49, eligible: true, exceeds50km: false, bracket: "10-50km ($49)" };
+    return { fee: FLAT_DELIVERY_FEE, eligible: true, exceeds50km: false, bracket: `Flat $${FLAT_DELIVERY_FEE}` };
   }
   return { fee: 0, eligible: false, exceeds50km: true, bracket: "50km+ (Not available)" };
 }
+
