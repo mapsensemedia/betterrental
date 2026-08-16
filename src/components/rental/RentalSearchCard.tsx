@@ -247,7 +247,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
       const defaultCenter = pickupLocations[0];
       if (defaultCenter) {
         setClosestCenter(defaultCenter.id, defaultCenter.name, defaultCenter.address);
-        setDeliveryDetails(49, null, "TBD at pickup");
+        setDeliveryDetails(50, null, "TBD at pickup");
       }
       toast({
         title: "Address saved",
@@ -367,9 +367,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
               <p className="text-xs text-muted-foreground">
                 {searchData.deliveryDistanceKm?.toFixed(1)}km •{" "}
                 {searchData.deliveryEta} •{" "}
-                {searchData.deliveryFee === 0
-                  ? "Free delivery"
-                  : `$${searchData.deliveryFee} delivery fee`}
+                {`$${searchData.deliveryFee} delivery fee`}
               </p>
             </div>
           </div>
