@@ -1,19 +1,12 @@
 // Server-side delivery fee rules.
-// Source of truth mirrored from src/lib/rental-rules.ts (DELIVERY_TIERS /
-// calculateDeliveryFee). Edge functions cannot import from src/, so the tier
-// table is duplicated here — keep both in sync.
+// Source of truth mirrored from src/lib/rental-rules.ts (DELIVERY_FEE /
+// calculateDeliveryFee). Edge functions cannot import from src/, so the flat
+// fee is duplicated here — keep both in sync.
 
 import { getAdminClient } from "./auth.ts";
 
-export interface DeliveryTier {
-  maxKm: number;
-  fee: number;
-}
-
-export const DELIVERY_TIERS: DeliveryTier[] = [
-  { maxKm: 10, fee: 0 },
-  { maxKm: 50, fee: 49 },
-];
+/** Flat delivery fee applied to every delivery booking, regardless of distance. */
+export const DELIVERY_FEE = 50;
 
 export const MAX_DELIVERY_DISTANCE_KM = 50;
 
@@ -34,12 +27,10 @@ export function haversineKm(
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-export function feeForDistanceKm(distanceKm: number): number {
-  for (const tier of DELIVERY_TIERS) {
-    if (distanceKm <= tier.maxKm) return tier.fee;
-  }
-  return DELIVERY_TIERS[DELIVERY_TIERS.length - 1].fee;
+export function feeForDistanceKm(_distanceKm: number): number {
+  return DELIVERY_FEE;
 }
+
 
 /**
  * Derive the delivery fee from the branch → delivery-point distance.

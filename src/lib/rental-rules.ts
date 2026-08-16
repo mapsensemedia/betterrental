@@ -37,22 +37,24 @@ export function calculateCancellationFee(
   };
 }
 
-// ========== DELIVERY PRICING TIERS ==========
+// ========== DELIVERY PRICING (FLAT FEE) ==========
 export interface DeliveryTier {
   maxKm: number;
   fee: number;
   label: string;
 }
 
+/** Flat delivery fee applied to every delivery booking, regardless of distance. */
+export const DELIVERY_FEE = 50;
+
 export const DELIVERY_TIERS: DeliveryTier[] = [
-  { maxKm: 10, fee: 0, label: "Free" },
-  { maxKm: 50, fee: 49, label: "$49" },
+  { maxKm: 50, fee: DELIVERY_FEE, label: `$${DELIVERY_FEE}` },
 ];
 
 export const MAX_DELIVERY_DISTANCE_KM = 50;
 
 /**
- * Calculate delivery fee based on distance
+ * Calculate delivery fee — flat $50 anywhere within the service area.
  */
 export function calculateDeliveryFee(distanceKm: number): {
   fee: number;
@@ -67,21 +69,9 @@ export function calculateDeliveryFee(distanceKm: number): {
     };
   }
 
-  for (const tier of DELIVERY_TIERS) {
-    if (distanceKm <= tier.maxKm) {
-      return {
-        fee: tier.fee,
-        tier,
-        isWithinRange: true,
-      };
-    }
-  }
-
-  // Default to last tier if within max range
-  const lastTier = DELIVERY_TIERS[DELIVERY_TIERS.length - 1];
   return {
-    fee: lastTier.fee,
-    tier: lastTier,
+    fee: DELIVERY_FEE,
+    tier: DELIVERY_TIERS[0],
     isWithinRange: true,
   };
 }
@@ -90,14 +80,9 @@ export function calculateDeliveryFee(distanceKm: number): {
  * Get delivery pricing summary text
  */
 export function getDeliveryPricingSummary(): string {
-  return DELIVERY_TIERS.map((tier, index) => {
-    const prevMax = index === 0 ? 0 : DELIVERY_TIERS[index - 1].maxKm;
-    if (index === 0) {
-      return `Free (≤${tier.maxKm}km)`;
-    }
-    return `${tier.label} (${prevMax + 1}-${tier.maxKm}km)`;
-  }).join(" • ");
+  return `Flat $${DELIVERY_FEE} delivery fee (within ${MAX_DELIVERY_DISTANCE_KM} km)`;
 }
+
 
 // ========== PICKUP TIME SLOTS ==========
 export interface TimeSlot {

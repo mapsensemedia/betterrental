@@ -45,13 +45,11 @@ export function DeliveryPricingDisplay({
         {/* Delivery Fee */}
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-sm text-muted-foreground">Delivery:</span>
-          <span className={cn(
-            "text-base font-semibold",
-            fee === 0 ? "text-success" : "text-foreground"
-          )}>
-            {fee === 0 ? "Free" : `$${fee}`}
+          <span className="text-base font-semibold text-foreground">
+            ${fee}
           </span>
         </div>
+
       </div>
 
       {/* Fee Brackets */}
