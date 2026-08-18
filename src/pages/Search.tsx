@@ -7,11 +7,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Grid, List, ArrowUpDown, Car, Users, Fuel, Settings2 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
-import { PageContainer } from "@/components/layout/PageContainer";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -222,74 +218,80 @@ export default function Search() {
       {/* Search Modify Bar */}
       {isSearchValid && <SearchModifyBar />}
 
-      <PageContainer className="pt-8 pb-16">
-        <TripContextPrompt open={showContextPrompt} onOpenChange={setShowContextPrompt} />
+      <TripContextPrompt open={showContextPrompt} onOpenChange={setShowContextPrompt} />
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="heading-2 mb-2">
-              {hasValidContext ? "Available Categories" : "Browse Vehicles"}
-            </h1>
-            <p className="text-muted-foreground">
-              {isLoading
-                ? "Loading..."
-                : `${filteredAndSorted.length} categories available`}
-              {startDate && endDate && (
-                <span className="ml-2">
-                  • {rentalDays} day{rentalDays > 1 ? "s" : ""} rental
-                </span>
-              )}
-            </p>
+      {/* Page header — compact full-bleed band */}
+      <section className="page-band">
+        <div className="container-corp">
+          <span className="eyebrow">Vehicle Classes</span>
+          <h1 className="heading-2 text-foreground">
+            {hasValidContext ? "Available Categories" : "Browse Vehicles"}
+          </h1>
+          <p className="mt-3 text-[16px] text-muted-foreground max-w-[65ch]">
+            {isLoading
+              ? "Loading..."
+              : `${filteredAndSorted.length} categories available`}
+            {startDate && endDate && (
+              <span className="ml-2">
+                • {rentalDays} day{rentalDays > 1 ? "s" : ""} rental
+              </span>
+            )}
+          </p>
+        </div>
+      </section>
+
+      {/* Slim sticky control bar */}
+      <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="container-corp py-3 flex items-center justify-end gap-2 sm:gap-3 flex-wrap">
+          {/* Mobile Filters */}
+          <div className="lg:hidden">
+            <BrowseFilterMobile
+              categories={categories}
+              filters={filters}
+              onChange={setFilters}
+              resultCount={filteredAndSorted.length}
+            />
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* Mobile Filters */}
-            <div className="lg:hidden">
-              <BrowseFilterMobile
-                categories={categories}
-                filters={filters}
-                onChange={setFilters}
-                resultCount={filteredAndSorted.length}
-              />
-            </div>
+          {/* Sort */}
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+            <SelectTrigger className="w-[150px] sm:w-[190px] h-10 rounded-none border-border">
+              <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent className="rounded-none">
+              <SelectItem value="recommended">Recommended</SelectItem>
+              <SelectItem value="price-low">Price: Low to High</SelectItem>
+              <SelectItem value="price-high">Price: High to Low</SelectItem>
+            </SelectContent>
+          </Select>
 
-            {/* Sort */}
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-[140px] sm:w-[180px]">
-                <ArrowUpDown className="w-4 h-4 mr-1 sm:mr-2" />
-                <SelectValue placeholder="Sort" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recommended">Recommended</SelectItem>
-                <SelectItem value="price-low">Price: Low to High</SelectItem>
-                <SelectItem value="price-high">Price: High to Low</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* View Toggle */}
-            <div className="hidden md:flex border border-border rounded-lg p-1">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded ${viewMode === "grid" ? "bg-primary text-primary-foreground" : ""}`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded ${viewMode === "list" ? "bg-primary text-primary-foreground" : ""}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
+          {/* View Toggle */}
+          <div className="hidden md:flex border border-border">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              aria-label="Grid view"
+            >
+              <Grid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-2.5 border-l border-border transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              aria-label="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
           </div>
         </div>
+      </div>
 
+      <div className="container-corp pt-10 pb-16 lg:pb-24">
         {/* Main content: sidebar + grid */}
-        <div className="flex gap-6">
+        <div className="flex gap-8">
           {/* Desktop Filter Sidebar */}
           <div className="hidden lg:block w-[260px] shrink-0">
-            <div className="sticky top-24">
+            <div className="sticky top-32">
               <BrowseFilterSidebar
                 categories={categories}
                 filters={filters}
@@ -305,31 +307,31 @@ export default function Search() {
             {isLoading ? (
               <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="rounded-2xl border border-border overflow-hidden">
-                    <Skeleton className="h-48" />
+                  <div key={i} className="border border-border overflow-hidden">
+                    <Skeleton className="h-48 rounded-none" />
                     <div className="p-5 space-y-3">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                      <Skeleton className="h-8 w-1/3" />
+                      <Skeleton className="h-5 w-3/4 rounded-none" />
+                      <Skeleton className="h-4 w-1/2 rounded-none" />
+                      <Skeleton className="h-8 w-1/3 rounded-none" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : filteredAndSorted.length > 0 ? (
-              <div className={`grid gap-6 ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+              <div className={`grid gap-6 items-stretch ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
                 {filteredAndSorted.map((category) => (
-                  <Card 
-                    key={category.id} 
-                    className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                  <div
+                    key={category.id}
+                    className="card-corp overflow-hidden cursor-pointer group flex flex-col h-full"
                     onClick={() => (hasValidContext && ageConfirmed) ? handleCategorySelect(category) : setShowContextPrompt(true)}
                   >
-                    {/* Image */}
+                    {/* Image — uniform aspect ratio across all cards */}
                     <div className="relative aspect-[16/10] overflow-hidden bg-muted">
                       {category.image_url ? (
                         <img
                           src={category.image_url}
                           alt={category.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -337,83 +339,86 @@ export default function Search() {
                         </div>
                       )}
                       {hasValidContext && ageConfirmed && category.available_count && category.available_count > 0 && (
-                        <Badge variant="secondary" className="absolute top-3 right-3 bg-primary/90 text-primary-foreground">
+                        <span className="absolute top-0 right-0 bg-primary text-primary-foreground text-[11px] font-semibold uppercase tracking-[0.12em] px-3 py-1.5">
                           {category.available_count} available
-                        </Badge>
+                        </span>
                       )}
                       {!hasValidContext && (
-                        <Badge variant="outline" className="absolute top-3 right-3 bg-card/90 backdrop-blur-sm">
+                        <span className="absolute top-0 right-0 bg-card text-foreground border-l border-b border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-3 py-1.5">
                           Select Location
-                        </Badge>
+                        </span>
                       )}
                       {hasValidContext && !ageConfirmed && (
-                        <Badge variant="outline" className="absolute top-3 right-3 bg-card/90 backdrop-blur-sm">
+                        <span className="absolute top-0 right-0 bg-card text-foreground border-l border-b border-border text-[11px] font-semibold uppercase tracking-[0.12em] px-3 py-1.5">
                           Confirm Age
-                        </Badge>
+                        </span>
                       )}
                     </div>
 
-                    <CardContent className="p-4 sm:p-5">
-                      {/* Title */}
-                      <h3 className="font-semibold text-base sm:text-lg mb-2 line-clamp-1">{category.name}</h3>
+                    <div className="p-5 flex flex-col flex-1">
+                      {/* Category eyebrow + model name */}
+                      <span className="eyebrow !mb-1.5">Category</span>
+                      <h3 className="font-display font-semibold text-[17px] sm:text-xl leading-tight line-clamp-1">
+                        {category.name}
+                      </h3>
 
-                      {/* Specs - Customer sees these, never VIN/plate */}
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-                        <div className="flex items-center gap-1 sm:gap-1.5">
-                          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          <span>{category.seats || 5}</span>
-                        </div>
-                        <div className="flex items-center gap-1 sm:gap-1.5">
-                          <Fuel className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          <span>{category.fuel_type || 'Gas'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 sm:gap-1.5">
-                          <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          <span>{category.transmission === 'Automatic' ? 'Auto' : category.transmission}</span>
-                        </div>
+                      {/* Specs — icon chip row */}
+                      <div className="flex flex-wrap items-center gap-2 mt-4">
+                        <span className="chip-corp !py-1 !px-2.5 !text-[12px]">
+                          <Users className="w-3.5 h-3.5" />
+                          {category.seats || 5}
+                        </span>
+                        <span className="chip-corp !py-1 !px-2.5 !text-[12px]">
+                          <Fuel className="w-3.5 h-3.5" />
+                          {category.fuel_type || 'Gas'}
+                        </span>
+                        <span className="chip-corp !py-1 !px-2.5 !text-[12px]">
+                          <Settings2 className="w-3.5 h-3.5" />
+                          {category.transmission === 'Automatic' ? 'Auto' : category.transmission}
+                        </span>
                       </div>
 
-                      {/* Price and CTA */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          {rentalDays > 1 ? (
-                            <>
-                              <span className="text-xl sm:text-2xl font-bold text-primary">
-                                ${(category.daily_rate * rentalDays).toFixed(2)}
-                              </span>
-                              <span className="text-xs sm:text-sm text-muted-foreground ml-1">CAD total</span>
-                              <p className="text-xs sm:text-sm text-muted-foreground">
-                                ${category.daily_rate}/day
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-xl sm:text-2xl font-bold text-primary">${category.daily_rate}</span>
-                              <span className="text-xs sm:text-sm text-muted-foreground">/day</span>
-                            </>
-                          )}
-                          <p className="text-[10px] sm:text-xs text-muted-foreground">*Excludes taxes & fees</p>
-                        </div>
-                        <Button size="sm" className="shrink-0">
-                          {(hasValidContext && ageConfirmed) ? 'Rent Now' : 'Select'}
-                        </Button>
+                      {/* Price */}
+                      <div className="mt-5 pt-4 border-t border-border">
+                        {rentalDays > 1 ? (
+                          <>
+                            <span className="font-display text-2xl font-semibold text-foreground">
+                              ${(category.daily_rate * rentalDays).toFixed(2)}
+                            </span>
+                            <span className="text-sm text-muted-foreground ml-1.5">CAD total</span>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                              ${category.daily_rate}/day
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-display text-2xl font-semibold text-foreground">${category.daily_rate}</span>
+                            <span className="text-sm text-muted-foreground">/day</span>
+                          </>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">*Excludes taxes &amp; fees</p>
                       </div>
-                    </CardContent>
-                  </Card>
+
+                      {/* CTA */}
+                      <button type="button" className="btn-corp w-full mt-4 !py-3">
+                        {(hasValidContext && ageConfirmed) ? 'Rent Now' : 'Select'}
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 bg-card rounded-2xl border border-border">
-                <Car className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium mb-2">No vehicles match your filters</p>
-                <p className="text-muted-foreground mb-6">
+              <div className="py-16 px-6 bg-card border border-border">
+                <Car className="w-10 h-10 text-muted-foreground mb-4" />
+                <p className="font-display text-xl font-semibold mb-2">No vehicles match your filters</p>
+                <p className="text-muted-foreground mb-6 max-w-[65ch]">
                   {hasActiveFiltersCheck(filters, getDefaultFilters(categories))
                     ? "Try adjusting your filters to see more results."
                     : hasValidContext 
                       ? "No vehicles are currently available at this location for the selected dates."
                       : "Select a pickup location and dates to view available vehicles."}
                 </p>
-                <Button variant="outline" onClick={() => {
+                <button type="button" className="btn-corp" onClick={() => {
                   if (hasActiveFiltersCheck(filters, getDefaultFilters(categories))) {
                     setFilters(getDefaultFilters(categories));
                   } else {
@@ -421,12 +426,13 @@ export default function Search() {
                   }
                 }}>
                   {hasActiveFiltersCheck(filters, getDefaultFilters(categories)) ? 'Clear Filters' : hasValidContext ? 'Try Different Dates' : 'Select Location & Dates'}
-                </Button>
+                </button>
               </div>
             )}
           </div>
         </div>
-      </PageContainer>
+      </div>
+
     </CustomerLayout>
   );
 }

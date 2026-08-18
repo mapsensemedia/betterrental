@@ -48,8 +48,9 @@ export default function Locations() {
   return (
     <CustomerLayout>
       <PageContainer className="pt-28 pb-16">
-        <header className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
+        <header className="mb-10 pb-8 border-b border-border">
+          <span className="eyebrow">Our locations</span>
+          <h1 className="heading-2 text-foreground">
             Car Rental Locations in Surrey, Langley &amp; Abbotsford BC
           </h1>
           <p className="mt-3 text-base md:text-lg text-muted-foreground max-w-2xl">
@@ -59,11 +60,11 @@ export default function Locations() {
         
         {isLoading ? (
           <>
-            <Skeleton className="h-[400px] rounded-xl mb-8" />
+            <Skeleton className="h-[400px] rounded-none mb-8" />
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="p-6 bg-card rounded-2xl border border-border">
-                  <Skeleton className="w-12 h-12 rounded-xl mb-4" />
+                <div key={i} className="p-6 bg-card rounded-none border border-border">
+                  <Skeleton className="w-12 h-12 rounded-none mb-4" />
                   <Skeleton className="h-6 w-3/4 mb-2" />
                   <Skeleton className="h-4 w-full mb-4" />
                   <Skeleton className="h-4 w-1/2" />
@@ -100,10 +101,10 @@ export default function Locations() {
               {locations.map((loc) => (
                 <div
                   key={loc.id}
-                  className="group p-6 bg-card rounded-2xl border border-border hover:border-primary hover:shadow-lg transition-all duration-300"
+                  className="group p-6 bg-card rounded-none border border-border hover:border-primary hover:shadow-lg transition-all duration-300"
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-none bg-primary/10 flex items-center justify-center">
                       <MapPin className="w-6 h-6 text-primary" />
                     </div>
                     <Link to={`/location/${loc.id}`}>

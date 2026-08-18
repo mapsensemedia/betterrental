@@ -66,20 +66,25 @@ export default function BlogIndex() {
         description="C2C Rental's blog covers renting a car in Surrey, Langley & Abbotsford — ICBC insurance, airport runs, winter driving, road trips, and more."
         path="/blog"
       />
-      <div className="container-page py-12 md:py-20">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-          Local Car Rental Guides for Surrey &amp; the Fraser Valley
-        </h1>
-        <p className="text-muted-foreground text-lg max-w-2xl mb-12">
+      <header className="page-band pt-28">
+        <div className="container-corp">
+          <span className="eyebrow">Insights</span>
+          <h1 className="heading-2 max-w-3xl">
+            Local Car Rental Guides for Surrey &amp; the Fraser Valley
+          </h1>
+        </div>
+      </header>
+      <div className="container-corp py-16 md:py-24">
+        <p className="text-muted-foreground text-[16px] leading-relaxed max-w-[65ch] mb-12">
           C2C Rental's blog covers everything you need to know about renting a car in Surrey, Langley, and Abbotsford — from ICBC rules to the best road trips from the Fraser Valley.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {articles.map((a) => (
-            <Card key={a.slug} className="group hover:shadow-lg transition-shadow duration-200">
+            <Card key={a.slug} className="group rounded-none border-border shadow-none hover:shadow-corp-lg transition-shadow duration-200">
               <CardContent className="p-6 flex flex-col h-full">
                 <Badge variant="secondary" className="w-fit mb-3 text-xs">{a.category}</Badge>
-                <h2 className="text-xl font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">{a.title}</h2>
+                <h2 className="font-display text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">{a.title}</h2>
                 <p className="text-muted-foreground text-sm flex-1 mb-4">{a.excerpt}</p>
                 <Link
                   to={`/blog/${a.slug}`}

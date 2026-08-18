@@ -31,8 +31,13 @@ export default function CarRentalTipsNewDrivers() {
         type="article"
         jsonLd={jsonLd}
       />
-      <article className="container-page py-12 md:py-20 max-w-3xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-8">{TITLE}</h1>
+      <header className="page-band">
+        <div className="container-corp">
+          <span className="eyebrow">Guide</span>
+          <h1 className="heading-2 max-w-3xl">{TITLE}</h1>
+        </div>
+      </header>
+      <article className="container-corp py-16 md:py-24">
 
         <section className="prose-section">
           <h2>Can You Rent a Car with an N or L Licence in BC?</h2>

@@ -64,7 +64,7 @@ export default function DailyVsWeeklyCarRentalSurrey() {
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Blog
           </Link>
           <p className="text-[hsl(25,85%,55%)] font-semibold text-sm tracking-widest uppercase mb-4">Pricing Guide</p>
-          <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] leading-[1.15] font-extrabold text-white mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] leading-[1.15] font-semibold text-white mb-6">
             Daily vs Weekly Car Rental in Surrey&nbsp;BC: Which Option Saves You&nbsp;More?
           </h1>
           <p className="text-white/60 text-sm">Published June 8, 2025 · 9 min read</p>
@@ -72,7 +72,7 @@ export default function DailyVsWeeklyCarRentalSurrey() {
       </section>
 
       {/* ── ARTICLE BODY ──────────────────────────── */}
-      <article className="bg-[hsl(40,20%,97%)]">
+      <article className="bg-background">
         <div className="container-page max-w-3xl mx-auto py-14 md:py-20">
           <div className="blog-prose">
 
@@ -124,7 +124,7 @@ export default function DailyVsWeeklyCarRentalSurrey() {
             <p>Let's say C2C Rental offers a compact sedan at $45/day. If you need it for 7 days:</p>
 
             <div className="overflow-x-auto my-6">
-              <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm border border-border rounded-none overflow-hidden">
                 <thead>
                   <tr className="bg-[hsl(220,30%,12%)] text-white">
                     <th className="text-left px-4 py-3 font-semibold">Option</th>
@@ -178,7 +178,7 @@ export default function DailyVsWeeklyCarRentalSurrey() {
                 { title: "Scenario 3: Car in the shop (7–14 days)", choice: "Weekly rental, possibly extended", desc: "Your vehicle is in for repairs and you need a replacement for 1–2 weeks. C2C Rental can structure this as weekly blocks, keeping costs predictable and lower than paying by the day." },
                 { title: "Scenario 4: Temporary work contract (10 days)", choice: "Weekly + a few daily days", desc: "Ask C2C Rental directly—a combination of a weekly rate plus a few extra daily days is often more cost‑effective than paying 10 individual daily rates." },
               ].map((s) => (
-                <div key={s.title} className="border border-border rounded-xl p-5 bg-white">
+                <div key={s.title} className="border border-border rounded-none p-5 bg-white">
                   <h4 className="font-semibold text-foreground mb-1">{s.title}</h4>
                   <p className="text-[hsl(25,85%,55%)] font-semibold text-sm mb-2">Best choice: {s.choice}</p>
                   <p className="text-muted-foreground text-[0.95rem] leading-relaxed mb-0">{s.desc}</p>
@@ -190,7 +190,7 @@ export default function DailyVsWeeklyCarRentalSurrey() {
             <h2>Quick Decision Guide: Daily vs Weekly in Surrey</h2>
 
             <div className="overflow-x-auto my-6">
-              <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm border border-border rounded-none overflow-hidden">
                 <thead>
                   <tr className="bg-[hsl(220,30%,12%)] text-white">
                     <th className="text-left px-4 py-3 font-semibold">Your situation</th>
@@ -216,8 +216,8 @@ export default function DailyVsWeeklyCarRentalSurrey() {
             </div>
 
             {/* ── CTA Banner ── */}
-            <div className="my-10 rounded-2xl bg-[hsl(220,30%,12%)] p-8 md:p-10 text-center">
-              <h3 className="text-xl md:text-2xl font-bold text-white mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <div className="my-10 rounded-none bg-[hsl(220,30%,12%)] p-8 md:p-10 text-center">
+              <h3 className="text-xl md:text-2xl font-bold text-white mb-3">
                 Book Your Rental Today
               </h3>
               <p className="text-white/60 mb-6 text-sm">Affordable daily &amp; weekly rates across the Fraser Valley.</p>

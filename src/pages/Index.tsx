@@ -14,7 +14,7 @@ import { LocationChips } from "@/components/landing/LocationChips";
 import { IncludedStrip } from "@/components/landing/IncludedStrip";
 
 // Images
-import heroImage from "@/assets/hero-c2c.jpg";
+import heroPhoto from "@/assets/hero-suv-mountains.jpg";
 
 
 const Index = () => {
@@ -225,35 +225,40 @@ const Index = () => {
 
   return (
     <CustomerLayout>
-      {/* ── A) HERO — light split layout with brand illustration ──── */}
-      <section className="relative tint-band pt-24 md:pt-32 pb-28 md:pb-40 overflow-hidden">
-        <div className="container-corp">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            <div className="corp-reveal max-w-xl">
-              <span className="eyebrow">C2C Rental · Lower Mainland</span>
-              <h1 className="heading-1 text-foreground">
-                Car Rental in Surrey, Langley &amp; Abbotsford BC
-              </h1>
-              <p className="mt-6 text-[16px] md:text-[17px] text-muted-foreground leading-relaxed max-w-[52ch]">
-                24/7 support, pickup or delivery, and transparent pricing across the Fraser Valley.
-              </p>
-              <div className="mt-9 flex flex-wrap gap-4">
-                <Link to="/search" className="btn-corp">
-                  Reserve a vehicle
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link to="/locations" className="btn-corp-outline">
-                  Our locations
-                </Link>
-              </div>
-            </div>
-
-            <div className="relative corp-reveal">
-              <img
-                src={heroImage}
-                alt="C2C Rental vehicles and team serving Surrey, Langley and Abbotsford"
-                className="w-full h-auto object-contain"
-              />
+      {/* ── A) HERO — full-bleed photo, left-anchored, bottom-up scrim ── */}
+      <section className="relative isolate overflow-hidden">
+        <img
+          src={heroPhoto}
+          alt="C2C Rental SUV parked with Fraser Valley mountains at sunset"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to top, hsl(0 0% 0% / 0.82) 0%, hsl(0 0% 0% / 0.55) 45%, hsl(0 0% 0% / 0.25) 100%)",
+          }}
+        />
+        <div className="relative container-corp pt-24 pb-28 md:pt-36 md:pb-44">
+          <div className="corp-reveal max-w-2xl">
+            <span className="eyebrow text-white/80">Surrey · Langley · Abbotsford</span>
+            <h1 className="heading-1 text-white">
+              Car Rental in Surrey, Langley &amp; Abbotsford BC
+            </h1>
+            <p className="mt-6 text-[16px] md:text-[17px] text-white/85 leading-relaxed max-w-[52ch]">
+              24/7 support, pickup or delivery, and transparent pricing across the Fraser Valley.
+            </p>
+            <div className="mt-9 flex flex-wrap gap-4">
+              <Link to="/search" className="btn-corp">
+                Reserve a vehicle
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                to="/locations"
+                className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+              >
+                Our locations
+              </Link>
             </div>
           </div>
         </div>
@@ -267,6 +272,7 @@ const Index = () => {
           </div>
         </div>
       </section>
+
 
       {/* ── C) TRUST BAND ────────────────────────────────────────── */}
       <TrustMarquee className="mt-16 md:mt-24" region="British Columbia" />
