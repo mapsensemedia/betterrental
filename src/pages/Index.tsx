@@ -11,6 +11,7 @@ import { FleetRow } from "@/components/landing/FleetRow";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Testimonials } from "@/components/landing/Testimonials";
 import { LocationChips } from "@/components/landing/LocationChips";
+import { IncludedStrip } from "@/components/landing/IncludedStrip";
 
 // Images
 import heroImage from "@/assets/hero-c2c.jpg";
