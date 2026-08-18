@@ -12,6 +12,9 @@ import {
 import { Link } from "react-router-dom";
 import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
+import { PageHero } from "@/components/shared/PageHero";
+import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import surreyHero from "@/assets/city-surrey.jpg";
 import { GBP_LINKS } from "@/constants/gbpLinks";
 
 const SURREY_LOCATION_ID = "a1b2c3d4-1111-4000-8000-000000000001";
@@ -173,27 +176,44 @@ const SurreyPage = () => {
         path="/surrey"
         jsonLd={[surreyLocalBusinessSchema, surreyFaqSchema]}
       />
-      <PageContainer className="max-w-6xl mx-auto space-y-16">
-        {/* Hero with embedded booking card */}
-        <section className="space-y-8">
-          <div className="max-w-3xl">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight mb-5">
-              Car Rental in Surrey, BC – Affordable, Local &amp; Hassle-Free
-            </h1>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              C2C Rental is a locally operated car rental service based right here in Surrey, BC. We offer transparent, no-surprise-fee pricing on daily, weekly, and monthly rentals — pick up from our Newton location on King George Blvd and drive away with confidence. Whether you're a commuter, a family needing a second car, a student at SFU Surrey, or a newcomer getting settled, we have you covered. We proudly serve Newton, Guildford, Fleetwood, Cloverdale, Whalley/Surrey Central, and South Surrey. Our renters regularly drive to YVR Airport (20 min), Downtown Vancouver (30 min), Whistler (2.5 hrs), and the US border via Peace Arch.
-            </p>
-          </div>
-          <div className="space-y-2">
+      <PageHero
+        image={surreyHero}
+        imageAlt="Rental SUV parked on a Surrey, BC street at golden hour"
+        eyebrow="C2C Rental · Surrey, BC"
+        priority
+        overlap
+        title={<>Car Rental in Surrey, BC — Affordable, Local &amp; Hassle-Free</>}
+        subtitle="Daily, weekly and monthly rentals from our Newton location on King George Blvd. Transparent pricing, no surprise fees, real local support."
+      />
+
+      {/* Booking module overlapping the hero */}
+      <section className="relative bg-background">
+        <div className="container-corp">
+          <div className="relative -mt-24 md:-mt-28 z-20 bg-card border border-border shadow-corp-lg">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 md:px-7 pt-5 pb-4 border-b border-border">
+              <span className="eyebrow !mb-0">Reserve in Surrey</span>
+              <span className="text-[13px] text-muted-foreground">
+                Pickup at 6768 King George Blvd, Surrey — Newton
+              </span>
+            </div>
             <RentalSearchCard
               defaultLocationId={SURREY_LOCATION_ID}
-              className="w-full max-w-4xl"
+              className="!bg-transparent !shadow-none !rounded-none !backdrop-blur-none !border-0"
             />
-            <p className="text-xs text-muted-foreground text-center max-w-4xl">
-              📍 Pickup at 6768 King George Blvd, Surrey — Newton location
-            </p>
           </div>
+        </div>
+      </section>
+
+      <TrustMarquee className="mt-4" region="Surrey, BC" />
+
+      <PageContainer className="max-w-6xl mx-auto space-y-16">
+        <section className="space-y-5">
+          <h2 className="heading-2 text-foreground">About renting in Surrey</h2>
+          <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+            C2C Rental is a locally operated car rental service based right here in Surrey, BC. We offer transparent, no-surprise-fee pricing on daily, weekly, and monthly rentals — pick up from our Newton location on King George Blvd and drive away with confidence. Whether you're a commuter, a family needing a second car, a student at SFU Surrey, or a newcomer getting settled, we have you covered. We proudly serve Newton, Guildford, Fleetwood, Cloverdale, Whalley/Surrey Central, and South Surrey. Our renters regularly drive to YVR Airport (20 min), Downtown Vancouver (30 min), Whistler (2.5 hrs), and the US border via Peace Arch.
+          </p>
         </section>
+
 
         {/* Why Choose C2C */}
         <section className="space-y-5">

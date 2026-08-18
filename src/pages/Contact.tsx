@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle, Instagram, Facebook, ArrowRight, ExternalLink } from "lucide-react";
 import { GBP_LINKS } from "@/constants/gbpLinks";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
+import { PageHero } from "@/components/shared/PageHero";
+import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import contactHero from "@/assets/contact-counter.jpg";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -101,18 +104,34 @@ export default function Contact() {
         jsonLd={contactSchema}
       />
       {/* Hero */}
-      <section className="bg-background pt-24 pb-12">
-        <div className="container-page max-w-3xl mx-auto text-center">
-          <h1 className="heading-1 text-foreground mb-4">Contact C2C Rental</h1>
-          <p className="text-lg text-muted-foreground">
-            Have questions about rentals, insurance, or availability? We're a local team and we respond fast.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        image={contactHero}
+        imageAlt="C2C Rental team member handing car keys to a customer at the counter"
+        eyebrow="Surrey · Langley · Abbotsford"
+        priority
+        title="Contact C2C Rental"
+        subtitle="Questions about rentals, insurance or availability? We're a local team and we answer fast — usually within the hour during business hours."
+        actions={
+          <>
+            <a href="tel:+16047634242" className="btn-corp">
+              Call (604) 763-4242 <ArrowRight className="w-4 h-4" />
+            </a>
+            <a
+              href="mailto:support@c2crental.ca"
+              className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+            >
+              Email us
+            </a>
+          </>
+        }
+      />
+
+      <TrustMarquee region="British Columbia" />
+
 
       {/* Two-column layout */}
-      <section className="py-16 bg-background">
-        <div className="container-page">
+      <section className="section-corp bg-background">
+        <div className="container-corp">
           <div className="grid lg:grid-cols-5 gap-10">
             {/* LEFT: Contact Details */}
             <div className="lg:col-span-2 space-y-8">
@@ -120,7 +139,7 @@ export default function Contact() {
                 <h2 className="text-lg font-semibold text-foreground mb-6">Get in Touch</h2>
                 <div className="space-y-5">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
                       <MapPin className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -130,7 +149,7 @@ export default function Contact() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
                       <Phone className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -142,7 +161,7 @@ export default function Contact() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
                       <Mail className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -154,7 +173,7 @@ export default function Contact() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
                       <Clock className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -202,7 +221,7 @@ export default function Contact() {
                     href="https://www.instagram.com/c2c.rental/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                    className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
                     aria-label="Instagram"
                   >
                     <Instagram className="w-5 h-5" />
@@ -211,7 +230,7 @@ export default function Contact() {
                     href="https://www.facebook.com/people/C2C-Rental/61587985570949/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                    className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
                     aria-label="Facebook"
                   >
                     <Facebook className="w-5 h-5" />
@@ -222,11 +241,11 @@ export default function Contact() {
 
             {/* RIGHT: Contact Form */}
             <div className="lg:col-span-3">
-              <Card>
+              <Card className="rounded-none border-border shadow-none">
                 <CardContent className="p-6 md:p-8">
                   {isSubmitted ? (
                     <div className="text-center py-12">
-                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 rounded-none bg-primary/10 flex items-center justify-center mx-auto mb-4">
                         <CheckCircle className="w-8 h-8 text-primary" />
                       </div>
                       <h3 className="text-lg font-semibold text-foreground mb-2">Thanks! We'll be in touch within a few hours.</h3>
@@ -300,12 +319,13 @@ export default function Contact() {
       </section>
 
       {/* FAQ Strip */}
-      <section className="py-16 bg-muted/50">
-        <div className="container-page">
-          <h2 className="heading-2 text-foreground text-center mb-10">Quick Answers</h2>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <section className="section-corp bg-brand-tint border-t border-border">
+        <div className="container-corp">
+          <span className="eyebrow">FAQ</span>
+          <h2 className="heading-2 text-foreground mb-10">Quick Answers</h2>
+          <div className="grid md:grid-cols-2 gap-6 ">
             {faqs.map((faq) => (
-              <Card key={faq.q}>
+              <Card key={faq.q} className="rounded-none border-border shadow-none">
                 <CardContent className="p-6">
                   <h3 className="font-semibold text-foreground mb-2">{faq.q}</h3>
                   <p className="text-sm text-muted-foreground">{faq.a}</p>

@@ -12,6 +12,9 @@ import {
 import { Link } from "react-router-dom";
 import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
 import { GBP_LINKS } from "@/constants/gbpLinks";
+import { PageHero } from "@/components/shared/PageHero";
+import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import langleyHero from "@/assets/city-langley.jpg";
 
 const vehicleCards = [
   {
@@ -129,16 +132,39 @@ const LangleyPage = () => {
         path="/langley"
         jsonLd={[langleyLocalBusinessSchema, langleyFaqSchema]}
       />
+      <PageHero
+        image={langleyHero}
+        imageAlt="Rental sedan parked on a quiet Langley, BC road at dusk"
+        eyebrow="C2C Rental · Langley, BC"
+        priority
+        title={<>Car Rental in Langley, BC — Affordable, Local &amp; Hassle-Free</>}
+        subtitle="Pick up at Langley Centre on 96 Ave. Clear pricing, flexible coverage, and a local team that knows the Fraser Valley."
+        actions={
+          <>
+            <Link to="/search" className="btn-corp">
+              Check availability <ArrowRight className="w-4 h-4" />
+            </Link>
+            <a
+              href="tel:+16047634242"
+              className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+            >
+              Call (604) 763-4242
+            </a>
+          </>
+        }
+      />
+
+      <TrustMarquee region="Langley, BC" />
+
       <PageContainer className="max-w-4xl mx-auto space-y-16">
-        {/* H1 + Intro */}
+        {/* Intro */}
         <section className="space-y-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
-            Car Rental in Langley, BC – Affordable, Local &amp; Hassle-Free
-          </h1>
+          <h2 className="heading-2 text-foreground">Renting a car in Langley</h2>
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
             Whether you live in the Township of Langley or the City of Langley, getting around the Fraser Valley shouldn't mean overpaying for a rental car. C2C Rental provides affordable, no-hassle car rentals for Langley residents, commuters, and visitors — from compact sedans for your daily Highway 1 commute to SUVs built for weekend getaways through Fort Langley and beyond. Langley is a hub for families, students, and workers who need reliable transport without long-term commitments. With Aldergrove and the US border just minutes away, and connections to Surrey, Abbotsford, and Metro Vancouver in every direction, having the right vehicle matters. Book online in minutes, pick up locally in Langley, and drive with confidence — clear pricing, flexible insurance, and real local support from a team that knows this community.
           </p>
         </section>
+
 
         {/* Why Choose C2C */}
         <section className="space-y-5">
