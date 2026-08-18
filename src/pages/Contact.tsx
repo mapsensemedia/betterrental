@@ -101,14 +101,30 @@ export default function Contact() {
         jsonLd={contactSchema}
       />
       {/* Hero */}
-      <section className="bg-background pt-24 pb-12">
-        <div className="container-page max-w-3xl mx-auto text-center">
-          <h1 className="heading-1 text-foreground mb-4">Contact C2C Rental</h1>
-          <p className="text-lg text-muted-foreground">
-            Have questions about rentals, insurance, or availability? We're a local team and we respond fast.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        image={contactHero}
+        imageAlt="C2C Rental team member handing car keys to a customer at the counter"
+        eyebrow="Surrey · Langley · Abbotsford"
+        priority
+        title="Contact C2C Rental"
+        subtitle="Questions about rentals, insurance or availability? We're a local team and we answer fast — usually within the hour during business hours."
+        actions={
+          <>
+            <a href="tel:+16047634242" className="btn-corp">
+              Call (604) 763-4242 <ArrowRight className="w-4 h-4" />
+            </a>
+            <a
+              href="mailto:support@c2crental.ca"
+              className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+            >
+              Email us
+            </a>
+          </>
+        }
+      />
+
+      <TrustMarquee region="British Columbia" />
+
 
       {/* Two-column layout */}
       <section className="py-16 bg-background">
