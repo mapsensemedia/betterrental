@@ -10,6 +10,8 @@ import aboutHero from "@/assets/hero-suv-mountains.jpg";
 import counterImg from "@/assets/abbotsford-counter-handshake.jpg";
 import keysImg from "@/assets/abbotsford-keys-handover.jpg";
 import fleetImg from "@/assets/city-surrey.jpg";
+import langleyImg from "@/assets/city-langley.jpg";
+import abbotsfordImg from "@/assets/city-abbotsford.jpg";
 
 const differentiators = [
   {
