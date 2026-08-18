@@ -83,7 +83,7 @@ export function CityTileGrid({ tiles }: { tiles: CityTile[] }) {
       {tiles.map((t) => (
         <div key={t.title} className="bg-card p-5 space-y-2">
           <div className="h-9 w-9 bg-accent/10 flex items-center justify-center">
-            <t.icon className="h-4.5 w-4.5 h-[18px] w-[18px] text-accent" />
+            <t.icon className="h-[18px] w-[18px] text-accent" />
           </div>
           <h3 className="font-semibold text-foreground text-sm">{t.title}</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">{t.detail}</p>
