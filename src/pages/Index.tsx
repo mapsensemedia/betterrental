@@ -294,7 +294,7 @@ const Index = () => {
       <LocationChips />
 
       {/* ── J) QUICK LINKS — internal linking for SEO ────────────── */}
-      <section aria-labelledby="explore-heading" className="tint-band py-16 lg:py-24">
+      <section aria-labelledby="explore-heading" className="bg-background py-16 lg:py-24 border-t border-border">
         <div className="container-corp">
           <span className="eyebrow">Explore</span>
           <h2 id="explore-heading" className="heading-2 text-foreground mb-8">
