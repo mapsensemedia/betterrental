@@ -14,6 +14,7 @@ import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { PageHero } from "@/components/shared/PageHero";
 import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import { CityVisualBand } from "@/components/shared/CityVisualBand";
 import surreyHero from "@/assets/city-surrey.jpg";
 import { GBP_LINKS } from "@/constants/gbpLinks";
 
