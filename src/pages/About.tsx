@@ -60,32 +60,81 @@ export default function About() {
     <CustomerLayout>
       <SEO title={ABOUT_TITLE} description={ABOUT_DESC} path="/about" jsonLd={aboutSchema} />
       {/* Hero */}
-      <section className="page-band pt-28">
-        <div className="container-corp">
-          <span className="eyebrow">Who we are</span>
-          <h1 className="heading-1 text-foreground max-w-3xl">
-            About C2C Rental — Built for Fraser Valley Drivers
-          </h1>
-        </div>
-      </section>
+      <PageHero
+        image={aboutHero}
+        imageAlt="C2C Rental SUV parked with Fraser Valley mountains at sunset"
+        eyebrow="Who we are"
+        priority
+        title={<>About C2C Rental — Built for Fraser Valley Drivers</>}
+        subtitle="A Surrey-based team renting dependable cars across Surrey, Langley and Abbotsford — with pricing you can read in one line."
+        actions={
+          <>
+            <Link to="/search" className="btn-corp">
+              Browse vehicles <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/contact"
+              className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+            >
+              Talk to us
+            </Link>
+          </>
+        }
+      />
+
+      <TrustMarquee region="British Columbia" />
 
       {/* Section 1: Our Story */}
       <section className="section-corp bg-background">
         <div className="container-corp">
-          <h2 className="heading-2 text-foreground mb-6">Our Story</h2>
-          <div className="space-y-4 text-muted-foreground leading-relaxed max-w-[65ch]">
-            <p>
-              C2C Rental started because we saw a gap in the Fraser Valley car rental market that nobody was filling. The big national chains — Enterprise, Budget, Hertz — serve the airports and downtown corridors, but their pricing is opaque, their upselling is relentless, and their support is a phone tree. Peer-to-peer platforms like Turo give you variety, but the experience depends entirely on the individual car owner. Pickup logistics are unpredictable, vehicle quality varies, and when something goes wrong there's no local team to call.
-            </p>
-            <p>
-              We built C2C Rental to be the local alternative. Based in Surrey, we serve drivers across the Fraser Valley — from Newton and Guildford to Langley Township and Abbotsford's airport corridor. Our fleet is maintained to a consistent standard, our pricing is straightforward, and every vehicle carries a valid ICBC owner's certificate. No hidden fees. No surprise charges at the counter.
-            </p>
-            <p>
-              Our typical renters are commuters between vehicles, newcomers to BC who need a car while settling in, students at KPU and UFV, families who need a second vehicle for a week, and workers whose car is in the shop. We work with body shops on replacement rentals and with individual drivers who just need honest, affordable transportation.
-            </p>
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+            <div>
+              <span className="eyebrow">Our story</span>
+              <h2 className="heading-2 text-foreground mb-6">Built as the local alternative</h2>
+              <div className="space-y-4 text-muted-foreground leading-relaxed">
+                <p>
+                  C2C Rental started because we saw a gap in the Fraser Valley car rental market that nobody was filling. The big national chains serve the airports and downtown corridors, but their pricing is opaque, their upselling is relentless, and their support is a phone tree. Peer-to-peer platforms give you variety, but the experience depends entirely on the individual car owner.
+                </p>
+                <p>
+                  Based in Surrey, we serve drivers across the Fraser Valley — from Newton and Guildford to Langley Township and Abbotsford's airport corridor. Our fleet is maintained to a consistent standard, our pricing is straightforward, and every vehicle carries a valid ICBC owner's certificate. No hidden fees. No surprise charges at the counter.
+                </p>
+                <p>
+                  Our renters are commuters between vehicles, newcomers to BC settling in, students at KPU and UFV, families who need a second vehicle for a week, and workers whose car is in the shop. We work with body shops on replacement rentals and with drivers who just need honest, affordable transportation.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4">
+              <img
+                src={counterImg}
+                alt="C2C Rental team member handing keys to a customer at the counter"
+                width={1920}
+                height={1088}
+                loading="lazy"
+                className="w-full h-[220px] md:h-[300px] object-cover"
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <img
+                  src={keysImg}
+                  alt="Customer receiving rental car keys"
+                  width={1920}
+                  height={1088}
+                  loading="lazy"
+                  className="w-full h-[140px] md:h-[180px] object-cover"
+                />
+                <img
+                  src={fleetImg}
+                  alt="Clean rental SUV ready for pickup in Surrey"
+                  width={1920}
+                  height={1088}
+                  loading="lazy"
+                  className="w-full h-[140px] md:h-[180px] object-cover"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
 
       {/* Section 2: What Makes Us Different */}
       <section className="section-corp bg-brand-tint">
