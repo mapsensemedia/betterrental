@@ -245,7 +245,7 @@ export default function Contact() {
                 <CardContent className="p-6 md:p-8">
                   {isSubmitted ? (
                     <div className="text-center py-12">
-                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 rounded-none bg-primary/10 flex items-center justify-center mx-auto mb-4">
                         <CheckCircle className="w-8 h-8 text-primary" />
                       </div>
                       <h3 className="text-lg font-semibold text-foreground mb-2">Thanks! We'll be in touch within a few hours.</h3>
@@ -321,10 +321,10 @@ export default function Contact() {
       {/* FAQ Strip */}
       <section className="section-corp bg-brand-tint border-t border-border">
         <div className="container-corp">
-          <h2 className="heading-2 text-foreground text-center mb-10">Quick Answers</h2>
+          <h2 className="heading-2 text-foreground mb-10">Quick Answers</h2>
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {faqs.map((faq) => (
-              <Card key={faq.q}>
+              <Card key={faq.q} className="rounded-none border-border shadow-none">
                 <CardContent className="p-6">
                   <h3 className="font-semibold text-foreground mb-2">{faq.q}</h3>
                   <p className="text-sm text-muted-foreground">{faq.a}</p>
