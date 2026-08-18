@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { MapPin, ArrowRight, ExternalLink } from "lucide-react";
+import { MapPin, ArrowRight, ExternalLink, Phone } from "lucide-react";
 import { GBP_LINKS } from "@/constants/gbpLinks";
 
 const branches = [
@@ -15,22 +15,40 @@ const serviceAreas = [
 
 export function LocationChips() {
   return (
-    <section className="section-pad bg-background" aria-labelledby="locations-heading">
+    <section className="section-pad tint-band" aria-labelledby="locations-heading">
       <div className="container-corp">
         <div className="mb-10 md:mb-14 max-w-2xl">
           <span className="eyebrow">Locations</span>
           <h2 id="locations-heading" className="heading-2 text-foreground">
             Branches across the Lower Mainland
           </h2>
+          <p className="mt-4 text-[16px] text-muted-foreground leading-relaxed max-w-[52ch]">
+            Pick up at any of our three counters, or have the car delivered to you.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 border-l border-t border-border mb-10">
-          {branches.map((branch) => (
-            <div key={branch.label} className="border-r border-b border-border bg-card p-6 lg:p-8">
-              <MapPin className="w-6 h-6 text-brand mb-5" strokeWidth={1.25} />
-              <h3 className="text-base font-semibold text-foreground mb-1">{branch.label}</h3>
-              <p className="text-sm text-muted-foreground mb-5">{branch.address}</p>
-              <div className="flex flex-wrap gap-3">
+        {/* Branch cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
+          {branches.map((branch, i) => (
+            <div
+              key={branch.label}
+              className="card-corp bg-card p-7 lg:p-8 flex flex-col corp-reveal"
+              style={{ animationDelay: `${i * 70}ms` }}
+            >
+              <span className="w-11 h-11 flex items-center justify-center bg-brand-tint text-brand mb-6">
+                <MapPin className="w-5 h-5" strokeWidth={1.5} />
+              </span>
+              <h3 className="text-[17px] font-semibold text-foreground mb-1.5">{branch.label}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{branch.address}</p>
+              <a
+                href="tel:+16047634242"
+                className="inline-flex items-center gap-2 text-sm text-foreground hover:text-brand mb-7"
+              >
+                <Phone className="w-3.5 h-3.5" strokeWidth={1.75} />
+                +1 (604) 763-4242
+              </a>
+
+              <div className="mt-auto flex flex-wrap gap-3 pt-6 hairline">
                 <Link to={branch.href} className="chip-corp">
                   Rent here
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -44,19 +62,35 @@ export function LocationChips() {
           ))}
         </div>
 
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-4">
-          Service area
-        </p>
-        <div className="flex flex-wrap gap-2 mb-10">
-          {serviceAreas.map((city) => (
-            <span key={city} className="chip-corp">{city}</span>
-          ))}
-        </div>
+        {/* Service area */}
+        <div className="card-corp bg-card p-7 lg:p-10">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div className="max-w-md">
+              <span className="eyebrow">Delivery service area</span>
+              <h3 className="text-[20px] md:text-[22px] font-display font-semibold text-foreground leading-snug">
+                We bring the car to you across the Fraser Valley
+              </h3>
+              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                Flat $50 delivery within 50 km of any branch.
+              </p>
+              <Link to="/locations" className="btn-corp-outline mt-6">
+                View all locations
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
 
-        <Link to="/locations" className="btn-corp-outline">
-          View all locations
-          <ArrowRight className="w-4 h-4" />
-        </Link>
+            <div className="flex flex-wrap gap-2.5 lg:max-w-[560px]">
+              {serviceAreas.map((city) => (
+                <span
+                  key={city}
+                  className="inline-flex items-center px-4 py-2 text-[13px] font-medium bg-brand-tint text-brand border border-brand/15"
+                >
+                  {city}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
