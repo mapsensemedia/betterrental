@@ -60,17 +60,18 @@ export default function About() {
     <CustomerLayout>
       <SEO title={ABOUT_TITLE} description={ABOUT_DESC} path="/about" jsonLd={aboutSchema} />
       {/* Hero */}
-      <section className="bg-background pt-24 pb-16">
-        <div className="container-page max-w-3xl mx-auto text-center">
-          <h1 className="heading-1 text-foreground mb-6">
+      <section className="page-band pt-28">
+        <div className="container-corp">
+          <span className="eyebrow">Who we are</span>
+          <h1 className="heading-1 text-foreground max-w-3xl">
             About C2C Rental — Built for Fraser Valley Drivers
           </h1>
         </div>
       </section>
 
       {/* Section 1: Our Story */}
-      <section className="py-16 bg-background">
-        <div className="container-page max-w-3xl mx-auto">
+      <section className="section-corp bg-background">
+        <div className="container-corp max-w-3xl">
           <h2 className="heading-2 text-foreground mb-6">Our Story</h2>
           <div className="space-y-4 text-muted-foreground leading-relaxed">
             <p>
@@ -87,14 +88,14 @@ export default function About() {
       </section>
 
       {/* Section 2: What Makes Us Different */}
-      <section className="py-16 bg-muted/50">
+      <section className="section-corp bg-brand-tint">
         <div className="container-page">
           <h2 className="heading-2 text-foreground text-center mb-12">What Makes Us Different</h2>
           <div className="grid md:grid-cols-3 gap-6">
             {differentiators.map((d) => (
               <Card key={d.title} className="text-center">
                 <CardContent className="p-8">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <div className="w-12 h-12 rounded-none bg-primary/10 flex items-center justify-center mx-auto mb-4">
                     <d.icon className="w-6 h-6 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground text-lg mb-2">{d.title}</h3>
@@ -107,8 +108,8 @@ export default function About() {
       </section>
 
       {/* Section 3: Our Service Area */}
-      <section className="py-16 bg-background">
-        <div className="container-page max-w-3xl mx-auto">
+      <section className="section-corp bg-background">
+        <div className="container-corp max-w-3xl">
           <h2 className="heading-2 text-foreground mb-6">Our Service Area</h2>
           <p className="text-muted-foreground leading-relaxed mb-8">
             C2C Rental serves drivers across Surrey — including Newton, Guildford, Cloverdale, Fleetwood, Whalley, and South Surrey — as well as Langley (Township and City) and Abbotsford (including the airport corridor). Whether you need a car for a day or a month, we have options across the Fraser Valley.
@@ -122,7 +123,7 @@ export default function About() {
               <Link
                 key={loc.city}
                 to={loc.href}
-                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card p-6 text-center font-semibold text-foreground hover:border-primary/30 hover:shadow-md transition-all"
+                className="flex items-center justify-center gap-2 rounded-none border border-border bg-card p-6 text-center font-semibold text-foreground hover:border-primary/30 hover:shadow-md transition-all"
               >
                 <MapPin className="w-4 h-4 text-primary" />
                 {loc.city}
@@ -133,15 +134,15 @@ export default function About() {
       </section>
 
       {/* Section 4: Our Fleet */}
-      <section className="py-16 bg-muted/50">
-        <div className="container-page max-w-3xl mx-auto">
+      <section className="section-corp bg-brand-tint">
+        <div className="container-corp max-w-3xl">
           <h2 className="heading-2 text-foreground mb-6">Our Fleet</h2>
           <p className="text-muted-foreground leading-relaxed mb-8">
             Our fleet includes economy sedans, midsize cars, SUVs and crossovers, and minivans — all regularly maintained, cleaned before every rental, and equipped for BC driving conditions. Winter tires available November through March on AWD vehicles.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {fleetCategories.map((cat) => (
-              <div key={cat.label} className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-5 text-center">
+              <div key={cat.label} className="flex flex-col items-center gap-2 rounded-none border border-border bg-card p-5 text-center">
                 <cat.icon className="w-8 h-8 text-primary" />
                 <span className="text-sm font-medium text-foreground">{cat.label}</span>
               </div>
@@ -165,10 +166,10 @@ export default function About() {
       </section>
 
       {/* Section 6: ICBC & Insurance Compliance */}
-      <section className="py-16 bg-background">
-        <div className="container-page max-w-3xl mx-auto">
-          <div className="flex items-start gap-4 rounded-xl border border-border bg-card p-8">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+      <section className="section-corp bg-background">
+        <div className="container-corp max-w-3xl">
+          <div className="flex items-start gap-4 rounded-none border border-border bg-card p-8">
+            <div className="w-12 h-12 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
               <FileCheck className="w-6 h-6 text-primary" />
             </div>
             <div>

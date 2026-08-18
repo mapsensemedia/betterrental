@@ -102,13 +102,14 @@ export default function Compare() {
           Back to Search
         </Link>
 
+        <span className="eyebrow">Side by side</span>
         <h1 className="heading-2 mb-8">Compare Vehicles</h1>
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].slice(0, ids.length).map((i) => (
               <div key={i} className="space-y-4">
-                <Skeleton className="aspect-[4/3] rounded-2xl" />
+                <Skeleton className="aspect-[4/3] rounded-none" />
                 <Skeleton className="h-6 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
               </div>
@@ -127,7 +128,7 @@ export default function Compare() {
                 {vehicles.map((vehicle) => (
                   <div
                     key={vehicle.id}
-                    className="relative rounded-2xl border border-border overflow-hidden bg-card"
+                    className="relative rounded-none border border-border overflow-hidden bg-card"
                   >
                     {/* Remove Button */}
                     <button
@@ -181,7 +182,7 @@ export default function Compare() {
               </div>
 
               {/* Comparison Table */}
-              <div className="rounded-2xl border border-border overflow-hidden">
+              <div className="rounded-none border border-border overflow-hidden">
                 {/* Basic Specs */}
                 <CompareSection title="Basic Specifications">
                   <CompareRow
@@ -286,7 +287,7 @@ function CompareSection({
 }) {
   return (
     <div>
-      <div className="bg-muted px-4 py-3 font-semibold text-sm">{title}</div>
+      <div className="bg-brand-tint px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground border-b border-border">{title}</div>
       <div className="divide-y divide-border">{children}</div>
     </div>
   );
