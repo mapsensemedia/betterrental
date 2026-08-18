@@ -28,6 +28,8 @@ import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { GBP_LINKS } from "@/constants/gbpLinks";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { SectionHeader } from "@/components/landing/SectionHeader";
+import { PageHero } from "@/components/shared/PageHero";
+import abbotsfordHero from "@/assets/city-abbotsford.jpg";
 import { CleaningBanner } from "@/components/landing/CleaningBanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
