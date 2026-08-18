@@ -52,7 +52,7 @@ export default function CarRentalSurreyGuide() {
         <section className="prose-section">
           <h2>What Type of Car Should You Rent in Surrey?</h2>
           <p>
-            Your ideal rental depends on how you plan to use it. If you need a vehicle primarily for commuting along Highway 1 or King George Boulevard, an economy sedan is your best bet — affordable on fuel, easy to park, and available at C2C Rental from $45 per day. For weekend trips to Whistler, Manning Park, or the Coquihalla, an SUV with all-wheel drive gives you confidence on mountain roads, especially in winter. Families heading to the airport or travelling with kids and luggage should consider a minivan — spacious, comfortable, and ideal for those early-morning YVR runs.
+            Your ideal rental depends on how you plan to use it. If you need a vehicle primarily for commuting along Highway 1 or King George Boulevard, an economy sedan is your best bet — affordable on fuel, easy to park, and available at C2C Rental from $74.99 per day. For weekend trips to Whistler, Manning Park, or the Coquihalla, an SUV with all-wheel drive gives you confidence on mountain roads, especially in winter. Families heading to the airport or travelling with kids and luggage should consider a minivan — spacious, comfortable, and ideal for those early-morning YVR runs.
           </p>
           <p>
             C2C Rental's fleet includes economy sedans, mid-size SUVs, and 7-seat minivans, all available for pickup or delivery across Surrey. Browse the full selection on our <Link to="/surrey" className="text-primary hover:underline">Surrey car rental page</Link>.

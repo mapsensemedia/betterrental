@@ -25,7 +25,7 @@ const vehicleCards = [
     icon: Car,
     category: "Economy & Compact Cars",
     example: "Toyota Corolla or Honda Civic",
-    rate: "$45–$65/day",
+    rate: "$74.99+/day",
     useCase: "Daily commutes, errands, SFU Surrey runs, YVR trips",
   },
   {
@@ -62,7 +62,7 @@ const renterPersonas = [
   },
   {
     title: "International Students (SFU Surrey / Kwantlen)",
-    description: "Studying at SFU Surrey Campus or KPU? Weekend rentals and short-term plans starting at $45/day.",
+    description: "Studying at SFU Surrey Campus or KPU? Weekend rentals and short-term plans starting at $74.99/day.",
   },
   {
     title: "Commuters Without a Car",
@@ -124,7 +124,7 @@ const bookingSteps = [
 ];
 
 const SURREY_TITLE = "Car Rental Surrey BC | Affordable & Local — C2C Rental";
-const SURREY_DESC = "Affordable car rentals in Surrey, BC from $45/day. Economy cars, SUVs, and minivans across Newton, Guildford, Whalley & Cloverdale. Book online with C2C Rental.";
+const SURREY_DESC = "Affordable car rentals in Surrey, BC from $74.99/day. Economy cars, SUVs, and minivans across Newton, Guildford, Whalley & Cloverdale. Book online with C2C Rental.";
 
 const surreyLocalBusinessSchema = {
   "@context": "https://schema.org",

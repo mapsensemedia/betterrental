@@ -19,7 +19,7 @@ interface CityVisualBandProps {
 }
 
 const defaultStats: Stat[] = [
-  { value: "$45", label: "Daily rates from" },
+  { value: "$74.99", label: "Daily rates from" },
   { value: "3", label: "Fraser Valley locations" },
   { value: "1–7 days", label: "Unlimited kilometres" },
 ];

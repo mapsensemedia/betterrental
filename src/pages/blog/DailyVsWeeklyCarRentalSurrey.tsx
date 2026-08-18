@@ -121,7 +121,7 @@ export default function DailyVsWeeklyCarRentalSurrey() {
             </ul>
 
             <h3>The Math Behind Weekly Savings</h3>
-            <p>Let's say C2C Rental offers a compact sedan at $45/day. If you need it for 7 days:</p>
+            <p>Let's say C2C Rental offers a compact sedan at $74.99/day. If you need it for 7 days:</p>
 
             <div className="overflow-x-auto my-6">
               <table className="w-full text-sm border border-border rounded-none overflow-hidden">

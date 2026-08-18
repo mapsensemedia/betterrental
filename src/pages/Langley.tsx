@@ -26,7 +26,7 @@ const vehicleCards = [
     icon: Car,
     category: "Economy & Compact Cars",
     example: "Toyota Corolla",
-    rate: "$45–$65/day",
+    rate: "$74.99+/day",
     useCase: "City driving, errands, solo commuters, YVR airport runs",
   },
   {
@@ -71,7 +71,7 @@ const faqItems = [
   },
   {
     q: "What is the daily rate for car rental in Langley, BC?",
-    a: "Daily rates for C2C Rental in Langley start at $45/day for economy and compact cars. Midsize sedans range from $65–$85/day, SUVs from $75–$110/day, and minivans from $85–$120/day. Weekly and monthly bookings often qualify for discounted rates. Visit our booking page for a live quote.",
+    a: "Daily rates for C2C Rental in Langley start at $74.99/day for economy and compact cars, with larger sedans, SUVs and minivans priced above that. Visit our booking page for a live quote.",
   },
 ];
 
