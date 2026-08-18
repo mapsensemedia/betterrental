@@ -2,8 +2,14 @@ import { SEO } from "@/components/shared/SEO";
 import { Link } from "react-router-dom";
 import { Shield, DollarSign, CalendarRange, Car, MapPin, CheckCircle, ArrowRight, Snowflake, FileCheck } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
+import { PageHero } from "@/components/shared/PageHero";
+import { TrustMarquee } from "@/components/landing/TrustMarquee";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import aboutHero from "@/assets/hero-suv-mountains.jpg";
+import counterImg from "@/assets/abbotsford-counter-handshake.jpg";
+import keysImg from "@/assets/abbotsford-keys-handover.jpg";
+import fleetImg from "@/assets/city-surrey.jpg";
 
 const differentiators = [
   {
