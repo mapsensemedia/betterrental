@@ -320,13 +320,13 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
   };
 
   return (
-    <div className={cn("glass rounded-2xl p-4 sm:p-6 shadow-xl overflow-x-hidden", className)}>
+    <div className={cn("glass rounded-2xl p-4 sm:p-5 shadow-xl overflow-x-hidden", className)}>
       {/* Delivery Mode Toggle */}
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-4">
         <button
           onClick={() => handleDeliveryModeChange("pickup")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-full text-xs sm:text-sm font-medium transition-colors border min-w-0",
+            "flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-none text-xs sm:text-sm font-medium transition-colors border min-w-0",
             deliveryMode === "pickup"
               ? "bg-foreground text-background border-foreground"
               : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
@@ -338,7 +338,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
         <button
           onClick={() => handleDeliveryModeChange("delivery")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-full text-xs sm:text-sm font-medium transition-colors border relative min-w-0",
+            "flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-none text-xs sm:text-sm font-medium transition-colors border relative min-w-0",
             deliveryMode === "delivery"
               ? "bg-foreground text-background border-foreground"
               : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
@@ -357,8 +357,8 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
       {/* Map Preview Banner */}
       {deliveryMode === "delivery" && showMap && deliveryCoords && closestDealership && (
-        <div className="mb-6 rounded-xl overflow-hidden border border-border bg-muted/30">
-          <div className="p-3 bg-success/10 border-b border-success/20 flex items-center gap-3">
+        <div className="mb-4 rounded-none overflow-hidden border border-border bg-muted/30">
+          <div className="p-3 bg-success/10 border-b border-success/20 flex items-center gap-2.5">
             <Check className="w-5 h-5 text-success shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
@@ -385,10 +385,10 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
       {/* Search Fields - Different layout for delivery mode */}
       {deliveryMode === "delivery" ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Delivery Address */}
           <div className="space-y-2 relative z-20">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
               Delivery Address
             </label>
             <DeliveryAddressAutocomplete
@@ -406,10 +406,10 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
           </div>
 
           {/* Date/Time Fields Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
             {/* Delivery Date */}
             <div className="space-y-2 min-w-0">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
                 Delivery Date
               </label>
               <div 
@@ -441,14 +441,14 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                       setReturnDateTime(parseLocalDate(nextDayStr), returnTime);
                     }
                   }}
-                  className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
+                  className="w-full h-11 pl-10 pr-3 rounded-none border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
                 />
               </div>
             </div>
 
             {/* Delivery Time */}
             <div className="space-y-2 min-w-0">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
                 Delivery Time
               </label>
               <Select value={pickupTime} onValueChange={(time) => {
@@ -457,7 +457,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                   setPickupDateTime(new Date(`${pickupDate}T${time}`), time);
                 }
               }}>
-                <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                <SelectTrigger className="h-11 rounded-none border-border bg-background w-full">
                   <div className="flex items-center gap-2 min-w-0">
                     <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span className="truncate">
@@ -477,7 +477,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
             {/* Return Date */}
             <div className="space-y-2 min-w-0">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
                 Return Date
               </label>
               <div 
@@ -507,7 +507,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                       setReturnDateTime(new Date(`${newDate}T${returnTime}`), returnTime);
                     }
                   }}
-                  className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
+                  className="w-full h-11 pl-10 pr-3 rounded-none border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
                 />
               </div>
               {pickupDate && returnDate && (
@@ -527,7 +527,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
             {/* Return Time */}
             <div className="space-y-2 min-w-0">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
                 Return Time
               </label>
               <Select value={returnTime} onValueChange={(time) => {
@@ -536,7 +536,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                   setReturnDateTime(new Date(`${returnDate}T${time}`), time);
                 }
               }}>
-                <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                <SelectTrigger className="h-11 rounded-none border-border bg-background w-full">
                   <div className="flex items-center gap-2 min-w-0">
                     <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span className="truncate">
@@ -557,14 +557,14 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
         </div>
       ) : (
         // Pickup mode - grid layout
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Pickup Location */}
           <div className="space-y-2 min-w-0">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
               Pickup Location
             </label>
             <Select value={locationId} onValueChange={handleLocationChange} disabled={!!lockLocationId}>
-              <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+              <SelectTrigger className="h-11 rounded-none border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="truncate">
@@ -592,7 +592,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
           {/* Pickup Date */}
           <div className="space-y-2 min-w-0">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
               Pickup Date
             </label>
             <div 
@@ -624,14 +624,14 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                     setReturnDateTime(new Date(`${nextDayStr}T${returnTime}`), returnTime);
                   }
                 }}
-                className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
+                className="w-full h-11 pl-10 pr-3 rounded-none border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
               />
             </div>
           </div>
 
           {/* Pickup Time */}
           <div className="space-y-2 min-w-0">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
               Pickup Time
             </label>
             <Select value={pickupTime} onValueChange={(time) => {
@@ -640,7 +640,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                 setPickupDateTime(new Date(`${pickupDate}T${time}`), time);
               }
             }}>
-              <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+              <SelectTrigger className="h-11 rounded-none border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="truncate">
@@ -660,7 +660,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
           {/* Return Date */}
           <div className="space-y-2 min-w-0">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
               Return Date
             </label>
             <div 
@@ -690,7 +690,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                     setReturnDateTime(new Date(`${newDate}T${returnTime}`), returnTime);
                   }
                 }}
-                className="w-full h-12 pl-10 pr-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
+                className="w-full h-11 pl-10 pr-3 rounded-none border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm cursor-pointer"
               />
             </div>
             {pickupDate && returnDate && (
@@ -710,7 +710,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
           {/* Return Time */}
           <div className="space-y-2 min-w-0">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
               Return Time
             </label>
             <Select value={returnTime} onValueChange={(time) => {
@@ -719,7 +719,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                 setReturnDateTime(new Date(`${returnDate}T${time}`), time);
               }
             }}>
-              <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+              <SelectTrigger className="h-11 rounded-none border-border bg-background w-full">
                 <div className="flex items-center gap-2 min-w-0">
                   <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span className="truncate">
@@ -763,7 +763,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
           
           {!returnSameAsPickup && (
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
                 Drop-off Location
               </label>
               <Select 
@@ -773,7 +773,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                   setReturnLocation(id);
                 }}
               >
-                <SelectTrigger className="h-12 rounded-xl border-border bg-background w-full">
+                <SelectTrigger className="h-11 rounded-none border-border bg-background w-full">
                   <div className="flex items-center gap-2 min-w-0">
                     <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
                     <span className="truncate">
@@ -826,7 +826,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
       {/* Delivery Error */}
       {deliveryError && (
-        <div className="mt-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center gap-3">
+        <div className="mt-4 p-3 rounded-none bg-destructive/10 border border-destructive/20 flex items-center gap-2.5">
           <AlertCircle className="w-5 h-5 text-destructive" />
           <p className="text-sm text-destructive">{deliveryError}</p>
         </div>
@@ -843,7 +843,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
         const hours = ms / 3_600_000;
         const days = Math.max(1, Math.ceil(ms / 86_400_000));
         return (
-          <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 text-sm">
+          <div className="mt-4 p-3 rounded-none bg-primary/5 border border-primary/20 text-sm">
             <span className="font-medium text-foreground">
               {days} billable day{days > 1 ? "s" : ""}
             </span>
@@ -891,7 +891,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
 
         <Button
           onClick={handleSearch}
-          className="h-12 px-8 w-full btn-luxury text-base font-semibold"
+          className="h-11 px-8 w-full btn-luxury text-base font-semibold"
           variant="default"
         >
           <Search className="w-4 h-4 mr-2" />
