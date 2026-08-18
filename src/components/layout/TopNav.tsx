@@ -51,13 +51,14 @@ export function TopNav() {
   const isLocationActive = locationLinks.some((l) => location.pathname === l.href);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#FBFAF8] border-b border-black/5 transition-all duration-200">
-      <div className="max-w-[1200px] mx-auto w-full px-4 md:px-6">
-        <nav className="flex items-center justify-between h-16 md:h-[72px]" aria-label="Primary">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
+      <div className="container-corp">
+        <nav className="flex items-center justify-between h-16" aria-label="Primary">
           {/* Logo */}
           <Link to="/" className="flex items-center" aria-label="C2C Rental home">
-            <img src={c2cLogo} alt="C2C Rental" className="h-9 md:h-10 w-auto" />
+            <img src={c2cLogo} alt="C2C Rental" className="h-11 md:h-12 w-auto" />
           </Link>
+
 
           {/* Desktop Navigation - Hidden on tablet, show on lg+ */}
           <div className="hidden lg:flex items-center gap-7">
