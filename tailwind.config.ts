@@ -40,7 +40,12 @@ export default {
       },
       colors: {
         border: "hsl(var(--border))",
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          tint: "hsl(var(--brand-tint))",
+        },
         input: "hsl(var(--input))",
+
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
