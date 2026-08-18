@@ -14,7 +14,7 @@ import { LocationChips } from "@/components/landing/LocationChips";
 import { IncludedStrip } from "@/components/landing/IncludedStrip";
 
 // Images
-import heroPhoto from "@/assets/hero-suv-mountains.jpg.asset.json";
+import heroPhoto from "@/assets/hero-suv-mountains.jpg";
 
 
 const Index = () => {
@@ -228,7 +228,7 @@ const Index = () => {
       {/* ── A) HERO — full-bleed photo, left-anchored, bottom-up scrim ── */}
       <section className="relative isolate overflow-hidden">
         <img
-          src={heroPhoto.url}
+          src={heroPhoto}
           alt="C2C Rental SUV parked with Fraser Valley mountains at sunset"
           className="absolute inset-0 w-full h-full object-cover"
         />
