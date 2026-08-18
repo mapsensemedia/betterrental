@@ -1,15 +1,16 @@
 import { cn } from "@/lib/utils";
 
 const partners = [
-  "ICBC Coverage",
-  "Visa",
-  "Mastercard",
-  "American Express",
-  "Interac",
-  "Google Reviews",
-  "Worldline Secure Payments",
-  "CAA Roadside Ready",
+  "Unlimited kilometres on 1–7 day rentals",
+  "ICBC-compliant insurance included",
+  "Transparent pricing — no hidden fees",
+  "Free cancellation",
+  "Surrey · Langley · Abbotsford",
+  "Vehicle delivery available",
+  "Digital rental agreements",
+  "Local Fraser Valley team",
 ];
+
 
 interface TrustMarqueeProps {
   className?: string;
