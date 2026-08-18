@@ -400,12 +400,17 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
     border-radius: 0;
-    box-shadow: 0 1px 2px hsl(0 0% 0% / 0.03), 0 12px 28px -22px hsl(0 0% 0% / 0.25);
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 1px 2px hsl(0 0% 0% / 0.04), 0 10px 24px -14px hsl(0 0% 0% / 0.16);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
   }
   .card-corp:hover {
-    box-shadow: 0 2px 4px hsl(0 0% 0% / 0.04), 0 18px 36px -22px hsl(0 0% 0% / 0.3);
+    box-shadow: 0 2px 6px hsl(0 0% 0% / 0.05), 0 22px 44px -18px hsl(0 0% 0% / 0.22);
     border-color: hsl(var(--brand) / 0.35);
+  }
+
+  /* Elevated surface for modules that float over sections */
+  .shadow-corp-lg {
+    box-shadow: 0 2px 6px hsl(0 0% 0% / 0.05), 0 28px 60px -24px hsl(0 0% 0% / 0.28);
   }
 
   .brand-band {
@@ -416,6 +421,7 @@
   .tint-band {
     background: hsl(var(--brand-tint));
   }
+
 
   .hairline {
     border-top: 1px solid hsl(var(--border));
