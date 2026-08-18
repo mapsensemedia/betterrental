@@ -321,8 +321,9 @@ export default function Contact() {
       {/* FAQ Strip */}
       <section className="section-corp bg-brand-tint border-t border-border">
         <div className="container-corp">
+          <span className="eyebrow">FAQ</span>
           <h2 className="heading-2 text-foreground mb-10">Quick Answers</h2>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 ">
             {faqs.map((faq) => (
               <Card key={faq.q} className="rounded-none border-border shadow-none">
                 <CardContent className="p-6">
