@@ -36,14 +36,14 @@ const footerLinks = {
 
 export function Footer() {
   return (
-    <footer className="text-background bg-[#144d32]/[0.93]">
-      <div className="container-page py-14 md:py-20">
+    <footer className="text-background bg-brand">
+      <div className="container-corp py-16 lg:py-24">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
           {/* Brand Column */}
           <div className="lg:col-span-1">
             <Link to="/" className="flex items-center mb-5">
-              <img src={c2cLogo} alt="C2C Rental" className="h-10 w-auto" />
+              <img src={c2cLogo} alt="C2C Rental" className="h-14 md:h-16 w-auto" />
             </Link>
             <p className="text-background/55 mb-8 max-w-sm text-sm leading-relaxed">
               Premium car rental across the Lower Mainland. Drive with confidence.
@@ -56,11 +56,11 @@ export function Footer() {
                 <Input
                   type="email"
                   placeholder="Your email address"
-                  className="h-11 bg-background/8 border-background/15 text-background placeholder:text-background/35 focus:border-background/40 focus:ring-1 focus:ring-background/20 rounded-[12px]" />
+                  className="h-11 bg-background/8 border-background/15 text-background placeholder:text-background/35 focus:border-background/40 focus:ring-1 focus:ring-background/20 rounded-none" />
                 
                 <button
                   type="button"
-                  className="shrink-0 h-11 w-11 flex items-center justify-center rounded-[12px] bg-background/15 hover:bg-background/25 transition-colors duration-200"
+                  className="shrink-0 h-11 w-11 flex items-center justify-center rounded-none bg-background/15 hover:bg-background/25 transition-colors duration-200"
                   aria-label="Subscribe">
                   
                   <Mail className="w-4 h-4 text-background" />
@@ -71,7 +71,7 @@ export function Footer() {
 
           {/* Service Areas Column */}
           <div>
-            <h4 className="font-semibold text-background/80 text-sm mb-5 uppercase tracking-wider">Service Areas</h4>
+            <h4 className="font-semibold text-background/80 text-[11px] mb-5 uppercase tracking-[0.12em]">Service Areas</h4>
             <ul className="space-y-3">
               {footerLinks.serviceAreas.map((link) =>
               <li key={link.href}>
@@ -88,7 +88,7 @@ export function Footer() {
 
           {/* Company Column */}
           <div>
-            <h4 className="font-semibold text-background/80 text-sm mb-5 uppercase tracking-wider">Company</h4>
+            <h4 className="font-semibold text-background/80 text-[11px] mb-5 uppercase tracking-[0.12em]">Company</h4>
             <ul className="space-y-3">
               {footerLinks.company.map((link) =>
               <li key={link.href}>
@@ -105,7 +105,7 @@ export function Footer() {
 
           {/* Explore Column */}
           <div>
-            <h4 className="font-semibold text-background/80 text-sm mb-5 uppercase tracking-wider">Explore</h4>
+            <h4 className="font-semibold text-background/80 text-[11px] mb-5 uppercase tracking-[0.12em]">Explore</h4>
             <ul className="space-y-3">
               {footerLinks.explore.map((link) =>
               <li key={link.href}>
@@ -131,7 +131,7 @@ export function Footer() {
                 href={loc.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-background/70 hover:text-background bg-background/5 hover:bg-background/10 border border-background/10 rounded-full px-3.5 py-1.5 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-background/70 hover:text-background bg-background/5 hover:bg-background/10 border border-background/10 px-3.5 py-1.5 transition-colors"
               >
                 <MapPin className="w-3.5 h-3.5" />
                 {loc.label}

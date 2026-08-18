@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 
 interface SectionHeaderProps {
   title: string;
+  /** Eyebrow label rendered directly above the heading (11px uppercase) */
+  eyebrow?: string;
   subtitle?: string;
   action?: ReactNode;
   centered?: boolean;
@@ -11,6 +13,7 @@ interface SectionHeaderProps {
 
 export function SectionHeader({
   title,
+  eyebrow,
   subtitle,
   action,
   centered = false,
@@ -19,18 +22,17 @@ export function SectionHeader({
   return (
     <div
       className={cn(
-        "flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8",
+        "flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10 md:mb-14",
         centered && "items-center text-center md:flex-col",
         className
       )}
     >
       <div className={cn(centered && "text-center")}>
+        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+        <h2 className="heading-2 text-foreground">{title}</h2>
         {subtitle && (
-          <p className="text-sm font-medium text-primary uppercase tracking-wider mb-2">
-            {subtitle}
-          </p>
+          <p className="mt-4 text-[15px] text-muted-foreground prose-measure">{subtitle}</p>
         )}
-        <h2 className="heading-2">{title}</h2>
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

@@ -1,74 +1,23 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ArrowRight, Users, Fuel, Settings2, Car } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
-import { CategoryCard } from "@/components/landing/CategoryCard";
-
-import { SectionHeader } from "@/components/landing/SectionHeader";
 import { WhyChooseSection } from "@/components/landing/WhyChooseSection";
 import { CleaningBanner } from "@/components/landing/CleaningBanner";
 import { DeliveryBanner } from "@/components/landing/DeliveryBanner";
-import { LocationsSection } from "@/components/landing/LocationsSection";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
+import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import { FleetRow } from "@/components/landing/FleetRow";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Testimonials } from "@/components/landing/Testimonials";
+import { LocationChips } from "@/components/landing/LocationChips";
 
 // Images
 import heroImage from "@/assets/hero-c2c.jpg";
 
-// Category display card for homepage
-function CategoryDisplayCard({ category }: {category: FleetCategory;}) {
-  return (
-    <Link to="/search?from=fleet" className="block group">
-      <div className="card-premium overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col">
-        {/* Image */}
-        <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          {category.image_url ?
-          <img
-            src={category.image_url}
-            alt={category.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => e.currentTarget.src = "/placeholder.svg"} /> :
-
-
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-              <Car className="w-12 h-12" />
-            </div>
-          }
-        </div>
-
-        <div className="p-4 flex flex-col flex-1">
-          {/* Title */}
-          <h3 className="font-semibold text-base mb-2 line-clamp-1 text-foreground">{category.name}</h3>
-
-          {/* Specs */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-            <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{category.seats || 5}</span>
-            <span className="flex items-center gap-1"><Fuel className="w-3.5 h-3.5" />{category.fuel_type || "Gas"}</span>
-            <span className="flex items-center gap-1"><Settings2 className="w-3.5 h-3.5" />{category.transmission === "Automatic" ? "Auto" : "Manual"}</span>
-          </div>
-
-          {/* Price */}
-          <div className="flex items-center justify-between mt-auto">
-            <div>
-              <span className="text-xl font-bold text-foreground">${category.daily_rate}</span>
-              <span className="text-xs text-muted-foreground">/day</span>
-            </div>
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-[10px] border border-border bg-secondary text-foreground">View</span>
-          </div>
-        </div>
-      </div>
-    </Link>);
-
-}
 
 const Index = () => {
-  const { data: categories = [], isLoading } = useFleetCategories();
 
-  // Get top 4 categories to display
-  const displayCategories = categories.filter((c) => c.is_active).slice(0, 4);
 
   // Inject meta tags, OG tags, canonical, and JSON-LD structured data
   useEffect(() => {
@@ -275,151 +224,95 @@ const Index = () => {
 
   return (
     <CustomerLayout>
-      {/* ── A) HERO SECTION ─────────────────────────────────────── */}
-      <section className="bg-[#FBFAF8] pt-10 md:pt-16 pb-6 md:pb-10">
-        <div className="container-page">
-          {/* On mobile: single column (text then image). On lg+: two-column side-by-side. */}
-          <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-10 lg:items-center">
-            {/* Hero Content */}
-            <div className="relative z-10 max-w-xl animate-slide-up">
-              {/* Eyebrow */}
-              <p className="text-[12px] md:text-[13px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-4">
-                C2C Rental · Lower Mainland
-              </p>
-              <h1 className="text-[40px] md:text-[60px] font-semibold tracking-[-0.03em] leading-[1.05] text-zinc-950 mb-2">
-                Car Rental in Surrey, Langley &amp; Abbotsford BC
-              </h1>
-              {/* Accent underline */}
-              <div className="w-14 h-[3px] mt-4 mb-6 rounded-full" style={{ backgroundColor: '#197149' }} />
-              <p className="text-zinc-800 mt-8 md:text-xl font-semibold text-lg">24/7 Support, Pickup or delivery & Transparent pricing. 
+      {/* ── A) HERO — full-coverage photograph with bottom-up scrim ── */}
+      <section className="relative w-full min-h-[520px] md:min-h-[640px] flex items-end">
+        <img
+          src={heroImage}
+          alt="C2C Rental vehicle on a British Columbia road"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to top, hsl(0 0% 4% / 0.88) 0%, hsl(0 0% 4% / 0.55) 45%, hsl(0 0% 4% / 0.25) 100%)",
+          }}
+        />
 
-              </p>
-              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">After helping hundreds of renters, we built C2C to remove the friction from car rental.
-
-              </p>
-              {/* Scroll cue — not clickable */}
-              <p className="text-[13px] md:text-[14px] text-muted-foreground flex items-center gap-2 mt-6 mb-4 leading-tight select-none">
-                Search availability below
-                <ChevronDown className="w-4 h-4 opacity-70" />
-              </p>
-
-              {/* City Shortcut Buttons */}
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Link
-                  to="/surrey"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
-                >
-                  Rent in Surrey
-                </Link>
-                <Link
-                  to="/langley"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
-                >
-                  Rent in Langley
-                </Link>
-                <Link
-                  to="/abbotsford"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
-                >
-                  Rent in Abbotsford
-                </Link>
-              </div>
+        <div className="relative container-corp w-full pt-28 pb-16 md:pt-40 md:pb-24 text-center">
+          <div className="max-w-3xl mx-auto corp-reveal">
+            <span className="eyebrow text-white/70">C2C Rental · Lower Mainland</span>
+            <h1 className="heading-1 text-white">
+              Car Rental in Surrey, Langley &amp; Abbotsford BC
+            </h1>
+            <p className="mt-6 text-[16px] md:text-[17px] text-white/80 leading-relaxed max-w-[65ch] mx-auto">
+              24/7 support, pickup or delivery, and transparent pricing across the Fraser Valley.
+            </p>
+            <div className="mt-9 flex flex-wrap justify-center gap-4">
+              <Link to="/search" className="btn-corp">
+                Reserve a vehicle
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
-
-            {/* Hero Image — sits below cue on mobile, beside text on desktop */}
-            <div className="relative z-0 block w-full animate-fade-in animation-delay-200">
-              <img
-
-                alt="Premium car rental service"
-                className="block w-full max-h-[260px] lg:max-h-none object-cover rounded-lg" src="/lovable-uploads/ae30751c-fe6d-4959-839f-3ebc3decea01.png" />
-
-            </div>
-          </div>
-
-          {/* ── C) BOOKING / SEARCH MODULE ──────────────────────── */}
-          <div className="mt-10 animate-scale-in animation-delay-300">
-            <RentalSearchCard className="search-card-premium" />
           </div>
         </div>
       </section>
 
-      {/* ── D) WHY CHOOSE SECTION ──────────────────────────────── */}
+      {/* ── B) BOOKING BAR — overlaps the base of the hero ───────── */}
+      <section className="relative bg-background">
+        <div className="container-corp">
+          <div className="relative -mt-10 md:-mt-16 z-10 corp-reveal">
+            <RentalSearchCard className="bg-card border border-border shadow-[0_18px_40px_-28px_hsl(0_0%_0%/0.4)] rounded-none" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── C) TRUST BAND ────────────────────────────────────────── */}
+      <TrustMarquee className="mt-12 md:mt-20" region="British Columbia" />
+
+      {/* ── D) FLEET ROW — horizontal scroll ─────────────────────── */}
+      <FleetRow />
+
+      {/* ── E) HOW IT WORKS — compact grid ───────────────────────── */}
+      <HowItWorks />
+
+      {/* ── F) WHY CHOOSE US — full-bleed brand band ─────────────── */}
       <WhyChooseSection />
 
-      {/* ── D1) QUICK LINKS — improves internal linking for SEO ── */}
-      <section aria-labelledby="explore-heading" className="py-10 md:py-14 bg-background border-t border-border/40">
-        <div className="container-page">
-          <h2 id="explore-heading" className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-5">
-            Explore C2C Rental
+      {/* ── G) DELIVERY + CLEANING ───────────────────────────────── */}
+      <DeliveryBanner />
+      <CleaningBanner />
+
+      {/* ── H) TESTIMONIALS ──────────────────────────────────────── */}
+      <Testimonials />
+
+      {/* ── I) LOCATIONS — compact chips ─────────────────────────── */}
+      <LocationChips />
+
+      {/* ── J) QUICK LINKS — internal linking for SEO ────────────── */}
+      <section aria-labelledby="explore-heading" className="tint-band py-16 lg:py-24">
+        <div className="container-corp">
+          <span className="eyebrow">Explore</span>
+          <h2 id="explore-heading" className="heading-2 text-foreground mb-8">
+            More from C2C Rental
           </h2>
-          <nav aria-label="Popular pages" className="flex flex-wrap gap-x-6 gap-y-3 text-sm">
-            <Link to="/search" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Browse all cars</Link>
-            <Link to="/surrey" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Car rental in Surrey</Link>
-            <Link to="/langley" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Car rental in Langley</Link>
-            <Link to="/abbotsford" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Car rental in Abbotsford</Link>
-            <Link to="/locations" className="text-foreground hover:text-primary underline-offset-4 hover:underline">All locations</Link>
-            <Link to="/protection" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Insurance &amp; protection</Link>
-            <Link to="/about" className="text-foreground hover:text-primary underline-offset-4 hover:underline">About C2C Rental</Link>
-            <Link to="/contact" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Contact us</Link>
-            <Link to="/blog" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Rental tips &amp; guides</Link>
-            <Link to="/blog/daily-vs-weekly-car-rental-surrey-bc" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Daily vs weekly rates</Link>
-            <Link to="/blog/icbc-car-rental-insurance-bc" className="text-foreground hover:text-primary underline-offset-4 hover:underline">ICBC rental insurance guide</Link>
-            <Link to="/blog/best-road-trips-from-surrey-bc" className="text-foreground hover:text-primary underline-offset-4 hover:underline">Best road trips from Surrey</Link>
+          <nav aria-label="Popular pages" className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+            <Link to="/search" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Browse all cars</Link>
+            <Link to="/surrey" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Car rental in Surrey</Link>
+            <Link to="/langley" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Car rental in Langley</Link>
+            <Link to="/abbotsford" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Car rental in Abbotsford</Link>
+            <Link to="/locations" className="text-foreground hover:text-brand underline-offset-4 hover:underline">All locations</Link>
+            <Link to="/protection" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Insurance &amp; protection</Link>
+            <Link to="/about" className="text-foreground hover:text-brand underline-offset-4 hover:underline">About C2C Rental</Link>
+            <Link to="/contact" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Contact us</Link>
+            <Link to="/blog" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Rental tips &amp; guides</Link>
+            <Link to="/blog/daily-vs-weekly-car-rental-surrey-bc" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Daily vs weekly rates</Link>
+            <Link to="/blog/icbc-car-rental-insurance-bc" className="text-foreground hover:text-brand underline-offset-4 hover:underline">ICBC rental insurance guide</Link>
+            <Link to="/blog/best-road-trips-from-surrey-bc" className="text-foreground hover:text-brand underline-offset-4 hover:underline">Best road trips from Surrey</Link>
           </nav>
         </div>
       </section>
 
-      {/* ── D2) CLEANING BANNER ─────────────────────────────── */}
-      <CleaningBanner />
-
-      {/* ── E) BROWSE FLEET ────────────────────────────────────── */}
-      <section className="py-10 md:py-20 bg-background">
-        <div className="container-page">
-          <SectionHeader
-            title="Browse Our Fleet"
-            action={
-            <Link
-              to="/search?from=fleet"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold border border-border transition-all duration-200 bg-accent text-primary-foreground">
-
-                View all
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            } />
-
-
-          {isLoading ?
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {[1, 2, 3, 4].map((i) =>
-            <div key={i} className="card-premium overflow-hidden">
-                  <Skeleton className="h-40 w-full" />
-                  <div className="p-4 space-y-2">
-                    <Skeleton className="h-5 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                    <Skeleton className="h-6 w-1/3" />
-                  </div>
-                </div>
-            )}
-            </div> :
-          displayCategories.length > 0 ?
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {displayCategories.map((category) =>
-            <CategoryDisplayCard key={category.id} category={category} />
-            )}
-            </div> :
-
-          <div className="text-center py-12 text-muted-foreground">
-              <p>No vehicles available at the moment.</p>
-            </div>
-          }
-        </div>
-      </section>
-
-      {/* ── F) DELIVERY PROMO ──────────────────────────────────── */}
-      <DeliveryBanner />
-
-      {/* ── G) LOCATIONS ───────────────────────────────────────── */}
-      <LocationsSection />
 
     </CustomerLayout>);
 
