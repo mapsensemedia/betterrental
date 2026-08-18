@@ -779,3 +779,26 @@
   .blog-prose h2 { font-size: 1.75rem; }
   .blog-prose h3 { font-size: 1.35rem; }
 }
+
+/* ── Corporate refresh motion ─────────────────────────────── */
+@keyframes corp-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.corp-reveal {
+  animation: corp-rise 400ms ease-out both;
+}
+
+@keyframes corp-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.corp-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: corp-marquee 32s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .corp-reveal { animation: none; }
+  .corp-marquee-track { animation: none; }
+}
