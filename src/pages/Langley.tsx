@@ -12,6 +12,9 @@ import {
 import { Link } from "react-router-dom";
 import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
 import { GBP_LINKS } from "@/constants/gbpLinks";
+import { PageHero } from "@/components/shared/PageHero";
+import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import langleyHero from "@/assets/city-langley.jpg";
 
 const vehicleCards = [
   {
