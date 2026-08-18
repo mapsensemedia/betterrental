@@ -89,11 +89,11 @@ export default function About() {
 
       {/* Section 2: What Makes Us Different */}
       <section className="section-corp bg-brand-tint">
-        <div className="container-page">
+        <div className="container-corp">
           <h2 className="heading-2 text-foreground mb-12">What Makes Us Different</h2>
           <div className="grid md:grid-cols-3 gap-6">
             {differentiators.map((d) => (
-              <Card key={d.title} className="text-center">
+              <Card key={d.title} className="rounded-none border-border shadow-none">
                 <CardContent className="p-8">
                   <div className="w-12 h-12 rounded-none bg-primary/10 flex items-center justify-center mx-auto mb-4">
                     <d.icon className="w-6 h-6 text-primary" />
@@ -153,7 +153,7 @@ export default function About() {
 
       {/* Section 5: By the Numbers */}
       <section className="py-12 bg-primary text-primary-foreground">
-        <div className="container-page">
+        <div className="container-corp">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {stats.map((stat) => (
               <div key={stat.label}>
@@ -184,7 +184,7 @@ export default function About() {
 
       {/* Bottom CTA */}
       <section className="py-16 bg-muted">
-        <div className="container-page">
+        <div className="container-corp">
           <h2 className="heading-2 text-foreground mb-4">
             Ready to rent with a local team that actually knows Surrey?
           </h2>
