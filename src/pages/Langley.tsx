@@ -14,7 +14,12 @@ import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield
 import { GBP_LINKS } from "@/constants/gbpLinks";
 import { PageHero } from "@/components/shared/PageHero";
 import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
+import { CityVisualBand } from "@/components/shared/CityVisualBand";
 import langleyHero from "@/assets/city-langley.jpg";
+
+const LANGLEY_LOCATION_ID = "a1b2c3d4-2222-4000-8000-000000000002";
+
 
 const vehicleCards = [
   {
