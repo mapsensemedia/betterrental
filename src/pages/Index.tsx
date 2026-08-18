@@ -280,9 +280,11 @@ const Index = () => {
       {/* ── F) WHY CHOOSE US — full-bleed brand band ─────────────── */}
       <WhyChooseSection />
 
-      {/* ── G) DELIVERY + CLEANING ───────────────────────────────── */}
+      {/* ── G) DELIVERY → INCLUDED STRIP → CLEANING ──────────────── */}
       <DeliveryBanner />
+      <IncludedStrip />
       <CleaningBanner />
+
 
       {/* ── H) TESTIMONIALS ──────────────────────────────────────── */}
       <Testimonials />
