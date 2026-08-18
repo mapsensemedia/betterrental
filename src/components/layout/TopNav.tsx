@@ -163,7 +163,7 @@ export function TopNav() {
 
         {/* Mobile/Tablet Menu */}
         {isOpen && (
-          <div className="lg:hidden py-4 border-t border-black/5 bg-[#FBFAF8] rounded-b-xl animate-fade-in">
+          <div className="lg:hidden py-4 border-t border-border bg-background animate-fade-in">
             <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
