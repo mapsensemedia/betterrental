@@ -1,22 +1,20 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ArrowRight, Users, Fuel, Settings2, Car } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
-import { CategoryCard } from "@/components/landing/CategoryCard";
-
-import { SectionHeader } from "@/components/landing/SectionHeader";
 import { WhyChooseSection } from "@/components/landing/WhyChooseSection";
 import { CleaningBanner } from "@/components/landing/CleaningBanner";
 import { DeliveryBanner } from "@/components/landing/DeliveryBanner";
-import { LocationsSection } from "@/components/landing/LocationsSection";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-categories";
+import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import { FleetRow } from "@/components/landing/FleetRow";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Testimonials } from "@/components/landing/Testimonials";
+import { LocationChips } from "@/components/landing/LocationChips";
 
 // Images
 import heroImage from "@/assets/hero-c2c.jpg";
+
 
 // Category display card for homepage
 function CategoryDisplayCard({ category }: {category: FleetCategory;}) {
