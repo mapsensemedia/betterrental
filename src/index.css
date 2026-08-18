@@ -201,7 +201,7 @@
   }
 
   html {
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: 'Poppins', system-ui, sans-serif;
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -212,8 +212,33 @@
     @apply bg-background text-foreground;
     overflow-x: hidden;
     max-width: 100vw;
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  /* Headings always Montserrat (admin shell keeps its own Poppins rule) */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    font-weight: 600;
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+  }
+
+  .admin-theme h1,
+  .admin-theme h2,
+  .admin-theme h3,
+  .admin-theme h4,
+  .admin-theme h5,
+  .admin-theme h6 {
+    font-family: 'Poppins', system-ui, sans-serif;
   }
 }
+
+.dark {
+  --brand: 152 58% 25%;
+  --brand-tint: 152 30% 12%;
+}
+
 
 @layer components {
   /* Typography Scale */
