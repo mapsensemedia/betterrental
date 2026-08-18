@@ -225,7 +225,7 @@ const Index = () => {
 
   return (
     <CustomerLayout>
-      {/* ── A) HERO — full-bleed photo, left-anchored, bottom-up scrim ── */}
+      {/* ── A) HERO — full-bleed photo, left-anchored, soft side scrim ── */}
       <section className="relative isolate overflow-hidden">
         <img
           src={heroPhoto}
@@ -236,39 +236,45 @@ const Index = () => {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to top, hsl(0 0% 0% / 0.82) 0%, hsl(0 0% 0% / 0.55) 45%, hsl(0 0% 0% / 0.25) 100%)",
+              "linear-gradient(100deg, hsl(0 0% 0% / 0.78) 0%, hsl(0 0% 0% / 0.55) 42%, hsl(0 0% 0% / 0.18) 72%, hsl(0 0% 0% / 0.32) 100%)",
           }}
         />
-        <div className="relative container-corp pt-24 pb-28 md:pt-36 md:pb-44">
-          <div className="corp-reveal max-w-2xl">
-            <span className="eyebrow text-white/80">Surrey · Langley · Abbotsford</span>
-            <h1 className="heading-1 text-white">
+        <div className="relative container-corp pt-24 pb-36 md:pt-28 md:pb-44">
+          <div className="corp-reveal max-w-xl">
+            <span className="eyebrow text-white/75">Surrey · Langley · Abbotsford</span>
+            <h1 className="text-white font-display font-semibold leading-[1.08] tracking-tight text-[2.1rem] sm:text-[2.6rem] md:text-[3rem]">
               Car Rental in Surrey, Langley &amp; Abbotsford BC
             </h1>
-            <p className="mt-6 text-[16px] md:text-[17px] text-white/85 leading-relaxed max-w-[52ch]">
-              24/7 support, pickup or delivery, and transparent pricing across the Fraser Valley.
+            <p className="mt-5 text-[15px] md:text-[16px] text-white/80 leading-relaxed max-w-[42ch]">
+              No frills. No surprises. Just dependable cars when you need them.
             </p>
-            <div className="mt-9 flex flex-wrap gap-4">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link to="/search" className="btn-corp">
-                Reserve a vehicle
+                Book now
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                to="/locations"
+                to="/search"
                 className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
               >
-                Our locations
+                View fleet
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── B) BOOKING MODULE — slides up over the hero base ──────── */}
+      {/* ── B) BOOKING MODULE — sits on top of the hero base ───────── */}
       <section className="relative bg-background">
         <div className="container-corp">
-          <div className="relative -mt-16 md:-mt-24 z-20 corp-reveal">
-            <RentalSearchCard className="bg-card border border-border shadow-corp-lg rounded-none" />
+          <div className="relative -mt-24 md:-mt-28 z-20 corp-reveal bg-card border border-border shadow-corp-lg">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 md:px-7 pt-5 pb-4 border-b border-border">
+              <span className="eyebrow !mb-0">Reserve a vehicle</span>
+              <span className="text-[13px] text-muted-foreground">
+                Free cancellation · No card required to search
+              </span>
+            </div>
+            <RentalSearchCard className="!bg-transparent !shadow-none !rounded-none !backdrop-blur-none !border-0" />
           </div>
         </div>
       </section>
