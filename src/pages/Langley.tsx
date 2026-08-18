@@ -14,7 +14,12 @@ import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield
 import { GBP_LINKS } from "@/constants/gbpLinks";
 import { PageHero } from "@/components/shared/PageHero";
 import { TrustMarquee } from "@/components/landing/TrustMarquee";
+import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
+import { CityVisualBand } from "@/components/shared/CityVisualBand";
 import langleyHero from "@/assets/city-langley.jpg";
+
+const LANGLEY_LOCATION_ID = "a1b2c3d4-2222-4000-8000-000000000002";
+
 
 const vehicleCards = [
   {
@@ -137,24 +142,30 @@ const LangleyPage = () => {
         imageAlt="Rental sedan parked on a quiet Langley, BC road at dusk"
         eyebrow="C2C Rental · Langley, BC"
         priority
+        overlap
         title={<>Car Rental in Langley, BC — Affordable, Local &amp; Hassle-Free</>}
         subtitle="Pick up at Langley Centre on 96 Ave. Clear pricing, flexible coverage, and a local team that knows the Fraser Valley."
-        actions={
-          <>
-            <Link to="/search" className="btn-corp">
-              Check availability <ArrowRight className="w-4 h-4" />
-            </Link>
-            <a
-              href="tel:+16047634242"
-              className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
-            >
-              Call (604) 763-4242
-            </a>
-          </>
-        }
       />
 
-      <TrustMarquee region="Langley, BC" />
+      {/* Booking module overlapping the hero */}
+      <section className="relative bg-background">
+        <div className="container-corp">
+          <div className="relative -mt-24 md:-mt-28 z-20 bg-card border border-border shadow-corp-lg">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 md:px-7 pt-5 pb-4 border-b border-border">
+              <span className="eyebrow !mb-0">Reserve in Langley</span>
+              <span className="text-[13px] text-muted-foreground">
+                Pickup at 20178 96 Ave — Langley Centre
+              </span>
+            </div>
+            <RentalSearchCard
+              defaultLocationId={LANGLEY_LOCATION_ID}
+              className="!bg-transparent !shadow-none !rounded-none !backdrop-blur-none !border-0"
+            />
+          </div>
+        </div>
+      </section>
+
+      <TrustMarquee className="mt-4" region="Langley, BC" />
 
       <PageContainer className="max-w-4xl mx-auto space-y-16">
         {/* Intro */}
@@ -164,6 +175,7 @@ const LangleyPage = () => {
             Whether you live in the Township of Langley or the City of Langley, getting around the Fraser Valley shouldn't mean overpaying for a rental car. C2C Rental provides affordable, no-hassle car rentals for Langley residents, commuters, and visitors — from compact sedans for your daily Highway 1 commute to SUVs built for weekend getaways through Fort Langley and beyond. Langley is a hub for families, students, and workers who need reliable transport without long-term commitments. With Aldergrove and the US border just minutes away, and connections to Surrey, Abbotsford, and Metro Vancouver in every direction, having the right vehicle matters. Book online in minutes, pick up locally in Langley, and drive with confidence — clear pricing, flexible insurance, and real local support from a team that knows this community.
           </p>
         </section>
+
 
 
         {/* Why Choose C2C */}
@@ -219,6 +231,16 @@ const LangleyPage = () => {
             All vehicles are regularly maintained, cleaned before each rental, and equipped for Lower Mainland weather. Car seats, extra storage, and winter tires available on request.
           </p>
         </section>
+      </PageContainer>
+
+      <CityVisualBand
+        city="Langley"
+        title="Built for Highway 1, Fort Langley and everything between"
+        blurb="Clean, well-maintained vehicles handed over locally at Langley Centre — walk-around photos, a digital agreement, and keys in minutes."
+      />
+
+      <PageContainer className="max-w-4xl mx-auto space-y-16">
+
 
         {/* Popular Trips */}
         <section className="space-y-5">

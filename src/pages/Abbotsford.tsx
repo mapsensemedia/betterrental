@@ -31,6 +31,8 @@ import { SectionHeader } from "@/components/landing/SectionHeader";
 import { PageHero } from "@/components/shared/PageHero";
 import abbotsfordHero from "@/assets/city-abbotsford.jpg";
 import { CleaningBanner } from "@/components/landing/CleaningBanner";
+import { CityVisualBand } from "@/components/shared/CityVisualBand";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -314,6 +316,14 @@ const AbbotsfordPage = () => {
           )}
         </div>
       </section>
+
+      <CityVisualBand
+        city="Abbotsford"
+        title="Minutes from YXX and the Sumas border"
+        blurb="Clean, inspected vehicles handed over at Abbotsford Centre — walk-around photos, a digital agreement, and keys in minutes."
+      />
+
+
 
       {/* ── POPULAR TRIPS + PICKUP/SERVICE AREA ─────────────────── */}
       <section className="py-12 md:py-16 bg-[#FBFAF8] border-y border-border/40">
