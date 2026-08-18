@@ -201,66 +201,56 @@ const AbbotsfordPage = () => {
         jsonLd={[abbotsfordLocalBusinessSchema, abbotsfordFaqSchema]}
       />
       {/* ── HERO ───────────────────────────────────────────────── */}
-      <section className="bg-[#FBFAF8] pt-10 md:pt-16 pb-6 md:pb-10">
-        <div className="container-page">
-          <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-10 lg:items-center">
-            <div className="relative z-10 max-w-xl animate-slide-up">
-              <p className="text-[12px] md:text-[13px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-4">
-                C2C Rental · Abbotsford, BC
-              </p>
-              <h1 className="text-[40px] md:text-[60px] font-semibold tracking-[-0.03em] leading-[1.05] text-zinc-950 mb-2">
-                Car Rental in Abbotsford, BC
-              </h1>
-              <div className="w-14 h-[3px] mt-4 mb-6 rounded-full" style={{ backgroundColor: "#197149" }} />
-              <p className="text-zinc-800 mt-8 md:text-xl font-semibold text-lg">
-                Near YXX Airport. Cross-border ready. Transparent pricing.
-              </p>
-              <p className="text-[16px] md:text-[18px] text-zinc-600 leading-relaxed max-w-[46ch] mt-4">
-                Affordable daily, weekly, and monthly rentals from our Abbotsford Centre location — minutes from Abbotsford International Airport and the Sumas border.
-              </p>
+      <PageHero
+        image={abbotsfordHero}
+        imageAlt="Rental crossover on a rural Abbotsford highway with Mount Baker in the distance"
+        eyebrow="C2C Rental · Abbotsford, BC"
+        priority
+        overlap
+        title="Car Rental in Abbotsford, BC"
+        subtitle="Near YXX Airport. Cross-border ready. Affordable daily, weekly and monthly rentals from our Abbotsford Centre location — minutes from the Sumas border."
+        actions={
+          <>
+            <a href="#book" className="btn-corp">
+              Check availability <ChevronDown className="w-4 h-4" />
+            </a>
+            <Link
+              to="/surrey"
+              className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+            >
+              Surrey
+            </Link>
+            <Link
+              to="/langley"
+              className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+            >
+              Langley
+            </Link>
+          </>
+        }
+      />
 
-              <p className="text-[13px] md:text-[14px] text-muted-foreground flex items-center gap-2 mt-6 mb-4 leading-tight select-none">
-                Search Abbotsford availability below
-                <ChevronDown className="w-4 h-4 opacity-70" />
-              </p>
-
-              <div className="flex flex-wrap gap-2 mt-2">
-                <span className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full bg-primary text-primary-foreground">
-                  Abbotsford Centre
-                </span>
-                <Link
-                  to="/surrey"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
-                >
-                  Surrey
-                </Link>
-                <Link
-                  to="/langley"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border border-border text-foreground hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
-                >
-                  Langley
-                </Link>
-              </div>
+      {/* ── BOOKING / SEARCH MODULE — overlaps the hero ─────────── */}
+      <section className="relative bg-background">
+        <div className="container-corp">
+          <div
+            id="book"
+            className="relative -mt-24 md:-mt-28 z-20 scroll-mt-24 bg-card border border-border shadow-corp-lg"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 md:px-7 pt-5 pb-4 border-b border-border">
+              <span className="eyebrow !mb-0">Reserve in Abbotsford</span>
+              <span className="text-[13px] text-muted-foreground">
+                Pickup at 32835 South Fraser Way — Abbotsford Centre
+              </span>
             </div>
-
-            <div className="relative z-0 block w-full animate-fade-in animation-delay-200">
-              <img
-                alt="Car rental in Abbotsford, BC"
-                className="block w-full max-h-[260px] lg:max-h-none object-cover rounded-lg"
-                src="/lovable-uploads/ae30751c-fe6d-4959-839f-3ebc3decea01.png"
-              />
-            </div>
-          </div>
-
-          {/* ── BOOKING / SEARCH MODULE ─────────────────────────── */}
-          <div id="book" className="mt-10 animate-scale-in animation-delay-300 scroll-mt-24">
             <RentalSearchCard
-              className="search-card-premium"
+              className="!bg-transparent !shadow-none !rounded-none !backdrop-blur-none !border-0"
               lockLocationId={ABBOTSFORD_LOCATION_ID}
             />
           </div>
         </div>
       </section>
+
 
       {/* ── WHY CHOOSE C2C IN ABBOTSFORD ───────────────────────── */}
       <section className="py-12 md:py-16 bg-background">
