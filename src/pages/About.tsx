@@ -171,22 +171,36 @@ export default function About() {
           <p className="text-muted-foreground leading-relaxed mb-8 max-w-[65ch]">
             C2C Rental serves drivers across Surrey — including Newton, Guildford, Cloverdale, Fleetwood, Whalley, and South Surrey — as well as Langley (Township and City) and Abbotsford (including the airport corridor). Whether you need a car for a day or a month, we have options across the Fraser Valley.
           </p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-3 gap-4">
             {[
-              { city: "Surrey", href: "/surrey" },
-              { city: "Langley", href: "/langley" },
-              { city: "Abbotsford", href: "/abbotsford" },
+              { city: "Surrey", href: "/surrey", img: fleetImg, note: "Newton · King George Blvd" },
+              { city: "Langley", href: "/langley", img: langleyImg, note: "Langley Centre · 96 Ave" },
+              { city: "Abbotsford", href: "/abbotsford", img: abbotsfordImg, note: "Abbotsford Centre · YXX" },
             ].map((loc) => (
               <Link
                 key={loc.city}
                 to={loc.href}
-                className="flex items-center gap-2 rounded-none border border-border bg-card p-6 font-semibold text-foreground hover:border-primary/30 hover:shadow-md transition-all"
+                className="group block rounded-none border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-corp-lg transition-all"
               >
-                <MapPin className="w-4 h-4 text-primary" />
-                {loc.city}
+                <img
+                  src={loc.img}
+                  alt={`Car rental in ${loc.city}, BC`}
+                  width={1920}
+                  height={1088}
+                  loading="lazy"
+                  className="w-full h-[150px] object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                />
+                <div className="p-5">
+                  <span className="flex items-center gap-2 font-semibold text-foreground">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    {loc.city}
+                  </span>
+                  <p className="mt-1 text-sm text-muted-foreground">{loc.note}</p>
+                </div>
               </Link>
             ))}
           </div>
+
         </div>
       </section>
 
