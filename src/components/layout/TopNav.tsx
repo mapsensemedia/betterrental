@@ -112,26 +112,19 @@ export function TopNav() {
           </div>
 
           {/* Desktop Actions - Hidden on tablet, show on lg+ */}
-          <div className="hidden lg:flex items-center gap-3">
-            <Link
-              to="/search"
-              className="text-[15px] font-medium text-zinc-700 hover:text-zinc-950 transition-colors duration-200"
-            >
-              Search
-            </Link>
-
+          <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <>
                 <Link
                   to="/dashboard"
-                  className="flex items-center gap-2 h-10 px-5 rounded-full bg-zinc-900 text-white text-[15px] font-medium hover:bg-zinc-800 transition-colors duration-200"
+                  className="flex items-center gap-2 text-[15px] font-medium text-foreground/75 hover:text-foreground transition-colors duration-200"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   <span>Dashboard</span>
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className="h-10 w-10 rounded-full border border-black/10 hover:border-black/20 flex items-center justify-center transition duration-200 text-zinc-700 hover:text-zinc-950"
+                  className="h-10 w-10 border border-border hover:border-brand flex items-center justify-center transition duration-200 text-foreground/70 hover:text-foreground"
                   aria-label="Sign out"
                 >
                   <LogOut className="w-4 h-4" />
@@ -140,13 +133,22 @@ export function TopNav() {
             ) : (
               <Link
                 to="/auth"
-                className="flex items-center gap-2 h-10 px-5 rounded-full bg-zinc-900 text-white text-[15px] font-medium hover:bg-zinc-800 transition-colors duration-200"
+                className="flex items-center gap-2 text-[15px] font-medium text-foreground/75 hover:text-foreground transition-colors duration-200"
               >
                 <User className="w-4 h-4" />
                 <span>Sign In</span>
               </Link>
             )}
+
+            {/* Single pill CTA */}
+            <Link
+              to="/search"
+              className="inline-flex items-center h-10 px-6 rounded-full bg-brand text-white text-[13px] font-semibold uppercase tracking-[0.08em] hover:bg-[hsl(152_58%_14%)] transition-colors duration-200"
+            >
+              Book Now
+            </Link>
           </div>
+
 
           {/* Mobile/Tablet Menu Button - Show until lg breakpoint */}
           <button
