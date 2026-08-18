@@ -31,8 +31,13 @@ export default function BestRoadTripsFromSurrey() {
         type="article"
         jsonLd={jsonLd}
       />
-      <article className="container-page py-12 md:py-20 max-w-3xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">{TITLE}</h1>
+      <header className="page-band">
+        <div className="container-corp">
+          <span className="eyebrow">Guide</span>
+          <h1 className="heading-2 max-w-3xl">{TITLE}</h1>
+        </div>
+      </header>
+      <article className="container-corp py-16 md:py-24 max-w-3xl">
         <p className="text-muted-foreground text-lg mb-10">
           Surrey sits at the crossroads of some of British Columbia's best driving routes. Whether you're heading to the mountains, the coast, or wine country, you can be on the road in minutes. C2C Rental makes it easy with affordable daily rates and a fleet ready for anything from a quick day trip to a multi-day adventure.
         </p>

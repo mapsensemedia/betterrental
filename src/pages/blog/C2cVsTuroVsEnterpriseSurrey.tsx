@@ -31,8 +31,13 @@ export default function C2cVsTuroVsEnterpriseSurrey() {
         type="article"
         jsonLd={jsonLd}
       />
-      <article className="container-page py-12 md:py-20 max-w-3xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">{TITLE}</h1>
+      <header className="page-band">
+        <div className="container-corp">
+          <span className="eyebrow">Guide</span>
+          <h1 className="heading-2 max-w-3xl">{TITLE}</h1>
+        </div>
+      </header>
+      <article className="container-corp py-16 md:py-24 max-w-3xl">
         <p className="text-muted-foreground text-lg mb-10">
           If you're renting a car in Surrey, you've probably looked at Turo, Enterprise, and a handful of local operators like C2C Rental. They all rent vehicles, but the experience, the insurance, and the final bill can be very different. This guide compares the three on the things that actually matter to Surrey renters: ICBC coverage, pickup and delivery flexibility, and pricing transparency.
         </p>
@@ -40,7 +45,7 @@ export default function C2cVsTuroVsEnterpriseSurrey() {
         <section className="prose-section">
           <h2>Quick Comparison at a Glance</h2>
           <div className="overflow-x-auto -mx-4 px-4">
-            <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-sm border border-border rounded-none overflow-hidden">
               <thead className="bg-muted">
                 <tr className="text-left">
                   <th className="p-3 font-semibold">Feature</th>

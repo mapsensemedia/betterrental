@@ -67,7 +67,7 @@ export default function AffordableCarRentalSurreyLangleyAbbotsford() {
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Blog
           </Link>
           <p className="text-[hsl(25,85%,55%)] font-semibold text-sm tracking-widest uppercase mb-4">Local Guide</p>
-          <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] leading-[1.15] font-extrabold text-white mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] leading-[1.15] font-semibold text-white mb-6">
             Affordable Car Rental in Surrey, Langley, and Abbotsford&nbsp;BC: A&nbsp;Local&nbsp;Guide
           </h1>
           <p className="text-white/60 text-sm">Published June 1, 2025 · 8 min read</p>
@@ -75,7 +75,7 @@ export default function AffordableCarRentalSurreyLangleyAbbotsford() {
       </section>
 
       {/* ── ARTICLE BODY ──────────────────────────── */}
-      <article className="bg-[hsl(40,20%,97%)]">
+      <article className="bg-background">
         <div className="container-page max-w-3xl mx-auto py-14 md:py-20">
           <div className="blog-prose">
 
@@ -111,7 +111,7 @@ export default function AffordableCarRentalSurreyLangleyAbbotsford() {
             <p>Whether you need a car for one day or two weeks, understanding rate structure matters:</p>
 
             <div className="overflow-x-auto my-6">
-              <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm border border-border rounded-none overflow-hidden">
                 <thead>
                   <tr className="bg-[hsl(220,30%,12%)] text-white">
                     <th className="text-left px-4 py-3 font-semibold">Rental Length</th>
@@ -207,8 +207,8 @@ export default function AffordableCarRentalSurreyLangleyAbbotsford() {
             </p>
 
             {/* ── CTA Banner ── */}
-            <div className="my-10 rounded-2xl bg-[hsl(220,30%,12%)] p-8 md:p-10 text-center">
-              <h3 className="text-xl md:text-2xl font-bold text-white mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <div className="my-10 rounded-none bg-[hsl(220,30%,12%)] p-8 md:p-10 text-center">
+              <h3 className="text-xl md:text-2xl font-bold text-white mb-3">
                 Book Your Rental Today
               </h3>
               <p className="text-white/60 mb-6 text-sm">Affordable, fully insured car rental across the Fraser Valley.</p>
