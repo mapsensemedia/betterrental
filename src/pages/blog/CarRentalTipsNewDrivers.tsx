@@ -37,7 +37,7 @@ export default function CarRentalTipsNewDrivers() {
           <h1 className="heading-2 max-w-3xl">{TITLE}</h1>
         </div>
       </header>
-      <article className="container-corp py-16 md:py-24 max-w-3xl">
+      <article className="container-corp py-16 md:py-24">
 
         <section className="prose-section">
           <h2>Can You Rent a Car with an N or L Licence in BC?</h2>

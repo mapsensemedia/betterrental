@@ -37,7 +37,7 @@ export default function C2cVsTuroVsEnterpriseSurrey() {
           <h1 className="heading-2 max-w-3xl">{TITLE}</h1>
         </div>
       </header>
-      <article className="container-corp py-16 md:py-24 max-w-3xl">
+      <article className="container-corp py-16 md:py-24">
         <p className="text-muted-foreground text-lg mb-10">
           If you're renting a car in Surrey, you've probably looked at Turo, Enterprise, and a handful of local operators like C2C Rental. They all rent vehicles, but the experience, the insurance, and the final bill can be very different. This guide compares the three on the things that actually matter to Surrey renters: ICBC coverage, pickup and delivery flexibility, and pricing transparency.
         </p>

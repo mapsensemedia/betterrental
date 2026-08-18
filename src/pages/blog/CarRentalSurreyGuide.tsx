@@ -37,7 +37,7 @@ export default function CarRentalSurreyGuide() {
           <h1 className="heading-2 max-w-3xl">{TITLE}</h1>
         </div>
       </header>
-      <article className="container-corp py-16 md:py-24 max-w-3xl">
+      <article className="container-corp py-16 md:py-24">
 
         <section className="prose-section">
           <h2>Why Rent a Car in Surrey Instead of Using Transit?</h2>
