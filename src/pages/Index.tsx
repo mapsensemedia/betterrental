@@ -16,57 +16,8 @@ import { LocationChips } from "@/components/landing/LocationChips";
 import heroImage from "@/assets/hero-c2c.jpg";
 
 
-// Category display card for homepage
-function CategoryDisplayCard({ category }: {category: FleetCategory;}) {
-  return (
-    <Link to="/search?from=fleet" className="block group">
-      <div className="card-premium overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 h-full flex flex-col">
-        {/* Image */}
-        <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-          {category.image_url ?
-          <img
-            src={category.image_url}
-            alt={category.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => e.currentTarget.src = "/placeholder.svg"} /> :
-
-
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-              <Car className="w-12 h-12" />
-            </div>
-          }
-        </div>
-
-        <div className="p-4 flex flex-col flex-1">
-          {/* Title */}
-          <h3 className="font-semibold text-base mb-2 line-clamp-1 text-foreground">{category.name}</h3>
-
-          {/* Specs */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-            <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{category.seats || 5}</span>
-            <span className="flex items-center gap-1"><Fuel className="w-3.5 h-3.5" />{category.fuel_type || "Gas"}</span>
-            <span className="flex items-center gap-1"><Settings2 className="w-3.5 h-3.5" />{category.transmission === "Automatic" ? "Auto" : "Manual"}</span>
-          </div>
-
-          {/* Price */}
-          <div className="flex items-center justify-between mt-auto">
-            <div>
-              <span className="text-xl font-bold text-foreground">${category.daily_rate}</span>
-              <span className="text-xs text-muted-foreground">/day</span>
-            </div>
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-[10px] border border-border bg-secondary text-foreground">View</span>
-          </div>
-        </div>
-      </div>
-    </Link>);
-
-}
-
 const Index = () => {
-  const { data: categories = [], isLoading } = useFleetCategories();
 
-  // Get top 4 categories to display
-  const displayCategories = categories.filter((c) => c.is_active).slice(0, 4);
 
   // Inject meta tags, OG tags, canonical, and JSON-LD structured data
   useEffect(() => {
