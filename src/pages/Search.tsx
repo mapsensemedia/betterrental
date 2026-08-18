@@ -7,11 +7,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Grid, List, ArrowUpDown, Car, Users, Fuel, Settings2 } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
-import { PageContainer } from "@/components/layout/PageContainer";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,

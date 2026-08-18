@@ -148,26 +148,27 @@ function FilterContent({
   return (
     <div className="space-y-6">
       {/* Result count */}
-      <p className="text-sm font-semibold">
+      <p className="eyebrow !mb-0">
         Showing {resultCount} offer{resultCount !== 1 ? "s" : ""}
       </p>
 
       {/* Vehicle Type */}
       {availableTypes.length > 0 && (
         <div className="space-y-3">
-          <h4 className="font-semibold text-sm">Vehicle Type</h4>
-          <div className="space-y-2.5">
+          <h4 className="font-display font-semibold text-sm">Vehicle Type</h4>
+          <div className="flex flex-wrap gap-2">
             {availableTypes.map((type) => (
-              <label
+              <button
                 key={type}
-                className="flex items-center gap-3 cursor-pointer"
+                type="button"
+                onClick={() => toggleVehicleType(type)}
+                className={cn(
+                  "chip-corp !text-[12px] !py-1.5",
+                  filters.vehicleTypes.includes(type) && "chip-corp-active"
+                )}
               >
-                <Checkbox
-                  checked={filters.vehicleTypes.includes(type)}
-                  onCheckedChange={() => toggleVehicleType(type)}
-                />
-                <span className="text-sm">{type}</span>
-              </label>
+                {type}
+              </button>
             ))}
           </div>
         </div>
@@ -178,7 +179,7 @@ function FilterContent({
       {/* Budget */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="font-semibold text-sm">Budget</h4>
+          <h4 className="font-display font-semibold text-sm">Budget</h4>
           <span className="text-sm text-muted-foreground">
             {filters.budgetRange[0]}–{filters.budgetRange[1]}
           </span>
@@ -207,17 +208,15 @@ function FilterContent({
       {/* Passengers */}
       {availableSeats.length > 0 && (
         <div className="space-y-3">
-          <h4 className="font-semibold text-sm">Passengers</h4>
+          <h4 className="font-display font-semibold text-sm">Passengers</h4>
           <div className="flex flex-wrap gap-2">
             {availableSeats.map((count) => (
               <button
                 key={count}
                 onClick={() => togglePassengers(count)}
                 className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium border transition-colors",
-                  filters.passengers.includes(count)
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-background text-foreground border-border hover:border-foreground/40"
+                  "chip-corp !text-[12px] !py-1.5 min-w-[38px] justify-center",
+                  filters.passengers.includes(count) && "chip-corp-active"
                 )}
               >
                 {count}
@@ -231,15 +230,14 @@ function FilterContent({
       {hasActiveFilters(filters, defaults) && (
         <>
           <Separator />
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
+          <button
+            type="button"
+            className="btn-corp-outline w-full !py-2.5 !text-[12px]"
             onClick={() => onChange(defaults)}
           >
-            <X className="w-4 h-4 mr-2" />
+            <X className="w-4 h-4" />
             Clear All Filters
-          </Button>
+          </button>
         </>
       )}
     </div>
@@ -249,7 +247,7 @@ function FilterContent({
 /** Desktop sidebar filter panel */
 export function BrowseFilterSidebar(props: BrowseFiltersProps & { resultCount: number }) {
   return (
-    <div className={cn("rounded-2xl border border-border bg-card p-5", props.className)}>
+    <div className={cn("border-t border-border pt-5", props.className)}>
       <FilterContent {...props} />
     </div>
   );
@@ -264,7 +262,7 @@ export function BrowseFilterMobile(props: BrowseFiltersProps & { resultCount: nu
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="relative">
+        <Button variant="outline" size="sm" className="relative h-10 rounded-none border-border">
           <Filter className="w-4 h-4 mr-2" />
           Filters
           {active && (
@@ -272,7 +270,7 @@ export function BrowseFilterMobile(props: BrowseFiltersProps & { resultCount: nu
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-[300px] overflow-y-auto">
+      <SheetContent side="left" className="w-[300px] overflow-y-auto rounded-none">
         <SheetHeader>
           <SheetTitle>Filters</SheetTitle>
         </SheetHeader>
