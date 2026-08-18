@@ -274,7 +274,7 @@ const Index = () => {
                 Free cancellation · No card required to search
               </span>
             </div>
-            <RentalSearchCard className="bg-transparent border-0 shadow-none rounded-none" />
+            <RentalSearchCard className="!bg-transparent !shadow-none !rounded-none !backdrop-blur-none !border-0" />
           </div>
         </div>
       </section>
