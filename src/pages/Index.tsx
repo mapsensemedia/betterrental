@@ -14,7 +14,7 @@ import { LocationChips } from "@/components/landing/LocationChips";
 import { IncludedStrip } from "@/components/landing/IncludedStrip";
 
 // Images
-import heroImage from "@/assets/hero-c2c.jpg";
+import heroPhoto from "@/assets/hero-suv-mountains.jpg.asset.json";
 
 
 const Index = () => {
