@@ -130,8 +130,8 @@ export default function Contact() {
 
 
       {/* Two-column layout */}
-      <section className="py-16 bg-background">
-        <div className="container-page">
+      <section className="section-corp bg-background">
+        <div className="container-corp">
           <div className="grid lg:grid-cols-5 gap-10">
             {/* LEFT: Contact Details */}
             <div className="lg:col-span-2 space-y-8">
@@ -139,7 +139,7 @@ export default function Contact() {
                 <h2 className="text-lg font-semibold text-foreground mb-6">Get in Touch</h2>
                 <div className="space-y-5">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
                       <MapPin className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -149,7 +149,7 @@ export default function Contact() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
                       <Phone className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -161,7 +161,7 @@ export default function Contact() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
                       <Mail className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -173,7 +173,7 @@ export default function Contact() {
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center shrink-0">
                       <Clock className="w-5 h-5 text-primary" />
                     </div>
                     <div>
@@ -221,7 +221,7 @@ export default function Contact() {
                     href="https://www.instagram.com/c2c.rental/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                    className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
                     aria-label="Instagram"
                   >
                     <Instagram className="w-5 h-5" />
@@ -230,7 +230,7 @@ export default function Contact() {
                     href="https://www.facebook.com/people/C2C-Rental/61587985570949/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                    className="w-10 h-10 rounded-none bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
                     aria-label="Facebook"
                   >
                     <Facebook className="w-5 h-5" />
@@ -241,7 +241,7 @@ export default function Contact() {
 
             {/* RIGHT: Contact Form */}
             <div className="lg:col-span-3">
-              <Card>
+              <Card className="rounded-none border-border shadow-none">
                 <CardContent className="p-6 md:p-8">
                   {isSubmitted ? (
                     <div className="text-center py-12">
@@ -319,8 +319,8 @@ export default function Contact() {
       </section>
 
       {/* FAQ Strip */}
-      <section className="py-16 bg-muted/50">
-        <div className="container-page">
+      <section className="section-corp bg-brand-tint border-t border-border">
+        <div className="container-corp">
           <h2 className="heading-2 text-foreground text-center mb-10">Quick Answers</h2>
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {faqs.map((faq) => (
