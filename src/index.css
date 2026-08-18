@@ -311,6 +311,150 @@
     @apply py-10 md:py-16 lg:py-24;
   }
 
+  /* ── Corporate refresh primitives ───────────────────────── */
+  .container-corp {
+    width: 100%;
+    max-width: 1440px;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+  @screen lg {
+    .container-corp {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  .section-pad {
+    padding-top: 64px;
+    padding-bottom: 64px;
+  }
+  @screen lg {
+    .section-pad {
+      padding-top: 120px;
+      padding-bottom: 120px;
+    }
+  }
+
+  .eyebrow {
+    display: block;
+    font-family: 'Poppins', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: hsl(var(--brand));
+    margin-bottom: 0.75rem;
+  }
+
+  .prose-measure {
+    max-width: 65ch;
+    line-height: 1.65;
+  }
+
+  .btn-corp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 14px 28px;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: hsl(var(--brand));
+    color: hsl(0 0% 100%);
+    border: 1px solid hsl(var(--brand));
+    border-radius: 2px;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+  }
+  .btn-corp:hover {
+    background: hsl(152 58% 14%);
+    box-shadow: 0 6px 18px -10px hsl(var(--brand) / 0.6);
+  }
+
+  .btn-corp-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 14px 28px;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: transparent;
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--foreground) / 0.25);
+    border-radius: 2px;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .btn-corp-outline:hover {
+    border-color: hsl(var(--brand));
+    color: hsl(var(--brand));
+    box-shadow: 0 6px 18px -12px hsl(0 0% 0% / 0.4);
+  }
+
+  .card-corp {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0;
+    box-shadow: 0 1px 2px hsl(0 0% 0% / 0.03), 0 12px 28px -22px hsl(0 0% 0% / 0.25);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-corp:hover {
+    box-shadow: 0 2px 4px hsl(0 0% 0% / 0.04), 0 18px 36px -22px hsl(0 0% 0% / 0.3);
+    border-color: hsl(var(--brand) / 0.35);
+  }
+
+  .brand-band {
+    background: hsl(var(--brand));
+    color: hsl(0 0% 100%);
+  }
+
+  .tint-band {
+    background: hsl(var(--brand-tint));
+  }
+
+  .hairline {
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  .chip-corp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    border-radius: 0;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+  .chip-corp:hover {
+    border-color: hsl(var(--brand));
+    background: hsl(var(--brand-tint));
+  }
+
+  .scroll-row {
+    display: flex;
+    gap: 1.25rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding-bottom: 0.5rem;
+  }
+  .scroll-row::-webkit-scrollbar {
+    display: none;
+  }
+  .scroll-row > * {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+  }
+
+
   /* Premium card - unified elevation */
   .card-premium {
     background: hsl(var(--card));
