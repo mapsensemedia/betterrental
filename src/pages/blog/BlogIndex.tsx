@@ -84,7 +84,7 @@ export default function BlogIndex() {
             <Card key={a.slug} className="group rounded-none border-border shadow-none hover:shadow-corp-lg transition-shadow duration-200">
               <CardContent className="p-6 flex flex-col h-full">
                 <Badge variant="secondary" className="w-fit mb-3 text-xs">{a.category}</Badge>
-                <h2 className="font-heading text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">{a.title}</h2>
+                <h2 className="font-display text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">{a.title}</h2>
                 <p className="text-muted-foreground text-sm flex-1 mb-4">{a.excerpt}</p>
                 <Link
                   to={`/blog/${a.slug}`}
