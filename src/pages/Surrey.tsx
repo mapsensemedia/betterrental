@@ -211,25 +211,23 @@ const SurreyPage = () => {
         <section className="space-y-5">
           <h2 className="heading-2 text-foreground">About renting in Surrey</h2>
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-            C2C Rental is a locally operated car rental service based right here in Surrey, BC. We offer transparent, no-surprise-fee pricing on daily, weekly, and monthly rentals — pick up from our Newton location on King George Blvd and drive away with confidence. Whether you're a commuter, a family needing a second car, a student at SFU Surrey, or a newcomer getting settled, we have you covered. We proudly serve Newton, Guildford, Fleetwood, Cloverdale, Whalley/Surrey Central, and South Surrey. Our renters regularly drive to YVR Airport (20 min), Downtown Vancouver (30 min), Whistler (2.5 hrs), and the US border via Peace Arch.
+            Locally operated, Surrey-based rentals with transparent pricing on daily, weekly and monthly terms. Pick up at our Newton location on King George Blvd — 20 minutes from YVR, 30 from downtown Vancouver.
           </p>
         </section>
 
 
         {/* Why Choose C2C */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <CheckCircle2 className="h-6 w-6 text-accent" />
             Why Choose C2C Rental in Surrey?
           </h2>
           <ul className="space-y-3 text-muted-foreground">
             {[
-              "Local Surrey team familiar with King George corridor, 104 Ave, and Scott Rd traffic",
               "Transparent pricing — the rate you see online is what you pay at pickup",
-              "Daily, weekly, and monthly terms with no long-term commitment required",
-              "Fast digital contracts, walk-around photos, easy extensions by phone or online",
-              "ICBC-compliant insurance coverage included, optional damage waiver at checkout",
-              "Serving newcomers, international students, and SFU Surrey campus visitors",
+              "Daily, weekly and monthly terms, no long-term commitment",
+              "Digital agreements, walk-around photos, extensions by phone or online",
+              "ICBC-compliant coverage included; optional damage waiver at checkout",
             ].map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
@@ -241,13 +239,13 @@ const SurreyPage = () => {
 
         {/* Vehicle Cards */}
         <section className="space-y-6">
-          <h2 className="text-2xl font-bold text-foreground">Our Vehicles Available in Surrey</h2>
+          <h2 className="heading-2 text-foreground">Our Vehicles Available in Surrey</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {vehicleCards.map((v) => (
               <Card key={v.category} className="flex flex-col justify-between hover:shadow-md transition-shadow">
                 <CardContent className="p-5 space-y-3 flex-1">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-none bg-accent/10 flex items-center justify-center">
                       <v.icon className="h-5 w-5 text-accent" />
                     </div>
                     <div>
@@ -266,9 +264,6 @@ const SurreyPage = () => {
               </Card>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground">
-            All vehicles are cleaned before each rental, regularly serviced, and available with winter tires November–March on request.
-          </p>
         </section>
       </PageContainer>
 
@@ -283,7 +278,7 @@ const SurreyPage = () => {
 
         {/* Who We Serve */}
         <section className="space-y-6">
-          <h2 className="text-2xl font-bold text-foreground">Who We Serve in Surrey</h2>
+          <h2 className="heading-2 text-foreground">Who We Serve in Surrey</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {renterPersonas.map((persona) => (
               <Card key={persona.title} className="hover:shadow-md transition-shadow">
@@ -298,16 +293,13 @@ const SurreyPage = () => {
 
         {/* Popular Routes */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground">Popular Surrey Routes &amp; Trips</h2>
+          <h2 className="heading-2 text-foreground">Popular Surrey Routes &amp; Trips</h2>
           <ul className="space-y-3 text-muted-foreground">
             {[
-              "Newton to YVR Airport: 20–25 min via Hwy 99 — perfect for early flights without parking fees",
-              "Surrey Central to Downtown Vancouver: 35–45 min — SkyTrain doesn't cut it when you're hauling gear",
-              "King George Blvd to US Border (Peace Arch / Pacific Highway): 15–20 min — confirm cross-border docs at booking",
-              "Surrey to Whistler via Sea-to-Sky: 2.5 hrs — our AWD SUVs are built for this drive",
-              "Fraser Valley day trips: Chilliwack, Harrison Hot Springs, Cultus Lake — 45–75 min east",
-              "Cloverdale / Langley: 15–20 min — great for events at Langley Events Centre or Cloverdale Fairgrounds",
-              "Body shop pickup/drop: We coordinate with repair shops in Newton, Whalley, and Guildford for seamless insurance replacements",
+              "Newton to YVR Airport — 20–25 min via Hwy 99",
+              "Surrey Central to Downtown Vancouver — 35–45 min",
+              "King George Blvd to the US border (Peace Arch) — 15–20 min",
+              "Fraser Valley day trips: Chilliwack, Harrison, Cultus Lake — 45–75 min",
             ].map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
@@ -319,7 +311,7 @@ const SurreyPage = () => {
 
         {/* Pickup Location */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <MapPin className="h-6 w-6 text-accent" />
             Surrey Pickup Location &amp; Delivery Area
           </h2>
@@ -327,7 +319,7 @@ const SurreyPage = () => {
             C2C Rental is based at 6768 King George Blvd, Surrey, BC V3W 4Z9 — in the heart of Newton, minutes from Scott Rd Station. Free on-site parking at pickup.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            Limited vehicle delivery available to: Newton, Guildford, Surrey Central / Whalley, Fleetwood, and South Surrey / White Rock. Subject to availability and delivery fee. Contact us to confirm before booking.
+            Delivery available across Newton, Guildford, Whalley, Fleetwood and South Surrey / White Rock — flat $50 delivery fee, subject to availability.
           </p>
           <Button asChild variant="outline" size="sm" className="w-fit">
             <a href={GBP_LINKS.surrey} target="_blank" rel="noopener noreferrer">
@@ -338,7 +330,7 @@ const SurreyPage = () => {
 
         {/* How to Book */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <ClipboardList className="h-6 w-6 text-accent" />
             How to Book a Car Rental in Surrey
           </h2>
@@ -356,21 +348,17 @@ const SurreyPage = () => {
 
         {/* Insurance & Requirements */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <Shield className="h-6 w-6 text-accent" />
             Insurance, Deposits &amp; Requirements
           </h2>
           <ul className="space-y-3 text-muted-foreground">
             {[
-              "Valid full driver's licence required — BC Class 5/7, or accepted international licence",
-              "Minimum age: 21 (25 for premium vehicles)",
-              "Licence held for at least 2 years",
+              "Valid full licence — BC Class 5/7 or accepted international licence",
+              "Minimum age 21 (25 for premium vehicles), licence held 2+ years",
               "Credit card required for the $350 security deposit hold",
-              "All C2C vehicles covered under ICBC owner's certificate — no gap in basic coverage",
-              "Optional Damage Waiver available at checkout",
-              "Winter tires on all AWD vehicles November–March at no extra charge",
-              "US border crossings: notify C2C at booking — cross-border documents arranged in advance",
-              "Return vehicle at the same fuel level or pay a refuelling fee",
+              "ICBC-compliant coverage on every vehicle; optional damage waiver",
+              "Return at the same fuel level or a refuelling fee applies",
             ].map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
@@ -378,14 +366,11 @@ const SurreyPage = () => {
               </li>
             ))}
           </ul>
-          <p className="text-sm text-muted-foreground italic">
-            Requirements may vary by vehicle class. Our team confirms exact conditions before you pay anything.
-          </p>
         </section>
 
         {/* FAQ */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <HelpCircle className="h-6 w-6 text-accent" />
             Frequently Asked Questions – Car Rental in Surrey, BC
           </h2>
@@ -412,7 +397,7 @@ const SurreyPage = () => {
         </section>
 
         {/* CTA Banner */}
-        <section className="rounded-xl bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
+        <section className="bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
           <h2 className="text-2xl md:text-3xl font-bold">Ready to book your Surrey car rental?</h2>
           <p className="text-primary-foreground/80 max-w-lg mx-auto">
             Browse available vehicles now — no hidden fees, local support, and flexible terms.
