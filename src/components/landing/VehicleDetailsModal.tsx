@@ -169,17 +169,17 @@ export function VehicleDetailsModal({
 
           {/* Specs */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="flex flex-col items-center text-center p-3 rounded-xl bg-muted/50">
+            <div className="flex flex-col items-center text-center p-3 rounded-none bg-brand-tint">
               <Users className="w-4 h-4 mb-1 text-muted-foreground" />
               <span className="text-sm font-medium">{vehicle.seats || 5}</span>
               <span className="text-xs text-muted-foreground">Seats</span>
             </div>
-            <div className="flex flex-col items-center text-center p-3 rounded-xl bg-muted/50">
+            <div className="flex flex-col items-center text-center p-3 rounded-none bg-brand-tint">
               <Fuel className="w-4 h-4 mb-1 text-muted-foreground" />
               <span className="text-sm font-medium">{displayFuelType(vehicle.fuelType)}</span>
               <span className="text-xs text-muted-foreground">Fuel</span>
             </div>
-            <div className="flex flex-col items-center text-center p-3 rounded-xl bg-muted/50">
+            <div className="flex flex-col items-center text-center p-3 rounded-none bg-brand-tint">
               <Gauge className="w-4 h-4 mb-1 text-muted-foreground" />
               <span className="text-sm font-medium">
                 {displayTransmission(vehicle.transmission) === "Automatic" ? "Auto" : displayTransmission(vehicle.transmission)}
@@ -202,7 +202,7 @@ export function VehicleDetailsModal({
               </label>
               <Select value={locationId} onValueChange={setLocationId}>
                 <SelectTrigger className={cn(
-                  "h-12 rounded-xl",
+                  "h-12 rounded-none",
                   showErrors && !locationId && "border-destructive"
                 )}>
                   <div className="flex items-center gap-2">
@@ -237,7 +237,7 @@ export function VehicleDetailsModal({
                     <Button
                       variant="outline"
                       className={cn(
-                        "h-12 w-full justify-start text-left font-normal rounded-xl",
+                        "h-12 w-full justify-start text-left font-normal rounded-none",
                         !pickupDate && "text-muted-foreground",
                         showErrors && !pickupDate && "border-destructive"
                       )}
@@ -271,7 +271,7 @@ export function VehicleDetailsModal({
                   Pickup Time
                 </label>
                 <Select value={pickupTime} onValueChange={setPickupTime}>
-                  <SelectTrigger className="h-12 rounded-xl">
+                  <SelectTrigger className="h-12 rounded-none">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-muted-foreground" />
                       <SelectValue placeholder="Time" />
@@ -302,7 +302,7 @@ export function VehicleDetailsModal({
                     <Button
                       variant="outline"
                       className={cn(
-                        "h-12 w-full justify-start text-left font-normal rounded-xl",
+                        "h-12 w-full justify-start text-left font-normal rounded-none",
                         !returnDate && "text-muted-foreground",
                         showErrors && !returnDate && "border-destructive"
                       )}
@@ -329,7 +329,7 @@ export function VehicleDetailsModal({
                   Return Time
                 </label>
                 <Select value={returnTime} onValueChange={setReturnTime}>
-                  <SelectTrigger className="h-12 rounded-xl">
+                  <SelectTrigger className="h-12 rounded-none">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-muted-foreground" />
                       <SelectValue placeholder="Time" />
@@ -362,7 +362,7 @@ export function VehicleDetailsModal({
                   type="button"
                   onClick={() => setAgeRange("25-70")}
                   className={cn(
-                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all text-sm font-medium",
+                    "flex flex-col items-center justify-center p-4 rounded-none border transition-all text-sm font-medium",
                     ageRange === "25-70"
                       ? "border-primary bg-primary/10 text-foreground"
                       : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50",
@@ -376,7 +376,7 @@ export function VehicleDetailsModal({
                   type="button"
                   onClick={() => setAgeRange("20-24")}
                   className={cn(
-                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all text-sm font-medium",
+                    "flex flex-col items-center justify-center p-4 rounded-none border transition-all text-sm font-medium",
                     ageRange === "20-24"
                       ? "border-primary bg-primary/10 text-foreground"
                       : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50",
