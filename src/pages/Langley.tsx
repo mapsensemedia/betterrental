@@ -231,6 +231,16 @@ const LangleyPage = () => {
             All vehicles are regularly maintained, cleaned before each rental, and equipped for Lower Mainland weather. Car seats, extra storage, and winter tires available on request.
           </p>
         </section>
+      </PageContainer>
+
+      <CityVisualBand
+        city="Langley"
+        title="Built for Highway 1, Fort Langley and everything between"
+        blurb="Clean, well-maintained vehicles handed over locally at Langley Centre — walk-around photos, a digital agreement, and keys in minutes."
+      />
+
+      <PageContainer className="max-w-4xl mx-auto space-y-16">
+
 
         {/* Popular Trips */}
         <section className="space-y-5">
