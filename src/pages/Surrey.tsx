@@ -269,6 +269,16 @@ const SurreyPage = () => {
             All vehicles are cleaned before each rental, regularly serviced, and available with winter tires November–March on request.
           </p>
         </section>
+      </PageContainer>
+
+      <CityVisualBand
+        city="Surrey"
+        title="Pick up in Newton, drive anywhere in the Lower Mainland"
+        blurb="Fresh, inspected vehicles handed over at 6768 King George Blvd — walk-around photos, a digital agreement, and keys in minutes."
+      />
+
+      <PageContainer className="max-w-6xl mx-auto space-y-16">
+
 
         {/* Who We Serve */}
         <section className="space-y-6">

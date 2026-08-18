@@ -315,6 +315,14 @@ const AbbotsfordPage = () => {
         </div>
       </section>
 
+      <CityVisualBand
+        city="Abbotsford"
+        title="Minutes from YXX and the Sumas border"
+        blurb="Clean, inspected vehicles handed over at Abbotsford Centre — walk-around photos, a digital agreement, and keys in minutes."
+      />
+
+
+
       {/* ── POPULAR TRIPS + PICKUP/SERVICE AREA ─────────────────── */}
       <section className="py-12 md:py-16 bg-[#FBFAF8] border-y border-border/40">
         <div className="container-page grid grid-cols-1 lg:grid-cols-2 gap-10">
