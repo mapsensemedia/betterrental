@@ -172,7 +172,7 @@ const LangleyPage = () => {
         <section className="space-y-6">
           <h2 className="heading-2 text-foreground">Renting a car in Langley</h2>
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-            Whether you live in the Township of Langley or the City of Langley, getting around the Fraser Valley shouldn't mean overpaying for a rental car. C2C Rental provides affordable, no-hassle car rentals for Langley residents, commuters, and visitors — from compact sedans for your daily Highway 1 commute to SUVs built for weekend getaways through Fort Langley and beyond. Langley is a hub for families, students, and workers who need reliable transport without long-term commitments. With Aldergrove and the US border just minutes away, and connections to Surrey, Abbotsford, and Metro Vancouver in every direction, having the right vehicle matters. Book online in minutes, pick up locally in Langley, and drive with confidence — clear pricing, flexible insurance, and real local support from a team that knows this community.
+            Affordable rentals for the Township and City of Langley — compact sedans for the Highway 1 commute through to SUVs for Fraser Valley weekends. Book online, pick up at Langley Centre, drive with clear pricing and local support.
           </p>
         </section>
 
@@ -180,7 +180,7 @@ const LangleyPage = () => {
 
         {/* Why Choose C2C */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <CheckCircle2 className="h-6 w-6 text-accent" />
             Why Choose C2C Rental in Langley?
           </h2>
@@ -202,13 +202,13 @@ const LangleyPage = () => {
 
         {/* Vehicle Cards */}
         <section className="space-y-6">
-          <h2 className="text-2xl font-bold text-foreground">Our Vehicles Available in Langley</h2>
+          <h2 className="heading-2 text-foreground">Our Vehicles Available in Langley</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {vehicleCards.map((v) => (
               <Card key={v.category} className="flex flex-col justify-between hover:shadow-md transition-shadow">
                 <CardContent className="p-5 space-y-3 flex-1">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-none bg-accent/10 flex items-center justify-center">
                       <v.icon className="h-5 w-5 text-accent" />
                     </div>
                     <div>
@@ -244,7 +244,7 @@ const LangleyPage = () => {
 
         {/* Popular Trips */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground">Popular Langley Trips &amp; Use Cases</h2>
+          <h2 className="heading-2 text-foreground">Popular Langley Trips &amp; Use Cases</h2>
           <ul className="space-y-3 text-muted-foreground">
             {[
               "Commuting to Surrey, Abbotsford, or Metro Vancouver",
@@ -264,12 +264,12 @@ const LangleyPage = () => {
 
         {/* Pickup & Service Area */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <MapPin className="h-6 w-6 text-accent" />
             Langley Pickup, Delivery &amp; Service Area
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            C2C Rental serves drivers across the Township and City of Langley, including Willowbrook, Walnut Grove, Aldergrove, Murrayville, and Downtown Langley. Depending on your booking and vehicle availability, we can arrange convenient pickup from our local service point or limited delivery within the Langley area (subject to availability and fee). We also work with local body shops to coordinate insurance replacement rentals for Langley drivers whose vehicles are being repaired.
+            Serving Willowbrook, Walnut Grove, Aldergrove, Murrayville and Downtown Langley. Pick up at Langley Centre, 20178 96 Ave, or ask about delivery — a flat $50 fee, subject to availability.
           </p>
           <Button asChild variant="outline" size="sm" className="w-fit">
             <a href={GBP_LINKS.langley} target="_blank" rel="noopener noreferrer">
@@ -280,7 +280,7 @@ const LangleyPage = () => {
 
         {/* Simple Booking Process */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <ClipboardList className="h-6 w-6 text-accent" />
             Simple Booking Process
           </h2>
@@ -301,7 +301,7 @@ const LangleyPage = () => {
 
         {/* Insurance, Deposits & Requirements */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <Shield className="h-6 w-6 text-accent" />
             Insurance, Deposits &amp; Requirements in Langley
           </h2>
@@ -330,7 +330,7 @@ const LangleyPage = () => {
 
         {/* FAQ */}
         <section className="space-y-5">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="heading-2 text-foreground flex items-center gap-2">
             <HelpCircle className="h-6 w-6 text-accent" />
             Frequently Asked Questions – Car Rental in Langley, BC
           </h2>
@@ -357,7 +357,7 @@ const LangleyPage = () => {
         </section>
 
         {/* CTA Banner */}
-        <section className="rounded-xl bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
+        <section className="bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
           <h2 className="text-2xl md:text-3xl font-bold">Ready to book your Langley car rental?</h2>
           <p className="text-primary-foreground/80 max-w-lg mx-auto">
             Browse available vehicles now — no hidden fees, local support, and flexible terms.

@@ -329,7 +329,7 @@ const AbbotsfordPage = () => {
       <section className="py-12 md:py-16 bg-[#FBFAF8] border-y border-border/40">
         <div className="container-page grid grid-cols-1 lg:grid-cols-2 gap-10">
           <div>
-            <h2 className="text-2xl font-bold text-foreground mb-5">Popular Abbotsford Trips &amp; Use Cases</h2>
+            <h2 className="heading-2 text-foreground mb-5">Popular Abbotsford Trips &amp; Use Cases</h2>
             <ul className="space-y-3 text-muted-foreground">
               {popularTrips.map((item) => (
                 <li key={item} className="flex items-start gap-3">
@@ -341,7 +341,7 @@ const AbbotsfordPage = () => {
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 mb-5">
+            <h2 className="heading-2 text-foreground flex items-center gap-2 mb-5">
               <MapPin className="h-6 w-6 text-accent" />
               Pickup, Delivery &amp; Service Area
             </h2>
@@ -492,7 +492,7 @@ const AbbotsfordPage = () => {
       {/* ── FAQ ────────────────────────────────────────────────── */}
       <section className="py-12 md:py-16 bg-background">
         <div className="container-page max-w-3xl">
-          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2 mb-6">
+          <h2 className="heading-2 text-foreground flex items-center gap-2 mb-6">
             <HelpCircle className="h-6 w-6 text-accent" />
             Frequently Asked Questions
           </h2>
@@ -514,7 +514,7 @@ const AbbotsfordPage = () => {
       {/* ── FINAL CTA ──────────────────────────────────────────── */}
       <section className="py-12 md:py-16 bg-background">
         <div className="container-page">
-          <div className="rounded-xl bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
+          <div className="bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
             <h2 className="text-2xl md:text-3xl font-bold">Ready to book your Abbotsford rental?</h2>
             <p className="text-primary-foreground/80 max-w-lg mx-auto">
               Pickup is pre-selected to Abbotsford Centre. Pick your dates and confirm in minutes.
