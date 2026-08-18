@@ -6,13 +6,13 @@ import { useFleetCategories, type FleetCategory } from "@/hooks/use-fleet-catego
 function FleetCard({ category }: { category: FleetCategory }) {
   return (
     <article className="card-corp w-[280px] sm:w-[320px] flex flex-col">
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+      <div className="relative aspect-[16/11] overflow-hidden bg-background flex items-center justify-center p-4">
         {category.image_url ? (
           <img
             src={category.image_url}
             alt={`${category.name} rental vehicle`}
             loading="lazy"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={(e) => (e.currentTarget.src = "/placeholder.svg")}
           />
         ) : (
@@ -21,6 +21,7 @@ function FleetCard({ category }: { category: FleetCategory }) {
           </div>
         )}
       </div>
+
 
       <div className="p-5 flex flex-col gap-4 flex-1">
         <h3 className="text-[17px] font-semibold text-foreground leading-snug line-clamp-1">
