@@ -3,23 +3,43 @@ import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
+import {
+  Car,
+  Users,
+  Mountain,
+  Baby,
+  ArrowRight,
+  CalendarRange,
+  UserCheck,
+  ClipboardList,
+  FileCheck2,
+  KeyRound,
+  IdCard,
+  CalendarCheck,
+  CreditCard,
+  ShieldCheck,
+  Snowflake,
+  Globe2,
+} from "lucide-react";
 import { GBP_LINKS } from "@/constants/gbpLinks";
 import { PageHero } from "@/components/shared/PageHero";
 import { TrustMarquee } from "@/components/landing/TrustMarquee";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { CityVisualBand } from "@/components/shared/CityVisualBand";
+import {
+  CitySection,
+  CityClaimGrid,
+  CityTileGrid,
+  CityRoutesAndLocation,
+  CityStepsWithImage,
+  CityFaq,
+} from "@/components/shared/CitySections";
 import langleyHero from "@/assets/city-langley.jpg";
+import counterHandshake from "@/assets/abbotsford-counter-handshake.jpg";
+import valleyHighway from "@/assets/valley-highway.jpg";
 
 const LANGLEY_LOCATION_ID = "a1b2c3d4-2222-4000-8000-000000000002";
-
 
 const vehicleCards = [
   {
@@ -52,6 +72,41 @@ const vehicleCards = [
   },
 ];
 
+const whyChooseItems = [
+  "Local knowledge of Hwy 1, the 200th Street corridor and Fraser Highway",
+  "Competitive rates with no hidden add-ons",
+  "Flexible daily, weekly and long-term terms",
+  "Simple digital contracts and fast check-in",
+  "Options for new drivers, students and farm/industrial workers",
+  "Car seats, extra storage and winter tires available on request",
+];
+
+const langleyRoutes = [
+  "Commuting to Surrey, Abbotsford or Metro Vancouver",
+  "YVR airport run (35 min) or Abbotsford Airport (30 min)",
+  "Aldergrove border crossing for US trips",
+  "Fort Langley day trips and tourism",
+  "Rural and farm route access in the Township of Langley",
+  "Weekend drives to Manning Park, Cultus Lake or Harrison Hot Springs",
+];
+
+const bookingSteps = [
+  { icon: CalendarRange, title: "Choose dates & vehicle", detail: "Online or by phone in minutes." },
+  { icon: UserCheck, title: "Share driver details", detail: "Licence, age and additional drivers." },
+  { icon: ClipboardList, title: "Review your quote", detail: "Coverage options, deposit and included km." },
+  { icon: FileCheck2, title: "Confirm & sign", detail: "Digital agreement straight to your inbox." },
+  { icon: KeyRound, title: "Pick up at Langley Centre", detail: "Quick walk-around, then drive away." },
+];
+
+const requirementTiles = [
+  { icon: IdCard, title: "Valid driver's licence", detail: "BC or accepted international, held 2+ years." },
+  { icon: CalendarCheck, title: "Age 21 and up", detail: "25+ required for premium vehicles." },
+  { icon: CreditCard, title: "Credit card deposit", detail: "Held at pickup, released after return." },
+  { icon: ShieldCheck, title: "ICBC coverage included", detail: "Optional damage waiver at checkout." },
+  { icon: Snowflake, title: "Winter tires Nov–Mar", detail: "Standard on AWD and 4WD vehicles." },
+  { icon: Globe2, title: "US trips need approval", detail: "We supply cross-border insurance documentation." },
+];
+
 const faqItems = [
   {
     q: "Is there a car rental option in Langley without a major credit card?",
@@ -67,20 +122,12 @@ const faqItems = [
   },
   {
     q: "Does C2C Rental deliver vehicles in Langley?",
-    a: "We offer limited vehicle delivery within the Langley area, subject to availability and a delivery fee. Coverage includes Willowbrook, Walnut Grove, Murrayville, and Downtown Langley. Contact our team to confirm delivery availability for your booking dates and address.",
+    a: "We offer vehicle delivery within the Langley area for a flat $50 fee, subject to availability. Coverage includes Willowbrook, Walnut Grove, Murrayville and Downtown Langley. Contact our team to confirm delivery for your booking dates and address.",
   },
   {
     q: "What is the daily rate for car rental in Langley, BC?",
     a: "Daily rates for C2C Rental in Langley start at $74.99/day for economy and compact cars, with larger sedans, SUVs and minivans priced above that. Visit our booking page for a live quote.",
   },
-];
-
-const bookingSteps = [
-  "Choose your dates and vehicle type online or by phone",
-  "Share your driver details (licence, age, additional drivers)",
-  "Review your quote — insurance options, deposit, mileage limits",
-  "Confirm your booking and receive digital agreement",
-  "Pick up your vehicle in Langley, complete walk-around inspection, and drive away",
 ];
 
 const LANGLEY_TITLE = "Car Rental Langley BC | Daily & Weekly Rates — C2C Rental";
@@ -127,8 +174,6 @@ const langleyFaqSchema = {
 };
 
 const LangleyPage = () => {
-
-
   return (
     <CustomerLayout>
       <SEO
@@ -167,48 +212,24 @@ const LangleyPage = () => {
 
       <TrustMarquee className="mt-4" region="Langley, BC" />
 
-      <PageContainer className="max-w-4xl mx-auto space-y-16">
-        {/* Intro */}
+      <CitySection
+        eyebrow="Why C2C Rental"
+        title="Rentals for the Township and City of Langley"
+        intro="Compact sedans for the Highway 1 commute through to SUVs for Fraser Valley weekends — booked online, collected at Langley Centre."
+      >
+        <CityClaimGrid items={whyChooseItems} columns={3} />
+      </CitySection>
+
+      <PageContainer className="max-w-6xl mx-auto">
         <section className="space-y-6">
-          <h2 className="heading-2 text-foreground">Renting a car in Langley</h2>
-          <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-            Affordable rentals for the Township and City of Langley — compact sedans for the Highway 1 commute through to SUVs for Fraser Valley weekends. Book online, pick up at Langley Centre, drive with clear pricing and local support.
-          </p>
-        </section>
-
-
-
-        {/* Why Choose C2C */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <CheckCircle2 className="h-6 w-6 text-accent" />
-            Why Choose C2C Rental in Langley?
-          </h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Local knowledge of Langley routes, Hwy 1, 200th Street corridor, and Fraser Highway",
-              "Competitive rates with no hidden add-ons",
-              "Flexible daily, weekly, and long-term terms",
-              "Simple digital contracts and fast check-in",
-              "Options for new drivers, students, and farm/industrial workers",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        {/* Vehicle Cards */}
-        <section className="space-y-6">
-          <h2 className="heading-2 text-foreground">Our Vehicles Available in Langley</h2>
+          <h2 className="heading-2 text-foreground">Vehicles available in Langley</h2>
+          <div className="h-px w-14 bg-accent" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {vehicleCards.map((v) => (
               <Card key={v.category} className="flex flex-col justify-between hover:shadow-md transition-shadow">
                 <CardContent className="p-5 space-y-3 flex-1">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-none bg-accent/10 flex items-center justify-center">
+                    <div className="h-10 w-10 bg-accent/10 flex items-center justify-center">
                       <v.icon className="h-5 w-5 text-accent" />
                     </div>
                     <div>
@@ -221,15 +242,12 @@ const LangleyPage = () => {
                 </CardContent>
                 <div className="px-5 pb-5">
                   <Button asChild className="w-full" size="default">
-                    <Link to="/search">Book Now <ArrowRight className="ml-1 h-4 w-4" /></Link>
+                    <Link to="/search">Book now <ArrowRight className="ml-1 h-4 w-4" /></Link>
                   </Button>
                 </div>
               </Card>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground">
-            All vehicles are regularly maintained, cleaned before each rental, and equipped for Lower Mainland weather. Car seats, extra storage, and winter tires available on request.
-          </p>
         </section>
       </PageContainer>
 
@@ -239,116 +257,46 @@ const LangleyPage = () => {
         blurb="Clean, well-maintained vehicles handed over locally at Langley Centre — walk-around photos, a digital agreement, and keys in minutes."
       />
 
-      <PageContainer className="max-w-4xl mx-auto space-y-16">
+      <CitySection
+        tinted
+        eyebrow="Routes & pickup"
+        title="Popular Langley trips and where to collect your car"
+      >
+        <CityRoutesAndLocation
+          routesTitle="Popular Langley trips & use cases"
+          routes={langleyRoutes}
+          locationName="Langley Centre"
+          address="20178 96 Ave, Langley Twp, BC V1M 0B2"
+          locationBlurb="Serving Willowbrook, Walnut Grove, Aldergrove, Murrayville and Downtown Langley."
+          deliveryBlurb="Delivery available for a flat $50 fee, subject to availability."
+          mapUrl={GBP_LINKS.langley}
+          image={valleyHighway}
+          imageAlt="Rental SUV on a Fraser Valley highway near Langley, BC"
+        />
+      </CitySection>
 
+      <CitySection
+        eyebrow="How it works"
+        title="Booking a car rental in Langley"
+        intro="Five short steps from search to keys."
+      >
+        <CityStepsWithImage
+          steps={bookingSteps}
+          image={counterHandshake}
+          imageAlt="C2C Rental agent completing a rental at the counter"
+          note="Extensions, changes and early returns are usually simple — contact us as early as possible so we can adjust your booking."
+        />
+      </CitySection>
 
-        {/* Popular Trips */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground">Popular Langley Trips &amp; Use Cases</h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Commuting to Surrey, Abbotsford, or Metro Vancouver",
-              "YVR airport run (35 min) or Abbotsford Airport (30 min)",
-              "Aldergrove border crossing for US trips",
-              "Fort Langley day trips and tourism",
-              "Rural and farm route access in Township of Langley",
-              "Weekend drives to Manning Park, Cultus Lake, or Harrison Hot Springs",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <CitySection tinted eyebrow="Requirements" title="Insurance, deposits & what to bring">
+        <CityTileGrid tiles={requirementTiles} />
+      </CitySection>
 
-        {/* Pickup & Service Area */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-accent" />
-            Langley Pickup, Delivery &amp; Service Area
-          </h2>
-          <p className="text-muted-foreground leading-relaxed">
-            Serving Willowbrook, Walnut Grove, Aldergrove, Murrayville and Downtown Langley. Pick up at Langley Centre, 20178 96 Ave, or ask about delivery — a flat $50 fee, subject to availability.
-          </p>
-          <Button asChild variant="outline" size="sm" className="w-fit">
-            <a href={GBP_LINKS.langley} target="_blank" rel="noopener noreferrer">
-              <MapPin className="mr-2 h-4 w-4" /> View on Google &amp; Get Directions
-            </a>
-          </Button>
-        </section>
+      <CitySection eyebrow="FAQ" title="Car rental in Langley, BC — questions we get most">
+        <CityFaq items={faqItems} city="Langley" />
+      </CitySection>
 
-        {/* Simple Booking Process */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-accent" />
-            Simple Booking Process
-          </h2>
-          <ol className="space-y-4">
-            {bookingSteps.map((step, i) => (
-              <li key={i} className="flex items-start gap-4">
-                <span className="flex items-center justify-center h-8 w-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
-                  {i + 1}
-                </span>
-                <span className="text-muted-foreground pt-1">{step}</span>
-              </li>
-            ))}
-          </ol>
-          <p className="text-sm text-muted-foreground italic">
-            Extensions, changes, and early returns are usually simple — contact us as early as possible so we can adjust your booking.
-          </p>
-        </section>
-
-        {/* Insurance, Deposits & Requirements */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <Shield className="h-6 w-6 text-accent" />
-            Insurance, Deposits &amp; Requirements in Langley
-          </h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Valid full driver's licence required (BC or accepted international licence)",
-              "Minimum age: 21 (25 for premium vehicles)",
-              "Must hold a valid licence for minimum 2 years",
-              "Security deposit taken on a valid credit card at pickup",
-              "All C2C vehicles covered under ICBC owner's certificate",
-              "Optional damage waiver available at checkout",
-              "Winter tires installed November–March on all AWD/4WD vehicles",
-              "US border crossings: contact C2C before booking for cross-border insurance documentation",
-              "Clear policy on fuel, kilometres, tolls, tickets, and damage inspections",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-sm text-muted-foreground italic">
-            Our team will walk you through exact requirements before you confirm — no surprises.
-          </p>
-        </section>
-
-        {/* FAQ */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <HelpCircle className="h-6 w-6 text-accent" />
-            Frequently Asked Questions – Car Rental in Langley, BC
-          </h2>
-          <Accordion type="single" collapsible className="w-full">
-            {faqItems.map((faq, i) => (
-              <AccordionItem key={i} value={`faq-${i}`}>
-                <AccordionTrigger className="text-left text-foreground font-medium">
-                  {faq.q}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
-                  {faq.a}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </section>
-
-        {/* Cross-links */}
+      <PageContainer className="max-w-6xl mx-auto space-y-10">
         <section className="text-sm text-muted-foreground">
           C2C Rental also serves:{" "}
           <Link to="/surrey" className="text-accent underline underline-offset-2 hover:text-accent/80">Surrey</Link>
@@ -356,14 +304,13 @@ const LangleyPage = () => {
           <Link to="/abbotsford" className="text-accent underline underline-offset-2 hover:text-accent/80">Abbotsford</Link>
         </section>
 
-        {/* CTA Banner */}
         <section className="bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
           <h2 className="text-2xl md:text-3xl font-bold">Ready to book your Langley car rental?</h2>
           <p className="text-primary-foreground/80 max-w-lg mx-auto">
             Browse available vehicles now — no hidden fees, local support, and flexible terms.
           </p>
           <Button asChild variant="hero" size="xl">
-            <Link to="/search">View Available Cars in Langley <ArrowRight className="ml-2 h-5 w-5" /></Link>
+            <Link to="/search">View available cars in Langley <ArrowRight className="ml-2 h-5 w-5" /></Link>
           </Button>
           <p className="text-sm text-primary-foreground/60 pt-2">
             <Link to="/contact" className="underline underline-offset-2 hover:text-primary-foreground/90">Questions? Contact our team →</Link>
