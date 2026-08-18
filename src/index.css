@@ -54,7 +54,13 @@
     --input: 0 0% 90%;
     --ring: 0 0% 9%;
 
-    --radius: 0.75rem;
+    /* Corporate refresh: square geometry */
+    --radius: 0rem;
+
+    /* Pale brand tint for card fills / alternating bands */
+    --brand: 152 58% 19%;
+    --brand-tint: 152 30% 96%;
+
 
     /* Hero overlay - dark charcoal */
     --hero-overlay: 0 0% 6%;
