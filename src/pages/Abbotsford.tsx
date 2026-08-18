@@ -31,6 +31,8 @@ import { SectionHeader } from "@/components/landing/SectionHeader";
 import { PageHero } from "@/components/shared/PageHero";
 import abbotsfordHero from "@/assets/city-abbotsford.jpg";
 import { CleaningBanner } from "@/components/landing/CleaningBanner";
+import { CityVisualBand } from "@/components/shared/CityVisualBand";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
