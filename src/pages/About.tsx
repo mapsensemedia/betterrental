@@ -90,12 +90,13 @@ export default function About() {
       {/* Section 2: What Makes Us Different */}
       <section className="section-corp bg-brand-tint">
         <div className="container-corp">
+          <span className="eyebrow">Why C2C</span>
           <h2 className="heading-2 text-foreground mb-12">What Makes Us Different</h2>
           <div className="grid md:grid-cols-3 gap-6">
             {differentiators.map((d) => (
               <Card key={d.title} className="rounded-none border-border shadow-none">
                 <CardContent className="p-8">
-                  <div className="w-12 h-12 rounded-none bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <div className="w-12 h-12 rounded-none bg-primary/10 flex items-center justify-center mb-4">
                     <d.icon className="w-6 h-6 text-primary" />
                   </div>
                   <h3 className="font-semibold text-foreground text-lg mb-2">{d.title}</h3>
@@ -110,8 +111,9 @@ export default function About() {
       {/* Section 3: Our Service Area */}
       <section className="section-corp bg-background">
         <div className="container-corp">
+          <span className="eyebrow">Coverage</span>
           <h2 className="heading-2 text-foreground mb-6">Our Service Area</h2>
-          <p className="text-muted-foreground leading-relaxed mb-8">
+          <p className="text-muted-foreground leading-relaxed mb-8 max-w-[65ch]">
             C2C Rental serves drivers across Surrey — including Newton, Guildford, Cloverdale, Fleetwood, Whalley, and South Surrey — as well as Langley (Township and City) and Abbotsford (including the airport corridor). Whether you need a car for a day or a month, we have options across the Fraser Valley.
           </p>
           <div className="grid grid-cols-3 gap-4">
@@ -123,7 +125,7 @@ export default function About() {
               <Link
                 key={loc.city}
                 to={loc.href}
-                className="flex items-center justify-center gap-2 rounded-none border border-border bg-card p-6 font-semibold text-foreground hover:border-primary/30 hover:shadow-md transition-all"
+                className="flex items-center gap-2 rounded-none border border-border bg-card p-6 font-semibold text-foreground hover:border-primary/30 hover:shadow-md transition-all"
               >
                 <MapPin className="w-4 h-4 text-primary" />
                 {loc.city}
@@ -136,13 +138,14 @@ export default function About() {
       {/* Section 4: Our Fleet */}
       <section className="section-corp bg-brand-tint">
         <div className="container-corp">
+          <span className="eyebrow">Our fleet</span>
           <h2 className="heading-2 text-foreground mb-6">Our Fleet</h2>
-          <p className="text-muted-foreground leading-relaxed mb-8">
+          <p className="text-muted-foreground leading-relaxed mb-8 max-w-[65ch]">
             Our fleet includes economy sedans, midsize cars, SUVs and crossovers, and minivans — all regularly maintained, cleaned before every rental, and equipped for BC driving conditions. Winter tires available November through March on AWD vehicles.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {fleetCategories.map((cat) => (
-              <div key={cat.label} className="flex flex-col items-center gap-2 rounded-none border border-border bg-card p-5">
+              <div key={cat.label} className="flex items-center gap-3 rounded-none border border-border bg-card p-5">
                 <cat.icon className="w-8 h-8 text-primary" />
                 <span className="text-sm font-medium text-foreground">{cat.label}</span>
               </div>
@@ -152,7 +155,7 @@ export default function About() {
       </section>
 
       {/* Section 5: By the Numbers */}
-      <section className="py-12 bg-primary text-primary-foreground">
+      <section className="py-16 bg-primary text-primary-foreground">
         <div className="container-corp">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {stats.map((stat) => (
@@ -183,12 +186,12 @@ export default function About() {
       </section>
 
       {/* Bottom CTA */}
-      <section className="py-16 bg-muted">
+      <section className="section-corp bg-brand-tint border-t border-border">
         <div className="container-corp">
           <h2 className="heading-2 text-foreground mb-4">
             Ready to rent with a local team that actually knows Surrey?
           </h2>
-          <div className="flex flex-wrap justify-center gap-4 mt-8">
+          <div className="flex flex-wrap gap-4 mt-8">
             <Button asChild size="lg">
               <Link to="/surrey">Browse Vehicles <ArrowRight className="w-4 h-4 ml-2" /></Link>
             </Button>
