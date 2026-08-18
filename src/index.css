@@ -461,6 +461,127 @@
     flex: 0 0 auto;
   }
 
+  /* Active chip: solid brand fill */
+  .chip-corp-active {
+    border-color: hsl(var(--brand));
+    background: hsl(var(--brand));
+    color: hsl(0 0% 100%);
+  }
+  .chip-corp-active:hover {
+    background: hsl(152 58% 14%);
+    color: hsl(0 0% 100%);
+  }
+
+  /* Compact full-bleed page header band (browsing pages) */
+  .page-band {
+    background: hsl(var(--brand-tint));
+    border-bottom: 1px solid hsl(var(--border));
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+  @media (min-width: 1024px) {
+    .page-band { padding-top: 4.5rem; padding-bottom: 4.5rem; }
+  }
+
+  /* Section rhythm: 64px mobile / 120px desktop */
+  .section-corp { padding-top: 64px; padding-bottom: 64px; }
+  @media (min-width: 1024px) {
+    .section-corp { padding-top: 120px; padding-bottom: 120px; }
+  }
+
+  /* Readable editorial column for content pages */
+  .prose-corp {
+    max-width: 65ch;
+    font-size: 16px;
+    line-height: 1.65;
+    color: hsl(var(--foreground));
+  }
+  .prose-corp p { margin-bottom: 1.15rem; }
+  .prose-corp h2 {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    font-weight: 600;
+    line-height: 1.2;
+    font-size: clamp(1.5rem, 2.6vw, 1.875rem);
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+  }
+  .prose-corp h3 {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    font-weight: 600;
+    line-height: 1.25;
+    font-size: 1.25rem;
+    margin-top: 2rem;
+    margin-bottom: 0.65rem;
+  }
+  .prose-corp ul, .prose-corp ol { margin: 0 0 1.15rem 1.1rem; }
+  .prose-corp li { margin-bottom: 0.4rem; padding-left: 0.1rem; }
+  .prose-corp ul { list-style: none; margin-left: 0; }
+  .prose-corp ul > li { position: relative; padding-left: 1.1rem; }
+  .prose-corp ul > li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.72em;
+    width: 6px;
+    height: 1px;
+    background: hsl(var(--brand));
+  }
+  .prose-corp blockquote {
+    border-left: 1px solid hsl(var(--brand));
+    padding: 0.25rem 0 0.25rem 1.25rem;
+    margin: 2rem 0;
+    font-style: normal;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Hairline data / comparison table */
+  .table-corp { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .table-corp th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: hsl(var(--muted-foreground));
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .table-corp td {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid hsl(var(--border));
+    vertical-align: top;
+  }
+  .table-corp tbody tr:nth-child(even) { background: hsl(var(--brand-tint) / 0.6); }
+
+  /* Hairline spec table (vehicle detail) */
+  .spec-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid hsl(var(--border));
+    font-size: 15px;
+  }
+  .spec-row > dt { color: hsl(var(--muted-foreground)); }
+  .spec-row > dd { font-weight: 500; }
+
+  /* Text link with trailing arrow */
+  .link-corp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: hsl(var(--brand));
+    border-bottom: 1px solid hsl(var(--brand) / 0.3);
+    padding-bottom: 2px;
+  }
+  .link-corp:hover { border-bottom-color: hsl(var(--brand)); }
+
+
+
 
   /* Premium card - unified elevation */
   .card-premium {
