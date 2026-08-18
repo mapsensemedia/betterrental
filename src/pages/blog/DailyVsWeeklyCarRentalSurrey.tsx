@@ -121,7 +121,7 @@ export default function DailyVsWeeklyCarRentalSurrey() {
             </ul>
 
             <h3>The Math Behind Weekly Savings</h3>
-            <p>Let's say C2C Rental offers a compact sedan at $45/day. If you need it for 7 days:</p>
+            <p>Let's say C2C Rental offers a compact sedan at $74.99/day. If you need it for 7 days:</p>
 
             <div className="overflow-x-auto my-6">
               <table className="w-full text-sm border border-border rounded-none overflow-hidden">
@@ -135,18 +135,18 @@ export default function DailyVsWeeklyCarRentalSurrey() {
                 <tbody>
                   <tr className="border-b border-border bg-white">
                     <td className="px-4 py-3 font-medium">7 × daily rate</td>
-                    <td className="px-4 py-3 text-muted-foreground">7 × $45</td>
-                    <td className="px-4 py-3 font-medium">$315</td>
+                    <td className="px-4 py-3 text-muted-foreground">7 × $74.99</td>
+                    <td className="px-4 py-3 font-medium">$524.93</td>
                   </tr>
                   <tr className="border-b border-border bg-muted/30">
                     <td className="px-4 py-3 font-bold text-[hsl(25,85%,55%)]">Weekly flat rate</td>
-                    <td className="px-4 py-3 text-muted-foreground">1 × $280</td>
-                    <td className="px-4 py-3 font-bold text-[hsl(25,85%,55%)]">$280</td>
+                    <td className="px-4 py-3 text-muted-foreground">1 × $499</td>
+                    <td className="px-4 py-3 font-bold text-[hsl(25,85%,55%)]">$499</td>
                   </tr>
                   <tr className="bg-[hsl(25,85%,55%)]/10">
                     <td className="px-4 py-3 font-bold">Weekly savings</td>
                     <td className="px-4 py-3" />
-                    <td className="px-4 py-3 font-bold text-[hsl(25,85%,45%)]">$35</td>
+                    <td className="px-4 py-3 font-bold text-[hsl(25,85%,45%)]">$25.93</td>
                   </tr>
                 </tbody>
               </table>

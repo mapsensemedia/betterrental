@@ -98,7 +98,7 @@ export default function CarRentalTipsNewDrivers() {
             The Fraser Valley is home to several major post-secondary campuses: Kwantlen Polytechnic University (KPU) in Surrey, Simon Fraser University's Surrey campus, and the University of the Fraser Valley (UFV) in Abbotsford. Students at these schools often need a car for co-op placements, weekend trips, or moving between campus and home — but can't justify the cost of owning one.
           </p>
           <p>
-            C2C Rental's daily and weekly rates are designed to be accessible for students. Economy cars start at $45 per day, and weekly rentals come with discounted rates. If you need a car just for a few days — to move apartments, visit family, or attend an event — renting is far more practical than buying. Contact us to discuss student-friendly options and flexible pickup arrangements near KPU Surrey or SFU Surrey.
+            C2C Rental's daily and weekly rates are designed to be accessible for students. Economy cars start at $74.99 per day, and weekly rentals come with discounted rates. If you need a car just for a few days — to move apartments, visit family, or attend an event — renting is far more practical than buying. Contact us to discuss student-friendly options and flexible pickup arrangements near KPU Surrey or SFU Surrey.
           </p>
         </section>
 

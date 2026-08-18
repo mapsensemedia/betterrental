@@ -116,10 +116,13 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
       if (locationId !== lockLocationId) handleLocationChange(lockLocationId);
       return;
     }
-    if (defaultLocationId && !searchData.pickupLocationId) {
+    // City pages: always preselect their own location, overriding any stored value
+    if (defaultLocationId && locationId !== defaultLocationId) {
       handleLocationChange(defaultLocationId);
     }
-  }, [defaultLocationId, lockLocationId, searchData.pickupLocationId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultLocationId, lockLocationId]);
+
 
   // Auto-select delivery mode from URL param
   useEffect(() => {

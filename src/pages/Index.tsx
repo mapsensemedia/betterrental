@@ -144,13 +144,13 @@ const Index = () => {
       "@context": "https://schema.org",
       "@type": "Product",
       "name": "Economy Car Rental – Surrey, BC",
-      "description": "Rent an economy sedan in Surrey, BC through C2C Rental. Daily rates from $45–$65. Ideal for commutes, airport runs, and day trips across the Fraser Valley.",
+      "description": "Rent an economy sedan in Surrey, BC through C2C Rental. Daily rates from $74.99. Ideal for commutes, airport runs, and day trips across the Fraser Valley.",
       "brand": { "@type": "Brand", "name": "C2C Rental" },
       "offers": {
         "@type": "AggregateOffer",
         "priceCurrency": "CAD",
-        "lowPrice": "45",
-        "highPrice": "65",
+        "lowPrice": "74.99",
+        "highPrice": "119",
         "offerCount": "3"
       }
     };

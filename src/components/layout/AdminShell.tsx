@@ -259,21 +259,21 @@ export function AdminShell({
   return <div className="admin-theme min-h-screen bg-background flex flex-col md:flex-row">
 
       {/* Desktop Sidebar - hidden on mobile, visible on tablet+ */}
-      <aside className={cn("w-60 border-r border-border bg-card hidden md:flex flex-col shrink-0", sidebarCollapsed && "md:hidden")}>
-        <div className="p-4 lg:p-5 border-b border-border">
+      <aside className={cn("w-60 border-r border-sidebar-border bg-sidebar text-sidebar-foreground hidden md:flex flex-col shrink-0", sidebarCollapsed && "md:hidden")}>
+        <div className="p-4 lg:p-5 border-b border-sidebar-border">
           <Link to="/" className="flex items-center">
             <img src={c2cLogo} alt="C2C Rental" className="h-8 lg:h-9 w-auto" />
           </Link>
-          <p className="text-xs text-muted-foreground mt-1">Admin Console</p>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60 mt-2">Admin Console</p>
         </div>
         
         <nav className="flex-1 p-2 lg:p-3 space-y-0.5 overflow-y-auto scrollbar-thin">
           {visibleGroups.map((group, index) => (
             <div key={group.title}>
-              {index > 0 && <div className="py-2"><div className="h-px bg-border/40" /></div>}
+              {index > 0 && <div className="py-2"><div className="h-px bg-sidebar-border" /></div>}
               <p className={cn(
                 "px-2 lg:px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider",
-                group.priority ? "text-destructive/80" : "text-muted-foreground/60"
+                group.priority ? "text-destructive/90" : "text-sidebar-foreground/45"
               )}>
                 {group.title}
               </p>
@@ -286,10 +286,10 @@ export function AdminShell({
                       to={item.href}
                       title={item.description}
                       className={cn(
-                        "flex items-center gap-2 lg:gap-2.5 px-2 lg:px-3 py-2 rounded-md text-sm font-medium transition-colors", 
-                        isActive(item.href) 
-                          ? "bg-foreground text-background" 
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        "flex items-center gap-2 lg:gap-2.5 px-2 lg:px-3 py-2 rounded-none border-l-2 text-sm font-medium transition-colors",
+                        isActive(item.href)
+                          ? "border-primary-foreground/70 bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
                       )}
                     >
                       <item.icon className="w-4 h-4 shrink-0" />
@@ -318,7 +318,7 @@ export function AdminShell({
             <div className="pt-4 mt-4 border-t border-border">
               <Link
                 to="/ops"
-                className="flex items-center gap-2 lg:gap-2.5 px-2 lg:px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="flex items-center gap-2 lg:gap-2.5 px-2 lg:px-3 py-2 rounded-none text-sm font-medium text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-colors"
               >
                 <ArrowRightLeft className="w-4 h-4 shrink-0" />
                 <span className="truncate">Ops Panel</span>
@@ -327,15 +327,15 @@ export function AdminShell({
           )}
         </nav>
 
-        <div className="p-3 lg:p-4 border-t border-border">
-          <p className="text-xs text-muted-foreground">© 2026 C2C Rental</p>
+        <div className="p-3 lg:p-4 border-t border-sidebar-border">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/50">© 2026 C2C Rental</p>
         </div>
       </aside>
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border p-4 animate-slide-up overflow-y-auto">
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-sidebar text-sidebar-foreground border-r border-sidebar-border p-4 animate-slide-up overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <span className="text-lg font-bold">C2C Rental Admin</span>
               <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
@@ -345,10 +345,10 @@ export function AdminShell({
             <nav className="space-y-0.5">
               {visibleGroups.map((group, index) => (
                 <div key={group.title}>
-                  {index > 0 && <div className="py-2"><div className="h-px bg-border/40" /></div>}
+                  {index > 0 && <div className="py-2"><div className="h-px bg-sidebar-border" /></div>}
                   <p className={cn(
                     "px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider",
-                    group.priority ? "text-destructive/80" : "text-muted-foreground/60"
+                    group.priority ? "text-destructive/90" : "text-sidebar-foreground/45"
                   )}>
                     {group.title}
                   </p>
@@ -362,10 +362,10 @@ export function AdminShell({
                           onClick={() => setMobileMenuOpen(false)}
                           title={item.description}
                           className={cn(
-                            "flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium transition-colors", 
-                            isActive(item.href) 
-                              ? "bg-foreground text-background" 
-                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            "flex items-center gap-2.5 px-3 py-2.5 rounded-none border-l-2 text-sm font-medium transition-colors",
+                            isActive(item.href)
+                              ? "border-primary-foreground/70 bg-sidebar-accent text-sidebar-accent-foreground"
+                              : "border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
                           )}
                         >
                           <item.icon className="w-4 h-4" />
@@ -409,7 +409,7 @@ export function AdminShell({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top Bar */}
-        <header className="h-12 md:h-14 border-b border-border bg-card sticky top-0 z-40 flex items-center px-3 md:px-4 lg:px-5 gap-2 md:gap-3">
+        <header className="h-12 md:h-14 border-b border-border bg-card sticky top-0 z-40 flex items-center px-3 md:px-4 lg:px-5 gap-2 md:gap-3 shadow-[0_1px_0_0_hsl(var(--border))]">
           {/* Mobile Menu Toggle */}
           <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={() => setMobileMenuOpen(true)}>
             <Menu className="w-5 h-5" />
@@ -432,10 +432,10 @@ export function AdminShell({
               <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
                 type="text" 
-                placeholder="Search..." 
+                placeholder="Search booking code…" 
                 value={bookingCode} 
                 onChange={e => setBookingCode(e.target.value.toUpperCase())} 
-                className="pl-7 md:pl-9 h-8 md:h-9 bg-secondary border-0 text-sm" 
+                className="pl-7 md:pl-9 h-8 md:h-9 bg-background border border-input rounded-none text-sm tracking-wide" 
               />
             </div>
           </form>

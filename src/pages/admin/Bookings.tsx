@@ -2,7 +2,7 @@
  * Unified Operations Hub - Bookings, Pickups, Active Rentals, Returns
  * Consolidated view for the complete rental workflow
  */
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
 import { format, isToday, isTomorrow, parseISO, isBefore, isAfter, startOfDay, endOfDay, addDays } from "date-fns";
@@ -272,6 +272,12 @@ export default function AdminBookings() {
     search: searchParams.get("code") || "",
   });
   const [opsFilters, setOpsFilters] = useState<OperationsFiltersState>(defaultFilters);
+
+  // Keep the search filter in sync with the ?code= param used by the top bar search
+  const codeParam = searchParams.get("code") || "";
+  useEffect(() => {
+    setFilters((prev) => (prev.search === codeParam ? prev : { ...prev, search: codeParam }));
+  }, [codeParam]);
 
   const { data: bookings = [] as BookingWithDetails[], isLoading, refetch } = useAdminBookings(filters);
   const { data: activeBookings = [] as BookingWithDetails[] } = useAdminActiveBookings();
