@@ -224,51 +224,52 @@ const Index = () => {
 
   return (
     <CustomerLayout>
-      {/* ── A) HERO — full-coverage photograph with bottom-up scrim ── */}
-      <section className="relative w-full min-h-[520px] md:min-h-[640px] flex items-end">
-        <img
-          src={heroImage}
-          alt="C2C Rental vehicle on a British Columbia road"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to top, hsl(0 0% 4% / 0.88) 0%, hsl(0 0% 4% / 0.55) 45%, hsl(0 0% 4% / 0.25) 100%)",
-          }}
-        />
+      {/* ── A) HERO — light split layout with brand illustration ──── */}
+      <section className="relative tint-band pt-24 md:pt-32 pb-28 md:pb-40 overflow-hidden">
+        <div className="container-corp">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="corp-reveal max-w-xl">
+              <span className="eyebrow">C2C Rental · Lower Mainland</span>
+              <h1 className="heading-1 text-foreground">
+                Car Rental in Surrey, Langley &amp; Abbotsford BC
+              </h1>
+              <p className="mt-6 text-[16px] md:text-[17px] text-muted-foreground leading-relaxed max-w-[52ch]">
+                24/7 support, pickup or delivery, and transparent pricing across the Fraser Valley.
+              </p>
+              <div className="mt-9 flex flex-wrap gap-4">
+                <Link to="/search" className="btn-corp">
+                  Reserve a vehicle
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link to="/locations" className="btn-corp-outline">
+                  Our locations
+                </Link>
+              </div>
+            </div>
 
-        <div className="relative container-corp w-full pt-28 pb-16 md:pt-40 md:pb-24 text-center">
-          <div className="max-w-3xl mx-auto corp-reveal">
-            <span className="eyebrow text-white/70">C2C Rental · Lower Mainland</span>
-            <h1 className="heading-1 text-white">
-              Car Rental in Surrey, Langley &amp; Abbotsford BC
-            </h1>
-            <p className="mt-6 text-[16px] md:text-[17px] text-white/80 leading-relaxed max-w-[65ch] mx-auto">
-              24/7 support, pickup or delivery, and transparent pricing across the Fraser Valley.
-            </p>
-            <div className="mt-9 flex flex-wrap justify-center gap-4">
-              <Link to="/search" className="btn-corp">
-                Reserve a vehicle
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+            <div className="relative corp-reveal">
+              <img
+                src={heroImage}
+                alt="C2C Rental vehicles and team serving Surrey, Langley and Abbotsford"
+                className="w-full h-auto object-contain"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── B) BOOKING BAR — overlaps the base of the hero ───────── */}
+      {/* ── B) BOOKING MODULE — slides up over the hero base ──────── */}
       <section className="relative bg-background">
         <div className="container-corp">
-          <div className="relative -mt-10 md:-mt-16 z-10 corp-reveal">
-            <RentalSearchCard className="bg-card border border-border shadow-[0_18px_40px_-28px_hsl(0_0%_0%/0.4)] rounded-none" />
+          <div className="relative -mt-16 md:-mt-24 z-20 corp-reveal">
+            <RentalSearchCard className="bg-card border border-border shadow-corp-lg rounded-none" />
           </div>
         </div>
       </section>
 
       {/* ── C) TRUST BAND ────────────────────────────────────────── */}
-      <TrustMarquee className="mt-12 md:mt-20" region="British Columbia" />
+      <TrustMarquee className="mt-16 md:mt-24" region="British Columbia" />
+
 
       {/* ── D) FLEET ROW — horizontal scroll ─────────────────────── */}
       <FleetRow />
