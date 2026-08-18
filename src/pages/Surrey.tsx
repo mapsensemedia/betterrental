@@ -3,19 +3,40 @@ import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Link } from "react-router-dom";
-import { Car, Users, Mountain, Baby, CheckCircle2, MapPin, ClipboardList, Shield, HelpCircle, ArrowRight } from "lucide-react";
+import {
+  Car,
+  Users,
+  Mountain,
+  Baby,
+  ArrowRight,
+  CalendarRange,
+  UserCheck,
+  ClipboardList,
+  FileCheck2,
+  KeyRound,
+  IdCard,
+  CalendarCheck,
+  CreditCard,
+  ShieldCheck,
+  Fuel,
+  Globe2,
+} from "lucide-react";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { PageHero } from "@/components/shared/PageHero";
 import { TrustMarquee } from "@/components/landing/TrustMarquee";
 import { CityVisualBand } from "@/components/shared/CityVisualBand";
+import {
+  CitySection,
+  CityClaimGrid,
+  CityTileGrid,
+  CityRoutesAndLocation,
+  CityStepsWithImage,
+  CityFaq,
+} from "@/components/shared/CitySections";
 import surreyHero from "@/assets/city-surrey.jpg";
+import keysHandover from "@/assets/abbotsford-keys-handover.jpg";
+import fleetLineup from "@/assets/fleet-lineup.jpg";
 import { GBP_LINKS } from "@/constants/gbpLinks";
 
 const SURREY_LOCATION_ID = "a1b2c3d4-1111-4000-8000-000000000001";
@@ -51,27 +72,59 @@ const vehicleCards = [
   },
 ];
 
+const whyChooseItems = [
+  "Transparent pricing — the rate you see online is what you pay at pickup",
+  "Daily, weekly and monthly terms with no long-term commitment",
+  "Digital agreements, walk-around photos, extensions by phone or online",
+  "ICBC-compliant coverage included; optional damage waiver at checkout",
+];
+
 const renterPersonas = [
   {
     title: "Insurance Replacement Drivers",
-    description: "Your car is in the shop and ICBC is covering a replacement. We work with body shops across Newton and Whalley to make the handoff seamless.",
+    description: "Your car is in the shop and ICBC is covering a replacement. We work with body shops across Newton and Whalley.",
   },
   {
     title: "Newcomers & Immigrants",
-    description: "New to Surrey and waiting on your own vehicle? We offer short and extended rentals for new BC licence holders with clean records.",
+    description: "Short and extended rentals for new BC licence holders with clean records.",
   },
   {
-    title: "International Students (SFU Surrey / Kwantlen)",
-    description: "Studying at SFU Surrey Campus or KPU? Weekend rentals and short-term plans starting at $74.99/day.",
+    title: "Students (SFU Surrey / KPU)",
+    description: "Weekend rentals and short-term plans starting at $74.99/day.",
   },
   {
     title: "Commuters Without a Car",
-    description: "Need a car for a week while yours is serviced or you're between vehicles? We cover the gap without a long-term lease.",
+    description: "Cover the gap for a week while yours is serviced — no lease required.",
   },
   {
     title: "Visitors & Families",
-    description: "Flying into YVR and heading to Surrey to visit family? Skip the airport counters — pick up locally with no airport surcharges.",
+    description: "Skip the airport counters — pick up locally with no airport surcharges.",
   },
+];
+
+const surreyRoutes = [
+  "Newton to YVR Airport — 20–25 min via Hwy 99",
+  "Surrey Central to Downtown Vancouver — 35–45 min",
+  "King George Blvd to the US border (Peace Arch) — 15–20 min",
+  "Fraser Valley day trips: Chilliwack, Harrison, Cultus Lake — 45–75 min",
+];
+
+const bookingSteps = [
+  { icon: CalendarRange, title: "Pick dates & location", detail: "Surrey Newton is preselected in the form above." },
+  { icon: UserCheck, title: "Choose your vehicle", detail: "Review the daily rate, included km and add-ons." },
+  { icon: ClipboardList, title: "Enter driver details", detail: "Licence, date of birth and any additional drivers." },
+  { icon: CreditCard, title: "Checkout", detail: "The $350 deposit is held, not charged, until return." },
+  { icon: FileCheck2, title: "Sign your agreement", detail: "Digital agreement by email before pickup day." },
+  { icon: KeyRound, title: "Pick up at 6768 King George Blvd", detail: "Walk-around with photos, then drive away." },
+];
+
+const requirementTiles = [
+  { icon: IdCard, title: "Valid driver's licence", detail: "BC Class 5/7 or accepted international, held 2+ years." },
+  { icon: CalendarCheck, title: "Age 21 and up", detail: "25+ required for premium vehicles." },
+  { icon: CreditCard, title: "$350 credit card hold", detail: "Held at pickup, released 3–5 business days after return." },
+  { icon: ShieldCheck, title: "ICBC coverage included", detail: "Optional damage waiver available at checkout." },
+  { icon: Fuel, title: "Same fuel level on return", detail: "Otherwise a refuelling fee applies." },
+  { icon: Globe2, title: "US trips need approval", detail: "We provide cross-border insurance documentation." },
 ];
 
 const faqItems = [
@@ -85,7 +138,7 @@ const faqItems = [
   },
   {
     q: "Do you offer long-term rentals in Surrey — weekly or monthly?",
-    a: "Yes. Weekly and monthly rentals are available and typically come with reduced daily rates. These are popular with newcomers, workers between vehicles, and anyone waiting on a vehicle purchase. Ask about long-term options when booking.",
+    a: "Yes. Weekly and monthly rentals are available and are popular with newcomers, workers between vehicles, and anyone waiting on a vehicle purchase. Ask about long-term options when booking.",
   },
   {
     q: "Can I use a C2C rental for rideshare (Uber/Lyft) or delivery (DoorDash/Skip)?",
@@ -105,22 +158,12 @@ const faqItems = [
   },
   {
     q: "How many kilometres are included in my rental?",
-    a: "Rentals of 1–7 days include unlimited kilometres — drive as far as you like with no distance charge. For longer rentals, the first 7 days are still unlimited and 160 km is included for each additional day (for example, a 10-day rental includes 480 km). Any distance over that allowance is charged at $0.25/km, measured from the odometer at pickup vs. return.",
+    a: "Rentals of 1–7 days include unlimited kilometres. For longer rentals, the first 7 days are still unlimited and 160 km is included for each additional day (for example, a 10-day rental includes 480 km). Any distance over that allowance is charged at $0.25/km, measured from the odometer at pickup vs. return.",
   },
   {
     q: "Do you offer airport pickup or drop-off at YVR?",
     a: "We don't operate from YVR directly, but our Newton location is 20–25 minutes from the airport. Many customers prefer picking up with us over airport counters — no airport surcharges, more competitive rates, and faster check-in.",
   },
-];
-
-const bookingSteps = [
-  "Select your dates and Surrey Newton as your pickup location in the search card above",
-  "Choose your vehicle category and review the daily rate, included km, and add-ons",
-  "Enter your driver details — licence number, date of birth, any additional drivers",
-  "Complete checkout — the $350 deposit is held, not charged, until return",
-  "Sign your digital rental agreement by email before pickup day",
-  "Arrive at 6768 King George Blvd — we complete a walk-around with photos together",
-  "Drive away — keys in hand, vehicle inspected, agreement signed",
 ];
 
 const SURREY_TITLE = "Car Rental Surrey BC | Affordable & Local — C2C Rental";
@@ -168,7 +211,6 @@ const SurreyPage = () => {
     })),
   };
 
-
   return (
     <CustomerLayout>
       <SEO
@@ -207,45 +249,24 @@ const SurreyPage = () => {
 
       <TrustMarquee className="mt-4" region="Surrey, BC" />
 
-      <PageContainer className="max-w-6xl mx-auto space-y-16">
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground">About renting in Surrey</h2>
-          <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-            Locally operated, Surrey-based rentals with transparent pricing on daily, weekly and monthly terms. Pick up at our Newton location on King George Blvd — 20 minutes from YVR, 30 from downtown Vancouver.
-          </p>
-        </section>
+      <CitySection
+        eyebrow="Why C2C Rental"
+        title="Local rentals, priced the way they're advertised"
+        intro="Pick up at our Newton location on King George Blvd — 20 minutes from YVR, 30 from downtown Vancouver."
+      >
+        <CityClaimGrid items={whyChooseItems} />
+      </CitySection>
 
-
-        {/* Why Choose C2C */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <CheckCircle2 className="h-6 w-6 text-accent" />
-            Why Choose C2C Rental in Surrey?
-          </h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Transparent pricing — the rate you see online is what you pay at pickup",
-              "Daily, weekly and monthly terms, no long-term commitment",
-              "Digital agreements, walk-around photos, extensions by phone or online",
-              "ICBC-compliant coverage included; optional damage waiver at checkout",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        {/* Vehicle Cards */}
+      <PageContainer className="max-w-6xl mx-auto">
         <section className="space-y-6">
-          <h2 className="heading-2 text-foreground">Our Vehicles Available in Surrey</h2>
+          <h2 className="heading-2 text-foreground">Vehicles available in Surrey</h2>
+          <div className="h-px w-14 bg-accent" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {vehicleCards.map((v) => (
               <Card key={v.category} className="flex flex-col justify-between hover:shadow-md transition-shadow">
                 <CardContent className="p-5 space-y-3 flex-1">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-none bg-accent/10 flex items-center justify-center">
+                    <div className="h-10 w-10 bg-accent/10 flex items-center justify-center">
                       <v.icon className="h-5 w-5 text-accent" />
                     </div>
                     <div>
@@ -258,7 +279,7 @@ const SurreyPage = () => {
                 </CardContent>
                 <div className="px-5 pb-5">
                   <Button asChild className="w-full" size="default">
-                    <Link to="/search">Book Now <ArrowRight className="ml-1 h-4 w-4" /></Link>
+                    <Link to="/search">Book now <ArrowRight className="ml-1 h-4 w-4" /></Link>
                   </Button>
                 </div>
               </Card>
@@ -273,122 +294,61 @@ const SurreyPage = () => {
         blurb="Fresh, inspected vehicles handed over at 6768 King George Blvd — walk-around photos, a digital agreement, and keys in minutes."
       />
 
-      <PageContainer className="max-w-6xl mx-auto space-y-16">
+      <CitySection eyebrow="Who we serve" title="Built for how Surrey actually drives">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border border border-border">
+          {renterPersonas.map((p) => (
+            <div key={p.title} className="bg-card p-5 space-y-2">
+              <h3 className="font-semibold text-foreground text-sm">{p.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{p.description}</p>
+            </div>
+          ))}
+        </div>
+      </CitySection>
 
+      <CitySection
+        tinted
+        eyebrow="Routes & pickup"
+        title="Popular Surrey trips and where to collect your car"
+      >
+        <CityRoutesAndLocation
+          routesTitle="Popular Surrey routes & trips"
+          routes={surreyRoutes}
+          locationName="Surrey — Newton"
+          address="6768 King George Blvd, Surrey, BC V3W 4Z9"
+          locationBlurb="In the heart of Newton, minutes from Scott Rd Station, with free on-site parking at pickup."
+          deliveryBlurb="Delivery across Newton, Guildford, Whalley, Fleetwood and South Surrey / White Rock — flat $50 fee, subject to availability."
+          mapUrl={GBP_LINKS.surrey}
+          image={fleetLineup}
+          imageAlt="C2C Rental vehicles ready for pickup in Surrey, BC"
+        />
+      </CitySection>
 
-        {/* Who We Serve */}
-        <section className="space-y-6">
-          <h2 className="heading-2 text-foreground">Who We Serve in Surrey</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {renterPersonas.map((persona) => (
-              <Card key={persona.title} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-5 space-y-2">
-                  <h3 className="font-semibold text-foreground text-base">{persona.title}</h3>
-                  <p className="text-sm text-muted-foreground">{persona.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
+      <CitySection
+        eyebrow="How it works"
+        title="Booking a car rental in Surrey"
+        intro="Six short steps from search to keys — most customers finish the online part in under five minutes."
+      >
+        <CityStepsWithImage
+          steps={bookingSteps}
+          image={keysHandover}
+          imageAlt="C2C Rental staff handing keys to a customer in Surrey"
+          note="Extensions, changes and early returns are simple — contact us as early as you can and we'll adjust the booking."
+        />
+      </CitySection>
 
-        {/* Popular Routes */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground">Popular Surrey Routes &amp; Trips</h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Newton to YVR Airport — 20–25 min via Hwy 99",
-              "Surrey Central to Downtown Vancouver — 35–45 min",
-              "King George Blvd to the US border (Peace Arch) — 15–20 min",
-              "Fraser Valley day trips: Chilliwack, Harrison, Cultus Lake — 45–75 min",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <CitySection
+        tinted
+        eyebrow="Requirements"
+        title="Insurance, deposits & what to bring"
+      >
+        <CityTileGrid tiles={requirementTiles} />
+      </CitySection>
 
-        {/* Pickup Location */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-accent" />
-            Surrey Pickup Location &amp; Delivery Area
-          </h2>
-          <p className="text-muted-foreground leading-relaxed">
-            C2C Rental is based at 6768 King George Blvd, Surrey, BC V3W 4Z9 — in the heart of Newton, minutes from Scott Rd Station. Free on-site parking at pickup.
-          </p>
-          <p className="text-muted-foreground leading-relaxed">
-            Delivery available across Newton, Guildford, Whalley, Fleetwood and South Surrey / White Rock — flat $50 delivery fee, subject to availability.
-          </p>
-          <Button asChild variant="outline" size="sm" className="w-fit">
-            <a href={GBP_LINKS.surrey} target="_blank" rel="noopener noreferrer">
-              <MapPin className="mr-2 h-4 w-4" /> View on Google &amp; Get Directions
-            </a>
-          </Button>
-        </section>
+      <CitySection eyebrow="FAQ" title="Car rental in Surrey, BC — questions we get most">
+        <CityFaq items={faqItems} city="Surrey" />
+      </CitySection>
 
-        {/* How to Book */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-accent" />
-            How to Book a Car Rental in Surrey
-          </h2>
-          <ol className="space-y-4">
-            {bookingSteps.map((step, i) => (
-              <li key={i} className="flex items-start gap-4">
-                <span className="flex items-center justify-center h-8 w-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
-                  {i + 1}
-                </span>
-                <span className="text-muted-foreground pt-1">{step}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {/* Insurance & Requirements */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <Shield className="h-6 w-6 text-accent" />
-            Insurance, Deposits &amp; Requirements
-          </h2>
-          <ul className="space-y-3 text-muted-foreground">
-            {[
-              "Valid full licence — BC Class 5/7 or accepted international licence",
-              "Minimum age 21 (25 for premium vehicles), licence held 2+ years",
-              "Credit card required for the $350 security deposit hold",
-              "ICBC-compliant coverage on every vehicle; optional damage waiver",
-              "Return at the same fuel level or a refuelling fee applies",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-3">
-                <span className="mt-1.5 h-2 w-2 rounded-full bg-accent shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        {/* FAQ */}
-        <section className="space-y-5">
-          <h2 className="heading-2 text-foreground flex items-center gap-2">
-            <HelpCircle className="h-6 w-6 text-accent" />
-            Frequently Asked Questions – Car Rental in Surrey, BC
-          </h2>
-          <Accordion type="single" collapsible className="w-full">
-            {faqItems.map((faq, i) => (
-              <AccordionItem key={i} value={`faq-${i}`}>
-                <AccordionTrigger className="text-left text-foreground font-medium">
-                  {faq.q}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
-                  {faq.a}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </section>
-
-        {/* Cross-links */}
+      <PageContainer className="max-w-6xl mx-auto space-y-10">
         <section className="text-sm text-muted-foreground">
           C2C Rental also serves:{" "}
           <Link to="/langley" className="text-accent underline underline-offset-2 hover:text-accent/80">Langley</Link>
@@ -396,14 +356,13 @@ const SurreyPage = () => {
           <Link to="/abbotsford" className="text-accent underline underline-offset-2 hover:text-accent/80">Abbotsford</Link>
         </section>
 
-        {/* CTA Banner */}
         <section className="bg-primary text-primary-foreground p-8 md:p-12 text-center space-y-4">
           <h2 className="text-2xl md:text-3xl font-bold">Ready to book your Surrey car rental?</h2>
           <p className="text-primary-foreground/80 max-w-lg mx-auto">
             Browse available vehicles now — no hidden fees, local support, and flexible terms.
           </p>
           <Button asChild variant="hero" size="xl">
-            <Link to="/search">View Available Cars in Surrey <ArrowRight className="ml-2 h-5 w-5" /></Link>
+            <Link to="/search">View available cars in Surrey <ArrowRight className="ml-2 h-5 w-5" /></Link>
           </Button>
           <p className="text-sm text-primary-foreground/60 pt-2">
             <Link to="/contact" className="underline underline-offset-2 hover:text-primary-foreground/90">Questions? Contact our team →</Link>
