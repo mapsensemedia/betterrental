@@ -217,13 +217,13 @@ export function TopNav() {
                 )}
               </div>
 
-              <div className="flex gap-2 px-4 pt-4 border-t border-black/5 mt-2">
+              <div className="flex gap-2 px-4 pt-4 border-t border-border mt-2">
                 <Link
                   to="/search"
                   onClick={() => setIsOpen(false)}
-                  className="flex-1 flex items-center justify-center h-10 rounded-full border border-black/10 text-[15px] font-medium text-zinc-700 hover:text-zinc-950 hover:border-black/20 transition-colors duration-200"
+                  className="flex-1 flex items-center justify-center h-11 bg-brand text-white text-[13px] font-semibold uppercase tracking-[0.08em] hover:bg-[hsl(152_58%_14%)] transition-colors duration-200"
                 >
-                  Search
+                  Book Now
                 </Link>
 
                 {user ? (
@@ -231,13 +231,13 @@ export function TopNav() {
                     <Link
                       to="/dashboard"
                       onClick={() => setIsOpen(false)}
-                      className="flex-1 flex items-center justify-center gap-2 h-10 rounded-full bg-zinc-900 text-white text-[15px] font-medium hover:bg-zinc-800 transition-colors duration-200"
+                      className="flex-1 flex items-center justify-center gap-2 h-11 border border-border text-[15px] font-medium text-foreground hover:border-brand transition-colors duration-200"
                     >
                       Dashboard
                     </Link>
                     <button
                       onClick={handleSignOut}
-                      className="h-10 w-10 rounded-full border border-black/10 hover:border-black/20 flex items-center justify-center transition duration-200 text-zinc-700"
+                      className="h-11 w-11 border border-border hover:border-brand flex items-center justify-center transition duration-200 text-foreground/70"
                       aria-label="Sign out"
                     >
                       <LogOut className="w-4 h-4" />
@@ -247,11 +247,12 @@ export function TopNav() {
                   <Link
                     to="/auth"
                     onClick={() => setIsOpen(false)}
-                    className="flex-1 flex items-center justify-center gap-2 h-10 rounded-full bg-zinc-900 text-white text-[15px] font-medium hover:bg-zinc-800 transition-colors duration-200"
+                    className="flex-1 flex items-center justify-center gap-2 h-11 border border-border text-[15px] font-medium text-foreground hover:border-brand transition-colors duration-200"
                   >
                     Sign In
                   </Link>
                 )}
+
               </div>
             </div>
           </div>
