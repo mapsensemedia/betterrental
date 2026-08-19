@@ -238,14 +238,25 @@ export function PhotoLightbox({
         </div>
 
         {/* Main image area */}
-        <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+        <div
+          ref={stageRef}
+          className={cn(
+            "flex-1 flex items-center justify-center relative overflow-hidden touch-none select-none",
+            zoom > 1 ? (dragRef.current ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"
+          )}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onDoubleClick={() => (zoom > 1 ? resetView() : zoomCentered(2))}
+        >
           {/* Navigation buttons */}
           {photos.length > 1 && (
             <>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={goPrev}
+                onClick={(e) => { e.stopPropagation(); goPrev(); }}
                 className="absolute left-4 z-40 h-12 w-12 rounded-full bg-black/50 text-white hover:bg-black/70"
               >
                 <ChevronLeft className="h-8 w-8" />
@@ -253,7 +264,7 @@ export function PhotoLightbox({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={goNext}
+                onClick={(e) => { e.stopPropagation(); goNext(); }}
                 className="absolute right-4 z-40 h-12 w-12 rounded-full bg-black/50 text-white hover:bg-black/70"
               >
                 <ChevronRight className="h-8 w-8" />
@@ -263,20 +274,22 @@ export function PhotoLightbox({
 
           {/* Image */}
           <div
-            className="w-full h-full flex items-center justify-center p-12 overflow-auto"
+            className="absolute inset-0 flex items-center justify-center p-12"
             style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg)`,
-              transition: "transform 0.2s ease-out",
+              transformOrigin: "0 0",
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+              transition: dragRef.current ? "none" : "transform 0.12s ease-out",
             }}
           >
             <SignedStorageImage
               bucket={bucket}
               path={currentPhoto.photo_url}
               alt={currentPhoto.photo_type}
-              className="max-w-full max-h-[75vh] object-contain rounded-lg"
+              className="max-w-full max-h-[75vh] object-contain rounded-lg pointer-events-none"
             />
           </div>
         </div>
+
 
         {/* Footer with photo info */}
         <div className="absolute bottom-0 left-0 right-0 z-50 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
