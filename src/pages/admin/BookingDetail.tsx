@@ -12,6 +12,8 @@ import type { RentalAgreement } from "@/hooks/use-rental-agreement";
 import { PanelShell } from "@/components/shared/PanelShell";
 import { useBookingById } from "@/hooks/use-bookings";
 import { useBookingConditionPhotos } from "@/hooks/use-condition-photos";
+import { PhotoLightbox } from "@/components/shared/PhotoLightbox";
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePdf } from "@/lib/pdf/invoice-pdf";
