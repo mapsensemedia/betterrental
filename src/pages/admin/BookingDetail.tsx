@@ -459,6 +459,15 @@ export default function BookingDetail() {
 
   const pickupPhotos = photos?.pickup || [];
   const returnPhotos = photos?.return || [];
+  const lightboxPhotos = [...pickupPhotos, ...returnPhotos].map((p: any) => ({
+    id: p.id,
+    photo_url: String(p.photo_url).replace("condition-photos/", ""),
+    photo_type: p.photo_type,
+    phase: p.phase,
+    captured_at: p.captured_at,
+    notes: p.notes ?? undefined,
+  }));
+
   const pickupInspection = inspectionMetrics.find(m => m.phase === "pickup");
   const returnInspection = inspectionMetrics.find(m => m.phase === "return");
 
