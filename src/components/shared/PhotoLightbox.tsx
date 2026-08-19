@@ -320,9 +320,9 @@ export function PhotoLightbox({
                   key={photo.id}
                   onClick={() => {
                     setCurrentIndex(idx);
-                    setZoom(1);
-                    setRotation(0);
+                    resetView();
                   }}
+
                   className={cn(
                     "w-12 h-12 rounded-md overflow-hidden border-2 transition-all shrink-0",
                     idx === currentIndex 
