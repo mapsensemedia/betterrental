@@ -278,6 +278,8 @@ export default function BookingDetail() {
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const [isGeneratingAgreement, setIsGeneratingAgreement] = useState(false);
   const [viewingAgreement, setViewingAgreement] = useState<any | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
   const updateStatus = useUpdateBookingStatus();
   const queryClient = useQueryClient();
 
