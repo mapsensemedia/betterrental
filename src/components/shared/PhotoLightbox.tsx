@@ -48,33 +48,108 @@ export function PhotoLightbox({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setRotation(0);
+    setOffset({ x: 0, y: 0 });
+  }, []);
 
   // Reset state when opening
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(initialIndex);
-      setZoom(1);
-      setRotation(0);
+      resetView();
     }
-  }, [isOpen, initialIndex]);
+  }, [isOpen, initialIndex, resetView]);
 
   const currentPhoto = photos[currentIndex];
 
   const goNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % photos.length);
-    setZoom(1);
-    setRotation(0);
-  }, [photos.length]);
+    resetView();
+  }, [photos.length, resetView]);
 
   const goPrev = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length);
-    setZoom(1);
-    setRotation(0);
-  }, [photos.length]);
+    resetView();
+  }, [photos.length, resetView]);
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.5, 3));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.5, 0.5));
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 5;
+
+  // Zoom around a point in stage coordinates
+  const zoomAt = useCallback((nextZoomRaw: number, px: number, py: number) => {
+    setZoom((prevZoom) => {
+      const next = Math.min(Math.max(nextZoomRaw, MIN_ZOOM), MAX_ZOOM);
+      const k = next / prevZoom;
+      setOffset((prev) => {
+        if (next === MIN_ZOOM) return { x: 0, y: 0 };
+        return { x: px - (px - prev.x) * k, y: py - (py - prev.y) * k };
+      });
+      return next;
+    });
+  }, []);
+
+  const zoomCentered = useCallback(
+    (factor: number) => {
+      const rect = stageRef.current?.getBoundingClientRect();
+      const cx = rect ? rect.width / 2 : 0;
+      const cy = rect ? rect.height / 2 : 0;
+      setZoom((prev) => {
+        const next = Math.min(Math.max(prev * factor, MIN_ZOOM), MAX_ZOOM);
+        const k = next / prev;
+        setOffset((o) => (next === MIN_ZOOM ? { x: 0, y: 0 } : { x: cx - (cx - o.x) * k, y: cy - (cy - o.y) * k }));
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleZoomIn = () => zoomCentered(1.5);
+  const handleZoomOut = () => zoomCentered(1 / 1.5);
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
+
+  // Non-passive wheel listener (React onWheel is passive) — also handles trackpad pinch
+  const zoomAtRef = useRef(zoomAt);
+  zoomAtRef.current = zoomAt;
+  const zoomStateRef = useRef(zoom);
+  zoomStateRef.current = zoom;
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || !isOpen) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1);
+      const rect = el.getBoundingClientRect();
+      zoomAtRef.current(
+        zoomStateRef.current * Math.exp(-dy * 0.0015),
+        e.clientX - rect.left,
+        e.clientY - rect.top
+      );
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [isOpen, currentIndex]);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (zoom <= MIN_ZOOM) return;
+    dragRef.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    setOffset({ x: d.ox + (e.clientX - d.x), y: d.oy + (e.clientY - d.y) });
+  };
+  const onPointerUp = () => {
+    dragRef.current = null;
+  };
+
 
   // Keyboard navigation
   useEffect(() => {
