@@ -2,7 +2,7 @@
  * Photo Lightbox Component
  * Full-screen modal for viewing photos with navigation
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,33 +48,108 @@ export function PhotoLightbox({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setRotation(0);
+    setOffset({ x: 0, y: 0 });
+  }, []);
 
   // Reset state when opening
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(initialIndex);
-      setZoom(1);
-      setRotation(0);
+      resetView();
     }
-  }, [isOpen, initialIndex]);
+  }, [isOpen, initialIndex, resetView]);
 
   const currentPhoto = photos[currentIndex];
 
   const goNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % photos.length);
-    setZoom(1);
-    setRotation(0);
-  }, [photos.length]);
+    resetView();
+  }, [photos.length, resetView]);
 
   const goPrev = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length);
-    setZoom(1);
-    setRotation(0);
-  }, [photos.length]);
+    resetView();
+  }, [photos.length, resetView]);
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.5, 3));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.5, 0.5));
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 5;
+
+  // Zoom around a point in stage coordinates
+  const zoomAt = useCallback((nextZoomRaw: number, px: number, py: number) => {
+    setZoom((prevZoom) => {
+      const next = Math.min(Math.max(nextZoomRaw, MIN_ZOOM), MAX_ZOOM);
+      const k = next / prevZoom;
+      setOffset((prev) => {
+        if (next === MIN_ZOOM) return { x: 0, y: 0 };
+        return { x: px - (px - prev.x) * k, y: py - (py - prev.y) * k };
+      });
+      return next;
+    });
+  }, []);
+
+  const zoomCentered = useCallback(
+    (factor: number) => {
+      const rect = stageRef.current?.getBoundingClientRect();
+      const cx = rect ? rect.width / 2 : 0;
+      const cy = rect ? rect.height / 2 : 0;
+      setZoom((prev) => {
+        const next = Math.min(Math.max(prev * factor, MIN_ZOOM), MAX_ZOOM);
+        const k = next / prev;
+        setOffset((o) => (next === MIN_ZOOM ? { x: 0, y: 0 } : { x: cx - (cx - o.x) * k, y: cy - (cy - o.y) * k }));
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleZoomIn = () => zoomCentered(1.5);
+  const handleZoomOut = () => zoomCentered(1 / 1.5);
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
+
+  // Non-passive wheel listener (React onWheel is passive) — also handles trackpad pinch
+  const zoomAtRef = useRef(zoomAt);
+  zoomAtRef.current = zoomAt;
+  const zoomStateRef = useRef(zoom);
+  zoomStateRef.current = zoom;
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || !isOpen) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1);
+      const rect = el.getBoundingClientRect();
+      zoomAtRef.current(
+        zoomStateRef.current * Math.exp(-dy * 0.0015),
+        e.clientX - rect.left,
+        e.clientY - rect.top
+      );
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [isOpen, currentIndex]);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (zoom <= MIN_ZOOM) return;
+    dragRef.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    setOffset({ x: d.ox + (e.clientX - d.x), y: d.oy + (e.clientY - d.y) });
+  };
+  const onPointerUp = () => {
+    dragRef.current = null;
+  };
+
 
   // Keyboard navigation
   useEffect(() => {
@@ -163,14 +238,25 @@ export function PhotoLightbox({
         </div>
 
         {/* Main image area */}
-        <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+        <div
+          ref={stageRef}
+          className={cn(
+            "flex-1 flex items-center justify-center relative overflow-hidden touch-none select-none",
+            zoom > 1 ? (dragRef.current ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"
+          )}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onDoubleClick={() => (zoom > 1 ? resetView() : zoomCentered(2))}
+        >
           {/* Navigation buttons */}
           {photos.length > 1 && (
             <>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={goPrev}
+                onClick={(e) => { e.stopPropagation(); goPrev(); }}
                 className="absolute left-4 z-40 h-12 w-12 rounded-full bg-black/50 text-white hover:bg-black/70"
               >
                 <ChevronLeft className="h-8 w-8" />
@@ -178,7 +264,7 @@ export function PhotoLightbox({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={goNext}
+                onClick={(e) => { e.stopPropagation(); goNext(); }}
                 className="absolute right-4 z-40 h-12 w-12 rounded-full bg-black/50 text-white hover:bg-black/70"
               >
                 <ChevronRight className="h-8 w-8" />
@@ -188,20 +274,22 @@ export function PhotoLightbox({
 
           {/* Image */}
           <div
-            className="w-full h-full flex items-center justify-center p-12 overflow-auto"
+            className="absolute inset-0 flex items-center justify-center p-12"
             style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg)`,
-              transition: "transform 0.2s ease-out",
+              transformOrigin: "0 0",
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+              transition: dragRef.current ? "none" : "transform 0.12s ease-out",
             }}
           >
             <SignedStorageImage
               bucket={bucket}
               path={currentPhoto.photo_url}
               alt={currentPhoto.photo_type}
-              className="max-w-full max-h-[75vh] object-contain rounded-lg"
+              className="max-w-full max-h-[75vh] object-contain rounded-lg pointer-events-none"
             />
           </div>
         </div>
+
 
         {/* Footer with photo info */}
         <div className="absolute bottom-0 left-0 right-0 z-50 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
@@ -232,9 +320,9 @@ export function PhotoLightbox({
                   key={photo.id}
                   onClick={() => {
                     setCurrentIndex(idx);
-                    setZoom(1);
-                    setRotation(0);
+                    resetView();
                   }}
+
                   className={cn(
                     "w-12 h-12 rounded-md overflow-hidden border-2 transition-all shrink-0",
                     idx === currentIndex 
