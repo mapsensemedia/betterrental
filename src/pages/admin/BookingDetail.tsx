@@ -998,19 +998,25 @@ export default function BookingDetail() {
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base">Pickup Condition Photos</CardTitle>
-                        <CardDescription>{pickupPhotos.length} photos captured</CardDescription>
+                        <CardDescription>{pickupPhotos.length} photos captured — click to enlarge</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {pickupPhotos.map((photo: any) => (
-                            <div key={photo.id} className="aspect-square rounded-lg overflow-hidden border">
+                          {pickupPhotos.map((photo: any, idx: number) => (
+                            <button
+                              type="button"
+                              key={photo.id}
+                              onClick={() => setLightboxIndex(idx)}
+                              aria-label={`View ${photo.photo_type} photo`}
+                              className="aspect-square rounded-lg overflow-hidden border hover:ring-2 hover:ring-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
+                            >
                               <SignedStorageImage 
                                 bucket="condition-photos"
                                 path={photo.photo_url.replace("condition-photos/", "")}
                                 alt={photo.photo_type}
                                 className="w-full h-full object-cover"
                               />
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </CardContent>
@@ -1022,27 +1028,42 @@ export default function BookingDetail() {
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base">Return Condition Photos</CardTitle>
-                        <CardDescription>{returnPhotos.length} photos captured</CardDescription>
+                        <CardDescription>{returnPhotos.length} photos captured — click to enlarge</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {returnPhotos.map((photo: any) => (
-                            <div key={photo.id} className="aspect-square rounded-lg overflow-hidden border">
+                          {returnPhotos.map((photo: any, idx: number) => (
+                            <button
+                              type="button"
+                              key={photo.id}
+                              onClick={() => setLightboxIndex(pickupPhotos.length + idx)}
+                              aria-label={`View ${photo.photo_type} photo`}
+                              className="aspect-square rounded-lg overflow-hidden border hover:ring-2 hover:ring-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
+                            >
                               <SignedStorageImage 
                                 bucket="condition-photos"
                                 path={photo.photo_url.replace("condition-photos/", "")}
                                 alt={photo.photo_type}
                                 className="w-full h-full object-cover"
                               />
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </CardContent>
                     </Card>
                   )}
+
+                  <PhotoLightbox
+                    photos={lightboxPhotos}
+                    initialIndex={lightboxIndex ?? 0}
+                    isOpen={lightboxIndex !== null}
+                    onClose={() => setLightboxIndex(null)}
+                    title="Condition Photos"
+                  />
                 </div>
               )}
             </TabsContent>
+
 
             {/* Damages Tab */}
             <TabsContent value="damages" className="space-y-6">
