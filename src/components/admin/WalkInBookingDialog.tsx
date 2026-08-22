@@ -102,21 +102,34 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
   // assigned later, so show every active category.
   const availableCategories = allCategories;
 
-  // Calculate totals using central pricing utility
+  // Merge the selected pickup/return times into the chosen dates BEFORE counting
+  // days. Billing is hours-based everywhere else (ceil(hours / 24)); counting
+  // calendar dates here priced rentals one day short (e.g. 51h billed as 2 days)
+  // and left the booking with a phantom "discount" once the server repriced it.
+  const applyTime = (date: Date, hhmm: string) => {
+    const [h, m] = (hhmm || "00:00").split(":").map(Number);
+    const d = new Date(date);
+    d.setHours(h || 0, m || 0, 0, 0);
+    return d;
+  };
+  const startAtDate = applyTime(formData.startDate, formData.pickupTime);
+  const endAtDate = applyTime(formData.endDate, formData.returnTime);
+
   const totalDays = Math.max(1, Math.ceil(
-    (formData.endDate.getTime() - formData.startDate.getTime()) / (1000 * 60 * 60 * 24)
+    (endAtDate.getTime() - startAtDate.getTime()) / (1000 * 60 * 60 * 24)
   ));
-  
+
   const pricing = calculateBookingPricing({
     vehicleDailyRate: formData.dailyRate,
     rentalDays: totalDays,
-    pickupDate: formData.startDate,
+    pickupDate: startAtDate,
     driverAgeBand: formData.driverAgeBand,
   });
   
   const subtotal = pricing.subtotal;
   const taxAmount = pricing.taxAmount;
   const totalAmount = pricing.total;
+
 
   // Reset form state when dialog opens to prevent stale customer data
   useEffect(() => {
@@ -194,18 +207,10 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
 
     setIsSubmitting(true);
     setCustomerConflict(null);
-    
-    // Merge selected pickup/return times into the chosen dates so the
-    // booking is stored with the correct hour/minute (was defaulting to
-    // local midnight when only the calendar date was sent).
-    const applyTime = (date: Date, hhmm: string) => {
-      const [h, m] = (hhmm || "00:00").split(":").map(Number);
-      const d = new Date(date);
-      d.setHours(h || 0, m || 0, 0, 0);
-      return d;
-    };
-    const startAtDate = applyTime(formData.startDate, formData.pickupTime);
-    const endAtDate = applyTime(formData.endDate, formData.returnTime);
+    // startAtDate / endAtDate are derived above (date + selected time) and drive
+    // both the displayed quote and the payload, so they can never diverge.
+
+
 
     try {
       const { data, error } = await supabase.functions.invoke("create-walk-in-booking", {
