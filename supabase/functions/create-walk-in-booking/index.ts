@@ -306,12 +306,22 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Compute pricing — trust staff input; compute young driver fee server-side
+    // 7. Compute pricing SERVER-SIDE — the staff daily rate is honoured, but the
+    // day count and every derived line are recomputed here. Client-supplied
+    // subtotal/tax/total are only used for a drift log: a wrong client quote
+    // (e.g. calendar-date day counting) must never become the charged price.
     const resolvedAgeBand = driverAgeBand || "25_70";
-    const computedDays = totalDays || Math.max(1, Math.ceil(
+    const computedDays = Math.max(1, Math.ceil(
       (new Date(endAt).getTime() - new Date(startAt).getTime()) / (1000 * 60 * 60 * 24),
     ));
     const youngDriverFee = resolvedAgeBand === "20_24" ? 15 * computedDays : 0;
+
+    const weekendDays = countWeekendDaysVancouver(new Date(startAt).toISOString(), computedDays);
+    const weekendSurcharge = weekendDays > 0
+      ? Math.round(Number(dailyRate) * weekendDays * WEEKEND_SURCHARGE_RATE * 100) / 100
+      : 0;
+    const pvrtTotal = Math.round(PVRT_DAILY_FEE * computedDays * 100) / 100;
+    const acsrchTotal = Math.round(ACSRCH_DAILY_FEE * computedDays * 100) / 100;
 
     // 7a. Price add-ons FIRST so they are billed, not just recorded.
     const addOnRowsToInsert: { add_on_id: string; quantity: number; price: number }[] = [];
@@ -338,14 +348,26 @@ Deno.serve(async (req) => {
       addOnRowsToInsert.reduce((s, r) => s + r.price, 0) * 100,
     ) / 100;
 
-    const baseSubtotal = subtotal ?? (dailyRate * computedDays + youngDriverFee);
-    const computedSubtotal = Math.round((baseSubtotal + addOnsTotal) * 100) / 100;
-    const computedTax = taxAmount != null && addOnsTotal === 0
-      ? taxAmount
-      : Math.round(computedSubtotal * 0.12 * 100) / 100;
-    const computedTotal = totalAmount != null && addOnsTotal === 0
-      ? totalAmount
-      : Math.round((computedSubtotal + computedTax) * 100) / 100;
+    const computedSubtotal = Math.round((
+      Number(dailyRate) * computedDays
+      + weekendSurcharge
+      + youngDriverFee
+      + pvrtTotal
+      + acsrchTotal
+      + addOnsTotal
+    ) * 100) / 100;
+    const computedTax = Math.round(computedSubtotal * 0.12 * 100) / 100;
+    const computedTotal = Math.round((computedSubtotal + computedTax) * 100) / 100;
+
+    if (subtotal != null && Math.abs(Number(subtotal) - computedSubtotal) > 0.5) {
+      console.warn("[walkin] client quote drift", {
+        clientSubtotal: Number(subtotal),
+        serverSubtotal: computedSubtotal,
+        clientDays: totalDays ?? null,
+        serverDays: computedDays,
+      });
+    }
+
 
     // 7b. Duplicate detection — check for recent walk-in with same user/category/dates
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
