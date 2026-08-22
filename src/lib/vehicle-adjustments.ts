@@ -87,14 +87,20 @@ export function buildVehicleAdjustmentLines(input: {
 
   // Reconcile: anything the two adjustments don't explain (manual rate overrides,
   // legacy data) becomes its own line so the itemization still sums to subtotal.
+  // A negative leftover with no duration discount in play is NOT a discount — it
+  // is an underbilled gap (e.g. a legacy walk-in quoted on calendar days), and
+  // labelling it "Discount" hid real shortfalls from staff.
   const explained = lines.reduce((sum, l) => sum + l.cents, 0);
   const leftover = actualAdjustmentCents - explained;
   if (leftover !== 0) {
     lines.push({
-      label: leftover > 0 ? "Rate Adjustment" : "Discount / Adjustment",
+      label: leftover > 0
+        ? "Rate Adjustment"
+        : discountCents > 0 ? "Discount / Adjustment" : "Underbilled (rate gap)",
       cents: leftover,
     });
   }
+
 
   return lines;
 }
