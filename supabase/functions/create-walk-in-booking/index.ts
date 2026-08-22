@@ -29,6 +29,14 @@ import {
   getAdminClient,
   isAdminOrStaff,
 } from "../_shared/auth.ts";
+import {
+  countWeekendDaysVancouver,
+  WEEKEND_SURCHARGE_RATE,
+} from "../_shared/vehicle-adjustments.ts";
+
+const PVRT_DAILY_FEE = 1.50;
+const ACSRCH_DAILY_FEE = 1.00;
+
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
