@@ -425,6 +425,9 @@ Deno.serve(async (req) => {
         total_amount: computedTotal,
         driver_age_band: resolvedAgeBand,
         young_driver_fee: youngDriverFee,
+        weekend_surcharge: weekendSurcharge,
+        duration_discount: 0,
+
         booking_source: "walk_in",
         deposit_amount: depositAmount ?? 350,
         pickup_contact_name: customerName.trim(),
