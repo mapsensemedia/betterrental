@@ -226,6 +226,23 @@ Deno.serve(async (req) => {
           (serverTotals.subtotal - engineOld.subtotal) + extrasDeltaSubtotal,
         );
 
+        // Day-count correction: if the STORED total_days disagrees with the day
+        // count the booking's own dates imply (legacy walk-ins quoted on calendar
+        // dates instead of ceil(hours / 24)), total_days is about to be corrected
+        // upward while the base rental stays priced for fewer days — surfacing as
+        // a phantom "discount". Bill the missing days' base rate + daily
+        // regulatory fees as part of this delta.
+        const engineOldDays = Number(engineOld.days) || 0;
+        if (oldDays > 0 && engineOldDays > 0 && engineOldDays !== oldDays) {
+          const missingDays = engineOldDays - oldDays;
+          const dayCountCorrection = roundCents(missingDays * (storedDailyRate + 2.50));
+          deltaSubtotal = roundCents(deltaSubtotal + dayCountCorrection);
+          console.warn("[reprice-booking] stored day count corrected", {
+            bookingId: booking.id, storedDays: oldDays, actualDays: engineOldDays, dayCountCorrection,
+          });
+        }
+
+
 
         const baseStored = roundCents(storedSubtotal - storedUpgradeTotal);
         const newBase = roundCents(Math.max(baseStored + deltaSubtotal, 0));
