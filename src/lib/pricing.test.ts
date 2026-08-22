@@ -168,9 +168,12 @@ describe("weekend surcharge + duration discount (booking W9JD9JDV regression)", 
     });
 
     const surcharge = lines.find((l) => l.label.startsWith("Weekend Surcharge"));
-    const discount = lines.find((l) => l.label === "Discount / Adjustment");
+    // No duration discount is in play (discounts retired), so a negative leftover
+    // is reported as an underbilled gap rather than a discount.
+    const gap = lines.find((l) => l.label === "Underbilled (rate gap)");
     expect(surcharge?.cents).toBe(5399);
-    expect(discount?.cents).toBe(-7739);
+    expect(gap?.cents).toBe(-7739);
+
     expect(surcharge!.label).toContain("4 days");
 
     // Itemization reconciles exactly to the stored vehicle amount
