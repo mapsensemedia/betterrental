@@ -67,8 +67,9 @@ function buildCategoryData(
       current.availableCount++;
     }
 
-
-    // Track lowest rate
+    // Legacy per-car rates are NEVER used for pricing — the category rate card is
+    // the single source of truth. We only pick a representative unit (the cheapest
+    // legacy row) to source fallback display attributes (image/seats/fuel/etc.).
     const rate = Number(unit.vehicle?.daily_rate || 0);
     if (rate > 0 && rate < current.lowestRate) {
       current.lowestRate = rate;
@@ -77,6 +78,7 @@ function buildCategoryData(
       current.fuelType = unit.vehicle?.fuel_type || "Petrol";
       current.transmission = unit.vehicle?.transmission || "Automatic";
     }
+
 
 
     categoryMap.set(unit.category_id, current);
@@ -110,7 +112,7 @@ function buildCategoryData(
         id: cat.id,
         name: cat.name,
         description: cat.description,
-        dailyRate: data.lowestRate === Infinity ? catRate : data.lowestRate,
+        dailyRate: catRate,
         imageUrl: data.imageUrl ?? cat.image_url ?? null,
         availableCount: data.availableCount,
         totalCount: data.totalCount,
