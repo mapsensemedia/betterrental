@@ -112,7 +112,7 @@ function buildCategoryData(
         id: cat.id,
         name: cat.name,
         description: cat.description,
-        dailyRate: data.lowestRate === Infinity ? catRate : data.lowestRate,
+        dailyRate: catRate,
         imageUrl: data.imageUrl ?? cat.image_url ?? null,
         availableCount: data.availableCount,
         totalCount: data.totalCount,
