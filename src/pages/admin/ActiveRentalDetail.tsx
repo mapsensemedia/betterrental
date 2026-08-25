@@ -170,7 +170,7 @@ export default function ActiveRentalDetail() {
       setFlagDialogOpen(false);
       setFlagMessage("");
     } catch (err) {
-      toast.error("Failed to flag issue");
+      toast.error(err instanceof Error ? `Failed to flag issue: ${err.message}` : "Failed to flag issue");
     } finally {
       setFlagging(false);
     }

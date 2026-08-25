@@ -73,7 +73,7 @@ export function StepReturnFlags({ booking, completion, onMarkReviewed, isMarking
       setFlagDialogOpen(false);
       setFlagMessage("");
     } catch (err) {
-      toast.error("Failed to flag issue");
+      toast.error(err instanceof Error ? `Failed to flag issue: ${err.message}` : "Failed to flag issue");
     }
   };
 
