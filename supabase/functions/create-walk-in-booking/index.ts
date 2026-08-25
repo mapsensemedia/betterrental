@@ -161,8 +161,14 @@ Deno.serve(async (req) => {
         );
       }
       customerId = confirmedCustomer.id;
+      // Staff confirmed same person — keep the corrected name/phone on record.
+      await supabaseAdmin
+        .from("customers")
+        .update({ full_name: sanitizedName, phone: sanitizedPhoneVal })
+        .eq("id", customerId);
       console.log(`[walkin] Staff confirmed existing customer ${customerId}`);
     } else if (forceNewCustomer) {
+
       // Staff explicitly chose to create a new customer (even if email matches)
       const { data: newCustomer, error: custErr } = await supabaseAdmin
         .from("customers")
@@ -261,14 +267,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingProfile) {
-      // Only reuse profile if the name actually matches (same person)
+      // Reuse the existing account when the name matches, OR when staff explicitly
+      // confirmed this is the same customer (useCustomerId). An email can only ever
+      // have one auth account, so attempting to create another one always fails.
       const profileName = existingProfile.full_name?.toLowerCase().trim();
       const walkinName = sanitizedName.toLowerCase().trim();
-      if (profileName === walkinName) {
+      if (profileName === walkinName || useCustomerId) {
         userId = existingProfile.id;
         console.log(`[walkin] Reusing existing profile ${userId} (${existingProfile.full_name}) for email ${email}`);
       } else {
-        console.log(`[walkin] Profile name mismatch: profile="${existingProfile.full_name}" vs walk-in="${sanitizedName}" — creating new auth user`);
+        console.log(`[walkin] Profile name mismatch: profile="${existingProfile.full_name}" vs walk-in="${sanitizedName}" — attempting new auth user`);
       }
     }
 
@@ -287,32 +295,81 @@ Deno.serve(async (req) => {
       });
 
       if (createError || !newUser?.user) {
-        console.error("[create-walk-in-booking] Failed to create walk-in customer:", createError);
-        return new Response(
-          JSON.stringify({ error: "Walk-in bookings require a valid customer email. We couldn't create or link a customer account for this email." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        // Safety net: the email is already registered — adopt that account instead
+        // of aborting the booking (one auth account per email is an auth rule).
+        const msg = (createError?.message || "").toLowerCase();
+        const alreadyRegistered =
+          msg.includes("already been registered") ||
+          msg.includes("already registered") ||
+          msg.includes("already exists") ||
+          msg.includes("duplicate");
+
+        if (alreadyRegistered) {
+          const { data: fallbackProfile } = await supabaseAdmin
+            .from("profiles")
+            .select("id")
+            .eq("email", email)
+            .limit(1)
+            .maybeSingle();
+
+          if (fallbackProfile?.id) {
+            userId = fallbackProfile.id;
+            console.log(`[walkin] Email already registered — linking booking to existing account ${userId}`);
+          } else {
+            const { data: userList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+            const match = userList?.users?.find(
+              (u) => u.email?.toLowerCase() === email,
+            );
+            if (match) {
+              userId = match.id;
+              console.log(`[walkin] Email already registered — adopted auth user ${userId}`);
+            }
+          }
+        }
+
+        if (!userId) {
+          console.error("[create-walk-in-booking] Failed to create walk-in customer:", createError);
+          return new Response(
+            JSON.stringify({
+              error: `Couldn't link a customer account for ${email}: ${createError?.message || "unknown error"}`,
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      } else {
+        userId = newUser.user.id;
       }
+    }
 
-      userId = newUser.user.id;
-
-      const { error: profileUpsertError } = await supabaseAdmin.from("profiles").upsert({
+    // Ensure a profile row exists for the resolved account. Only overwrite the
+    // stored name when staff confirmed this is the same person (or it's new).
+    {
+      const profilePayload: Record<string, unknown> = {
         id: userId,
         email,
-        full_name: sanitizedName,
         phone: sanitizedPhoneVal,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: "id" });
+      };
+      if (!existingProfile || existingProfile.id !== userId || useCustomerId) {
+        profilePayload.full_name = sanitizedName;
+      }
+      if (!existingProfile || existingProfile.id !== userId) {
+        profilePayload.created_at = new Date().toISOString();
+      }
+
+      const { error: profileUpsertError } = await supabaseAdmin
+        .from("profiles")
+        .upsert(profilePayload, { onConflict: "id" });
 
       if (profileUpsertError) {
-        console.error("[create-walk-in-booking] Failed to create customer profile:", profileUpsertError);
+        console.error("[create-walk-in-booking] Failed to save customer profile:", profileUpsertError);
         return new Response(
-          JSON.stringify({ error: "Walk-in bookings require a valid customer email. We couldn't save the customer profile for this email." }),
+          JSON.stringify({ error: `Couldn't save the customer profile: ${profileUpsertError.message}` }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
     }
+
 
     // 7. Compute pricing SERVER-SIDE — the staff daily rate is honoured, but the
     // day count and every derived line are recomputed here. Client-supplied
