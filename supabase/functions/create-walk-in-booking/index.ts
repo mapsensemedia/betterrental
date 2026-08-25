@@ -335,28 +335,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (userId) {
-
-
-      userId = newUser.user.id;
-
-      const { error: profileUpsertError } = await supabaseAdmin.from("profiles").upsert({
+    // Ensure a profile row exists for the resolved account. Only overwrite the
+    // stored name when staff confirmed this is the same person (or it's new).
+    {
+      const profilePayload: Record<string, unknown> = {
         id: userId,
         email,
-        full_name: sanitizedName,
         phone: sanitizedPhoneVal,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: "id" });
+      };
+      if (!existingProfile || existingProfile.id !== userId || useCustomerId) {
+        profilePayload.full_name = sanitizedName;
+      }
+      if (!existingProfile || existingProfile.id !== userId) {
+        profilePayload.created_at = new Date().toISOString();
+      }
+
+      const { error: profileUpsertError } = await supabaseAdmin
+        .from("profiles")
+        .upsert(profilePayload, { onConflict: "id" });
 
       if (profileUpsertError) {
-        console.error("[create-walk-in-booking] Failed to create customer profile:", profileUpsertError);
+        console.error("[create-walk-in-booking] Failed to save customer profile:", profileUpsertError);
         return new Response(
-          JSON.stringify({ error: "Walk-in bookings require a valid customer email. We couldn't save the customer profile for this email." }),
+          JSON.stringify({ error: `Couldn't save the customer profile: ${profileUpsertError.message}` }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
     }
+
 
     // 7. Compute pricing SERVER-SIDE — the staff daily rate is honoured, but the
     // day count and every derived line are recomputed here. Client-supplied
