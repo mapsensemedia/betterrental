@@ -161,8 +161,14 @@ Deno.serve(async (req) => {
         );
       }
       customerId = confirmedCustomer.id;
+      // Staff confirmed same person — keep the corrected name/phone on record.
+      await supabaseAdmin
+        .from("customers")
+        .update({ full_name: sanitizedName, phone: sanitizedPhoneVal })
+        .eq("id", customerId);
       console.log(`[walkin] Staff confirmed existing customer ${customerId}`);
     } else if (forceNewCustomer) {
+
       // Staff explicitly chose to create a new customer (even if email matches)
       const { data: newCustomer, error: custErr } = await supabaseAdmin
         .from("customers")
