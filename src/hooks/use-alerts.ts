@@ -268,6 +268,19 @@ export function useCreateAlert() {
       vehicleId?: string;
       userId?: string;
     }) => {
+      // admin_alerts.vehicle_id references vehicles(id). Callers often pass a
+      // vehicle_unit id or a category id, which fails the FK and made
+      // "Flag issue" error out. Only keep the id when it is a real vehicle row.
+      let vehicleId: string | null = null;
+      if (alert.vehicleId) {
+        const { data: vehicleRow } = await supabase
+          .from("vehicles")
+          .select("id")
+          .eq("id", alert.vehicleId)
+          .maybeSingle();
+        vehicleId = vehicleRow?.id ?? null;
+      }
+
       const { data, error } = await supabase
         .from("admin_alerts")
         .insert([{
@@ -275,7 +288,7 @@ export function useCreateAlert() {
           title: alert.title,
           message: alert.message || null,
           booking_id: alert.bookingId || null,
-          vehicle_id: alert.vehicleId || null,
+          vehicle_id: vehicleId,
           user_id: alert.userId || null,
           status: "pending",
           expires_at: getExpiresAt(alert.alertType),
@@ -284,6 +297,7 @@ export function useCreateAlert() {
         .single();
 
       if (error) throw error;
+
 
       await createAuditLog("create_alert", "admin_alerts", data.id);
 
