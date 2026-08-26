@@ -27,10 +27,14 @@ import heroImg from "@/assets/hero-suv-mountains.jpg";
 import howItWorksImg from "@/assets/fleet-lineup.jpg";
 import breakImg from "@/assets/valley-highway.jpg";
 import closingImg from "@/assets/hero-car.jpg";
-import compactImg from "@/assets/categories/economy-versa.jpg";
-import midsizeImg from "@/assets/categories/midsize-corolla.jpg";
-import suvImg from "@/assets/categories/midsize-suv-rav4.jpg";
-import premiumImg from "@/assets/categories/audi.jpg";
+
+// Live C2C Rental category photography (same images used on the rental site)
+const CATEGORY_IMAGE_BASE =
+  "https://bsvsveoaihtbsteqikvp.supabase.co/storage/v1/object/public/category-images/categories";
+const compactImg = `${CATEGORY_IMAGE_BASE}/1769957246126-7fwu9wfs9.jpg`;
+const midsizeImg = `${CATEGORY_IMAGE_BASE}/1769957288722-2n3ecl5vf.webp`;
+const suvImg = `${CATEGORY_IMAGE_BASE}/1769957078362-yhcrc812h.jpg`;
+const premiumImg = `${CATEGORY_IMAGE_BASE}/1769957310832-15uqgswed.jpg`;
 
 // Client-confirmed indicative monthly pricing (CAD)
 const TIERS = [
@@ -39,7 +43,7 @@ const TIERS = [
     name: "Compact",
     price: "from $749 CAD / month",
     image: compactImg,
-    alt: "Nissan Versa compact sedan from the C2C Rental fleet, front three-quarter view",
+    alt: "Nissan Versa compact sedan from the C2C Rental fleet, front three-quarter studio view",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
   {
@@ -47,7 +51,7 @@ const TIERS = [
     name: "Midsize",
     price: "from $829 CAD / month",
     image: midsizeImg,
-    alt: "Toyota Corolla midsize sedan from the C2C Rental fleet, front three-quarter view",
+    alt: "Toyota Corolla midsize sedan from the C2C Rental fleet, front three-quarter studio view",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
   {
@@ -55,7 +59,7 @@ const TIERS = [
     name: "SUV",
     price: "from $949 CAD / month",
     image: suvImg,
-    alt: "Toyota RAV4 mid-size SUV from the C2C Rental fleet, front three-quarter view",
+    alt: "Toyota RAV4 mid-size SUV from the C2C Rental fleet, front three-quarter studio view",
     specs: ["5 seats", "Automatic", "All-wheel drive"],
   },
   {
@@ -63,8 +67,8 @@ const TIERS = [
     name: "Premium",
     price: "from $1,149 CAD / month",
     image: premiumImg,
-    alt: "Audi premium sedan from the C2C Rental fleet, front three-quarter view",
-    specs: ["5 seats", "Automatic", "All-wheel drive"],
+    alt: "Toyota Camry full-size sedan from the C2C Rental fleet, front three-quarter studio view",
+    specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
 ];
 
