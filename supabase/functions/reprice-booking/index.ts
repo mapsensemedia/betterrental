@@ -510,16 +510,13 @@ Deno.serve(async (req) => {
       });
 
       let finalSubtotal = serverTotals.subtotal;
-      let finalTaxAmount = serverTotals.taxAmount;
-      let finalTotal = serverTotals.total;
       if (upgradeFee > 0) {
         const upgradeTotal = roundCents(upgradeFee * serverTotals.days);
         finalSubtotal = roundCents(finalSubtotal + upgradeTotal);
-        const pst = roundCents(finalSubtotal * 0.07);
-        const gst = roundCents(finalSubtotal * 0.05);
-        finalTaxAmount = roundCents(pst + gst);
-        finalTotal = roundCents(finalSubtotal + finalTaxAmount);
       }
+      const protectionFees = finalizeTotals(finalSubtotal);
+      const finalTaxAmount = protectionFees.taxAmount;
+      const finalTotal = protectionFees.total;
 
       oldData = {
         protection_plan: booking.protection_plan,
@@ -531,6 +528,8 @@ Deno.serve(async (req) => {
         total_days: serverTotals.days,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
+        processing_fee: protectionFees.processingFee,
+        processing_fee_rate: protectionFees.processingFeeRate,
         total_amount: finalTotal,
         young_driver_fee: serverTotals.youngDriverFee,
         weekend_surcharge: serverTotals.weekendSurcharge,
