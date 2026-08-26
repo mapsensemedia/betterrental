@@ -364,10 +364,9 @@ Deno.serve(async (req) => {
       const newUpgradeTotal = roundCents(fee * days);
 
       const finalSubtotal = roundCents(storedSubtotal - currentUpgradeTotal + newUpgradeTotal);
-      const pst = roundCents(finalSubtotal * 0.07);
-      const gst = roundCents(finalSubtotal * 0.05);
-      const finalTaxAmount = roundCents(pst + gst);
-      const finalTotal = roundCents(finalSubtotal + finalTaxAmount);
+      const upgradeFees = finalizeTotals(finalSubtotal);
+      const finalTaxAmount = upgradeFees.taxAmount;
+      const finalTotal = upgradeFees.total;
 
       // Drift check (informational only — never applied silently)
       pricingDrift = await detectPricingDrift(
