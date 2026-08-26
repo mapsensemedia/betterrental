@@ -87,6 +87,11 @@ export function TotalBar({
           {pricing.discountType === "monthly" ? "20% monthly" : "10% weekly"} discount applied
         </p>
       )}
+      {pricing.processingFee > 0 && (
+        <p className="text-xs text-muted-foreground mt-1">
+          Includes {formatProcessingFeeRate(pricing.processingFeeRate)} card processing fee (${pricing.processingFee.toFixed(2)})
+        </p>
+      )}
       <p className="text-xs text-muted-foreground mt-1">
         *Estimated total. Final price may vary.
       </p>
