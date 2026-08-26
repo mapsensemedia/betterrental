@@ -139,6 +139,8 @@ export function BookingSummaryPanel({
       pstAmount: breakdown.pstAmount,
       gstAmount: breakdown.gstAmount,
       taxAmount: breakdown.taxAmount, 
+      processingFee: breakdown.processingFee,
+      processingFeeRate: breakdown.processingFeeRate,
       total: breakdown.total, 
       itemized,
       fuelPricing,
