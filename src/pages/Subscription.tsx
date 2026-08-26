@@ -68,7 +68,7 @@ const TIERS = [
     name: "Premium",
     price: "from $1,149 CAD / month",
     image: premiumImg,
-    alt: "Toyota Camry full-size sedan from the C2C Rental fleet, front three-quarter studio view",
+    alt: "Silver Audi premium sedan from the C2C Rental fleet, front three-quarter studio view",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
 ];
