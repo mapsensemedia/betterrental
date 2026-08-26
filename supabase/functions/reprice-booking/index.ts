@@ -21,10 +21,33 @@ import {
   authErrorResponse,
 } from "../_shared/auth.ts";
 import { computeBookingTotals } from "../_shared/booking-core.ts";
+import {
+  computeProcessingFee,
+  getProcessingFeeRate,
+} from "../_shared/processing-fee.ts";
 
 function roundCents(v: number): number {
   return Math.round(v * 100) / 100;
 }
+
+/**
+ * Taxes + card processing fee for a given pre-tax subtotal.
+ * Processing fee is a pass-through: tiered on the pre-tax subtotal, added after tax.
+ */
+function finalizeTotals(subtotal: number) {
+  const pst = roundCents(subtotal * 0.07);
+  const gst = roundCents(subtotal * 0.05);
+  const taxAmount = roundCents(pst + gst);
+  const processingFeeRate = getProcessingFeeRate(subtotal);
+  const processingFee = computeProcessingFee(subtotal);
+  return {
+    taxAmount,
+    processingFee,
+    processingFeeRate,
+    total: roundCents(subtotal + taxAmount + processingFee),
+  };
+}
+
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
