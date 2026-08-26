@@ -37,6 +37,7 @@ import {
   X,
   RefreshCw,
 } from "lucide-react";
+import { computeProcessingFee } from "@/lib/processing-fee";
 
 interface VehicleUpgradePanelProps {
   booking: {
