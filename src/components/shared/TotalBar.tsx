@@ -7,6 +7,7 @@ import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { useCategory } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
+import { formatProcessingFeeRate } from "@/lib/processing-fee";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { cn } from "@/lib/utils";
 
