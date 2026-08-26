@@ -33,6 +33,10 @@ import {
   countWeekendDaysVancouver,
   WEEKEND_SURCHARGE_RATE,
 } from "../_shared/vehicle-adjustments.ts";
+import {
+  computeProcessingFee,
+  getProcessingFeeRate,
+} from "../_shared/processing-fee.ts";
 
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
