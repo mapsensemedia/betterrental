@@ -477,6 +477,16 @@ export function BookingSummaryPanel({
                 </span>
                 <span>${pricing.taxAmount.toFixed(2)} CAD</span>
               </div>
+
+              {pricing.processingFee > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center">
+                    {processingFeeLabel(pricing.processingFeeRate)}
+                    <PriceTooltip content={PROCESSING_FEE_EXPLAINER} />
+                  </span>
+                  <span>${pricing.processingFee.toFixed(2)} CAD</span>
+                </div>
+              )}
               
               <Separator className="my-2" />
               
