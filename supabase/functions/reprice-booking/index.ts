@@ -301,12 +301,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      {
-        const pst = roundCents(finalSubtotal * 0.07);
-        const gst = roundCents(finalSubtotal * 0.05);
-        finalTaxAmount = roundCents(pst + gst);
-        finalTotal = roundCents(finalSubtotal + finalTaxAmount);
-      }
+      const finalFees = finalizeTotals(finalSubtotal);
+      finalTaxAmount = finalFees.taxAmount;
+      finalTotal = finalFees.total;
 
       oldData = {
         start_at: booking.start_at, end_at: booking.end_at, total_days: booking.total_days,
@@ -320,6 +317,8 @@ Deno.serve(async (req) => {
         total_days: serverTotals.days,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
+        processing_fee: finalFees.processingFee,
+        processing_fee_rate: finalFees.processingFeeRate,
         total_amount: finalTotal,
         young_driver_fee: serverTotals.youngDriverFee,
         weekend_surcharge: finalWeekendSurcharge,
