@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/analytics";
 import { toast } from "sonner";
 import { CheckCircle, ShieldCheck, RefreshCw, Wallet, ArrowRight, Users, Cog, Car, User, Mail, Phone, MapPin, CalendarClock, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -275,7 +276,7 @@ export default function Subscription() {
               "linear-gradient(100deg, hsl(0 0% 0% / 0.82) 0%, hsl(0 0% 0% / 0.6) 45%, hsl(0 0% 0% / 0.22) 78%, hsl(0 0% 0% / 0.4) 100%)",
           }}
         />
-        <div className="relative container-corp pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-28">
+        <div className="relative container-corp pt-16 sm:pt-24 md:pt-32 pb-28 sm:pb-36 md:pb-44">
           <div className="max-w-2xl">
             <span className="eyebrow !text-white/75">Coming soon to British Columbia</span>
             <h1 className="text-white font-display font-semibold leading-[1.15] tracking-tight text-[2.1rem] sm:text-[2.6rem] md:text-[3.1rem]">
