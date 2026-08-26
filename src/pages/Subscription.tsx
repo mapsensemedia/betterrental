@@ -553,7 +553,7 @@ export default function Subscription() {
         <div className="grid lg:grid-cols-2">
           <img
             src={howItWorksImg}
-            alt="Line-up of C2C vehicles ready for collection"
+            alt="Row of C2C Rental vehicles lined up and prepared for customer collection"
             loading="lazy"
             width={1200}
             height={900}
@@ -619,7 +619,7 @@ export default function Subscription() {
       {/* 6. FULL-BLEED IMAGE BREAK */}
       <img
         src={breakImg}
-        alt="Highway running through the Fraser Valley on a clear day"
+        alt="Highway curving through the Fraser Valley in British Columbia on a clear day"
         loading="lazy"
         width={1920}
         height={900}
@@ -671,7 +671,7 @@ export default function Subscription() {
       <section className="relative isolate overflow-hidden">
         <img
           src={closingImg}
-          alt="Clean sedan parked at dusk"
+          alt="Freshly detailed C2C Rental sedan parked outdoors at dusk"
           loading="lazy"
           width={1920}
           height={900}
