@@ -167,6 +167,9 @@ export interface InvoicePdfData {
   taxesTotal: number;
   pstAmount?: number;
   gstAmount?: number;
+  /** Card processing fee (pass-through, not taxed) */
+  processingFee?: number;
+  processingFeeRate?: number;
   lateFees: number;
   damageCharges: number;
   /** Any charge on the invoice record not covered by the itemized lines above. */
