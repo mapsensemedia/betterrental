@@ -449,6 +449,8 @@ Deno.serve(async (req) => {
         upgrade_visible_to_customer: false,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
+        processing_fee: removalFees.processingFee,
+        processing_fee_rate: removalFees.processingFeeRate,
         total_amount: finalTotal,
       };
       auditAction = "upgrade_fee_removed";
