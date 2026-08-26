@@ -7,6 +7,7 @@ import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 import { Separator } from "@/components/ui/separator";
 import { Info, ChevronDown, ChevronRight } from "lucide-react";
 import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE } from "@/lib/pricing";
+import { processingFeeLabel, getProcessingFeeRate } from "@/lib/processing-fee";
 import { buildVehicleAdjustmentLines } from "@/lib/vehicle-adjustments";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
 
