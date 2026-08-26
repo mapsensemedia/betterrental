@@ -34,7 +34,7 @@ const CATEGORY_IMAGE_BASE =
 const compactImg = `${CATEGORY_IMAGE_BASE}/1769957246126-7fwu9wfs9.jpg`;
 const midsizeImg = `${CATEGORY_IMAGE_BASE}/1769957288722-2n3ecl5vf.webp`;
 const suvImg = `${CATEGORY_IMAGE_BASE}/1769957078362-yhcrc812h.jpg`;
-const premiumImg = `${CATEGORY_IMAGE_BASE}/1769957310832-15uqgswed.jpg`;
+const premiumImg = premiumAudiImg;
 
 // Client-confirmed indicative monthly pricing (CAD)
 const TIERS = [
