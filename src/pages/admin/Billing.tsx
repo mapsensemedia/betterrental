@@ -73,6 +73,8 @@ interface ReceiptData {
     subtotal: number;
     tax: number;
     total: number;
+    processingFee?: number;
+    processingFeeRate?: number;
   };
   currency: string;
   notes: string | null;
