@@ -532,6 +532,15 @@ function renderStructuredPdf(
   finRow(pdf, `GST (${(t.taxes.gstRate * 100).toFixed(0)}%):`, fmt(t.financial.gstAmount), y, FONT_FIN);
   y += FIN_ROW_H;
 
+  // Card processing fee (pass-through, untaxed)
+  if ((t.financial.processingFee ?? 0) > 0) {
+    const pct = ((t.financial.processingFeeRate ?? 0.025) * 100).toFixed(1).replace(/\.0$/, "");
+    finRow(pdf, `Credit card processing fee (${pct}%):`, fmt(t.financial.processingFee as number), y, FONT_FIN);
+    y += FIN_ROW_H;
+  }
+
+
+
   // Total box
   pdf.setFillColor(240, 240, 240);
   pdf.setDrawColor(0, 0, 0);
