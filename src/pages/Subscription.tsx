@@ -276,7 +276,7 @@ export default function Subscription() {
         />
         <div className="relative container-corp pt-24 md:pt-32 pb-16 md:pb-28">
           <div className="max-w-2xl">
-            <span className="eyebrow text-primary">Coming soon to British Columbia</span>
+            <span className="eyebrow !text-white/75">Coming soon to British Columbia</span>
             <h1 className="text-white font-display font-semibold leading-[1.15] tracking-tight text-[2.1rem] sm:text-[2.6rem] md:text-[3.1rem]">
               One monthly payment. One car. No loan.
             </h1>
@@ -398,7 +398,7 @@ export default function Subscription() {
             className="w-full h-64 lg:h-full object-cover"
           />
           <div className="px-5 md:px-10 py-16 lg:py-[120px] max-w-[640px]">
-            <span className="eyebrow text-primary">How it works</span>
+            <span className="eyebrow !text-white/75">How it works</span>
             <h2 className="font-display text-[1.8rem] md:text-[2.2rem] font-semibold leading-[1.15] tracking-tight">
               Four steps, then drive
             </h2>
@@ -678,7 +678,7 @@ export default function Subscription() {
         />
         <div className="absolute inset-0 bg-black/75" />
         <div className="relative container-corp py-20 md:py-28 text-center">
-          <span className="eyebrow text-primary">Early access</span>
+          <span className="eyebrow !text-white/75">Early access</span>
           <h2 className="font-display text-white text-[1.9rem] md:text-[2.4rem] font-semibold leading-[1.15] tracking-tight max-w-[26ch] mx-auto">
             Help us decide which city opens first
           </h2>
