@@ -422,7 +422,10 @@ Deno.serve(async (req) => {
       + addOnsTotal
     ) * 100) / 100;
     const computedTax = Math.round(computedSubtotal * 0.12 * 100) / 100;
-    const computedTotal = Math.round((computedSubtotal + computedTax) * 100) / 100;
+    // Card processing fee — tiered on the pre-tax subtotal, pass-through (untaxed)
+    const computedProcessingFeeRate = getProcessingFeeRate(computedSubtotal);
+    const computedProcessingFee = computeProcessingFee(computedSubtotal);
+    const computedTotal = Math.round((computedSubtotal + computedTax + computedProcessingFee) * 100) / 100;
 
     if (subtotal != null && Math.abs(Number(subtotal) - computedSubtotal) > 0.5) {
       console.warn("[walkin] client quote drift", {
