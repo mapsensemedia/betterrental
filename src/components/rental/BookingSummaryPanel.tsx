@@ -11,6 +11,7 @@ import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { calculateBookingPricing, ageRangeToAgeBand, TOTAL_TAX_RATE, YOUNG_DRIVER_FEE, computeDropoffFeeFromGroups } from "@/lib/pricing";
+import { processingFeeLabel, PROCESSING_FEE_EXPLAINER } from "@/lib/processing-fee";
 import { useLocations } from "@/hooks/use-locations";
 import { formatTimeDisplay } from "@/lib/rental-rules";
 import { useSearchParams } from "react-router-dom";
