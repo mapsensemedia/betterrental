@@ -276,7 +276,9 @@ export async function buildInvoicePdfData(
 
   // Reconciliation guard: everything itemized must add up to the grand total.
   // Whatever is left over is surfaced explicitly instead of silently dropped.
-  const itemizedCents = dbSubtotalCents + dbTaxCents + lateFeeCents + damageCents;
+  const processingFeeCents = toCents((booking as any).processing_fee);
+  const processingFeeRate = Number((booking as any).processing_fee_rate) || 0;
+  const itemizedCents = dbSubtotalCents + dbTaxCents + processingFeeCents + lateFeeCents + damageCents;
   const otherChargesCents = grandTotalCents - itemizedCents;
   if (Math.abs(otherChargesCents) >= 1) {
     console.warn(
