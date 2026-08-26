@@ -136,6 +136,8 @@ export interface PricingBreakdown {
   pstAmount: number;
   gstAmount: number;
   taxAmount: number; // Combined for backward compatibility
+  processingFee: number; // Card processing fee (pass-through, untaxed)
+  processingFeeRate: number; // 0.025 or 0.015
   total: number;
 }
 
