@@ -27,7 +27,7 @@ import heroImg from "@/assets/hero-suv-mountains.jpg";
 import howItWorksImg from "@/assets/fleet-lineup.jpg";
 import breakImg from "@/assets/valley-highway.jpg";
 import closingImg from "@/assets/hero-car.jpg";
-import premiumAudiAsset from "@/assets/premium-audi-a4.png.asset.json";
+import premiumAudiAsset from "@/assets/premium-audi-a4-v2.png.asset.json";
 
 // Live C2C Rental category photography (same images used on the rental site)
 const CATEGORY_IMAGE_BASE =
