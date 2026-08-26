@@ -424,10 +424,9 @@ Deno.serve(async (req) => {
       const currentUpgradeTotal = roundCents(currentUpgradeFee * days);
 
       const finalSubtotal = roundCents(Math.max(storedSubtotal - currentUpgradeTotal, 0));
-      const pst = roundCents(finalSubtotal * 0.07);
-      const gst = roundCents(finalSubtotal * 0.05);
-      const finalTaxAmount = roundCents(pst + gst);
-      const finalTotal = roundCents(finalSubtotal + finalTaxAmount);
+      const removalFees = finalizeTotals(finalSubtotal);
+      const finalTaxAmount = removalFees.taxAmount;
+      const finalTotal = removalFees.total;
 
       pricingDrift = await detectPricingDrift(
         supabase,
