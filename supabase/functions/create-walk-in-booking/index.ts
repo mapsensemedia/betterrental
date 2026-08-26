@@ -486,6 +486,8 @@ Deno.serve(async (req) => {
         total_days: computedDays,
         subtotal: computedSubtotal,
         tax_amount: computedTax,
+        processing_fee: computedProcessingFee,
+        processing_fee_rate: computedProcessingFeeRate,
         total_amount: computedTotal,
         driver_age_band: resolvedAgeBand,
         young_driver_fee: youngDriverFee,
