@@ -5,6 +5,8 @@
 import { format } from "date-fns";
 import type { RentalAgreement, AgreementTermsJson } from "@/hooks/use-rental-agreement";
 import { resolveAgreementAdjustmentLines } from "@/lib/agreement-adjustments";
+import { processingFeeLabel } from "@/lib/processing-fee";
+
 import {
   FREE_KM_DAYS,
   EXCESS_KM_RATE,
