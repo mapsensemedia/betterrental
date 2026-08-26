@@ -32,12 +32,12 @@ import midsizeImg from "@/assets/categories/midsize-corolla.jpg";
 import suvImg from "@/assets/categories/suv-ford-edge.jpg";
 import premiumImg from "@/assets/categories/audi.jpg";
 
-// TODO: confirm pricing with client
+// Client-confirmed indicative monthly pricing (CAD)
 const TIERS = [
   {
     id: "Compact",
     name: "Compact",
-    price: "from $749 CAD / month", // TODO: confirm pricing with client
+    price: "from $749 CAD / month",
     image: compactImg,
     alt: "Compact hatchback parked on a residential street in natural daylight",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
@@ -45,7 +45,7 @@ const TIERS = [
   {
     id: "Midsize",
     name: "Midsize",
-    price: "from $829 CAD / month", // TODO: confirm pricing with client
+    price: "from $829 CAD / month",
     image: midsizeImg,
     alt: "Midsize sedan photographed in natural light",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
@@ -53,7 +53,7 @@ const TIERS = [
   {
     id: "SUV",
     name: "SUV",
-    price: "from $949 CAD / month", // TODO: confirm pricing with client
+    price: "from $949 CAD / month",
     image: suvImg,
     alt: "Mid-size SUV photographed outdoors in natural light",
     specs: ["5 seats", "Automatic", "All-wheel drive"],
@@ -61,7 +61,7 @@ const TIERS = [
   {
     id: "Premium",
     name: "Premium",
-    price: "from $1,149 CAD / month", // TODO: confirm pricing with client
+    price: "from $1,149 CAD / month",
     image: premiumImg,
     alt: "Premium sedan photographed outdoors in natural light",
     specs: ["5 seats", "Automatic", "All-wheel drive"],
