@@ -300,7 +300,7 @@ export default function AdminBilling() {
         const customer = b?.customer_id ? rcustomersMap.get(b.customer_id) : null;
         return {
           ...receipt,
-          totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number },
+          totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number; processingFee?: number; processingFeeRate?: number },
           line_items_json: receipt.line_items_json as any[],
           booking: b ? {
             booking_code: b.booking_code,
