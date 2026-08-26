@@ -75,6 +75,8 @@ interface TermsJson {
     pstAmount: number;
     gstAmount: number;
     totalTax: number;
+    processingFee?: number;
+    processingFeeRate?: number;
     grandTotal: number;
     depositAmount: number;
     addOns: Array<{ name: string; price: number }>;
