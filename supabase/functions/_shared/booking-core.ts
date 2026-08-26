@@ -721,8 +721,12 @@ export async function computeBookingTotals(input: {
   const gst = roundCents(subtotal * GST_RATE);
   const taxAmount = roundCents(pst + gst);
 
+  // 10b) Card processing fee — tiered on the PRE-TAX subtotal, pass-through (untaxed)
+  const processingFeeRate = getProcessingFeeRate(subtotal);
+  const processingFee = computeProcessingFee(subtotal);
+
   // 11) Total
-  const total = roundCents(subtotal + taxAmount);
+  const total = roundCents(subtotal + taxAmount + processingFee);
 
   // 12) Deposit — fixed minimum, NOT equal to total
   const depositAmount = MINIMUM_DEPOSIT_AMOUNT;
@@ -746,11 +750,14 @@ export async function computeBookingTotals(input: {
     differentDropoffFee,
     subtotal,
     taxAmount,
+    processingFee,
+    processingFeeRate,
     total,
     depositAmount,
     addOnPrices,
   };
 }
+
 
 /**
  * Validate client-sent totals against server-computed totals.
