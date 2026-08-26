@@ -4,9 +4,9 @@ import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
 import { toast } from "sonner";
-import { CheckCircle, ShieldCheck, RefreshCw, Wallet, ArrowRight, Users, Cog, Car } from "lucide-react";
+import { CheckCircle, ShieldCheck, RefreshCw, Wallet, ArrowRight, Users, Cog, Car, User, Mail, Phone, MapPin, CalendarClock, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -275,7 +275,7 @@ export default function Subscription() {
               "linear-gradient(100deg, hsl(0 0% 0% / 0.82) 0%, hsl(0 0% 0% / 0.6) 45%, hsl(0 0% 0% / 0.22) 78%, hsl(0 0% 0% / 0.4) 100%)",
           }}
         />
-        <div className="relative container-corp pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-28">
+        <div className="relative container-corp pt-16 sm:pt-24 md:pt-32 pb-28 sm:pb-36 md:pb-44">
           <div className="max-w-2xl">
             <span className="eyebrow !text-white/75">Coming soon to British Columbia</span>
             <h1 className="text-white font-display font-semibold leading-[1.15] tracking-tight text-[2.1rem] sm:text-[2.6rem] md:text-[3.1rem]">
@@ -303,166 +303,208 @@ export default function Subscription() {
         </div>
       </section>
 
-      {/* 8. WAITLIST FORM */}
-      <section id="waitlist" className="section-corp bg-background scroll-mt-24">
+      {/* 8. WAITLIST FORM — booking-module styling, overlaps the hero */}
+      <section id="waitlist" className="relative bg-background scroll-mt-24">
         <div className="container-corp" ref={waitlistRef}>
-          <div className="max-w-[720px]">
-            <span className="eyebrow">Early access</span>
-            <h2 className="heading-2 text-foreground mb-3">Join the waitlist</h2>
-            <p className="text-[16px] leading-[1.65] text-muted-foreground max-w-[65ch] mb-10">
-              Tell us what you'd need and where. Registering interest does not create a booking or
-              obligation.
-            </p>
+          <div className="relative -mt-16 sm:-mt-24 md:-mt-28 z-20 bg-card border border-border shadow-corp-lg">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 md:px-7 pt-5 pb-4 border-b border-border">
+              <span className="eyebrow !mb-0">Join the waitlist</span>
+              <span className="text-[13px] text-muted-foreground">
+                Early access · No booking or obligation
+              </span>
+            </div>
 
-            {isSubmitted ? (
-              <div className="border border-border p-6 sm:p-8 md:p-10">
-                <CheckCircle className="w-8 h-8 text-primary" strokeWidth={1.5} />
-                <h3 className="mt-5 font-display text-xl font-semibold text-foreground">
-                  You're on the list. We'll be in touch as cities open.
-                </h3>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="sub-name">Full name *</Label>
-                    <Input
-                      id="sub-name"
-                      value={form.name}
-                      onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                      className="h-12 rounded-none text-[16px]"
-                      placeholder="Jane Smith"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sub-email">Email *</Label>
-                    <Input
-                      id="sub-email"
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                      className="h-12 rounded-none text-[16px]"
-                      placeholder="jane@example.com"
-                    />
-                  </div>
+            <div className="p-5 md:p-7">
+              {isSubmitted ? (
+                <div className="py-6">
+                  <CheckCircle className="w-8 h-8 text-primary" strokeWidth={1.5} />
+                  <h3 className="mt-5 font-display text-xl font-semibold text-foreground">
+                    You're on the list. We'll be in touch as cities open.
+                  </h3>
                 </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="space-y-2 min-w-0">
+                      <label htmlFor="sub-name" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+                        Full Name <span className="text-destructive">*</span>
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          id="sub-name"
+                          value={form.name}
+                          onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                          className="h-11 pl-10 rounded-none border-border bg-background text-sm"
+                          placeholder="Jane Smith"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="sub-phone">Phone *</Label>
-                    <Input
-                      id="sub-phone"
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                      className="h-12 rounded-none text-[16px]"
-                      placeholder="(604) 123-4567"
-                    />
+                    <div className="space-y-2 min-w-0">
+                      <label htmlFor="sub-email" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+                        Email <span className="text-destructive">*</span>
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          id="sub-email"
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                          className="h-11 pl-10 rounded-none border-border bg-background text-sm"
+                          placeholder="jane@example.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 min-w-0">
+                      <label htmlFor="sub-phone" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+                        Phone <span className="text-destructive">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          id="sub-phone"
+                          type="tel"
+                          value={form.phone}
+                          onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                          className="h-11 pl-10 rounded-none border-border bg-background text-sm"
+                          placeholder="(604) 123-4567"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 min-w-0">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+                        City <span className="text-destructive">*</span>
+                      </label>
+                      <Select value={form.city} onValueChange={(v) => setForm((p) => ({ ...p, city: v }))}>
+                        <SelectTrigger className="h-11 rounded-none border-border bg-background w-full text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="truncate">
+                              <SelectValue placeholder="Select your city" />
+                            </span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CITIES.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2 min-w-0">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+                        Vehicle Class
+                      </label>
+                      <Select
+                        value={form.vehicleClass}
+                        onValueChange={(v) => setForm((p) => ({ ...p, vehicleClass: v }))}
+                      >
+                        <SelectTrigger className="h-11 rounded-none border-border bg-background w-full text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Car className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="truncate">
+                              <SelectValue placeholder="Select a class" />
+                            </span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIERS.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2 min-w-0">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+                        Monthly Budget
+                      </label>
+                      <Select value={form.budget} onValueChange={(v) => setForm((p) => ({ ...p, budget: v }))}>
+                        <SelectTrigger className="h-11 rounded-none border-border bg-background w-full text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Wallet className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="truncate">
+                              <SelectValue placeholder="Select a range" />
+                            </span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BUDGETS.map((b) => (
+                            <SelectItem key={b} value={b}>
+                              {b}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2 min-w-0 sm:col-span-2 lg:col-span-1">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">
+                        When You'd Need It
+                      </label>
+                      <Select
+                        value={form.timeframe}
+                        onValueChange={(v) => setForm((p) => ({ ...p, timeframe: v }))}
+                      >
+                        <SelectTrigger className="h-11 rounded-none border-border bg-background w-full text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <CalendarClock className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="truncate">
+                              <SelectValue placeholder="Select a timeframe" />
+                            </span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIMEFRAMES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>City *</Label>
-                    <Select
-                      value={form.city}
-                      onValueChange={(v) => setForm((p) => ({ ...p, city: v }))}
+
+                  <div className="flex flex-col gap-4 mt-6 pt-4 border-t border-border/50">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <Checkbox
+                        checked={form.consent}
+                        onCheckedChange={(v) => setForm((p) => ({ ...p, consent: v === true }))}
+                        className="rounded-none mt-0.5"
+                        aria-label="Consent to be contacted"
+                      />
+                      <span className="text-sm leading-[1.6] text-muted-foreground max-w-[70ch]">
+                        I agree to be contacted by C2C about vehicle subscription early access. This
+                        does not create a booking or obligation.
+                      </span>
+                    </label>
+
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                      className="h-11 px-8 w-full btn-luxury text-base font-semibold rounded-none"
+                      variant="default"
                     >
-                      <SelectTrigger className="h-12 rounded-none text-[16px]">
-                        <SelectValue placeholder="Select your city" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CITIES.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <Send className="w-4 h-4 mr-2" />
+                      {isSubmitting ? "Sending…" : "Join the Waitlist"}
+                    </Button>
                   </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
-                  <div className="space-y-2">
-                    <Label>Vehicle class</Label>
-                    <Select
-                      value={form.vehicleClass}
-                      onValueChange={(v) => setForm((p) => ({ ...p, vehicleClass: v }))}
-                    >
-                      <SelectTrigger className="h-12 rounded-none text-[16px]">
-                        <SelectValue placeholder="Select a class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIERS.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Monthly budget range</Label>
-                    <Select
-                      value={form.budget}
-                      onValueChange={(v) => setForm((p) => ({ ...p, budget: v }))}
-                    >
-                      <SelectTrigger className="h-12 rounded-none text-[16px]">
-                        <SelectValue placeholder="Select a range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BUDGETS.map((b) => (
-                          <SelectItem key={b} value={b}>
-                            {b}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>When would you need it</Label>
-                  <Select
-                    value={form.timeframe}
-                    onValueChange={(v) => setForm((p) => ({ ...p, timeframe: v }))}
-                  >
-                    <SelectTrigger className="h-12 rounded-none text-[16px]">
-                      <SelectValue placeholder="Select a timeframe" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIMEFRAMES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <label className="flex items-start gap-3 pt-2 cursor-pointer">
-                  <Checkbox
-                    checked={form.consent}
-                    onCheckedChange={(v) => setForm((p) => ({ ...p, consent: v === true }))}
-                    className="rounded-none mt-0.5"
-                    aria-label="Consent to be contacted"
-                  />
-                  <span className="text-[15px] leading-[1.65] text-muted-foreground max-w-[60ch]">
-                    I agree to be contacted by C2C about vehicle subscription early access. This
-                    does not create a booking or obligation.
-                  </span>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="btn-corp mt-2 w-full sm:w-auto justify-center disabled:opacity-60"
-                >
-                  {isSubmitting ? "Sending…" : <>Join the waitlist <ArrowRight className="w-4 h-4" /></>}
-                </button>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </section>
+
 
       {/* 2. THREE-UP VALUE BAND */}
       <section className="section-corp bg-background">
