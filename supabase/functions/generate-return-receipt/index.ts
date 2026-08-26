@@ -275,6 +275,8 @@ serve(async (req) => {
       pst: pstAmount,
       gst: gstAmount,
       tax: totalTax,
+      processingFee: money(processingFeeCents),
+      processingFeeRate,
       total: money(totalCents),
       depositCollected: depositAmount,
       depositReleased: depositReleased,
