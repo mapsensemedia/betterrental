@@ -11,6 +11,7 @@
 import { getAdminClient, AuthError } from "./auth.ts";
 import { sanitizePhone } from "./cors.ts";
 import { deriveDeliveryFee } from "./delivery-pricing.ts";
+import { computeProcessingFee, getProcessingFeeRate } from "./processing-fee.ts";
 
 // ========== PRICING CONSTANTS (mirrors src/lib/pricing.ts) ==========
 const PST_RATE = 0.07;
