@@ -68,7 +68,7 @@ const TIERS = [
     name: "Premium",
     price: "from $1,149 CAD / month",
     image: premiumImg,
-    alt: "Silver Audi premium sedan from the C2C Rental fleet, front three-quarter studio view",
+    alt: "White Audi A4 premium sedan, front three-quarter studio view on a white background",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
 ];
