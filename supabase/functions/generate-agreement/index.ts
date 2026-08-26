@@ -468,6 +468,9 @@ serve(async (req) => {
     const gstAmount = Math.round(subtotalBeforeTax * GST_RATE * 100) / 100;
     const totalTax = dbTaxAmount;
     const grandTotal = Number(booking.total_amount) || 0;
+    // Card processing fee — stored value is authoritative (0 for legacy bookings)
+    const processingFee = Number(booking.processing_fee) || 0;
+    const processingFeeRate = Number(booking.processing_fee_rate) || 0;
 
     // Format dates
     const startDate = new Date(booking.start_at).toLocaleDateString('en-US', { 
