@@ -128,6 +128,10 @@ export interface ServerPricingResult {
   differentDropoffFee: number;
   subtotal: number;
   taxAmount: number;
+  /** Card processing fee (pass-through, untaxed) */
+  processingFee: number;
+  /** Applied processing fee rate (0.025 or 0.015) */
+  processingFeeRate: number;
   total: number;
   depositAmount: number;
   /** Per-add-on server-computed prices for DB insert */
