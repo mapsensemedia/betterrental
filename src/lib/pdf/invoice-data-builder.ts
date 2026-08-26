@@ -80,6 +80,7 @@ export async function buildInvoicePdfData(
     .select(`
       id, booking_code, start_at, end_at, total_days, daily_rate,
       subtotal, tax_amount, total_amount, deposit_amount,
+      processing_fee, processing_fee_rate,
       protection_plan, different_dropoff_fee, delivery_fee,
       young_driver_fee, upgrade_daily_fee, vehicle_id, user_id,
       location_id, return_location_id,
@@ -275,7 +276,9 @@ export async function buildInvoicePdfData(
 
   // Reconciliation guard: everything itemized must add up to the grand total.
   // Whatever is left over is surfaced explicitly instead of silently dropped.
-  const itemizedCents = dbSubtotalCents + dbTaxCents + lateFeeCents + damageCents;
+  const processingFeeCents = toCents((booking as any).processing_fee);
+  const processingFeeRate = Number((booking as any).processing_fee_rate) || 0;
+  const itemizedCents = dbSubtotalCents + dbTaxCents + processingFeeCents + lateFeeCents + damageCents;
   const otherChargesCents = grandTotalCents - itemizedCents;
   if (Math.abs(otherChargesCents) >= 1) {
     console.warn(
@@ -320,6 +323,8 @@ export async function buildInvoicePdfData(
     taxesTotal: fromCents(dbTaxCents),
     pstAmount: fromCents(pstCents),
     gstAmount: fromCents(gstCents),
+    processingFee: fromCents(processingFeeCents),
+    processingFeeRate,
     lateFees: fromCents(lateFeeCents),
     damageCharges: fromCents(damageCents),
     otherCharges: Math.abs(otherChargesCents) >= 1 ? fromCents(otherChargesCents) : undefined,

@@ -11,6 +11,7 @@
 import { getAdminClient, AuthError } from "./auth.ts";
 import { sanitizePhone } from "./cors.ts";
 import { deriveDeliveryFee } from "./delivery-pricing.ts";
+import { computeProcessingFee, getProcessingFeeRate } from "./processing-fee.ts";
 
 // ========== PRICING CONSTANTS (mirrors src/lib/pricing.ts) ==========
 const PST_RATE = 0.07;
@@ -127,6 +128,10 @@ export interface ServerPricingResult {
   differentDropoffFee: number;
   subtotal: number;
   taxAmount: number;
+  /** Card processing fee (pass-through, untaxed) */
+  processingFee: number;
+  /** Applied processing fee rate (0.025 or 0.015) */
+  processingFeeRate: number;
   total: number;
   depositAmount: number;
   /** Per-add-on server-computed prices for DB insert */
@@ -720,8 +725,12 @@ export async function computeBookingTotals(input: {
   const gst = roundCents(subtotal * GST_RATE);
   const taxAmount = roundCents(pst + gst);
 
+  // 10b) Card processing fee — tiered on the PRE-TAX subtotal, pass-through (untaxed)
+  const processingFeeRate = getProcessingFeeRate(subtotal);
+  const processingFee = computeProcessingFee(subtotal);
+
   // 11) Total
-  const total = roundCents(subtotal + taxAmount);
+  const total = roundCents(subtotal + taxAmount + processingFee);
 
   // 12) Deposit — fixed minimum, NOT equal to total
   const depositAmount = MINIMUM_DEPOSIT_AMOUNT;
@@ -745,11 +754,14 @@ export async function computeBookingTotals(input: {
     differentDropoffFee,
     subtotal,
     taxAmount,
+    processingFee,
+    processingFeeRate,
     total,
     depositAmount,
     addOnPrices,
   };
 }
+
 
 /**
  * Validate client-sent totals against server-computed totals.
@@ -879,6 +891,8 @@ export async function createBookingRecord(
       total_days: serverTotals.days,
       subtotal: serverTotals.subtotal,
       tax_amount: serverTotals.taxAmount,
+      processing_fee: serverTotals.processingFee,
+      processing_fee_rate: serverTotals.processingFeeRate,
       deposit_amount: serverTotals.depositAmount,
       total_amount: serverTotals.total,
       young_driver_fee: serverTotals.youngDriverFee,

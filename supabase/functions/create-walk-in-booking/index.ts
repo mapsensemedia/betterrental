@@ -33,6 +33,10 @@ import {
   countWeekendDaysVancouver,
   WEEKEND_SURCHARGE_RATE,
 } from "../_shared/vehicle-adjustments.ts";
+import {
+  computeProcessingFee,
+  getProcessingFeeRate,
+} from "../_shared/processing-fee.ts";
 
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
@@ -422,7 +426,10 @@ Deno.serve(async (req) => {
       + addOnsTotal
     ) * 100) / 100;
     const computedTax = Math.round(computedSubtotal * 0.12 * 100) / 100;
-    const computedTotal = Math.round((computedSubtotal + computedTax) * 100) / 100;
+    // Card processing fee — tiered on the pre-tax subtotal, pass-through (untaxed)
+    const computedProcessingFeeRate = getProcessingFeeRate(computedSubtotal);
+    const computedProcessingFee = computeProcessingFee(computedSubtotal);
+    const computedTotal = Math.round((computedSubtotal + computedTax + computedProcessingFee) * 100) / 100;
 
     if (subtotal != null && Math.abs(Number(subtotal) - computedSubtotal) > 0.5) {
       console.warn("[walkin] client quote drift", {
@@ -479,6 +486,8 @@ Deno.serve(async (req) => {
         total_days: computedDays,
         subtotal: computedSubtotal,
         tax_amount: computedTax,
+        processing_fee: computedProcessingFee,
+        processing_fee_rate: computedProcessingFeeRate,
         total_amount: computedTotal,
         driver_age_band: resolvedAgeBand,
         young_driver_fee: youngDriverFee,

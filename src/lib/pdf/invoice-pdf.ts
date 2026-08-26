@@ -167,6 +167,9 @@ export interface InvoicePdfData {
   taxesTotal: number;
   pstAmount?: number;
   gstAmount?: number;
+  /** Card processing fee (pass-through, not taxed) */
+  processingFee?: number;
+  processingFeeRate?: number;
   lateFees: number;
   damageCharges: number;
   /** Any charge on the invoice record not covered by the itemized lines above. */
@@ -350,6 +353,13 @@ export async function generateInvoicePdf(data: InvoicePdfData) {
     y += FIN_ROW_H;
   }
   y += 2;
+
+  // Card processing fee (pass-through, untaxed)
+  if (data.processingFee != null && data.processingFee > 0) {
+    const pct = ((data.processingFeeRate ?? 0.025) * 100).toFixed(1).replace(/\.0$/, "");
+    finRow(pdf, `Credit card processing fee (${pct}%):`, fmt(data.processingFee), y);
+    y += FIN_ROW_H;
+  }
 
   // Late fees
   if (data.lateFees > 0) {

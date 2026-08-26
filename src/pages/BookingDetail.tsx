@@ -71,6 +71,7 @@ import { BookingProgressStepper } from "@/components/booking/BookingProgressStep
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { useCustomerRealtimeSubscriptions } from "@/hooks/use-realtime-subscriptions";
+import { processingFeeLabel } from "@/lib/processing-fee";
 
 // Notification type labels
 const NOTIFICATION_LABELS: Record<string, string> = {
@@ -1227,6 +1228,16 @@ export default function BookingDetail() {
                   <span className="text-muted-foreground">Tax</span>
                   <span>${(selectedReceipt.totals_json as any)?.tax?.toFixed(2)}</span>
                 </div>
+                {((selectedReceipt.totals_json as any)?.processingFee || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      {processingFeeLabel(
+                        (selectedReceipt.totals_json as any)?.processingFeeRate || 0.025
+                      )}
+                    </span>
+                    <span>${(selectedReceipt.totals_json as any)?.processingFee?.toFixed(2)}</span>
+                  </div>
+                )}
                 <Separator />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total</span>

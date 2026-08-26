@@ -52,6 +52,7 @@ import {
   DEFAULT_DEPOSIT_AMOUNT, 
   TOTAL_TAX_RATE 
 } from "@/lib/pricing";
+import { processingFeeLabel } from "@/lib/processing-fee";
 
 interface CustomerMatchConflict {
   id: string;
@@ -702,6 +703,14 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 <span>GST (5%)</span>
                 <span>${pricing.gstAmount.toFixed(2)}</span>
               </div>
+              {pricing.processingFee > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {processingFeeLabel(pricing.processingFeeRate)}
+                  </span>
+                  <span>${pricing.processingFee.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm pt-1 border-t">
                 <span className="text-muted-foreground">Security Deposit</span>
                 <span>${formData.depositAmount.toFixed(2)}</span>

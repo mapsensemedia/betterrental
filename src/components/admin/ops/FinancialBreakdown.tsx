@@ -7,6 +7,7 @@ import { useDriverFeeSettings } from "@/hooks/use-driver-fee-settings";
 import { Separator } from "@/components/ui/separator";
 import { Info, ChevronDown, ChevronRight } from "lucide-react";
 import { PVRT_DAILY_FEE, ACSRCH_DAILY_FEE } from "@/lib/pricing";
+import { processingFeeLabel, getProcessingFeeRate } from "@/lib/processing-fee";
 import { buildVehicleAdjustmentLines } from "@/lib/vehicle-adjustments";
 import { getProtectionRateForCategory } from "@/lib/protection-groups";
 
@@ -167,6 +168,10 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
 
   const dbTaxCents = toCents(booking.tax_amount);
   const dbTotalCents = toCents(booking.total_amount);
+  // Card processing fee: stored value is the source of truth (0 for legacy bookings)
+  const processingFeeCents = toCents(booking.processing_fee);
+  const processingFeeRate = Number(booking.processing_fee_rate)
+    || getProcessingFeeRate(Number(booking.subtotal) || 0);
 
   return (
     <div className="space-y-1.5 text-xs">
@@ -368,6 +373,17 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
           <span>${fromCents(dbTaxCents)}</span>
         </div>
       )}
+
+      {/* Card processing fee — pass-through, not taxed */}
+      {processingFeeCents > 0 && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            {processingFeeLabel(processingFeeRate)}
+          </span>
+          <span>${fromCents(processingFeeCents)}</span>
+        </div>
+      )}
+
 
       <Separator className="my-1" />
 

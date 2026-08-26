@@ -3,6 +3,17 @@
  * All fee logic should be defined here to ensure consistency across the app
  */
 
+import { computeProcessingFee, getProcessingFeeRate } from "./processing-fee";
+export {
+  computeProcessingFee,
+  getProcessingFeeRate,
+  processingFeeLabel,
+  formatProcessingFeeRate,
+  PROCESSING_FEE_LABEL,
+  PROCESSING_FEE_EXPLAINER,
+  PROCESSING_FEE_THRESHOLD,
+} from "./processing-fee";
+
 // ========== FEE CONSTANTS ==========
 export const YOUNG_DRIVER_FEE = 15; // Daily fee for drivers aged 20-24 (CAD/day)
 export const DEFAULT_DEPOSIT_AMOUNT = 350; // Standard security deposit
@@ -136,6 +147,8 @@ export interface PricingBreakdown {
   pstAmount: number;
   gstAmount: number;
   taxAmount: number; // Combined for backward compatibility
+  processingFee: number; // Card processing fee (pass-through, untaxed)
+  processingFeeRate: number; // 0.025 or 0.015
   total: number;
 }
 
@@ -491,9 +504,14 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
   const pstAmount = Math.round(subtotal * PST_RATE * 100) / 100;
   const gstAmount = Math.round(subtotal * GST_RATE * 100) / 100;
   const taxAmount = Math.round((pstAmount + gstAmount) * 100) / 100;
-  
-  // Total = subtotal + tax (exact, no further rounding needed)
-  const total = Math.round((subtotal + taxAmount) * 100) / 100;
+
+  // Card processing fee — pass-through, calculated on the PRE-TAX subtotal and
+  // added after taxes (not itself taxed).
+  const processingFeeRate = getProcessingFeeRate(subtotal);
+  const processingFee = computeProcessingFee(subtotal);
+
+  // Total = subtotal + tax + processing fee
+  const total = Math.round((subtotal + taxAmount + processingFee) * 100) / 100;
 
   return {
     vehicleTotal,
@@ -514,9 +532,12 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
     pstAmount,
     gstAmount,
     taxAmount,
+    processingFee,
+    processingFeeRate,
     total,
   };
 }
+
 
 /**
  * Convert ageRange format ("20-24") to driverAgeBand format ("20_24")

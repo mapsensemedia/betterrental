@@ -272,6 +272,8 @@ Deno.serve(async (req) => {
         total_days: serverTotals.days,
         subtotal: serverTotals.subtotal,
         tax_amount: serverTotals.taxAmount,
+        processing_fee: serverTotals.processingFee,
+        processing_fee_rate: serverTotals.processingFeeRate,
         deposit_amount: serverTotals.depositAmount,
         total_amount: serverTotals.total,
         young_driver_fee: serverTotals.youngDriverFee,

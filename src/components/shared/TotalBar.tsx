@@ -7,6 +7,7 @@ import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { useCategory } from "@/hooks/use-vehicles";
 import { useAddOns, calculateAddOnsCost } from "@/hooks/use-add-ons";
 import { calculateBookingPricing, ageRangeToAgeBand } from "@/lib/pricing";
+import { formatProcessingFeeRate } from "@/lib/processing-fee";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
 import { cn } from "@/lib/utils";
 
@@ -85,6 +86,11 @@ export function TotalBar({
       {pricing.discountType !== "none" && (
         <p className="text-xs text-emerald-600 mt-1">
           {pricing.discountType === "monthly" ? "20% monthly" : "10% weekly"} discount applied
+        </p>
+      )}
+      {pricing.processingFee > 0 && (
+        <p className="text-xs text-muted-foreground mt-1">
+          Includes {formatProcessingFeeRate(pricing.processingFeeRate)} card processing fee (${pricing.processingFee.toFixed(2)})
         </p>
       )}
       <p className="text-xs text-muted-foreground mt-1">

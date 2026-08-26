@@ -61,6 +61,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { processingFeeLabel } from "@/lib/processing-fee";
 
 interface ReceiptData {
   id: string;
@@ -72,6 +73,8 @@ interface ReceiptData {
     subtotal: number;
     tax: number;
     total: number;
+    processingFee?: number;
+    processingFeeRate?: number;
   };
   currency: string;
   notes: string | null;
@@ -300,7 +303,7 @@ export default function AdminBilling() {
         const customer = b?.customer_id ? rcustomersMap.get(b.customer_id) : null;
         return {
           ...receipt,
-          totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number },
+          totals_json: receipt.totals_json as { subtotal: number; tax: number; total: number; processingFee?: number; processingFeeRate?: number },
           line_items_json: receipt.line_items_json as any[],
           booking: b ? {
             booking_code: b.booking_code,
@@ -1216,6 +1219,14 @@ export default function AdminBilling() {
                     <span className="text-muted-foreground">Tax</span>
                     <span>${selectedReceipt.totals_json?.tax?.toFixed(2) || "0.00"}</span>
                   </div>
+                  {(selectedReceipt.totals_json?.processingFee || 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {processingFeeLabel(selectedReceipt.totals_json?.processingFeeRate || 0.025)}
+                      </span>
+                      <span>${selectedReceipt.totals_json?.processingFee?.toFixed(2)}</span>
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>

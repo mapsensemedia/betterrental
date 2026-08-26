@@ -597,6 +597,8 @@ export type Database = {
           pricing_locked_at: string | null
           pricing_locked_by: string | null
           pricing_snapshot: Json | null
+          processing_fee: number
+          processing_fee_rate: number
           protection_plan: string | null
           return_evidence_completed_at: string | null
           return_evidence_completed_by: string | null
@@ -701,6 +703,8 @@ export type Database = {
           pricing_locked_at?: string | null
           pricing_locked_by?: string | null
           pricing_snapshot?: Json | null
+          processing_fee?: number
+          processing_fee_rate?: number
           protection_plan?: string | null
           return_evidence_completed_at?: string | null
           return_evidence_completed_by?: string | null
@@ -805,6 +809,8 @@ export type Database = {
           pricing_locked_at?: string | null
           pricing_locked_by?: string | null
           pricing_snapshot?: Json | null
+          processing_fee?: number
+          processing_fee_rate?: number
           protection_plan?: string | null
           return_evidence_completed_at?: string | null
           return_evidence_completed_by?: string | null

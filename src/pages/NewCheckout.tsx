@@ -63,6 +63,7 @@ import {
   DriverAgeBand,
   computeDropoffFeeFromGroups,
 } from "@/lib/pricing";
+import { processingFeeLabel, PROCESSING_FEE_EXPLAINER } from "@/lib/processing-fee";
 import { useLocations } from "@/hooks/use-locations";
 import { findClosestLocation } from "@/constants/rentalLocations";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
@@ -1268,6 +1269,15 @@ export default function NewCheckout() {
                       </span>
                       <span>${pricing.gstAmount.toFixed(2)} CAD</span>
                     </div>
+                    {pricing.processingFee > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="flex items-center">
+                          {processingFeeLabel(pricing.processingFeeRate)}
+                          <PriceTooltip content={PROCESSING_FEE_EXPLAINER} />
+                        </span>
+                        <span>${pricing.processingFee.toFixed(2)} CAD</span>
+                      </div>
+                    )}
                     <Separator className="my-2" />
                     {pointsDiscount > 0 && (
                       <div className="flex justify-between text-primary font-medium items-center">
