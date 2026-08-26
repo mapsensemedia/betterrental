@@ -275,7 +275,7 @@ export default function Subscription() {
               "linear-gradient(100deg, hsl(0 0% 0% / 0.82) 0%, hsl(0 0% 0% / 0.6) 45%, hsl(0 0% 0% / 0.22) 78%, hsl(0 0% 0% / 0.4) 100%)",
           }}
         />
-        <div className="relative container-corp pt-24 md:pt-32 pb-16 md:pb-28">
+        <div className="relative container-corp pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-28">
           <div className="max-w-2xl">
             <span className="eyebrow !text-white/75">Coming soon to British Columbia</span>
             <h1 className="text-white font-display font-semibold leading-[1.15] tracking-tight text-[2.1rem] sm:text-[2.6rem] md:text-[3.1rem]">
@@ -285,12 +285,12 @@ export default function Subscription() {
               Insurance, maintenance and roadside included. Swap or cancel monthly.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => scrollToWaitlist()} className="btn-corp">
+              <button type="button" onClick={() => scrollToWaitlist()} className="btn-corp w-full sm:w-auto justify-center">
                 Join the waitlist <ArrowRight className="w-4 h-4" />
               </button>
               <a
                 href="#how-it-works"
-                className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+                className="btn-corp-outline w-full sm:w-auto justify-center !text-white !border-white/40 hover:!border-white hover:!text-white"
               >
                 How it works
               </a>
@@ -315,7 +315,7 @@ export default function Subscription() {
             </p>
 
             {isSubmitted ? (
-              <div className="border border-border p-8 md:p-10">
+              <div className="border border-border p-6 sm:p-8 md:p-10">
                 <CheckCircle className="w-8 h-8 text-primary" strokeWidth={1.5} />
                 <h3 className="mt-5 font-display text-xl font-semibold text-foreground">
                   You're on the list. We'll be in touch as cities open.
@@ -323,7 +323,7 @@ export default function Subscription() {
               </div>
             ) : (
               <div className="space-y-5">
-                <div className="grid sm:grid-cols-2 gap-5">
+                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="sub-name">Full name *</Label>
                     <Input
@@ -347,7 +347,7 @@ export default function Subscription() {
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-5">
+                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="sub-phone">Phone *</Label>
                     <Input
@@ -379,7 +379,7 @@ export default function Subscription() {
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-5">
+                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
                   <div className="space-y-2">
                     <Label>Vehicle class</Label>
                     <Select
@@ -454,7 +454,7 @@ export default function Subscription() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="btn-corp mt-2 disabled:opacity-60"
+                  className="btn-corp mt-2 w-full sm:w-auto justify-center disabled:opacity-60"
                 >
                   {isSubmitting ? "Sending…" : <>Join the waitlist <ArrowRight className="w-4 h-4" /></>}
                 </button>
