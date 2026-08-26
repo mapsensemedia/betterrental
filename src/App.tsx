@@ -35,6 +35,7 @@ const CompleteSignup = lazy(() => import("./pages/CompleteSignup"));
 const Surrey = lazy(() => import("./pages/Surrey"));
 const Langley = lazy(() => import("./pages/Langley"));
 const Abbotsford = lazy(() => import("./pages/Abbotsford"));
+const Subscription = lazy(() => import("./pages/Subscription"));
 
 // Blog pages
 const BlogIndex = lazy(() => import("./pages/blog/BlogIndex"));
@@ -178,6 +179,7 @@ const App = () => (
                 <Route path="/langley" element={<Langley />} />
                 <Route path="/abbotsford" element={<Abbotsford />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/subscription" element={<Subscription />} />
                 <Route path="/blog" element={<BlogIndex />} />
                 <Route path="/blog/car-rental-surrey-guide" element={<CarRentalSurreyGuide />} />
                 <Route path="/blog/icbc-car-rental-insurance-bc" element={<IcbcCarRentalInsurance />} />
