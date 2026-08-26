@@ -394,6 +394,8 @@ Deno.serve(async (req) => {
         upgraded_by: authResult.userId,
         subtotal: finalSubtotal,
         tax_amount: finalTaxAmount,
+        processing_fee: upgradeFees.processingFee,
+        processing_fee_rate: upgradeFees.processingFeeRate,
         total_amount: finalTotal,
       };
 
