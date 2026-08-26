@@ -1216,6 +1216,14 @@ export default function AdminBilling() {
                     <span className="text-muted-foreground">Tax</span>
                     <span>${selectedReceipt.totals_json?.tax?.toFixed(2) || "0.00"}</span>
                   </div>
+                  {(selectedReceipt.totals_json?.processingFee || 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {processingFeeLabel(selectedReceipt.totals_json?.processingFeeRate || 0.025)}
+                      </span>
+                      <span>${selectedReceipt.totals_json?.processingFee?.toFixed(2)}</span>
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
