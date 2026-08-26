@@ -116,19 +116,19 @@ const FAQS = [
   },
   {
     q: "What's the minimum term?",
-    a: "The service runs month to month, and you can stop with notice. Exact notice period is confirmed at launch.", // TODO: confirm with client
+    a: "There is no fixed term. The subscription renews monthly and you can end it with notice.",
   },
   {
     q: "Who insures the vehicle?",
-    a: "Insurance is arranged by C2C and included in your monthly fee. Coverage details and any driver requirements are confirmed at launch.", // TODO: confirm with client
+    a: "C2C arranges the insurance and it is included in your monthly fee, so you don't take out a separate policy.",
   },
   {
     q: "Is there a mileage limit?",
-    a: "A monthly kilometre allowance will apply, with any additional kilometres billed at a set rate. The allowance is confirmed at launch.", // TODO: confirm with client
+    a: "Each plan includes a monthly kilometre allowance, and anything beyond it is billed at a per-kilometre rate shown on your plan before you sign up.",
   },
   {
     q: "What credit or licence checks apply?",
-    a: "You'll need a valid full driver's licence and will complete a short eligibility check. Specific criteria are confirmed at launch.", // TODO: confirm with client
+    a: "You'll need a valid full driver's licence and a clean enough driving record. We run a short identity and eligibility check before your vehicle is released.",
   },
   {
     q: "Which cities are launching first?",
@@ -136,8 +136,9 @@ const FAQS = [
   },
   {
     q: "Can I switch vehicles?",
-    a: "Yes. Swapping to another available class is part of the service, subject to availability and notice.", // TODO: confirm with client
+    a: "Yes. Swapping to another class is part of the service — request the change with notice and we move you across when a vehicle is available.",
   },
+
 ];
 
 const CITIES = [
