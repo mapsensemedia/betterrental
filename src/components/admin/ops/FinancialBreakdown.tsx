@@ -167,6 +167,10 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
 
   const dbTaxCents = toCents(booking.tax_amount);
   const dbTotalCents = toCents(booking.total_amount);
+  // Card processing fee: stored value is the source of truth (0 for legacy bookings)
+  const processingFeeCents = toCents(booking.processing_fee);
+  const processingFeeRate = Number(booking.processing_fee_rate)
+    || getProcessingFeeRate(Number(booking.subtotal) || 0);
 
   return (
     <div className="space-y-1.5 text-xs">
