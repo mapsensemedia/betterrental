@@ -27,7 +27,7 @@ import heroImg from "@/assets/hero-suv-mountains.jpg";
 import howItWorksImg from "@/assets/fleet-lineup.jpg";
 import breakImg from "@/assets/valley-highway.jpg";
 import closingImg from "@/assets/hero-car.jpg";
-import premiumAudiImg from "@/assets/categories/premium-audi-studio.jpg";
+import premiumAudiAsset from "@/assets/premium-audi-a4.png.asset.json";
 
 // Live C2C Rental category photography (same images used on the rental site)
 const CATEGORY_IMAGE_BASE =
@@ -35,7 +35,7 @@ const CATEGORY_IMAGE_BASE =
 const compactImg = `${CATEGORY_IMAGE_BASE}/1769957246126-7fwu9wfs9.jpg`;
 const midsizeImg = `${CATEGORY_IMAGE_BASE}/1769957288722-2n3ecl5vf.webp`;
 const suvImg = `${CATEGORY_IMAGE_BASE}/1769957078362-yhcrc812h.jpg`;
-const premiumImg = premiumAudiImg;
+const premiumImg = premiumAudiAsset.url;
 
 // Client-confirmed indicative monthly pricing (CAD)
 const TIERS = [
@@ -68,7 +68,7 @@ const TIERS = [
     name: "Premium",
     price: "from $1,149 CAD / month",
     image: premiumImg,
-    alt: "Silver Audi premium sedan from the C2C Rental fleet, front three-quarter studio view",
+    alt: "White Audi A4 premium sedan, front three-quarter studio view on a white background",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
 ];
