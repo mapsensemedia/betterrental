@@ -72,8 +72,6 @@ const TIERS = [
   },
 ];
 
-];
-
 const VALUE_CARDS = [
   {
     icon: Wallet,
