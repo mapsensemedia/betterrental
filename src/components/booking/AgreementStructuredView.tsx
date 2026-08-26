@@ -5,6 +5,8 @@
 import { format } from "date-fns";
 import type { RentalAgreement, AgreementTermsJson } from "@/hooks/use-rental-agreement";
 import { resolveAgreementAdjustmentLines } from "@/lib/agreement-adjustments";
+import { processingFeeLabel } from "@/lib/processing-fee";
+
 import {
   FREE_KM_DAYS,
   EXCESS_KM_RATE,
@@ -185,6 +187,15 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
             <FinRow label={`GST (${(t.taxes.gstRate * 100).toFixed(0)}%)`} value={fmt(t.financial.gstAmount)} />
             <FinRow label={`PST (${(t.taxes.pstRate * 100).toFixed(0)}%)`} value={fmt(t.financial.pstAmount)} />
             <FinRow label="Total Tax" value={fmt(t.financial.gstAmount + t.financial.pstAmount)} />
+            {((t.financial as any).processingFee ?? 0) > 0 && (
+              <FinRow
+                label={processingFeeLabel(
+                  (t.financial as any).processingFeeRate ?? (t.financial as any).processingFee / Math.max(t.financial.subtotalBeforeTax, 1),
+                )}
+                value={fmt((t.financial as any).processingFee)}
+              />
+            )}
+
             <tr><td colSpan={2} className="py-1"><div className="border-t-2 border-gray-900" /></td></tr>
             <tr className="text-[14px] font-bold">
               <td className="py-1.5">Grand Total</td>
