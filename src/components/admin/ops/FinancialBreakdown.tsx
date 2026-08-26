@@ -369,6 +369,17 @@ export function FinancialBreakdown({ booking }: { booking: any }) {
         </div>
       )}
 
+      {/* Card processing fee — pass-through, not taxed */}
+      {processingFeeCents > 0 && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            {processingFeeLabel(processingFeeRate)}
+          </span>
+          <span>${fromCents(processingFeeCents)}</span>
+        </div>
+      )}
+
+
       <Separator className="my-1" />
 
       {/* Total */}
