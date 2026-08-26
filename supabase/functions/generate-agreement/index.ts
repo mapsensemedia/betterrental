@@ -617,6 +617,8 @@ Terms: Driver must be 20+ with valid license & govt ID. No smoking, pets (withou
         pstAmount,
         gstAmount,
         totalTax,
+        processingFee,
+        processingFeeRate,
         grandTotal,
         depositAmount: Number(booking.deposit_amount || 350),
         addOns: addOnsList,
