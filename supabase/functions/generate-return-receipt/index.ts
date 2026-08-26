@@ -258,11 +258,14 @@ serve(async (req) => {
     const gstAmount = money(gstShare >= 0 ? gstShare : Math.round(subtotalCents * GST_RATE));
     const totalTax = money(storedTaxCents);
 
+    const processingFeeCents = cents(booking.processing_fee);
+    const processingFeeRate = Number(booking.processing_fee_rate) || 0;
+
     const totalCents = cents(booking.total_amount);
-    if (Math.abs(subtotalCents + storedTaxCents - totalCents) > 1) {
+    if (Math.abs(subtotalCents + storedTaxCents + processingFeeCents - totalCents) > 1) {
       console.warn(
         `[RECEIPT] Totals mismatch for booking ${booking.booking_code}: ` +
-        `subtotal=${money(subtotalCents)} + tax=${money(storedTaxCents)} != total=${money(totalCents)}`
+        `subtotal=${money(subtotalCents)} + tax=${money(storedTaxCents)} + processingFee=${money(processingFeeCents)} != total=${money(totalCents)}`
       );
     }
 
