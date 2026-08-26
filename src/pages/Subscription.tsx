@@ -116,19 +116,19 @@ const FAQS = [
   },
   {
     q: "What's the minimum term?",
-    a: "The service runs month to month, and you can stop with notice. Exact notice period is confirmed at launch.", // TODO: confirm with client
+    a: "There is no fixed term. The subscription renews monthly and you can end it with notice.",
   },
   {
     q: "Who insures the vehicle?",
-    a: "Insurance is arranged by C2C and included in your monthly fee. Coverage details and any driver requirements are confirmed at launch.", // TODO: confirm with client
+    a: "C2C arranges the insurance and it is included in your monthly fee, so you don't take out a separate policy.",
   },
   {
     q: "Is there a mileage limit?",
-    a: "A monthly kilometre allowance will apply, with any additional kilometres billed at a set rate. The allowance is confirmed at launch.", // TODO: confirm with client
+    a: "Each plan includes a monthly kilometre allowance, and anything beyond it is billed at a per-kilometre rate shown on your plan before you sign up.",
   },
   {
     q: "What credit or licence checks apply?",
-    a: "You'll need a valid full driver's licence and will complete a short eligibility check. Specific criteria are confirmed at launch.", // TODO: confirm with client
+    a: "You'll need a valid full driver's licence and a clean enough driving record. We run a short identity and eligibility check before your vehicle is released.",
   },
   {
     q: "Which cities are launching first?",
@@ -136,8 +136,9 @@ const FAQS = [
   },
   {
     q: "Can I switch vehicles?",
-    a: "Yes. Swapping to another available class is part of the service, subject to availability and notice.", // TODO: confirm with client
+    a: "Yes. Swapping to another class is part of the service — request the change with notice and we move you across when a vehicle is available.",
   },
+
 ];
 
 const CITIES = [
@@ -274,7 +275,7 @@ export default function Subscription() {
               "linear-gradient(100deg, hsl(0 0% 0% / 0.82) 0%, hsl(0 0% 0% / 0.6) 45%, hsl(0 0% 0% / 0.22) 78%, hsl(0 0% 0% / 0.4) 100%)",
           }}
         />
-        <div className="relative container-corp pt-24 md:pt-32 pb-16 md:pb-28">
+        <div className="relative container-corp pt-16 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-28">
           <div className="max-w-2xl">
             <span className="eyebrow !text-white/75">Coming soon to British Columbia</span>
             <h1 className="text-white font-display font-semibold leading-[1.15] tracking-tight text-[2.1rem] sm:text-[2.6rem] md:text-[3.1rem]">
@@ -284,12 +285,12 @@ export default function Subscription() {
               Insurance, maintenance and roadside included. Swap or cancel monthly.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => scrollToWaitlist()} className="btn-corp">
+              <button type="button" onClick={() => scrollToWaitlist()} className="btn-corp w-full sm:w-auto justify-center">
                 Join the waitlist <ArrowRight className="w-4 h-4" />
               </button>
               <a
                 href="#how-it-works"
-                className="btn-corp-outline !text-white !border-white/40 hover:!border-white hover:!text-white"
+                className="btn-corp-outline w-full sm:w-auto justify-center !text-white !border-white/40 hover:!border-white hover:!text-white"
               >
                 How it works
               </a>
@@ -298,6 +299,167 @@ export default function Subscription() {
               Launching in the Lower Mainland — register early access and help us decide which
               cities open first.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 8. WAITLIST FORM */}
+      <section id="waitlist" className="section-corp bg-background scroll-mt-24">
+        <div className="container-corp" ref={waitlistRef}>
+          <div className="max-w-[720px]">
+            <span className="eyebrow">Early access</span>
+            <h2 className="heading-2 text-foreground mb-3">Join the waitlist</h2>
+            <p className="text-[16px] leading-[1.65] text-muted-foreground max-w-[65ch] mb-10">
+              Tell us what you'd need and where. Registering interest does not create a booking or
+              obligation.
+            </p>
+
+            {isSubmitted ? (
+              <div className="border border-border p-6 sm:p-8 md:p-10">
+                <CheckCircle className="w-8 h-8 text-primary" strokeWidth={1.5} />
+                <h3 className="mt-5 font-display text-xl font-semibold text-foreground">
+                  You're on the list. We'll be in touch as cities open.
+                </h3>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="sub-name">Full name *</Label>
+                    <Input
+                      id="sub-name"
+                      value={form.name}
+                      onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                      className="h-12 rounded-none text-[16px]"
+                      placeholder="Jane Smith"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sub-email">Email *</Label>
+                    <Input
+                      id="sub-email"
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                      className="h-12 rounded-none text-[16px]"
+                      placeholder="jane@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="sub-phone">Phone *</Label>
+                    <Input
+                      id="sub-phone"
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                      className="h-12 rounded-none text-[16px]"
+                      placeholder="(604) 123-4567"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>City *</Label>
+                    <Select
+                      value={form.city}
+                      onValueChange={(v) => setForm((p) => ({ ...p, city: v }))}
+                    >
+                      <SelectTrigger className="h-12 rounded-none text-[16px]">
+                        <SelectValue placeholder="Select your city" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CITIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="space-y-2">
+                    <Label>Vehicle class</Label>
+                    <Select
+                      value={form.vehicleClass}
+                      onValueChange={(v) => setForm((p) => ({ ...p, vehicleClass: v }))}
+                    >
+                      <SelectTrigger className="h-12 rounded-none text-[16px]">
+                        <SelectValue placeholder="Select a class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIERS.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Monthly budget range</Label>
+                    <Select
+                      value={form.budget}
+                      onValueChange={(v) => setForm((p) => ({ ...p, budget: v }))}
+                    >
+                      <SelectTrigger className="h-12 rounded-none text-[16px]">
+                        <SelectValue placeholder="Select a range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BUDGETS.map((b) => (
+                          <SelectItem key={b} value={b}>
+                            {b}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>When would you need it</Label>
+                  <Select
+                    value={form.timeframe}
+                    onValueChange={(v) => setForm((p) => ({ ...p, timeframe: v }))}
+                  >
+                    <SelectTrigger className="h-12 rounded-none text-[16px]">
+                      <SelectValue placeholder="Select a timeframe" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIMEFRAMES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <label className="flex items-start gap-3 pt-2 cursor-pointer">
+                  <Checkbox
+                    checked={form.consent}
+                    onCheckedChange={(v) => setForm((p) => ({ ...p, consent: v === true }))}
+                    className="rounded-none mt-0.5"
+                    aria-label="Consent to be contacted"
+                  />
+                  <span className="text-[15px] leading-[1.65] text-muted-foreground max-w-[60ch]">
+                    I agree to be contacted by C2C about vehicle subscription early access. This
+                    does not create a booking or obligation.
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="btn-corp mt-2 w-full sm:w-auto justify-center disabled:opacity-60"
+                >
+                  {isSubmitting ? "Sending…" : <>Join the waitlist <ArrowRight className="w-4 h-4" /></>}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -485,166 +647,6 @@ export default function Subscription() {
         </div>
       </section>
 
-      {/* 8. WAITLIST FORM */}
-      <section id="waitlist" className="section-corp bg-background scroll-mt-24">
-        <div className="container-corp" ref={waitlistRef}>
-          <div className="max-w-[720px]">
-            <span className="eyebrow">Early access</span>
-            <h2 className="heading-2 text-foreground mb-3">Join the waitlist</h2>
-            <p className="text-[16px] leading-[1.65] text-muted-foreground max-w-[65ch] mb-10">
-              Tell us what you'd need and where. Registering interest does not create a booking or
-              obligation.
-            </p>
-
-            {isSubmitted ? (
-              <div className="border border-border p-8 md:p-10">
-                <CheckCircle className="w-8 h-8 text-primary" strokeWidth={1.5} />
-                <h3 className="mt-5 font-display text-xl font-semibold text-foreground">
-                  You're on the list. We'll be in touch as cities open.
-                </h3>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="grid sm:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="sub-name">Full name *</Label>
-                    <Input
-                      id="sub-name"
-                      value={form.name}
-                      onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                      className="h-12 rounded-none text-[16px]"
-                      placeholder="Jane Smith"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sub-email">Email *</Label>
-                    <Input
-                      id="sub-email"
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                      className="h-12 rounded-none text-[16px]"
-                      placeholder="jane@example.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="sub-phone">Phone *</Label>
-                    <Input
-                      id="sub-phone"
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                      className="h-12 rounded-none text-[16px]"
-                      placeholder="(604) 123-4567"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>City *</Label>
-                    <Select
-                      value={form.city}
-                      onValueChange={(v) => setForm((p) => ({ ...p, city: v }))}
-                    >
-                      <SelectTrigger className="h-12 rounded-none text-[16px]">
-                        <SelectValue placeholder="Select your city" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CITIES.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <Label>Vehicle class</Label>
-                    <Select
-                      value={form.vehicleClass}
-                      onValueChange={(v) => setForm((p) => ({ ...p, vehicleClass: v }))}
-                    >
-                      <SelectTrigger className="h-12 rounded-none text-[16px]">
-                        <SelectValue placeholder="Select a class" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIERS.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Monthly budget range</Label>
-                    <Select
-                      value={form.budget}
-                      onValueChange={(v) => setForm((p) => ({ ...p, budget: v }))}
-                    >
-                      <SelectTrigger className="h-12 rounded-none text-[16px]">
-                        <SelectValue placeholder="Select a range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BUDGETS.map((b) => (
-                          <SelectItem key={b} value={b}>
-                            {b}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>When would you need it</Label>
-                  <Select
-                    value={form.timeframe}
-                    onValueChange={(v) => setForm((p) => ({ ...p, timeframe: v }))}
-                  >
-                    <SelectTrigger className="h-12 rounded-none text-[16px]">
-                      <SelectValue placeholder="Select a timeframe" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIMEFRAMES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <label className="flex items-start gap-3 pt-2 cursor-pointer">
-                  <Checkbox
-                    checked={form.consent}
-                    onCheckedChange={(v) => setForm((p) => ({ ...p, consent: v === true }))}
-                    className="rounded-none mt-0.5"
-                    aria-label="Consent to be contacted"
-                  />
-                  <span className="text-[15px] leading-[1.65] text-muted-foreground max-w-[60ch]">
-                    I agree to be contacted by C2C about vehicle subscription early access. This
-                    does not create a booking or obligation.
-                  </span>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="btn-corp mt-2 disabled:opacity-60"
-                >
-                  {isSubmitting ? "Sending…" : <>Join the waitlist <ArrowRight className="w-4 h-4" /></>}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
       {/* 9. FAQ */}
       <section className="section-corp bg-brand-tint border-t border-border">
