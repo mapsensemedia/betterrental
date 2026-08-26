@@ -71,6 +71,7 @@ import { BookingProgressStepper } from "@/components/booking/BookingProgressStep
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { CancelBookingDialog } from "@/components/booking/CancelBookingDialog";
 import { useCustomerRealtimeSubscriptions } from "@/hooks/use-realtime-subscriptions";
+import { processingFeeLabel } from "@/lib/processing-fee";
 
 // Notification type labels
 const NOTIFICATION_LABELS: Record<string, string> = {
