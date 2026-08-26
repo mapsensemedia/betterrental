@@ -61,6 +61,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { processingFeeLabel } from "@/lib/processing-fee";
 
 interface ReceiptData {
   id: string;
