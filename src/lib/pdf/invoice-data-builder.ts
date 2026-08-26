@@ -323,6 +323,8 @@ export async function buildInvoicePdfData(
     taxesTotal: fromCents(dbTaxCents),
     pstAmount: fromCents(pstCents),
     gstAmount: fromCents(gstCents),
+    processingFee: fromCents(processingFeeCents),
+    processingFeeRate,
     lateFees: fromCents(lateFeeCents),
     damageCharges: fromCents(damageCents),
     otherCharges: Math.abs(otherChargesCents) >= 1 ? fromCents(otherChargesCents) : undefined,
