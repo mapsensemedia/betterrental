@@ -22,14 +22,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-// TODO: replace with client photography
+// Photography sourced from the existing C2C Rental site library
 import heroImg from "@/assets/hero-suv-mountains.jpg";
 import howItWorksImg from "@/assets/fleet-lineup.jpg";
 import breakImg from "@/assets/valley-highway.jpg";
 import closingImg from "@/assets/hero-car.jpg";
 import compactImg from "@/assets/categories/economy-versa.jpg";
 import midsizeImg from "@/assets/categories/midsize-corolla.jpg";
-import suvImg from "@/assets/categories/suv-ford-edge.jpg";
+import suvImg from "@/assets/categories/midsize-suv-rav4.jpg";
 import premiumImg from "@/assets/categories/audi.jpg";
 
 // Client-confirmed indicative monthly pricing (CAD)
@@ -39,7 +39,7 @@ const TIERS = [
     name: "Compact",
     price: "from $749 CAD / month",
     image: compactImg,
-    alt: "Compact hatchback parked on a residential street in natural daylight",
+    alt: "Nissan Versa compact sedan from the C2C Rental fleet, front three-quarter view",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
   {
@@ -47,7 +47,7 @@ const TIERS = [
     name: "Midsize",
     price: "from $829 CAD / month",
     image: midsizeImg,
-    alt: "Midsize sedan photographed in natural light",
+    alt: "Toyota Corolla midsize sedan from the C2C Rental fleet, front three-quarter view",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
   {
@@ -55,7 +55,7 @@ const TIERS = [
     name: "SUV",
     price: "from $949 CAD / month",
     image: suvImg,
-    alt: "Mid-size SUV photographed outdoors in natural light",
+    alt: "Toyota RAV4 mid-size SUV from the C2C Rental fleet, front three-quarter view",
     specs: ["5 seats", "Automatic", "All-wheel drive"],
   },
   {
@@ -63,7 +63,7 @@ const TIERS = [
     name: "Premium",
     price: "from $1,149 CAD / month",
     image: premiumImg,
-    alt: "Premium sedan photographed outdoors in natural light",
+    alt: "Audi premium sedan from the C2C Rental fleet, front three-quarter view",
     specs: ["5 seats", "Automatic", "All-wheel drive"],
   },
 ];
@@ -617,7 +617,6 @@ export default function Subscription() {
       </section>
 
       {/* 6. FULL-BLEED IMAGE BREAK */}
-      {/* TODO: replace with client photography */}
       <img
         src={breakImg}
         alt="Highway running through the Fraser Valley on a clear day"
