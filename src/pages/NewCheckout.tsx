@@ -63,6 +63,7 @@ import {
   DriverAgeBand,
   computeDropoffFeeFromGroups,
 } from "@/lib/pricing";
+import { processingFeeLabel, PROCESSING_FEE_EXPLAINER } from "@/lib/processing-fee";
 import { useLocations } from "@/hooks/use-locations";
 import { findClosestLocation } from "@/constants/rentalLocations";
 import { useProtectionPackages } from "@/hooks/use-protection-settings";
