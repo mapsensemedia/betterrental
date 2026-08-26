@@ -52,6 +52,7 @@ import {
   DEFAULT_DEPOSIT_AMOUNT, 
   TOTAL_TAX_RATE 
 } from "@/lib/pricing";
+import { processingFeeLabel } from "@/lib/processing-fee";
 
 interface CustomerMatchConflict {
   id: string;
