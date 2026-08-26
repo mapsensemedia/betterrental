@@ -80,6 +80,7 @@ export async function buildInvoicePdfData(
     .select(`
       id, booking_code, start_at, end_at, total_days, daily_rate,
       subtotal, tax_amount, total_amount, deposit_amount,
+      processing_fee, processing_fee_rate,
       protection_plan, different_dropoff_fee, delivery_fee,
       young_driver_fee, upgrade_daily_fee, vehicle_id, user_id,
       location_id, return_location_id,
