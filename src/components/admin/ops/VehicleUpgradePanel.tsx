@@ -105,7 +105,8 @@ export function VehicleUpgradePanel({ booking }: VehicleUpgradePanelProps) {
   const newSubtotal = round2(storedSubtotal - currentUpgradeTotal + totalUpgradeCharge);
   const newPst = round2(newSubtotal * 0.07);
   const newGst = round2(newSubtotal * 0.05);
-  const newTotal = round2(newSubtotal + newPst + newGst);
+  const newProcessingFee = computeProcessingFee(newSubtotal);
+  const newTotal = round2(newSubtotal + newPst + newGst + newProcessingFee);
   const upgradeSubtotalDelta = round2(totalUpgradeCharge - currentUpgradeTotal);
   const upgradeTaxDelta = round2(upgradeSubtotalDelta * 0.12);
   const totalDelta = round2(newTotal - Number(booking.total_amount || 0));
