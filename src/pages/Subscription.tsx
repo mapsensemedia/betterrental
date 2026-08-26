@@ -27,6 +27,7 @@ import heroImg from "@/assets/hero-suv-mountains.jpg";
 import howItWorksImg from "@/assets/fleet-lineup.jpg";
 import breakImg from "@/assets/valley-highway.jpg";
 import closingImg from "@/assets/hero-car.jpg";
+import premiumAudiImg from "@/assets/categories/premium-audi-studio.jpg";
 
 // Live C2C Rental category photography (same images used on the rental site)
 const CATEGORY_IMAGE_BASE =
@@ -34,7 +35,7 @@ const CATEGORY_IMAGE_BASE =
 const compactImg = `${CATEGORY_IMAGE_BASE}/1769957246126-7fwu9wfs9.jpg`;
 const midsizeImg = `${CATEGORY_IMAGE_BASE}/1769957288722-2n3ecl5vf.webp`;
 const suvImg = `${CATEGORY_IMAGE_BASE}/1769957078362-yhcrc812h.jpg`;
-const premiumImg = `${CATEGORY_IMAGE_BASE}/1769957310832-15uqgswed.jpg`;
+const premiumImg = premiumAudiImg;
 
 // Client-confirmed indicative monthly pricing (CAD)
 const TIERS = [
@@ -67,7 +68,7 @@ const TIERS = [
     name: "Premium",
     price: "from $1,149 CAD / month",
     image: premiumImg,
-    alt: "Toyota Camry full-size sedan from the C2C Rental fleet, front three-quarter studio view",
+    alt: "Silver Audi premium sedan from the C2C Rental fleet, front three-quarter studio view",
     specs: ["5 seats", "Automatic", "Front-wheel drive"],
   },
 ];
