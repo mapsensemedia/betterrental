@@ -330,7 +330,7 @@ export default function Subscription() {
           <h2 className="heading-2 text-foreground mb-10">Choose a class</h2>
         </div>
         <div className="container-corp">
-          <div className="-mx-5 px-5 md:mx-0 md:px-0 overflow-x-auto snap-x snap-mandatory scrollbar-none">
+          <div className="-mx-5 px-5 md:mx-0 md:px-0 overflow-x-auto snap-x snap-mandatory">
             <div className="flex gap-px bg-border w-max md:w-full">
               {TIERS.map((tier) => (
                 <article
