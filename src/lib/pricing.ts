@@ -3,6 +3,17 @@
  * All fee logic should be defined here to ensure consistency across the app
  */
 
+import { computeProcessingFee, getProcessingFeeRate } from "./processing-fee";
+export {
+  computeProcessingFee,
+  getProcessingFeeRate,
+  processingFeeLabel,
+  formatProcessingFeeRate,
+  PROCESSING_FEE_LABEL,
+  PROCESSING_FEE_EXPLAINER,
+  PROCESSING_FEE_THRESHOLD,
+} from "./processing-fee";
+
 // ========== FEE CONSTANTS ==========
 export const YOUNG_DRIVER_FEE = 15; // Daily fee for drivers aged 20-24 (CAD/day)
 export const DEFAULT_DEPOSIT_AMOUNT = 350; // Standard security deposit
