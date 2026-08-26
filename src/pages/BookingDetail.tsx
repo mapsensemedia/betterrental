@@ -1227,6 +1227,16 @@ export default function BookingDetail() {
                   <span className="text-muted-foreground">Tax</span>
                   <span>${(selectedReceipt.totals_json as any)?.tax?.toFixed(2)}</span>
                 </div>
+                {((selectedReceipt.totals_json as any)?.processingFee || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      {processingFeeLabel(
+                        (selectedReceipt.totals_json as any)?.processingFeeRate || 0.025
+                      )}
+                    </span>
+                    <span>${(selectedReceipt.totals_json as any)?.processingFee?.toFixed(2)}</span>
+                  </div>
+                )}
                 <Separator />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total</span>
