@@ -106,69 +106,43 @@ export function CategoryUpgradeDialog({
   const isDowngrade = selectedCategoryId !== booking.vehicle_id && priceDifference < 0;
   const noChange = selectedCategoryId === booking.vehicle_id;
 
-  // Mutation to update booking category
+  // Mutation to update booking category — server-side (client writes to financial
+  // fields are blocked by database triggers, which is why direct updates failed).
   const updateCategory = useMutation({
     mutationFn: async () => {
-      if (!selectedCategory || !newPricing) {
+      if (!selectedCategory) {
         throw new Error("No category selected");
       }
 
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-
-      // Update booking with new category and pricing
-      const { error: updateError } = await supabase
-        .from("bookings")
-        .update({
-          original_vehicle_id: booking.vehicle_id, // Store original category
-          vehicle_id: selectedCategoryId,
-          daily_rate: Number(selectedCategory.daily_rate),
-          subtotal: newPricing.subtotal,
-          tax_amount: newPricing.taxAmount,
-          total_amount: newPricing.total,
-          upgraded_at: new Date().toISOString(),
-          upgraded_by: userId,
-          upgrade_reason: upgradeReason || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", booking.id);
-
-      if (updateError) throw updateError;
-
-      // Log audit entry
-      await supabase.from("audit_logs").insert({
-        action: isUpgrade ? "category_upgrade" : "category_change",
-        entity_type: "booking",
-        entity_id: booking.id,
-        user_id: userId,
-        old_data: {
-          vehicle_id: booking.vehicle_id,
-          daily_rate: booking.daily_rate,
-          total_amount: booking.total_amount,
-        },
-        new_data: {
-          vehicle_id: selectedCategoryId,
-          daily_rate: Number(selectedCategory.daily_rate),
-          total_amount: newPricing.total,
-          reason: upgradeReason,
+      const { data, error } = await supabase.functions.invoke("reprice-booking", {
+        body: {
+          bookingId: booking.id,
+          operation: "modify",
+          newCategoryId: selectedCategoryId,
+          newDailyRate: Number(selectedCategory.daily_rate),
+          reason: upgradeReason || `Category changed to ${selectedCategory.name}`,
         },
       });
 
-      return { newTotal: newPricing.total };
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      return { newTotal: Number(data?.total ?? 0) };
     },
     onSuccess: (data) => {
       toast.success(
-        isUpgrade
-          ? `Category upgraded! New total: $${data.newTotal.toFixed(2)} CAD`
-          : `Category changed! New total: $${data.newTotal.toFixed(2)} CAD`
+        data.newTotal > 0
+          ? `Category ${isUpgrade ? "upgraded" : "changed"}. New total: $${data.newTotal.toFixed(2)} CAD`
+          : `Category ${isUpgrade ? "upgraded" : "changed"} successfully`
       );
       queryClient.invalidateQueries({ queryKey: ["booking"] });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Category update error:", error);
-      toast.error("Failed to update category");
+      toast.error(error.message || "Failed to update category");
     },
   });
 

@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
         tax_amount, total_amount, vehicle_id, user_id, status,
         driver_age_band, protection_plan, young_driver_fee,
         delivery_fee, different_dropoff_fee, upgrade_daily_fee, location_id,
-        return_location_id, assigned_unit_id
+        return_location_id, assigned_unit_id, original_vehicle_id, upgrade_reason
       `)
       .eq("id", bookingId)
       .single();
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
 
     if (operation === "modify") {
       // Extend/shorten rental, change dates, location, optionally override daily rate
-      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices } = body;
+      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices, newCategoryId } = body;
 
       // Extras (add-on / additional driver) charge that was just persisted by
       // persist-booking-extras and must be billed on top of any duration/rate
@@ -143,7 +143,14 @@ Deno.serve(async (req) => {
         console.error("[reprice-booking] Rejected invalid extrasDeltaSubtotal:", rawExtrasDelta);
       }
 
-      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId && !extrasDeltaSubtotal) {
+      // Category change (e.g. downgrade / swap to "Mystery Car"). Priced delta-only
+      // through the same path as a rate change, so client screens never write money.
+      const categoryChangeId =
+        typeof newCategoryId === "string" && newCategoryId && newCategoryId !== booking.vehicle_id
+          ? newCategoryId
+          : null;
+
+      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId && !extrasDeltaSubtotal && !categoryChangeId) {
         return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
       }
 
@@ -189,7 +196,7 @@ Deno.serve(async (req) => {
       // When preserveExtrasPrices is set (mid-rental upsell), compute the engine
       // WITHOUT add-ons/drivers and then add the actual persisted row sums.
       const serverTotals = await computeBookingTotals({
-        vehicleId: booking.vehicle_id,
+        vehicleId: categoryChangeId || booking.vehicle_id,
         startAt: effectiveStartAt,
         endAt: effectiveEndAt,
         protectionPlan: booking.protection_plan || undefined,
@@ -348,7 +355,18 @@ Deno.serve(async (req) => {
           }
         }
       }
+
+      // Handle booked-category change (keeps any assigned VIN unit as-is)
       auditAction = "booking_modified";
+      if (categoryChangeId && updateData.vehicle_id !== null) {
+        updateData.original_vehicle_id = booking.original_vehicle_id || booking.vehicle_id;
+        updateData.vehicle_id = categoryChangeId;
+        updateData.upgrade_reason = typeof reason === "string" ? reason.slice(0, 500) : booking.upgrade_reason || null;
+        updateData.upgraded_at = new Date().toISOString();
+        updateData.upgraded_by = authResult.userId;
+        auditAction = "category_change";
+      }
+
 
     } else if (operation === "upgrade") {
       // Apply upgrade fee — DELTA ONLY. The customer's agreed price is preserved;
