@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
         tax_amount, total_amount, vehicle_id, user_id, status,
         driver_age_band, protection_plan, young_driver_fee,
         delivery_fee, different_dropoff_fee, upgrade_daily_fee, location_id,
-        return_location_id, assigned_unit_id
+        return_location_id, assigned_unit_id, original_vehicle_id, upgrade_reason
       `)
       .eq("id", bookingId)
       .single();
