@@ -143,7 +143,14 @@ Deno.serve(async (req) => {
         console.error("[reprice-booking] Rejected invalid extrasDeltaSubtotal:", rawExtrasDelta);
       }
 
-      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId && !extrasDeltaSubtotal) {
+      // Category change (e.g. downgrade / swap to "Mystery Car"). Priced delta-only
+      // through the same path as a rate change, so client screens never write money.
+      const categoryChangeId =
+        typeof newCategoryId === "string" && newCategoryId && newCategoryId !== booking.vehicle_id
+          ? newCategoryId
+          : null;
+
+      if (!newEndAt && !newDailyRate && !newStartAt && !newLocationId && !extrasDeltaSubtotal && !categoryChangeId) {
         return jsonResp({ error: "Missing modification parameters" }, 400, corsHeaders);
       }
 
