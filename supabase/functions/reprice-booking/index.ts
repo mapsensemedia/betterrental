@@ -357,6 +357,7 @@ Deno.serve(async (req) => {
       }
 
       // Handle booked-category change (keeps any assigned VIN unit as-is)
+      auditAction = "booking_modified";
       if (categoryChangeId && updateData.vehicle_id !== null) {
         updateData.original_vehicle_id = booking.original_vehicle_id || booking.vehicle_id;
         updateData.vehicle_id = categoryChangeId;
@@ -365,8 +366,6 @@ Deno.serve(async (req) => {
         updateData.upgraded_by = authResult.userId;
         auditAction = "category_change";
       }
-      if (!categoryChangeId) auditAction = "booking_modified";
-      else auditAction = "category_change";
 
 
     } else if (operation === "upgrade") {
