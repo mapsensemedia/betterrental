@@ -355,7 +355,19 @@ Deno.serve(async (req) => {
           }
         }
       }
-      auditAction = "booking_modified";
+
+      // Handle booked-category change (keeps any assigned VIN unit as-is)
+      if (categoryChangeId && updateData.vehicle_id !== null) {
+        updateData.original_vehicle_id = booking.original_vehicle_id || booking.vehicle_id;
+        updateData.vehicle_id = categoryChangeId;
+        updateData.upgrade_reason = typeof reason === "string" ? reason.slice(0, 500) : booking.upgrade_reason || null;
+        updateData.upgraded_at = new Date().toISOString();
+        updateData.upgraded_by = authResult.userId;
+        auditAction = "category_change";
+      }
+      if (!categoryChangeId) auditAction = "booking_modified";
+      else auditAction = "category_change";
+
 
     } else if (operation === "upgrade") {
       // Apply upgrade fee — DELTA ONLY. The customer's agreed price is preserved;
