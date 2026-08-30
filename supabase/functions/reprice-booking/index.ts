@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
 
     if (operation === "modify") {
       // Extend/shorten rental, change dates, location, optionally override daily rate
-      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices } = body;
+      const { newEndAt, newStartAt, newDailyRate, newLocationId, reason, preserveExtrasPrices, newCategoryId } = body;
 
       // Extras (add-on / additional driver) charge that was just persisted by
       // persist-booking-extras and must be billed on top of any duration/rate
