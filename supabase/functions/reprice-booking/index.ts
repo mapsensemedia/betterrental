@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
       // When preserveExtrasPrices is set (mid-rental upsell), compute the engine
       // WITHOUT add-ons/drivers and then add the actual persisted row sums.
       const serverTotals = await computeBookingTotals({
-        vehicleId: booking.vehicle_id,
+        vehicleId: categoryChangeId || booking.vehicle_id,
         startAt: effectiveStartAt,
         endAt: effectiveEndAt,
         protectionPlan: booking.protection_plan || undefined,
