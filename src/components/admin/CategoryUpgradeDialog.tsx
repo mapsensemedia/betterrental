@@ -127,7 +127,7 @@ export function CategoryUpgradeDialog({
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      return { newTotal: Number(data?.booking?.total_amount ?? data?.total_amount ?? 0) };
+      return { newTotal: Number(data?.total ?? 0) };
     },
     onSuccess: (data) => {
       toast.success(
