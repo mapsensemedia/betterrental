@@ -303,3 +303,73 @@ export function useDeleteVehicleUnit() {
     },
   });
 }
+
+/**
+ * Returns active/upcoming bookings blocking a status change (retire / return).
+ */
+export async function getBlockingBookings(unitId: string) {
+  const { data } = await supabase
+    .from("bookings")
+    .select("booking_code, status")
+    .eq("assigned_unit_id", unitId)
+    .in("status", ["pending", "confirmed", "active"]);
+  return data ?? [];
+}
+
+interface SetStatusInput {
+  id: string;
+  status: string;
+  /** Block the change when the unit still has active/upcoming bookings. */
+  guardBookings?: boolean;
+  /** Stamp actual_disposal_date (temporary vehicle returned / retired). */
+  stampDisposalDate?: boolean;
+  successTitle?: string;
+}
+
+export function useSetVehicleUnitStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status, guardBookings, stampDisposalDate }: SetStatusInput) => {
+      if (guardBookings) {
+        const blocking = await getBlockingBookings(id);
+        if (blocking.length > 0) {
+          const codes = blocking.map((b: any) => b.booking_code).filter(Boolean).join(", ");
+          throw new Error(
+            `Vehicle is on ${blocking.length} active/upcoming booking(s)${codes ? ` (${codes})` : ""}. Complete or cancel those first.`,
+          );
+        }
+      }
+
+      const updates: Record<string, unknown> = { status };
+      if (stampDisposalDate) {
+        updates.actual_disposal_date = new Date().toISOString().slice(0, 10);
+      }
+
+      const { data, error } = await supabase
+        .from("vehicle_units")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === "42501") {
+          throw new Error("You don't have permission to change this vehicle. Admin/staff role required.");
+        }
+        throw new Error(error.message || "Status change failed");
+      }
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-unit", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["fleet-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["category-vins"] });
+      toast({ title: variables.successTitle ?? "Vehicle status updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Status change failed", description: error.message, variant: "destructive" });
+    },
+  });
+}
