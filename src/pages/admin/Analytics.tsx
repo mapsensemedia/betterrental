@@ -6,6 +6,8 @@ import { subDays as subDaysFn, startOfMonth as startOfMonthFn } from "date-fns";
 import { type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
 import { type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
 import { AdminShell } from "@/components/layout/AdminShell";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
+
 import {
   BarChart3,
   TrendingUp,
