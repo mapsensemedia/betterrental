@@ -255,7 +255,9 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
                 <TableHead>Location</TableHead>
                 <TableHead className="text-right">Kilometers</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="sticky right-0 bg-muted/50 text-right w-[150px] border-l border-border">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
