@@ -84,27 +84,30 @@ export interface Capabilities {
 }
 
 // ========== Role Definitions ==========
-const ADMIN_ROLES: AppRole[] = ["admin"];
-const STAFF_ROLES: AppRole[] = ["admin", "staff"];
-const OPERATIONAL_ROLES: AppRole[] = ["admin", "staff", "cleaner"];
-const FINANCE_ROLES: AppRole[] = ["admin", "finance"];
-const SUPPORT_ROLES: AppRole[] = ["admin", "staff", "support"];
-const DRIVER_ROLES: AppRole[] = ["admin", "staff", "driver"];
+/** Company-wide: every branch, every setting, staff management. */
+const SUPER_ADMIN_ROLES: AppRole[] = ["super_admin", "admin"];
+/** Branch-scoped operator. Legacy roles are folded in here. */
+const MANAGER_ROLES: AppRole[] = ["manager", "staff", "cleaner", "finance", "support"];
+const DRIVER_ROLES: AppRole[] = ["super_admin", "admin", "manager", "staff", "driver"];
 
 // ========== Capability Resolver ==========
 export function resolveCapabilities(roles: AppRole[], panel: PanelType): Capabilities {
   const hasRole = (allowedRoles: AppRole[]) => roles.some(r => allowedRoles.includes(r));
-  
-  const isAdmin = hasRole(ADMIN_ROLES);
-  const isStaff = hasRole(STAFF_ROLES);
-  const isOperational = hasRole(OPERATIONAL_ROLES);
-  const isFinance = hasRole(FINANCE_ROLES);
-  const isSupport = hasRole(SUPPORT_ROLES);
+
+  const isSuperAdmin = hasRole(SUPER_ADMIN_ROLES);
+  const isManager = hasRole(MANAGER_ROLES);
+  /** Anything a branch operator may do (super admins may do it everywhere). */
+  const isStaff = isSuperAdmin || isManager;
+  const isAdmin = isSuperAdmin;
+  const isOperational = isStaff;
+  const isFinance = isStaff;
+  const isSupport = isStaff;
   const isDriver = hasRole(DRIVER_ROLES);
-  
+
   // Panel-specific overrides
   const inAdminPanel = panel === "admin";
   const inOpsPanel = panel === "ops";
+
   
   return {
     // Booking Operations - staff can do most ops, admin can void
