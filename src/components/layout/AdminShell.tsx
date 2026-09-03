@@ -171,6 +171,12 @@ const navGroups: NavGroup[] = [
         description: "Customer tickets",
       },
       {
+        href: "/admin/staff",
+        label: "Staff",
+        icon: UserCog,
+        description: "Managers & branches",
+      },
+      {
         href: "/admin/settings",
         label: "Settings",
         icon: Settings,
