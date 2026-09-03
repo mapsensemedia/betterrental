@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFleetCostAnalysisEnhanced, FleetCostFilters } from "@/hooks/use-fleet-cost-enhanced";
 import { useVehicleCategories } from "@/hooks/use-vehicle-categories";
 import { useLocations } from "@/hooks/use-locations";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { 
   Search, 
   TrendingUp, 
@@ -40,7 +41,11 @@ export function ByVehicleTab() {
 
   const { data: categories } = useVehicleCategories();
   const { data: locations } = useLocations();
-  const { data: vehicleMetrics, isLoading } = useFleetCostAnalysisEnhanced(filters);
+  const { locationId: scopedLocationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const { data: vehicleMetrics, isLoading } = useFleetCostAnalysisEnhanced(
+    { ...filters, ...(scopedLocationId ? { locationId: scopedLocationId } : {}) },
+    { enabled: isReady && !isUnassignedManager }
+  );
 
   const handleDateRangeChange = (range: string) => {
     setDateRange(range);

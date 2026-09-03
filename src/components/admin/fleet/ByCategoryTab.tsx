@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFleetCostAnalysisByCategory, FleetCostFilters } from "@/hooks/use-fleet-cost-analysis";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -31,7 +32,11 @@ export function ByCategoryTab() {
   const [filters, setFilters] = useState<FleetCostFilters>({});
   const [dateRange, setDateRange] = useState("all");
 
-  const { data: categoryMetrics, isLoading } = useFleetCostAnalysisByCategory(filters);
+  const { locationId: scopedLocationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const { data: categoryMetrics, isLoading } = useFleetCostAnalysisByCategory(
+    { ...filters, ...(scopedLocationId ? { locationId: scopedLocationId } : {}) },
+    { enabled: isReady && !isUnassignedManager }
+  );
 
   const handleDateRangeChange = (range: string) => {
     setDateRange(range);

@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { unitBranchId } from "@/lib/location-scope";
 
 export interface EnhancedVehicleAnalytics {
   vehicleId: string;
@@ -41,7 +42,7 @@ export function useFleetAnalyticsEnhanced(filters?: {
   status?: string;
   dateFrom?: string;
   dateTo?: string;
-}) {
+}, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["fleet-analytics-enhanced", filters],
     queryFn: async (): Promise<EnhancedVehicleAnalytics[]> => {
@@ -65,6 +66,9 @@ export function useFleetAnalyticsEnhanced(filters?: {
         .in("status", REVENUE_STATUSES)
         .not("assigned_unit_id", "is", null);
 
+      if (filters?.locationId) {
+        bookingsQuery = bookingsQuery.eq("location_id", filters.locationId);
+      }
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("end_at", filters.dateFrom);
       }
@@ -82,7 +86,7 @@ export function useFleetAnalyticsEnhanced(filters?: {
 
       (units || []).forEach((unit: any) => {
         if (!unit.vehicle) return;
-        if (filters?.locationId && unit.vehicle.location_id !== filters.locationId) return;
+        if (filters?.locationId && unitBranchId(unit) !== filters.locationId) return;
         if (filters?.status && unit.status !== filters.status) return;
 
         const unitBookings = bookings?.filter((b) => b.assigned_unit_id === unit.id) || [];
@@ -133,5 +137,6 @@ export function useFleetAnalyticsEnhanced(filters?: {
 
       return analytics.sort((a, b) => b.rentalCount - a.rentalCount);
     },
+    enabled: options?.enabled ?? true,
   });
 }

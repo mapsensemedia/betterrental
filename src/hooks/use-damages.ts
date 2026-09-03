@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchUnitLocationMap,
+  fetchBookingLocationMap,
+  resolveIncidentBranch,
+} from "@/lib/branch-resolution";
 import { useAuditLog } from "./use-admin";
 import { notifyAdmin } from "./use-admin-notify";
 import { toast } from "sonner";
@@ -53,7 +58,7 @@ export function useDamageReports(filters: DamageFilters = {}) {
         .from("damage_reports")
         .select(`
           *,
-          bookings (booking_code, start_at, end_at),
+          bookings (booking_code, start_at, end_at, location_id),
           vehicle_categories (id, name, image_url)
         `)
         .order("created_at", { ascending: false });
@@ -77,10 +82,16 @@ export function useDamageReports(filters: DamageFilters = {}) {
         throw error;
       }
 
-      // If location filter is applied, filter on the client side
+      // Branch scope: damage belongs to its booking's branch, else its unit's branch
       let filteredData = data || [];
       if (filters.locationId) {
-        filteredData = filteredData.filter((d: any) => d.vehicles?.location_id === filters.locationId);
+        const unitMap = await fetchUnitLocationMap();
+        const bookingMap = await fetchBookingLocationMap(
+          filteredData.map((d: any) => d.booking_id).filter(Boolean) as string[]
+        );
+        filteredData = filteredData.filter(
+          (d: any) => resolveIncidentBranch(d, unitMap, bookingMap) === filters.locationId
+        );
       }
 
       // Fetch reporter profiles

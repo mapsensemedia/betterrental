@@ -35,6 +35,13 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchUnitLocationMap,
+  fetchBookingLocationMap,
+  resolveIncidentBranch,
+} from "@/lib/branch-resolution";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
+
 import { useDamageReports } from "@/hooks/use-damages";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 
@@ -55,21 +62,36 @@ const INCIDENT_STATUS_STYLES: Record<string, { label: string; className: string 
 };
 
 // Fetch incident cases with their linked support tickets
-function useIncidentCasesWithTickets() {
+function useIncidentCasesWithTickets(
+  locationId: string | null,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
-    queryKey: ["incident-cases-with-tickets"],
+    queryKey: ["incident-cases-with-tickets", locationId ?? "all"],
     queryFn: async () => {
       // Fetch incidents
-      const { data: incidents, error: incidentsError } = await supabase
+      const { data: allIncidents, error: incidentsError } = await supabase
         .from("incident_cases")
         .select(`
           *,
-          bookings (id, booking_code)
+          bookings (id, booking_code, location_id)
         `)
         .order("created_at", { ascending: false })
         .limit(50);
-      
+
       if (incidentsError) throw incidentsError;
+
+      // Branch scope: booking branch first, then the incident's vehicle unit
+      let incidents = allIncidents || [];
+      if (locationId) {
+        const unitMap = await fetchUnitLocationMap();
+        const bookingMap = await fetchBookingLocationMap(
+          incidents.map((i: any) => i.booking_id).filter(Boolean) as string[]
+        );
+        incidents = incidents.filter(
+          (i: any) => resolveIncidentBranch(i, unitMap, bookingMap) === locationId
+        );
+      }
       
       // Fetch support tickets for these incidents
       const incidentIds = (incidents || []).map(i => i.id);
@@ -95,6 +117,7 @@ function useIncidentCasesWithTickets() {
         category: categoryMap.get(incident.vehicle_id),
       }));
     },
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -103,8 +126,13 @@ export default function AdminIncidents() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  const { data: incidents = [], isLoading, refetch } = useIncidentCasesWithTickets();
-  const { data: damages = [] } = useDamageReports({});
+  const { locationId: scopedLocationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const { data: incidents = [], isLoading, refetch } = useIncidentCasesWithTickets(scopedLocationId, {
+    enabled: isReady && !isUnassignedManager,
+  });
+  const { data: damages = [] } = useDamageReports({
+    locationId: scopedLocationId ?? undefined,
+  });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

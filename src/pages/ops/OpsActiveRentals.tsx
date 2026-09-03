@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { listBookings, BookingSummary } from "@/domain/bookings";
 import { format, parseISO, differenceInHours, isPast } from "date-fns";
 import { useState } from "react";
@@ -106,9 +107,12 @@ export default function OpsActiveRentals() {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
+  const { locationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+
   const { data: bookings, isLoading } = useQuery({
-    queryKey: ["ops-active-rentals"],
-    queryFn: () => listBookings({ tab: "active" }),
+    queryKey: ["ops-active-rentals", locationId ?? "all"],
+    queryFn: () => listBookings({ tab: "active", locationId: locationId ?? undefined }),
+    enabled: isReady && !isUnassignedManager,
     staleTime: 30000,
     refetchInterval: 60000,
     refetchOnWindowFocus: true,

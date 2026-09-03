@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
+import { resolveTicketBranches, isTicketVisibleForBranch } from "@/lib/branch-resolution";
 import { toast } from "sonner";
 
 // Types
@@ -96,14 +98,19 @@ export interface TicketFiltersV2 {
 
 // Queue counts for sidebar
 export function useTicketQueueCounts() {
+  const { user } = useAuth();
+  const { locationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+
   return useQuery({
-    queryKey: ["ticket-queue-counts-v2"],
+    queryKey: ["ticket-queue-counts-v2", locationId ?? "all"],
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data: allRows, error } = await (supabase
         .from("support_tickets_v2") as any)
-        .select("status, is_urgent");
+        .select("id, status, is_urgent, booking_id, incident_id, damage_id, created_by, assigned_to");
 
       if (error) throw error;
+
+      const data = await filterTicketsByBranch(allRows || [], locationId, user?.id);
 
       const counts = {
         new: 0,
@@ -122,14 +129,32 @@ export function useTicketQueueCounts() {
 
       return counts;
     },
+    enabled: isReady && !isUnassignedManager,
     staleTime: 30000,
   });
 }
 
+/**
+ * Branch filter for support tickets. Tickets carry no location column, so the
+ * branch is derived from the linked booking / incident / damage. Tickets with no
+ * resolvable branch stay visible to Super Admins and to the manager who created
+ * or owns them.
+ */
+async function filterTicketsByBranch<T extends Record<string, any> & { id: string }>(tickets: T[], locationId: string | null, viewerUserId?: string | null): Promise<T[]> {
+  if (!locationId || !tickets.length) return tickets;
+  const branchMap = await resolveTicketBranches(tickets);
+  return tickets.filter((t) =>
+    isTicketVisibleForBranch(t, branchMap.get(t.id) ?? null, locationId, viewerUserId)
+  );
+}
+
 // Fetch tickets with filters
 export function useSupportTicketsV2(filters: TicketFiltersV2 = {}) {
+  const { user } = useAuth();
+  const { locationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+
   return useQuery({
-    queryKey: ["support-tickets-v2", filters],
+    queryKey: ["support-tickets-v2", filters, locationId ?? "all"],
     queryFn: async () => {
       let query = (supabase
         .from("support_tickets_v2") as any)
@@ -166,8 +191,10 @@ export function useSupportTicketsV2(filters: TicketFiltersV2 = {}) {
         query = query.lte("created_at", filters.dateTo);
       }
 
-      const { data, error } = await query.limit(200);
+      const { data: allTickets, error } = await query.limit(200);
       if (error) throw error;
+
+      const data = await filterTicketsByBranch(allTickets || [], locationId, user?.id);
 
       // Fetch related data
       const customerIds = [...new Set((data || []).filter((t: any) => t.customer_id).map((t: any) => t.customer_id))] as string[];
@@ -213,6 +240,7 @@ export function useSupportTicketsV2(filters: TicketFiltersV2 = {}) {
         message_count: messageCountMap.get(t.id) || 0,
       })) as SupportTicketV2[];
     },
+    enabled: isReady && !isUnassignedManager,
     staleTime: 30000,
   });
 }
@@ -699,8 +727,11 @@ export function useSupportMacros(category?: string) {
 
 // Support Analytics
 export function useSupportAnalytics(dateRange?: { from: string; to: string }) {
+  const { user } = useAuth();
+  const { locationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+
   return useQuery({
-    queryKey: ["support-analytics-v2", dateRange],
+    queryKey: ["support-analytics-v2", dateRange, locationId ?? "all"],
     queryFn: async () => {
       let query = (supabase.from("support_tickets_v2") as any).select("*");
 
@@ -714,7 +745,7 @@ export function useSupportAnalytics(dateRange?: { from: string; to: string }) {
       const { data, error } = await query;
       if (error) throw error;
 
-      const tickets = data || [];
+      const tickets = await filterTicketsByBranch(data || [], locationId, user?.id);
       
       // Calculate KPIs
       const totalTickets = tickets.length;
@@ -802,6 +833,7 @@ export function useSupportAnalytics(dateRange?: { from: string; to: string }) {
         },
       };
     },
+    enabled: isReady && !isUnassignedManager,
     staleTime: 60000,
   });
 }

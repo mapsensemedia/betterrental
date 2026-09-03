@@ -5,6 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays } from "date-fns";
+import { filterUnitsByBranch } from "@/lib/location-scope";
 
 export interface EnhancedVehicleUnitMetrics {
   vehicleUnitId: string;
@@ -67,7 +68,10 @@ export interface FleetCostFilters {
   status?: string;
 }
 
-export function useFleetCostAnalysisEnhanced(filters?: FleetCostFilters) {
+export function useFleetCostAnalysisEnhanced(
+  filters?: FleetCostFilters,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: ["fleet-cost-analysis-enhanced", filters],
     queryFn: async (): Promise<EnhancedVehicleUnitMetrics[]> => {
@@ -78,7 +82,7 @@ export function useFleetCostAnalysisEnhanced(filters?: FleetCostFilters) {
           *,
           category:vehicle_categories(id, name, fuel_type, transmission),
           vehicle:vehicles(
-            id, make, model, year, daily_rate, status,
+            id, make, model, year, daily_rate, status, location_id,
             location:locations(name)
           )
         `);
@@ -90,8 +94,11 @@ export function useFleetCostAnalysisEnhanced(filters?: FleetCostFilters) {
         unitsQuery = unitsQuery.eq("status", filters.status);
       }
 
-      const { data: units, error: unitsError } = await unitsQuery;
+      const { data: allUnits, error: unitsError } = await unitsQuery;
       if (unitsError) throw unitsError;
+
+      // Branch scope: keep only units belonging to the selected branch
+      const units = filterUnitsByBranch(allUnits || [], filters?.locationId);
 
       if (!units?.length) return [];
 
@@ -101,6 +108,9 @@ export function useFleetCostAnalysisEnhanced(filters?: FleetCostFilters) {
         .select("assigned_unit_id, vehicle_id, total_amount, subtotal, total_days, status, start_at, end_at")
         .in("status", ["completed", "active"]);
 
+      if (filters?.locationId) {
+        bookingsQuery = bookingsQuery.eq("location_id", filters.locationId);
+      }
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("start_at", filters.dateFrom);
       }
@@ -284,5 +294,6 @@ export function useFleetCostAnalysisEnhanced(filters?: FleetCostFilters) {
       }).sort((a, b) => b.netProfit - a.netProfit);
     },
     staleTime: 60000,
+    enabled: options?.enabled ?? true,
   });
 }

@@ -17,6 +17,7 @@ import {
   CarFront,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { listAllUnits, listCategories } from "@/domain/fleet";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -35,9 +36,13 @@ export default function OpsFleet() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Fetch all units with status
+  const { locationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const scopeReady = isReady && !isUnassignedManager;
+
   const { data: units, isLoading: unitsLoading } = useQuery({
-    queryKey: ["ops-fleet-units"],
-    queryFn: () => listAllUnits(),
+    queryKey: ["ops-fleet-units", locationId ?? "all"],
+    queryFn: () => listAllUnits({ locationId: locationId ?? undefined }),
+    enabled: scopeReady,
   });
 
   // Fetch categories for name lookup
@@ -48,16 +53,19 @@ export default function OpsFleet() {
 
   // Fetch active bookings to derive real on_rent status
   const { data: activeBookings } = useQuery({
-    queryKey: ["ops-fleet-active-bookings"],
+    queryKey: ["ops-fleet-active-bookings", locationId ?? "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("bookings")
         .select("assigned_unit_id")
         .eq("status", "active")
         .not("assigned_unit_id", "is", null);
+      if (locationId) q = q.eq("location_id", locationId);
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
+    enabled: scopeReady,
   });
 
   const activeUnitIds = new Set((activeBookings || []).map(b => b.assigned_unit_id));

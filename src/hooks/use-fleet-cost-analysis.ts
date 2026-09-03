@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { filterUnitsByBranch } from "@/lib/location-scope";
 
 export interface VehicleUnitMetrics {
   vehicleUnitId: string;
@@ -68,7 +69,10 @@ export interface FleetCostFilters {
   status?: string;
 }
 
-export function useFleetCostAnalysisByVehicle(filters?: FleetCostFilters) {
+export function useFleetCostAnalysisByVehicle(
+  filters?: FleetCostFilters,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: ["fleet-cost-analysis", "by-vehicle", filters],
     queryFn: async (): Promise<VehicleUnitMetrics[]> => {
@@ -79,7 +83,7 @@ export function useFleetCostAnalysisByVehicle(filters?: FleetCostFilters) {
           *,
           category:vehicle_categories(id, name),
           vehicle:vehicles(
-            id, make, model, year, daily_rate, status,
+            id, make, model, year, daily_rate, status, location_id,
             location:locations(name)
           )
         `);
@@ -91,12 +95,16 @@ export function useFleetCostAnalysisByVehicle(filters?: FleetCostFilters) {
         unitsQuery = unitsQuery.eq("status", filters.status);
       }
 
-      const { data: units, error: unitsError } = await unitsQuery;
+      const { data: allUnits, error: unitsError } = await unitsQuery;
       if (unitsError) throw unitsError;
+
+      // Branch scope: keep only units belonging to the selected branch
+      const units = filterUnitsByBranch(allUnits || [], filters?.locationId);
 
       if (!units?.length) return [];
 
       const unitIds = units.map((u) => u.id);
+
 
       // Fetch bookings for revenue calculation
       let bookingsQuery = supabase
@@ -104,6 +112,9 @@ export function useFleetCostAnalysisByVehicle(filters?: FleetCostFilters) {
         .select("assigned_unit_id, vehicle_id, total_amount, subtotal, total_days, status, start_at, end_at")
         .in("status", ["completed", "active"]);
 
+      if (filters?.locationId) {
+        bookingsQuery = bookingsQuery.eq("location_id", filters.locationId);
+      }
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("start_at", filters.dateFrom);
       }
@@ -238,11 +249,15 @@ export function useFleetCostAnalysisByVehicle(filters?: FleetCostFilters) {
       }).sort((a, b) => b.netProfit - a.netProfit);
     },
     staleTime: 60000, // Cache for 1 minute
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useFleetCostAnalysisByCategory(filters?: FleetCostFilters) {
-  const { data: vehicleMetrics } = useFleetCostAnalysisByVehicle(filters);
+export function useFleetCostAnalysisByCategory(
+  filters?: FleetCostFilters,
+  options?: { enabled?: boolean }
+) {
+  const { data: vehicleMetrics } = useFleetCostAnalysisByVehicle(filters, options);
 
   return useQuery({
     queryKey: ["fleet-cost-analysis", "by-category", filters, vehicleMetrics],
@@ -292,7 +307,7 @@ export function useFleetCostAnalysisByCategory(filters?: FleetCostFilters) {
         };
       }).filter((c) => c.vehicleCount > 0);
     },
-    enabled: !!vehicleMetrics,
+    enabled: (options?.enabled ?? true) && !!vehicleMetrics,
   });
 }
 
