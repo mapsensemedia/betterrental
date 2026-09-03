@@ -83,9 +83,9 @@ An Abbotsford staff member editing a URL to a Surrey booking id gets a 403 from 
 
 ## 6. Existing data migration strategy
 
-1. Backfill `staff_assignments` for the 9 existing role holders (7 admin, 1 staff, 1 driver). Existing admins become `super_admin` so nobody is locked out at cutover; each is then reviewed and downgraded deliberately.
-2. Assign the 7 `vehicle_units` with NULL `location_id` (list will be produced for confirmation before the update — no guessing).
-3. Derive location on child records from `bookings.location_id`; rows whose booking is gone stay NULL and are visible to super admin only.
+1. Backfill `staff_assignments` for the 9 existing role holders. All 7 current admins become `super_admin` so nobody is locked out at cutover; `operations@c2crental.ca` (today's only `staff`) becomes a `manager` at a branch you choose; `delivery@c2crental.ca` keeps `driver`. Accounts are converted to `manager` deliberately, one at a time.
+2. Assign the 8 retired `vehicle_units` with NULL `location_id` (A587EY, A586EY, A817JZ, A833JZ, A818JZ, A211WN, A594EY, A161WM — six last rented from Surrey, two never rented). Confirmed with you first; no guessing.
+3. Derive location on child records from `bookings.location_id`, including backfilling the 806 NULL `payments.location_id` rows. Unresolvable rows (1 support ticket, 22 admin alerts, 50 audit rows pointing at deleted bookings) stay NULL and are Super-Admin-only. Indexes on `bookings.location_id`, `bookings.return_location_id`, `vehicle_units.location_id`, `payments.location_id` and every new `location_id` column ship in the same migration — none exist today.
 4. Backfill `bookings.processed_by` from the best available existing signal in priority order: `handed_over_by` → `activated_by` → `created_by`; leave NULL when none exists (206 bookings have no `created_by`). Historical rows are never invented.
 5. No financial column is touched by the migration — money fields, statuses and totals are read-only in every step.
 6. RLS tightening ships **last**, behind a verification pass, so bookings/invoices stay reachable throughout.
