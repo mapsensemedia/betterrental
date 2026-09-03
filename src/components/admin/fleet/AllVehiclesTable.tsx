@@ -294,25 +294,62 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
                           {cfg.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditUnit(u)}>
-                              <Pencil className="w-4 h-4 mr-2" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteUnit(u)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <TableCell className="sticky right-0 bg-card border-l border-border">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="outline" size="sm" className="h-8" onClick={() => setEditUnit(u)}>
+                            <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-8 px-2">
+                                More <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                                Set status
+                              </DropdownMenuLabel>
+                              {QUICK_STATUSES.filter((s) => s.value !== u.status).map((s) => (
+                                <DropdownMenuItem
+                                  key={s.value}
+                                  onClick={() =>
+                                    setStatusMutation.mutate({
+                                      id: u.id,
+                                      status: s.value,
+                                      successTitle: `Marked ${s.label.toLowerCase()}`,
+                                    })
+                                  }
+                                >
+                                  <s.icon className="w-4 h-4 mr-2" /> {s.label}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuSeparator />
+                              {u.status === "retired" || u.status === "sold" ? (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setStatusMutation.mutate({
+                                      id: u.id,
+                                      status: "available",
+                                      successTitle: "Vehicle reactivated",
+                                    })
+                                  }
+                                >
+                                  <RotateCcw className="w-4 h-4 mr-2" /> Reactivate
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => setRetireUnit(u)}>
+                                  <Archive className="w-4 h-4 mr-2" /> Retire vehicle
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteUnit(u)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete permanently
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
