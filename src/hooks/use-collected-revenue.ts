@@ -46,7 +46,7 @@ export function useCollectedRevenue(
       }
 
 
-      const payments = (rows || []).map(p => ({ ...p, amount: Number(p.amount) }));
+      const payments = scopedRows.map(p => ({ ...p, amount: Number(p.amount) }));
 
       const completedRows = payments.filter(p => p.status === "completed" || p.status === "captured");
       const collected = completedRows.reduce((sum, p) => sum + p.amount, 0);
