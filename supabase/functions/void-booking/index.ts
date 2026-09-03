@@ -6,12 +6,12 @@
 
 import { getCorsHeaders } from "../_shared/cors.ts";
 import {
-import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   getUserOrThrow,
   requireRoleOrThrow,
   getAdminClient,
   authErrorResponse,
 } from "../_shared/auth.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);

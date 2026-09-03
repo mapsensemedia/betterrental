@@ -10,13 +10,13 @@ import {
   handleCorsPreflightRequest,
 } from "../_shared/cors.ts";
 import {
-import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   getUserOrThrow,
   requireRoleOrThrow,
   getAdminClient,
   AuthError,
   authErrorResponse,
 } from "../_shared/auth.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 // Return state validation (mirrored from client)
 const STATE_ORDER = [

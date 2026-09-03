@@ -22,10 +22,10 @@ import {
 } from "../_shared/auth.ts";
 import { computeBookingTotals } from "../_shared/booking-core.ts";
 import {
-import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   computeProcessingFee,
   getProcessingFeeRate,
 } from "../_shared/processing-fee.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 function roundCents(v: number): number {
   return Math.round(v * 100) / 100;

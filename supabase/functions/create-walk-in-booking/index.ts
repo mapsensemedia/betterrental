@@ -34,10 +34,10 @@ import {
   WEEKEND_SURCHARGE_RATE,
 } from "../_shared/vehicle-adjustments.ts";
 import {
-import { requireLocationOrThrow, requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   computeProcessingFee,
   getProcessingFeeRate,
 } from "../_shared/processing-fee.ts";
+import { requireLocationOrThrow, requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;

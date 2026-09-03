@@ -17,11 +17,11 @@ import {
 } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, isAdminOrStaff } from "../_shared/auth.ts";
 import {
-import { requireLocationOrThrow, requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   createBookingAddOns,
   createAdditionalDrivers,
   computeBookingTotals,
 } from "../_shared/booking-core.ts";
+import { requireLocationOrThrow, requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
