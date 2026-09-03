@@ -17,6 +17,7 @@ import {
 } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, isAdminOrStaff } from "../_shared/auth.ts";
 import {
+import { requireLocationOrThrow, requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   createBookingAddOns,
   createAdditionalDrivers,
   computeBookingTotals,
@@ -73,6 +74,9 @@ Deno.serve(async (req) => {
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Branch scope: managers may only modify bookings from their own location.
+      await requireBookingLocationOrThrow(auth.userId, bookingId);
 
       if (action === "upsell-add") {
         return await handleUpsellAdd(supabaseAdmin, booking, body, corsHeaders, auth.userId, req);

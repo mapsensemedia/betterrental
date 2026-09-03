@@ -34,6 +34,7 @@ import {
   WEEKEND_SURCHARGE_RATE,
 } from "../_shared/vehicle-adjustments.ts";
 import {
+import { requireLocationOrThrow, requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   computeProcessingFee,
   getProcessingFeeRate,
 } from "../_shared/processing-fee.ts";
@@ -103,6 +104,11 @@ Deno.serve(async (req) => {
       // Optional delivery address (delivery walk-ins)
       pickupAddress,
     } = body;
+
+    // Branch scope: managers may only create walk-ins for their own location.
+    if (locationId) {
+      await requireLocationOrThrow(auth.userId, locationId);
+    }
 
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
       return new Response(
