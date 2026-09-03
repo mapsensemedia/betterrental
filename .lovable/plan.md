@@ -1,24 +1,29 @@
-# Show card expiry on bookings
+# Card on File: expiry + Active Rentals panel
 
-Today a booking stores only the card brand, last four digits, and cardholder name. For 3STR9EL7 that is: MC •••• 7252, Ken Mackenzie. Staff have no expiry date to verify against the physical card, so we will start capturing and displaying it.
+Booking 3STR9EL7 currently stores MC •••• 7252, cardholder Ken Mackenzie, and no expiry. Two changes:
 
-## What changes
+## 1. Show card expiry
 
-1. **Store expiry** — add a `card_expiry` field on bookings (format `MM/YY`). No full card number is ever stored.
-2. **Capture it automatically** — the payment gateway already returns the card's expiry month/year with each authorization/purchase. Both online payment paths will save it alongside the last four.
-3. **Show it to staff** — the Card on File panel already has a slot for expiry (currently always empty). Once stored, expiry appears when a staff member unlocks the full card view with the admin password. Booking Details and the Ops booking summary show the same value.
-4. **Manual entry for terminal / walk-in payments** — when a payment is logged manually (in-store terminal), staff can optionally type the expiry (`MM/YY`) so those bookings are consistent too.
-5. **Backfill 3STR9EL7** — read the expiry from the gateway record for its existing authorization and save it, so this booking can be verified immediately. Other historical bookings stay blank unless you want a wider backfill.
+- Add a `card_expiry` field on bookings (`MM/YY`). No full card number is ever stored.
+- The payment gateway already returns the card's expiry month/year on each authorization/purchase — both online payment paths will save it alongside the last four.
+- The Card on File panel already has an expiry slot (currently always empty); once stored, expiry shows after the admin password unlock.
+- Manually logged terminal payments get an optional expiry field so walk-ins stay consistent.
+- Backfill 3STR9EL7 from its existing gateway authorization so it can be verified right away. Other past bookings stay blank unless you want a wider backfill.
+
+## 2. Add the Card on File panel to Active Rentals
+
+The password-gated card panel used in the handover booking summary will also appear on the Active Rental detail view, in the customer/payment area, with identical behaviour: masked by default, full details (brand, last four, cardholder, expiry) revealed after the admin password, auto-hiding after 30 seconds.
 
 ## Verification
 
-- Confirm 3STR9EL7 shows MC •••• 7252, Ken Mackenzie, and an expiry after unlocking the card panel.
-- Make a small authorized test-free check on an existing booking record (read-only) to confirm new payments persist expiry going forward.
+- Open 3STR9EL7 in Active Rentals, unlock the card panel, confirm MC •••• 7252, Ken Mackenzie and the expiry appear.
+- Confirm the panel stays masked before password entry and re-masks automatically.
 
 ## Technical notes
 
-- Migration: `alter table public.bookings add column card_expiry text` (nullable, no grants change needed — existing booking grants/policies cover it).
-- `supabase/functions/wl-pay/index.ts` and `wl-authorize/index.ts`: extend the `card` shape with `expiry_month` / `expiry_year` and write `card_expiry: MM/YY` in the same update that sets `card_last_four`.
-- `supabase/functions/log-terminal-payment/index.ts`: accept an optional `cardExpiry` and persist it.
-- Frontend: pass `booking.card_expiry` into `CardInfoSection` (`cardExpiry` prop already exists) from `src/pages/admin/BookingDetail.tsx` and `src/components/admin/ops/OpsBookingSummary.tsx`; expiry remains hidden until the password reveal, consistent with the existing PII gate.
-- Backfill uses a gateway lookup of transaction `10001429` for 3STR9EL7 — read-only against the gateway, single row update in the database.
+- Migration: `alter table public.bookings add column card_expiry text` (nullable; existing bookings grants/policies cover it).
+- `supabase/functions/wl-pay/index.ts` and `wl-authorize/index.ts`: extend the gateway `card` type with `expiry_month` / `expiry_year` and write `card_expiry` in the same update that sets `card_last_four`.
+- `supabase/functions/log-terminal-payment/index.ts`: accept and persist an optional `cardExpiry`.
+- Reuse `src/components/admin/ops/sections/CardInfoSection.tsx` (already has a `cardExpiry` prop) inside `src/pages/admin/ActiveRentalDetail.tsx`; `use-active-rental-detail.ts` already selects `bookings.*`, so no query change is needed.
+- Also pass `card_expiry` through in `OpsBookingSummary.tsx`.
+- Backfill: read expiry from gateway transaction `10001429`, then a single-row update.
