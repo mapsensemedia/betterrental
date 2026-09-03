@@ -68,7 +68,10 @@ export interface FleetCostFilters {
   status?: string;
 }
 
-export function useFleetCostAnalysisByVehicle(filters?: FleetCostFilters) {
+export function useFleetCostAnalysisByVehicle(
+  filters?: FleetCostFilters,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: ["fleet-cost-analysis", "by-vehicle", filters],
     queryFn: async (): Promise<VehicleUnitMetrics[]> => {
@@ -79,7 +82,7 @@ export function useFleetCostAnalysisByVehicle(filters?: FleetCostFilters) {
           *,
           category:vehicle_categories(id, name),
           vehicle:vehicles(
-            id, make, model, year, daily_rate, status,
+            id, make, model, year, daily_rate, status, location_id,
             location:locations(name)
           )
         `);
@@ -91,12 +94,16 @@ export function useFleetCostAnalysisByVehicle(filters?: FleetCostFilters) {
         unitsQuery = unitsQuery.eq("status", filters.status);
       }
 
-      const { data: units, error: unitsError } = await unitsQuery;
+      const { data: allUnits, error: unitsError } = await unitsQuery;
       if (unitsError) throw unitsError;
+
+      // Branch scope: keep only units belonging to the selected branch
+      const units = filterUnitsByBranch(allUnits || [], filters?.locationId);
 
       if (!units?.length) return [];
 
       const unitIds = units.map((u) => u.id);
+
 
       // Fetch bookings for revenue calculation
       let bookingsQuery = supabase
