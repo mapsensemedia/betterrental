@@ -82,6 +82,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useEffectiveLocationId, useStaffLocation } from "@/hooks/use-staff-location";
 
 // ═══════════════════════════════════════════════════
 // Types
@@ -380,6 +381,9 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
 
 
 
+  // Branch scope for revenue figures (managers locked to their own branch)
+  const { locationId: revenueScopeLocationId } = useEffectiveLocationId();
+
   // Locations lookup for revenue-by-location breakdown
   const { data: locationsList = [] } = useQuery({
     queryKey: ["finance-locations"],
@@ -645,13 +649,19 @@ function OverviewTab({ onMethodClick, dateRange, setDateRange, start, end, custo
 
   // Merge both sources — deduplicate by booking_id+payment_type
   const payments = useMemo(() => {
-    if (!wlSupplement.length) return paymentsOnly;
-    const existingKeys = new Set(paymentsOnly.map((p) => `${p.booking_id}::${p.payment_type}`));
-    const unique = wlSupplement.filter((w) => !existingKeys.has(`${w.booking_id}::${w.payment_type}`));
-    const merged = [...paymentsOnly, ...unique];
-    merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return merged;
-  }, [paymentsOnly, wlSupplement]);
+    const base = !wlSupplement.length
+      ? paymentsOnly
+      : (() => {
+          const existingKeys = new Set(paymentsOnly.map((p) => `${p.booking_id}::${p.payment_type}`));
+          const unique = wlSupplement.filter((w) => !existingKeys.has(`${w.booking_id}::${w.payment_type}`));
+          const merged = [...paymentsOnly, ...unique];
+          merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          return merged;
+        })();
+    // Branch scope: managers only ever see their own location's revenue.
+    if (!revenueScopeLocationId) return base;
+    return base.filter((p) => (p.location_id ?? null) === revenueScopeLocationId);
+  }, [paymentsOnly, wlSupplement, revenueScopeLocationId]);
 
   const { data: prevPayments = [] } = useQuery({
     queryKey: ["payment-dashboard-prev", dateRange],
@@ -1128,6 +1138,10 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
   // Location filter (deep-linkable via ?location=<id>)
   const urlLocation = searchParams.get("location");
   const [locationFilter, setLocationFilter] = useState<string>(urlLocation || "all");
+  // Branch scope: managers are locked to their branch and cannot widen the filter.
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  const { isSuperAdmin: canPickLocation } = useStaffLocation();
+  const effectiveLocationFilter = !canPickLocation && scopeLocationId ? scopeLocationId : locationFilter;
   const { data: locationsList = [] } = useQuery({
     queryKey: ["finance-locations"],
     queryFn: async () => {
@@ -1406,7 +1420,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
 
   // ==================== FILTERING ====================
   const matchesLocation = (locId: string | null | undefined) =>
-    locationFilter === "all" || (locId || "") === locationFilter;
+    effectiveLocationFilter === "all" || (locId || "") === effectiveLocationFilter;
 
   const filteredInvoices = invoices.filter((inv) => {
     if (!matchesLocation(inv.location_id)) return false;
@@ -1679,7 +1693,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 className="pl-10 w-full"
               />
             </div>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <Select value={locationFilter} onValueChange={setLocationFilter} disabled={!canPickLocation}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <MapPin className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Location" />
