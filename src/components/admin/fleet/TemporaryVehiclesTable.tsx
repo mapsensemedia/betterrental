@@ -61,6 +61,7 @@ import {
 import { useLocations } from "@/hooks/use-locations";
 import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { VehicleUnitEditDialog } from "./VehicleUnitEditDialog";
 
