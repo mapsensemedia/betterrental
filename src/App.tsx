@@ -79,6 +79,7 @@ const AdminDamages = lazy(() => import("./pages/admin/Damages"));
 const AdminOffers = lazy(() => import("./pages/admin/Offers"));
 const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
 const AdminVendors = lazy(() => import("./pages/admin/Vendors"));
+const AdminStaff = lazy(() => import("./pages/admin/Staff"));
 const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 const AdminAgreements = lazy(() => import("./pages/admin/Agreements"));
 
@@ -223,6 +224,7 @@ const App = () => (
                 <Route path="/admin/returns/:bookingId" element={<AdminProtectedRoute><ReturnOps /></AdminProtectedRoute>} />
                 <Route path="/admin/active-rentals/:bookingId" element={<AdminProtectedRoute><ActiveRentalDetail /></AdminProtectedRoute>} />
                 <Route path="/admin/inventory" element={<Navigate to="/admin/fleet" replace />} />
+                <Route path="/admin/staff" element={<AdminProtectedRoute><AdminStaff /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet" element={<AdminProtectedRoute><FleetManagement /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet-analytics" element={<AdminProtectedRoute><FleetAnalytics /></AdminProtectedRoute>} />
                 <Route path="/admin/fleet-costs" element={<AdminProtectedRoute><FleetCosts /></AdminProtectedRoute>} />
