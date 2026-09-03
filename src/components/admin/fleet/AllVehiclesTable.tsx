@@ -380,6 +380,12 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
         unit={editUnit}
       />
 
+      <PlateDialog
+        unit={plateUnit}
+        open={!!plateUnit}
+        onOpenChange={(o) => !o && setPlateUnit(null)}
+      />
+
       <VinFormDialog
         open={addOpen}
         onOpenChange={setAddOpen}
