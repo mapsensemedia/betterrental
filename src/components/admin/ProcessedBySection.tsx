@@ -34,7 +34,15 @@ interface StaffIdentity {
   staffId: string;
 }
 
-/** Resolve staff identities (name + employee code + branch) for a set of user ids. */
+/**
+ * Resolve staff identities (name + employee code + branch) for a set of user ids.
+ *
+ * Names come exclusively from `staff_assignments` — the staff directory. The
+ * `profiles` table is deliberately NOT consulted: profile rows describe
+ * customers, so reading them here can surface a customer's name as the staff
+ * member who processed a booking. When an id has no staff record we show a
+ * neutral placeholder with the raw id instead of guessing a name.
+ */
 function useStaffIdentities(userIds: string[]) {
   const ids = [...new Set(userIds.filter(Boolean))].sort();
 
@@ -45,27 +53,29 @@ function useStaffIdentities(userIds: string[]) {
     queryFn: async () => {
       const map = new Map<string, StaffIdentity>();
 
-      const [{ data: assignments }, { data: profiles }, { data: locations }] = await Promise.all([
+      const [{ data: assignments }, { data: roles }, { data: locations }] = await Promise.all([
         supabase
           .from("staff_assignments")
-          .select("user_id, display_name, employee_code, location_id")
+          .select("user_id, display_name, employee_code, location_id, is_active")
           .in("user_id", ids),
-        supabase.from("profiles").select("id, full_name, email").in("id", ids),
+        supabase.from("user_roles").select("user_id, role").in("user_id", ids),
         supabase.from("locations").select("id, name"),
       ]);
 
       const locationMap = new Map((locations ?? []).map((l) => [l.id, l.name]));
-      const profileMap = new Map(
-        (profiles ?? []).map((p) => [p.id, p.full_name || p.email || null]),
-      );
+      const roleMap = new Map((roles ?? []).map((r) => [r.user_id, r.role as string]));
 
       for (const id of ids) {
-        const assignment = (assignments ?? []).find((a) => a.user_id === id);
+        const assignment =
+          (assignments ?? []).find((a) => a.user_id === id && a.is_active) ??
+          (assignments ?? []).find((a) => a.user_id === id);
+        const role = roleMap.get(id);
+        const fallback = role
+          ? `${role.replace(/_/g, " ")} account`
+          : `Unknown user`;
+
         map.set(id, {
-          name:
-            assignment?.display_name ||
-            profileMap.get(id) ||
-            `Staff ${id.slice(0, 8)}`,
+          name: assignment?.display_name || fallback,
           employeeCode: assignment?.employee_code ?? null,
           staffId: id,
           locationName: assignment?.location_id
@@ -78,6 +88,7 @@ function useStaffIdentities(userIds: string[]) {
     },
   });
 }
+
 
 
 function ActorRow({
