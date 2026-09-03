@@ -50,6 +50,14 @@ export function LocationScopeProvider({ children }: { children: ReactNode }) {
     setSearchParams(next, { replace: true });
   }, [isLoading, isSuperAdmin, urlLocationId, storedLocationId, searchParams, setSearchParams]);
 
+  // Mirror any branch scope that arrives via the URL (deep link, back/forward)
+  // into storage so the next tab opens on the same branch.
+  useEffect(() => {
+    if (!urlLocationId) return;
+    writeStoredLocationScope(urlLocationId === "all" ? null : urlLocationId);
+  }, [urlLocationId]);
+
+
   const value = useMemo<LocationScopeValue>(() => {
     const explicit = urlLocationId && urlLocationId !== "all" ? urlLocationId : null;
     const scopeLocationId = isSuperAdmin
