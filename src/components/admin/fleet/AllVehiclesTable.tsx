@@ -207,8 +207,8 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              {Object.entries(STATUS).map(([key, cfg]) => (
-                <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+              {FILTER_STATUSES.map((key) => (
+                <SelectItem key={key} value={key}>{STATUS[key].label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -224,6 +224,11 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
               ))}
             </SelectContent>
           </Select>
+
+          <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+            <Checkbox checked={showRetired} onCheckedChange={(v) => setShowRetired(!!v)} />
+            Show retired
+          </label>
 
           <div className="hidden sm:block sm:flex-1" />
 
