@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useDamageReports, useDamageById, useUpdateDamage } from "@/hooks/use-damages";
 import { useLocations } from "@/hooks/use-locations";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -59,10 +60,11 @@ export default function AdminDamages() {
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [estimatedCost, setEstimatedCost] = useState("");
 
+  const { locationId: scopedLocationId } = useEffectiveLocationId();
   const { data: damages, isLoading } = useDamageReports({
     status: statusFilter as any,
     severity: severityFilter as DamageSeverity | "all",
-    locationId: locationFilter || undefined,
+    locationId: scopedLocationId ?? locationFilter ?? undefined,
   });
   const { data: locations } = useLocations();
   const { data: selectedDamage, isLoading: isLoadingDetail } = useDamageById(selectedId);
