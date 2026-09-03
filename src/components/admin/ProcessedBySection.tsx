@@ -253,9 +253,13 @@ export function ProcessedBySection({ bookingId }: { bookingId: string }) {
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {actor?.name ? `${actor.name} · ` : ""}
+                      {actor
+                        ? `ID ${actor.employeeCode || actor.staffId.slice(0, 8)} · `
+                        : ""}
                       {branch ? `${branch} · ` : ""}
                       {format(new Date(event.created_at), "MMM d, yyyy h:mm a")}
                     </span>
+
                   </li>
                 );
               })}
