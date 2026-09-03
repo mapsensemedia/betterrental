@@ -297,7 +297,8 @@ export default function AdminBookings() {
   // Apply operations filters to a list of bookings (no needsProcessing filter)
   const applyOpsFilters = (bookingList: typeof bookings) => {
     return bookingList.filter(booking => {
-      if (opsFilters.locationId !== "all" && booking.locationId !== opsFilters.locationId) return false;
+      if (branchScopeId && booking.locationId !== branchScopeId) return false;
+
       if (opsFilters.vehicleId !== "all" && booking.vehicleId !== opsFilters.vehicleId) return false;
       if (opsFilters.dateRange.start) {
         const bookingDate = parseISO(booking.startAt);
