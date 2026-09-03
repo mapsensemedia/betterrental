@@ -13,7 +13,14 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserOrThrow, getAdminClient, authErrorResponse } from "../_shared/auth.ts";
 import { getStaffScope, requireSuperAdmin } from "../_shared/location-guard.ts";
 
-type Action = "list" | "create" | "set_location" | "set_active" | "send_setup_link";
+type Action =
+  | "list"
+  | "create"
+  | "set_location"
+  | "set_active"
+  | "send_setup_link"
+  | "update"
+  | "delete";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
