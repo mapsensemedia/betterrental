@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { createAuditLog } from "./use-admin";
 import { notifyAdmin, type AdminNotifyEventType } from "./use-admin-notify";
-import { useEffectiveLocationId } from "./use-staff-location";
+import { useEffectiveLocationId, useStaffLocation } from "./use-staff-location";
 import type { Database } from "@/integrations/supabase/types";
 
 type AlertType = Database["public"]["Enums"]["alert_type"];
