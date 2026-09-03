@@ -38,12 +38,28 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, Pencil, Trash2, Download, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Download,
+  Search,
+  ChevronDown,
+  Archive,
+  RotateCcw,
+  CheckCircle2,
+  Wrench,
+  AlertTriangle,
+} from "lucide-react";
 import {
   useVehicleUnits,
   useDeleteVehicleUnit,
+  useSetVehicleUnitStatus,
   type VehicleUnit,
 } from "@/hooks/use-vehicle-units";
 import { useLocations } from "@/hooks/use-locations";
@@ -58,9 +74,19 @@ const STATUS: Record<string, { label: string; dot: string }> = {
   maintenance: { label: "Maintenance", dot: "bg-yellow-500" },
   damage: { label: "Damage", dot: "bg-red-500" },
   retired: { label: "Retired", dot: "bg-muted-foreground" },
+  sold: { label: "Sold", dot: "bg-muted-foreground" },
   active: { label: "Active", dot: "bg-green-500" },
   pending: { label: "Pending", dot: "bg-yellow-500" },
 };
+
+/** Statuses staff can set directly from the row menu. */
+const QUICK_STATUSES: { value: string; label: string; icon: typeof CheckCircle2 }[] = [
+  { value: "available", label: "Available", icon: CheckCircle2 },
+  { value: "maintenance", label: "Maintenance", icon: Wrench },
+  { value: "damage", label: "Damage", icon: AlertTriangle },
+];
+
+const FILTER_STATUSES = ["available", "on_rent", "maintenance", "damage", "retired", "sold"];
 
 interface Props {
   isTemporary?: boolean;
@@ -79,8 +105,10 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
   const [editUnit, setEditUnit] = useState<VehicleUnit | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
+  const [retireUnit, setRetireUnit] = useState<VehicleUnit | null>(null);
+  const [showRetired, setShowRetired] = useState(false);
 
-  const { data: units, isLoading } = useVehicleUnits({
+  const { data: allUnits, isLoading } = useVehicleUnits({
     isTemporary,
     locationId: locationId !== "all" ? locationId : undefined,
     status: status !== "all" ? status : undefined,
@@ -90,6 +118,13 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
   const { data: locations } = useLocations();
   const { data: categories } = useFleetCategories();
   const deleteMutation = useDeleteVehicleUnit();
+  const setStatusMutation = useSetVehicleUnitStatus();
+
+  // Retired / sold units are archive material — hidden unless asked for.
+  const units = useMemo(() => {
+    if (showRetired || status === "retired" || status === "sold") return allUnits ?? [];
+    return (allUnits ?? []).filter((u) => u.status !== "retired" && u.status !== "sold");
+  }, [allUnits, showRetired, status]);
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -172,8 +207,8 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              {Object.entries(STATUS).map(([key, cfg]) => (
-                <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+              {FILTER_STATUSES.map((key) => (
+                <SelectItem key={key} value={key}>{STATUS[key].label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -189,6 +224,11 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
               ))}
             </SelectContent>
           </Select>
+
+          <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+            <Checkbox checked={showRetired} onCheckedChange={(v) => setShowRetired(!!v)} />
+            Show retired
+          </label>
 
           <div className="hidden sm:block sm:flex-1" />
 
@@ -215,7 +255,9 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
                 <TableHead>Location</TableHead>
                 <TableHead className="text-right">Kilometers</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="sticky right-0 bg-muted/50 text-right w-[150px] border-l border-border">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -254,25 +296,62 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
                           {cfg.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditUnit(u)}>
-                              <Pencil className="w-4 h-4 mr-2" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteUnit(u)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <TableCell className="sticky right-0 bg-card border-l border-border">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="outline" size="sm" className="h-8" onClick={() => setEditUnit(u)}>
+                            <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-8 px-2">
+                                More <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                                Set status
+                              </DropdownMenuLabel>
+                              {QUICK_STATUSES.filter((s) => s.value !== u.status).map((s) => (
+                                <DropdownMenuItem
+                                  key={s.value}
+                                  onClick={() =>
+                                    setStatusMutation.mutate({
+                                      id: u.id,
+                                      status: s.value,
+                                      successTitle: `Marked ${s.label.toLowerCase()}`,
+                                    })
+                                  }
+                                >
+                                  <s.icon className="w-4 h-4 mr-2" /> {s.label}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuSeparator />
+                              {u.status === "retired" || u.status === "sold" ? (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setStatusMutation.mutate({
+                                      id: u.id,
+                                      status: "available",
+                                      successTitle: "Vehicle reactivated",
+                                    })
+                                  }
+                                >
+                                  <RotateCcw className="w-4 h-4 mr-2" /> Reactivate
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => setRetireUnit(u)}>
+                                  <Archive className="w-4 h-4 mr-2" /> Retire vehicle
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteUnit(u)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete permanently
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -321,6 +400,42 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!retireUnit} onOpenChange={(o) => !o && setRetireUnit(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retire this vehicle?</AlertDialogTitle>
+            <AlertDialogDescription>
+              VIN <span className="font-mono">{retireUnit?.vin}</span> leaves the active fleet: it
+              stops appearing in availability and can no longer be assigned to bookings. All
+              history — bookings, invoices, expenses and maintenance — is kept, and you can
+              reactivate it any time from the "Show retired" list. Active or upcoming bookings
+              block this action.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!retireUnit) return;
+                try {
+                  await setStatusMutation.mutateAsync({
+                    id: retireUnit.id,
+                    status: "retired",
+                    guardBookings: true,
+                    stampDisposalDate: true,
+                    successTitle: "Vehicle retired",
+                  });
+                } finally {
+                  setRetireUnit(null);
+                }
+              }}
+            >
+              Retire
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

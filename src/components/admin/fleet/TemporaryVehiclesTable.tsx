@@ -49,12 +49,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, Pencil, Trash2, RotateCcw } from "lucide-react";
+import { Plus, Pencil, Trash2, RotateCcw, ChevronDown, CalendarClock } from "lucide-react";
 import {
   useVehicleUnits,
   useCreateVehicleUnit,
   useUpdateVehicleUnit,
   useDeleteVehicleUnit,
+  useSetVehicleUnitStatus,
   type VehicleUnit,
 } from "@/hooks/use-vehicle-units";
 import { useLocations } from "@/hooks/use-locations";
@@ -86,6 +87,9 @@ export function TemporaryVehiclesTable() {
   const [addOpen, setAddOpen] = useState(false);
   const [editUnit, setEditUnit] = useState<VehicleUnit | null>(null);
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
+  const [returnUnit, setReturnUnit] = useState<VehicleUnit | null>(null);
+  const [dateUnit, setDateUnit] = useState<VehicleUnit | null>(null);
+  const [newEndDate, setNewEndDate] = useState("");
 
   const { locationId: scopeLocationId, isReady: isScopeReady, isUnassignedManager } =
     useEffectiveLocationId();
@@ -96,28 +100,41 @@ export function TemporaryVehiclesTable() {
   const { data: locations } = useLocations();
   const deleteMutation = useDeleteVehicleUnit();
   const updateMutation = useUpdateVehicleUnit();
+  const setStatusMutation = useSetVehicleUnitStatus();
 
   const units = useMemo(
     () => (allUnits ?? []).filter((u) => (showRetired ? true : u.status !== "retired")),
     [allUnits, showRetired]
   );
 
-  const returnToVendor = async (unit: VehicleUnit) => {
+  const confirmReturn = async () => {
+    if (!returnUnit) return;
     try {
-      await updateMutation.mutateAsync({
-        id: unit.id,
+      await setStatusMutation.mutateAsync({
+        id: returnUnit.id,
         status: "retired",
-      } as any);
-      // best-effort additional fields
-      await supabase
-        .from("vehicle_units")
-        .update({ actual_disposal_date: new Date().toISOString().slice(0, 10) })
-        .eq("id", unit.id);
-      toast({ title: "Marked returned to source" });
-    } catch (e: any) {
-      toast({ title: "Failed to mark returned", description: e.message, variant: "destructive" });
+        guardBookings: true,
+        stampDisposalDate: true,
+        successTitle: "Marked returned to source",
+      });
+    } finally {
+      setReturnUnit(null);
     }
   };
+
+  const saveEndDate = async () => {
+    if (!dateUnit) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: dateUnit.id,
+        temp_end_date: newEndDate || null,
+      } as any);
+      toast({ title: "Return date updated" });
+    } finally {
+      setDateUnit(null);
+    }
+  };
+
 
   return (
     <Card>
@@ -151,7 +168,9 @@ export function TemporaryVehiclesTable() {
                 <TableHead>Ends</TableHead>
                 <TableHead className="text-right">Daily cost</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="sticky right-0 bg-muted/50 text-right w-[150px] border-l border-border">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -196,30 +215,55 @@ export function TemporaryVehiclesTable() {
                           {cfg.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditUnit(u)}>
-                              <Pencil className="w-4 h-4 mr-2" /> Edit
-                            </DropdownMenuItem>
-                            {u.status !== "retired" && (
-                              <DropdownMenuItem onClick={() => returnToVendor(u)}>
-                                <RotateCcw className="w-4 h-4 mr-2" /> Return to source
+                      <TableCell className="sticky right-0 bg-card border-l border-border">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="outline" size="sm" className="h-8" onClick={() => setEditUnit(u)}>
+                            <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-8 px-2">
+                                More <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              {u.status !== "retired" && (
+                                <>
+                                  <DropdownMenuItem onClick={() => setReturnUnit(u)}>
+                                    <RotateCcw className="w-4 h-4 mr-2" /> Mark as returned
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setNewEndDate(u.temp_end_date || "");
+                                      setDateUnit(u);
+                                    }}
+                                  >
+                                    <CalendarClock className="w-4 h-4 mr-2" /> Change return date
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {u.status === "retired" && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setStatusMutation.mutate({
+                                      id: u.id,
+                                      status: "available",
+                                      successTitle: "Temporary vehicle reactivated",
+                                    })
+                                  }
+                                >
+                                  <RotateCcw className="w-4 h-4 mr-2" /> Reactivate
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteUnit(u)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteUnit(u)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -262,6 +306,49 @@ export function TemporaryVehiclesTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!returnUnit} onOpenChange={(o) => !o && setReturnUnit(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark this vehicle as returned?</AlertDialogTitle>
+            <AlertDialogDescription>
+              VIN <span className="font-mono">{returnUnit?.vin}</span> goes back to its source.
+              It leaves availability, today's date is recorded as the return date, and all history
+              is kept. Active or upcoming bookings block this action.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmReturn}>Mark returned</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={!!dateUnit} onOpenChange={(o) => !o && setDateUnit(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change return date</DialogTitle>
+            <DialogDescription>
+              Extend or shorten the loan period for {dateUnit?.license_plate || dateUnit?.vin}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="temp-end-date">Return date</Label>
+            <Input
+              id="temp-end-date"
+              type="date"
+              value={newEndDate}
+              onChange={(e) => setNewEndDate(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDateUnit(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEndDate}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
