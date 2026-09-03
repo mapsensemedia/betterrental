@@ -106,7 +106,7 @@ An Abbotsford staff member editing a URL to a Surrey booking id gets a 403 from 
 2. **Attribution** — `processed_by` etc., stamping in edge functions, backfill, Processed By UI + Activity History.
 3. **Scoping (read)** — `LocationScopeProvider`, hook filtering, super-admin switcher, scoped reports.
 4. **Enforcement** — edge-function `location-guard`, then RLS policy replacement.
-5. **Staff management** — `/admin/staff` page + `manage-staff` function + role downgrades from super_admin.
+5. **Staff management** — `/admin/staff` page + `manage-staff` function, then conversion of accounts from `super_admin` to `manager`.
 6. **Comparison & reporting** — super-admin multi-location comparison and company-wide totals.
 
 ## 9. Testing checklist
