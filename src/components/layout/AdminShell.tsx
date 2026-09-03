@@ -43,6 +43,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts, type SidebarCounts } from "@/hooks/use-sidebar-counts";
 import { useCapabilities } from "@/auth/capabilities";
+import { LocationScopeSwitcher } from "@/components/admin/LocationScopeSwitcher";
 import { useGlobalRealtime } from "@/hooks/use-global-realtime";
 import { HelpGuideModal } from "./HelpGuideModal";
 
