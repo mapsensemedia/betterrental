@@ -56,7 +56,6 @@ const chartConfig = {
 const COLORS = ["hsl(var(--primary))", "#22c55e", "#f97316", "#8b5cf6", "#3b82f6", "#ec4899"];
 
 import {
-import { useEffectiveLocationId, useStaffLocation } from "@/hooks/use-staff-location";
   Search,
   Eye as EyeIcon2,
   MousePointerClick,
@@ -66,6 +65,7 @@ import { useEffectiveLocationId, useStaffLocation } from "@/hooks/use-staff-loca
   CreditCard,
   CheckCircle,
 } from "lucide-react";
+import { useEffectiveLocationId, useStaffLocation } from "@/hooks/use-staff-location";
 
 const DATE_PRESET_LABELS: Record<DatePreset | "all", string> = {
   "7d": "Last 7 Days",
