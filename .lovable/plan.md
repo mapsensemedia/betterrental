@@ -122,12 +122,13 @@ An Abbotsford staff member editing a URL to a Surrey booking id gets a 403 from 
 
 ## 10. Rollout strategy
 
-Ship phases 1–3 with enforcement off (all current admins remain super admin) and validate against production data read-only. Then enable the edge-function guard, confirm ops flows for a day, then apply RLS tightening. Only after that, downgrade individual accounts to `location_manager` / `staff` one branch at a time, starting with Abbotsford (smallest active footprint after Langley). Keep a documented rollback: re-grant `super_admin` to an account, and a single migration that restores the previous permissive policies.
+Ship phases 1–3 with enforcement off (all current admins stay Super Admin) and validate against production data read-only. Then enable the edge-function guard, confirm ops flows for a day, then apply RLS tightening. Only after that, convert individual accounts to `manager` one branch at a time, starting with Abbotsford. Keep a documented rollback: re-grant `super_admin` to an account, plus one pre-written migration that restores today's 128 permissive policies verbatim (the project is forward-only — there is no automatic down-migration, so this file must be written in advance).
 
 ## 11. Decisions (confirmed)
 
-1. One-way rentals: the drop-off branch sees the rental **read-only**; only the pickup branch and Super Admin can edit it.
-2. Staff creation, deactivation, location reassignment and role changes are **Super Admin only**, for any branch. Location Managers can view their own branch's staff list but not change it.
+1. Exactly two admin roles: `super_admin` and `manager`. `staff`, `cleaner`, `finance`, `support` are retired; `driver` stays only because it gates the separate delivery portal.
+2. One-way rentals: the drop-off branch sees the rental **read-only**; only the pickup branch and Super Admin can edit it.
+3. Staff creation, deactivation, location reassignment and role changes are **Super Admin only**, for any branch. Managers have no staff-management access.
 3. Two Super Admin accounts to be created in Phase 5 (or immediately, if you want them before the rest ships):
    - Shanky@c2crental.ca
    - Hilal@c2crental.ca
