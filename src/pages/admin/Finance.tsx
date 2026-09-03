@@ -1665,7 +1665,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </TabsTrigger>
               <TabsTrigger value="payments" className="gap-1.5">
                 <CreditCard className="w-3.5 h-3.5" />
-                Payments ({payments.length})
+                Payments ({branchPayments.length})
               </TabsTrigger>
               <TabsTrigger value="deposits" className="gap-1.5">
                 <Banknote className="w-3.5 h-3.5" />
