@@ -24,9 +24,9 @@ export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
     );
   }
 
-  // Not logged in - redirect to auth
+  // Not logged in - redirect to the dedicated staff login flow.
   if (!user) {
-    return <Navigate to="/auth?returnUrl=/admin" replace />;
+    return <Navigate to="/admin/login" replace />;
   }
 
   // Not admin - redirect to home with message

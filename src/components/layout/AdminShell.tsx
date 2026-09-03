@@ -231,14 +231,14 @@ export function AdminShell({
   };
   const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
     } catch (e) {
       // Ignore session-related errors - session already expired
     }
     toast({
       title: "Signed out"
     });
-    navigate("/");
+    navigate("/admin/login", { replace: true });
   };
   const isActive = (href: string) => {
     if (href === "/admin") {

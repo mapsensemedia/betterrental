@@ -31,6 +31,7 @@ export default function Auth() {
   // Get return URL and prefill email from query params
   const returnUrl = searchParams.get("returnUrl") || "/dashboard";
   const prefillEmail = searchParams.get("email") || "";
+  const forceLogin = searchParams.get("forceLogin") === "1";
 
   // Prefill email from query param (e.g., from complete-signup redirect)
   useEffect(() => {
@@ -41,10 +42,10 @@ export default function Auth() {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!forceLogin && !authLoading && user) {
       navigate(returnUrl, { replace: true });
     }
-  }, [user, authLoading, navigate, returnUrl]);
+  }, [user, authLoading, forceLogin, navigate, returnUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

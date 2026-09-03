@@ -28,7 +28,7 @@ export default function AdminLogin() {
   }, []);
 
   if (done) {
-    return <Navigate to="/auth?returnUrl=/admin" replace />;
+    return <Navigate to="/auth?returnUrl=/admin&forceLogin=1" replace />;
   }
 
   return (
