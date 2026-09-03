@@ -346,6 +346,7 @@ export function BookingCustomerCard({
             )}
           </div>
         )}
+        {!compact && !editing && <CustomerDocumentsSection customerUserId={userId} />}
       </CardContent>
     </Card>
   );
