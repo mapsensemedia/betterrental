@@ -305,6 +305,49 @@ export function TemporaryVehiclesTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!returnUnit} onOpenChange={(o) => !o && setReturnUnit(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark this vehicle as returned?</AlertDialogTitle>
+            <AlertDialogDescription>
+              VIN <span className="font-mono">{returnUnit?.vin}</span> goes back to its source.
+              It leaves availability, today's date is recorded as the return date, and all history
+              is kept. Active or upcoming bookings block this action.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmReturn}>Mark returned</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={!!dateUnit} onOpenChange={(o) => !o && setDateUnit(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change return date</DialogTitle>
+            <DialogDescription>
+              Extend or shorten the loan period for {dateUnit?.license_plate || dateUnit?.vin}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="temp-end-date">Return date</Label>
+            <Input
+              id="temp-end-date"
+              type="date"
+              value={newEndDate}
+              onChange={(e) => setNewEndDate(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDateUnit(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEndDate}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
