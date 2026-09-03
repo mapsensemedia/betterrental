@@ -114,13 +114,29 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Lifecycle events (activation, handover, completion, cancellation) are
+    // emailed but never written to admin_alerts: the alerts board is reserved
+    // for issues that need action, not a status log.
+    const NON_ALERT_EVENTS = new Set([
+      "rental_activated",
+      "return_completed",
+      "booking_activated",
+      "agreement_signed",
+      "license_uploaded",
+      "payment_received",
+    ]);
+    const shouldCreateAlert = !NON_ALERT_EVENTS.has(eventType);
+
     // Create an admin_alert entry for realtime dashboard updates
     const alertType = EVENT_TO_ALERT_TYPE[eventType] || "customer_issue";
     const alertTitle = buildAlertTitle(eventType, bookingCode, customerName, vehicleName);
     const alertMessage = details || buildAlertMessage(eventType, customerName, vehicleName);
 
     try {
-      const { data: alertData, error: alertError } = await supabase
+      if (!shouldCreateAlert) {
+        console.log(`Skipping admin_alert for lifecycle event: ${eventType}`);
+      }
+      const { data: alertData, error: alertError } = shouldCreateAlert ? await supabase
         .from("admin_alerts")
         .insert({
           alert_type: alertType,
@@ -130,7 +146,8 @@ serve(async (req) => {
           status: "pending",
         })
         .select()
-        .single();
+        .single()
+        : { data: null, error: null };
 
       if (alertError) {
         console.error("Error creating admin_alert:", alertError);

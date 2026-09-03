@@ -38,6 +38,7 @@ import {
   getProcessingFeeRate,
 } from "../_shared/processing-fee.ts";
 import { requireLocationOrThrow, requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
+import { isStaffAccount, STAFF_ACCOUNT_WRITE_ERROR } from "../_shared/staff-account-guard.ts";
 
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
@@ -365,6 +366,15 @@ Deno.serve(async (req) => {
       }
       if (!existingProfile || existingProfile.id !== userId) {
         profilePayload.created_at = new Date().toISOString();
+      }
+
+      // Never write walk-in customer details onto a staff/company login.
+      if (await isStaffAccount(supabaseAdmin, userId)) {
+        console.error("[create-walk-in-booking] Blocked customer write onto staff account");
+        return new Response(
+          JSON.stringify({ error: STAFF_ACCOUNT_WRITE_ERROR }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
 
       const { error: profileUpsertError } = await supabaseAdmin

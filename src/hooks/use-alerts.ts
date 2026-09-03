@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { createAuditLog } from "./use-admin";
 import { notifyAdmin, type AdminNotifyEventType } from "./use-admin-notify";
+import { useEffectiveLocationId, useStaffLocation } from "./use-staff-location";
 import type { Database } from "@/integrations/supabase/types";
 
 type AlertType = Database["public"]["Enums"]["alert_type"];
@@ -22,7 +23,10 @@ export interface AdminAlert {
   resolvedAt: string | null;
   resolvedBy: string | null;
   expiresAt: string | null;
+  /** Branch the alert belongs to, resolved through its booking (null = unscoped). */
+  locationId?: string | null;
 }
+
 
 // Priority tiers for alert grouping
 export const ALERT_PRIORITY: Record<string, "critical" | "action" | "info"> = {
@@ -38,9 +42,26 @@ export const ALERT_PRIORITY: Record<string, "critical" | "action" | "info"> = {
   hold_expiring: "info",
 };
 
-export function getAlertPriority(alertType: string): "critical" | "action" | "info" {
+/**
+ * Lifecycle notices (activation, handover, completion, cancellation) are a log,
+ * not work. They are never Critical or Action Needed regardless of the enum
+ * type they were stored under.
+ */
+const LIFECYCLE_NOTICE =
+  /(rental activated|booking activated|booking completed|return completed|booking cancelled|booking voided|booking created|status changed to|agreement signed|license uploaded|payment received|new booking)/i;
+
+export function isLifecycleNotice(alert: { title?: string | null; message?: string | null }): boolean {
+  return LIFECYCLE_NOTICE.test(`${alert.title ?? ""} ${alert.message ?? ""}`);
+}
+
+export function getAlertPriority(
+  alertType: string,
+  alert?: { title?: string | null; message?: string | null },
+): "critical" | "action" | "info" {
+  if (alert && isLifecycleNotice(alert)) return "info";
   return ALERT_PRIORITY[alertType] || "info";
 }
+
 
 // Expiry durations by alert type (in days)
 const ALERT_EXPIRY_DAYS: Record<string, number | null> = {
@@ -73,11 +94,20 @@ interface AlertFilters {
 }
 
 /**
- * Fetch all admin alerts with optional filters
+ * Fetch admin alerts, scoped to the acting user's branch.
+ *
+ * Super Admin sees every branch (or the branch picked in the top-bar switcher);
+ * a manager only ever sees alerts whose booking belongs to their own branch.
+ * Alerts with no booking cannot be attributed to a branch and are therefore
+ * shown to Super Admins only.
  */
 export function useAdminAlerts(filters?: AlertFilters) {
+  const { locationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const { isSuperAdmin } = useStaffLocation();
+
   return useQuery({
-    queryKey: ["admin-alerts", filters],
+    queryKey: ["admin-alerts", filters, locationId, isSuperAdmin],
+    enabled: isReady && !isUnassignedManager,
     queryFn: async () => {
       let query = supabase
         .from("admin_alerts")
@@ -104,14 +134,27 @@ export function useAdminAlerts(filters?: AlertFilters) {
       // Exclude expired alerts
       query = query.or("expires_at.is.null,expires_at.gt.now()");
 
-      const { data, error } = await query.limit(100);
+      const { data, error } = await query.limit(300);
 
       if (error) {
         console.error("Error fetching alerts:", error);
         return [];
       }
 
-      return (data || []).map((a) => ({
+      const rows = data || [];
+
+      // Resolve each alert's branch through its booking.
+      const bookingIds = [...new Set(rows.map((a) => a.booking_id).filter(Boolean))] as string[];
+      const branchByBooking = new Map<string, string | null>();
+      if (bookingIds.length > 0) {
+        const { data: bookings } = await supabase
+          .from("bookings")
+          .select("id, location_id")
+          .in("id", bookingIds);
+        for (const b of bookings ?? []) branchByBooking.set(b.id, b.location_id);
+      }
+
+      const mapped = rows.map((a) => ({
         id: a.id,
         alertType: a.alert_type,
         status: a.status,
@@ -126,12 +169,21 @@ export function useAdminAlerts(filters?: AlertFilters) {
         resolvedAt: a.resolved_at,
         resolvedBy: a.resolved_by,
         expiresAt: a.expires_at,
+        locationId: a.booking_id ? branchByBooking.get(a.booking_id) ?? null : null,
       })) as AdminAlert[];
+
+      if (locationId) {
+        return mapped.filter((a) => a.locationId === locationId);
+      }
+      // No branch selected: super admins see everything, managers see nothing
+      // they cannot attribute to their own branch.
+      return isSuperAdmin ? mapped : [];
     },
     staleTime: 10000,
     refetchInterval: 15000,
   });
 }
+
 
 /**
  * Resolve an alert

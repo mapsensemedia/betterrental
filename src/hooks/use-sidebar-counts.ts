@@ -5,6 +5,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isLifecycleNotice } from "./use-alerts";
 
 export interface SidebarCounts {
   alerts: number;
@@ -42,11 +43,15 @@ export function useSidebarCounts() {
         activeRentalsResult,
         returnsResult,
       ] = await Promise.all([
-        // Pending alerts
+        // Pending alerts that actually need action. Lifecycle notices
+        // (activation, completion, void/cancel) are informational only and must
+        // not inflate the badge, so they are filtered out client-side.
         supabase
           .from("admin_alerts")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending"),
+          .select("id, title, message")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(1000),
         
         // Pickups: confirmed bookings starting today or later
         supabase
@@ -96,7 +101,7 @@ export function useSidebarCounts() {
           .lt("end_at", tomorrowEnd),
       ]);
 
-      const alerts = alertsResult.count ?? 0;
+      const alerts = (alertsResult.data ?? []).filter((a) => !isLifecycleNotice(a)).length;
       const pickups = pickupsResult.count ?? 0;
       const overdueRentals = overdueRentalsResult.count ?? 0;
       const incidents = incidentsResult.count ?? 0;

@@ -93,6 +93,7 @@ import { cn } from "@/lib/utils";
 import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
 import { ChangeVehicleDialog } from "@/components/admin/ChangeVehicleDialog";
 import { VehicleHistoryList } from "@/components/admin/VehicleHistoryList";
+import { ProcessedBySection } from "@/components/admin/ProcessedBySection";
 import { Pencil } from "lucide-react";
 
 function snakeToTitle(str: string): string {
@@ -993,7 +994,12 @@ export default function BookingDetail() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Who handled this rental — same block as the active rental view,
+                  surfaced here because this is the first page opened for a booking. */}
+              <ProcessedBySection bookingId={booking.id} />
             </TabsContent>
+
 
             {/* Photos Tab */}
             <TabsContent value="photos" className="space-y-6">

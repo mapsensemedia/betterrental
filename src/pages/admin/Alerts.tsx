@@ -116,39 +116,39 @@ function AlertRow({
 }) {
   const TypeIcon = alertTypeIcons[alert.alertType] || Info;
   return (
-    <TableRow className="cursor-pointer hover:bg-muted/50">
-      <TableCell>
-        <Badge variant="outline" className={statusColors[alert.status]}>
+    <TableRow className="hover:bg-muted/50">
+      <TableCell className="py-2">
+        <Badge variant="outline" className={`text-[11px] px-1.5 py-0 ${statusColors[alert.status]}`}>
           {alert.status}
         </Badge>
       </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-            <TypeIcon className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="font-medium">{alert.title}</p>
+      <TableCell className="py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <TypeIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{alert.title}</p>
             {alert.message && (
-              <p className="text-sm text-muted-foreground line-clamp-1">{alert.message}</p>
+              <p className="text-xs text-muted-foreground truncate">{alert.message}</p>
             )}
           </div>
         </div>
       </TableCell>
-      <TableCell>
-        <span className="text-sm">{alertTypeLabels[alert.alertType] || alert.alertType}</span>
+      <TableCell className="py-2 hidden md:table-cell">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
+          {alertTypeLabels[alert.alertType] || alert.alertType}
+        </span>
       </TableCell>
-      <TableCell>
-        <span className="text-sm text-muted-foreground">
+      <TableCell className="py-2">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
           {formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true })}
         </span>
       </TableCell>
-      <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-2">
+      <TableCell className="py-2 text-right">
+        <div className="flex items-center justify-end gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => onView(alert)}>
-                <Eye className="w-4 h-4" />
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => onView(alert)}>
+                <Eye className="w-3.5 h-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>View details</TooltipContent>
@@ -156,7 +156,7 @@ function AlertRow({
           {alert.status === "pending" && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={() => onAcknowledge(alert.id)} disabled={isAcknowledging}>
+                <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => onAcknowledge(alert.id)} disabled={isAcknowledging}>
                   Ack
                 </Button>
               </TooltipTrigger>
@@ -166,8 +166,8 @@ function AlertRow({
           {alert.status !== "resolved" && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="default" size="sm" onClick={() => onResolve(alert.id)} disabled={isResolving}>
-                  <Check className="w-4 h-4" />
+                <Button variant="default" size="sm" className="h-7 px-2" onClick={() => onResolve(alert.id)} disabled={isResolving}>
+                  <Check className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Mark as resolved</TooltipContent>
@@ -179,6 +179,10 @@ function AlertRow({
   );
 }
 
+
+/** Rows shown per group before "Show all". */
+const PAGE_SIZE = 8;
+
 export default function AdminAlerts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedAlert, setSelectedAlert] = useState<AdminAlert | null>(null);
@@ -186,6 +190,8 @@ export default function AdminAlerts() {
   const [typeFilter, setTypeFilter] = useState<string>(searchParams.get("type") || "");
   const [showResolved, setShowResolved] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
 
   const { data: alerts = [], isLoading, refetch } = useAdminAlerts({
     status: statusFilter as any || undefined,
@@ -241,42 +247,64 @@ export default function AdminAlerts() {
   };
 
   const hasFilters = statusFilter || typeFilter;
-  const pendingCount = alerts.filter((a) => a.status === "pending").length;
 
-  // Group alerts by priority
-  const criticalAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "critical");
-  const actionAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "action");
-  const infoAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "info");
+  // Group alerts by priority. Lifecycle notices (activation, completion,
+  // cancellation) are always informational — never Critical or Action Needed.
+  const criticalAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "critical");
+  const actionAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "action");
+  const infoAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "info");
+  const pendingCount = [...criticalAlerts, ...actionAlerts].filter((a) => a.status === "pending").length;
 
-  const renderAlertTable = (groupAlerts: AdminAlert[]) => {
+  const renderAlertTable = (groupAlerts: AdminAlert[], groupKey: string) => {
     if (groupAlerts.length === 0) return null;
+    const limit = expandedGroups[groupKey] ? groupAlerts.length : PAGE_SIZE;
+    const visible = groupAlerts.slice(0, limit);
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[100px]">Status</TableHead>
-            <TableHead>Alert</TableHead>
-            <TableHead className="w-[140px]">Type</TableHead>
-            <TableHead className="w-[140px]">Created</TableHead>
-            <TableHead className="w-[160px] text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {groupAlerts.map((alert) => (
-            <AlertRow
-              key={alert.id}
-              alert={alert}
-              onView={setSelectedAlert}
-              onAcknowledge={handleAcknowledge}
-              onResolve={handleResolve}
-              isAcknowledging={acknowledgeAlert.isPending}
-              isResolving={resolveAlert.isPending}
-            />
-          ))}
-        </TableBody>
-      </Table>
+      <div className="border-t border-border overflow-x-auto">
+        <Table className="table-fixed w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[90px] h-9 text-xs">Status</TableHead>
+              <TableHead className="h-9 text-xs">Alert</TableHead>
+              <TableHead className="w-[130px] h-9 text-xs hidden md:table-cell">Type</TableHead>
+              <TableHead className="w-[110px] h-9 text-xs">Created</TableHead>
+              <TableHead className="w-[130px] h-9 text-xs text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visible.map((alert) => (
+              <AlertRow
+                key={alert.id}
+                alert={alert}
+                onView={setSelectedAlert}
+                onAcknowledge={handleAcknowledge}
+                onResolve={handleResolve}
+                isAcknowledging={acknowledgeAlert.isPending}
+                isResolving={resolveAlert.isPending}
+              />
+            ))}
+          </TableBody>
+        </Table>
+        {groupAlerts.length > PAGE_SIZE && (
+          <div className="p-2 text-center border-t border-border">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() =>
+                setExpandedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))
+              }
+            >
+              {expandedGroups[groupKey]
+                ? "Show less"
+                : `Show all ${groupAlerts.length}`}
+            </Button>
+          </div>
+        )}
+      </div>
     );
   };
+
 
   return (
     <AdminShell>
@@ -384,7 +412,7 @@ export default function AdminAlerts() {
                     </Badge>
                   }
                 >
-                  {renderAlertTable(criticalAlerts)}
+                  {renderAlertTable(criticalAlerts, "critical")}
                 </CollapsibleSection>
               </div>
             )}
@@ -402,7 +430,7 @@ export default function AdminAlerts() {
                     </Badge>
                   }
                 >
-                  {renderAlertTable(actionAlerts)}
+                  {renderAlertTable(actionAlerts, "action")}
                 </CollapsibleSection>
               </div>
             )}
@@ -420,7 +448,7 @@ export default function AdminAlerts() {
                     </Badge>
                   }
                 >
-                  {renderAlertTable(infoAlerts)}
+                  {renderAlertTable(infoAlerts, "info")}
                 </CollapsibleSection>
               </div>
             )}
