@@ -88,6 +88,7 @@ export default function BookingOps() {
   const { data: photos } = useBookingConditionPhotos(bookingId || "");
   const { data: checkinRecord } = useCheckInRecord(bookingId || "");
   const { data: depositData } = usePaymentDepositStatus(bookingId || "");
+  const { data: bookingDocuments } = useBookingDocuments(bookingId || "");
   const { data: agreement } = useRentalAgreement(bookingId || "");
   const { data: verifications } = useBookingVerification(bookingId || null);
   
