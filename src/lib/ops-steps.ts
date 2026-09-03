@@ -317,6 +317,14 @@ export function getBlockingIssues(stepId: OpsStepId, completion: StepCompletion,
         canOverride: false,
       });
     }
+    if (!completion.documents?.documentsUploaded) {
+      issues.push({
+        type: "missing",
+        message: "At least one additional document must be uploaded before activation",
+        stepId: "documents",
+        canOverride: false,
+      });
+    }
     return issues;
   }
   
