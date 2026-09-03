@@ -525,6 +525,7 @@ export default function ActiveRentalDetail() {
               <Separator />
 
               {/* Staff accountability + activity trail */}
+              <BookingDocumentsCard bookingId={rental.id} />
               <ProcessedBySection bookingId={rental.id} />
 
               <Separator />
