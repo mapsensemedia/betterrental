@@ -119,7 +119,25 @@ An Abbotsford staff member editing a URL to a Surrey booking id gets a 403 from 
 
 Ship phases 1–3 with enforcement off (all current admins remain super admin) and validate against production data read-only. Then enable the edge-function guard, confirm ops flows for a day, then apply RLS tightening. Only after that, downgrade individual accounts to `location_manager` / `staff` one branch at a time, starting with Abbotsford (smallest active footprint after Langley). Keep a documented rollback: re-grant `super_admin` to an account, and a single migration that restores the previous permissive policies.
 
-## Decisions I need from you
+## 11. Decisions (confirmed)
 
-1. One-way rentals: should the drop-off branch see the rental read-only (my recommendation) or not at all?
-2. Should Location Managers be able to create/deactivate staff within their own branch, or is staff creation Super-Admin-only?
+1. One-way rentals: the drop-off branch sees the rental **read-only**; only the pickup branch and Super Admin can edit it.
+2. Staff creation, deactivation, location reassignment and role changes are **Super Admin only**, for any branch. Location Managers can view their own branch's staff list but not change it.
+3. Two Super Admin accounts to be created in Phase 5 (or immediately, if you want them before the rest ships):
+   - Shanky@c2crental.ca
+   - Hilal@c2crental.ca
+
+   Both get `super_admin` plus a `staff_assignments` row with no fixed branch. For security, each account is created with a temporary password and must set its own password through the existing "Forgot password" / account-setup email before first use — passwords are never stored in the codebase or in the plan. If the account already exists, only the role is granted.
+
+## 12. Impact on current rental operations
+
+Direct answer: **no booking, rental or financial data changes, and no interruption to live operations**, provided the phase order is respected.
+
+- Booking, payment, invoice, receipt, deposit and agreement rows are never rewritten. The only writes to `bookings` are the new nullable accountability columns (`processed_by`, `processed_at`, `closed_by`, `last_modified_by`) — no money, status, date or vehicle field is touched.
+- Phases 1–3 are purely additive: new table, new nullable columns, new helper functions, new UI. Nothing existing is removed, so any in-flight pickup, handover or return continues to work exactly as it does today.
+- Every current admin becomes `super_admin` at cutover, so no one loses access when the tighter RLS lands in Phase 4. Downgrades to branch-scoped roles happen only when you ask, one account at a time.
+- The one real risk is Phase 4 (RLS tightening): a staff account without a `staff_assignments` row would see nothing. Mitigation: the migration asserts every role holder has an assignment before the policies are swapped, and the swap is a single migration with a documented one-migration rollback to the current permissive policies.
+- Second smaller risk: the 7 vehicle units with no `location_id` would be invisible to branch staff. They get assigned first, from a list confirmed with you — no guessing.
+- Customer side is untouched: customer-facing policies (`auth.uid() = user_id`), the booking funnel, pricing, payments and notifications are not modified.
+- Recommended timing for Phase 4: outside counter hours, with a spot check of a live active rental immediately afterwards.
+
