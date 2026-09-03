@@ -64,6 +64,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
   available: { label: "Available", color: "bg-green-500", icon: CheckCircle2 },
@@ -91,8 +92,9 @@ export default function FleetManagement() {
     name: '',
   });
 
-  const { data: categories, isLoading } = useFleetCategories();
-  const { data: categoryVins } = useCategoryVins(selectedCategoryId);
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  const { data: categories, isLoading } = useFleetCategories(scopeLocationId);
+  const { data: categoryVins } = useCategoryVins(selectedCategoryId, scopeLocationId);
   const deleteCategory = useDeleteFleetCategory();
   const updateVinStatus = useUpdateVinStatus();
   const deleteVin = useDeleteVin();
