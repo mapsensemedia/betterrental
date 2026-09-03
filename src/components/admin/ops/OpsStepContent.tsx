@@ -208,6 +208,12 @@ export function OpsStepContent({
               completion={completion.payment}
             />
           )}
+          {stepId === "documents" && (
+            <StepDocuments
+              bookingId={booking.id}
+              completion={{ documentsUploaded: completion.documents?.documentsUploaded || false }}
+            />
+          )}
           {/* NEW: Ready Line step for delivery (replaces prep+photos) */}
           {stepId === "ready_line" && isDelivery && (
             <StepReadyLine
