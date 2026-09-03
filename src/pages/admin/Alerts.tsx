@@ -260,8 +260,8 @@ export default function AdminAlerts() {
     const limit = expandedGroups[groupKey] ? groupAlerts.length : PAGE_SIZE;
     const visible = groupAlerts.slice(0, limit);
     return (
-      <div className="border-t border-border">
-        <Table>
+      <div className="border-t border-border overflow-x-auto">
+        <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[90px] h-9 text-xs">Status</TableHead>
