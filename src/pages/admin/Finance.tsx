@@ -1135,13 +1135,13 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     );
   };
 
-  // Location filter (deep-linkable via ?location=<id>)
+  // Branch scope comes from the single top-bar switcher (?locationId=).
+  // A legacy ?location=<id> deep link still narrows the view.
   const urlLocation = searchParams.get("location");
-  const [locationFilter, setLocationFilter] = useState<string>(urlLocation || "all");
-  // Branch scope: managers are locked to their branch and cannot widen the filter.
   const { locationId: scopeLocationId } = useEffectiveLocationId();
   const { isSuperAdmin: canPickLocation } = useStaffLocation();
-  const effectiveLocationFilter = !canPickLocation && scopeLocationId ? scopeLocationId : locationFilter;
+  const effectiveLocationFilter = scopeLocationId ?? urlLocation ?? "all";
+
   const { data: locationsList = [] } = useQuery({
     queryKey: ["finance-locations"],
     queryFn: async () => {
