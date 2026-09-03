@@ -55,6 +55,7 @@ import {
   CheckCircle2,
   Wrench,
   AlertTriangle,
+  CreditCard,
 } from "lucide-react";
 import {
   useVehicleUnits,
@@ -66,6 +67,7 @@ import { useLocations } from "@/hooks/use-locations";
 import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { VehicleUnitEditDialog } from "./VehicleUnitEditDialog";
+import { PlateDialog } from "./PlateDialog";
 import { VinFormDialog } from "./VinFormDialog";
 
 const STATUS: Record<string, { label: string; dot: string }> = {
@@ -107,6 +109,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
   const [retireUnit, setRetireUnit] = useState<VehicleUnit | null>(null);
   const [showRetired, setShowRetired] = useState(false);
+  const [plateUnit, setPlateUnit] = useState<VehicleUnit | null>(null);
 
   const { data: allUnits, isLoading } = useVehicleUnits({
     isTemporary,
@@ -343,6 +346,10 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
                                   <Archive className="w-4 h-4 mr-2" /> Retire vehicle
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuItem onClick={() => setPlateUnit(u)}>
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                {u.license_plate ? "Change / remove plate" : "Add plate"}
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleteUnit(u)}
@@ -372,6 +379,12 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
         open={!!editUnit}
         onOpenChange={(o) => !o && setEditUnit(null)}
         unit={editUnit}
+      />
+
+      <PlateDialog
+        unit={plateUnit}
+        open={!!plateUnit}
+        onOpenChange={(o) => !o && setPlateUnit(null)}
       />
 
       <VinFormDialog

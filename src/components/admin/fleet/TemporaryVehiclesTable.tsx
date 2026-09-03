@@ -49,7 +49,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Pencil, Trash2, RotateCcw, ChevronDown, CalendarClock } from "lucide-react";
+import { Plus, Pencil, Trash2, RotateCcw, ChevronDown, CalendarClock, CreditCard } from "lucide-react";
 import {
   useVehicleUnits,
   useCreateVehicleUnit,
@@ -64,6 +64,7 @@ import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { VehicleUnitEditDialog } from "./VehicleUnitEditDialog";
+import { PlateDialog } from "./PlateDialog";
 
 const STATUS: Record<string, { label: string; dot: string }> = {
   available: { label: "Available", dot: "bg-green-500" },
@@ -89,6 +90,7 @@ export function TemporaryVehiclesTable() {
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
   const [returnUnit, setReturnUnit] = useState<VehicleUnit | null>(null);
   const [dateUnit, setDateUnit] = useState<VehicleUnit | null>(null);
+  const [plateUnit, setPlateUnit] = useState<VehicleUnit | null>(null);
   const [newEndDate, setNewEndDate] = useState("");
 
   const { locationId: scopeLocationId, isReady: isScopeReady, isUnassignedManager } =
@@ -255,6 +257,10 @@ export function TemporaryVehiclesTable() {
                                   <RotateCcw className="w-4 h-4 mr-2" /> Reactivate
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuItem onClick={() => setPlateUnit(u)}>
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                {u.license_plate ? "Change / remove plate" : "Add plate"}
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleteUnit(u)}
@@ -280,6 +286,12 @@ export function TemporaryVehiclesTable() {
         open={!!editUnit}
         onOpenChange={(o) => !o && setEditUnit(null)}
         unit={editUnit}
+      />
+
+      <PlateDialog
+        unit={plateUnit}
+        open={!!plateUnit}
+        onOpenChange={(o) => !o && setPlateUnit(null)}
       />
 
       <AlertDialog open={!!deleteUnit} onOpenChange={(o) => !o && setDeleteUnit(null)}>
