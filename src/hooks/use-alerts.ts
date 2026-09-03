@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { createAuditLog } from "./use-admin";
 import { notifyAdmin, type AdminNotifyEventType } from "./use-admin-notify";
+import { useEffectiveLocationId } from "./use-staff-location";
 import type { Database } from "@/integrations/supabase/types";
 
 type AlertType = Database["public"]["Enums"]["alert_type"];
@@ -22,7 +23,10 @@ export interface AdminAlert {
   resolvedAt: string | null;
   resolvedBy: string | null;
   expiresAt: string | null;
+  /** Branch the alert belongs to, resolved through its booking (null = unscoped). */
+  locationId?: string | null;
 }
+
 
 // Priority tiers for alert grouping
 export const ALERT_PRIORITY: Record<string, "critical" | "action" | "info"> = {
