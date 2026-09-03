@@ -199,6 +199,9 @@ export default function BookingOps() {
       paymentComplete: isPaymentComplete,
       depositCollected: isDepositCollected,
     },
+    documents: {
+      documentsUploaded: (bookingDocuments?.length || 0) > 0,
+    },
     prep: prepCompletion,
     agreement: {
       agreementSigned: isAgreementSigned,
