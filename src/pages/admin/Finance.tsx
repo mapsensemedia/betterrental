@@ -1693,18 +1693,14 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
                 className="pl-10 w-full"
               />
             </div>
-            <Select value={locationFilter} onValueChange={setLocationFilter} disabled={!canPickLocation}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <MapPin className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locationsList.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Branch scope is set once in the top bar (LocationScopeSwitcher) */}
+            {effectiveLocationFilter !== "all" && (
+              <div className="flex items-center gap-2 border border-border px-3 h-10 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <MapPin className="w-3.5 h-3.5" />
+                {locationNameMap.get(effectiveLocationFilter) || "Branch"}
+              </div>
+            )}
+
             <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
               <SelectTrigger className="w-full sm:w-[170px]">
                 <CalendarIcon className="w-4 h-4 mr-2" />
