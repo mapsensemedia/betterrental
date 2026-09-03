@@ -67,6 +67,7 @@ import { useLocations } from "@/hooks/use-locations";
 import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { VehicleUnitEditDialog } from "./VehicleUnitEditDialog";
+import { PlateDialog } from "./PlateDialog";
 import { VinFormDialog } from "./VinFormDialog";
 
 const STATUS: Record<string, { label: string; dot: string }> = {
