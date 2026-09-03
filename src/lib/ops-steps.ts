@@ -400,6 +400,9 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
       if (!completion.payment.paymentComplete) missing.push("Payment");
       if (!completion.payment.depositCollected) missing.push("Deposit");
       break;
+    case "documents":
+      if (!completion.documents?.documentsUploaded) missing.push("Additional documents");
+      break;
     case "prep":
       if (!completion.prep?.unitAssigned) missing.push("Unit assignment");
       if (!completion.prep?.vehiclePrepared) missing.push("Vehicle preparation");
