@@ -1,22 +1,27 @@
 # Location-Based Business Units (Abbotsford / Langley / Surrey)
 
-Goal: each branch operates as an independent internal business unit. Regular staff see only their own branch; Super Admin sees any branch or the whole company. The customer-facing site, booking funnel, and rental experience stay exactly as they are.
+Goal: each branch operates as an independent internal business unit. There are exactly two roles — **Super Admin** (all branches, company-wide) and **Manager** (one branch only). The customer-facing site, booking funnel, and rental experience stay exactly as they are.
 
-## What already exists (verified)
+## What already exists (verified by audit)
 
 - Three active locations: Surrey Newton, Langley Centre, Abbotsford Centre.
 - `bookings.location_id` already exists and is NOT NULL — all 660 bookings are already assigned (Surrey 469, Langley 41, Abbotsford 150). No booking backfill needed.
 - `bookings` already tracks `created_by`, `activated_by`, `handed_over_by`, `return_intake_completed_by`, `return_issues_reviewed_by`, `upgraded_by`, `offline_paid_by`, plus `return_location_id`.
-- `vehicle_units.location_id` exists; 7 units have no location and must be assigned during migration.
-- Roles live in `user_roles` (admin/staff/cleaner/finance/support/driver). There is **no** location column on roles today, and no staff-management screen in the admin panel.
-- Current admin RLS is uniformly "any admin or staff sees everything" via `is_admin_or_staff(auth.uid())` — this is the single biggest change.
+- `vehicle_units.location_id` exists; **8** units have no location and **all 8 are retired** — cosmetic cleanup, not an operational blocker.
+- `user_roles` holds 9 rows: 7 `admin`, 1 `staff`, 1 `driver`. No location column on roles today. A role-assignment UI exists (`src/components/admin/UserRolesPanel.tsx`, in Settings → Users & Roles) but it cannot create accounts — there is no staff account-creation function.
+- Child tables are cleanly traceable to a booking location: only 1 support ticket, 22 admin alerts and 50 audit rows cannot be resolved. `payments.location_id` exists but is NULL on 806/1024 rows and must be backfilled from the booking.
+- There are **no views or materialized views** in the database — every dashboard reads tables directly, so there is no view-based RLS bypass.
+- **No index exists on `bookings.location_id`, `bookings.return_location_id`, `vehicle_units.location_id` or `payments.location_id`** — these must be added with the scoping work.
+- 128 policies across 47 tables use the flat `is_admin_or_staff(auth.uid())` check — this is the single biggest change.
+- 26 SECURITY DEFINER functions bypass RLS; the client-callable ones needing location checks are `assign_vin_to_booking`, `release_vin_from_booking`, `get_category_availability`, `check_category_availability`, `get_available_categories`, `update_points_balance`.
 
 ## 1. Database changes
 
 **New: staff assignment table**
 
 - `public.staff_assignments` — one row per staff user: `user_id` (unique), `location_id`, `display_name`, `employee_code`, `is_active`, `created_by`, timestamps.
-- Enum extension: add `super_admin` and `location_manager` to `app_role`. `admin` is kept and treated as Super Admin during transition, then migrated to `super_admin`.
+- Enum extension: add `super_admin` and `manager` to `app_role`. Because Postgres cannot use a new enum value in the same transaction that adds it, this ships as **two separate migrations**: one that only runs `ALTER TYPE app_role ADD VALUE`, then everything else. `admin` is treated as Super Admin during transition, then converted to `super_admin`; the single `staff` holder becomes `manager`.
+
 
 **New security-definer helpers** (used by every policy so there is no recursion):
 
@@ -39,27 +44,28 @@ Goal: each branch operates as an independent internal business unit. Regular sta
 
 Every new public table gets GRANTs to `authenticated` + `service_role` in the same migration, then RLS, then policies.
 
-## 2. Role and permission structure
+## 2. Role and permission structure — exactly two roles
 
 | Role | Scope | Key rights |
 | --- | --- | --- |
-| `super_admin` | All locations + combined | Everything, staff management, location switching, company-wide finance |
-| `location_manager` | Own location | Rentals, fleet, reports for own location; may view (not create) staff of own location |
-| `staff` (Rental Staff) | Own location | Create/process rentals, operational views, limited reports |
-| `finance` | Own location unless also super admin | Payments, invoices, deposits for own location |
-| `cleaner`, `driver`, `support` | Own location (support may be company-wide by config) | Unchanged duties, now location-scoped |
+| `super_admin` | All locations + combined | Everything: rentals, fleet, finance, settings, company-wide reports, location switching, create/deactivate/reassign staff at any branch |
+| `manager` | One assigned location only | Everything operational for that branch — create and process rentals, handover, returns, fleet, payments, deposits, branch reports. No staff management, no location switching, no company-wide totals |
 
-`src/auth/capabilities.ts` gains `locationId`, `isSuperAdmin`, `canSwitchLocation`, `canManageStaff`, `canViewAllLocations`, and the resolver takes the staff assignment into account. New roles are additive — the resolver is a table, so more roles can be added later.
+There are no other admin roles. `staff`, `cleaner`, `finance`, `support` and `location_manager` are not used: existing holders are converted (`admin` → `super_admin`, `staff` → `manager`) and the legacy values stop being granted. The only role kept outside this pair is `driver`, because it is not an admin-panel role — it gates the separate delivery portal (`delivery@c2crental.ca`), and removing it would break delivery dispatch. Say the word if you want the driver portal folded into `manager` too.
+
+`src/auth/capabilities.ts` collapses to two rows: `super_admin` (everything true, `canSwitchLocation`, `canManageStaff`, `canViewAllLocations`) and `manager` (all operational capabilities true, those three false, plus a fixed `locationId`). `is_admin_or_staff()` is kept as-is so nothing breaks, and simply returns true for both roles.
+
 
 ## 3. Backend authorization logic
 
 Three enforcement layers, all required:
 
 1. **RLS** — replace `is_admin_or_staff(auth.uid())` with `is_admin_or_staff(auth.uid()) AND can_access_location(auth.uid(), location_id)` on `bookings`, `vehicle_units`, `vehicles`, `payments`, `final_invoices`, `receipts`, `damage_reports`, `incident_cases`, `walkaround_inspections`, `checkin_records`, `delivery_tasks`, `reservation_holds`, `deposit_ledger`, `admin_alerts`, `audit_logs`, `support_tickets_v2`. Customer-facing policies (`auth.uid() = user_id`) are untouched, so the customer experience does not change.
-2. **Edge functions** — a shared `_shared/location-guard.ts` exposing `requireLocationAccess(userId, bookingId)` and `resolveStaffLocation(userId)`. Every staff-invoked function (`create-walk-in-booking`, `update-booking-status`, `reprice-booking`, `force-close-booking`, `void-booking`, `assign-unit-to-active-booking`, `change-booking-vehicle`, `log-terminal-payment`, `wl-*` staff paths, `persist-booking-extras`, `generate-agreement`, `generate-return-receipt`) calls it before any write. Because these run with the service role and bypass RLS, this guard is the real boundary for them.
-3. **UI** — filtering and hidden controls, purely cosmetic; never the only check.
+2. **Edge functions** — a shared `_shared/location-guard.ts` exposing `requireLocationAccess(userId, bookingId)` and `resolveStaffLocation(userId)`. Every staff-invoked function calls it before any write: `create-walk-in-booking`, `update-booking-status`, `reprice-booking`, `force-close-booking`, `void-booking`, `assign-unit-to-active-booking`, `change-booking-vehicle`, `log-terminal-payment`, `persist-booking-extras`, `generate-agreement`, `generate-return-receipt`, plus the writers the audit found missing from the first draft: `confirm-bank-transfer-paid`, `update-booking-customer`, `send-bank-transfer-otp`, `close-account`, `check-booking-payment-integrity`, `wl-pay`, `wl-authorize`, `wl-capture`, `wl-cancel-auth`, `claim-delivery`, `calculate-fleet-costs`. Because these run with the service role and bypass RLS, this guard is the real boundary for them. Gateway webhook/reconciliation endpoints stay unauthenticated by design and are excluded.
+3. **SECURITY DEFINER RPCs** — `assign_vin_to_booking`, `release_vin_from_booking`, `update_points_balance` gain an internal `can_access_location` check, since they bypass RLS entirely. The availability RPCs (`get_available_categories`, `get_category_availability`, `check_category_availability`) stay company-wide because the customer funnel depends on them.
+4. **UI** — filtering and hidden controls, purely cosmetic; never the only check.
 
-An Abbotsford staff member editing a URL to a Surrey booking id gets a 403 from the guard and an empty row from RLS.
+An Abbotsford manager editing a URL to a Surrey booking id gets a 403 from the guard and an empty row from RLS.
 
 ## 4. Automatic location assignment
 
@@ -78,9 +84,9 @@ An Abbotsford staff member editing a URL to a Surrey booking id gets a 403 from 
 
 ## 6. Existing data migration strategy
 
-1. Backfill `staff_assignments` for the 9 existing role holders (7 admin, 1 staff, 1 driver). Existing admins become `super_admin` so nobody is locked out at cutover; each is then reviewed and downgraded deliberately.
-2. Assign the 7 `vehicle_units` with NULL `location_id` (list will be produced for confirmation before the update — no guessing).
-3. Derive location on child records from `bookings.location_id`; rows whose booking is gone stay NULL and are visible to super admin only.
+1. Backfill `staff_assignments` for the 9 existing role holders. All 7 current admins become `super_admin` so nobody is locked out at cutover; `operations@c2crental.ca` (today's only `staff`) becomes a `manager` at a branch you choose; `delivery@c2crental.ca` keeps `driver`. Accounts are converted to `manager` deliberately, one at a time.
+2. Assign the 8 retired `vehicle_units` with NULL `location_id` (A587EY, A586EY, A817JZ, A833JZ, A818JZ, A211WN, A594EY, A161WM — six last rented from Surrey, two never rented). Confirmed with you first; no guessing.
+3. Derive location on child records from `bookings.location_id`, including backfilling the 806 NULL `payments.location_id` rows. Unresolvable rows (1 support ticket, 22 admin alerts, 50 audit rows pointing at deleted bookings) stay NULL and are Super-Admin-only. Indexes on `bookings.location_id`, `bookings.return_location_id`, `vehicle_units.location_id`, `payments.location_id` and every new `location_id` column ship in the same migration — none exist today.
 4. Backfill `bookings.processed_by` from the best available existing signal in priority order: `handed_over_by` → `activated_by` → `created_by`; leave NULL when none exists (206 bookings have no `created_by`). Historical rows are never invented.
 5. No financial column is touched by the migration — money fields, statuses and totals are read-only in every step.
 6. RLS tightening ships **last**, behind a verification pass, so bookings/invoices stay reachable throughout.
@@ -101,7 +107,7 @@ An Abbotsford staff member editing a URL to a Surrey booking id gets a 403 from 
 2. **Attribution** — `processed_by` etc., stamping in edge functions, backfill, Processed By UI + Activity History.
 3. **Scoping (read)** — `LocationScopeProvider`, hook filtering, super-admin switcher, scoped reports.
 4. **Enforcement** — edge-function `location-guard`, then RLS policy replacement.
-5. **Staff management** — `/admin/staff` page + `manage-staff` function + role downgrades from super_admin.
+5. **Staff management** — `/admin/staff` page + `manage-staff` function, then conversion of accounts from `super_admin` to `manager`.
 6. **Comparison & reporting** — super-admin multi-location comparison and company-wide totals.
 
 ## 9. Testing checklist
@@ -117,13 +123,14 @@ An Abbotsford staff member editing a URL to a Surrey booking id gets a 403 from 
 
 ## 10. Rollout strategy
 
-Ship phases 1–3 with enforcement off (all current admins remain super admin) and validate against production data read-only. Then enable the edge-function guard, confirm ops flows for a day, then apply RLS tightening. Only after that, downgrade individual accounts to `location_manager` / `staff` one branch at a time, starting with Abbotsford (smallest active footprint after Langley). Keep a documented rollback: re-grant `super_admin` to an account, and a single migration that restores the previous permissive policies.
+Ship phases 1–3 with enforcement off (all current admins stay Super Admin) and validate against production data read-only. Then enable the edge-function guard, confirm ops flows for a day, then apply RLS tightening. Only after that, convert individual accounts to `manager` one branch at a time, starting with Abbotsford. Keep a documented rollback: re-grant `super_admin` to an account, plus one pre-written migration that restores today's 128 permissive policies verbatim (the project is forward-only — there is no automatic down-migration, so this file must be written in advance).
 
 ## 11. Decisions (confirmed)
 
-1. One-way rentals: the drop-off branch sees the rental **read-only**; only the pickup branch and Super Admin can edit it.
-2. Staff creation, deactivation, location reassignment and role changes are **Super Admin only**, for any branch. Location Managers can view their own branch's staff list but not change it.
-3. Two Super Admin accounts to be created in Phase 5 (or immediately, if you want them before the rest ships):
+1. Exactly two admin roles: `super_admin` and `manager`. `staff`, `cleaner`, `finance`, `support` are retired; `driver` stays only because it gates the separate delivery portal.
+2. One-way rentals: the drop-off branch sees the rental **read-only**; only the pickup branch and Super Admin can edit it.
+3. Staff creation, deactivation, location reassignment and role changes are **Super Admin only**, for any branch. Managers have no staff-management access.
+4. Two Super Admin accounts to be created in Phase 5 (or immediately, if you want them before the rest ships):
    - Shanky@c2crental.ca
    - Hilal@c2crental.ca
 
@@ -135,9 +142,9 @@ Direct answer: **no booking, rental or financial data changes, and no interrupti
 
 - Booking, payment, invoice, receipt, deposit and agreement rows are never rewritten. The only writes to `bookings` are the new nullable accountability columns (`processed_by`, `processed_at`, `closed_by`, `last_modified_by`) — no money, status, date or vehicle field is touched.
 - Phases 1–3 are purely additive: new table, new nullable columns, new helper functions, new UI. Nothing existing is removed, so any in-flight pickup, handover or return continues to work exactly as it does today.
-- Every current admin becomes `super_admin` at cutover, so no one loses access when the tighter RLS lands in Phase 4. Downgrades to branch-scoped roles happen only when you ask, one account at a time.
-- The one real risk is Phase 4 (RLS tightening): a staff account without a `staff_assignments` row would see nothing. Mitigation: the migration asserts every role holder has an assignment before the policies are swapped, and the swap is a single migration with a documented one-migration rollback to the current permissive policies.
-- Second smaller risk: the 7 vehicle units with no `location_id` would be invisible to branch staff. They get assigned first, from a list confirmed with you — no guessing.
+- Every current admin becomes `super_admin` at cutover, so no one loses access when the tighter RLS lands in Phase 4. Conversion to branch-scoped `manager` happens only when you ask, one account at a time.
+- The one real risk is Phase 4 (RLS tightening): a `manager` account without a `staff_assignments` row would see nothing. Mitigation: the migration asserts every role holder has an assignment before the policies are swapped, and the swap is a single migration with a pre-written rollback to the current permissive policies.
+- Second smaller risk: the 8 vehicle units with no `location_id` would be invisible to branch managers. They get assigned first, from the confirmed list above — all 8 are retired, so no live rental is affected.
 - Customer side is untouched: customer-facing policies (`auth.uid() = user_id`), the booking funnel, pricing, payments and notifications are not modified.
 - Recommended timing for Phase 4: outside counter hours, with a spot check of a live active rental immediately afterwards.
 
