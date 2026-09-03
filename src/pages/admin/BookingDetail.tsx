@@ -93,6 +93,7 @@ import { cn } from "@/lib/utils";
 import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
 import { ChangeVehicleDialog } from "@/components/admin/ChangeVehicleDialog";
 import { VehicleHistoryList } from "@/components/admin/VehicleHistoryList";
+import { ProcessedBySection } from "@/components/admin/ProcessedBySection";
 import { Pencil } from "lucide-react";
 
 function snakeToTitle(str: string): string {
