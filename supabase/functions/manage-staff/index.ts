@@ -111,7 +111,12 @@ Deno.serve(async (req) => {
         targetUserId = created.user.id;
       }
 
-      // Role (idempotent) — exactly two business roles exist.
+      // Role — exactly two business roles exist; keep only the chosen one.
+      await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", targetUserId)
+        .in("role", ["super_admin", "manager", "admin", "staff"]);
       await supabase.from("user_roles").upsert(
         { user_id: targetUserId, role },
         { onConflict: "user_id,role", ignoreDuplicates: true },
