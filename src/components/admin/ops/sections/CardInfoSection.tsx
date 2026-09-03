@@ -88,7 +88,7 @@ export function CardInfoSection({ cardLastFour, cardType, cardHolderName, cardEx
         .eq("key", "card_view_password")
         .maybeSingle();
       
-      const storedPassword = (data as any)?.value || "admin123";
+      const storedPassword = (data as any)?.value || "@rentaladmin2026";
       
       if (passwordInput === storedPassword) {
         setShowDetails(true);
