@@ -41,6 +41,8 @@ import type { Database } from "@/integrations/supabase/types";
 type AppRole = Database["public"]["Enums"]["app_role"];
 
 const ROLE_LABELS: Record<AppRole, { label: string; color: string }> = {
+  super_admin: { label: "Super Admin", color: "bg-red-500/10 text-red-600 border-red-500/30" },
+  manager: { label: "Manager", color: "bg-indigo-500/10 text-indigo-600 border-indigo-500/30" },
   admin: { label: "Admin", color: "bg-red-500/10 text-red-600 border-red-500/30" },
   staff: { label: "Staff", color: "bg-blue-500/10 text-blue-600 border-blue-500/30" },
   cleaner: { label: "Cleaner", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
