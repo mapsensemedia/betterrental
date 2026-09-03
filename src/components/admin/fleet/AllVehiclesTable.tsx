@@ -344,6 +344,10 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
                                   <Archive className="w-4 h-4 mr-2" /> Retire vehicle
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuItem onClick={() => setPlateUnit(u)}>
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                {u.license_plate ? "Change / remove plate" : "Add plate"}
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleteUnit(u)}
