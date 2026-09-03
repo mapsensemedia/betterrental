@@ -383,7 +383,7 @@ export function VehicleDetailsModal({
                     showErrors && !ageRange && "border-destructive"
                   )}
                 >
-                  <span className="font-semibold">20–24</span>
+                  <span className="font-semibold">21–24</span>
                   <span className="text-xs text-muted-foreground">years old</span>
                   <span className="text-xs text-amber-600 mt-1">Young driver fee</span>
                 </button>

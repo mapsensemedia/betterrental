@@ -856,7 +856,7 @@ export default function NewCheckout() {
                       <Check className="w-4 h-4 text-emerald-600" />
                       <span>
                         {searchData.ageRange === "20-24" 
-                          ? "Driver age: 20-24 years (young driver fee applies)" 
+                          ? "Driver age: 21-24 years (young driver fee applies)" 
                           : "Driver age: 25-70 years (Standard Driver)"}
                       </span>
                     </div>

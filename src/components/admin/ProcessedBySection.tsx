@@ -4,11 +4,13 @@
  * Shows which staff member (and at which branch) created, handed over,
  * activated, and closed a rental, followed by the booking's audit trail.
  */
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { MapPin, UserCheck, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -130,7 +132,10 @@ function ActorRow({
   );
 }
 
+const ACTIVITY_PREVIEW = 8;
+
 export function ProcessedBySection({ bookingId }: { bookingId: string }) {
+  const [showAllActivity, setShowAllActivity] = useState(false);
   const { data: booking } = useQuery({
     queryKey: ["booking-accountability", bookingId],
     queryFn: async (): Promise<ProcessedByBooking> => {
@@ -236,12 +241,12 @@ export function ProcessedBySection({ bookingId }: { bookingId: string }) {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <History className="w-4 h-4" />
             Activity history
           </CardTitle>
-          <CardDescription>Most recent 50 events</CardDescription>
+          <CardDescription>Most recent events (up to 50)</CardDescription>
         </CardHeader>
         <CardContent>
           {activityLoading ? (
@@ -249,35 +254,49 @@ export function ProcessedBySection({ bookingId }: { bookingId: string }) {
           ) : !activity?.length ? (
             <p className="text-sm text-muted-foreground">No recorded activity.</p>
           ) : (
-            <ol className="space-y-3">
-              {activity.map((event) => {
-                const actor = event.user_id ? identities?.get(event.user_id) : null;
-                const branch = event.actor_location_id
-                  ? locationNames?.get(event.actor_location_id)
-                  : event.location_id
-                    ? locationNames?.get(event.location_id)
-                    : null;
-                return (
-                  <li key={event.id} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                    <span className="font-medium">
-                      {event.action.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {actor?.name ? `${actor.name} · ` : ""}
-                      {actor
-                        ? `ID ${actor.employeeCode || actor.staffId.slice(0, 8)} · `
-                        : ""}
-                      {branch ? `${branch} · ` : ""}
-                      {format(new Date(event.created_at), "MMM d, yyyy h:mm a")}
-                    </span>
-
-                  </li>
-                );
-              })}
-            </ol>
+            <>
+              <ol className="divide-y divide-border/60">
+                {(showAllActivity ? activity : activity.slice(0, ACTIVITY_PREVIEW)).map((event) => {
+                  const actor = event.user_id ? identities?.get(event.user_id) : null;
+                  const branch = event.actor_location_id
+                    ? locationNames?.get(event.actor_location_id)
+                    : event.location_id
+                      ? locationNames?.get(event.location_id)
+                      : null;
+                  return (
+                    <li
+                      key={event.id}
+                      className="flex flex-wrap items-baseline justify-between gap-2 py-1.5 text-sm"
+                    >
+                      <span className="font-medium capitalize">
+                        {event.action.replace(/_/g, " ")}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {actor?.name ? `${actor.name} · ` : ""}
+                        {branch ? `${branch} · ` : ""}
+                        {format(new Date(event.created_at), "MMM d, h:mm a")}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+              {activity.length > ACTIVITY_PREVIEW && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 h-7 w-full text-xs"
+                  onClick={() => setShowAllActivity((v) => !v)}
+                >
+                  {showAllActivity
+                    ? "Show less"
+                    : `Show all ${activity.length} events`}
+                </Button>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }

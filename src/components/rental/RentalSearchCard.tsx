@@ -880,7 +880,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="20-24" id="age-20-24" />
               <Label htmlFor="age-20-24" className="text-sm text-muted-foreground cursor-pointer">
-                20-24 years old <span className="text-xs text-warning">(Young driver fee applies)</span>
+                21-24 years old <span className="text-xs text-warning">(Young driver fee applies)</span>
               </Label>
             </div>
           </RadioGroup>

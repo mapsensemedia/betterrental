@@ -116,7 +116,7 @@ export function AdditionalDriversCard({
                     </SelectTrigger>
                   <SelectContent>
                       <SelectItem value="25_70">25-70 years</SelectItem>
-                      <SelectItem value="20_24">20-24 years</SelectItem>
+                      <SelectItem value="20_24">21-24 years</SelectItem>
                     </SelectContent>
                   </Select>
                   
