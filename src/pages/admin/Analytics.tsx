@@ -72,6 +72,8 @@ export default function AdminAnalytics() {
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [channel, setChannel] = useState<BookingChannel>("all");
   const [locationId, setLocationId] = useState<string | null>(null);
+  // Branch scope from the single top-bar switcher
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [bookingType, setBookingType] = useState<BookingType>("all");
   const [paymentType, setPaymentType] = useState<PaymentType>("all");
@@ -92,11 +94,11 @@ export default function AdminAnalytics() {
     startDate: revenueDateRange.start,
     endDate: revenueDateRange.end,
     channel,
-    locationId,
+    locationId: scopeLocationId ?? locationId,
     categoryId,
     bookingType,
     paymentType,
-  }), [revenueDateRange, channel, locationId, categoryId, bookingType, paymentType]);
+  }), [revenueDateRange, channel, scopeLocationId, locationId, categoryId, bookingType, paymentType]);
 
   // Compute date range for analytics events query
   const analyticsDateRange = useMemo(() => {

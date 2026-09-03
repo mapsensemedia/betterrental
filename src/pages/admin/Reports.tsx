@@ -112,7 +112,8 @@ export default function AdminReports() {
   // Branch scope: managers are locked to their assigned branch.
   const { locationId: scopeLocationId } = useEffectiveLocationId();
   const { isSuperAdmin: canPickLocation } = useStaffLocation();
-  const effectiveLocationId = !canPickLocation && scopeLocationId ? scopeLocationId : locationId;
+  // The top-bar branch switcher is the only branch control; local state is legacy.
+  const effectiveLocationId = scopeLocationId ?? locationId;
 
   const filters: RevenueFilters = useMemo(() => ({
     startDate: dateRange.start,
@@ -166,7 +167,7 @@ export default function AdminReports() {
   } = useRevenueAnalytics(filters);
 
   // Collected revenue — single source of truth from payments table
-  const { collected: collectedRevenue, isLoading: collectedLoading } = useCollectedRevenue(dateRange.start, dateRange.end);
+  const { collected: collectedRevenue, isLoading: collectedLoading } = useCollectedRevenue(dateRange.start, dateRange.end, effectiveLocationId);
 
   // Analytics events from Supabase
   const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
