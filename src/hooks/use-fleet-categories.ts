@@ -82,7 +82,9 @@ export function useFleetCategories(locationId?: string | null, options?: { enabl
       let unitsQuery = supabase
         .from("vehicle_units")
         .select("id, category_id, status")
-        .not("category_id", "is", null);
+        .not("category_id", "is", null)
+        // Retired / sold units are off the lot — never count them in a category
+        .not("status", "in", "(retired,sold)");
 
       if (locationId) {
         unitsQuery = unitsQuery.eq("location_id", locationId);
@@ -187,6 +189,8 @@ export function useCategoryVins(categoryId: string | null, locationId?: string |
           vehicle:vehicles!vehicle_units_vehicle_id_fkey(year, make, model)
         `)
         .eq("category_id", categoryId)
+        // Retired / sold units are off the lot and never shown in the VIN pool
+        .not("status", "in", "(retired,sold)")
         .order("status")
         .order("vin");
 
