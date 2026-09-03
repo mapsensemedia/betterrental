@@ -141,9 +141,9 @@ Direct answer: **no booking, rental or financial data changes, and no interrupti
 
 - Booking, payment, invoice, receipt, deposit and agreement rows are never rewritten. The only writes to `bookings` are the new nullable accountability columns (`processed_by`, `processed_at`, `closed_by`, `last_modified_by`) — no money, status, date or vehicle field is touched.
 - Phases 1–3 are purely additive: new table, new nullable columns, new helper functions, new UI. Nothing existing is removed, so any in-flight pickup, handover or return continues to work exactly as it does today.
-- Every current admin becomes `super_admin` at cutover, so no one loses access when the tighter RLS lands in Phase 4. Downgrades to branch-scoped roles happen only when you ask, one account at a time.
-- The one real risk is Phase 4 (RLS tightening): a staff account without a `staff_assignments` row would see nothing. Mitigation: the migration asserts every role holder has an assignment before the policies are swapped, and the swap is a single migration with a documented one-migration rollback to the current permissive policies.
-- Second smaller risk: the 7 vehicle units with no `location_id` would be invisible to branch staff. They get assigned first, from a list confirmed with you — no guessing.
+- Every current admin becomes `super_admin` at cutover, so no one loses access when the tighter RLS lands in Phase 4. Conversion to branch-scoped `manager` happens only when you ask, one account at a time.
+- The one real risk is Phase 4 (RLS tightening): a `manager` account without a `staff_assignments` row would see nothing. Mitigation: the migration asserts every role holder has an assignment before the policies are swapped, and the swap is a single migration with a pre-written rollback to the current permissive policies.
+- Second smaller risk: the 8 vehicle units with no `location_id` would be invisible to branch managers. They get assigned first, from the confirmed list above — all 8 are retired, so no live rental is affected.
 - Customer side is untouched: customer-facing policies (`auth.uid() = user_id`), the booking funnel, pricing, payments and notifications are not modified.
 - Recommended timing for Phase 4: outside counter hours, with a spot check of a live active rental immediately afterwards.
 
