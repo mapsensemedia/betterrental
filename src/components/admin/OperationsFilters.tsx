@@ -169,22 +169,9 @@ export function OperationsFilters({
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5 md:gap-2", className)}>
       <Filter className="h-4 w-4 text-muted-foreground hidden md:block" />
-      
-      {/* Location Filter */}
-      <Select value={filters.locationId} onValueChange={(v) => onFiltersChange({ ...filters, locationId: v })}>
-        <SelectTrigger className="w-[100px] md:w-[140px] lg:w-[160px] h-8 md:h-9 text-xs md:text-sm">
-          <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2 text-muted-foreground shrink-0" />
-          <SelectValue placeholder="Location" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Locations</SelectItem>
-          {locations.map((loc) => (
-            <SelectItem key={loc.id} value={loc.id}>
-              {loc.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Branch scope lives in the admin top bar (LocationScopeSwitcher) */}
+
+
 
       {/* Vehicle Filter - hidden on smallest screens */}
       <Select value={filters.vehicleId} onValueChange={(v) => onFiltersChange({ ...filters, vehicleId: v })}>
