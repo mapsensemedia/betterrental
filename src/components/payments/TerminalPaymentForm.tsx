@@ -30,6 +30,7 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
   ]);
   const [cardLastFour, setCardLastFour] = useState("");
   const [authCode, setAuthCode] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
   const [includeDeposit, setIncludeDeposit] = useState(depositOnly);
   const [depositReceiptNumber, setDepositReceiptNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +81,7 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
                 amount: parseFloat(r.amount),
               })),
           cardLastFour,
+          cardExpiry: /^\d{2}\/\d{2}$/.test(cardExpiry.trim()) ? cardExpiry.trim() : undefined,
           authCode: authCode.trim() || undefined,
           includeDeposit: depositOnly ? true : includeDeposit,
           depositReceiptNumber:
@@ -238,6 +240,21 @@ export function TerminalPaymentForm({ bookingId, amount, outstandingBalance, dep
             value={cardLastFour}
             onChange={(e) => setCardLastFour(e.target.value.replace(/\D/g, "").slice(0, 4))}
             maxLength={4}
+            inputMode="numeric"
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="card-expiry" className="text-xs">Card Expiry (MM/YY)</Label>
+          <Input
+            id="card-expiry"
+            placeholder="Optional"
+            value={cardExpiry}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+              setCardExpiry(digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits);
+            }}
+            maxLength={5}
             inputMode="numeric"
             disabled={isSubmitting}
           />
