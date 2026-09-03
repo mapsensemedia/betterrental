@@ -86,6 +86,9 @@ export function TemporaryVehiclesTable() {
   const [addOpen, setAddOpen] = useState(false);
   const [editUnit, setEditUnit] = useState<VehicleUnit | null>(null);
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
+  const [returnUnit, setReturnUnit] = useState<VehicleUnit | null>(null);
+  const [dateUnit, setDateUnit] = useState<VehicleUnit | null>(null);
+  const [newEndDate, setNewEndDate] = useState("");
 
   const { locationId: scopeLocationId, isReady: isScopeReady, isUnassignedManager } =
     useEffectiveLocationId();
@@ -96,28 +99,41 @@ export function TemporaryVehiclesTable() {
   const { data: locations } = useLocations();
   const deleteMutation = useDeleteVehicleUnit();
   const updateMutation = useUpdateVehicleUnit();
+  const setStatusMutation = useSetVehicleUnitStatus();
 
   const units = useMemo(
     () => (allUnits ?? []).filter((u) => (showRetired ? true : u.status !== "retired")),
     [allUnits, showRetired]
   );
 
-  const returnToVendor = async (unit: VehicleUnit) => {
+  const confirmReturn = async () => {
+    if (!returnUnit) return;
     try {
-      await updateMutation.mutateAsync({
-        id: unit.id,
+      await setStatusMutation.mutateAsync({
+        id: returnUnit.id,
         status: "retired",
-      } as any);
-      // best-effort additional fields
-      await supabase
-        .from("vehicle_units")
-        .update({ actual_disposal_date: new Date().toISOString().slice(0, 10) })
-        .eq("id", unit.id);
-      toast({ title: "Marked returned to source" });
-    } catch (e: any) {
-      toast({ title: "Failed to mark returned", description: e.message, variant: "destructive" });
+        guardBookings: true,
+        stampDisposalDate: true,
+        successTitle: "Marked returned to source",
+      });
+    } finally {
+      setReturnUnit(null);
     }
   };
+
+  const saveEndDate = async () => {
+    if (!dateUnit) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: dateUnit.id,
+        temp_end_date: newEndDate || null,
+      } as any);
+      toast({ title: "Return date updated" });
+    } finally {
+      setDateUnit(null);
+    }
+  };
+
 
   return (
     <Card>
