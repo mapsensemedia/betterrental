@@ -1,4 +1,5 @@
 import {
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   getUserOrThrow,
   requireRoleOrThrow,
   getAdminClient,
@@ -48,6 +49,9 @@ Deno.serve(async (req) => {
     if (!bookingId || typeof bookingId !== "string") {
       return jsonResponse({ error: "bookingId is required" }, 400);
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(userId, bookingId);
     if (!cardLastFour || !/^\d{4}$/.test(cardLastFour)) {
       return jsonResponse({ error: "cardLastFour must be exactly 4 digits" }, 400);
     }

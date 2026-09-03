@@ -6,6 +6,7 @@
 
 import { getCorsHeaders } from "../_shared/cors.ts";
 import {
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
   getUserOrThrow,
   requireRoleOrThrow,
   getAdminClient,
@@ -34,6 +35,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(userId, bookingId);
 
     // Get booking current state
     const { data: booking, error: bookingError } = await supabase
