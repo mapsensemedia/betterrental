@@ -353,6 +353,8 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion,
       );
     case "payment":
       return completion.payment.paymentComplete && completion.payment.depositCollected;
+    case "documents":
+      return completion.documents?.documentsUploaded || false;
     case "prep":
       return completion.prep?.unitAssigned && completion.prep?.vehiclePrepared || false;
     case "ready_line":
