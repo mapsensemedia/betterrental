@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 // Step-specific components
 import { StepCheckin } from "./steps/StepCheckin";
 import { StepPayment } from "./steps/StepPayment";
+import { StepDocuments } from "./steps/StepDocuments";
 import { StepPrep } from "./steps/StepPrep";
 import { StepAgreement } from "./steps/StepAgreement";
 import { StepWalkaround } from "./steps/StepWalkaround";
@@ -206,6 +207,12 @@ export function OpsStepContent({
             <StepPayment 
               bookingId={booking.id}
               completion={completion.payment}
+            />
+          )}
+          {stepId === "documents" && (
+            <StepDocuments
+              bookingId={booking.id}
+              completion={{ documentsUploaded: completion.documents?.documentsUploaded || false }}
             />
           )}
           {/* NEW: Ready Line step for delivery (replaces prep+photos) */}

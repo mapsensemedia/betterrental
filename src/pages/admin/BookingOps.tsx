@@ -55,6 +55,7 @@ import { useVehiclePrepStatus } from "@/hooks/use-vehicle-prep";
 import { useBookingConditionPhotos, REQUIRED_PHOTOS, getPhotoCompletionStatus } from "@/hooks/use-condition-photos";
 import { useCheckInRecord } from "@/hooks/use-checkin";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
+import { useBookingDocuments } from "@/hooks/use-booking-documents";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { useBookingVerification } from "@/hooks/use-verification";
 import { useCheckVehicleAvailability } from "@/hooks/use-vehicle-assignment";
@@ -88,6 +89,7 @@ export default function BookingOps() {
   const { data: photos } = useBookingConditionPhotos(bookingId || "");
   const { data: checkinRecord } = useCheckInRecord(bookingId || "");
   const { data: depositData } = usePaymentDepositStatus(bookingId || "");
+  const { data: bookingDocuments } = useBookingDocuments(bookingId || "");
   const { data: agreement } = useRentalAgreement(bookingId || "");
   const { data: verifications } = useBookingVerification(bookingId || null);
   
@@ -198,6 +200,9 @@ export default function BookingOps() {
     payment: {
       paymentComplete: isPaymentComplete,
       depositCollected: isDepositCollected,
+    },
+    documents: {
+      documentsUploaded: (bookingDocuments?.length || 0) > 0,
     },
     prep: prepCompletion,
     agreement: {

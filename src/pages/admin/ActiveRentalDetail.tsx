@@ -49,6 +49,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { CardInfoSection } from "@/components/admin/ops/sections/CardInfoSection";
 import { ProcessedBySection } from "@/components/admin/ProcessedBySection";
+import { BookingDocumentsCard } from "@/components/admin/BookingDocumentsCard";
 
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { ModifyRentalPanel } from "@/components/admin/ops/ModifyRentalPanel";
@@ -525,6 +526,7 @@ export default function ActiveRentalDetail() {
               <Separator />
 
               {/* Staff accountability + activity trail */}
+              <BookingDocumentsCard bookingId={rental.id} />
               <ProcessedBySection bookingId={rental.id} />
 
               <Separator />

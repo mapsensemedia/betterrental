@@ -15,6 +15,7 @@ import { User, Phone, Mail, MapPin, Edit2, Save, X, Loader2, CreditCard } from "
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CustomerDocumentsSection } from "./CustomerDocumentsSection";
 
 interface CustomerData {
   full_name?: string | null;
@@ -346,6 +347,7 @@ export function BookingCustomerCard({
             )}
           </div>
         )}
+        {!compact && !editing && <CustomerDocumentsSection customerUserId={userId} />}
       </CardContent>
     </Card>
   );

@@ -94,6 +94,7 @@ import { generateRentalAgreementPdf } from "@/lib/pdf/rental-agreement-pdf";
 import { ChangeVehicleDialog } from "@/components/admin/ChangeVehicleDialog";
 import { VehicleHistoryList } from "@/components/admin/VehicleHistoryList";
 import { ProcessedBySection } from "@/components/admin/ProcessedBySection";
+import { BookingDocumentsCard } from "@/components/admin/BookingDocumentsCard";
 import { Pencil } from "lucide-react";
 
 function snakeToTitle(str: string): string {
@@ -997,6 +998,7 @@ export default function BookingDetail() {
 
               {/* Who handled this rental — same block as the active rental view,
                   surfaced here because this is the first page opened for a booking. */}
+              <BookingDocumentsCard bookingId={booking.id} />
               <ProcessedBySection bookingId={booking.id} />
             </TabsContent>
 

@@ -6,6 +6,7 @@
 export type OpsStepId = 
   | "checkin" 
   | "payment" 
+  | "documents"
   | "prep"
   | "agreement" 
   | "walkaround" 
@@ -48,34 +49,42 @@ export const OPS_STEPS: OpsStep[] = [
     icon: "credit-card",
   },
   {
-    id: "walkaround",
+    id: "documents",
     number: 3,
+    title: "Additional Documents",
+    description: "Upload extra documents provided by the customer or required to rent",
+    icon: "file-plus",
+  },
+  {
+    id: "walkaround",
+    number: 4,
     title: "Vehicle Walkaround",
     description: "Staff-only inspection checklist (no customer signature)",
     icon: "eye",
   },
   {
     id: "agreement",
-    number: 4,
+    number: 5,
     title: "Rental Agreement",
     description: "Manual in-person agreement signing",
     icon: "file-text",
   },
   {
     id: "photos",
-    number: 5,
+    number: 6,
     title: "Handover Photos",
     description: "Capture vehicle photos before handover",
     icon: "camera",
   },
   {
     id: "handover",
-    number: 6,
+    number: 7,
     title: "Handover & Activation",
     description: "Complete handover, send SMS, move to Active Rentals",
     icon: "key",
   },
 ];
+
 
 // DELIVERY PRE-DISPATCH STEPS (Ops Panel)
 // Intake is auto-completed — staff start at Customer Verification
@@ -95,36 +104,43 @@ export const OPS_STEPS_DELIVERY_PRE: OpsStep[] = [
     icon: "credit-card",
   },
   {
-    id: "agreement",
+    id: "documents",
     number: 3,
+    title: "Additional Documents",
+    description: "Upload extra documents provided by the customer or required to rent",
+    icon: "file-plus",
+  },
+  {
+    id: "agreement",
+    number: 4,
     title: "Rental Agreement",
     description: "Generate and sign rental agreement before dispatch",
     icon: "file-text",
   },
   {
     id: "walkaround",
-    number: 4,
+    number: 5,
     title: "Vehicle Walkaround",
     description: "Staff-only pre-delivery inspection of vehicle condition",
     icon: "eye",
   },
   {
     id: "ready_line",
-    number: 5,
+    number: 6,
     title: "Ready Line",
     description: "Prep checklist, photos, fuel/odometer, maintenance check, lock pricing",
     icon: "wrench",
   },
   {
     id: "dispatch",
-    number: 6,
+    number: 7,
     title: "Dispatch to Driver",
     description: "Assign driver, schedule window, dispatch vehicle for delivery",
     icon: "truck",
   },
   {
     id: "ops_activate",
-    number: 7,
+    number: 8,
     title: "Ops Backup Activation",
     description: "Activate rental from Ops if driver cannot (requires evidence + reason)",
     icon: "shield",
@@ -206,6 +222,9 @@ export interface StepCompletion {
   payment: {
     paymentComplete: boolean;
     depositCollected: boolean;
+  };
+  documents: {
+    documentsUploaded: boolean;
   };
   prep?: {
     unitAssigned: boolean;
@@ -298,6 +317,14 @@ export function getBlockingIssues(stepId: OpsStepId, completion: StepCompletion,
         canOverride: false,
       });
     }
+    if (!completion.documents?.documentsUploaded) {
+      issues.push({
+        type: "missing",
+        message: "At least one additional document must be uploaded before activation",
+        stepId: "documents",
+        canOverride: false,
+      });
+    }
     return issues;
   }
   
@@ -334,6 +361,8 @@ export function checkStepComplete(stepId: OpsStepId, completion: StepCompletion,
       );
     case "payment":
       return completion.payment.paymentComplete && completion.payment.depositCollected;
+    case "documents":
+      return completion.documents?.documentsUploaded || false;
     case "prep":
       return completion.prep?.unitAssigned && completion.prep?.vehiclePrepared || false;
     case "ready_line":
@@ -380,6 +409,9 @@ export function getMissingItems(stepId: OpsStepId, completion: StepCompletion, i
     case "payment":
       if (!completion.payment.paymentComplete) missing.push("Payment");
       if (!completion.payment.depositCollected) missing.push("Deposit");
+      break;
+    case "documents":
+      if (!completion.documents?.documentsUploaded) missing.push("Additional documents");
       break;
     case "prep":
       if (!completion.prep?.unitAssigned) missing.push("Unit assignment");

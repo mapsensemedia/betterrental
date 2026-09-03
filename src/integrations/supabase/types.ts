@@ -434,6 +434,72 @@ export type Database = {
           },
         ]
       }
+      booking_documents: {
+        Row: {
+          booking_id: string
+          created_at: string
+          customer_user_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          file_name: string
+          file_size: number | null
+          id: string
+          label: string
+          mime_type: string | null
+          notes: string | null
+          storage_path: string
+          uploaded_at_location_id: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          customer_user_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          file_name: string
+          file_size?: number | null
+          id?: string
+          label: string
+          mime_type?: string | null
+          notes?: string | null
+          storage_path: string
+          uploaded_at_location_id?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          customer_user_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          label?: string
+          mime_type?: string | null
+          notes?: string | null
+          storage_path?: string
+          uploaded_at_location_id?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_documents_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_documents_uploaded_at_location_id_fkey"
+            columns: ["uploaded_at_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_extensions: {
         Row: {
           agreement_id: string | null
