@@ -455,8 +455,14 @@ export function AdminShell({
             </Select>
           )}
 
+          {/* Branch scope (Super Admin can switch, Manager sees their branch) */}
+          <div className="hidden md:block shrink-0">
+            <LocationScopeSwitcher className="h-8 md:h-9 bg-secondary border-0" />
+          </div>
+
           {/* Spacer */}
           <div className="flex-1" />
+
 
           {/* Help Button */}
           <Button
