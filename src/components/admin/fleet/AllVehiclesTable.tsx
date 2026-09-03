@@ -74,9 +74,19 @@ const STATUS: Record<string, { label: string; dot: string }> = {
   maintenance: { label: "Maintenance", dot: "bg-yellow-500" },
   damage: { label: "Damage", dot: "bg-red-500" },
   retired: { label: "Retired", dot: "bg-muted-foreground" },
+  sold: { label: "Sold", dot: "bg-muted-foreground" },
   active: { label: "Active", dot: "bg-green-500" },
   pending: { label: "Pending", dot: "bg-yellow-500" },
 };
+
+/** Statuses staff can set directly from the row menu. */
+const QUICK_STATUSES: { value: string; label: string; icon: typeof CheckCircle2 }[] = [
+  { value: "available", label: "Available", icon: CheckCircle2 },
+  { value: "maintenance", label: "Maintenance", icon: Wrench },
+  { value: "damage", label: "Damage", icon: AlertTriangle },
+];
+
+const FILTER_STATUSES = ["available", "on_rent", "maintenance", "damage", "retired", "sold"];
 
 interface Props {
   isTemporary?: boolean;
@@ -95,6 +105,8 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
   const [editUnit, setEditUnit] = useState<VehicleUnit | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
+  const [retireUnit, setRetireUnit] = useState<VehicleUnit | null>(null);
+  const [showRetired, setShowRetired] = useState(false);
 
   const { data: units, isLoading } = useVehicleUnits({
     isTemporary,
