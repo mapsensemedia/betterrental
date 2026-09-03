@@ -251,7 +251,7 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
                 showAgeError && !ageRange && "border-destructive ring-1 ring-destructive"
               )}
             >
-              <span>20–24 yrs</span>
+              <span>21–24 yrs</span>
               <span className="text-[10px] text-amber-600 leading-tight">Young driver fee</span>
             </button>
           </div>

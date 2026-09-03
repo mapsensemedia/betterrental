@@ -380,7 +380,7 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
               <div>
                 <p className="text-sm font-medium">{driver.driver_name || "Unnamed Driver"}</p>
                 <p className="text-xs text-muted-foreground">
-                  {driver.driver_age_band === "20_24" ? "Young (20–24)" : "Standard (25–70)"} · ${Number(driver.young_driver_fee).toFixed(2)}
+                  {driver.driver_age_band === "20_24" ? "Young (21–24)" : "Standard (25–70)"} · ${Number(driver.young_driver_fee).toFixed(2)}
                 </p>
               </div>
               <Button
@@ -410,7 +410,7 @@ export function CounterUpsellPanel({ bookingId, rentalDays }: CounterUpsellPanel
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="25_70">Standard (25–70)</SelectItem>
-                  <SelectItem value="20_24">Young Driver (20–24)</SelectItem>
+                  <SelectItem value="20_24">Young Driver (21–24)</SelectItem>
                 </SelectContent>
               </Select>
               <div className="flex gap-2">

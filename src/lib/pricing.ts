@@ -15,7 +15,7 @@ export {
 } from "./processing-fee";
 
 // ========== FEE CONSTANTS ==========
-export const YOUNG_DRIVER_FEE = 15; // Daily fee for drivers aged 20-24 (CAD/day)
+export const YOUNG_DRIVER_FEE = 15; // Daily fee for drivers aged 21-24 (CAD/day)
 export const DEFAULT_DEPOSIT_AMOUNT = 350; // Standard security deposit
 export const MINIMUM_DEPOSIT_AMOUNT = 350; // BUSINESS RULE: Deposit is ALWAYS required, never zero
 
@@ -55,7 +55,7 @@ export {
 };
 
 // ========== AGE CONSTANTS ==========
-export const MIN_DRIVER_AGE = 20;
+export const MIN_DRIVER_AGE = 21;
 export const YOUNG_DRIVER_MAX_AGE = 24;
 export const MAX_DRIVER_AGE = 70;
 
@@ -488,7 +488,7 @@ export function calculateBookingPricing(input: PricingInput): PricingBreakdown {
   const acsrchTotal = ACSRCH_DAILY_FEE * rentalDays;
   const dailyFeesTotal = pvrtTotal + acsrchTotal;
   
-  // Young driver fee: $15/day for 20-24 age band
+  // Young driver fee: $15/day for the young-driver age band (21-24)
   const youngDriverFee = driverAgeBand === "20_24" ? YOUNG_DRIVER_FEE * rentalDays : 0;
 
   // Late fee (passed in from return calculations)

@@ -514,7 +514,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="25_70">25–70 (Standard)</SelectItem>
-                  <SelectItem value="20_24">20–24 (Young Driver — +$15/day)</SelectItem>
+                  <SelectItem value="20_24">21–24 (Young Driver — +$15/day)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
