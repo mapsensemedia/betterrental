@@ -11,7 +11,21 @@ import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/domain/queryKeys";
 
 // ========== Types ==========
-export type AppRole = "admin" | "staff" | "cleaner" | "finance" | "support" | "driver";
+/**
+ * Only two business roles exist: `super_admin` (all branches) and `manager`
+ * (one assigned branch). `driver` is kept solely for the delivery portal.
+ * The remaining values are legacy and only appear on historical rows.
+ */
+export type AppRole =
+  | "super_admin"
+  | "manager"
+  | "driver"
+  // legacy — retained for backwards compatibility only
+  | "admin"
+  | "staff"
+  | "cleaner"
+  | "finance"
+  | "support";
 export type PanelType = "admin" | "ops" | "support" | "delivery";
 
 export interface Capabilities {
