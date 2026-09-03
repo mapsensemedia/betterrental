@@ -82,7 +82,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useEffectiveLocationId, useStaffLocation } from "@/hooks/use-staff-location";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 
 // ═══════════════════════════════════════════════════
 // Types
