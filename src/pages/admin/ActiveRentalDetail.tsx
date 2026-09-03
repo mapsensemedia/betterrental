@@ -47,6 +47,8 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
+import { CardInfoSection } from "@/components/admin/ops/sections/CardInfoSection";
+
 import { SignedStorageImage } from "@/components/shared/SignedStorageImage";
 import { ModifyRentalPanel } from "@/components/admin/ops/ModifyRentalPanel";
 import { ActiveRentalUnitAssignCard } from "@/components/admin/ops/ActiveRentalUnitAssignCard";
