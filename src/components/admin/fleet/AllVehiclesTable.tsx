@@ -47,6 +47,7 @@ import {
   type VehicleUnit,
 } from "@/hooks/use-vehicle-units";
 import { useLocations } from "@/hooks/use-locations";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { VehicleUnitEditDialog } from "./VehicleUnitEditDialog";
 import { VinFormDialog } from "./VinFormDialog";
@@ -148,7 +149,11 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
             />
           </div>
 
-          <Select value={locationId} onValueChange={(v) => setParam("loc", v)}>
+          <Select
+            value={locationId}
+            onValueChange={(v) => setParam("loc", v)}
+            disabled={!!scopeLocationId}
+          >
             <SelectTrigger className="w-full sm:w-[150px] h-9">
               <SelectValue placeholder="Location" />
             </SelectTrigger>
