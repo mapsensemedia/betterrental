@@ -110,14 +110,29 @@ function ActorRow({
   );
 }
 
-export function ProcessedBySection({ booking }: { booking: ProcessedByBooking }) {
+export function ProcessedBySection({ bookingId }: { bookingId: string }) {
+  const { data: booking } = useQuery({
+    queryKey: ["booking-accountability", bookingId],
+    queryFn: async (): Promise<ProcessedByBooking> => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select(
+          "id, location_id, processed_by, processed_at, processed_at_location_id, created_by, activated_by, activated_at, handed_over_by, handed_over_at, closed_by, last_modified_by",
+        )
+        .eq("id", bookingId)
+        .single();
+      if (error) throw error;
+      return data as ProcessedByBooking;
+    },
+  });
+
   const actorIds = [
-    booking.processed_by,
-    booking.created_by,
-    booking.activated_by,
-    booking.handed_over_by,
-    booking.closed_by,
-    booking.last_modified_by,
+    booking?.processed_by,
+    booking?.created_by,
+    booking?.activated_by,
+    booking?.handed_over_by,
+    booking?.closed_by,
+    booking?.last_modified_by,
   ].filter(Boolean) as string[];
 
   const { data: identities, isLoading } = useStaffIdentities(actorIds);
@@ -132,13 +147,13 @@ export function ProcessedBySection({ booking }: { booking: ProcessedByBooking })
   });
 
   const { data: activity, isLoading: activityLoading } = useQuery({
-    queryKey: ["booking-activity", booking.id],
+    queryKey: ["booking-activity", bookingId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("audit_logs")
         .select("id, action, created_at, user_id, actor_role, location_id, actor_location_id")
         .eq("entity_type", "booking")
-        .eq("entity_id", booking.id)
+        .eq("entity_id", bookingId)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -146,9 +161,9 @@ export function ProcessedBySection({ booking }: { booking: ProcessedByBooking })
     },
   });
 
-  const processedBranch = booking.processed_at_location_id
+  const processedBranch = booking?.processed_at_location_id
     ? locationNames?.get(booking.processed_at_location_id) ?? null
-    : booking.location_id
+    : booking?.location_id
       ? locationNames?.get(booking.location_id) ?? null
       : null;
 
@@ -173,26 +188,26 @@ export function ProcessedBySection({ booking }: { booking: ProcessedByBooking })
             <div className="divide-y divide-border/60">
               <ActorRow
                 label="Processed / handed over"
-                userId={booking.processed_by ?? booking.handed_over_by}
-                at={booking.processed_at ?? booking.handed_over_at}
+                userId={booking?.processed_by ?? booking?.handed_over_by}
+                at={booking?.processed_at ?? booking?.handed_over_at}
                 identities={identities}
                 branchName={processedBranch}
               />
               <ActorRow
                 label="Created by"
-                userId={booking.created_by}
+                userId={booking?.created_by}
                 identities={identities}
               />
               <ActorRow
                 label="Activated by"
-                userId={booking.activated_by}
-                at={booking.activated_at}
+                userId={booking?.activated_by}
+                at={booking?.activated_at}
                 identities={identities}
               />
-              <ActorRow label="Closed by" userId={booking.closed_by} identities={identities} />
+              <ActorRow label="Closed by" userId={booking?.closed_by} identities={identities} />
               <ActorRow
                 label="Last modified by"
-                userId={booking.last_modified_by}
+                userId={booking?.last_modified_by}
                 identities={identities}
               />
             </div>
