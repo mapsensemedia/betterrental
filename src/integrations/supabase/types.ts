@@ -4209,7 +4209,7 @@ export const Constants = {
         "reverse",
       ],
       receipt_status: ["draft", "issued", "voided"],
-      staff_role: ["super_admin", "manager", "admin", "staff", "cleaner", "finance"],
+      staff_role: ["admin", "staff", "cleaner", "finance"],
       ticket_status: [
         "open",
         "in_progress",
