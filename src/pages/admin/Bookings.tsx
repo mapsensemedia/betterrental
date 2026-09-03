@@ -272,6 +272,9 @@ export default function AdminBookings() {
     search: searchParams.get("code") || "",
   });
   const [opsFilters, setOpsFilters] = useState<OperationsFiltersState>(defaultFilters);
+  // Branch scope from the single top-bar switcher
+  const { locationId: branchScopeId } = useEffectiveLocationId();
+
 
   // Keep the search filter in sync with the ?code= param used by the top bar search
   const codeParam = searchParams.get("code") || "";
