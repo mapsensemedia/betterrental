@@ -993,7 +993,12 @@ export default function BookingDetail() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Who handled this rental — same block as the active rental view,
+                  surfaced here because this is the first page opened for a booking. */}
+              <ProcessedBySection bookingId={booking.id} />
             </TabsContent>
+
 
             {/* Photos Tab */}
             <TabsContent value="photos" className="space-y-6">
