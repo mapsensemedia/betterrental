@@ -13,6 +13,7 @@ import {
   authErrorResponse,
 } from "../_shared/auth.ts";
 import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
+import { isStaffAccount, STAFF_ACCOUNT_WRITE_ERROR } from "../_shared/staff-account-guard.ts";
 
 interface UpdateCustomerBody {
   bookingId: string;
@@ -143,7 +144,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6. Update profile
+    // 6. Refuse to write customer details onto a staff/company login. Doing so
+    // used to rename a company account to the customer, which then showed up as
+    // the staff member who created/activated/processed bookings.
+    if (await isStaffAccount(admin, profileUserId)) {
+      console.error(`Blocked customer write onto staff account ${profileUserId}`);
+      return new Response(
+        JSON.stringify({ error: STAFF_ACCOUNT_WRITE_ERROR }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // 7. Update profile
     updatePayload.updated_at = new Date().toISOString();
     const { error: updateError } = await admin
       .from("profiles")
