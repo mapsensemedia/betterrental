@@ -39,17 +39,17 @@ Goal: each branch operates as an independent internal business unit. Regular sta
 
 Every new public table gets GRANTs to `authenticated` + `service_role` in the same migration, then RLS, then policies.
 
-## 2. Role and permission structure
+## 2. Role and permission structure — exactly two roles
 
 | Role | Scope | Key rights |
 | --- | --- | --- |
-| `super_admin` | All locations + combined | Everything, staff management, location switching, company-wide finance |
-| `location_manager` | Own location | Rentals, fleet, reports for own location; may view (not create) staff of own location |
-| `staff` (Rental Staff) | Own location | Create/process rentals, operational views, limited reports |
-| `finance` | Own location unless also super admin | Payments, invoices, deposits for own location |
-| `cleaner`, `driver`, `support` | Own location (support may be company-wide by config) | Unchanged duties, now location-scoped |
+| `super_admin` | All locations + combined | Everything: rentals, fleet, finance, settings, company-wide reports, location switching, create/deactivate/reassign staff at any branch |
+| `manager` | One assigned location only | Everything operational for that branch — create and process rentals, handover, returns, fleet, payments, deposits, branch reports. No staff management, no location switching, no company-wide totals |
 
-`src/auth/capabilities.ts` gains `locationId`, `isSuperAdmin`, `canSwitchLocation`, `canManageStaff`, `canViewAllLocations`, and the resolver takes the staff assignment into account. New roles are additive — the resolver is a table, so more roles can be added later.
+There are no other admin roles. `staff`, `cleaner`, `finance`, `support` and `location_manager` are not used: existing holders are converted (`admin` → `super_admin`, `staff` → `manager`) and the legacy values stop being granted. The only role kept outside this pair is `driver`, because it is not an admin-panel role — it gates the separate delivery portal (`delivery@c2crental.ca`), and removing it would break delivery dispatch. Say the word if you want the driver portal folded into `manager` too.
+
+`src/auth/capabilities.ts` collapses to two rows: `super_admin` (everything true, `canSwitchLocation`, `canManageStaff`, `canViewAllLocations`) and `manager` (all operational capabilities true, those three false, plus a fixed `locationId`). `is_admin_or_staff()` is kept as-is so nothing breaks, and simply returns true for both roles.
+
 
 ## 3. Backend authorization logic
 
