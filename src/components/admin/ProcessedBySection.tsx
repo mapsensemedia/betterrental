@@ -4,11 +4,13 @@
  * Shows which staff member (and at which branch) created, handed over,
  * activated, and closed a rental, followed by the booking's audit trail.
  */
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { MapPin, UserCheck, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -130,7 +132,10 @@ function ActorRow({
   );
 }
 
+const ACTIVITY_PREVIEW = 8;
+
 export function ProcessedBySection({ bookingId }: { bookingId: string }) {
+  const [showAllActivity, setShowAllActivity] = useState(false);
   const { data: booking } = useQuery({
     queryKey: ["booking-accountability", bookingId],
     queryFn: async (): Promise<ProcessedByBooking> => {
