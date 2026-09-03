@@ -286,7 +286,16 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
                     : "—";
                   return (
                     <TableRow key={u.id}>
-                      <TableCell className="font-medium">{name || "—"}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="flex items-center gap-2">
+                          {name || "—"}
+                          {u.is_temporary && (
+                            <Badge variant="secondary" className="font-normal text-[10px] px-1.5 py-0">
+                              Temporary
+                            </Badge>
+                          )}
+                        </span>
+                      </TableCell>
                       <TableCell className="font-mono text-sm">{u.license_plate || "—"}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">{u.vin}</TableCell>
                       <TableCell className="text-sm">{u.location_name || "—"}</TableCell>
