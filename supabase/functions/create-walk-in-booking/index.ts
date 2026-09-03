@@ -369,7 +369,7 @@ Deno.serve(async (req) => {
       }
 
       // Never write walk-in customer details onto a staff/company login.
-      if (await isStaffAccount(supabaseAdmin, profilePayload.id ?? userId)) {
+      if (await isStaffAccount(supabaseAdmin, userId)) {
         console.error("[create-walk-in-booking] Blocked customer write onto staff account");
         return new Response(
           JSON.stringify({ error: STAFF_ACCOUNT_WRITE_ERROR }),
