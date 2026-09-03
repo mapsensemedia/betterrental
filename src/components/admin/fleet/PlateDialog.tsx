@@ -71,7 +71,7 @@ export function PlateDialog({
 
   if (!unit) return null;
 
-  const vehicleLabel = [unit.vehicles?.make, unit.vehicles?.model].filter(Boolean).join(" ");
+  const vehicleLabel = [unit.vehicle?.make, unit.vehicle?.model].filter(Boolean).join(" ");
   const trimmed = normalizePlate(plate);
   const hasConflict = conflicts.length > 0;
 
