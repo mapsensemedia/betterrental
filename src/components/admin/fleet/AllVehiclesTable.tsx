@@ -69,7 +69,8 @@ interface Props {
 export function AllVehiclesTable({ isTemporary = false }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
-  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  const { locationId: scopeLocationId, isReady: isScopeReady, isUnassignedManager } =
+    useEffectiveLocationId();
   // The global branch scope wins over the local location filter.
   const locationId = scopeLocationId ?? (searchParams.get("loc") || "all");
   const status = searchParams.get("status") || "all";
@@ -85,7 +86,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
     status: status !== "all" ? status : undefined,
     categoryId: categoryId !== "all" ? categoryId : undefined,
     search: search.trim() || undefined,
-  });
+  }, { enabled: isScopeReady && !isUnassignedManager });
   const { data: locations } = useLocations();
   const { data: categories } = useFleetCategories();
   const deleteMutation = useDeleteVehicleUnit();

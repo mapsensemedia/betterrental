@@ -65,8 +65,9 @@ export interface CreateVinInput {
 }
 
 // Get all categories with counts for admin (optionally scoped to one branch)
-export function useFleetCategories(locationId?: string | null) {
+export function useFleetCategories(locationId?: string | null, options?: { enabled?: boolean }) {
   return useQuery({
+    enabled: options?.enabled ?? true,
     queryKey: ["fleet-categories", locationId ?? "all"],
     queryFn: async () => {
       const { data: categories, error } = await supabase
