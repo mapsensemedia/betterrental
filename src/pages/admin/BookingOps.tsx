@@ -55,6 +55,7 @@ import { useVehiclePrepStatus } from "@/hooks/use-vehicle-prep";
 import { useBookingConditionPhotos, REQUIRED_PHOTOS, getPhotoCompletionStatus } from "@/hooks/use-condition-photos";
 import { useCheckInRecord } from "@/hooks/use-checkin";
 import { usePaymentDepositStatus } from "@/hooks/use-payment-deposit";
+import { useBookingDocuments } from "@/hooks/use-booking-documents";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
 import { useBookingVerification } from "@/hooks/use-verification";
 import { useCheckVehicleAvailability } from "@/hooks/use-vehicle-assignment";
