@@ -108,7 +108,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
   const [retireUnit, setRetireUnit] = useState<VehicleUnit | null>(null);
   const [showRetired, setShowRetired] = useState(false);
 
-  const { data: units, isLoading } = useVehicleUnits({
+  const { data: allUnits, isLoading } = useVehicleUnits({
     isTemporary,
     locationId: locationId !== "all" ? locationId : undefined,
     status: status !== "all" ? status : undefined,
@@ -118,6 +118,13 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
   const { data: locations } = useLocations();
   const { data: categories } = useFleetCategories();
   const deleteMutation = useDeleteVehicleUnit();
+  const setStatusMutation = useSetVehicleUnitStatus();
+
+  // Retired / sold units are archive material — hidden unless asked for.
+  const units = useMemo(() => {
+    if (showRetired || status === "retired" || status === "sold") return allUnits ?? [];
+    return (allUnits ?? []).filter((u) => u.status !== "retired" && u.status !== "sold");
+  }, [allUnits, showRetired, status]);
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
