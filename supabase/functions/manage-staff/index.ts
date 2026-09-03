@@ -195,6 +195,123 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+    if (action === "update") {
+      const staffId = String(body.staffId ?? "");
+      if (!staffId) return json({ error: "staffId is required" }, 400);
+
+      const { data: target, error: targetErr } = await supabase
+        .from("staff_assignments")
+        .select("id, user_id")
+        .eq("id", staffId)
+        .maybeSingle();
+      if (targetErr || !target) return json({ error: "Staff member not found" }, 404);
+
+      const role = body.role === undefined
+        ? null
+        : body.role === "super_admin" ? "super_admin" : "manager";
+      const hasLocation = Object.prototype.hasOwnProperty.call(body, "locationId");
+      const locationId = body.locationId ? String(body.locationId) : null;
+      const password = body.password ? String(body.password) : null;
+
+      if (password && password.length < 8) {
+        return json({ error: "Password must be at least 8 characters" }, 400);
+      }
+      if (role === "manager" && hasLocation && !locationId) {
+        return json({ error: "Managers require a branch" }, 400);
+      }
+      if (role === "manager" && target.user_id === userId) {
+        return json({ error: "You cannot demote your own account" }, 400);
+      }
+
+      if (role) {
+        // Never leave the company without a Super Admin.
+        if (role === "manager") {
+          const { data: supers } = await supabase
+            .from("user_roles")
+            .select("user_id")
+            .eq("role", "super_admin");
+          const remaining = (supers ?? []).filter((r) => r.user_id !== target.user_id);
+          if (remaining.length === 0) {
+            return json({ error: "At least one Super Admin must remain" }, 400);
+          }
+        }
+        await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", target.user_id)
+          .in("role", ["super_admin", "manager", "admin", "staff"]);
+        await supabase.from("user_roles").upsert(
+          { user_id: target.user_id, role },
+          { onConflict: "user_id,role", ignoreDuplicates: true },
+        );
+      }
+
+      const patch: Record<string, unknown> = {};
+      if (Object.prototype.hasOwnProperty.call(body, "displayName")) {
+        patch.display_name = body.displayName ? String(body.displayName).trim() : null;
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "employeeCode")) {
+        patch.employee_code = body.employeeCode ? String(body.employeeCode).trim() : null;
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "isActive")) {
+        patch.is_active = body.isActive === true;
+      }
+      // Super Admins are never branch-locked.
+      if (role === "super_admin") patch.location_id = null;
+      else if (hasLocation) patch.location_id = locationId;
+
+      if (Object.keys(patch).length > 0) {
+        const { error } = await supabase.from("staff_assignments").update(patch).eq("id", staffId);
+        if (error) return json({ error: error.message }, 400);
+      }
+
+      if (password) {
+        const { error: pwErr } = await supabase.auth.admin.updateUserById(target.user_id, {
+          password,
+          email_confirm: true,
+        });
+        if (pwErr) return json({ error: pwErr.message }, 400);
+      }
+
+      return json({ success: true, passwordSet: !!password });
+    }
+
+    if (action === "delete") {
+      const staffId = String(body.staffId ?? "");
+      if (!staffId) return json({ error: "staffId is required" }, 400);
+
+      const { data: target } = await supabase
+        .from("staff_assignments")
+        .select("id, user_id")
+        .eq("id", staffId)
+        .maybeSingle();
+      if (!target) return json({ error: "Staff member not found" }, 404);
+      if (target.user_id === userId) {
+        return json({ error: "You cannot delete your own account" }, 400);
+      }
+
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .eq("role", "super_admin");
+      const isTargetSuper = (roles ?? []).some((r) => r.user_id === target.user_id);
+      if (isTargetSuper && (roles ?? []).length <= 1) {
+        return json({ error: "At least one Super Admin must remain" }, 400);
+      }
+
+      await supabase.from("staff_assignments").delete().eq("id", staffId);
+      await supabase.from("user_roles").delete().eq("user_id", target.user_id);
+      const { error: delErr } = await supabase.auth.admin.deleteUser(target.user_id);
+      if (delErr) {
+        return json({
+          success: true,
+          warning: `Staff record removed, but the login could not be deleted: ${delErr.message}`,
+        });
+      }
+
+      return json({ success: true });
+    }
+
     if (action === "send_setup_link") {
       const email = String(body.email ?? "").trim().toLowerCase();
       if (!email) return json({ error: "email is required" }, 400);
