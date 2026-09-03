@@ -107,6 +107,7 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
   const [retireUnit, setRetireUnit] = useState<VehicleUnit | null>(null);
   const [showRetired, setShowRetired] = useState(false);
+  const [plateUnit, setPlateUnit] = useState<VehicleUnit | null>(null);
 
   const { data: allUnits, isLoading } = useVehicleUnits({
     isTemporary,
