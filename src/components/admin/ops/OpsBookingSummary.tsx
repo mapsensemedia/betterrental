@@ -486,6 +486,7 @@ export function OpsBookingSummary({
                 cardLastFour={booking.card_last_four}
                 cardType={booking.card_type}
                 cardHolderName={booking.card_holder_name}
+                cardExpiry={(booking as any).card_expiry}
               />
               
               {/* Full Itemized Financial Breakdown */}

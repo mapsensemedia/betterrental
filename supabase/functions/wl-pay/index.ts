@@ -36,9 +36,17 @@ interface BamboraPaymentResponse {
   type?: string; // "P" purchase, "PA" pre-auth
   payment_method?: string;
   amount?: number;
-  card?: { card_type: string; last_four: string; name: string };
+  card?: { card_type: string; last_four: string; name: string; expiry_month?: string; expiry_year?: string };
   code?: number;
   category?: number;
+}
+
+/** Format gateway expiry month/year as MM/YY. Returns null when unavailable. */
+function formatCardExpiry(card?: { expiry_month?: string; expiry_year?: string }): string | null {
+  const mm = card?.expiry_month?.toString().padStart(2, "0");
+  const yy = card?.expiry_year?.toString().slice(-2);
+  if (!mm || !yy || mm.length !== 2 || yy.length !== 2) return null;
+  return `${mm}/${yy}`;
 }
 
 Deno.serve(async (req) => {
@@ -110,6 +118,7 @@ Deno.serve(async (req) => {
       card_last_four: txn.card?.last_four || null,
       card_type: txn.card?.card_type || null,
       card_holder_name: txn.card?.name || name || null,
+      ...(formatCardExpiry(txn.card) ? { card_expiry: formatCardExpiry(txn.card) } : {}),
     }).eq("id", bookingId);
 
     await supabase.from("payments").insert({
