@@ -180,6 +180,9 @@ function AlertRow({
 }
 
 
+/** Rows shown per group before "Show all". */
+const PAGE_SIZE = 8;
+
 export default function AdminAlerts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedAlert, setSelectedAlert] = useState<AdminAlert | null>(null);
@@ -187,6 +190,8 @@ export default function AdminAlerts() {
   const [typeFilter, setTypeFilter] = useState<string>(searchParams.get("type") || "");
   const [showResolved, setShowResolved] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
 
   const { data: alerts = [], isLoading, refetch } = useAdminAlerts({
     status: statusFilter as any || undefined,
