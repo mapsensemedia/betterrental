@@ -30,3 +30,9 @@ Roles: exactly two — `super_admin` (all branches) and `manager` (one branch). 
 ## Phase 6 — Reporting
 - [ ] Super-admin multi-location comparison + company-wide totals
 
+
+## Completed (location enforcement pass)
+- [x] Location guard on 13 staff-invoked edge functions (booking/financial writes + walk-in creation + upsell extras), deployed
+- [x] Server-side branch filtering: Active Rentals, Admin Bookings/Pickups, Finance (revenue + transactions), Reports
+- [x] /admin/staff page + manage-staff edge function (list, create, branch assign/change, activate/deactivate, setup email)
+- [x] Processed-by + activity history block on Active Rental detail
