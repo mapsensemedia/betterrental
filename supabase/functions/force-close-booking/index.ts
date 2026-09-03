@@ -222,6 +222,13 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error("Force close error:", err);
+    const status = (err as { status?: number })?.status;
+    if (status === 403 || status === 404) {
+      return new Response(
+        JSON.stringify({ error: (err as Error).message }),
+        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

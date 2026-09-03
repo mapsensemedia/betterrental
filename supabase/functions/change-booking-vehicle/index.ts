@@ -253,7 +253,7 @@ serve(async (req) => {
     }, 200, corsHeaders);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    const status = /auth|role/i.test(msg) ? 403 : 500;
+    const status = (err as { status?: number })?.status ?? (/auth|role/i.test(msg) ? 403 : 500);
     return json({ error: msg }, status, getCorsHeaders(req));
   }
 });

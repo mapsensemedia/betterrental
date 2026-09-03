@@ -214,7 +214,8 @@ serve(async (req) => {
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    const status = msg.toLowerCase().includes("auth") || msg.toLowerCase().includes("role") ? 403 : 500;
+    const status = (err as { status?: number })?.status
+      ?? (msg.toLowerCase().includes("auth") || msg.toLowerCase().includes("role") ? 403 : 500);
     return new Response(
       JSON.stringify({ error: msg }),
       { status, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } },
