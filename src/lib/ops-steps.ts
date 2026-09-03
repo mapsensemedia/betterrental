@@ -49,34 +49,42 @@ export const OPS_STEPS: OpsStep[] = [
     icon: "credit-card",
   },
   {
-    id: "walkaround",
+    id: "documents",
     number: 3,
+    title: "Additional Documents",
+    description: "Upload extra documents provided by the customer or required to rent",
+    icon: "file-plus",
+  },
+  {
+    id: "walkaround",
+    number: 4,
     title: "Vehicle Walkaround",
     description: "Staff-only inspection checklist (no customer signature)",
     icon: "eye",
   },
   {
     id: "agreement",
-    number: 4,
+    number: 5,
     title: "Rental Agreement",
     description: "Manual in-person agreement signing",
     icon: "file-text",
   },
   {
     id: "photos",
-    number: 5,
+    number: 6,
     title: "Handover Photos",
     description: "Capture vehicle photos before handover",
     icon: "camera",
   },
   {
     id: "handover",
-    number: 6,
+    number: 7,
     title: "Handover & Activation",
     description: "Complete handover, send SMS, move to Active Rentals",
     icon: "key",
   },
 ];
+
 
 // DELIVERY PRE-DISPATCH STEPS (Ops Panel)
 // Intake is auto-completed — staff start at Customer Verification
