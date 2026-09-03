@@ -12,6 +12,7 @@ import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { getUserOrThrow, requireRoleOrThrow, getAdminClient, AuthError, authErrorResponse } from "../_shared/auth.ts";
 import { worldlineRequest, parseWorldlineError } from "../_shared/worldline.ts";
 import { createLogger } from "../_shared/logger.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 function jsonResponse(body: Record<string, unknown>, status: number, corsHeaders: Record<string, string>) {
   return new Response(
@@ -62,6 +63,9 @@ Deno.serve(async (req) => {
     if (!bookingId) {
       return jsonResponse({ error: "bookingId is required" }, 400, corsHeaders);
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(user.userId, bookingId);
 
     log.setBooking(bookingId);
     log.setUser(user.userId);

@@ -25,6 +25,7 @@ import {
   computeProcessingFee,
   getProcessingFeeRate,
 } from "../_shared/processing-fee.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 function roundCents(v: number): number {
   return Math.round(v * 100) / 100;
@@ -64,6 +65,9 @@ Deno.serve(async (req) => {
     if (!bookingId || !operation) {
       return jsonResp({ error: "Missing bookingId or operation" }, 400, corsHeaders);
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(authResult.userId, bookingId);
 
     // Fetch booking with all pricing-relevant fields
     const { data: booking, error: fetchErr } = await supabase

@@ -12,6 +12,7 @@ import {
   AuthError,
   authErrorResponse,
 } from "../_shared/auth.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 interface UpdateCustomerBody {
   bookingId: string;
@@ -46,6 +47,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(userId, bookingId);
 
     if (!customer || typeof customer !== "object") {
       return new Response(

@@ -30,6 +30,7 @@ import {
   PieChart,
   Building2,
   LifeBuoy,
+  UserCog,
 } from "lucide-react";
 import c2cLogo from "@/assets/c2c-logo.png";
 import { cn } from "@/lib/utils";
@@ -169,6 +170,12 @@ const navGroups: NavGroup[] = [
         label: "Support",
         icon: LifeBuoy,
         description: "Customer tickets",
+      },
+      {
+        href: "/admin/staff",
+        label: "Staff",
+        icon: UserCog,
+        description: "Managers & branches",
       },
       {
         href: "/admin/settings",

@@ -65,6 +65,7 @@ import {
   CreditCard,
   CheckCircle,
 } from "lucide-react";
+import { useEffectiveLocationId, useStaffLocation } from "@/hooks/use-staff-location";
 
 const DATE_PRESET_LABELS: Record<DatePreset | "all", string> = {
   "7d": "Last 7 Days",
@@ -108,15 +109,20 @@ export default function AdminReports() {
     }
   }, [datePreset, customStartDate, customEndDate]);
 
+  // Branch scope: managers are locked to their assigned branch.
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  const { isSuperAdmin: canPickLocation } = useStaffLocation();
+  const effectiveLocationId = !canPickLocation && scopeLocationId ? scopeLocationId : locationId;
+
   const filters: RevenueFilters = useMemo(() => ({
     startDate: dateRange.start,
     endDate: dateRange.end,
     channel,
-    locationId,
+    locationId: effectiveLocationId,
     categoryId,
     bookingType,
     paymentType,
-  }), [dateRange, channel, locationId, categoryId, bookingType, paymentType]);
+  }), [dateRange, channel, effectiveLocationId, categoryId, bookingType, paymentType]);
 
   // ── Data hooks ──
   const { data: locations } = useLocations();

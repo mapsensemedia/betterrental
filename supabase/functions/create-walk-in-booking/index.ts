@@ -37,6 +37,7 @@ import {
   computeProcessingFee,
   getProcessingFeeRate,
 } from "../_shared/processing-fee.ts";
+import { requireLocationOrThrow, requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 const PVRT_DAILY_FEE = 1.50;
 const ACSRCH_DAILY_FEE = 1.00;
@@ -103,6 +104,11 @@ Deno.serve(async (req) => {
       // Optional delivery address (delivery walk-ins)
       pickupAddress,
     } = body;
+
+    // Branch scope: managers may only create walk-ins for their own location.
+    if (locationId) {
+      await requireLocationOrThrow(auth.userId, locationId);
+    }
 
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
       return new Response(

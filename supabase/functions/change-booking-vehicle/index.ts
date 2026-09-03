@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserOrThrow, requireRoleOrThrow } from "../_shared/auth.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 /**
  * Change the assigned vehicle on an active booking.
@@ -38,6 +39,9 @@ serve(async (req) => {
     if (!bookingId || !newUnitId || newStartMileage === undefined || newStartMileage === null) {
       return json({ error: "bookingId, newUnitId, and newStartMileage are required" }, 400, corsHeaders);
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(user.userId!, bookingId);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -249,7 +253,7 @@ serve(async (req) => {
     }, 200, corsHeaders);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    const status = /auth|role/i.test(msg) ? 403 : 500;
+    const status = (err as { status?: number })?.status ?? (/auth|role/i.test(msg) ? 403 : 500);
     return json({ error: msg }, status, getCorsHeaders(req));
   }
 });

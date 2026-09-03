@@ -8,6 +8,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "./use-auth";
 import { useCapabilities } from "@/auth/capabilities";
 
@@ -80,5 +81,40 @@ export function useStaffLocation(): StaffLocationScope {
     isUnassignedManager:
       !capsLoading && !assignmentLoading && !isSuperAdmin && !assignedLocationId,
     canSwitchLocation: isSuperAdmin,
+  };
+}
+
+/**
+ * Effective branch filter for admin/ops queries.
+ *
+ * - Manager: always their assigned branch (an explicit filter cannot widen it).
+ * - Super Admin: the explicit filter, else the `?locationId=` URL scope, else all.
+ *
+ * Returns `undefined` while the scope is still loading so callers can hold the
+ * query, and `null` for "all branches".
+ */
+export function useEffectiveLocationId(explicitLocationId?: string | null): {
+  locationId: string | null;
+  isReady: boolean;
+  isUnassignedManager: boolean;
+} {
+  const [searchParams] = useSearchParams();
+  const { isSuperAdmin, assignedLocationId, isLoading, isUnassignedManager } = useStaffLocation();
+
+  const urlLocationId = searchParams.get("locationId");
+  const urlScope = urlLocationId && urlLocationId !== "all" ? urlLocationId : null;
+
+  if (isLoading) {
+    return { locationId: null, isReady: false, isUnassignedManager: false };
+  }
+
+  if (!isSuperAdmin) {
+    return { locationId: assignedLocationId, isReady: true, isUnassignedManager };
+  }
+
+  return {
+    locationId: explicitLocationId ?? urlScope,
+    isReady: true,
+    isUnassignedManager: false,
   };
 }

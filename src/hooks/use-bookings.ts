@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { extractEdgeFunctionError } from "@/lib/edge-function-error";
+import { useEffectiveLocationId } from "./use-staff-location";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
@@ -83,8 +84,14 @@ export function useAdminBookings(
     liveRefresh = false,
   } = options;
 
+  // Branch scope: managers are locked to their own location; super admins may
+  // narrow with the location switcher.
+  const { locationId: scopedLocationId, isReady, isUnassignedManager } =
+    useEffectiveLocationId(filters.locationId ?? null);
+
   return useQuery<BookingWithDetails[]>({
-    queryKey: ["admin-bookings", queryKeyScope, filters],
+    queryKey: ["admin-bookings", queryKeyScope, filters, scopedLocationId ?? "all"],
+    enabled: isReady && !isUnassignedManager,
     queryFn: async () => {
       let query = supabase
         .from("bookings")
@@ -113,8 +120,8 @@ export function useAdminBookings(
         query = query.lte("end_at", filters.dateRange.end);
       }
 
-      if (filters.locationId) {
-        query = query.eq("location_id", filters.locationId);
+      if (scopedLocationId) {
+        query = query.eq("location_id", scopedLocationId);
       }
 
       if (filters.vehicleId) {

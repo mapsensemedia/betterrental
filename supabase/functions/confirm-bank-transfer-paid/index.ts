@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { getAdminClient, getUserOrThrow, requireRoleOrThrow, authErrorResponse } from "../_shared/auth.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 const MAX_ATTEMPTS = 5;
 
@@ -24,6 +25,9 @@ serve(async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ error: "bookingId and 6-digit code required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(userId, bookingId);
     if (reference && typeof reference !== "string") {
       return new Response(JSON.stringify({ error: "reference must be a string" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });

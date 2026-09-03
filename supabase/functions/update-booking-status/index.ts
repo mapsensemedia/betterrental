@@ -16,6 +16,7 @@ import {
   AuthError,
   authErrorResponse,
 } from "../_shared/auth.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 // Return state validation (mirrored from client)
 const STATE_ORDER = [
@@ -51,6 +52,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(user.userId, bookingId);
 
     const admin = getAdminClient();
 

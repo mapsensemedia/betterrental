@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateAuth, isAdminOrStaff } from "../_shared/auth.ts";
+import { requireBookingLocationOrThrow } from "../_shared/location-guard.ts";
 
 /**
  * Force Close Booking
@@ -62,6 +63,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Branch scope: managers may only act on bookings from their own location.
+    await requireBookingLocationOrThrow(authResult.userId, bookingId);
 
     // Fetch booking
     const { data: booking, error: fetchError } = await supabase
@@ -218,6 +222,13 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error("Force close error:", err);
+    const status = (err as { status?: number })?.status;
+    if (status === 403 || status === 404) {
+      return new Response(
+        JSON.stringify({ error: (err as Error).message }),
+        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

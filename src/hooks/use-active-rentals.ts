@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInHours, differenceInMinutes, isPast, addHours } from "date-fns";
+import { useEffectiveLocationId } from "./use-staff-location";
 
 export interface ActiveRental {
   id: string;
@@ -47,18 +48,27 @@ export interface ActiveRental {
  * Fetch all active rentals with duration and overdue risk tracking
  */
 export function useActiveRentals() {
+  // Branch scope: managers only ever see their own location's rentals.
+  const { locationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+
   return useQuery<ActiveRental[]>({
-    queryKey: ["active-rentals"],
+    queryKey: ["active-rentals", locationId ?? "all"],
+    enabled: isReady && !isUnassignedManager,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let baseQuery = supabase
         .from("bookings")
         .select(`
           *,
           locations!location_id (id, name, city)
         `)
         // Only activated rentals. Confirmed-but-not-handed-over bookings stay in Pickups.
-        .eq("status", "active")
-        .order("end_at", { ascending: true });
+        .eq("status", "active");
+
+      if (locationId) {
+        baseQuery = baseQuery.eq("location_id", locationId);
+      }
+
+      const { data, error } = await baseQuery.order("end_at", { ascending: true });
 
       if (error) {
         console.error("Error fetching active rentals:", error);
