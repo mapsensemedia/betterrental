@@ -75,9 +75,13 @@ Deno.serve(async (req) => {
       const employeeCode = body.employeeCode ? String(body.employeeCode).trim() : null;
       const locationId = body.locationId ? String(body.locationId) : null;
       const role = body.role === "super_admin" ? "super_admin" : "manager";
+      const password = body.password ? String(body.password) : null;
 
       if (!email || !email.includes("@")) return json({ error: "A valid email is required" }, 400);
       if (role === "manager" && !locationId) return json({ error: "Managers require a branch" }, 400);
+      if (password && password.length < 8) {
+        return json({ error: "Password must be at least 8 characters" }, 400);
+      }
 
       // Reuse an existing auth user when the email already exists.
       let targetUserId: string | null = null;
@@ -85,11 +89,19 @@ Deno.serve(async (req) => {
       const match = existing?.users?.find((u) => u.email?.toLowerCase() === email);
       if (match) {
         targetUserId = match.id;
+        // A supplied password overwrites the existing one so the admin can hand
+        // out working credentials for accounts that are not real mailboxes.
+        if (password) {
+          const { error: pwErr } = await supabase.auth.admin.updateUserById(targetUserId, {
+            password,
+            email_confirm: true,
+          });
+          if (pwErr) return json({ error: pwErr.message }, 400);
+        }
       } else {
-        const tempPassword = `C2C-${crypto.randomUUID()}`;
         const { data: created, error: createErr } = await supabase.auth.admin.createUser({
           email,
-          password: tempPassword,
+          password: password ?? `C2C-${crypto.randomUUID()}`,
           email_confirm: true,
           user_metadata: { full_name: displayName },
         });
