@@ -14,13 +14,15 @@
  *   await requireBookingLocationAccess(scope, bookingId);
  */
 
-import { getAdminClient } from "./auth.ts";
+import { getAdminClient, AuthError } from "./auth.ts";
 
-export class LocationAccessError extends Error {
-  status: number;
+/**
+ * Extends AuthError so every existing `catch (err) { authErrorResponse(err, cors) }`
+ * block in the edge functions returns the right HTTP status without modification.
+ */
+export class LocationAccessError extends AuthError {
   constructor(message: string, status = 403) {
-    super(message);
-    this.status = status;
+    super(message, status);
   }
 }
 
@@ -154,4 +156,29 @@ export function locationErrorResponse(
     });
   }
   return null;
+}
+
+/**
+ * One-line drop-in for staff edge functions:
+ *   await requireBookingLocationOrThrow(userId, bookingId);
+ * Throws an AuthError subclass (403/404) handled by authErrorResponse().
+ */
+export async function requireBookingLocationOrThrow(
+  userId: string,
+  bookingId: string,
+): Promise<StaffScope> {
+  return await guardBookingWrite(userId, bookingId);
+}
+
+/**
+ * Branch check for a bare location id (walk-in creation, fleet, reports).
+ */
+export async function requireLocationOrThrow(
+  userId: string,
+  locationId: string | null,
+): Promise<StaffScope> {
+  const scope = await getStaffScope(userId);
+  requireStaffScope(scope);
+  requireLocationAccess(scope, locationId);
+  return scope;
 }
