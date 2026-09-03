@@ -13,19 +13,23 @@ The actions partly exist but are effectively invisible:
 ### What will change
 
 **All Vehicles tab**
+
 - Visible Actions column: an "Edit" button plus a labelled menu, pinned as a sticky last column so it stays reachable when the table scrolls.
 - Explicit actions: Edit vehicle; Set status (Available / Maintenance / Damage); Retire vehicle (confirmation explaining it leaves the active fleet and stops appearing in availability while all history is kept); Reactivate (retired units only); Delete permanently (existing guards and warning kept).
 - "Retired" added to the status filter; retired units hidden by default with a "Show retired" toggle.
 
 **Temporary tab**
+
 - Same visible actions column: Edit, Mark as returned, Change/extend return date, Delete.
 - "Mark as returned" gets a proper confirmation and records the return date; label stays "Returned".
 - Delete keeps current behaviour (hard delete when unused, archive when the unit has history).
 
 **Edit dialog**
+
 - For temporary units, an extra section: Source, Start date, End/return date, Daily cost.
 
 **Guards**
+
 - Retire, mark-returned and delete are blocked with a clear message when the vehicle has an active or upcoming booking.
 - Actions stay branch-scoped: managers act on their own location only, super admins on all.
 
@@ -35,20 +39,22 @@ The Abbotsford location currently holds 22 vehicle records instead of your 10. C
 
 - **Duplicate plates:** A221WM exists twice (your Sentra VIN, plus a Toyota Corolla Cross), A315WE twice (your Palisade, plus a Kia Forte), A618YX twice, B977BH twice (your Kia Rio, plus a "Nissan Pathfinder" with a near-identical VIN).
 - **Wrong make/model on your units:** A221WM (VIN ...SY354377) is recorded as Nissan Rogue, should be Nissan Sentra.
-- **Wrong VIN:** B079BK is recorded as 3N1AB8BV7SY297656; your list says 3N1AB8BV7S4297656.
+- **Wrong VIN:** B079BK is recorded as 3N1AB8BV7SY297656; your list says 3N1AB8BV7S4297656. this is correct 3N1AB8BV7SY297656
 - **Wrong location:** A628YX Nissan Sentra (3N1AB8DV6RY326491) sits under Surrey Newton and needs to move to Abbotsford.
 - **Statuses out of sync:** many Abbotsford units show "On Rent" with no booking attached (A318WE, A590EY, A642WE, plus extras), while B079BK shows "Available" even though booking E5JS3DUZ is active on it.
 - **Records not in your list at all:** A718YX, A687YX, "A59 4EY", A346WE, A834JZ, B053BK, B983BH, the two TMP-placeholder Elantras, and the duplicate rows above.
 
 ### Booking attachments found
 
-| Plate | Vehicle | Booking | Window |
-| --- | --- | --- | --- |
-| A164WM | Nissan Rogue | UCF5DBFJ (active) | Sep 1 – Sep 8 |
-| A221WM | Nissan Sentra | KXAL3ZYY (active) | Aug 31 – Sep 4 |
-| B977BH | Kia Rio | 3STR9EL7 (active) | Sep 2 – Sep 11 |
-| B079BK | Nissan Sentra | E5JS3DUZ (active) | Aug 21 – Sep 4 |
+
+| Plate  | Vehicle          | Booking                       | Window         |
+| ------ | ---------------- | ----------------------------- | -------------- |
+| A164WM | Nissan Rogue     | UCF5DBFJ (active)             | Sep 1 – Sep 8  |
+| A221WM | Nissan Sentra    | KXAL3ZYY (active)             | Aug 31 – Sep 4 |
+| B977BH | Kia Rio          | 3STR9EL7 (active)             | Sep 2 – Sep 11 |
+| B079BK | Nissan Sentra    | E5JS3DUZ (active)             | Aug 21 – Sep 4 |
 | A315WE | Hyundai Palisade | U54QZP6Y (active, not closed) | Aug 28 – Sep 1 |
+
 
 All five stay "On Rent", which matches what you described (the Palisade is on the lot but its rental is still open).
 
