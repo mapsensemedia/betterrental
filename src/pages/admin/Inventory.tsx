@@ -72,6 +72,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { format } from "date-fns";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { MaintenanceDialog } from "@/components/admin/MaintenanceDialog";
 import { DamageReportDialog } from "@/components/admin/DamageReportDialog";
 
@@ -81,6 +82,7 @@ const CATEGORIES = ["Sedan", "SUV", "Sports", "Luxury", "Electric", "Convertible
 const TRANSMISSIONS = ["Automatic", "Manual"];
 
 export default function AdminInventory() {
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
   const [filters, setFilters] = useState({
     locationId: "",
     status: "all" as "available" | "unavailable" | "all",
@@ -326,22 +328,7 @@ export default function AdminInventory() {
                 />
               </div>
 
-              <Select
-                value={filters.locationId || "all"}
-                onValueChange={(v) => setFilters(f => ({ ...f, locationId: v === "all" ? "" : v }))}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All Locations" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  {locations?.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Branch scope is set once in the admin top bar */}
 
               <Select
                 value={filters.status}

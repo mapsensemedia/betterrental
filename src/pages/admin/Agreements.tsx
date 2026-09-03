@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRentalAgreement } from "@/hooks/use-rental-agreement";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { AgreementStructuredView } from "@/components/booking/AgreementStructuredView";
 import {
   Table,
@@ -56,9 +57,9 @@ interface AgreementRow {
   createdAt: string;
 }
 
-function useAgreements() {
+function useAgreements(scopeLocationId: string | null) {
   return useQuery<AgreementRow[]>({
-    queryKey: ["admin-agreements"],
+    queryKey: ["admin-agreements", scopeLocationId ?? "all"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rental_agreements")
@@ -71,7 +72,7 @@ function useAgreements() {
       const bookingIds = [...new Set(data.map((a) => a.booking_id))];
       const { data: bookings } = await supabase
         .from("bookings")
-        .select("id, booking_code, start_at, end_at, user_id, vehicle_id, customer_id, status")
+        .select("id, booking_code, start_at, end_at, user_id, vehicle_id, customer_id, status, location_id")
         .in("id", bookingIds);
 
       // Batch fetch customers for walk-in bookings
@@ -91,12 +92,17 @@ function useAgreements() {
           : { data: [] },
       ]);
 
-      const bookingsMap = new Map((bookings || []).map((b) => [b.id, b]));
+      const scopedBookings = scopeLocationId
+        ? (bookings || []).filter((b) => b.location_id === scopeLocationId)
+        : bookings || [];
+      const bookingsMap = new Map(scopedBookings.map((b) => [b.id, b]));
       const customersMap = new Map((customersRes.data || []).map((c) => [c.id, c]));
       const profilesMap = new Map((profilesRes.data || []).map((p) => [p.id, p]));
       const categoriesMap = new Map((categoriesRes.data || []).map((c) => [c.id, c]));
 
-      return data.map((a) => {
+      return data
+        .filter((a) => bookingsMap.has(a.booking_id))
+        .map((a) => {
         const booking = bookingsMap.get(a.booking_id);
         const customer = booking?.customer_id ? customersMap.get(booking.customer_id) : null;
         const profile = booking ? profilesMap.get(booking.user_id) : null;
@@ -142,7 +148,8 @@ function getStatusInfo(row: AgreementRow) {
 }
 
 export default function AdminAgreements() {
-  const { data: agreements = [], isLoading } = useAgreements();
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  const { data: agreements = [], isLoading } = useAgreements(scopeLocationId);
   const [tab, setTab] = useState<"all" | "signed" | "pending">("all");
   const [search, setSearch] = useState("");
   const [viewAgreement, setViewAgreement] = useState<AgreementRow | null>(null);
