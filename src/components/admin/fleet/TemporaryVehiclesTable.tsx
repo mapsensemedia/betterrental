@@ -58,6 +58,7 @@ import {
   type VehicleUnit,
 } from "@/hooks/use-vehicle-units";
 import { useLocations } from "@/hooks/use-locations";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -86,7 +87,11 @@ export function TemporaryVehiclesTable() {
   const [editUnit, setEditUnit] = useState<VehicleUnit | null>(null);
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
 
-  const { data: allUnits, isLoading } = useVehicleUnits({ isTemporary: true });
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  const { data: allUnits, isLoading } = useVehicleUnits({
+    isTemporary: true,
+    locationId: scopeLocationId ?? undefined,
+  });
   const { data: locations } = useLocations();
   const deleteMutation = useDeleteVehicleUnit();
   const updateMutation = useUpdateVehicleUnit();

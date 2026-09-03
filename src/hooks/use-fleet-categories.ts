@@ -64,10 +64,10 @@ export interface CreateVinInput {
   notes?: string;
 }
 
-// Get all categories with counts for admin
-export function useFleetCategories() {
+// Get all categories with counts for admin (optionally scoped to one branch)
+export function useFleetCategories(locationId?: string | null) {
   return useQuery({
-    queryKey: ["fleet-categories"],
+    queryKey: ["fleet-categories", locationId ?? "all"],
     queryFn: async () => {
       const { data: categories, error } = await supabase
         .from("vehicle_categories")
@@ -77,11 +77,17 @@ export function useFleetCategories() {
 
       if (error) throw error;
 
-      // Get unit counts per category
-      const { data: units } = await supabase
+      // Get unit counts per category (branch-scoped when a location is selected)
+      let unitsQuery = supabase
         .from("vehicle_units")
         .select("id, category_id, status")
         .not("category_id", "is", null);
+
+      if (locationId) {
+        unitsQuery = unitsQuery.eq("location_id", locationId);
+      }
+
+      const { data: units } = await unitsQuery;
 
       // Fetch active bookings to derive real on_rent status
       const { data: activeBookings } = await supabase
@@ -165,14 +171,14 @@ export function useAvailableCategories(
 }
 
 // Get VINs for a category
-export function useCategoryVins(categoryId: string | null) {
+export function useCategoryVins(categoryId: string | null, locationId?: string | null) {
   return useQuery({
-    queryKey: ["category-vins", categoryId],
+    queryKey: ["category-vins", categoryId, locationId ?? "all"],
     queryFn: async () => {
       if (!categoryId) return [];
 
       // Fetch units with location AND linked vehicle for year/make/model
-      const { data, error } = await supabase
+      let unitsQuery = supabase
         .from("vehicle_units")
         .select(`
           id, vin, license_plate, status, location_id, notes, current_mileage, acquisition_cost, category_id, created_at,
@@ -182,6 +188,12 @@ export function useCategoryVins(categoryId: string | null) {
         .eq("category_id", categoryId)
         .order("status")
         .order("vin");
+
+      if (locationId) {
+        unitsQuery = unitsQuery.eq("location_id", locationId);
+      }
+
+      const { data, error } = await unitsQuery;
 
       if (error) throw error;
 

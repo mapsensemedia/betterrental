@@ -47,6 +47,7 @@ import {
   type VehicleUnit,
 } from "@/hooks/use-vehicle-units";
 import { useLocations } from "@/hooks/use-locations";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
 import { VehicleUnitEditDialog } from "./VehicleUnitEditDialog";
 import { VinFormDialog } from "./VinFormDialog";
@@ -68,7 +69,9 @@ interface Props {
 export function AllVehiclesTable({ isTemporary = false }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
-  const locationId = searchParams.get("loc") || "all";
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  // The global branch scope wins over the local location filter.
+  const locationId = scopeLocationId ?? (searchParams.get("loc") || "all");
   const status = searchParams.get("status") || "all";
   const categoryId = searchParams.get("cat") || "all";
 
@@ -146,7 +149,11 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
             />
           </div>
 
-          <Select value={locationId} onValueChange={(v) => setParam("loc", v)}>
+          <Select
+            value={locationId}
+            onValueChange={(v) => setParam("loc", v)}
+            disabled={!!scopeLocationId}
+          >
             <SelectTrigger className="w-full sm:w-[150px] h-9">
               <SelectValue placeholder="Location" />
             </SelectTrigger>
