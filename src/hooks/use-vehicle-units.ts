@@ -373,3 +373,95 @@ export function useSetVehicleUnitStatus() {
     },
   });
 }
+
+/* ------------------- Licence plate management ------------------- */
+
+export function normalizePlate(raw: string) {
+  return raw.trim().toUpperCase().replace(/\s+/g, " ");
+}
+
+export interface PlateConflict {
+  id: string;
+  vin: string;
+  status: string;
+  make?: string | null;
+  model?: string | null;
+}
+
+/** Returns other vehicle units currently holding this plate. */
+export async function findPlateConflicts(plate: string, excludeUnitId: string) {
+  const { data } = await supabase
+    .from("vehicle_units")
+    .select("id, vin, status, vehicles(make, model)")
+    .eq("license_plate", normalizePlate(plate))
+    .neq("id", excludeUnitId)
+    .limit(10);
+
+  return (data ?? []).map((u: any) => ({
+    id: u.id,
+    vin: u.vin,
+    status: u.status,
+    make: u.vehicles?.make ?? null,
+    model: u.vehicles?.model ?? null,
+  })) as PlateConflict[];
+}
+
+interface SetPlateInput {
+  id: string;
+  /** null or "" removes the plate. */
+  plate: string | null;
+  /** When true, clears the plate from any other vehicle holding it (plate transfer). */
+  transfer?: boolean;
+}
+
+export function useSetVehiclePlate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, plate, transfer }: SetPlateInput) => {
+      const next = plate ? normalizePlate(plate) : null;
+
+      if (next) {
+        const conflicts = await findPlateConflicts(next, id);
+        if (conflicts.length > 0) {
+          if (!transfer) {
+            const label = conflicts
+              .map((c) => `${c.make ?? ""} ${c.model ?? ""} (${c.vin})`.trim())
+              .join(", ");
+            throw new Error(`Plate ${next} is already on ${label}. Use "Transfer plate" to move it.`);
+          }
+          const { error: clearError } = await supabase
+            .from("vehicle_units")
+            .update({ license_plate: null })
+            .in("id", conflicts.map((c) => c.id));
+          if (clearError) throw new Error(clearError.message || "Could not free the plate");
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("vehicle_units")
+        .update({ license_plate: next })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === "42501") {
+          throw new Error("You don't have permission to change this vehicle. Admin/staff role required.");
+        }
+        throw new Error(error.message || "Plate update failed");
+      }
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["vehicle-units"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-unit", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["fleet-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["category-vins"] });
+      toast({ title: variables.plate ? "Plate updated" : "Plate removed" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Plate update failed", description: error.message, variant: "destructive" });
+    },
+  });
+}
