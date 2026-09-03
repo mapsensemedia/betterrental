@@ -1,66 +1,62 @@
-# Payment capture record on the ops payment screen
+# Additional Documents step in the rental handover flow
 
-## What you asked for, and the one part I can't build
+Adds a new step to the handover wizard, right after Payment & Deposit, where staff upload
+any extra paperwork the customer provided or the company requires before releasing the car.
 
-You want a full-page capture taken the moment the card form is complete and the
-"Charge $X rental + $Y deposit hold" button is pressed, saved to the booking's financial
-panel and activity.
+## The step
 
-I can build the capture. I cannot include the card number, expiry and CVV in it:
+- New step "Additional Documents" appears as step 3 in the standard pickup flow (after
+  Payment & Deposit, before Vehicle Walkaround), and in the delivery pre-dispatch flow in the
+  same position.
+- Contents:
+  - Upload area (drag-and-drop or file picker), accepting images and PDFs, multiple files at
+    once, up to 20MB each. Camera capture works on phones/tablets.
+  - Each upload asks for a free-text document label (e.g. "Passport", "Employer letter") and
+    an optional note.
+  - A list of everything uploaded for this booking: label, note, file type, who uploaded it,
+    when, with view and delete actions. Deletes are staff-only and logged.
+- The step is **required**: at least one document must be on file before the rental can be
+  activated at the Handover step, and the sidebar shows it as incomplete until then. The
+  activation button explains what's missing if staff try to skip it.
 
-- Those three fields are not part of our page. They are rendered by the payment gateway
-  inside its own secure frame, which the browser refuses to expose to our code — any
-  capture we take shows those boxes as blank or masked. This is the security boundary that
-  keeps us out of full card-data scope; there is no setting to turn it off.
-- Storing a full card number in readable form, or storing the CVV at all after a charge, is
-  prohibited for every merchant that accepts cards. If it were found in our records, the
-  gateway can terminate the merchant account and fines apply per incident. So even if it
-  were technically possible, I won't write code that does it.
+## Where the documents show up
 
-What legitimately lets you charge the same card later is not the number — it is the saved
-card token we already create at charge time. That is what "rental companies keep the card
-on file" means in practice, and it already works.
+1. **Booking detail page** — an "Additional documents" card listing every document with a
+   thumbnail/file icon; clicking opens it in a viewer.
+2. **Active rental page** — the same card, so staff working a live rental can pull up the
+   paperwork and add more mid-rental.
+3. **Customer profile** — all additional documents for that customer across their bookings,
+   each tagged with the booking code it came from.
+4. **Activity history** — an entry each time a document is uploaded or removed, attributed to
+   the staff member and their branch.
 
-So the capture will show everything except the raw number/expiry/CVV: the cardholder name,
-the card brand and last 4 digits, the exact amounts, the booking, the staff member, the
-branch, the timestamp, and the gateway reference — which is what an evidence record needs
-to hold up in a chargeback dispute.
-
-## What gets built
-
-1. **Automatic capture at charge time.** When staff press the charge button on the ops
-   payment screen, the app captures the full payment page as a PNG before the charge is
-   sent, and stamps it with booking code, staff name, branch and timestamp. Card
-   number/expiry/CVV boxes appear masked, since the browser will not release them.
-2. **A "Card on file / payment evidence" record.** Saved alongside the image: cardholder
-   name, card brand, last 4, amount charged, deposit hold amount, gateway transaction
-   references, staff, branch, timestamp, and whether the charge and hold succeeded.
-3. **Visible in two places.**
-   - Booking detail → financial panel: a "Payment evidence" block listing each capture with
-     its amounts and a thumbnail that opens the full image.
-   - Activity history: an entry such as "Payment evidence captured — $364.08 rental +
-     $350.00 hold" attributed to the staff member.
-4. **Access control.** The image lives in a private store; only signed-in staff whose branch
-   matches the booking (and super admins) can open it. Nothing is publicly reachable.
-5. **Failed attempts too.** If the card is declined, the capture and record are still saved
-   and marked declined, so there is a trail of the attempt.
+Files are stored privately. Only signed-in staff can open them, scoped to the booking's
+branch (super admins see everything). Nothing is publicly reachable and no link works without
+an authenticated staff session.
 
 ## Technical notes
 
-- Capture with `html-to-image` on the payment panel container; the gateway's cross-origin
-  iframes render as their styled placeholders, so no PAN/CVV can enter the PNG. Capture runs
-  in `handlePayAndHold` in `src/components/payments/OpsPaymentAndDeposit.tsx` immediately
-  before the first `getToken()` call.
-- New private storage bucket `payment-evidence`, path
-  `<booking_id>/<timestamp>-<kind>.png`, with `storage.objects` policies restricted to
-  active staff via `can_access_location` on the booking's location, plus super admins.
-- New table `public.payment_evidence` (booking_id, storage_path, cardholder_name,
-  card_brand, card_last4, rental_amount_cents, deposit_amount_cents, wl_transaction_id,
-  wl_deposit_transaction_id, outcome, captured_by, captured_at_location_id, created_at) with
-  GRANTs and staff-scoped RLS. A DB constraint blocks any column that could hold a full card
-  number; only `card_last4` (4 chars) is allowed.
-- Upload + insert go through a new edge function `record-payment-evidence`, so the row is
-  written server-side alongside an `audit_logs` entry (`payment_evidence_captured`), which is
-  what makes it appear in the existing activity history block.
-- Financial panel rendering added to `src/components/admin/ops/FinancialBreakdown.tsx`
-  (and therefore the booking detail overview) with a signed-URL viewer dialog.
+- New private storage bucket `booking-documents`, 20MB per-file limit, path
+  `<booking_id>/<uuid>-<filename>`. RLS on `storage.objects` allows read/insert/delete to
+  active staff via `can_access_location` against the booking's location, plus super admins.
+- New table `public.booking_documents`: `id`, `booking_id` (FK, cascade), `customer_user_id`,
+  `label` (text, not null), `notes`, `storage_path`, `file_name`, `mime_type`, `file_size`,
+  `uploaded_by`, `uploaded_at_location_id`, `created_at`, `deleted_at` (soft delete). Migration
+  includes GRANTs (`authenticated`, `service_role`) and staff-scoped RLS using
+  `is_active_staff` + `can_access_location`; customers get no access.
+- Upload/delete go through a new edge function `manage-booking-documents` so the row insert and
+  the matching `audit_logs` entry (`booking_document_uploaded` / `booking_document_deleted`)
+  are written server-side with correct staff attribution — consistent with the existing rule
+  that attribution never reads `profiles`.
+- `src/lib/ops-steps.ts`: add `"documents"` to `OpsStepId`, insert the step into `OPS_STEPS`
+  and `OPS_STEPS_DELIVERY_PRE` (renumbering the following steps), add
+  `documents: { documentsUploaded: boolean }` to `StepCompletion`, and wire
+  `checkStepComplete` / `getMissingItems`. Add a blocking issue in `getBlockingIssues` for
+  `handover` when no document is on file.
+- New `src/components/admin/ops/steps/StepDocuments.tsx` plus a shared
+  `BookingDocumentsCard` used by the step, `src/pages/admin/BookingDetail.tsx` and
+  `src/pages/admin/ActiveRentalDetail.tsx`; new `src/hooks/use-booking-documents.ts` for
+  fetching, signed URLs, upload and delete.
+- `src/pages/admin/BookingOps.tsx` computes the completion flag from the document count;
+  `OpsStepContent.tsx` renders the new step and includes it in step advancement.
+- Customer profile view gets a documents section querying by `customer_user_id`.
