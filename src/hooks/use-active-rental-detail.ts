@@ -22,6 +22,10 @@ export interface ActiveRentalDetail {
   returnLocationId: string | null;
   assignedUnitId: string | null;
   differentDropoffFee: number;
+  cardLastFour: string | null;
+  cardType: string | null;
+  cardHolderName: string | null;
+  cardExpiry: string | null;
   // Calculated fields
   activatedAt: string; // Using start_at as activation time for active rentals
   isOverdue: boolean;
@@ -223,6 +227,10 @@ export function useActiveRentalDetail(bookingId: string | null) {
         returnLocationId: booking.return_location_id,
         assignedUnitId: booking.assigned_unit_id ?? null,
         differentDropoffFee: Number(booking.different_dropoff_fee || 0),
+        cardLastFour: booking.card_last_four ?? null,
+        cardType: booking.card_type ?? null,
+        cardHolderName: booking.card_holder_name ?? null,
+        cardExpiry: (booking as any).card_expiry ?? null,
         activatedAt: booking.start_at, // For active rentals, start_at is activation time
         isOverdue,
         overdueHours,
