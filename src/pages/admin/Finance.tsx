@@ -1604,6 +1604,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold">${totalRevenue.toLocaleString()}</p>
+                <p className="text-[11px] text-muted-foreground">{scopeBranchName}</p>
               </div>
             </div>
           </CardContent>
