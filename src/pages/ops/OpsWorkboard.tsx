@@ -20,7 +20,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
-import { OpsLocationFilter, useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
+import { useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
 import { WalkInBookingDialog } from "@/components/admin/WalkInBookingDialog";
 
 interface TaskCount {
@@ -175,7 +175,6 @@ export default function OpsWorkboard() {
               {format(new Date(), "EEEE, MMMM d")} — Today's overview
             </p>
           </div>
-          <OpsLocationFilter />
         </div>
 
         {/* Stats Grid */}

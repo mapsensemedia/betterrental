@@ -55,10 +55,7 @@ import { toast } from "@/hooks/use-toast";
 import { useHandovers, type HandoverBooking } from "@/hooks/use-handovers";
 import { useUpdateBookingStatus } from "@/hooks/use-bookings";
 import { useCreateAlert } from "@/hooks/use-alerts";
-import {
-  OpsLocationFilter,
-  useOpsLocationFilter,
-} from "@/components/ops/OpsLocationFilter";
+import { useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
 
 type DateFilter = "today" | "next24h" | "week" | "month" | "all";
 
@@ -266,7 +263,6 @@ export default function OpsPickups() {
               <SelectItem value="all">All Upcoming</SelectItem>
             </SelectContent>
           </Select>
-          <OpsLocationFilter />
         </div>
 
         {/* List */}
