@@ -6,6 +6,7 @@
 export type OpsStepId = 
   | "checkin" 
   | "payment" 
+  | "documents"
   | "prep"
   | "agreement" 
   | "walkaround" 
