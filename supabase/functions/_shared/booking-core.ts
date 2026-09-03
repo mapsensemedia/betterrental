@@ -368,7 +368,7 @@ export async function requireBookingOwnerOrToken(
       .from("user_roles")
       .select("role")
       .eq("user_id", authUserId)
-      .in("role", ["admin", "staff"])
+      .in("role", ["super_admin", "manager", "admin", "staff"])
       .limit(1)
       .maybeSingle();
 

@@ -27,7 +27,7 @@ export function useIsAdmin() {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .in("role", ["admin", "staff", "cleaner", "finance"]);
+        .in("role", ["super_admin", "manager", "admin", "staff", "cleaner", "finance"]);
 
       if (error) {
         console.error("Error checking admin status:", error);

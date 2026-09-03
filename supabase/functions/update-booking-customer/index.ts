@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
   try {
     // 1. Auth + role check
     const { userId } = await getUserOrThrow(req, corsHeaders);
-    await requireRoleOrThrow(userId, ["admin", "staff", "finance", "support"], corsHeaders);
+    await requireRoleOrThrow(userId, ["super_admin", "manager", "admin", "staff", "finance", "support"], corsHeaders);
 
     // 2. Parse & validate input
     const body: UpdateCustomerBody = await req.json();

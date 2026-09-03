@@ -17,7 +17,7 @@ serve(async (req: Request): Promise<Response> => {
 
   try {
     const { userId } = await getUserOrThrow(req, corsHeaders);
-    await requireRoleOrThrow(userId, ["admin", "staff"], corsHeaders);
+    await requireRoleOrThrow(userId, ["super_admin", "manager", "admin", "staff"], corsHeaders);
 
     const { bookingId, code, reference } = await req.json();
     if (!bookingId || !code || !/^\d{6}$/.test(String(code))) {

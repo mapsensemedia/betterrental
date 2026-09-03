@@ -17,7 +17,7 @@ export function useIsSupportOrAdmin() {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .in("role", ["admin", "staff", "support"]);
+        .in("role", ["super_admin", "manager", "admin", "staff", "support"]);
 
       if (error) {
         console.error("Error checking support status:", error);
@@ -57,7 +57,7 @@ export function useIsSupportOnly() {
       // Check if they ONLY have support role, not admin/staff
       const roles = data.map((r) => r.role);
       const hasSupport = roles.includes("support");
-      const hasAdminOrStaff = roles.some((r) => r === "admin" || r === "staff");
+      const hasAdminOrStaff = roles.some((r) => r === "super_admin" || r === "manager" || r === "admin" || r === "staff");
       
       return hasSupport && !hasAdminOrStaff;
     },

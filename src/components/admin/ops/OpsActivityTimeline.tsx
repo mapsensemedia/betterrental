@@ -174,7 +174,7 @@ export function OpsActivityTimeline({ bookingId, className }: OpsActivityTimelin
         const [profileResult, rolesResult] = await Promise.all([
           supabase.from("profiles").select("id, full_name").in("id", userIds),
           supabase.from("user_roles").select("user_id, role").in("user_id", userIds)
-            .in("role", ["admin", "staff", "cleaner", "finance"]),
+            .in("role", ["super_admin", "manager", "admin", "staff", "cleaner", "finance"]),
         ]);
         
         profiles = (profileResult.data || []).reduce((acc, p) => {

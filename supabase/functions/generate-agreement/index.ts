@@ -180,7 +180,7 @@ serve(async (req) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", auth.userId)
-        .in("role", ["admin", "staff"])
+        .in("role", ["super_admin", "manager", "admin", "staff"])
         .maybeSingle();
 
       if (bookingCheck.user_id !== auth.userId && !userRole) {

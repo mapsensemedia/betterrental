@@ -53,7 +53,7 @@ const fetchVehicleOptions = async (): Promise<VehicleOption[]> => {
 
 const fetchStaffOptions = async (): Promise<StaffOption[]> => {
   const client = supabase as any;
-  const { data, error } = await client.from("profiles").select("id, full_name, email, role").in("role", ["admin", "staff"]).order("full_name");
+  const { data, error } = await client.from("profiles").select("id, full_name, email, role").in("role", ["super_admin", "manager", "admin", "staff"]).order("full_name");
   if (error) throw error;
   return data || [];
 };

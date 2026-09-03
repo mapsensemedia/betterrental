@@ -54,9 +54,9 @@ Deno.serve(async (req) => {
     const isManual = manualOverride === true;
 
     if (isManual) {
-      await requireRoleOrThrow(user.userId, ["admin"], corsHeaders);
+      await requireRoleOrThrow(user.userId, ["super_admin", "manager", "admin"], corsHeaders);
     } else {
-      await requireRoleOrThrow(user.userId, ["admin", "staff", "finance"], corsHeaders);
+      await requireRoleOrThrow(user.userId, ["super_admin", "manager", "admin", "staff", "finance"], corsHeaders);
     }
 
     if (!bookingId) {

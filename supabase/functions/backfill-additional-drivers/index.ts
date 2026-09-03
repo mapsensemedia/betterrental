@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["admin", "staff"])
+      .in("role", ["super_admin", "manager", "admin", "staff"])
       .limit(1);
 
     if (!roleCheck || roleCheck.length === 0) {
