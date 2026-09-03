@@ -4,6 +4,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { filterUnitsByBranch } from "@/lib/location-scope";
 
 export interface VehicleUnitMetrics {
   vehicleUnitId: string;
@@ -111,6 +112,9 @@ export function useFleetCostAnalysisByVehicle(
         .select("assigned_unit_id, vehicle_id, total_amount, subtotal, total_days, status, start_at, end_at")
         .in("status", ["completed", "active"]);
 
+      if (filters?.locationId) {
+        bookingsQuery = bookingsQuery.eq("location_id", filters.locationId);
+      }
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("start_at", filters.dateFrom);
       }
@@ -245,11 +249,15 @@ export function useFleetCostAnalysisByVehicle(
       }).sort((a, b) => b.netProfit - a.netProfit);
     },
     staleTime: 60000, // Cache for 1 minute
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useFleetCostAnalysisByCategory(filters?: FleetCostFilters) {
-  const { data: vehicleMetrics } = useFleetCostAnalysisByVehicle(filters);
+export function useFleetCostAnalysisByCategory(
+  filters?: FleetCostFilters,
+  options?: { enabled?: boolean }
+) {
+  const { data: vehicleMetrics } = useFleetCostAnalysisByVehicle(filters, options);
 
   return useQuery({
     queryKey: ["fleet-cost-analysis", "by-category", filters, vehicleMetrics],
@@ -299,7 +307,7 @@ export function useFleetCostAnalysisByCategory(filters?: FleetCostFilters) {
         };
       }).filter((c) => c.vehicleCount > 0);
     },
-    enabled: !!vehicleMetrics,
+    enabled: (options?.enabled ?? true) && !!vehicleMetrics,
   });
 }
 
