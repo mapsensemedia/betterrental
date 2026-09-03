@@ -242,42 +242,64 @@ export default function AdminAlerts() {
   };
 
   const hasFilters = statusFilter || typeFilter;
-  const pendingCount = alerts.filter((a) => a.status === "pending").length;
 
-  // Group alerts by priority
-  const criticalAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "critical");
-  const actionAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "action");
-  const infoAlerts = alerts.filter((a) => getAlertPriority(a.alertType) === "info");
+  // Group alerts by priority. Lifecycle notices (activation, completion,
+  // cancellation) are always informational — never Critical or Action Needed.
+  const criticalAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "critical");
+  const actionAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "action");
+  const infoAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "info");
+  const pendingCount = [...criticalAlerts, ...actionAlerts].filter((a) => a.status === "pending").length;
 
-  const renderAlertTable = (groupAlerts: AdminAlert[]) => {
+  const renderAlertTable = (groupAlerts: AdminAlert[], groupKey: string) => {
     if (groupAlerts.length === 0) return null;
+    const limit = expandedGroups[groupKey] ? groupAlerts.length : PAGE_SIZE;
+    const visible = groupAlerts.slice(0, limit);
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[100px]">Status</TableHead>
-            <TableHead>Alert</TableHead>
-            <TableHead className="w-[140px]">Type</TableHead>
-            <TableHead className="w-[140px]">Created</TableHead>
-            <TableHead className="w-[160px] text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {groupAlerts.map((alert) => (
-            <AlertRow
-              key={alert.id}
-              alert={alert}
-              onView={setSelectedAlert}
-              onAcknowledge={handleAcknowledge}
-              onResolve={handleResolve}
-              isAcknowledging={acknowledgeAlert.isPending}
-              isResolving={resolveAlert.isPending}
-            />
-          ))}
-        </TableBody>
-      </Table>
+      <div className="border-t border-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[90px] h-9 text-xs">Status</TableHead>
+              <TableHead className="h-9 text-xs">Alert</TableHead>
+              <TableHead className="w-[130px] h-9 text-xs hidden md:table-cell">Type</TableHead>
+              <TableHead className="w-[110px] h-9 text-xs">Created</TableHead>
+              <TableHead className="w-[130px] h-9 text-xs text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visible.map((alert) => (
+              <AlertRow
+                key={alert.id}
+                alert={alert}
+                onView={setSelectedAlert}
+                onAcknowledge={handleAcknowledge}
+                onResolve={handleResolve}
+                isAcknowledging={acknowledgeAlert.isPending}
+                isResolving={resolveAlert.isPending}
+              />
+            ))}
+          </TableBody>
+        </Table>
+        {groupAlerts.length > PAGE_SIZE && (
+          <div className="p-2 text-center border-t border-border">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() =>
+                setExpandedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))
+              }
+            >
+              {expandedGroups[groupKey]
+                ? "Show less"
+                : `Show all ${groupAlerts.length}`}
+            </Button>
+          </div>
+        )}
+      </div>
     );
   };
+
 
   return (
     <AdminShell>
