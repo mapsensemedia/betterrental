@@ -167,7 +167,9 @@ export function TemporaryVehiclesTable() {
                 <TableHead>Ends</TableHead>
                 <TableHead className="text-right">Daily cost</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-10" />
+                <TableHead className="sticky right-0 bg-muted/50 text-right w-[150px] border-l border-border">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
