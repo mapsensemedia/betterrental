@@ -16,7 +16,7 @@ serve(async (req: Request): Promise<Response> => {
   try {
     // SECURITY: Only admins can confirm other admin emails
     const caller = await getUserOrThrow(req, corsHeaders);
-    await requireRoleOrThrow(caller.userId, ["admin"], corsHeaders);
+    await requireRoleOrThrow(caller.userId, ["super_admin", "manager", "admin"], corsHeaders);
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",

@@ -43,6 +43,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts, type SidebarCounts } from "@/hooks/use-sidebar-counts";
 import { useCapabilities } from "@/auth/capabilities";
+import { LocationScopeSwitcher } from "@/components/admin/LocationScopeSwitcher";
+import { LocationScopeProvider } from "@/context/LocationScopeProvider";
 import { useGlobalRealtime } from "@/hooks/use-global-realtime";
 import { HelpGuideModal } from "./HelpGuideModal";
 
@@ -256,7 +258,7 @@ export function AdminShell({
         {children}
       </div>;
   }
-  return <div className="admin-theme min-h-screen bg-background flex flex-col md:flex-row">
+  return <LocationScopeProvider><div className="admin-theme min-h-screen bg-background flex flex-col md:flex-row">
 
       {/* Desktop Sidebar - hidden on mobile, visible on tablet+ */}
       <aside className={cn("w-60 border-r border-sidebar-border bg-sidebar text-sidebar-foreground hidden md:flex flex-col shrink-0", sidebarCollapsed && "md:hidden")}>
@@ -455,8 +457,14 @@ export function AdminShell({
             </Select>
           )}
 
+          {/* Branch scope (Super Admin can switch, Manager sees their branch) */}
+          <div className="hidden md:block shrink-0">
+            <LocationScopeSwitcher className="h-8 md:h-9 bg-secondary border-0" />
+          </div>
+
           {/* Spacer */}
           <div className="flex-1" />
+
 
           {/* Help Button */}
           <Button
@@ -506,5 +514,5 @@ export function AdminShell({
 
       {/* Help Guide Modal */}
       <HelpGuideModal open={helpOpen} onOpenChange={setHelpOpen} />
-    </div>;
+    </div></LocationScopeProvider>;
 }

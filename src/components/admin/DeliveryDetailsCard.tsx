@@ -53,7 +53,7 @@ function useStaffMembers() {
       const { data, error } = await supabase
         .from("user_roles")
         .select("user_id, role")
-        .in("role", ["admin", "staff"]);
+        .in("role", ["super_admin", "manager", "admin", "staff"]);
       
       if (error) throw error;
       

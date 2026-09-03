@@ -17,7 +17,7 @@ export function useIsDriverOrAbove() {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .in("role", ["admin", "staff", "driver"]);
+        .in("role", ["super_admin", "manager", "admin", "staff", "driver"]);
 
       if (error) {
         console.error("Error checking driver status:", error);
@@ -56,7 +56,7 @@ export function useIsDriverOnly() {
 
       const roles = data.map((r) => r.role);
       const hasDriver = roles.includes("driver");
-      const hasAdminOrStaff = roles.some((r) => r === "admin" || r === "staff");
+      const hasAdminOrStaff = roles.some((r) => r === "super_admin" || r === "manager" || r === "admin" || r === "staff");
       
       return hasDriver && !hasAdminOrStaff;
     },

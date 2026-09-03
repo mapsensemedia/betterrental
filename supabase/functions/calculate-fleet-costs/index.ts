@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
   try {
     // SECURITY: Only admin/staff can access fleet cost data
     const user = await getUserOrThrow(req, corsHeaders);
-    await requireRoleOrThrow(user.userId, ["admin", "staff", "finance"], corsHeaders);
+    await requireRoleOrThrow(user.userId, ["super_admin", "manager", "admin", "staff", "finance"], corsHeaders);
   } catch (err) {
     if (err instanceof AuthError) return authErrorResponse(err, corsHeaders);
     return new Response(JSON.stringify({ error: "Unauthorized" }), {

@@ -11,7 +11,21 @@ import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/domain/queryKeys";
 
 // ========== Types ==========
-export type AppRole = "admin" | "staff" | "cleaner" | "finance" | "support" | "driver";
+/**
+ * Only two business roles exist: `super_admin` (all branches) and `manager`
+ * (one assigned branch). `driver` is kept solely for the delivery portal.
+ * The remaining values are legacy and only appear on historical rows.
+ */
+export type AppRole =
+  | "super_admin"
+  | "manager"
+  | "driver"
+  // legacy — retained for backwards compatibility only
+  | "admin"
+  | "staff"
+  | "cleaner"
+  | "finance"
+  | "support";
 export type PanelType = "admin" | "ops" | "support" | "delivery";
 
 export interface Capabilities {
@@ -62,6 +76,12 @@ export interface Capabilities {
   canViewAnalytics: boolean;
   canExportData: boolean;
   
+  // Location scope
+  isSuperAdmin: boolean;
+  canSwitchLocation: boolean;
+  canManageStaff: boolean;
+  canViewAllLocations: boolean;
+
   // Panel access
   canAccessAdminPanel: boolean;
   canAccessOpsPanel: boolean;
@@ -70,79 +90,88 @@ export interface Capabilities {
 }
 
 // ========== Role Definitions ==========
-const ADMIN_ROLES: AppRole[] = ["admin"];
-const STAFF_ROLES: AppRole[] = ["admin", "staff"];
-const OPERATIONAL_ROLES: AppRole[] = ["admin", "staff", "cleaner"];
-const FINANCE_ROLES: AppRole[] = ["admin", "finance"];
-const SUPPORT_ROLES: AppRole[] = ["admin", "staff", "support"];
-const DRIVER_ROLES: AppRole[] = ["admin", "staff", "driver"];
+/** Company-wide: every branch, every setting, staff management. */
+const SUPER_ADMIN_ROLES: AppRole[] = ["super_admin", "admin"];
+/** Branch-scoped operator. Legacy roles are folded in here. */
+const MANAGER_ROLES: AppRole[] = ["manager", "staff", "cleaner", "finance", "support"];
+const DRIVER_ROLES: AppRole[] = ["super_admin", "admin", "manager", "staff", "driver"];
 
 // ========== Capability Resolver ==========
 export function resolveCapabilities(roles: AppRole[], panel: PanelType): Capabilities {
   const hasRole = (allowedRoles: AppRole[]) => roles.some(r => allowedRoles.includes(r));
-  
-  const isAdmin = hasRole(ADMIN_ROLES);
-  const isStaff = hasRole(STAFF_ROLES);
-  const isOperational = hasRole(OPERATIONAL_ROLES);
-  const isFinance = hasRole(FINANCE_ROLES);
-  const isSupport = hasRole(SUPPORT_ROLES);
+
+  const isSuperAdmin = hasRole(SUPER_ADMIN_ROLES);
+  const isManager = hasRole(MANAGER_ROLES);
+  /** Anything a branch operator may do (super admins may do it everywhere). */
+  const isStaff = isSuperAdmin || isManager;
+  const isAdmin = isSuperAdmin;
+  const isOperational = isStaff;
+  const isFinance = isStaff;
+  const isSupport = isStaff;
   const isDriver = hasRole(DRIVER_ROLES);
-  
+
   // Panel-specific overrides
   const inAdminPanel = panel === "admin";
   const inOpsPanel = panel === "ops";
+
   
   return {
-    // Booking Operations - staff can do most ops, admin can void
-    canViewBookings: isStaff || isOperational,
+    // Booking Operations — managers run their branch end to end
+    canViewBookings: isStaff,
     canCreateBooking: isStaff,
     canModifyBooking: isStaff,
-    canVoidBooking: isAdmin && inAdminPanel, // Admin only, admin panel only
+    canVoidBooking: isStaff && inAdminPanel,
     canCancelBooking: isStaff,
     canAssignVehicle: isStaff,
     canProcessHandover: isOperational,
     canProcessReturn: isOperational,
-    
+
     // Fleet Management
-    canViewFleet: isStaff || isOperational,
-    canEditFleet: isAdmin,
-    canMoveVehicleUnits: isAdmin && inAdminPanel, // Admin only, admin panel only
+    canViewFleet: isStaff,
+    canEditFleet: isStaff,
+    canMoveVehicleUnits: isSuperAdmin && inAdminPanel, // cross-branch transfer
     canUpdateVehicleStatus: isOperational,
-    canManageCategories: isAdmin,
-    
-    // Pricing & Rates - Admin only in admin panel
+    canManageCategories: isSuperAdmin,
+
+    // Pricing & Rates — global configuration is Super Admin only
     canViewPricing: isStaff,
-    canEditRates: isAdmin && inAdminPanel,
-    canEditFuelPrice: isAdmin && inAdminPanel,
-    canEditAddOnPricing: isAdmin && inAdminPanel,
+    canEditRates: isSuperAdmin && inAdminPanel,
+    canEditFuelPrice: isSuperAdmin && inAdminPanel,
+    canEditAddOnPricing: isSuperAdmin && inAdminPanel,
     canApplyDiscounts: isStaff,
-    
+
     // Payments & Deposits
-    canViewPayments: isStaff || isFinance,
+    canViewPayments: isStaff,
     canRecordPayment: isStaff,
-    canProcessRefund: isAdmin || isFinance,
+    canProcessRefund: isStaff,
     canTakeDepositAction: isStaff,
-    canOverrideFees: isAdmin,
-    
+    canOverrideFees: isSuperAdmin,
+
     // Incidents & Damages
     canViewIncidents: isStaff,
     canCreateIncident: isOperational,
     canManageIncident: isStaff,
-    
+
     // Support
     canViewTickets: isSupport,
     canManageTickets: isSupport,
-    
-    // Admin-only features
-    canAccessSettings: isAdmin,
-    canManageUsers: isAdmin,
-    canViewAuditLogs: isAdmin,
-    canViewAnalytics: isAdmin || isStaff,
-    canExportData: isAdmin,
-    
+
+    // Super-Admin-only features
+    canAccessSettings: isSuperAdmin,
+    canManageUsers: isSuperAdmin,
+    canViewAuditLogs: isStaff,
+    canViewAnalytics: isStaff,
+    canExportData: isStaff,
+
+    // Location scope
+    isSuperAdmin,
+    canSwitchLocation: isSuperAdmin,
+    canManageStaff: isSuperAdmin,
+    canViewAllLocations: isSuperAdmin,
+
     // Panel access
-    canAccessAdminPanel: isAdmin,
-    canAccessOpsPanel: isStaff || isOperational,
+    canAccessAdminPanel: isStaff,
+    canAccessOpsPanel: isStaff,
     canAccessSupportPanel: isSupport,
     canAccessDeliveryPanel: isDriver,
   };
@@ -183,6 +212,10 @@ const EMPTY_CAPABILITIES: Capabilities = {
   canViewAuditLogs: false,
   canViewAnalytics: false,
   canExportData: false,
+  isSuperAdmin: false,
+  canSwitchLocation: false,
+  canManageStaff: false,
+  canViewAllLocations: false,
   canAccessAdminPanel: false,
   canAccessOpsPanel: false,
   canAccessSupportPanel: false,

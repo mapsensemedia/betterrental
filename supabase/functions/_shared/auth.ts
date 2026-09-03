@@ -9,7 +9,7 @@
  *   
  *   // Role-gated (admin/staff only)
  *   const user = await getUserOrThrow(req, corsHeaders);
- *   await requireRoleOrThrow(user.userId, ["admin", "staff"], corsHeaders);
+ *   await requireRoleOrThrow(user.userId, ["super_admin", "manager", "admin", "staff"], corsHeaders);
  *   
  *   // Booking ownership check
  *   const user = await getUserOrThrow(req, corsHeaders);
@@ -85,7 +85,7 @@ export async function isAdminOrStaff(userId: string): Promise<boolean> {
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .in("role", ["admin", "staff", "cleaner", "finance"])
+    .in("role", ["super_admin", "manager", "admin", "staff", "cleaner", "finance"])
     .limit(1)
     .maybeSingle();
   

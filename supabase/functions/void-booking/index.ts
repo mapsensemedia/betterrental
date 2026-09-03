@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
   try {
     // Auth + role gate (shared helpers)
     const { userId } = await getUserOrThrow(req, corsHeaders);
-    await requireRoleOrThrow(userId, ["admin"], corsHeaders);
+    await requireRoleOrThrow(userId, ["super_admin", "manager", "admin"], corsHeaders);
 
     const supabase = getAdminClient();
 

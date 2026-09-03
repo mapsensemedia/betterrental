@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
 
   try {
     const { userId } = await getUserOrThrow(req, corsHeaders);
-    await requireRoleOrThrow(userId, ["admin", "staff"], corsHeaders);
+    await requireRoleOrThrow(userId, ["super_admin", "manager", "admin", "staff"], corsHeaders);
 
     const body = await req.json();
     const {

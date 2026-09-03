@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
 import type { Json } from "@/integrations/supabase/types";
 
-export type AppRole = "admin" | "staff" | "cleaner" | "finance" | "support";
+export type AppRole = "super_admin" | "manager" | "driver" | "admin" | "staff" | "cleaner" | "finance" | "support";
 
 interface UserRole {
   id: string;
@@ -27,7 +27,7 @@ export function useIsAdmin() {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .in("role", ["admin", "staff", "cleaner", "finance"]);
+        .in("role", ["super_admin", "manager", "admin", "staff", "cleaner", "finance"]);
 
       if (error) {
         console.error("Error checking admin status:", error);

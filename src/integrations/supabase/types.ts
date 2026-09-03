@@ -236,33 +236,42 @@ export type Database = {
       audit_logs: {
         Row: {
           action: string
+          actor_location_id: string | null
+          actor_role: string | null
           created_at: string
           entity_id: string | null
           entity_type: string
           id: string
           ip_address: string | null
+          location_id: string | null
           new_data: Json | null
           old_data: Json | null
           user_id: string | null
         }
         Insert: {
           action: string
+          actor_location_id?: string | null
+          actor_role?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type: string
           id?: string
           ip_address?: string | null
+          location_id?: string | null
           new_data?: Json | null
           old_data?: Json | null
           user_id?: string | null
         }
         Update: {
           action?: string
+          actor_location_id?: string | null
+          actor_role?: string | null
           created_at?: string
           entity_id?: string | null
           entity_type?: string
           id?: string
           ip_address?: string | null
+          location_id?: string | null
           new_data?: Json | null
           old_data?: Json | null
           user_id?: string | null
@@ -546,6 +555,7 @@ export type Database = {
           card_holder_name: string | null
           card_last_four: string | null
           card_type: string | null
+          closed_by: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
@@ -574,6 +584,7 @@ export type Database = {
           handover_sms_sent_at: string | null
           id: string
           internal_unit_category_id: string | null
+          last_modified_by: string | null
           late_return_fee: number | null
           late_return_fee_override: number | null
           late_return_override_at: string | null
@@ -598,6 +609,9 @@ export type Database = {
           pricing_locked_at: string | null
           pricing_locked_by: string | null
           pricing_snapshot: Json | null
+          processed_at: string | null
+          processed_at_location_id: string | null
+          processed_by: string | null
           processing_fee: number
           processing_fee_rate: number
           protection_plan: string | null
@@ -653,6 +667,7 @@ export type Database = {
           card_holder_name?: string | null
           card_last_four?: string | null
           card_type?: string | null
+          closed_by?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -681,6 +696,7 @@ export type Database = {
           handover_sms_sent_at?: string | null
           id?: string
           internal_unit_category_id?: string | null
+          last_modified_by?: string | null
           late_return_fee?: number | null
           late_return_fee_override?: number | null
           late_return_override_at?: string | null
@@ -705,6 +721,9 @@ export type Database = {
           pricing_locked_at?: string | null
           pricing_locked_by?: string | null
           pricing_snapshot?: Json | null
+          processed_at?: string | null
+          processed_at_location_id?: string | null
+          processed_by?: string | null
           processing_fee?: number
           processing_fee_rate?: number
           protection_plan?: string | null
@@ -760,6 +779,7 @@ export type Database = {
           card_holder_name?: string | null
           card_last_four?: string | null
           card_type?: string | null
+          closed_by?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
@@ -788,6 +808,7 @@ export type Database = {
           handover_sms_sent_at?: string | null
           id?: string
           internal_unit_category_id?: string | null
+          last_modified_by?: string | null
           late_return_fee?: number | null
           late_return_fee_override?: number | null
           late_return_override_at?: string | null
@@ -812,6 +833,9 @@ export type Database = {
           pricing_locked_at?: string | null
           pricing_locked_by?: string | null
           pricing_snapshot?: Json | null
+          processed_at?: string | null
+          processed_at_location_id?: string | null
+          processed_by?: string | null
           processing_fee?: number
           processing_fee_rate?: number
           protection_plan?: string | null
@@ -2723,6 +2747,50 @@ export type Database = {
           },
         ]
       }
+      staff_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          display_name: string | null
+          employee_code: string | null
+          id: string
+          is_active: boolean
+          location_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          employee_code?: string | null
+          id?: string
+          is_active?: boolean
+          location_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          display_name?: string | null
+          employee_code?: string | null
+          id?: string
+          is_active?: boolean
+          location_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_assignments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_macros: {
         Row: {
           category: string
@@ -3794,6 +3862,10 @@ export type Database = {
         }
         Returns: string
       }
+      can_access_location: {
+        Args: { _location_id: string; _user_id: string }
+        Returns: boolean
+      }
       check_category_availability: {
         Args: {
           p_category_id: string
@@ -3867,7 +3939,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_active_staff: { Args: { _user_id: string }; Returns: boolean }
       is_admin_or_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_support_or_admin: { Args: { _user_id: string }; Returns: boolean }
       recompute_invoice_totals: {
         Args: { p_booking_id: string }
@@ -3877,6 +3951,7 @@ export type Database = {
         Args: { p_booking_id: string; p_new_status?: string }
         Returns: undefined
       }
+      staff_location: { Args: { _user_id: string }; Returns: string }
       update_points_balance: {
         Args: {
           p_booking_id?: string
@@ -3907,7 +3982,15 @@ export type Database = {
         | "overdue"
         | "customer_issue"
         | "emergency"
-      app_role: "admin" | "staff" | "cleaner" | "finance" | "support" | "driver"
+      app_role:
+        | "admin"
+        | "staff"
+        | "cleaner"
+        | "finance"
+        | "support"
+        | "driver"
+        | "super_admin"
+        | "manager"
       booking_status:
         | "draft"
         | "pending"
@@ -4088,7 +4171,16 @@ export const Constants = {
         "customer_issue",
         "emergency",
       ],
-      app_role: ["admin", "staff", "cleaner", "finance", "support", "driver"],
+      app_role: [
+        "admin",
+        "staff",
+        "cleaner",
+        "finance",
+        "support",
+        "driver",
+        "super_admin",
+        "manager",
+      ],
       booking_status: [
         "draft",
         "pending",
@@ -4117,7 +4209,7 @@ export const Constants = {
         "reverse",
       ],
       receipt_status: ["draft", "issued", "voided"],
-      staff_role: ["admin", "staff", "cleaner", "finance"],
+      staff_role: ["super_admin", "manager", "admin", "staff", "cleaner", "finance"],
       ticket_status: [
         "open",
         "in_progress",
