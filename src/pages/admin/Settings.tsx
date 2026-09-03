@@ -13,7 +13,6 @@ import { AddOnsPricingPanel } from "@/components/admin/AddOnsPricingPanel";
 import { ProtectionPricingPanel } from "@/components/admin/ProtectionPricingPanel";
 import { PointsSettingsPanel } from "@/components/admin/PointsSettingsPanel";
 import { MembershipManagementPanel } from "@/components/admin/MembershipManagementPanel";
-import { UserRolesPanel } from "@/components/admin/UserRolesPanel";
 import { CardPasswordSettings } from "@/components/admin/CardPasswordSettings";
 import { 
   Settings, 
@@ -68,7 +67,7 @@ export default function AdminSettings() {
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-1.5">
               <Users className="w-3.5 h-3.5" />
-              Users & Roles
+              Security
             </TabsTrigger>
             <TabsTrigger value="loyalty" className="gap-1.5">
               <Award className="w-3.5 h-3.5" />
@@ -86,9 +85,8 @@ export default function AdminSettings() {
             <AddOnsPricingPanel />
           </TabsContent>
 
-          {/* ─── Users & Roles Tab ─── */}
+          {/* ─── Security Tab (staff accounts live on /admin/staff) ─── */}
           <TabsContent value="users" className="space-y-6 mt-6">
-            <UserRolesPanel />
             <CardPasswordSettings />
           </TabsContent>
 

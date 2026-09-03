@@ -6,6 +6,8 @@ import { subDays as subDaysFn, startOfMonth as startOfMonthFn } from "date-fns";
 import { type DatePreset } from "@/components/admin/analytics/RevenueAnalyticsTab";
 import { type BookingChannel, type PaymentType, type BookingType, type RevenueFilters } from "@/hooks/use-revenue-analytics";
 import { AdminShell } from "@/components/layout/AdminShell";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
+
 import {
   BarChart3,
   TrendingUp,
@@ -72,6 +74,8 @@ export default function AdminAnalytics() {
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
   const [channel, setChannel] = useState<BookingChannel>("all");
   const [locationId, setLocationId] = useState<string | null>(null);
+  // Branch scope from the single top-bar switcher
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [bookingType, setBookingType] = useState<BookingType>("all");
   const [paymentType, setPaymentType] = useState<PaymentType>("all");
@@ -92,11 +96,11 @@ export default function AdminAnalytics() {
     startDate: revenueDateRange.start,
     endDate: revenueDateRange.end,
     channel,
-    locationId,
+    locationId: scopeLocationId ?? locationId,
     categoryId,
     bookingType,
     paymentType,
-  }), [revenueDateRange, channel, locationId, categoryId, bookingType, paymentType]);
+  }), [revenueDateRange, channel, scopeLocationId, locationId, categoryId, bookingType, paymentType]);
 
   // Compute date range for analytics events query
   const analyticsDateRange = useMemo(() => {

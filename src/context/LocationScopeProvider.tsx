@@ -13,9 +13,10 @@
  * guard remain the real boundary.
  */
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useStaffLocation } from "@/hooks/use-staff-location";
+import { readStoredLocationScope, writeStoredLocationScope } from "@/lib/location-scope-storage";
 
 interface LocationScopeValue {
   /** Branch to filter queries by, or null for all branches. */
@@ -36,19 +37,41 @@ export function LocationScopeProvider({ children }: { children: ReactNode }) {
     useStaffLocation();
 
   const urlLocationId = searchParams.get("locationId");
+  const storedLocationId = readStoredLocationScope();
+
+  // Re-hydrate the branch scope into the URL when a page is opened without it,
+  // so switching tabs keeps the previously selected branch.
+  useEffect(() => {
+    if (isLoading || !isSuperAdmin) return;
+    if (urlLocationId) return;
+    if (!storedLocationId) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("locationId", storedLocationId);
+    setSearchParams(next, { replace: true });
+  }, [isLoading, isSuperAdmin, urlLocationId, storedLocationId, searchParams, setSearchParams]);
+
+  // Mirror any branch scope that arrives via the URL (deep link, back/forward)
+  // into storage so the next tab opens on the same branch.
+  useEffect(() => {
+    if (!urlLocationId) return;
+    writeStoredLocationScope(urlLocationId === "all" ? null : urlLocationId);
+  }, [urlLocationId]);
+
 
   const value = useMemo<LocationScopeValue>(() => {
+    const explicit = urlLocationId && urlLocationId !== "all" ? urlLocationId : null;
     const scopeLocationId = isSuperAdmin
-      ? urlLocationId && urlLocationId !== "all"
-        ? urlLocationId
-        : null
+      ? urlLocationId
+        ? explicit
+        : storedLocationId
       : assignedLocationId;
 
     return {
       scopeLocationId,
       setScopeLocationId: (locationId: string | null) => {
+        writeStoredLocationScope(locationId);
         const next = new URLSearchParams(searchParams);
-        if (!locationId) next.delete("locationId");
+        if (!locationId) next.set("locationId", "all");
         else next.set("locationId", locationId);
         setSearchParams(next, { replace: true });
       },
@@ -65,9 +88,11 @@ export function LocationScopeProvider({ children }: { children: ReactNode }) {
     isUnassignedManager,
     isLoading,
     urlLocationId,
+    storedLocationId,
     searchParams,
     setSearchParams,
   ]);
+
 
   return <LocationScopeContext.Provider value={value}>{children}</LocationScopeContext.Provider>;
 }

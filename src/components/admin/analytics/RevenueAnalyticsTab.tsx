@@ -226,20 +226,8 @@ export function RevenueAnalyticsTab({
         <Card>
           <CardContent className="p-4">
             <div className="flex flex-wrap gap-4">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Location</label>
-                <Select value={filters.locationId || "all"} onValueChange={(v) => onLocationIdChange(v === "all" ? null : v)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="All Locations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    {locations?.map(loc => (
-                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Branch scope is set once in the admin top bar */}
+
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Category</label>
                 <Select value={filters.categoryId || "all"} onValueChange={(v) => onCategoryIdChange(v === "all" ? null : v)}>

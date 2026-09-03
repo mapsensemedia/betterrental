@@ -15,12 +15,16 @@ export interface CollectedRevenueResult {
   isLoading: boolean;
 }
 
-export function useCollectedRevenue(startDate: Date, endDate: Date): CollectedRevenueResult {
+export function useCollectedRevenue(
+  startDate: Date,
+  endDate: Date,
+  locationId?: string | null,
+): CollectedRevenueResult {
   const start = startDate.toISOString();
   const end = endDate.toISOString();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["collected-revenue", start, end],
+    queryKey: ["collected-revenue", start, end, locationId ?? "all"],
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from("payments")
@@ -29,7 +33,20 @@ export function useCollectedRevenue(startDate: Date, endDate: Date): CollectedRe
         .lte("created_at", end);
       if (error) throw error;
 
-      const payments = (rows || []).map(p => ({ ...p, amount: Number(p.amount) }));
+      let scopedRows = rows || [];
+      if (locationId && scopedRows.length) {
+        const bookingIds = [...new Set(scopedRows.map((p) => p.booking_id).filter(Boolean))] as string[];
+        const { data: scopedBookings } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq("location_id", locationId)
+          .in("id", bookingIds);
+        const allowed = new Set((scopedBookings || []).map((b) => b.id));
+        scopedRows = scopedRows.filter((p) => p.booking_id && allowed.has(p.booking_id));
+      }
+
+
+      const payments = scopedRows.map(p => ({ ...p, amount: Number(p.amount) }));
 
       const completedRows = payments.filter(p => p.status === "completed" || p.status === "captured");
       const collected = completedRows.reduce((sum, p) => sum + p.amount, 0);

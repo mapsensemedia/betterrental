@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { OpsLocationFilter, useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
+import { useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
 import { 
   Search, 
   Calendar, 
@@ -185,7 +185,6 @@ export default function OpsBookings() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <OpsLocationFilter />
             <Button variant="outline" size="icon" onClick={() => refetch()}>
               <RefreshCw className="w-4 h-4" />
             </Button>

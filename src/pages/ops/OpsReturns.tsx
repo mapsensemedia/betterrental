@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listBookings, BookingSummary } from "@/domain/bookings";
 import { format, parseISO, isPast, isToday, isTomorrow } from "date-fns";
 import { useState } from "react";
-import { OpsLocationFilter, useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
+import { useOpsLocationFilter } from "@/components/ops/OpsLocationFilter";
 
 function ReturnCard({ booking }: { booking: BookingSummary }) {
   const navigate = useNavigate();
@@ -167,7 +167,6 @@ export default function OpsReturns() {
           </div>
           
           {/* Location Filter */}
-          <OpsLocationFilter />
           
           <div className="flex gap-1">
             <Button

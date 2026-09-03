@@ -36,6 +36,7 @@ import { OperationsFilters, defaultFilters, type OperationsFiltersState } from "
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { usePickupProgress } from "@/hooks/use-pickup-progress";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import {
   classifyPickupAttention,
   ATTENTION_LABELS,
@@ -272,6 +273,9 @@ export default function AdminBookings() {
     search: searchParams.get("code") || "",
   });
   const [opsFilters, setOpsFilters] = useState<OperationsFiltersState>(defaultFilters);
+  // Branch scope from the single top-bar switcher
+  const { locationId: branchScopeId } = useEffectiveLocationId();
+
 
   // Keep the search filter in sync with the ?code= param used by the top bar search
   const codeParam = searchParams.get("code") || "";
@@ -297,7 +301,8 @@ export default function AdminBookings() {
   // Apply operations filters to a list of bookings (no needsProcessing filter)
   const applyOpsFilters = (bookingList: typeof bookings) => {
     return bookingList.filter(booking => {
-      if (opsFilters.locationId !== "all" && booking.locationId !== opsFilters.locationId) return false;
+      if (branchScopeId && booking.locationId !== branchScopeId) return false;
+
       if (opsFilters.vehicleId !== "all" && booking.vehicleId !== opsFilters.vehicleId) return false;
       if (opsFilters.dateRange.start) {
         const bookingDate = parseISO(booking.startAt);
@@ -414,7 +419,7 @@ export default function AdminBookings() {
   // Sorted + filtered All tab data — newest bookings first (by creation time)
   const allTabData = useMemo(() => {
     return applyOpsFilters(bookings).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
-  }, [bookings, opsFilters]);
+  }, [bookings, opsFilters, branchScopeId]);
 
   const allTabSummary = useMemo(() => {
     const active = allTabData.filter(b => b.status !== 'cancelled');

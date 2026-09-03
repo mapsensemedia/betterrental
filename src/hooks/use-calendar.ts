@@ -33,9 +33,9 @@ export interface CalendarData {
   days: Date[];
 }
 
-export function useCalendarData(weekOffset: number = 0) {
+export function useCalendarData(weekOffset: number = 0, locationId: string | null = null) {
   return useQuery<CalendarData>({
-    queryKey: ["admin-calendar", weekOffset],
+    queryKey: ["admin-calendar", weekOffset, locationId ?? "all"],
     queryFn: async () => {
       const baseDate = addDays(new Date(), weekOffset * 7);
       const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 });
@@ -59,12 +59,14 @@ export function useCalendarData(weekOffset: number = 0) {
       }
 
       // Fetch bookings for the week — include completed for past weeks
-      const { data: bookingsData, error: bookingsError } = await supabase
+      let bookingsQuery = supabase
         .from("bookings")
         .select("id, booking_code, status, start_at, end_at, vehicle_id, user_id, customer_id")
         .gte("end_at", weekStart.toISOString())
         .lte("start_at", weekEnd.toISOString())
         .in("status", ["pending", "confirmed", "active", "completed"]);
+      if (locationId) bookingsQuery = bookingsQuery.eq("location_id", locationId);
+      const { data: bookingsData, error: bookingsError } = await bookingsQuery;
 
       if (bookingsError) {
         console.error("Error fetching bookings:", bookingsError);

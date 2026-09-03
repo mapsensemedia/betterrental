@@ -112,7 +112,8 @@ export default function AdminReports() {
   // Branch scope: managers are locked to their assigned branch.
   const { locationId: scopeLocationId } = useEffectiveLocationId();
   const { isSuperAdmin: canPickLocation } = useStaffLocation();
-  const effectiveLocationId = !canPickLocation && scopeLocationId ? scopeLocationId : locationId;
+  // The top-bar branch switcher is the only branch control; local state is legacy.
+  const effectiveLocationId = scopeLocationId ?? locationId;
 
   const filters: RevenueFilters = useMemo(() => ({
     startDate: dateRange.start,
@@ -128,12 +129,14 @@ export default function AdminReports() {
   const { data: locations } = useLocations();
   // Fleet: query vehicle_units for real fleet size
   const { data: vehicleUnits = [] } = useQuery({
-    queryKey: ["fleet-units-for-reports"],
+    queryKey: ["fleet-units-for-reports", effectiveLocationId ?? "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("vehicle_units")
         .select("id, status")
         .neq("status", "retired");
+      if (effectiveLocationId) q = q.eq("location_id", effectiveLocationId);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
@@ -142,13 +145,15 @@ export default function AdminReports() {
 
   // Active bookings — source of truth for "on rent" (vehicle_units.status is stale)
   const { data: activeRentalUnitIds = [] } = useQuery({
-    queryKey: ["active-rental-units-for-reports"],
+    queryKey: ["active-rental-units-for-reports", effectiveLocationId ?? "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("bookings")
         .select("assigned_unit_id")
         .eq("status", "active")
         .not("assigned_unit_id", "is", null);
+      if (effectiveLocationId) q = q.eq("location_id", effectiveLocationId);
+      const { data, error } = await q;
       if (error) throw error;
       return (data || []).map(b => b.assigned_unit_id);
     },
@@ -166,20 +171,22 @@ export default function AdminReports() {
   } = useRevenueAnalytics(filters);
 
   // Collected revenue — single source of truth from payments table
-  const { collected: collectedRevenue, isLoading: collectedLoading } = useCollectedRevenue(dateRange.start, dateRange.end);
+  const { collected: collectedRevenue, isLoading: collectedLoading } = useCollectedRevenue(dateRange.start, dateRange.end, effectiveLocationId);
 
   // Analytics events from Supabase
   const { data: analyticsEventsRaw = [], refetch: refetchAnalytics } = useAnalyticsEvents({ startDate: dateRange.start, endDate: dateRange.end });
 
   // ── Funnel data: bookings as single source of truth ──
   const { data: funnelBookings = [] } = useQuery({
-    queryKey: ["funnel-bookings-data", dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryKey: ["funnel-bookings-data", dateRange.start.toISOString(), dateRange.end.toISOString(), effectiveLocationId ?? "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("bookings")
         .select("id, status, protection_plan")
         .gte("created_at", dateRange.start.toISOString())
         .lte("created_at", dateRange.end.toISOString());
+      if (effectiveLocationId) q = q.eq("location_id", effectiveLocationId);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },

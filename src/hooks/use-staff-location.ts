@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "./use-auth";
 import { useCapabilities } from "@/auth/capabilities";
+import { readStoredLocationScope } from "@/lib/location-scope-storage";
+
 
 export interface StaffAssignment {
   id: string;
@@ -103,6 +105,9 @@ export function useEffectiveLocationId(explicitLocationId?: string | null): {
 
   const urlLocationId = searchParams.get("locationId");
   const urlScope = urlLocationId && urlLocationId !== "all" ? urlLocationId : null;
+  // Fall back to the persisted scope so the branch survives tab navigation
+  // before the provider has re-hydrated the URL param.
+  const storedScope = urlLocationId ? null : readStoredLocationScope();
 
   if (isLoading) {
     return { locationId: null, isReady: false, isUnassignedManager: false };
@@ -113,7 +118,8 @@ export function useEffectiveLocationId(explicitLocationId?: string | null): {
   }
 
   return {
-    locationId: explicitLocationId ?? urlScope,
+    locationId: explicitLocationId ?? urlScope ?? storedScope,
+
     isReady: true,
     isUnassignedManager: false,
   };
