@@ -110,56 +110,62 @@ export function resolveCapabilities(roles: AppRole[], panel: PanelType): Capabil
 
   
   return {
-    // Booking Operations - staff can do most ops, admin can void
-    canViewBookings: isStaff || isOperational,
+    // Booking Operations — managers run their branch end to end
+    canViewBookings: isStaff,
     canCreateBooking: isStaff,
     canModifyBooking: isStaff,
-    canVoidBooking: isAdmin && inAdminPanel, // Admin only, admin panel only
+    canVoidBooking: isStaff && inAdminPanel,
     canCancelBooking: isStaff,
     canAssignVehicle: isStaff,
     canProcessHandover: isOperational,
     canProcessReturn: isOperational,
-    
+
     // Fleet Management
-    canViewFleet: isStaff || isOperational,
-    canEditFleet: isAdmin,
-    canMoveVehicleUnits: isAdmin && inAdminPanel, // Admin only, admin panel only
+    canViewFleet: isStaff,
+    canEditFleet: isStaff,
+    canMoveVehicleUnits: isSuperAdmin && inAdminPanel, // cross-branch transfer
     canUpdateVehicleStatus: isOperational,
-    canManageCategories: isAdmin,
-    
-    // Pricing & Rates - Admin only in admin panel
+    canManageCategories: isSuperAdmin,
+
+    // Pricing & Rates — global configuration is Super Admin only
     canViewPricing: isStaff,
-    canEditRates: isAdmin && inAdminPanel,
-    canEditFuelPrice: isAdmin && inAdminPanel,
-    canEditAddOnPricing: isAdmin && inAdminPanel,
+    canEditRates: isSuperAdmin && inAdminPanel,
+    canEditFuelPrice: isSuperAdmin && inAdminPanel,
+    canEditAddOnPricing: isSuperAdmin && inAdminPanel,
     canApplyDiscounts: isStaff,
-    
+
     // Payments & Deposits
-    canViewPayments: isStaff || isFinance,
+    canViewPayments: isStaff,
     canRecordPayment: isStaff,
-    canProcessRefund: isAdmin || isFinance,
+    canProcessRefund: isStaff,
     canTakeDepositAction: isStaff,
-    canOverrideFees: isAdmin,
-    
+    canOverrideFees: isSuperAdmin,
+
     // Incidents & Damages
     canViewIncidents: isStaff,
     canCreateIncident: isOperational,
     canManageIncident: isStaff,
-    
+
     // Support
     canViewTickets: isSupport,
     canManageTickets: isSupport,
-    
-    // Admin-only features
-    canAccessSettings: isAdmin,
-    canManageUsers: isAdmin,
-    canViewAuditLogs: isAdmin,
-    canViewAnalytics: isAdmin || isStaff,
-    canExportData: isAdmin,
-    
+
+    // Super-Admin-only features
+    canAccessSettings: isSuperAdmin,
+    canManageUsers: isSuperAdmin,
+    canViewAuditLogs: isStaff,
+    canViewAnalytics: isStaff,
+    canExportData: isStaff,
+
+    // Location scope
+    isSuperAdmin,
+    canSwitchLocation: isSuperAdmin,
+    canManageStaff: isSuperAdmin,
+    canViewAllLocations: isSuperAdmin,
+
     // Panel access
-    canAccessAdminPanel: isAdmin,
-    canAccessOpsPanel: isStaff || isOperational,
+    canAccessAdminPanel: isStaff,
+    canAccessOpsPanel: isStaff,
     canAccessSupportPanel: isSupport,
     canAccessDeliveryPanel: isDriver,
   };
