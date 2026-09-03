@@ -80,6 +80,7 @@ const AdminOffers = lazy(() => import("./pages/admin/Offers"));
 const VehicleUnitDetail = lazy(() => import("./pages/admin/VehicleUnitDetail"));
 const AdminVendors = lazy(() => import("./pages/admin/Vendors"));
 const AdminStaff = lazy(() => import("./pages/admin/Staff"));
+const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
 const CategoryDetail = lazy(() => import("./pages/admin/CategoryDetail"));
 const AdminAgreements = lazy(() => import("./pages/admin/Agreements"));
 
