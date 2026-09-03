@@ -182,6 +182,7 @@ function AlertRow({
 
 /** Rows shown per group before "Show all". */
 const PAGE_SIZE = 8;
+const INFO_LIMIT = 50;
 
 export default function AdminAlerts() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -252,7 +253,11 @@ export default function AdminAlerts() {
   // cancellation) are always informational — never Critical or Action Needed.
   const criticalAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "critical");
   const actionAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "action");
-  const infoAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "info");
+  // Informational notices are a rolling log — keep only the 50 most recent so the
+  // page stays readable.
+  const infoAlerts = alerts
+    .filter((a) => getAlertPriority(a.alertType, a) === "info")
+    .slice(0, INFO_LIMIT);
   const pendingCount = [...criticalAlerts, ...actionAlerts].filter((a) => a.status === "pending").length;
 
   const renderAlertTable = (groupAlerts: AdminAlert[], groupKey: string) => {
@@ -439,7 +444,7 @@ export default function AdminAlerts() {
             {infoAlerts.length > 0 && (
               <div className="border border-border rounded-2xl overflow-hidden bg-card">
                 <CollapsibleSection
-                  title={`Informational (${infoAlerts.length})`}
+                  title={`Recent activity (${infoAlerts.length})`}
                   icon={<Info className="h-4 w-4 text-muted-foreground" />}
                   defaultOpen={false}
                   badge={
