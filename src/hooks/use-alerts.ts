@@ -38,9 +38,25 @@ export const ALERT_PRIORITY: Record<string, "critical" | "action" | "info"> = {
   hold_expiring: "info",
 };
 
-export function getAlertPriority(alertType: string): "critical" | "action" | "info" {
+/**
+ * Lifecycle notices (activation, handover, completion, cancellation) are a log,
+ * not work. They are never Critical or Action Needed regardless of the enum
+ * type they were stored under.
+ */
+const LIFECYCLE_NOTICE = /(rental activated|booking activated|booking completed|return completed|booking cancelled|status changed to|agreement signed|license uploaded|payment received|new booking)/i;
+
+export function isLifecycleNotice(alert: { title?: string | null; message?: string | null }): boolean {
+  return LIFECYCLE_NOTICE.test(`${alert.title ?? ""} ${alert.message ?? ""}`);
+}
+
+export function getAlertPriority(
+  alertType: string,
+  alert?: { title?: string | null; message?: string | null },
+): "critical" | "action" | "info" {
+  if (alert && isLifecycleNotice(alert)) return "info";
   return ALERT_PRIORITY[alertType] || "info";
 }
+
 
 // Expiry durations by alert type (in days)
 const ALERT_EXPIRY_DAYS: Record<string, number | null> = {
