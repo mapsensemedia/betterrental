@@ -38,12 +38,28 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, Pencil, Trash2, Download, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Download,
+  Search,
+  ChevronDown,
+  Archive,
+  RotateCcw,
+  CheckCircle2,
+  Wrench,
+  AlertTriangle,
+} from "lucide-react";
 import {
   useVehicleUnits,
   useDeleteVehicleUnit,
+  useSetVehicleUnitStatus,
   type VehicleUnit,
 } from "@/hooks/use-vehicle-units";
 import { useLocations } from "@/hooks/use-locations";
