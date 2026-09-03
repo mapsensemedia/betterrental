@@ -1139,7 +1139,6 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
   // A legacy ?location=<id> deep link still narrows the view.
   const urlLocation = searchParams.get("location");
   const { locationId: scopeLocationId } = useEffectiveLocationId();
-  const { isSuperAdmin: canPickLocation } = useStaffLocation();
   const effectiveLocationFilter = scopeLocationId ?? urlLocation ?? "all";
 
   const { data: locationsList = [] } = useQuery({
