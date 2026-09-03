@@ -68,7 +68,9 @@ interface Props {
 export function AllVehiclesTable({ isTemporary = false }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("q") || "");
-  const locationId = searchParams.get("loc") || "all";
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  // The global branch scope wins over the local location filter.
+  const locationId = scopeLocationId ?? (searchParams.get("loc") || "all");
   const status = searchParams.get("status") || "all";
   const categoryId = searchParams.get("cat") || "all";
 
