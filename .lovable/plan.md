@@ -129,7 +129,7 @@ Ship phases 1–3 with enforcement off (all current admins stay Super Admin) and
 1. Exactly two admin roles: `super_admin` and `manager`. `staff`, `cleaner`, `finance`, `support` are retired; `driver` stays only because it gates the separate delivery portal.
 2. One-way rentals: the drop-off branch sees the rental **read-only**; only the pickup branch and Super Admin can edit it.
 3. Staff creation, deactivation, location reassignment and role changes are **Super Admin only**, for any branch. Managers have no staff-management access.
-3. Two Super Admin accounts to be created in Phase 5 (or immediately, if you want them before the rest ships):
+4. Two Super Admin accounts to be created in Phase 5 (or immediately, if you want them before the rest ships):
    - Shanky@c2crental.ca
    - Hilal@c2crental.ca
 
