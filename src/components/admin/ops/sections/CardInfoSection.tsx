@@ -88,7 +88,7 @@ export function CardInfoSection({ cardLastFour, cardType, cardHolderName, cardEx
         .eq("key", "card_view_password")
         .maybeSingle();
       
-      const storedPassword = (data as any)?.value || "admin123";
+      const storedPassword = (data as any)?.value || "@rentaladmin2026";
       
       if (passwordInput === storedPassword) {
         setShowDetails(true);
@@ -152,14 +152,37 @@ export function CardInfoSection({ cardLastFour, cardType, cardHolderName, cardEx
               </div>
             )}
           </div>
-          {cardExpiry && showDetails && (
-            <div className="text-right flex-shrink-0">
-              <div className="text-[10px] uppercase text-slate-400 mb-0.5">Expires</div>
-              <div className="font-mono text-sm font-medium">{cardExpiry}</div>
+          <div className="text-right flex-shrink-0">
+            <div className="text-[10px] uppercase text-slate-400 mb-0.5">Expires</div>
+            <div className="font-mono text-sm font-medium">
+              {showDetails ? (cardExpiry || "N/A") : "••/••"}
             </div>
-          )}
+          </div>
         </div>
+
+        {/* Full details on reveal */}
+        {showDetails && (
+          <div className="mt-4 pt-3 border-t border-slate-700 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div>
+              <div className="text-[10px] uppercase text-slate-400">Card Type</div>
+              <div className="font-medium uppercase">{cardType || "Unknown"}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-slate-400">Last 4 Digits</div>
+              <div className="font-mono font-medium">{cardLastFour}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-slate-400">Cardholder</div>
+              <div className="font-medium break-words">{cardHolderName || "Not recorded"}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase text-slate-400">Expiry (MM/YY)</div>
+              <div className="font-mono font-medium">{cardExpiry || "Not recorded"}</div>
+            </div>
+          </div>
+        )}
       </div>
+
 
       {/* Password prompt */}
       {showPasswordPrompt && (
