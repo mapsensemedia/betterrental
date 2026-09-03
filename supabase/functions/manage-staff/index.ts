@@ -150,17 +150,22 @@ Deno.serve(async (req) => {
         if (insertErr) return json({ error: insertErr.message }, 400);
       }
 
-      // Password setup link so no password is ever transported by us.
-      const { data: link } = await supabase.auth.admin.generateLink({
-        type: "recovery",
-        email,
-      });
+      // Only email a setup link when no password was set by the admin.
+      let setupLinkSent = false;
+      if (!password) {
+        const { data: link } = await supabase.auth.admin.generateLink({
+          type: "recovery",
+          email,
+        });
+        setupLinkSent = !!link;
+      }
 
       return json({
         success: true,
         userId: targetUserId,
         reusedExistingAccount: !!match,
-        setupLinkSent: !!link,
+        passwordSet: !!password,
+        setupLinkSent,
       });
     }
 
