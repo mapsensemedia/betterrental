@@ -5,6 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { unitBranchId } from "@/lib/location-scope";
 
 export interface VehicleAnalytics {
   vehicleId: string;
@@ -51,7 +52,7 @@ export function useFleetAnalytics(filters?: {
   status?: string;
   dateFrom?: string;
   dateTo?: string;
-}) {
+}, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["fleet-analytics", filters],
     queryFn: async (): Promise<VehicleAnalytics[]> => {
@@ -75,6 +76,9 @@ export function useFleetAnalytics(filters?: {
         .in("status", REVENUE_STATUSES)
         .not("assigned_unit_id", "is", null);
 
+      if (filters?.locationId) {
+        bookingsQuery = bookingsQuery.eq("location_id", filters.locationId);
+      }
       if (filters?.dateFrom) {
         bookingsQuery = bookingsQuery.gte("end_at", filters.dateFrom);
       }
@@ -92,7 +96,7 @@ export function useFleetAnalytics(filters?: {
 
       (units || []).forEach((unit: any) => {
         if (!unit.vehicle) return;
-        if (filters?.locationId && unit.vehicle.location_id !== filters.locationId) return;
+        if (filters?.locationId && unitBranchId(unit) !== filters.locationId) return;
         if (filters?.status && unit.status !== filters.status) return;
 
         const unitBookings = bookings?.filter((b) => b.assigned_unit_id === unit.id) || [];
@@ -140,6 +144,7 @@ export function useFleetAnalytics(filters?: {
 
       return analytics.sort((a, b) => b.rentalCount - a.rentalCount);
     },
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -147,8 +152,8 @@ export function useFleetSummary(filters?: {
   locationId?: string;
   dateFrom?: string;
   dateTo?: string;
-}) {
-  const { data: analytics, isLoading } = useFleetAnalytics(filters);
+}, options?: { enabled?: boolean }) {
+  const { data: analytics, isLoading } = useFleetAnalytics(filters, options);
 
   // Fleet-level revenue: query bookings directly to avoid double-counting
   const { data: fleetRevenue } = useQuery({
@@ -159,6 +164,9 @@ export function useFleetSummary(filters?: {
         .select("total_amount")
         .in("status", REVENUE_STATUSES);
 
+      if (filters?.locationId) {
+        query = query.eq("location_id", filters.locationId);
+      }
       if (filters?.dateFrom) {
         query = query.gte("end_at", filters.dateFrom);
       }
@@ -170,19 +178,27 @@ export function useFleetSummary(filters?: {
       if (error) throw error;
       return (data || []).reduce((sum, b) => sum + (b.total_amount || 0), 0);
     },
+    enabled: options?.enabled ?? true,
   });
 
   const { data: activeBookingCount } = useQuery({
-    queryKey: ["fleet-active-booking-count"],
+    queryKey: ["fleet-active-booking-count", filters?.locationId ?? "all"],
     queryFn: async () => {
-      const { count, error } = await supabase
+      let countQuery = supabase
         .from("bookings")
         .select("id", { count: "exact", head: true })
         .eq("status", "active")
         .not("assigned_unit_id", "is", null);
+
+      if (filters?.locationId) {
+        countQuery = countQuery.eq("location_id", filters.locationId);
+      }
+
+      const { count, error } = await countQuery;
       if (error) throw error;
       return count || 0;
     },
+    enabled: options?.enabled ?? true,
   });
 
   const summary: FleetSummary | null = analytics ? {
