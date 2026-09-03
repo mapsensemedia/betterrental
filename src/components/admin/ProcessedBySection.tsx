@@ -101,6 +101,9 @@ function ActorRow({
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
         <p className="text-sm font-medium truncate">{identity?.name ?? "—"}</p>
+        <p className="text-xs text-muted-foreground font-mono">
+          ID: {identity?.employeeCode || `${userId.slice(0, 8)}`}
+        </p>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {(branchName || identity?.locationName) && (
@@ -111,6 +114,7 @@ function ActorRow({
         )}
         {at && <span>{format(new Date(at), "MMM d, yyyy h:mm a")}</span>}
       </div>
+
     </div>
   );
 }
