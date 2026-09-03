@@ -171,14 +171,14 @@ export function useAvailableCategories(
 }
 
 // Get VINs for a category
-export function useCategoryVins(categoryId: string | null) {
+export function useCategoryVins(categoryId: string | null, locationId?: string | null) {
   return useQuery({
-    queryKey: ["category-vins", categoryId],
+    queryKey: ["category-vins", categoryId, locationId ?? "all"],
     queryFn: async () => {
       if (!categoryId) return [];
 
       // Fetch units with location AND linked vehicle for year/make/model
-      const { data, error } = await supabase
+      let unitsQuery = supabase
         .from("vehicle_units")
         .select(`
           id, vin, license_plate, status, location_id, notes, current_mileage, acquisition_cost, category_id, created_at,
@@ -188,6 +188,12 @@ export function useCategoryVins(categoryId: string | null) {
         .eq("category_id", categoryId)
         .order("status")
         .order("vin");
+
+      if (locationId) {
+        unitsQuery = unitsQuery.eq("location_id", locationId);
+      }
+
+      const { data, error } = await unitsQuery;
 
       if (error) throw error;
 
