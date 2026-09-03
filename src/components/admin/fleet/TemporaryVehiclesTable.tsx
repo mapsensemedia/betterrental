@@ -49,18 +49,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, Pencil, Trash2, RotateCcw } from "lucide-react";
+import { Plus, Pencil, Trash2, RotateCcw, ChevronDown, CalendarClock } from "lucide-react";
 import {
   useVehicleUnits,
   useCreateVehicleUnit,
   useUpdateVehicleUnit,
   useDeleteVehicleUnit,
+  useSetVehicleUnitStatus,
   type VehicleUnit,
 } from "@/hooks/use-vehicle-units";
 import { useLocations } from "@/hooks/use-locations";
 import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { useFleetCategories } from "@/hooks/use-fleet-categories";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { VehicleUnitEditDialog } from "./VehicleUnitEditDialog";
 
