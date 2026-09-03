@@ -76,6 +76,12 @@ export interface Capabilities {
   canViewAnalytics: boolean;
   canExportData: boolean;
   
+  // Location scope
+  isSuperAdmin: boolean;
+  canSwitchLocation: boolean;
+  canManageStaff: boolean;
+  canViewAllLocations: boolean;
+
   // Panel access
   canAccessAdminPanel: boolean;
   canAccessOpsPanel: boolean;
