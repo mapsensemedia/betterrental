@@ -42,9 +42,15 @@ export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
             You don't have permission to access the admin area. 
             Please contact an administrator if you believe this is an error.
           </p>
-          <a 
-            href="/" 
+          <a
+            href="/admin/login"
             className="inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-6 py-3 font-medium hover:opacity-90 transition-opacity"
+          >
+            Sign in with another account
+          </a>
+          <a
+            href="/"
+            className="mt-3 block text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Return Home
           </a>
