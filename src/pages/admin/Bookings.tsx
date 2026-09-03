@@ -36,6 +36,7 @@ import { OperationsFilters, defaultFilters, type OperationsFiltersState } from "
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { usePickupProgress } from "@/hooks/use-pickup-progress";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import {
   classifyPickupAttention,
   ATTENTION_LABELS,
@@ -418,7 +419,7 @@ export default function AdminBookings() {
   // Sorted + filtered All tab data — newest bookings first (by creation time)
   const allTabData = useMemo(() => {
     return applyOpsFilters(bookings).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
-  }, [bookings, opsFilters]);
+  }, [bookings, opsFilters, branchScopeId]);
 
   const allTabSummary = useMemo(() => {
     const active = allTabData.filter(b => b.status !== 'cancelled');
