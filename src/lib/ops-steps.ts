@@ -223,6 +223,9 @@ export interface StepCompletion {
     paymentComplete: boolean;
     depositCollected: boolean;
   };
+  documents: {
+    documentsUploaded: boolean;
+  };
   prep?: {
     unitAssigned: boolean;
     vehiclePrepared: boolean;
