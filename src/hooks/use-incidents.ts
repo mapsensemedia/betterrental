@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchUnitLocationMap,
+  fetchBookingLocationMap,
+  resolveIncidentBranch,
+} from "@/lib/branch-resolution";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 
@@ -86,11 +91,15 @@ export interface UpdateIncidentParams {
 }
 
 // Fetch all incident cases
-export function useIncidentCases(filters?: { 
-  severity?: string; 
-  status?: string;
-  assignedTo?: string;
-}) {
+export function useIncidentCases(
+  filters?: {
+    severity?: string;
+    status?: string;
+    assignedTo?: string;
+    locationId?: string | null;
+  },
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: ["incident-cases", filters],
     queryFn: async () => {
@@ -98,7 +107,7 @@ export function useIncidentCases(filters?: {
         .from("incident_cases")
         .select(`
           *,
-          bookings (id, booking_code)
+          bookings (id, booking_code, location_id)
         `)
         .order("created_at", { ascending: false });
 
@@ -112,9 +121,21 @@ export function useIncidentCases(filters?: {
         query = query.eq("assigned_staff_id", filters.assignedTo);
       }
 
-      const { data, error } = await query;
+      const { data: allRows, error } = await query;
       if (error) throw error;
-      
+
+      // Branch scope: incident belongs to its booking's branch, else its unit's branch
+      let data = allRows || [];
+      if (filters?.locationId) {
+        const unitMap = await fetchUnitLocationMap();
+        const bookingMap = await fetchBookingLocationMap(
+          data.map((i: any) => i.booking_id).filter(Boolean) as string[]
+        );
+        data = data.filter(
+          (i: any) => resolveIncidentBranch(i, unitMap, bookingMap) === filters.locationId
+        );
+      }
+
       // Fetch category info for each incident's vehicle_id
       const vehicleIds = [...new Set((data || []).map(i => i.vehicle_id).filter(Boolean))];
       const { data: categoriesData } = vehicleIds.length > 0
@@ -139,6 +160,7 @@ export function useIncidentCases(filters?: {
         };
       }) as IncidentCase[];
     },
+    enabled: options?.enabled ?? true,
   });
 }
 
