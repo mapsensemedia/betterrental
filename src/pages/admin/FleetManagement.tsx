@@ -92,8 +92,11 @@ export default function FleetManagement() {
     name: '',
   });
 
-  const { locationId: scopeLocationId } = useEffectiveLocationId();
-  const { data: categories, isLoading } = useFleetCategories(scopeLocationId);
+  const { locationId: scopeLocationId, isReady: isScopeReady, isUnassignedManager } =
+    useEffectiveLocationId();
+  const { data: categories, isLoading } = useFleetCategories(scopeLocationId, {
+    enabled: isScopeReady && !isUnassignedManager,
+  });
   const { data: categoryVins } = useCategoryVins(selectedCategoryId, scopeLocationId);
   const deleteCategory = useDeleteFleetCategory();
   const updateVinStatus = useUpdateVinStatus();

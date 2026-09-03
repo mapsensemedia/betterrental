@@ -87,11 +87,12 @@ export function TemporaryVehiclesTable() {
   const [editUnit, setEditUnit] = useState<VehicleUnit | null>(null);
   const [deleteUnit, setDeleteUnit] = useState<VehicleUnit | null>(null);
 
-  const { locationId: scopeLocationId } = useEffectiveLocationId();
-  const { data: allUnits, isLoading } = useVehicleUnits({
-    isTemporary: true,
-    locationId: scopeLocationId ?? undefined,
-  });
+  const { locationId: scopeLocationId, isReady: isScopeReady, isUnassignedManager } =
+    useEffectiveLocationId();
+  const { data: allUnits, isLoading } = useVehicleUnits(
+    { isTemporary: true, locationId: scopeLocationId ?? undefined },
+    { enabled: isScopeReady && !isUnassignedManager },
+  );
   const { data: locations } = useLocations();
   const deleteMutation = useDeleteVehicleUnit();
   const updateMutation = useUpdateVehicleUnit();

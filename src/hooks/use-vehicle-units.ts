@@ -44,8 +44,9 @@ export interface VehicleUnitFilters {
   categoryId?: string;
 }
 
-export function useVehicleUnits(filters: VehicleUnitFilters = {}) {
+export function useVehicleUnits(filters: VehicleUnitFilters = {}, options?: { enabled?: boolean }) {
   return useQuery({
+    enabled: options?.enabled ?? true,
     queryKey: ["vehicle-units", filters],
     queryFn: async () => {
       let query = supabase
