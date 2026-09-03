@@ -404,6 +404,42 @@ export function AllVehiclesTable({ isTemporary = false }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!retireUnit} onOpenChange={(o) => !o && setRetireUnit(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retire this vehicle?</AlertDialogTitle>
+            <AlertDialogDescription>
+              VIN <span className="font-mono">{retireUnit?.vin}</span> leaves the active fleet: it
+              stops appearing in availability and can no longer be assigned to bookings. All
+              history — bookings, invoices, expenses and maintenance — is kept, and you can
+              reactivate it any time from the "Show retired" list. Active or upcoming bookings
+              block this action.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!retireUnit) return;
+                try {
+                  await setStatusMutation.mutateAsync({
+                    id: retireUnit.id,
+                    status: "retired",
+                    guardBookings: true,
+                    stampDisposalDate: true,
+                    successTitle: "Vehicle retired",
+                  });
+                } finally {
+                  setRetireUnit(null);
+                }
+              }}
+            >
+              Retire
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
