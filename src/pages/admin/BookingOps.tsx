@@ -45,6 +45,8 @@ import { OpsActivityTimeline } from "@/components/admin/ops/OpsActivityTimeline"
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { CancelBookingDialog } from "@/components/admin/CancelBookingDialog";
 import { DeliveryModeBanner } from "@/components/admin/ops/DeliveryModeBanner";
+import { ProcessedBySection } from "@/components/admin/ProcessedBySection";
+
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
