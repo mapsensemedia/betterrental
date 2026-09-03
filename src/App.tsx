@@ -212,6 +212,7 @@ const App = () => (
 
                 {/* Admin Routes - Protected & Lazy */}
                 <Route path="/admin" element={<Navigate to="/admin/alerts" replace />} />
+                <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin/alerts" element={<AdminProtectedRoute><AdminAlerts /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings" element={<AdminProtectedRoute><AdminBookings /></AdminProtectedRoute>} />
                 <Route path="/admin/bookings/:bookingId" element={<AdminProtectedRoute><AdminBookingDetail /></AdminProtectedRoute>} />
