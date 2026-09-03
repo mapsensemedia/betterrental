@@ -997,6 +997,7 @@ export default function BookingDetail() {
 
               {/* Who handled this rental — same block as the active rental view,
                   surfaced here because this is the first page opened for a booking. */}
+              <BookingDocumentsCard bookingId={booking.id} />
               <ProcessedBySection bookingId={booking.id} />
             </TabsContent>
 
