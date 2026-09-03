@@ -1532,10 +1532,21 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     }
   };
 
+  // Branch-scoped stats: when a branch is selected the figures cover that branch
+  // only; "All branches" keeps the company-wide numbers.
+  const branchPayments = useMemo(
+    () => payments.filter((p) => matchesLocation(p.location_id)),
+    [payments, effectiveLocationFilter],
+  );
+  const branchInvoices = useMemo(
+    () => invoices.filter((inv) => matchesLocation(inv.location_id)),
+    [invoices, effectiveLocationFilter],
+  );
+
   const totalRevenue = (() => {
     const seen = new Set<string>();
     let total = 0;
-    for (const p of payments) {
+    for (const p of branchPayments) {
       if (p.status !== "completed") continue;
       const dedupeKey = p.transaction_id || p.id;
       if (seen.has(dedupeKey)) continue;
@@ -1544,11 +1555,14 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     }
     return total;
   })();
-  const pendingAmount = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
-  const depositPayments = payments.filter(p => p.payment_type === "deposit");
+  const pendingAmount = branchPayments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
+  const depositPayments = branchPayments.filter(p => p.payment_type === "deposit");
   const totalDeposits = depositPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const worldlineCount = payments.filter(p => p.source === "worldline").length;
-  const manualCount = payments.filter(p => p.source === "manual").length;
+  const worldlineCount = branchPayments.filter(p => p.source === "worldline").length;
+  const manualCount = branchPayments.filter(p => p.source === "manual").length;
+  const scopeBranchName = effectiveLocationFilter === "all"
+    ? "All branches"
+    : (locationNameMap.get(effectiveLocationFilter) ?? "Selected branch");
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
