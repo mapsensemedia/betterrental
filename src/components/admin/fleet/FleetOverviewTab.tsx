@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useFleetSummary, useFleetAnalytics } from "@/hooks/use-fleet-analytics";
 import { useLocations } from "@/hooks/use-locations";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +23,12 @@ export function FleetOverviewTab() {
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const { data: locations } = useLocations();
   
-  const filters = locationFilter !== "all" ? { locationId: locationFilter } : undefined;
-  const { summary, isLoading } = useFleetSummary(filters);
-  const { data: analytics } = useFleetAnalytics(filters);
+  const { locationId: scopedLocationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const effectiveLocationId = scopedLocationId ?? (locationFilter !== "all" ? locationFilter : undefined);
+  const filters = effectiveLocationId ? { locationId: effectiveLocationId } : undefined;
+  const queryOptions = { enabled: isReady && !isUnassignedManager };
+  const { summary, isLoading } = useFleetSummary(filters, queryOptions);
+  const { data: analytics } = useFleetAnalytics(filters, queryOptions);
 
   if (isLoading) {
     return (
@@ -45,7 +49,11 @@ export function FleetOverviewTab() {
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex items-center gap-3">
-        <Select value={locationFilter} onValueChange={setLocationFilter}>
+        <Select
+          value={scopedLocationId ?? locationFilter}
+          onValueChange={setLocationFilter}
+          disabled={!!scopedLocationId}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="All Locations" />
           </SelectTrigger>

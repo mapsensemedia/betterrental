@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useFleetAnalytics } from "@/hooks/use-fleet-analytics";
 import { useLocations } from "@/hooks/use-locations";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -18,8 +19,12 @@ export function CostTrackingTab() {
   const [search, setSearch] = useState("");
 
   const { data: locations } = useLocations();
-  const filters = locationFilter !== "all" ? { locationId: locationFilter } : undefined;
-  const { data: analytics, isLoading } = useFleetAnalytics(filters);
+  const { locationId: scopedLocationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const effectiveLocationId = scopedLocationId ?? (locationFilter !== "all" ? locationFilter : undefined);
+  const filters = effectiveLocationId ? { locationId: effectiveLocationId } : undefined;
+  const { data: analytics, isLoading } = useFleetAnalytics(filters, {
+    enabled: isReady && !isUnassignedManager,
+  });
 
   const filteredData = analytics?.filter((v) => {
     if (!search) return true;
@@ -50,7 +55,11 @@ export function CostTrackingTab() {
             className="pl-10"
           />
         </div>
-        <Select value={locationFilter} onValueChange={setLocationFilter}>
+        <Select
+          value={scopedLocationId ?? locationFilter}
+          onValueChange={setLocationFilter}
+          disabled={!!scopedLocationId}
+        >
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="All Locations" />
           </SelectTrigger>

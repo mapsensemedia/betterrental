@@ -4,6 +4,7 @@
  */
 import { useState } from "react";
 import { useFleetAnalyticsEnhanced } from "@/hooks/use-fleet-analytics-enhanced";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,11 @@ import { format, differenceInDays } from "date-fns";
 
 export function PerformanceComparisonTab() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const { data: analytics, isLoading } = useFleetAnalyticsEnhanced();
+  const { locationId: scopedLocationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const { data: analytics, isLoading } = useFleetAnalyticsEnhanced(
+    scopedLocationId ? { locationId: scopedLocationId } : undefined,
+    { enabled: isReady && !isUnassignedManager }
+  );
 
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) =>

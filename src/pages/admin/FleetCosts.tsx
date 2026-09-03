@@ -75,6 +75,7 @@ import { DepreciationCalculator } from "@/components/admin/DepreciationCalculato
 import { LifecycleSummarySection } from "@/components/admin/fleet/LifecycleSummarySection";
 import { VehicleHealthCard, VehicleHealthData } from "@/components/admin/fleet/VehicleHealthCard";
 import { useFleetCostAnalysisEnhanced } from "@/hooks/use-fleet-cost-enhanced";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { LocationSelector } from "@/components/shared/LocationSelector";
 
 export default function FleetCosts() {
@@ -105,7 +106,11 @@ export default function FleetCosts() {
   });
 
   // Enhanced metrics for health cards
-  const { data: healthData, isLoading: healthLoading } = useFleetCostAnalysisEnhanced();
+  const { locationId: scopedLocationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const { data: healthData, isLoading: healthLoading } = useFleetCostAnalysisEnhanced(
+    scopedLocationId ? { locationId: scopedLocationId } : undefined,
+    { enabled: isReady && !isUnassignedManager }
+  );
 
   const createUnit = useCreateVehicleUnit();
   const updateUnit = useUpdateVehicleUnit();
