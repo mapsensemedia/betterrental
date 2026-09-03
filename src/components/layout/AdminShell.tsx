@@ -257,7 +257,7 @@ export function AdminShell({
         {children}
       </div>;
   }
-  return <div className="admin-theme min-h-screen bg-background flex flex-col md:flex-row">
+  return <LocationScopeProvider><div className="admin-theme min-h-screen bg-background flex flex-col md:flex-row">
 
       {/* Desktop Sidebar - hidden on mobile, visible on tablet+ */}
       <aside className={cn("w-60 border-r border-sidebar-border bg-sidebar text-sidebar-foreground hidden md:flex flex-col shrink-0", sidebarCollapsed && "md:hidden")}>
