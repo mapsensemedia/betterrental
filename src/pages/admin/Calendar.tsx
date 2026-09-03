@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { useCalendarData } from "@/hooks/use-calendar";
+import { useEffectiveLocationId } from "@/hooks/use-staff-location";
 import { useLocations } from "@/hooks/use-locations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +79,8 @@ export default function AdminCalendar() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: calendarData, isLoading } = useCalendarData(weekOffset);
+  const { locationId: scopeLocationId } = useEffectiveLocationId();
+  const { data: calendarData, isLoading } = useCalendarData(weekOffset, scopeLocationId);
   const { data: locations } = useLocations();
 
   const handlePrevWeek = () => setWeekOffset(prev => prev - 1);

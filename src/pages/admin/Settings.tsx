@@ -13,7 +13,6 @@ import { AddOnsPricingPanel } from "@/components/admin/AddOnsPricingPanel";
 import { ProtectionPricingPanel } from "@/components/admin/ProtectionPricingPanel";
 import { PointsSettingsPanel } from "@/components/admin/PointsSettingsPanel";
 import { MembershipManagementPanel } from "@/components/admin/MembershipManagementPanel";
-import { UserRolesPanel } from "@/components/admin/UserRolesPanel";
 import { CardPasswordSettings } from "@/components/admin/CardPasswordSettings";
 import { 
   Settings, 
