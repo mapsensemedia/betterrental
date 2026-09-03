@@ -1,22 +1,27 @@
 # Location-Based Business Units (Abbotsford / Langley / Surrey)
 
-Goal: each branch operates as an independent internal business unit. Regular staff see only their own branch; Super Admin sees any branch or the whole company. The customer-facing site, booking funnel, and rental experience stay exactly as they are.
+Goal: each branch operates as an independent internal business unit. There are exactly two roles — **Super Admin** (all branches, company-wide) and **Manager** (one branch only). The customer-facing site, booking funnel, and rental experience stay exactly as they are.
 
-## What already exists (verified)
+## What already exists (verified by audit)
 
 - Three active locations: Surrey Newton, Langley Centre, Abbotsford Centre.
 - `bookings.location_id` already exists and is NOT NULL — all 660 bookings are already assigned (Surrey 469, Langley 41, Abbotsford 150). No booking backfill needed.
 - `bookings` already tracks `created_by`, `activated_by`, `handed_over_by`, `return_intake_completed_by`, `return_issues_reviewed_by`, `upgraded_by`, `offline_paid_by`, plus `return_location_id`.
-- `vehicle_units.location_id` exists; 7 units have no location and must be assigned during migration.
-- Roles live in `user_roles` (admin/staff/cleaner/finance/support/driver). There is **no** location column on roles today, and no staff-management screen in the admin panel.
-- Current admin RLS is uniformly "any admin or staff sees everything" via `is_admin_or_staff(auth.uid())` — this is the single biggest change.
+- `vehicle_units.location_id` exists; **8** units have no location and **all 8 are retired** — cosmetic cleanup, not an operational blocker.
+- `user_roles` holds 9 rows: 7 `admin`, 1 `staff`, 1 `driver`. No location column on roles today. A role-assignment UI exists (`src/components/admin/UserRolesPanel.tsx`, in Settings → Users & Roles) but it cannot create accounts — there is no staff account-creation function.
+- Child tables are cleanly traceable to a booking location: only 1 support ticket, 22 admin alerts and 50 audit rows cannot be resolved. `payments.location_id` exists but is NULL on 806/1024 rows and must be backfilled from the booking.
+- There are **no views or materialized views** in the database — every dashboard reads tables directly, so there is no view-based RLS bypass.
+- **No index exists on `bookings.location_id`, `bookings.return_location_id`, `vehicle_units.location_id` or `payments.location_id`** — these must be added with the scoping work.
+- 128 policies across 47 tables use the flat `is_admin_or_staff(auth.uid())` check — this is the single biggest change.
+- 26 SECURITY DEFINER functions bypass RLS; the client-callable ones needing location checks are `assign_vin_to_booking`, `release_vin_from_booking`, `get_category_availability`, `check_category_availability`, `get_available_categories`, `update_points_balance`.
 
 ## 1. Database changes
 
 **New: staff assignment table**
 
 - `public.staff_assignments` — one row per staff user: `user_id` (unique), `location_id`, `display_name`, `employee_code`, `is_active`, `created_by`, timestamps.
-- Enum extension: add `super_admin` and `location_manager` to `app_role`. `admin` is kept and treated as Super Admin during transition, then migrated to `super_admin`.
+- Enum extension: add `super_admin` and `manager` to `app_role`. Because Postgres cannot use a new enum value in the same transaction that adds it, this ships as **two separate migrations**: one that only runs `ALTER TYPE app_role ADD VALUE`, then everything else. `admin` is treated as Super Admin during transition, then converted to `super_admin`; the single `staff` holder becomes `manager`.
+
 
 **New security-definer helpers** (used by every policy so there is no recursion):
 
