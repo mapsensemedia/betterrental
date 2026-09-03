@@ -21,7 +21,15 @@ interface BamboraPaymentResponse {
   auth_code: string;
   order_number: string;
   amount: number;
-  card?: { card_type: string; last_four: string; name: string };
+  card?: { card_type: string; last_four: string; name: string; expiry_month?: string; expiry_year?: string };
+}
+
+/** Format gateway expiry month/year as MM/YY. Returns null when unavailable. */
+function formatCardExpiry(card?: { expiry_month?: string; expiry_year?: string }): string | null {
+  const mm = card?.expiry_month?.toString().padStart(2, "0");
+  const yy = card?.expiry_year?.toString().slice(-2);
+  if (!mm || !yy || mm.length !== 2 || yy.length !== 2) return null;
+  return `${mm}/${yy}`;
 }
 
 async function persistDepositAuthorization(
@@ -31,7 +39,7 @@ async function persistDepositAuthorization(
   amount: number,
   transactionId: string,
   cardholderName: string | null,
-  card?: { card_type?: string; last_four?: string; name?: string },
+  card?: { card_type?: string; last_four?: string; name?: string; expiry_month?: string; expiry_year?: string },
 ) {
   const bookingUpdate = await supabase.from("bookings").update({
     wl_deposit_transaction_id: transactionId,
@@ -42,6 +50,7 @@ async function persistDepositAuthorization(
     card_last_four: card?.last_four || null,
     card_type: card?.card_type || null,
     card_holder_name: card?.name || cardholderName || null,
+    ...(formatCardExpiry(card) ? { card_expiry: formatCardExpiry(card) } : {}),
   }).eq("id", bookingId);
 
   if (bookingUpdate.error) throw bookingUpdate.error;

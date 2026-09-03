@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
     const {
       bookingId,
       cardLastFour,
+      cardExpiry,
       authCode,
       includeDeposit,
       depositReceiptNumber,
@@ -170,6 +171,9 @@ Deno.serve(async (req) => {
 
     // Build booking update
     const bookingUpdate: Record<string, unknown> = { card_last_four: cardLastFour };
+    if (typeof cardExpiry === "string" && /^\d{2}\/\d{2}$/.test(cardExpiry.trim())) {
+      bookingUpdate.card_expiry = cardExpiry.trim();
+    }
     if (!isDepositOnly) {
       bookingUpdate.wl_transaction_id = txnIds[0];
       bookingUpdate.wl_auth_status = "completed";
