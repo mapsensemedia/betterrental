@@ -412,7 +412,7 @@ export default function AdminAlerts() {
                     </Badge>
                   }
                 >
-                  {renderAlertTable(criticalAlerts)}
+                  {renderAlertTable(criticalAlerts, "critical")}
                 </CollapsibleSection>
               </div>
             )}
@@ -430,7 +430,7 @@ export default function AdminAlerts() {
                     </Badge>
                   }
                 >
-                  {renderAlertTable(actionAlerts)}
+                  {renderAlertTable(actionAlerts, "action")}
                 </CollapsibleSection>
               </div>
             )}
@@ -448,7 +448,7 @@ export default function AdminAlerts() {
                     </Badge>
                   }
                 >
-                  {renderAlertTable(infoAlerts)}
+                  {renderAlertTable(infoAlerts, "info")}
                 </CollapsibleSection>
               </div>
             )}
