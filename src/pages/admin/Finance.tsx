@@ -1532,10 +1532,21 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     }
   };
 
+  // Branch-scoped stats: when a branch is selected the figures cover that branch
+  // only; "All branches" keeps the company-wide numbers.
+  const branchPayments = useMemo(
+    () => payments.filter((p) => matchesLocation(p.location_id)),
+    [payments, effectiveLocationFilter],
+  );
+  const branchInvoices = useMemo(
+    () => invoices.filter((inv) => matchesLocation(inv.location_id)),
+    [invoices, effectiveLocationFilter],
+  );
+
   const totalRevenue = (() => {
     const seen = new Set<string>();
     let total = 0;
-    for (const p of payments) {
+    for (const p of branchPayments) {
       if (p.status !== "completed") continue;
       const dedupeKey = p.transaction_id || p.id;
       if (seen.has(dedupeKey)) continue;
@@ -1544,11 +1555,14 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
     }
     return total;
   })();
-  const pendingAmount = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
-  const depositPayments = payments.filter(p => p.payment_type === "deposit");
+  const pendingAmount = branchPayments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
+  const depositPayments = branchPayments.filter(p => p.payment_type === "deposit");
   const totalDeposits = depositPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const worldlineCount = payments.filter(p => p.source === "worldline").length;
-  const manualCount = payments.filter(p => p.source === "manual").length;
+  const worldlineCount = branchPayments.filter(p => p.source === "worldline").length;
+  const manualCount = branchPayments.filter(p => p.source === "manual").length;
+  const scopeBranchName = effectiveLocationFilter === "all"
+    ? "All branches"
+    : (locationNameMap.get(effectiveLocationFilter) ?? "Selected branch");
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -1590,6 +1604,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold">${totalRevenue.toLocaleString()}</p>
+                <p className="text-[11px] text-muted-foreground">{scopeBranchName}</p>
               </div>
             </div>
           </CardContent>
@@ -1628,7 +1643,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Invoices</p>
-                <p className="text-2xl font-bold">{invoices.length}</p>
+                <p className="text-2xl font-bold">{branchInvoices.length}</p>
               </div>
             </div>
           </CardContent>
@@ -1650,7 +1665,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </TabsTrigger>
               <TabsTrigger value="payments" className="gap-1.5">
                 <CreditCard className="w-3.5 h-3.5" />
-                Payments ({payments.length})
+                Payments ({branchPayments.length})
               </TabsTrigger>
               <TabsTrigger value="deposits" className="gap-1.5">
                 <Banknote className="w-3.5 h-3.5" />
