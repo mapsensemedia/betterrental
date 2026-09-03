@@ -167,7 +167,11 @@ export default function AdminInventory() {
     vehicleName: string;
   }>({ open: false, vehicleId: "", vehicleName: "" });
 
-  const { data: vehicles, isLoading, refetch } = useAdminVehicles(filters);
+  const { data: vehicles, isLoading, refetch } = useAdminVehicles({
+    ...filters,
+    locationId: scopeLocationId || filters.locationId,
+  });
+
   const { data: locations } = useLocations();
   const { data: vehicleDetail } = useAdminVehicle(selectedVehicleId);
   const updateVehicle = useUpdateVehicle();
