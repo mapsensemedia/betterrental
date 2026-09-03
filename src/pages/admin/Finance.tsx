@@ -1643,7 +1643,7 @@ function TransactionsTab({ methodFilter, onClearMethodFilter, dateStart, dateEnd
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Invoices</p>
-                <p className="text-2xl font-bold">{invoices.length}</p>
+                <p className="text-2xl font-bold">{branchInvoices.length}</p>
               </div>
             </div>
           </CardContent>
