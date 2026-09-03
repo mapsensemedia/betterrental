@@ -513,5 +513,5 @@ export function AdminShell({
 
       {/* Help Guide Modal */}
       <HelpGuideModal open={helpOpen} onOpenChange={setHelpOpen} />
-    </div>;
+    </div></LocationScopeProvider>;
 }
