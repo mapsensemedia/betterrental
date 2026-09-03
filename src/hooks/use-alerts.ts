@@ -47,7 +47,8 @@ export const ALERT_PRIORITY: Record<string, "critical" | "action" | "info"> = {
  * not work. They are never Critical or Action Needed regardless of the enum
  * type they were stored under.
  */
-const LIFECYCLE_NOTICE = /(rental activated|booking activated|booking completed|return completed|booking cancelled|status changed to|agreement signed|license uploaded|payment received|new booking)/i;
+const LIFECYCLE_NOTICE =
+  /(rental activated|booking activated|booking completed|return completed|booking cancelled|booking voided|booking created|status changed to|agreement signed|license uploaded|payment received|new booking)/i;
 
 export function isLifecycleNotice(alert: { title?: string | null; message?: string | null }): boolean {
   return LIFECYCLE_NOTICE.test(`${alert.title ?? ""} ${alert.message ?? ""}`);
