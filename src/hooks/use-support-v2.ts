@@ -140,9 +140,7 @@ export function useTicketQueueCounts() {
  * resolvable branch stay visible to Super Admins and to the manager who created
  * or owns them.
  */
-async function filterTicketsByBranch<
-  T extends { id: string; booking_id?: string | null; incident_id?: string | null; damage_id?: string | null; created_by?: string | null; assigned_to?: string | null }
->(tickets: T[], locationId: string | null, viewerUserId?: string | null): Promise<T[]> {
+async function filterTicketsByBranch<T extends Record<string, any>>(tickets: T[], locationId: string | null, viewerUserId?: string | null): Promise<T[]> {
   if (!locationId || !tickets.length) return tickets;
   const branchMap = await resolveTicketBranches(tickets);
   return tickets.filter((t) =>
