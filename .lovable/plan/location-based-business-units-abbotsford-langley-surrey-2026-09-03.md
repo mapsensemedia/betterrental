@@ -11,7 +11,7 @@ Goal: each branch operates as an independent internal business unit. There are e
 - `user_roles` holds 9 rows: 7 `admin`, 1 `staff`, 1 `driver`. No location column on roles today. A role-assignment UI exists (`src/components/admin/UserRolesPanel.tsx`, in Settings → Users & Roles) but it cannot create accounts — there is no staff account-creation function.
 - Child tables are cleanly traceable to a booking location: only 1 support ticket, 22 admin alerts and 50 audit rows cannot be resolved. `payments.location_id` exists but is NULL on 806/1024 rows and must be backfilled from the booking.
 - There are **no views or materialized views** in the database — every dashboard reads tables directly, so there is no view-based RLS bypass.
-- **No index exists on `bookings.location_id`, `bookings.return_location_id`, `vehicle_units.location_id` or `payments.location_id`** — these must be added with the scoping work.
+- **No index exists on `bookings.location_id`, `bookings.return_location_id`, `vehicle_units.location_id` or `payments.location_id**` — these must be added with the scoping work.
 - 128 policies across 47 tables use the flat `is_admin_or_staff(auth.uid())` check — this is the single biggest change.
 - 26 SECURITY DEFINER functions bypass RLS; the client-callable ones needing location checks are `assign_vin_to_booking`, `release_vin_from_booking`, `get_category_availability`, `check_category_availability`, `get_available_categories`, `update_points_balance`.
 
@@ -21,7 +21,6 @@ Goal: each branch operates as an independent internal business unit. There are e
 
 - `public.staff_assignments` — one row per staff user: `user_id` (unique), `location_id`, `display_name`, `employee_code`, `is_active`, `created_by`, timestamps.
 - Enum extension: add `super_admin` and `manager` to `app_role`. Because Postgres cannot use a new enum value in the same transaction that adds it, this ships as **two separate migrations**: one that only runs `ALTER TYPE app_role ADD VALUE`, then everything else. `admin` is treated as Super Admin during transition, then converted to `super_admin`; the single `staff` holder becomes `manager`.
-
 
 **New security-definer helpers** (used by every policy so there is no recursion):
 
@@ -34,7 +33,7 @@ Goal: each branch operates as an independent internal business unit. There are e
 
 - `damage_reports`, `incident_cases`, `walkaround_inspections`, `checkin_records`, `delivery_tasks`, `support_tickets_v2`, `final_invoices`, `payments`, `receipts` → derive location from the parent booking with a trigger (`location_id` set on insert, immutable afterwards). For tables where adding a column is heavy, policies instead use an `EXISTS` check against `bookings.location_id`.
 
-**Processed-by / accountability columns on `bookings`**
+**Processed-by / accountability columns on `bookings**`
 
 - `processed_by` (uuid), `processed_at`, `processed_at_location_id`, `closed_by`, `last_modified_by`.
 
@@ -46,15 +45,16 @@ Every new public table gets GRANTs to `authenticated` + `service_role` in the sa
 
 ## 2. Role and permission structure — exactly two roles
 
-| Role | Scope | Key rights |
-| --- | --- | --- |
-| `super_admin` | All locations + combined | Everything: rentals, fleet, finance, settings, company-wide reports, location switching, create/deactivate/reassign staff at any branch |
-| `manager` | One assigned location only | Everything operational for that branch — create and process rentals, handover, returns, fleet, payments, deposits, branch reports. No staff management, no location switching, no company-wide totals |
+
+| Role          | Scope                      | Key rights                                                                                                                                                                                            |
+| ------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `super_admin` | All locations + combined   | Everything: rentals, fleet, finance, settings, company-wide reports, location switching, create/deactivate/reassign staff at any branch                                                               |
+| `manager`     | One assigned location only | Everything operational for that branch — create and process rentals, handover, returns, fleet, payments, deposits, branch reports. No staff management, no location switching, no company-wide totals |
+
 
 There are no other admin roles. `staff`, `cleaner`, `finance`, `support` and `location_manager` are not used: existing holders are converted (`admin` → `super_admin`, `staff` → `manager`) and the legacy values stop being granted. The only role kept outside this pair is `driver`, because it is not an admin-panel role — it gates the separate delivery portal (`delivery@c2crental.ca`), and removing it would break delivery dispatch. Say the word if you want the driver portal folded into `manager` too.
 
 `src/auth/capabilities.ts` collapses to two rows: `super_admin` (everything true, `canSwitchLocation`, `canManageStaff`, `canViewAllLocations`) and `manager` (all operational capabilities true, those three false, plus a fixed `locationId`). `is_admin_or_staff()` is kept as-is so nothing breaks, and simply returns true for both roles.
-
 
 ## 3. Backend authorization logic
 
@@ -131,12 +131,12 @@ Ship phases 1–3 with enforcement off (all current admins stay Super Admin) and
 2. One-way rentals: the drop-off branch sees the rental **read-only**; only the pickup branch and Super Admin can edit it.
 3. Staff creation, deactivation, location reassignment and role changes are **Super Admin only**, for any branch. Managers have no staff-management access.
 4. Two Super Admin accounts to be created in Phase 5 (or immediately, if you want them before the rest ships):
-   - Shanky@c2crental.ca
-   - Hilal@c2crental.ca
-
-   Both get `super_admin` plus a `staff_assignments` row with no fixed branch. For security, each account is created with a temporary password and must set its own password through the existing "Forgot password" / account-setup email before first use — passwords are never stored in the codebase or in the plan. If the account already exists, only the role is granted.
-
-## 12. Impact on current rental operations
+  - [Shanky@c2crental.ca](mailto:Shanky@c2crental.ca)
+  - [Hilal@c2crental.ca](mailto:Hilal@c2crental.ca)
+  both with same password as the provided login id   
+    
+     
+  12. Impact on current rental operations
 
 Direct answer: **no booking, rental or financial data changes, and no interruption to live operations**, provided the phase order is respected.
 
@@ -147,4 +147,3 @@ Direct answer: **no booking, rental or financial data changes, and no interrupti
 - Second smaller risk: the 8 vehicle units with no `location_id` would be invisible to branch managers. They get assigned first, from the confirmed list above — all 8 are retired, so no live rental is affected.
 - Customer side is untouched: customer-facing policies (`auth.uid() = user_id`), the booking funnel, pricing, payments and notifications are not modified.
 - Recommended timing for Phase 4: outside counter hours, with a spot check of a live active rental immediately afterwards.
-
