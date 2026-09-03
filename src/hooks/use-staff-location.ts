@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "./use-auth";
 import { useCapabilities } from "@/auth/capabilities";
+import { readStoredLocationScope } from "@/lib/location-scope-storage";
+
 
 export interface StaffAssignment {
   id: string;
