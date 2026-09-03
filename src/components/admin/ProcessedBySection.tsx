@@ -30,9 +30,11 @@ export interface ProcessedByBooking {
 interface StaffIdentity {
   name: string;
   locationName: string | null;
+  employeeCode: string | null;
+  staffId: string;
 }
 
-/** Resolve staff identities (name + branch) for a set of user ids. */
+/** Resolve staff identities (name + employee code + branch) for a set of user ids. */
 function useStaffIdentities(userIds: string[]) {
   const ids = [...new Set(userIds.filter(Boolean))].sort();
 
@@ -46,7 +48,7 @@ function useStaffIdentities(userIds: string[]) {
       const [{ data: assignments }, { data: profiles }, { data: locations }] = await Promise.all([
         supabase
           .from("staff_assignments")
-          .select("user_id, display_name, location_id")
+          .select("user_id, display_name, employee_code, location_id")
           .in("user_id", ids),
         supabase.from("profiles").select("id, full_name, email").in("id", ids),
         supabase.from("locations").select("id, name"),
@@ -64,6 +66,8 @@ function useStaffIdentities(userIds: string[]) {
             assignment?.display_name ||
             profileMap.get(id) ||
             `Staff ${id.slice(0, 8)}`,
+          employeeCode: assignment?.employee_code ?? null,
+          staffId: id,
           locationName: assignment?.location_id
             ? locationMap.get(assignment.location_id) ?? null
             : null,
@@ -74,6 +78,7 @@ function useStaffIdentities(userIds: string[]) {
     },
   });
 }
+
 
 function ActorRow({
   label,
@@ -96,6 +101,9 @@ function ActorRow({
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
         <p className="text-sm font-medium truncate">{identity?.name ?? "—"}</p>
+        <p className="text-xs text-muted-foreground font-mono">
+          ID: {identity?.employeeCode || `${userId.slice(0, 8)}`}
+        </p>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {(branchName || identity?.locationName) && (
@@ -106,6 +114,7 @@ function ActorRow({
         )}
         {at && <span>{format(new Date(at), "MMM d, yyyy h:mm a")}</span>}
       </div>
+
     </div>
   );
 }
@@ -244,9 +253,13 @@ export function ProcessedBySection({ bookingId }: { bookingId: string }) {
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {actor?.name ? `${actor.name} · ` : ""}
+                      {actor
+                        ? `ID ${actor.employeeCode || actor.staffId.slice(0, 8)} · `
+                        : ""}
                       {branch ? `${branch} · ` : ""}
                       {format(new Date(event.created_at), "MMM d, yyyy h:mm a")}
                     </span>
+
                   </li>
                 );
               })}

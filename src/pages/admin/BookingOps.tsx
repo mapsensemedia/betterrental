@@ -45,6 +45,8 @@ import { OpsActivityTimeline } from "@/components/admin/ops/OpsActivityTimeline"
 import { CreateIncidentDialog } from "@/components/admin/CreateIncidentDialog";
 import { CancelBookingDialog } from "@/components/admin/CancelBookingDialog";
 import { DeliveryModeBanner } from "@/components/admin/ops/DeliveryModeBanner";
+import { ProcessedBySection } from "@/components/admin/ProcessedBySection";
+
 
 // Hooks
 import { useBookingById, useUpdateBookingStatus } from "@/hooks/use-bookings";
@@ -503,8 +505,14 @@ export default function BookingOps() {
                   driverInfo={driverInfo}
                   steps={steps}
                 />
+
+                {/* Staff accountability — who processed this booking (visible to all staff) */}
+                <div className="mt-6">
+                  <ProcessedBySection bookingId={booking.id} />
+                </div>
               </div>
             </ScrollArea>
+
             
             {/* Sticky Footer */}
             {!isRentalActive && booking.status === "confirmed" && !!booking.assigned_unit_id && (
