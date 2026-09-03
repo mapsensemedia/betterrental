@@ -1,30 +1,54 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isLifecycleNotice } from "./use-alerts";
+import { useEffectiveLocationId, useStaffLocation } from "./use-staff-location";
 
 /**
- * Real-time hook for pending alerts count
- * Subscribes to changes on admin_alerts table
+ * Real-time count of pending alerts that actually need attention.
+ *
+ * Lifecycle notices (rental activated, booking completed, cancellations) are
+ * excluded, and the count is scoped to the acting user's branch: a manager only
+ * counts alerts for their own branch, a super admin counts the selected branch
+ * (or all branches when none is selected).
  */
 export function usePendingAlertsCount() {
   const queryClient = useQueryClient();
+  const { locationId, isReady, isUnassignedManager } = useEffectiveLocationId();
+  const { isSuperAdmin } = useStaffLocation();
 
   const query = useQuery({
-    queryKey: ["pending-alerts-count"],
+    queryKey: ["pending-alerts-count", locationId, isSuperAdmin],
+    enabled: isReady && !isUnassignedManager,
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from("admin_alerts")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending");
+        .select("id, title, message, booking_id")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(500);
 
       if (error) {
         console.error("Error fetching pending alerts count:", error);
         return 0;
       }
 
-      return count || 0;
+      const actionable = (data ?? []).filter((a) => !isLifecycleNotice(a));
+      if (!locationId) return isSuperAdmin ? actionable.length : 0;
+
+      const bookingIds = [...new Set(actionable.map((a) => a.booking_id).filter(Boolean))] as string[];
+      if (bookingIds.length === 0) return 0;
+
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .select("id")
+        .in("id", bookingIds)
+        .eq("location_id", locationId);
+
+      const branchBookings = new Set((bookings ?? []).map((b) => b.id));
+      return actionable.filter((a) => a.booking_id && branchBookings.has(a.booking_id)).length;
     },
-    staleTime: 10000, // 10 seconds
+    staleTime: 10000,
   });
 
   // Subscribe to real-time changes
@@ -39,7 +63,6 @@ export function usePendingAlertsCount() {
           table: "admin_alerts",
         },
         () => {
-          // Invalidate the count query on any change
           queryClient.invalidateQueries({ queryKey: ["pending-alerts-count"] });
           queryClient.invalidateQueries({ queryKey: ["admin-alerts"] });
         }
