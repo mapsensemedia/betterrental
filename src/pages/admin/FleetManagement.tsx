@@ -186,7 +186,7 @@ export default function FleetManagement() {
           </TabsList>
 
           <TabsContent value="all" className="mt-0">
-            <AllVehiclesTable isTemporary={false} />
+            <AllVehiclesTable />
           </TabsContent>
 
           <TabsContent value="temporary" className="mt-0">
