@@ -146,7 +146,8 @@ serve(async (req) => {
           status: "pending",
         })
         .select()
-        .single();
+        .single()
+        : { data: null, error: null };
 
       if (alertError) {
         console.error("Error creating admin_alert:", alertError);
