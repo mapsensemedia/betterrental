@@ -3907,7 +3907,15 @@ export type Database = {
         | "overdue"
         | "customer_issue"
         | "emergency"
-      app_role: "admin" | "staff" | "cleaner" | "finance" | "support" | "driver"
+      app_role:
+        | "admin"
+        | "staff"
+        | "cleaner"
+        | "finance"
+        | "support"
+        | "driver"
+        | "super_admin"
+        | "manager"
       booking_status:
         | "draft"
         | "pending"
@@ -4088,7 +4096,16 @@ export const Constants = {
         "customer_issue",
         "emergency",
       ],
-      app_role: ["admin", "staff", "cleaner", "finance", "support", "driver"],
+      app_role: [
+        "admin",
+        "staff",
+        "cleaner",
+        "finance",
+        "support",
+        "driver",
+        "super_admin",
+        "manager",
+      ],
       booking_status: [
         "draft",
         "pending",
