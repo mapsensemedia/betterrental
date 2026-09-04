@@ -25,7 +25,7 @@ export function CardPasswordSettings() {
         .select("value")
         .eq("key", "card_view_password")
         .maybeSingle();
-      return (data as any)?.value || "admin123";
+      return (data as any)?.value || "@Rentalcards2026";
     },
   });
 
