@@ -1,58 +1,44 @@
-# Customer booking flow — fixes
+# Test-only 99% off code at checkout
 
-Scope: the customer-facing side only. The c2ccarrental addresses now redirect to c2crental.ca, so the domain item is dropped.
+A single secret code the testing team can type at checkout to bring a whole booking (including the refundable hold) down to about 1% of its value. It is never listed, advertised, or hinted at anywhere on the site.
 
-## 1. Driver's licence photo upload (root cause found)
+## How it will work for the tester
 
-Customers saw an error every time they tried to upload licence photos. Confirmed cause: the licence/verification records table has no access grants for signed-in users, so the app is refused permission the moment it tries to save the record — even though the file itself uploads and the access rules are otherwise correct. A second problem: the app builds a plain public link for a private file store, so even a saved photo would not display.
+1. On the checkout page there is a small "Have a code?" field (same field customers see — it looks ordinary and shows nothing until a code is entered).
+2. Tester types the code and presses Apply.
+3. If the code matches, the summary shows a "Test discount" line, every charge drops by 99%, and the deposit hold drops from $350 to $3.50.
+4. Booking, payment and deposit hold all run for real, just with tiny amounts, so the full flow can be tested end to end.
+5. A wrong code shows "This code isn't valid" and nothing changes.
 
-Work:
-- Grant signed-in customers and the server the access they need on the verification records table.
-- Switch photo viewing to time-limited secure links (customer and staff side).
-- Bring back the "Front" / "Back" photo upload on the customer's licence page, keeping the licence number field alongside it (number typed + photos uploaded).
-- Make it clear on the page that photos are needed before pickup, with plain-language errors on failure (wrong file type, too large, offline).
-- Verify end to end with a real signed-in customer before closing.
+## Safety rules
 
-On "customers never see their own documents": the additional-documents area added for handover is deliberately staff-only, and customers have no upload there — nothing to fix, no customer is blocked by it today. Their real blocker was the licence upload above.
+- The code itself lives only on the server (stored as a backend secret), never in the website code, so nobody can find it by inspecting the page.
+- Nothing in the customer interface names or hints at the code. No banner, no list of offers.
+- Bookings made with it are stamped so they are easy to identify and exclude from revenue reporting later.
+- It can be switched off instantly by clearing the secret, and it carries an expiry date so it dies on its own if forgotten.
 
-## 2. Protection and Add-ons pages show a fake near-zero price
+## What gets discounted
 
-If the chosen car is lost (refresh, shared link, private browsing), these two pages price the rental at $0/day and still allow Continue, so the customer sees a total like "$2.87" and later hits a price mismatch.
+Rental days, weekend surcharge, protection, add-ons, driver fees, drop-off/delivery fees, taxes, and the card processing fee are all reduced by 99%. The refundable deposit hold is reduced by the same 99% so test cards are not tied up.
 
-Work: give both pages the same guard the payment page already has — show "Please choose your vehicle again" and send them back to the car list instead of showing a price.
+## Technical detail
 
-## 3. Deposit hold can fail silently
+**Secret**: `TEST_PROMO_CODE` (created via the secrets tool so the value never appears in code) plus `TEST_PROMO_EXPIRES_AT`.
 
-After the rental amount is charged, a failed $350 hold is only written to a hidden log; the customer still sees success.
+**New edge function `validate-promo-code`**: accepts `{ code }`, compares against the secret with a constant-time-ish equality check, and returns `{ valid, percentOff: 99, label: "Test discount" }`. Never echoes the correct code. Rate limited per IP via the existing `check_rate_limit` RPC to stop guessing.
 
-Work: when the hold fails, still keep the booking, but tell the customer clearly, offer one retry on the same page, and flag the booking so staff see "deposit not held" before pickup.
+**Pricing engine (server, `supabase/functions/_shared/booking-core.ts`)**:
+- `computeBookingTotals` / `validateClientPricing` accept an optional `promoCode`.
+- When the code matches the secret and is unexpired, apply the 99% cut in integer cents at the end of the existing computation: discount = `total - round(total * 0.01)`, and the same treatment for `depositAmount`. Existing line items keep their real values; the reduction is a single discount amount so the breakdown stays auditable.
+- Returns `promoDiscount` and `promoCodeApplied` in the totals object; an invalid/expired code is ignored (never blocks the booking) and no discount is applied, so the client/server mismatch check still catches tampering.
 
-## 4. Guests locked out of their own booking
+**Booking writes (`create-booking`, `create-guest-booking`)**: pass `promoCode` through to `validateClientPricing`; persist `total_amount`, `deposit_amount` from server totals as today. Store the marker on the booking (`notes` append plus a new nullable `promo_code` column on `bookings`, with the reduction amount in `duration_discount`-independent field `promo_discount`) so finance can filter test bookings out. Migration adds `promo_code text` and `promo_discount numeric default 0` to `bookings`.
 
-Guests who close the tab before setting a password cannot reach their booking, licence upload or agreement.
+**Client (`src/pages/NewCheckout.tsx`, `src/lib/pricing.ts`)**:
+- Small code input + Apply button, wired to `validate-promo-code`. The website never knows the code — it only learns "valid, 99%" from the server.
+- On success, store `promoPercent` in checkout state and apply the same integer-cents 99% reduction to the displayed total and to the deposit amount used by the payment/hold components, so the amount shown equals the amount the server computes.
+- Send `promoCode` in the `create-booking` / `create-guest-booking` bodies.
 
-Work: add a "Find my booking" lookup by booking code + email that opens the booking's own page with licence upload, agreement and pickup pass, and email that link with the confirmation. Also keep the set-a-password invitation, but no longer make it the only way in.
+**Payments**: `wl-authorize` and the deposit-hold function already take their amounts from the booking row, so no change is needed there — they will charge the reduced amounts automatically.
 
-## 5. Confirmation page
-
-The confirmation page is unreachable and shows "Booking not found" for guests.
-
-Work: make it the landing page again after both card payment and pay-at-pickup, and let it load by booking code so guests see it. Show booking code, car, dates, location, amount paid, deposit status and next steps.
-
-## 6. Rough edges
-
-- Replace the generic "Failed to create booking" on rate limits with "Too many attempts — please wait a few minutes", and loosen the limit so shared offices/mobile networks are not blocked; keep the counter in the database so it is reliable.
-- Same friendly message and retry allowance on the text/email code step.
-- Real format checks on email and phone before submitting.
-- Warn when a shared/bookmarked link mixes an old car with new dates, instead of silently continuing.
-
-## Technical notes
-
-- Migration: `GRANT SELECT, INSERT, UPDATE ON public.verification_requests TO authenticated; GRANT ALL ... TO service_role;` (policies already exist and are correct). Storage policies on `verification-documents` already allow per-user folders.
-- `src/hooks/use-verification.ts`: replace `getPublicUrl` with `createSignedUrl`; surface storage/PostgREST errors verbatim in the toast.
-- `src/pages/booking/BookingLicense.tsx` + `DriverLicenseUpload.tsx`: restore upload UI, keep number entry.
-- `src/pages/Protection.tsx`, `src/pages/AddOns.tsx`: early return guard when `vehicle` is undefined (mirror `NewCheckout.tsx` line ~709).
-- `src/pages/NewCheckout.tsx`: deposit branch (~lines 972-1013) sets a `depositFailed` state → visible alert + retry; keep the existing integrity alert.
-- Guest lookup: new page plus an edge function that verifies booking code + email and returns a scoped session/token; no direct table access from the client.
-- `BookingConfirmed.tsx`: accept `code` param and load through the same lookup function; re-link from checkout success.
-- Rate limits: move in-memory counters in `create-guest-booking` and `verify-booking-otp` to a `rate_limits` table with atomic increment.
+**Not touched**: the points-offer system, walk-in/ops pricing, and any customer-facing promotional UI.
