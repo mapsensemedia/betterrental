@@ -982,6 +982,9 @@ export async function createBookingRecord(
       return_location_id: input.returnLocationId || null,
       different_dropoff_fee: serverTotals.differentDropoffFee,
       delivery_fee: serverTotals.deliveryFee || 0,
+      promo_code: serverTotals.promoCodeApplied,
+      promo_discount: serverTotals.promoDiscount || 0,
+
     })
     .select()
     .single();
