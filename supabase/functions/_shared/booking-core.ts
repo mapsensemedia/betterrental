@@ -29,6 +29,41 @@ const MONTHLY_DISCOUNT_RATE = 0;
 // BUSINESS RULE: Deposit is ALWAYS required - minimum $350 CAD
 const MINIMUM_DEPOSIT_AMOUNT = 350;
 
+// ========== INTERNAL TEST PROMO CODE ==========
+// A single secret code, stored only as a backend secret (TEST_PROMO_CODE), that
+// reduces every charge (and the deposit hold) to 1% so the QA team can run the
+// real booking + payment + hold flow with negligible amounts.
+// NEVER expose the code value to the client. Clearing the secret disables it.
+export const TEST_PROMO_PERCENT_OFF = 99;
+
+function constantTimeEquals(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
+ * Returns the normalized promo code when the supplied code matches the active
+ * secret test code and it has not expired; otherwise null.
+ */
+export function resolveTestPromoCode(code?: string | null): string | null {
+  if (!code) return null;
+  const secret = Deno.env.get("TEST_PROMO_CODE");
+  if (!secret) return null;
+
+  const expiresAt = Deno.env.get("TEST_PROMO_EXPIRES_AT");
+  if (expiresAt) {
+    const exp = new Date(expiresAt).getTime();
+    if (Number.isFinite(exp) && Date.now() > exp) return null;
+  }
+
+  const supplied = String(code).trim().toUpperCase();
+  if (!supplied || supplied.length > 64) return null;
+  return constantTimeEquals(supplied, secret.trim().toUpperCase()) ? supplied : null;
+}
+
+
 // ========== PRICE VALIDATION TOLERANCE ==========
 const PRICE_MISMATCH_TOLERANCE = 0.50; // $0.50 tolerance for rounding
 
