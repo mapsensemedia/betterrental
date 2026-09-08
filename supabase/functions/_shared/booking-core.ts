@@ -765,10 +765,23 @@ export async function computeBookingTotals(input: {
   const processingFee = computeProcessingFee(subtotal);
 
   // 11) Total
-  const total = roundCents(subtotal + taxAmount + processingFee);
+  const grossTotal = roundCents(subtotal + taxAmount + processingFee);
 
   // 12) Deposit — fixed minimum, NOT equal to total
-  const depositAmount = MINIMUM_DEPOSIT_AMOUNT;
+  let depositAmount = MINIMUM_DEPOSIT_AMOUNT;
+
+  // 13) Internal test promo code — reduces the whole total AND the deposit hold
+  //     by 99%. Invalid/expired codes are silently ignored (never block a booking).
+  const promoCodeApplied = resolveTestPromoCode(input.promoCode);
+  let promoDiscount = 0;
+  let total = grossTotal;
+  if (promoCodeApplied) {
+    const keepRate = (100 - TEST_PROMO_PERCENT_OFF) / 100;
+    total = roundCents(grossTotal * keepRate);
+    promoDiscount = roundCents(grossTotal - total);
+    depositAmount = roundCents(MINIMUM_DEPOSIT_AMOUNT * keepRate);
+    console.log(`[pricing] TEST PROMO applied: gross=$${grossTotal} -> $${total}, deposit=$${depositAmount}`);
+  }
 
   return {
     days,
@@ -791,9 +804,14 @@ export async function computeBookingTotals(input: {
     taxAmount,
     processingFee,
     processingFeeRate,
+    grossTotal,
+    promoCodeApplied,
+    promoDiscount,
     total,
     depositAmount,
     addOnPrices,
+  };
+
   };
 }
 
