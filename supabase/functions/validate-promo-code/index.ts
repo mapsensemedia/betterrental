@@ -16,7 +16,7 @@ import {
   handleCorsPreflightRequest,
   getClientIp,
 } from "../_shared/cors.ts";
-import { checkRateLimitDb } from "../_shared/rate-limit-db.ts";
+import { checkDbRateLimit } from "../_shared/rate-limit-db.ts";
 import { resolveTestPromoCode, TEST_PROMO_PERCENT_OFF } from "../_shared/booking-core.ts";
 
 Deno.serve(async (req) => {
