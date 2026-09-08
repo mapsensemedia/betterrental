@@ -821,9 +821,8 @@ export async function computeBookingTotals(input: {
     depositAmount,
     addOnPrices,
   };
-
-  };
 }
+
 
 
 /**
