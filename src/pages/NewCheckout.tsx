@@ -1173,8 +1173,8 @@ export default function NewCheckout() {
                       Code applied — {promoPercentOff}% off this booking and the deposit hold.
                     </p>
                   )}
-                </Card>
-              )}
+              </Card>
+
 
               {/* Points Redemption */}
               <PointsRedemption
