@@ -234,10 +234,9 @@ export default function NewCheckout() {
   const [pointsDiscount, setPointsDiscount] = useState(0);
   const [pointsUsed, setPointsUsed] = useState(0);
 
-  // Internal test code (QA only). The field is not rendered unless the URL
-  // carries ?promo — customers never see it.
-  const showPromoField = searchParams.has("promo");
+  // Code field always shown (looks ordinary); only the internal QA code is valid.
   const [promoInput, setPromoInput] = useState(searchParams.get("promo") || "");
+
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [promoPercentOff, setPromoPercentOff] = useState(0);
   const [promoError, setPromoError] = useState<string | null>(null);
