@@ -167,7 +167,14 @@ export interface ServerPricingResult {
   processingFee: number;
   /** Applied processing fee rate (0.025 or 0.015) */
   processingFeeRate: number;
+  /** Total before any internal test promo reduction */
+  grossTotal: number;
+  /** Normalized internal test promo code that was applied, if any */
+  promoCodeApplied: string | null;
+  /** Amount removed by the internal test promo code */
+  promoDiscount: number;
   total: number;
+
   depositAmount: number;
   /** Per-add-on server-computed prices for DB insert */
   addOnPrices: { addOnId: string; quantity: number; price: number }[];
