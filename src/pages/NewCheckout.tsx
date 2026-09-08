@@ -1144,12 +1144,12 @@ export default function NewCheckout() {
                 </Card>
               )}
 
-              {/* Internal test code — only rendered when the URL carries ?promo */}
-              {showPromoField && (
-                <Card className="p-4">
+              {/* Code field (ordinary-looking; only the internal QA code validates) */}
+              <Card className="p-4">
                   <Label htmlFor="promo-code" className="text-sm font-medium">
-                    Code
+                    Have a code?
                   </Label>
+
                   <div className="mt-2 flex gap-2">
                     <Input
                       id="promo-code"
