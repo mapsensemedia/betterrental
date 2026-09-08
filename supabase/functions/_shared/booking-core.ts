@@ -845,6 +845,7 @@ export async function validateClientPricing(params: {
   locationId?: string;
   returnLocationId?: string;
   clientTotal: number;
+  promoCode?: string | null;
 }): Promise<{ valid: boolean; serverTotals: ServerPricingResult; error?: string }> {
   const server = await computeBookingTotals({
     vehicleId: params.vehicleId,
@@ -860,7 +861,9 @@ export async function validateClientPricing(params: {
     differentDropoffFee: params.differentDropoffFee,
     locationId: params.locationId,
     returnLocationId: params.returnLocationId,
+    promoCode: params.promoCode,
   });
+
 
   // A server-side delivery-fee correction legitimately changes the total.
   // Absorb it into the tolerance (tax-inclusive) so the customer never sees a
