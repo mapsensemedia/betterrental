@@ -539,6 +539,9 @@ export async function computeBookingTotals(input: {
   returnLocationId?: string;
   /** If provided, use this rate instead of fetching from vehicle/category */
   overrideDailyRate?: number;
+  /** Internal QA promo code (validated against the TEST_PROMO_CODE secret) */
+  promoCode?: string | null;
+
 }): Promise<ServerPricingResult> {
   const supabase = getAdminClient();
 
