@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
 
   try {
     const ip = getClientIp(req);
-    const rl = await checkRateLimitDb(`promo-code:${ip}`, 60 * 10, 10);
+    const rl = await checkDbRateLimit({ key: `promo-code:${ip}`, windowSeconds: 600, maxRequests: 10 });
     if (!rl.allowed) {
       return json({ valid: false, message: "Too many attempts. Please try again later." }, 429);
     }
