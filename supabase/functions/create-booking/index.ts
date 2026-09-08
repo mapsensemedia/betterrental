@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
       pickupContactName,
       pickupContactPhone,
       specialInstructions,
+      promoCode,
     } = body;
 
     // Input validation
@@ -126,6 +127,7 @@ Deno.serve(async (req) => {
         locationId,
         returnLocationId,
         clientTotal: Number(totalAmount),
+        promoCode,
       });
     } catch (err) {
       console.error("[create-booking] PRICE_VALIDATION_FAILED:", err);
@@ -296,6 +298,8 @@ Deno.serve(async (req) => {
         pickup_contact_name: saveTimeAtCounter ? pickupContactName || null : null,
         pickup_contact_phone: saveTimeAtCounter ? pickupContactPhone || null : null,
         special_instructions: saveTimeAtCounter ? specialInstructions || null : null,
+        promo_code: serverTotals.promoCodeApplied,
+        promo_discount: serverTotals.promoDiscount || 0,
       })
       .select()
       .single();
