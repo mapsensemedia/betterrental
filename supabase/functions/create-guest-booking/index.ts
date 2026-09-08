@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
       cardHolderName,
       deliveryFee,
       totalAmount,    // Client total — used only for mismatch check
+      promoCode,      // Internal QA test code — validated server-side
     } = body;
 
     // Validate required fields
@@ -164,6 +165,7 @@ Deno.serve(async (req) => {
         locationId: body.locationId,
         returnLocationId: body.returnLocationId,
         clientTotal: Number(totalAmount),
+        promoCode,
       });
     } catch (err) {
       console.error("[create-guest-booking] PRICE_VALIDATION_FAILED:", err);
@@ -355,6 +357,7 @@ Deno.serve(async (req) => {
       cardHolderName,
       returnLocationId: body.returnLocationId,
       deliveryFee,
+      promoCode,
     }, serverTotals);
 
     if (!bookingResult.success || !bookingResult.booking) {

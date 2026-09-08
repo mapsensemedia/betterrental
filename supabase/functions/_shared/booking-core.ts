@@ -29,6 +29,41 @@ const MONTHLY_DISCOUNT_RATE = 0;
 // BUSINESS RULE: Deposit is ALWAYS required - minimum $350 CAD
 const MINIMUM_DEPOSIT_AMOUNT = 350;
 
+// ========== INTERNAL TEST PROMO CODE ==========
+// A single secret code, stored only as a backend secret (TEST_PROMO_CODE), that
+// reduces every charge (and the deposit hold) to 1% so the QA team can run the
+// real booking + payment + hold flow with negligible amounts.
+// NEVER expose the code value to the client. Clearing the secret disables it.
+export const TEST_PROMO_PERCENT_OFF = 99;
+
+function constantTimeEquals(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
+ * Returns the normalized promo code when the supplied code matches the active
+ * secret test code and it has not expired; otherwise null.
+ */
+export function resolveTestPromoCode(code?: string | null): string | null {
+  if (!code) return null;
+  const secret = Deno.env.get("TEST_PROMO_CODE");
+  if (!secret) return null;
+
+  const expiresAt = Deno.env.get("TEST_PROMO_EXPIRES_AT");
+  if (expiresAt) {
+    const exp = new Date(expiresAt).getTime();
+    if (Number.isFinite(exp) && Date.now() > exp) return null;
+  }
+
+  const supplied = String(code).trim().toUpperCase();
+  if (!supplied || supplied.length > 64) return null;
+  return constantTimeEquals(supplied, secret.trim().toUpperCase()) ? supplied : null;
+}
+
+
 // ========== PRICE VALIDATION TOLERANCE ==========
 const PRICE_MISMATCH_TOLERANCE = 0.50; // $0.50 tolerance for rounding
 
@@ -132,7 +167,14 @@ export interface ServerPricingResult {
   processingFee: number;
   /** Applied processing fee rate (0.025 or 0.015) */
   processingFeeRate: number;
+  /** Total before any internal test promo reduction */
+  grossTotal: number;
+  /** Normalized internal test promo code that was applied, if any */
+  promoCodeApplied: string | null;
+  /** Amount removed by the internal test promo code */
+  promoDiscount: number;
   total: number;
+
   depositAmount: number;
   /** Per-add-on server-computed prices for DB insert */
   addOnPrices: { addOnId: string; quantity: number; price: number }[];
@@ -497,6 +539,9 @@ export async function computeBookingTotals(input: {
   returnLocationId?: string;
   /** If provided, use this rate instead of fetching from vehicle/category */
   overrideDailyRate?: number;
+  /** Internal QA promo code (validated against the TEST_PROMO_CODE secret) */
+  promoCode?: string | null;
+
 }): Promise<ServerPricingResult> {
   const supabase = getAdminClient();
 
@@ -730,10 +775,23 @@ export async function computeBookingTotals(input: {
   const processingFee = computeProcessingFee(subtotal);
 
   // 11) Total
-  const total = roundCents(subtotal + taxAmount + processingFee);
+  const grossTotal = roundCents(subtotal + taxAmount + processingFee);
 
   // 12) Deposit — fixed minimum, NOT equal to total
-  const depositAmount = MINIMUM_DEPOSIT_AMOUNT;
+  let depositAmount = MINIMUM_DEPOSIT_AMOUNT;
+
+  // 13) Internal test promo code — reduces the whole total AND the deposit hold
+  //     by 99%. Invalid/expired codes are silently ignored (never block a booking).
+  const promoCodeApplied = resolveTestPromoCode(input.promoCode);
+  let promoDiscount = 0;
+  let total = grossTotal;
+  if (promoCodeApplied) {
+    const keepRate = (100 - TEST_PROMO_PERCENT_OFF) / 100;
+    total = roundCents(grossTotal * keepRate);
+    promoDiscount = roundCents(grossTotal - total);
+    depositAmount = roundCents(MINIMUM_DEPOSIT_AMOUNT * keepRate);
+    console.log(`[pricing] TEST PROMO applied: gross=$${grossTotal} -> $${total}, deposit=$${depositAmount}`);
+  }
 
   return {
     days,
@@ -756,11 +814,15 @@ export async function computeBookingTotals(input: {
     taxAmount,
     processingFee,
     processingFeeRate,
+    grossTotal,
+    promoCodeApplied,
+    promoDiscount,
     total,
     depositAmount,
     addOnPrices,
   };
 }
+
 
 
 /**
@@ -782,6 +844,7 @@ export async function validateClientPricing(params: {
   locationId?: string;
   returnLocationId?: string;
   clientTotal: number;
+  promoCode?: string | null;
 }): Promise<{ valid: boolean; serverTotals: ServerPricingResult; error?: string }> {
   const server = await computeBookingTotals({
     vehicleId: params.vehicleId,
@@ -797,7 +860,9 @@ export async function validateClientPricing(params: {
     differentDropoffFee: params.differentDropoffFee,
     locationId: params.locationId,
     returnLocationId: params.returnLocationId,
+    promoCode: params.promoCode,
   });
+
 
   // A server-side delivery-fee correction legitimately changes the total.
   // Absorb it into the tolerance (tax-inclusive) so the customer never sees a
@@ -916,6 +981,9 @@ export async function createBookingRecord(
       return_location_id: input.returnLocationId || null,
       different_dropoff_fee: serverTotals.differentDropoffFee,
       delivery_fee: serverTotals.deliveryFee || 0,
+      promo_code: serverTotals.promoCodeApplied,
+      promo_discount: serverTotals.promoDiscount || 0,
+
     })
     .select()
     .single();

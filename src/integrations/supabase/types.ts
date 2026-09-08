@@ -680,6 +680,8 @@ export type Database = {
           processed_by: string | null
           processing_fee: number
           processing_fee_rate: number
+          promo_code: string | null
+          promo_discount: number
           protection_plan: string | null
           return_evidence_completed_at: string | null
           return_evidence_completed_by: string | null
@@ -792,6 +794,8 @@ export type Database = {
           processed_by?: string | null
           processing_fee?: number
           processing_fee_rate?: number
+          promo_code?: string | null
+          promo_discount?: number
           protection_plan?: string | null
           return_evidence_completed_at?: string | null
           return_evidence_completed_by?: string | null
@@ -904,6 +908,8 @@ export type Database = {
           processed_by?: string | null
           processing_fee?: number
           processing_fee_rate?: number
+          promo_code?: string | null
+          promo_discount?: number
           protection_plan?: string | null
           return_evidence_completed_at?: string | null
           return_evidence_completed_by?: string | null
