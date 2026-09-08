@@ -233,6 +233,39 @@ export default function NewCheckout() {
   // Points redemption state
   const [pointsDiscount, setPointsDiscount] = useState(0);
   const [pointsUsed, setPointsUsed] = useState(0);
+
+  // Internal test code (QA only). The field is not rendered unless the URL
+  // carries ?promo — customers never see it.
+  const showPromoField = searchParams.has("promo");
+  const [promoInput, setPromoInput] = useState(searchParams.get("promo") || "");
+  const [promoCode, setPromoCode] = useState<string | null>(null);
+  const [promoPercentOff, setPromoPercentOff] = useState(0);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoChecking, setPromoChecking] = useState(false);
+
+  const handleApplyPromoCode = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+    setPromoChecking(true);
+    setPromoError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("validate-promo-code", {
+        body: { code },
+      });
+      if (error || !data?.valid) {
+        setPromoCode(null);
+        setPromoPercentOff(0);
+        setPromoError(data?.message || "This code isn't valid.");
+      } else {
+        setPromoCode(code.toUpperCase());
+        setPromoPercentOff(Number(data.percentOff) || 0);
+      }
+    } catch {
+      setPromoError("Could not check that code right now.");
+    } finally {
+      setPromoChecking(false);
+    }
+  };
   
   // Use category as the vehicle data source
   const vehicle = category;
@@ -291,8 +324,14 @@ export default function NewCheckout() {
     };
   }, [vehicle, vehicleCategory, rentalDays, protection, addOns, addOnIds, searchData, driverAgeBand, allLocations]);
 
+  // Internal test code reduces every charge and the deposit hold
+  const promoKeepRate = promoCode ? (100 - promoPercentOff) / 100 : 1;
+  const promoTotal = Math.round(pricing.total * promoKeepRate * 100) / 100;
+  const promoSavings = Math.round((pricing.total - promoTotal) * 100) / 100;
+  const effectiveDeposit = Math.round(DEFAULT_DEPOSIT_AMOUNT * promoKeepRate * 100) / 100;
+
   // Final total after points discount
-  const finalTotal = Math.max(0, pricing.total - pointsDiscount);
+  const finalTotal = Math.max(0, promoTotal - pointsDiscount);
 
   // Handler for points redemption
   const handleApplyPointsDiscount = (discount: number, points: number) => {
@@ -484,7 +523,8 @@ export default function NewCheckout() {
               notes: bookingNotes,
               deliveryFee: searchData.deliveryFee || 0,
               returnLocationId: pricing.isDifferentDropoff ? searchData.returnLocationId : undefined,
-              totalAmount: pricing.total,
+              totalAmount: promoTotal,
+              promoCode: promoCode || undefined,
               paymentMethod,
               pickupAddress: searchData.deliveryMode === "delivery" ? searchData.deliveryAddress : undefined,
               pickupLat: searchData.deliveryLat,
@@ -573,7 +613,8 @@ export default function NewCheckout() {
               locationId,
               startAt: localDateTimeToISO(formatLocalDate(searchData.pickupDate), searchData.pickupTime),
               endAt: localDateTimeToISO(formatLocalDate(searchData.returnDate), searchData.returnTime),
-              totalAmount: pricing.total,
+              totalAmount: promoTotal,
+              promoCode: promoCode || undefined,
               driverAgeBand,
               protectionPlan: protection,
               deliveryFee: searchData.deliveryFee || 0,
@@ -770,7 +811,7 @@ export default function NewCheckout() {
                 <div className="text-right">
                   <p className="text-[10px] sm:text-sm text-muted-foreground">Total:</p>
                   <p className="text-base sm:text-2xl font-bold whitespace-nowrap">
-                    ${pricing.total.toFixed(2)} CAD
+                    ${finalTotal.toFixed(2)} CAD
                   </p>
                 </div>
               </div>
@@ -972,7 +1013,7 @@ export default function NewCheckout() {
                         // Step 2: ALWAYS attempt the deposit hold after rental payment.
                         // wl-pay returns success on any approved Bambora response (P or PA).
                         // Capture status of the rental does NOT gate the deposit step.
-                        const depositAmount = DEFAULT_DEPOSIT_AMOUNT;
+                        const depositAmount = effectiveDeposit;
                         if (depositAmount > 0 && activeBooking) {
                           setCheckoutStep("deposit");
                           const fallbackCardholderName = worldlineRef.current?.getCardholderName()?.trim()
@@ -1104,6 +1145,38 @@ export default function NewCheckout() {
                 </Card>
               )}
 
+              {/* Internal test code — only rendered when the URL carries ?promo */}
+              {showPromoField && (
+                <Card className="p-4">
+                  <Label htmlFor="promo-code" className="text-sm font-medium">
+                    Code
+                  </Label>
+                  <div className="mt-2 flex gap-2">
+                    <Input
+                      id="promo-code"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value)}
+                      placeholder="Enter code"
+                      autoComplete="off"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleApplyPromoCode}
+                      disabled={promoChecking || !promoInput.trim()}
+                    >
+                      {promoChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+                    </Button>
+                  </div>
+                  {promoError && <p className="mt-2 text-sm text-destructive">{promoError}</p>}
+                  {promoCode && (
+                    <p className="mt-2 text-sm text-primary">
+                      Code applied — {promoPercentOff}% off this booking and the deposit hold.
+                    </p>
+                  )}
+                </Card>
+              )}
+
               {/* Points Redemption */}
               <PointsRedemption
                 bookingTotal={pricing.total}
@@ -1117,7 +1190,7 @@ export default function NewCheckout() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold">Total</h2>
                   <div className="text-right">
-                    {pointsDiscount > 0 && (
+                    {(pointsDiscount > 0 || promoSavings > 0) && (
                       <p className="text-sm text-muted-foreground line-through">
                         ${pricing.total.toFixed(2)} CAD
                       </p>
@@ -1279,6 +1352,12 @@ export default function NewCheckout() {
                       </div>
                     )}
                     <Separator className="my-2" />
+                    {promoSavings > 0 && (
+                      <div className="flex justify-between text-primary font-medium items-center">
+                        <span>Test discount ({promoPercentOff}% off)</span>
+                        <span>-${promoSavings.toFixed(2)} CAD</span>
+                      </div>
+                    )}
                     {pointsDiscount > 0 && (
                       <div className="flex justify-between text-primary font-medium items-center">
                         <span className="flex items-center">
@@ -1297,7 +1376,7 @@ export default function NewCheckout() {
                         Security Deposit (refundable)
                         <PriceTooltip content={PRICE_TOOLTIPS.deposit} />
                       </span>
-                      <span>${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} CAD</span>
+                      <span>${effectiveDeposit.toFixed(2)} CAD</span>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
@@ -1379,7 +1458,7 @@ export default function NewCheckout() {
                   ) : (
                     <>
                       <Lock className="w-4 h-4 mr-2" />
-                      Pay ${finalTotal.toFixed(2)} + ${DEFAULT_DEPOSIT_AMOUNT.toFixed(2)} deposit hold
+                      Pay ${finalTotal.toFixed(2)} + ${effectiveDeposit.toFixed(2)} deposit hold
                     </>
                   )}
                 </Button>
