@@ -17,6 +17,8 @@ export interface AdminAlert {
   bookingId: string | null;
   vehicleId: string | null;
   userId: string | null;
+  /** Support ticket this alert was raised for, when any. */
+  ticketId?: string | null;
   createdAt: string;
   acknowledgedAt: string | null;
   acknowledgedBy: string | null;
@@ -37,7 +39,8 @@ export const ALERT_PRIORITY: Record<string, "critical" | "action" | "info"> = {
   overdue: "action",
   late_return: "action",
   return_due_soon: "action",
-  customer_issue: "info",
+  // A customer raising an issue or a ticket is real work, not a notice.
+  customer_issue: "action",
   cleaning_required: "info",
   hold_expiring: "info",
 };
