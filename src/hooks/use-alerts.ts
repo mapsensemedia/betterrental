@@ -166,6 +166,7 @@ export function useAdminAlerts(filters?: AlertFilters) {
         bookingId: a.booking_id,
         vehicleId: a.vehicle_id,
         userId: a.user_id,
+        ticketId: (a as any).ticket_id ?? null,
         createdAt: a.created_at,
         acknowledgedAt: a.acknowledged_at,
         acknowledgedBy: a.acknowledged_by,
