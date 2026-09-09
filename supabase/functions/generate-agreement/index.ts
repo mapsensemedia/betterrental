@@ -355,7 +355,7 @@ serve(async (req) => {
         .eq("booking_id", bookingId),
       supabase
         .from("booking_additional_drivers")
-        .select("id, driver_name, driver_age_band, young_driver_fee")
+        .select("id, driver_name, driver_age_band, young_driver_fee, driver_license_number, driver_license_expiry, authorized_start, authorized_end, authorized_days")
         .eq("booking_id", bookingId),
     ]);
 
@@ -416,12 +416,36 @@ serve(async (req) => {
     }, 0);
 
     // Itemized additional-driver lines (own section on the agreement)
+    const fmtDriverDay = (iso: string) =>
+      new Date(iso).toLocaleDateString("en-US", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
+        timeZone: "America/Vancouver",
+      });
+
+    const driverAuthLabel = (d: any): string | null => {
+      if (!d.authorized_start || !d.authorized_end) return null;
+      const from = fmtDriverDay(d.authorized_start);
+      const to = fmtDriverDay(d.authorized_end);
+      const days = Number(d.authorized_days) || null;
+      return from === to || days === 1
+        ? `Authorised for ${from} only (1 day)`
+        : `Authorised ${from} to ${to}${days ? ` (${days} day${days === 1 ? "" : "s"})` : ""}`;
+    };
+
     const additionalDriversList = (bookingDrivers || []).map((d: any) => {
       const total = roundCents(Number(d.young_driver_fee) || 0);
+      const billedDays = Number(d.authorized_days) || rentalDays;
       return {
         name: d.driver_name || "Additional Driver",
         ageBand: d.driver_age_band || "25_70",
-        dailyRate: rentalDays > 0 ? roundCents(total / rentalDays) : total,
+        licenseNumber: d.driver_license_number || null,
+        licenseExpiry: d.driver_license_expiry || null,
+        authorizedFrom: d.authorized_start || null,
+        authorizedTo: d.authorized_end || null,
+        authorizedDays: Number(d.authorized_days) || null,
+        authorizationNote: driverAuthLabel(d),
+        billedDays,
+        dailyRate: billedDays > 0 ? roundCents(total / billedDays) : total,
         total,
       };
     });
@@ -503,6 +527,14 @@ serve(async (req) => {
       ? `${categoryInfo.name} — ${[unitInfo.year, unitInfo.make, unitInfo.model].filter(Boolean).join(" ")}` 
       : categoryInfo.name;
 
+    // Additional drivers text block (name, licence number, authorisation window, fee)
+    const driversSection = additionalDriversList.length > 0
+      ? "\nAdditional Drivers:\n" + additionalDriversList.map((d) =>
+          `   ${d.name}${d.licenseNumber ? ` | DL: ${d.licenseNumber}` : ""}${d.licenseExpiry ? ` (expires ${d.licenseExpiry})` : ""}` +
+          `${d.authorizationNote ? ` | ${d.authorizationNote}` : ""} | $${d.dailyRate.toFixed(2)}/day × ${d.billedDays}d = $${d.total.toFixed(2)}`
+        ).join("\n")
+      : "";
+
     // Generate compact agreement content (structured data is in terms_json)
     const agreementContent = `C2C CAR RENTAL — VEHICLE RENTAL AGREEMENT
 Booking: ${booking.booking_code} | Date: ${generatedDate}
@@ -514,7 +546,7 @@ Vehicle: ${vehicleDesc}${unitInfo.license_plate ? ` | Plate: ${unitInfo.license_
 Daily Rate: $${dailyRate.toFixed(2)} x ${rentalDays} = $${vehicleSubtotal.toFixed(2)}${adjustmentLines.map((l) => `\n${l.label}: ${l.amount < 0 ? "−" : "+"}$${Math.abs(l.amount).toFixed(2)}`).join("")}
 Protection: ${planMeta.name} ($${protectionDailyRate.toFixed(2)}/day x ${rentalDays} = $${protectionTotal.toFixed(2)})
 Add-ons: $${addOnsTotal.toFixed(2)}
-${addOnsSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}${deliveryFeeAmt > 0 ? `\nDelivery Fee: $${deliveryFeeAmt.toFixed(2)}` : ''}${dropoffFee > 0 ? `\nDifferent Drop-off Fee: $${dropoffFee.toFixed(2)}` : ''}
+${addOnsSection}${driversSection}${youngDriverFee > 0 ? `\nYoung Driver Fee: $${youngDriverFee.toFixed(2)} ($15/day x ${rentalDays} days)` : ''}${deliveryFeeAmt > 0 ? `\nDelivery Fee: $${deliveryFeeAmt.toFixed(2)}` : ''}${dropoffFee > 0 ? `\nDifferent Drop-off Fee: $${dropoffFee.toFixed(2)}` : ''}
 PVRT: $${pvrtTotal.toFixed(2)} | ACSRCH: $${acsrchTotal.toFixed(2)}
 Subtotal (before tax): $${subtotalBeforeTax.toFixed(2)}
 GST: $${gstAmount.toFixed(2)} | PST: $${pstAmount.toFixed(2)}
@@ -533,9 +565,12 @@ Terms: Driver must be 21+ with valid license & govt ID. No smoking, pets (withou
       const fee = Number(d.young_driver_fee) || 0;
       const driverLabel = d.driver_name || "Additional Driver";
       const bandLabel = isYoung ? "Young" : "Standard";
-      const perDay = fee > 0 ? (fee / rentalDays) : 0;
+      const billedDays = Number(d.authorized_days) || rentalDays;
+      const perDay = fee > 0 && billedDays > 0 ? (fee / billedDays) : 0;
+      const licencePart = d.driver_license_number ? `, DL ${d.driver_license_number}` : "";
+      const windowPart = driverAuthLabel(d) ? ` — ${driverAuthLabel(d)}` : "";
       addOnsList.push({
-        name: `${driverLabel} (${bandLabel} $${perDay.toFixed(2)}/day × ${rentalDays}d)`,
+        name: `${driverLabel}${licencePart} (${bandLabel} $${perDay.toFixed(2)}/day × ${billedDays}d)${windowPart}`,
         price: fee,
       });
     }

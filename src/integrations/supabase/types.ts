@@ -411,25 +411,40 @@ export type Database = {
       }
       booking_additional_drivers: {
         Row: {
+          authorized_days: number | null
+          authorized_end: string | null
+          authorized_start: string | null
           booking_id: string
           created_at: string
           driver_age_band: string
+          driver_license_expiry: string | null
+          driver_license_number: string | null
           driver_name: string | null
           id: string
           young_driver_fee: number
         }
         Insert: {
+          authorized_days?: number | null
+          authorized_end?: string | null
+          authorized_start?: string | null
           booking_id: string
           created_at?: string
           driver_age_band: string
+          driver_license_expiry?: string | null
+          driver_license_number?: string | null
           driver_name?: string | null
           id?: string
           young_driver_fee?: number
         }
         Update: {
+          authorized_days?: number | null
+          authorized_end?: string | null
+          authorized_start?: string | null
           booking_id?: string
           created_at?: string
           driver_age_band?: string
+          driver_license_expiry?: string | null
+          driver_license_number?: string | null
           driver_name?: string | null
           id?: string
           young_driver_fee?: number
