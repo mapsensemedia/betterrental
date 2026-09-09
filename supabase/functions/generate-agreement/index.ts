@@ -416,12 +416,36 @@ serve(async (req) => {
     }, 0);
 
     // Itemized additional-driver lines (own section on the agreement)
+    const fmtDriverDay = (iso: string) =>
+      new Date(iso).toLocaleDateString("en-US", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
+        timeZone: "America/Vancouver",
+      });
+
+    const driverAuthLabel = (d: any): string | null => {
+      if (!d.authorized_start || !d.authorized_end) return null;
+      const from = fmtDriverDay(d.authorized_start);
+      const to = fmtDriverDay(d.authorized_end);
+      const days = Number(d.authorized_days) || null;
+      return from === to || days === 1
+        ? `Authorised for ${from} only (1 day)`
+        : `Authorised ${from} to ${to}${days ? ` (${days} day${days === 1 ? "" : "s"})` : ""}`;
+    };
+
     const additionalDriversList = (bookingDrivers || []).map((d: any) => {
       const total = roundCents(Number(d.young_driver_fee) || 0);
+      const billedDays = Number(d.authorized_days) || rentalDays;
       return {
         name: d.driver_name || "Additional Driver",
         ageBand: d.driver_age_band || "25_70",
-        dailyRate: rentalDays > 0 ? roundCents(total / rentalDays) : total,
+        licenseNumber: d.driver_license_number || null,
+        licenseExpiry: d.driver_license_expiry || null,
+        authorizedFrom: d.authorized_start || null,
+        authorizedTo: d.authorized_end || null,
+        authorizedDays: Number(d.authorized_days) || null,
+        authorizationNote: driverAuthLabel(d),
+        billedDays,
+        dailyRate: billedDays > 0 ? roundCents(total / billedDays) : total,
         total,
       };
     });
