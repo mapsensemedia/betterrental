@@ -284,6 +284,8 @@ export function useSendTicketMessage() {
       queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
       queryClient.invalidateQueries({ queryKey: ["admin-ticket"] });
       queryClient.invalidateQueries({ queryKey: ["customer-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-tickets-v2"] });
+      queryClient.invalidateQueries({ queryKey: ["support-tickets-v2"] });
       queryClient.invalidateQueries({ queryKey: ["customer-ticket"] });
       toast.success("Message sent");
     },
