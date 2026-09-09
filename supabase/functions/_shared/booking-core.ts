@@ -1081,7 +1081,7 @@ export async function sendBookingNotifications(params: {
     }
   };
   
-  await Promise.all([
+  const jobs = [
     sendNotification("send-booking-email", {
       bookingId: params.bookingId,
       templateType: "confirmation",
@@ -1089,6 +1089,11 @@ export async function sendBookingNotifications(params: {
     sendNotification("send-booking-sms", {
       bookingId: params.bookingId,
       templateType: "confirmation",
+    }),
+    // Branch operations text (recipient configured per location)
+    sendNotification("notify-branch-sms", {
+      type: "booking",
+      bookingId: params.bookingId,
     }),
     sendNotification("notify-admin", {
       eventType: "new_booking",
@@ -1098,5 +1103,12 @@ export async function sendBookingNotifications(params: {
       vehicleName: params.vehicleName || "",
       isGuest: params.isGuest || false,
     }),
-  ]);
+  ];
+
+  // Guests get a link to set a password so they can see their rental online
+  if (params.isGuest) {
+    jobs.push(sendNotification("send-account-setup-link", { bookingId: params.bookingId }));
+  }
+
+  await Promise.all(jobs);
 }
