@@ -527,6 +527,14 @@ serve(async (req) => {
       ? `${categoryInfo.name} — ${[unitInfo.year, unitInfo.make, unitInfo.model].filter(Boolean).join(" ")}` 
       : categoryInfo.name;
 
+    // Additional drivers text block (name, licence number, authorisation window, fee)
+    const driversSection = additionalDriversList.length > 0
+      ? "\nAdditional Drivers:\n" + additionalDriversList.map((d) =>
+          `   ${d.name}${d.licenseNumber ? ` | DL: ${d.licenseNumber}` : ""}${d.licenseExpiry ? ` (expires ${d.licenseExpiry})` : ""}` +
+          `${d.authorizationNote ? ` | ${d.authorizationNote}` : ""} | $${d.dailyRate.toFixed(2)}/day × ${d.billedDays}d = $${d.total.toFixed(2)}`
+        ).join("\n")
+      : "";
+
     // Generate compact agreement content (structured data is in terms_json)
     const agreementContent = `C2C CAR RENTAL — VEHICLE RENTAL AGREEMENT
 Booking: ${booking.booking_code} | Date: ${generatedDate}
