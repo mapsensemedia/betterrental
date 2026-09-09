@@ -57,19 +57,26 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
 
   try {
-    const auth = await validateAuth(req);
-    if (!auth.authenticated || !auth.userId) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Internal server-to-server call (e.g. right after an online booking is created)
+    const bearer = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+    const isInternalCall =
+      !!bearer && bearer === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!(await isAdminOrStaff(auth.userId))) {
-      return new Response(JSON.stringify({ error: "Forbidden: staff role required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!isInternalCall) {
+      const auth = await validateAuth(req);
+      if (!auth.authenticated || !auth.userId) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!(await isAdminOrStaff(auth.userId))) {
+        return new Response(JSON.stringify({ error: "Forbidden: staff role required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const { bookingId } = await req.json();
@@ -177,7 +184,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "C2C Rental <onboarding@resend.dev>",
+        from: "C2C Car Rental <bookings@c2crental.ca>",
         to: [email],
         subject,
         html,

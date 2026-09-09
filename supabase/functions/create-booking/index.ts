@@ -18,7 +18,7 @@ import {
   isValidPhone,
 } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient } from "../_shared/auth.ts";
-import { getCategoryCapacity, CATEGORY_NOT_OFFERED_MESSAGE } from "../_shared/availability.ts";
+import { getCategoryCapacity } from "../_shared/availability.ts";
 import {
   validateClientPricing,
   createBookingAddOns,
@@ -213,13 +213,9 @@ Deno.serve(async (req) => {
       });
       isOverbooked = capacity.overbooked;
       if (!capacity.offered) {
-        return new Response(
-          JSON.stringify({
-            error: "CATEGORY_NOT_OFFERED",
-            message: CATEGORY_NOT_OFFERED_MESSAGE,
-          }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        // Never block the booking: staff assign a vehicle later.
+        isOverbooked = true;
+        console.log("[create-booking] category not stocked at this branch — proceeding as overbooking");
       }
     } catch (availErr) {
       // Never block a booking on a capacity lookup failure.
@@ -366,6 +362,9 @@ Deno.serve(async (req) => {
       supabaseAdmin.functions.invoke("send-booking-email", {
         body: { bookingId: booking.id, templateType: "confirmation" },
       }).catch((err: any) => console.error("Email notification failed:", err)),
+      supabaseAdmin.functions.invoke("notify-branch-sms", {
+        body: { type: "booking", bookingId: booking.id },
+      }).catch((err: any) => console.error("Branch SMS failed:", err)),
       supabaseAdmin.functions.invoke("notify-admin", {
         body: {
           eventType: "new_booking",

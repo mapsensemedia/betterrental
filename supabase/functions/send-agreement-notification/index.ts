@@ -20,7 +20,7 @@ async function sendWithResend(apiKey: string, to: string, subject: string, html:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "C2C Rental <onboarding@resend.dev>",
+      from: "C2C Car Rental <bookings@c2crental.ca>",
       to: [to],
       subject,
       html,

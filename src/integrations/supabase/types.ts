@@ -150,6 +150,7 @@ export type Database = {
           resolved_at: string | null
           resolved_by: string | null
           status: Database["public"]["Enums"]["alert_status"]
+          ticket_id: string | null
           title: string
           user_id: string | null
           vehicle_id: string | null
@@ -166,6 +167,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           status?: Database["public"]["Enums"]["alert_status"]
+          ticket_id?: string | null
           title: string
           user_id?: string | null
           vehicle_id?: string | null
@@ -182,6 +184,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           status?: Database["public"]["Enums"]["alert_status"]
+          ticket_id?: string | null
           title?: string
           user_id?: string | null
           vehicle_id?: string | null
@@ -192,6 +195,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_alerts_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets_v2"
             referencedColumns: ["id"]
           },
           {

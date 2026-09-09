@@ -514,6 +514,18 @@ export default function AdminAlerts() {
 
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium">Related</h4>
+                  {selectedAlert.ticketId && (
+                    <Link
+                      to={`/support?id=${selectedAlert.ticketId}`}
+                      className="flex items-center justify-between p-3 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <BookOpen className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm">Open Support Ticket</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </Link>
+                  )}
                   {selectedAlert.bookingId && (
                     <Link
                       to={`/admin/bookings/${selectedAlert.bookingId}/ops`}

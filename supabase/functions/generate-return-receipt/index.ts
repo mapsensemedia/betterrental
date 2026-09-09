@@ -488,7 +488,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "C2C Rental <onboarding@resend.dev>",
+            from: "C2C Car Rental <bookings@c2crental.ca>",
             to: [userEmail],
             subject: `Your Receipt - Booking ${booking.booking_code}`,
             html: htmlContent,

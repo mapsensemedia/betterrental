@@ -19,7 +19,7 @@ import {
   isValidPhone,
 } from "../_shared/cors.ts";
 import { getAdminClient } from "../_shared/auth.ts";
-import { getCategoryCapacity, CATEGORY_NOT_OFFERED_MESSAGE } from "../_shared/availability.ts";
+import { getCategoryCapacity } from "../_shared/availability.ts";
 import {
   isValidAgeBand,
   checkBookingConflicts,
@@ -201,13 +201,9 @@ Deno.serve(async (req) => {
       });
       isOverbooked = capacity.overbooked;
       if (!capacity.offered) {
-        return new Response(
-          JSON.stringify({
-            error: "CATEGORY_NOT_OFFERED",
-            message: CATEGORY_NOT_OFFERED_MESSAGE,
-          }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        // Never block the booking: staff assign a vehicle later.
+        isOverbooked = true;
+        console.log("[create-guest-booking] category not stocked at this branch — proceeding as overbooking");
       }
     } catch (availErr) {
       console.error("[create-guest-booking] capacity lookup failed (non-fatal)", availErr);

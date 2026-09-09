@@ -51,7 +51,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
-  const { licenseStatus, uploading, uploadLicense } = useLicenseUpload(user?.id);
+  const { licenseStatus, uploading, uploadLicense, deleteLicense } = useLicenseUpload(user?.id);
   const { data: membership } = useMembershipInfo();
   const { data: offers = [] } = useActiveOffers();
   const markReturned = useCustomerMarkReturned();
@@ -315,14 +315,27 @@ export default function Dashboard() {
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    variant={licenseStatus?.status === "on_file" ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    {licenseStatus?.status === "on_file" ? "Replace" : "Upload"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={licenseStatus?.status === "on_file" ? "outline" : "default"}
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {licenseStatus?.status === "on_file" ? "Replace" : "Upload"}
+                    </Button>
+                    {licenseStatus?.status && licenseStatus.status !== "verified" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={uploading}
+                        onClick={() => deleteLicense()}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                 )}
                 
                 <input

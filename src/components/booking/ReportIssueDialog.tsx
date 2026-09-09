@@ -78,21 +78,9 @@ export function ReportIssueDialog({
         bookingId,
       });
 
-      // Create an alert for ops/admin
-      const alertType = category === "breakdown" ? "emergency" : "customer_issue";
-      const { error: alertError } = await supabase
-        .from("admin_alerts")
-        .insert({
-          alert_type: alertType,
-          title: `Customer Issue: ${selectedCategory?.label}`,
-          message: `Booking ${bookingCode}: ${message.substring(0, 200)}${message.length > 200 ? '...' : ''}`,
-          booking_id: bookingId,
-          status: "pending",
-        });
+      // The ops alert is raised server-side from the ticket, so staff always see it.
 
-      if (alertError) {
-        console.error("Failed to create alert:", alertError);
-      }
+
 
       // Log the event
       const { data: { user } } = await supabase.auth.getUser();
