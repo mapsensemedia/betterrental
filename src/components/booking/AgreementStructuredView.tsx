@@ -61,11 +61,20 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
   const protDaily = t.protection?.dailyRate ?? 0;
   const protDeductible = (t.protection as any)?.deductible ?? null;
   // Additional drivers are itemized separately from add-ons
-  const addlDrivers: Array<{ name?: string | null; fee: number }> =
-    (t.financial as any).additionalDrivers ?? [];
+  const addlDrivers: Array<{
+    name?: string | null;
+    fee?: number;
+    total?: number;
+    licenseNumber?: string | null;
+    licenseExpiry?: string | null;
+    authorizationNote?: string | null;
+    dailyRate?: number;
+    billedDays?: number;
+  }> = (t.financial as any).additionalDrivers ?? [];
+  const driverFee = (d: { fee?: number; total?: number }) => Number(d.fee ?? d.total) || 0;
   const addlDriversTotal: number =
     (t.financial as any).additionalDriversTotal ??
-    addlDrivers.reduce((s, d) => s + (Number(d.fee) || 0), 0);
+    addlDrivers.reduce((s, d) => s + driverFee(d), 0);
 
   const pickupLines = [t.locations.pickup.name, t.locations.pickup.address, t.locations.pickup.city ? `${t.locations.pickup.city}, BC` : null].filter(Boolean);
   const dropoffLines = [t.locations.dropoff.name, t.locations.dropoff.address, t.locations.dropoff.city ? `${t.locations.dropoff.city}, BC` : null].filter(Boolean);
