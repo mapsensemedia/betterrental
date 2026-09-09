@@ -108,7 +108,6 @@ export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPho
                   ref={(el) => (fileInputRefs.current[key] = el)}
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -138,7 +137,7 @@ export function ConditionPhotosUpload({ bookingId, bookingStatus }: ConditionPho
                       <p className="text-xs text-muted-foreground">Uploading...</p>
                     )}
                     {!isUploading && !isUploaded && canUpload && (
-                      <p className="text-xs text-muted-foreground">Tap to capture</p>
+                      <p className="text-xs text-muted-foreground">Camera or gallery</p>
                     )}
                     {isUploaded && (
                       <p className="text-xs text-emerald-600">Captured</p>

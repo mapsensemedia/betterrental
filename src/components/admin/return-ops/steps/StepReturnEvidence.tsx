@@ -240,7 +240,6 @@ export function StepReturnEvidence({
                           ref={(el) => (fileInputRefs.current[photoType.type] = el)}
                           type="file"
                           accept="image/*"
-                          capture="environment"
                           className="hidden"
                           disabled={isLocked}
                           onChange={(e) => {
