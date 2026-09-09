@@ -141,8 +141,14 @@ export default function BookingOps() {
   const isDepositCollected = depositData?.depositStatus === 'held' || depositData?.depositStatus === 'released';
   const isAgreementSigned = agreement?.status === 'signed' || agreement?.status === 'confirmed';
   
-  // License status - now from profile
-  const licenseOnFile = booking?.profiles?.driver_license_status === 'on_file';
+  // License status — from the profile, or from photos the customer submitted online
+  const customerUploadedLicense = (verifications || []).some(
+    (v) =>
+      (v.document_type === 'drivers_license_front' || v.document_type === 'drivers_license_back') &&
+      v.status !== 'rejected'
+  );
+  const licenseOnFile =
+    booking?.profiles?.driver_license_status === 'on_file' || customerUploadedLicense;
   
   // Vehicle conflict detection
   const hasVehicleConflict = vehicleAvailability?.isAvailable === false && 
