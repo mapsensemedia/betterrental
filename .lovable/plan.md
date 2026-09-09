@@ -22,6 +22,17 @@ New booking totals after the change: subtotal $190.97, tax $22.92, card fee $4.7
 
 From the licence photo provided: Megan Dyan Helmer, BC licence 6353509, DOB 1978-09-09 (age 47 — standard rate, not the young-driver rate), expires 2027-09-09, class 5. The licence image gets stored on the booking as the driver's document.
 
+## New rental agreement
+
+A fresh agreement is generated after the change and must show:
+
+- New rental period ending Sep 10, 2026, 6:00 PM (2 days).
+- An additional driver line naming Megan Dyan Helmer with licence number 6353509, expiry 2027-09-09.
+- That the additional driver is authorised for one day only — Wednesday, September 9, 2026 — with the $15.99 one-day fee itemised, not a 2-day charge.
+- The updated itemisation: subtotal $190.97, tax $22.92, card fee $4.77, total $218.66, deposit hold $350.
+- Signature lines for the renter and the additional driver.
+
+
 ## How it will be done
 
 1. Extend the rental to Sep 10, 6:00 PM through the ops "Modify rental" path so the charge is a duration-only delta of $87.49 — the agreed $84.99 rate is preserved, not re-quoted from today's rate card.
