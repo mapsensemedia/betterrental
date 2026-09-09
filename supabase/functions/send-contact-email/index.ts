@@ -147,7 +147,7 @@ serve(async (req) => {
 
     // Send notification email to admin
     const adminEmailResponse = await resend.emails.send({
-      from: "C2C Rental <onboarding@resend.dev>",
+      from: "C2C Car Rental <support@c2crental.ca>",
       to: ["support@c2crental.ca"],
       subject: `Contact Form: ${escapedSubject}`,
       html: `
@@ -203,7 +203,7 @@ serve(async (req) => {
 
     // Send confirmation email to customer
     const customerEmailResponse = await resend.emails.send({
-      from: "C2C Rental <onboarding@resend.dev>",
+      from: "C2C Car Rental <support@c2crental.ca>",
       to: [sanitizedEmail],
       subject: "We received your message - C2C Rental",
       html: `

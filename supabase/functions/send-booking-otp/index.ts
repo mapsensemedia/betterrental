@@ -241,7 +241,7 @@ serve(async (req: Request): Promise<Response> => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "C2C Rental <onboarding@resend.dev>",
+          from: "C2C Car Rental <support@c2crental.ca>",
           to: [userEmail],
           subject: `Your verification code: ${otp}`,
           html: emailHtml,
