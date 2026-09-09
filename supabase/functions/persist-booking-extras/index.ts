@@ -437,7 +437,11 @@ async function handleUpsellDriverAdd(
   userId: string,
   req: Request,
 ): Promise<Response> {
-  const { bookingId, driverName, driverAgeBand } = body;
+  const {
+    bookingId, driverName, driverAgeBand,
+    driverLicenseNumber, driverLicenseExpiry,
+    authorizedStart, authorizedEnd,
+  } = body;
   const ageBand = driverAgeBand || "25_70";
 
   if (!["20_24", "25_70"].includes(ageBand)) {
