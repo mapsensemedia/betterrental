@@ -119,9 +119,36 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
     }
   }, [profile]);
   
-  const licenseOnFile = profile?.driver_license_status === "on_file";
+  // License photos the customer submitted online are stored as verification requests,
+  // not on the profile — surface those here too so staff can see them at handover.
+  const { data: customerLicenseDocs } = useQuery({
+    queryKey: ["booking-license-docs", booking.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("verification_requests")
+        .select("document_type, document_url, status, created_at")
+        .eq("booking_id", booking.id)
+        .in("document_type", ["drivers_license_front", "drivers_license_back"])
+        .neq("status", "rejected")
+        .order("created_at", { ascending: false });
+      return (data ?? []) as { document_type: string; document_url: string; status: string }[];
+    },
+    enabled: !!booking.id,
+  });
+
+  const customerFrontPath =
+    customerLicenseDocs?.find((d) => d.document_type === "drivers_license_front")?.document_url ?? null;
+  const customerBackPath =
+    customerLicenseDocs?.find((d) => d.document_type === "drivers_license_back")?.document_url ?? null;
+
+  const profileLicenseOnFile = profile?.driver_license_status === "on_file";
+  const licenseOnFile = profileLicenseOnFile || !!customerFrontPath || !!customerBackPath;
   const licenseExpiry = profile?.driver_license_expiry;
   const licenseFrontUrl = profile?.driver_license_front_url;
+  const usingProfileImage = profileLicenseOnFile && !!licenseFrontUrl;
+  const licenseImagePath = usingProfileImage ? licenseFrontUrl : customerFrontPath;
+  const licenseImageBucket = usingProfileImage ? "driver-licenses" : "verification-documents";
+  const licenseBackImagePath = usingProfileImage ? null : customerBackPath;
   
   // Derived verification values
   const licenseNotExpired = licenseExpiryDate ? !isLicenseExpired(licenseExpiryDate) : false;
