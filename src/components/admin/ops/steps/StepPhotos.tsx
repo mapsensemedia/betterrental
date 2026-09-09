@@ -171,7 +171,6 @@ export function StepPhotos({ bookingId, completion }: StepPhotosProps) {
                   ref={(el) => (fileInputRefs.current[photoType] = el)}
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -200,7 +199,7 @@ export function StepPhotos({ bookingId, completion }: StepPhotosProps) {
                     {!isUploading && !isUploaded && (
                       <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
                         <Upload className="h-3 w-3" />
-                        Tap to capture
+                        Camera or gallery
                       </p>
                     )}
                     {isUploaded && (

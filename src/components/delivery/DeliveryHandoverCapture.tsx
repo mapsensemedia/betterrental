@@ -222,7 +222,6 @@ export function DeliveryHandoverCapture({
               type="file"
               accept="image/*"
               multiple
-              capture="environment"
               onChange={handleFileChange}
               className="hidden"
             />
