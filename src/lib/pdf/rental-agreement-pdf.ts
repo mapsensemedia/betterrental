@@ -65,7 +65,18 @@ interface TermsJson {
     protectionTotal?: number;
     addOnsTotal: number;
     additionalDriversTotal?: number;
-    additionalDrivers?: Array<{ name?: string | null; fee: number; ageBand?: string | null }>;
+    additionalDrivers?: Array<{
+      name?: string | null;
+      fee?: number;
+      total?: number;
+      ageBand?: string | null;
+      licenseNumber?: string | null;
+      licenseExpiry?: string | null;
+      authorizedDays?: number | null;
+      authorizationNote?: string | null;
+      dailyRate?: number;
+      billedDays?: number;
+    }>;
     youngDriverFee: number;
     deliveryFee?: number;
     differentDropoffFee?: number;
@@ -482,15 +493,29 @@ function renderStructuredPdf(
 
   // Additional drivers (itemized separately from add-ons so counter upsells are visible)
   const addlDrivers = t.financial.additionalDrivers ?? [];
+  const driverFee = (d: { fee?: number; total?: number }) => Number(d.fee ?? d.total) || 0;
   const addlDriversTotal = t.financial.additionalDriversTotal
-    ?? addlDrivers.reduce((s, d) => s + (Number(d.fee) || 0), 0);
+    ?? addlDrivers.reduce((s, d) => s + driverFee(d), 0);
   if (addlDrivers.length > 0 || addlDriversTotal > 0) {
     finSectionHead(pdf, "ADDITIONAL DRIVERS", L, y, FONT_FIN);
     y += FIN_HEAD_H;
     if (addlDrivers.length > 0) {
       for (const d of addlDrivers) {
-        finRow(pdf, d.name || "Additional Driver", fmt(Number(d.fee) || 0), y, FONT_FIN);
+        finRow(pdf, d.name || "Additional Driver", fmt(driverFee(d)), y, FONT_FIN);
         y += FIN_ROW_H;
+        const details = [
+          d.licenseNumber ? `DL ${d.licenseNumber}` : null,
+          d.licenseExpiry ? `expires ${d.licenseExpiry}` : null,
+          d.authorizationNote || null,
+        ].filter(Boolean).join(" · ");
+        if (details) {
+          pdf.setFont("helvetica", "italic");
+          pdf.setFontSize(FONT_FIN - 1);
+          pdf.text(details, L + 8, y);
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(FONT_FIN);
+          y += FIN_ROW_H;
+        }
       }
     } else {
       finRow(pdf, "Additional Drivers", fmt(addlDriversTotal), y, FONT_FIN);

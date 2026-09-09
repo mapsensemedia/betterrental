@@ -61,11 +61,20 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
   const protDaily = t.protection?.dailyRate ?? 0;
   const protDeductible = (t.protection as any)?.deductible ?? null;
   // Additional drivers are itemized separately from add-ons
-  const addlDrivers: Array<{ name?: string | null; fee: number }> =
-    (t.financial as any).additionalDrivers ?? [];
+  const addlDrivers: Array<{
+    name?: string | null;
+    fee?: number;
+    total?: number;
+    licenseNumber?: string | null;
+    licenseExpiry?: string | null;
+    authorizationNote?: string | null;
+    dailyRate?: number;
+    billedDays?: number;
+  }> = (t.financial as any).additionalDrivers ?? [];
+  const driverFee = (d: { fee?: number; total?: number }) => Number(d.fee ?? d.total) || 0;
   const addlDriversTotal: number =
     (t.financial as any).additionalDriversTotal ??
-    addlDrivers.reduce((s, d) => s + (Number(d.fee) || 0), 0);
+    addlDrivers.reduce((s, d) => s + driverFee(d), 0);
 
   const pickupLines = [t.locations.pickup.name, t.locations.pickup.address, t.locations.pickup.city ? `${t.locations.pickup.city}, BC` : null].filter(Boolean);
   const dropoffLines = [t.locations.dropoff.name, t.locations.dropoff.address, t.locations.dropoff.city ? `${t.locations.dropoff.city}, BC` : null].filter(Boolean);
@@ -222,6 +231,34 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
           <p className="text-gray-400 italic">No add-ons selected</p>
         )}
       </Section>
+
+      {/* ═══ ADDITIONAL DRIVERS ═══ */}
+      {addlDrivers.length > 0 && (
+        <Section title="Additional Drivers">
+          <ul className="space-y-2">
+            {addlDrivers.map((d, i) => (
+              <li key={i} className="flex justify-between gap-3">
+                <span>
+                  • {d.name || "Additional Driver"}
+                  {d.licenseNumber ? <> &nbsp;·&nbsp; DL {d.licenseNumber}</> : null}
+                  {d.licenseExpiry ? <> (expires {d.licenseExpiry})</> : null}
+                  {d.authorizationNote ? (
+                    <span className="block text-[11px] text-gray-600 pl-3">{d.authorizationNote}</span>
+                  ) : null}
+                  {d.dailyRate && d.billedDays ? (
+                    <span className="block text-[11px] text-gray-600 pl-3">
+                      {fmt(d.dailyRate)}/day × {d.billedDays} day{d.billedDays === 1 ? "" : "s"}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="font-medium whitespace-nowrap">{fmt(driverFee(d))}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+
 
       {/* ═══ POLICIES ═══ */}
       <Section title="Policies">

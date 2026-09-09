@@ -446,6 +446,8 @@ serve(async (req) => {
         authorizationNote: driverAuthLabel(d),
         billedDays,
         dailyRate: billedDays > 0 ? roundCents(total / billedDays) : total,
+        // `fee` is the field consumed by the PDF/structured renderers; keep both.
+        fee: total,
         total,
       };
     });
