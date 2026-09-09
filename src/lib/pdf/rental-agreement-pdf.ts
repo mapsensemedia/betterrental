@@ -65,7 +65,18 @@ interface TermsJson {
     protectionTotal?: number;
     addOnsTotal: number;
     additionalDriversTotal?: number;
-    additionalDrivers?: Array<{ name?: string | null; fee: number; ageBand?: string | null }>;
+    additionalDrivers?: Array<{
+      name?: string | null;
+      fee?: number;
+      total?: number;
+      ageBand?: string | null;
+      licenseNumber?: string | null;
+      licenseExpiry?: string | null;
+      authorizedDays?: number | null;
+      authorizationNote?: string | null;
+      dailyRate?: number;
+      billedDays?: number;
+    }>;
     youngDriverFee: number;
     deliveryFee?: number;
     differentDropoffFee?: number;
