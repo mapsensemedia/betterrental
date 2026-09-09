@@ -138,11 +138,67 @@ export function useLicenseUpload(userId?: string) {
     }
   };
 
+  /**
+   * Remove the licence photos the customer uploaded.
+   * Only allowed while the licence has not been approved by staff.
+   */
+  const deleteLicense = async (targetUserId?: string): Promise<boolean> => {
+    const uid = targetUserId || userId;
+    if (!uid) return false;
+
+    if (licenseStatus?.status === "verified") {
+      toast({
+        title: "Can't remove",
+        description: "This licence has already been approved. Please contact us to change it.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    setUploading(true);
+    try {
+      const { data: files } = await supabase.storage.from("driver-licenses").list(uid);
+      if (files?.length) {
+        await supabase.storage
+          .from("driver-licenses")
+          .remove(files.map((f) => `${uid}/${f.name}`));
+      }
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          driver_license_front_url: null,
+          driver_license_back_url: null,
+          driver_license_status: null,
+          driver_license_uploaded_at: null,
+        })
+        .eq("id", uid);
+
+      if (updateError) throw updateError;
+
+      await queryClient.refetchQueries({ queryKey: ["license-status", uid] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast({ title: "Removed", description: "Your licence photos were deleted." });
+      return true;
+    } catch (error: any) {
+      console.error("License delete error:", error);
+      toast({
+        title: "Couldn't remove",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return {
     licenseStatus,
     isLoading,
     uploading,
     uploadLicense,
+    deleteLicense,
     getSignedUrl,
   };
 }
