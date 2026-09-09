@@ -557,9 +557,12 @@ Terms: Driver must be 21+ with valid license & govt ID. No smoking, pets (withou
       const fee = Number(d.young_driver_fee) || 0;
       const driverLabel = d.driver_name || "Additional Driver";
       const bandLabel = isYoung ? "Young" : "Standard";
-      const perDay = fee > 0 ? (fee / rentalDays) : 0;
+      const billedDays = Number(d.authorized_days) || rentalDays;
+      const perDay = fee > 0 && billedDays > 0 ? (fee / billedDays) : 0;
+      const licencePart = d.driver_license_number ? `, DL ${d.driver_license_number}` : "";
+      const windowPart = driverAuthLabel(d) ? ` — ${driverAuthLabel(d)}` : "";
       addOnsList.push({
-        name: `${driverLabel} (${bandLabel} $${perDay.toFixed(2)}/day × ${rentalDays}d)`,
+        name: `${driverLabel}${licencePart} (${bandLabel} $${perDay.toFixed(2)}/day × ${billedDays}d)${windowPart}`,
         price: fee,
       });
     }
