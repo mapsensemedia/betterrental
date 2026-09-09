@@ -213,13 +213,9 @@ Deno.serve(async (req) => {
       });
       isOverbooked = capacity.overbooked;
       if (!capacity.offered) {
-        return new Response(
-          JSON.stringify({
-            error: "CATEGORY_NOT_OFFERED",
-            message: CATEGORY_NOT_OFFERED_MESSAGE,
-          }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        // Never block the booking: staff assign a vehicle later.
+        isOverbooked = true;
+        console.log("[create-booking] category not stocked at this branch — proceeding as overbooking");
       }
     } catch (availErr) {
       // Never block a booking on a capacity lookup failure.
