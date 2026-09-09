@@ -355,7 +355,7 @@ serve(async (req) => {
         .eq("booking_id", bookingId),
       supabase
         .from("booking_additional_drivers")
-        .select("id, driver_name, driver_age_band, young_driver_fee")
+        .select("id, driver_name, driver_age_band, young_driver_fee, driver_license_number, driver_license_expiry, authorized_start, authorized_end, authorized_days")
         .eq("booking_id", bookingId),
     ]);
 
