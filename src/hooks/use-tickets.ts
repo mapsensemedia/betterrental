@@ -337,34 +337,39 @@ export function useCreateTicket() {
         }
       }
 
-      // Create ticket
-      const { data: ticket, error: ticketError } = await supabase
-        .from("tickets")
+      // Customer tickets land in the support queue staff actually work from.
+      const { data: ticket, error: ticketError } = await (supabase
+        .from("support_tickets_v2") as any)
         .insert({
-          user_id: user.id,
           subject,
+          description: message,
+          category: "general",
+          priority: "medium",
+          customer_id: user.id,
           booking_id: bookingId || null,
-          status: "open",
-          priority: "normal",
+          created_by: user.id,
+          created_by_type: "customer",
         })
         .select()
         .single();
 
       if (ticketError) throw ticketError;
 
-      // Create first message
-      const { error: messageError } = await supabase
-        .from("ticket_messages")
-        .insert({
-          ticket_id: ticket.id,
-          sender_id: user.id,
-          message,
-          is_staff: false,
-        });
+      // First message (best effort — the ticket itself already carries the text)
+      const { error: messageError } = await (supabase.from("ticket_messages_v2") as any).insert({
+        ticket_id: ticket.id,
+        message,
+        message_type: "customer_visible",
+        sender_id: user.id,
+        sender_type: "customer",
+      });
+      if (messageError) console.error("Ticket message failed:", messageError);
 
-      if (messageError) throw messageError;
+      // Branch operations text + admin notification (fire and forget)
+      supabase.functions
+        .invoke("notify-branch-sms", { body: { type: "ticket", ticketId: ticket.id } })
+        .catch(console.error);
 
-      // Send admin notification (fire and forget)
       notifyAdmin({
         eventType: "ticket_created",
         bookingId: bookingId,
