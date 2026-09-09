@@ -506,10 +506,31 @@ async function handleUpsellDriverAdd(
     );
   }
 
+  // Explicit authorisation window (staff may authorise a driver for part of the rental only)
+  const fullDaysTotal = serverTotals.days;
+  let authorizedDays: number | null = null;
+  if (authorizedStart && authorizedEnd) {
+    const aStart = new Date(authorizedStart);
+    const aEnd = new Date(authorizedEnd);
+    if (!isNaN(aStart.getTime()) && !isNaN(aEnd.getTime()) && aEnd > aStart) {
+      const days = Math.max(1, Math.ceil((aEnd.getTime() - aStart.getTime()) / 86_400_000));
+      authorizedDays = Math.min(days, fullDaysTotal);
+    }
+  }
+
   // Mid-rental pro-rata for the additional driver fee
   let driverProRata: { mode: string; remainingDays: number; fullDays: number; originalFee: number } | null = null;
-  if (booking.status === "active" && new Date(booking.start_at).getTime() < Date.now()) {
-    const fullDays = serverTotals.days;
+  if (authorizedDays && authorizedDays < fullDaysTotal && fullDaysTotal > 0) {
+    const perDay = round2(newDriverRecord.youngDriverFee / fullDaysTotal);
+    driverProRata = {
+      mode: "authorized-window",
+      remainingDays: authorizedDays,
+      fullDays: fullDaysTotal,
+      originalFee: newDriverRecord.youngDriverFee,
+    };
+    newDriverRecord.youngDriverFee = round2(perDay * authorizedDays);
+  } else if (booking.status === "active" && new Date(booking.start_at).getTime() < Date.now()) {
+    const fullDays = fullDaysTotal;
     const remainingDays = computeRemainingDays(booking.end_at);
     if (remainingDays > 0 && remainingDays < fullDays && fullDays > 0) {
       const perDay = round2(newDriverRecord.youngDriverFee / fullDays);
@@ -526,6 +547,11 @@ async function handleUpsellDriverAdd(
       driver_name: newDriverRecord.driverName,
       driver_age_band: newDriverRecord.driverAgeBand,
       young_driver_fee: newDriverRecord.youngDriverFee,
+      driver_license_number: driverLicenseNumber ? String(driverLicenseNumber).slice(0, 40) : null,
+      driver_license_expiry: driverLicenseExpiry || null,
+      authorized_start: authorizedStart || null,
+      authorized_end: authorizedEnd || null,
+      authorized_days: authorizedDays,
     });
 
   if (insertErr) {
