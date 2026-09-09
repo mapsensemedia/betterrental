@@ -310,14 +310,14 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
         </CardHeader>
         <CardContent className="space-y-4">
           {/* License Image Preview */}
-          {licenseOnFile && licenseFrontUrl && (
+          {licenseImagePath && (
             <div 
               className="relative aspect-video bg-muted rounded-lg overflow-hidden cursor-pointer group"
               onClick={() => setViewLicenseOpen(true)}
             >
               <SignedStorageImage
-                path={licenseFrontUrl}
-                bucket="driver-licenses"
+                path={licenseImagePath}
+                bucket={licenseImageBucket}
                 alt="Driver's License"
                 className="w-full h-full object-cover"
               />
@@ -575,12 +575,22 @@ export function StepCheckin({ booking, completion, onStepComplete, vehicleName }
               Compare this with the physical ID presented by the customer
             </DialogDescription>
           </DialogHeader>
-          {licenseFrontUrl && (
+          {licenseImagePath && (
             <div className="aspect-video bg-muted rounded-lg overflow-hidden">
               <SignedStorageImage
-                path={licenseFrontUrl}
-                bucket="driver-licenses"
-                alt="Driver's License"
+                path={licenseImagePath}
+                bucket={licenseImageBucket}
+                alt="Driver's License (front)"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+          {licenseBackImagePath && (
+            <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+              <SignedStorageImage
+                path={licenseBackImagePath}
+                bucket="verification-documents"
+                alt="Driver's License (back)"
                 className="w-full h-full object-contain"
               />
             </div>
