@@ -232,6 +232,34 @@ export function AgreementStructuredView({ agreement, bookingId }: AgreementStruc
         )}
       </Section>
 
+      {/* ═══ ADDITIONAL DRIVERS ═══ */}
+      {addlDrivers.length > 0 && (
+        <Section title="Additional Drivers">
+          <ul className="space-y-2">
+            {addlDrivers.map((d, i) => (
+              <li key={i} className="flex justify-between gap-3">
+                <span>
+                  • {d.name || "Additional Driver"}
+                  {d.licenseNumber ? <> &nbsp;·&nbsp; DL {d.licenseNumber}</> : null}
+                  {d.licenseExpiry ? <> (expires {d.licenseExpiry})</> : null}
+                  {d.authorizationNote ? (
+                    <span className="block text-[11px] text-gray-600 pl-3">{d.authorizationNote}</span>
+                  ) : null}
+                  {d.dailyRate && d.billedDays ? (
+                    <span className="block text-[11px] text-gray-600 pl-3">
+                      {fmt(d.dailyRate)}/day × {d.billedDays} day{d.billedDays === 1 ? "" : "s"}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="font-medium whitespace-nowrap">{fmt(driverFee(d))}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+
+
       {/* ═══ POLICIES ═══ */}
       <Section title="Policies">
         <ul className="space-y-1.5 list-disc pl-5 text-[12px] text-gray-700">
