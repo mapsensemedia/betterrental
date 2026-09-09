@@ -362,6 +362,9 @@ Deno.serve(async (req) => {
       supabaseAdmin.functions.invoke("send-booking-email", {
         body: { bookingId: booking.id, templateType: "confirmation" },
       }).catch((err: any) => console.error("Email notification failed:", err)),
+      supabaseAdmin.functions.invoke("notify-branch-sms", {
+        body: { type: "booking", bookingId: booking.id },
+      }).catch((err: any) => console.error("Branch SMS failed:", err)),
       supabaseAdmin.functions.invoke("notify-admin", {
         body: {
           eventType: "new_booking",
