@@ -25,6 +25,7 @@ import {
   createAdditionalDrivers,
   type BookingInput,
 } from "../_shared/booking-core.ts";
+import { isStaffAccount } from "../_shared/staff-account-guard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -86,7 +87,28 @@ Deno.serve(async (req) => {
       pickupContactPhone,
       specialInstructions,
       promoCode,
+      renterFirstName,
+      renterLastName,
+      renterEmail,
+      renterPhone,
     } = body;
+
+    // The renter details typed at checkout. These — never the signed-in
+    // account's stored profile — identify who the rental is for. A shared
+    // counter login (support@, operations@ …) must never lend its own name,
+    // email or phone to a customer booking.
+    const renterName = [renterFirstName, renterLastName]
+      .filter((p: unknown) => typeof p === "string" && p.trim())
+      .join(" ")
+      .trim();
+    const renterEmailClean =
+      typeof renterEmail === "string" && renterEmail.includes("@")
+        ? renterEmail.toLowerCase().trim()
+        : null;
+    const renterPhoneClean =
+      typeof renterPhone === "string" && renterPhone.trim() ? sanitizePhone(renterPhone) : null;
+
+    const callerIsStaffAccount = await isStaffAccount(supabaseAdmin, auth.userId);
 
     // Input validation
     if (!vehicleId || !locationId || !startAt || !endAt) {
