@@ -725,6 +725,19 @@ export default function BookingDetail() {
                 </CardHeader>
                 <CardContent>
                   <FinancialBreakdown booking={booking} />
+
+                  {/* Pay now — only for bookings still awaiting payment */}
+                  {id && !hasPayment
+                    && booking.status !== "cancelled" && booking.status !== "completed"
+                    && !booking.offline_payment_method
+                    && Number(booking.total_amount) > 0 && (
+                    <PayNowCard
+                      bookingId={id}
+                      amount={Number(booking.total_amount)}
+                      depositAmount={Number(booking.deposit_amount) || 0}
+                    />
+                  )}
+                  
                   
                   {/* Card on File */}
                   {booking.card_last_four && (
