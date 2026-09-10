@@ -62,6 +62,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DriverLicenseUpload } from "@/components/booking/DriverLicenseUpload";
+import { PayNowCard } from "@/components/booking/PayNowCard";
 import { VerificationModal } from "@/components/booking/VerificationModal";
 import { useBookingVerification } from "@/hooks/use-verification";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
@@ -725,6 +726,19 @@ export default function BookingDetail() {
                 </CardHeader>
                 <CardContent>
                   <FinancialBreakdown booking={booking} />
+
+                  {/* Pay now — only for bookings still awaiting payment */}
+                  {id && !hasPayment
+                    && booking.status !== "cancelled" && booking.status !== "completed"
+                    && !(booking as { offline_payment_method?: string | null }).offline_payment_method
+                    && Number(booking.total_amount) > 0 && (
+                    <PayNowCard
+                      bookingId={id}
+                      amount={Number(booking.total_amount)}
+                      depositAmount={Number(booking.deposit_amount) || 0}
+                    />
+                  )}
+                  
                   
                   {/* Card on File */}
                   {booking.card_last_four && (

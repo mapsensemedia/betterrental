@@ -113,12 +113,12 @@ export default function BookingLicense() {
                   <CheckCircle className="h-8 w-8 text-emerald-600" />
                   <div className="flex-1 text-center sm:text-left">
                     <h3 className="font-semibold text-lg">
-                      {isLicenseVerified ? "License Verified!" : "License Uploaded!"}
+                      {isLicenseVerified ? "License Verified!" : "License Received!"}
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       {isLicenseVerified 
                         ? "Your driver's license has been verified. You can now proceed to sign the rental agreement."
-                        : "Your license is being reviewed. You can proceed to sign the rental agreement."}
+                        : "We've got your licence — staff will confirm it at pickup. You can proceed to sign the rental agreement."}
                     </p>
                   </div>
                   <Button asChild size="lg">
