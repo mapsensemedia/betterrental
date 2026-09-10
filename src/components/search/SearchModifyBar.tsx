@@ -54,7 +54,23 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
     ? format(searchData.returnDate, "d MMMM")
     : null;
 
-  const handleClose = () => setShowModifyDialog(false);
+  // Closing without a delivery address would leave the page in an incomplete
+  // delivery state, so fall back to pick-up in that case.
+  const handleClose = () => {
+    setShowModifyDialog(false);
+    if (
+      searchData.deliveryMode === "delivery" &&
+      (!searchData.deliveryAddress || searchData.deliveryLat == null)
+    ) {
+      setDeliveryMode("pickup");
+    }
+  };
+
+  // Switching to delivery needs an address, so select the mode AND open the panel.
+  const handleSelectDelivery = () => {
+    setDeliveryMode("delivery");
+    setShowModifyDialog(true);
+  };
 
   return (
     <>
