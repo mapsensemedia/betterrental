@@ -173,12 +173,6 @@ const navGroups: NavGroup[] = [
         description: "Partner directory",
       },
       {
-        href: "/support",
-        label: "Support",
-        icon: LifeBuoy,
-        description: "Customer tickets",
-      },
-      {
         href: "/admin/staff",
         label: "Staff",
         icon: UserCog,
