@@ -295,18 +295,32 @@ Deno.serve(async (req) => {
       }
 
 
-      userId = newUser.user.id;
-      isNewUser = true;
+      if (newUser?.user?.id) {
+        userId = newUser.user.id;
+        isNewUser = true;
 
-      await supabaseAdmin.from("profiles").upsert({
-        id: userId,
-        email,
-        full_name: guestFullName,
-        phone,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "id" });
+        await supabaseAdmin.from("profiles").upsert({
+          id: userId,
+          email,
+          full_name: guestFullName,
+          phone,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "id" });
+      }
     }
+
+    if (!userId) {
+      console.error(`[guest-booking] could not resolve a user for ${email}`);
+      return new Response(
+        JSON.stringify({
+          error: "account_creation_failed",
+          message: "We couldn't set up your booking account. Please try again, or call us at +1 (604) 763-4242 and we'll finish it for you.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
 
     // Resolve or create customer record for identity integrity
     let customerId: string | null = null;
