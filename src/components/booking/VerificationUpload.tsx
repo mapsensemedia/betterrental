@@ -102,16 +102,16 @@ export function VerificationUpload({ bookingId }: VerificationUploadProps) {
             }
             className={
               overallStatus === 'verified' ? 'bg-green-500' :
-              overallStatus === 'pending' ? 'bg-yellow-500' :
+              overallStatus === 'pending' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' :
               ''
             }
           >
             {overallStatus === 'verified' && <CheckCircle2 className="h-3 w-3 mr-1" />}
-            {overallStatus === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+            {overallStatus === 'pending' && <CheckCircle2 className="h-3 w-3 mr-1" />}
             {overallStatus === 'required' && <AlertCircle className="h-3 w-3 mr-1" />}
             {overallStatus === 'incomplete' && <AlertCircle className="h-3 w-3 mr-1" />}
             {overallStatus === 'verified' ? 'Verified' :
-             overallStatus === 'pending' ? 'Under Review' :
+             overallStatus === 'pending' ? 'Received' :
              overallStatus === 'incomplete' ? 'Incomplete' :
              'Required'}
           </Badge>
