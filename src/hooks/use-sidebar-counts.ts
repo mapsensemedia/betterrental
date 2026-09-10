@@ -147,10 +147,15 @@ export function useSidebarCounts() {
         { event: "*", schema: "public", table: "incident_cases" },
         () => queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
       )
-      // Ticket changes
+      // Ticket changes (legacy + v2 support queue)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tickets" },
+        () => queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_tickets_v2" },
         () => queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
       )
       // Payment changes
