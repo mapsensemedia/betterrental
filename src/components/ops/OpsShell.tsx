@@ -103,6 +103,7 @@ export function OpsShell({ children, hideNav }: OpsShellProps) {
   const [isSearching, setIsSearching] = useState(false);
   const { counts } = useSidebarCounts();
   useGlobalRealtime();
+  usePendingTicketNotice();
 
   const handleBookingSearch = async (e: React.FormEvent) => {
     e.preventDefault();
