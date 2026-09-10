@@ -43,6 +43,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSidebarCounts } from "@/hooks/use-sidebar-counts";
 import { getBookingByCode } from "@/domain/bookings/queries";
 import { useGlobalRealtime } from "@/hooks/use-global-realtime";
+import { usePendingTicketNotice } from "@/hooks/use-pending-ticket-notice";
 
 /**
  * Ops Navigation - Simplified for operational tasks
