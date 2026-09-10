@@ -126,6 +126,15 @@ export function DriverLicenseUpload({ bookingId }: DriverLicenseUploadProps) {
           </Alert>
         )}
 
+        {status === 'pending' && (
+          <Alert className="border-emerald-500/30 bg-emerald-500/5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <AlertDescription>
+              We've got your licence — staff will confirm it at pickup.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {LICENSE_DOCUMENTS.map((docType) => {
             const doc = getDocStatus(docType.id);
