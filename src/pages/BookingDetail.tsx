@@ -730,7 +730,7 @@ export default function BookingDetail() {
                   {/* Pay now — only for bookings still awaiting payment */}
                   {id && !hasPayment
                     && booking.status !== "cancelled" && booking.status !== "completed"
-                    && !booking.offline_payment_method
+                    && !(booking as { offline_payment_method?: string | null }).offline_payment_method
                     && Number(booking.total_amount) > 0 && (
                     <PayNowCard
                       bookingId={id}
