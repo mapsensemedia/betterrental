@@ -316,7 +316,9 @@ serve(async (req) => {
         `New C2C ${branchName} support ticket`,
         `Ticket: ${ticket?.ticket_id}`,
         `Renter: ${renter}`,
+        `Phone: ${renterPhone || "not on file"}`,
         `Booking: ${booking.booking_code}`,
+
         `Issue: ${String(ticket?.subject || "").slice(0, 80)}`,
         String(ticket?.description || "").slice(0, 160),
       ].join("\n");
