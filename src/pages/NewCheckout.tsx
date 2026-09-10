@@ -543,6 +543,12 @@ export default function NewCheckout() {
               pickupContactName: saveTimeAtCounter ? (pickupContactName || `${formData.firstName} ${formData.lastName}`) : undefined,
               pickupContactPhone: saveTimeAtCounter && pickupContactPhone ? pickupContactPhone : undefined,
               specialInstructions: saveTimeAtCounter && specialInstructions ? specialInstructions : undefined,
+              // Who the rental is actually for — always the details typed here,
+              // never the signed-in account's stored profile.
+              renterFirstName: formData.firstName,
+              renterLastName: formData.lastName,
+              renterEmail: formData.email,
+              renterPhone: `${formData.countryCode}${formData.phone}`,
             },
           });
         } catch (networkError: any) {

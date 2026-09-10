@@ -25,6 +25,7 @@ import {
   createAdditionalDrivers,
   type BookingInput,
 } from "../_shared/booking-core.ts";
+import { isStaffAccount } from "../_shared/staff-account-guard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -86,7 +87,28 @@ Deno.serve(async (req) => {
       pickupContactPhone,
       specialInstructions,
       promoCode,
+      renterFirstName,
+      renterLastName,
+      renterEmail,
+      renterPhone,
     } = body;
+
+    // The renter details typed at checkout. These — never the signed-in
+    // account's stored profile — identify who the rental is for. A shared
+    // counter login (support@, operations@ …) must never lend its own name,
+    // email or phone to a customer booking.
+    const renterName = [renterFirstName, renterLastName]
+      .filter((p: unknown) => typeof p === "string" && p.trim())
+      .join(" ")
+      .trim();
+    const renterEmailClean =
+      typeof renterEmail === "string" && renterEmail.includes("@")
+        ? renterEmail.toLowerCase().trim()
+        : null;
+    const renterPhoneClean =
+      typeof renterPhone === "string" && renterPhone.trim() ? sanitizePhone(renterPhone) : null;
+
+    const callerIsStaffAccount = await isStaffAccount(supabaseAdmin, auth.userId);
 
     // Input validation
     if (!vehicleId || !locationId || !startAt || !endAt) {
@@ -151,8 +173,10 @@ Deno.serve(async (req) => {
 
     const serverTotals = priceCheck.serverTotals;
 
-    // Validate and sanitize phone
-    if (userPhone) {
+    // Validate and sanitize phone. Never write a customer-supplied phone onto a
+    // staff/company login — that is how a shared counter account ended up
+    // carrying a customer's identity.
+    if (userPhone && !callerIsStaffAccount) {
       const sanitizedPhone = sanitizePhone(userPhone);
       if (sanitizedPhone && isValidPhone(sanitizedPhone)) {
         await supabaseAdmin
@@ -254,6 +278,63 @@ Deno.serve(async (req) => {
       console.error("[create-booking] Duplicate check failed (non-fatal):", dupErr);
     }
 
+    // Renter identity. A staff/company login may only book on someone's behalf
+    // when the renter's own details are supplied; the booking is then attached to
+    // a separate customer record so notifications and admin screens show the
+    // renter, not the shared account.
+    let customerId: string | null = null;
+    const accountEmail = (auth.email || "").toLowerCase().trim();
+    const renterDiffersFromAccount = !!renterEmailClean && renterEmailClean !== accountEmail;
+
+    if (callerIsStaffAccount && (!renterEmailClean || !renterName)) {
+      return new Response(
+        JSON.stringify({
+          error: "renter_details_required",
+          message:
+            "You are signed in with a company/counter login. Enter the renter's name, email and phone — or use the walk-in booking screen instead.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (renterEmailClean && (callerIsStaffAccount || renterDiffersFromAccount)) {
+      try {
+        const { data: existingCustomer } = await supabaseAdmin
+          .from("customers")
+          .select("id, full_name")
+          .eq("email", renterEmailClean)
+          .maybeSingle();
+
+        if (
+          existingCustomer &&
+          (existingCustomer.full_name || "").toLowerCase().trim() === renterName.toLowerCase().trim()
+        ) {
+          customerId = existingCustomer.id;
+        } else {
+          const { data: newCustomer, error: custErr } = await supabaseAdmin
+            .from("customers")
+            .insert({ full_name: renterName, email: renterEmailClean, phone: renterPhoneClean })
+            .select("id")
+            .single();
+          if (custErr) console.error("[create-booking] customer insert failed", custErr);
+          if (newCustomer) customerId = newCustomer.id;
+        }
+      } catch (custErr) {
+        console.error("[create-booking] customer resolution failed", custErr);
+      }
+    }
+
+    if (callerIsStaffAccount && !customerId) {
+      return new Response(
+        JSON.stringify({
+          error: "renter_record_failed",
+          message:
+            "We couldn't save the renter's details. Please try again, or create this booking from the walk-in screen.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Determine initial status
     const initialStatus = paymentMethod === "pay-now" ? "draft" : (paymentMethod === "pay-later" ? "pending" : "confirmed");
 
@@ -262,6 +343,7 @@ Deno.serve(async (req) => {
       .from("bookings")
       .insert({
         user_id: auth.userId,
+        customer_id: customerId,
         vehicle_id: vehicleId,
         location_id: locationId,
         start_at: startAt,
@@ -333,16 +415,21 @@ Deno.serve(async (req) => {
     }
 
     // P0 FIX: Use supabase.functions.invoke instead of raw fetch with service_role Bearer token
-    let customerName = "";
+    // Renter name for the admin notification: the details typed at checkout win,
+    // and a staff/company account never lends its own name to the booking.
+    let customerName = renterName || "";
     let vehicleName = "";
-    
+
     try {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name")
-        .eq("id", auth.userId)
-        .single();
-      customerName = profile?.full_name || auth.email || "";
+      if (!customerName && !callerIsStaffAccount) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", auth.userId)
+          .single();
+        customerName = profile?.full_name || auth.email || "";
+      }
+      
       
       const { data: vehicle } = await supabaseAdmin
         .from("vehicles")
