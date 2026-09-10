@@ -147,7 +147,7 @@ export function DriverLicenseUpload({ bookingId }: DriverLicenseUploadProps) {
                   relative border-2 border-dashed rounded-xl p-6 transition-colors text-center
                   ${doc?.status === 'verified' ? 'border-green-500 bg-green-500/5' : ''}
                   ${doc?.status === 'rejected' ? 'border-destructive bg-destructive/5' : ''}
-                  ${doc?.status === 'pending' ? 'border-yellow-500 bg-yellow-500/5' : ''}
+                  ${doc?.status === 'pending' ? 'border-emerald-500/50 bg-emerald-500/5' : ''}
                   ${!doc ? 'border-muted-foreground/25 hover:border-primary cursor-pointer' : ''}
                 `}
                 onClick={() => !doc?.status || doc?.status === 'rejected' ? handleUploadClick(docType.id) : undefined}
@@ -171,7 +171,7 @@ export function DriverLicenseUpload({ bookingId }: DriverLicenseUploadProps) {
                     w-12 h-12 rounded-full flex items-center justify-center
                     ${doc?.status === 'verified' ? 'bg-green-500 text-white' : ''}
                     ${doc?.status === 'rejected' ? 'bg-destructive text-destructive-foreground' : ''}
-                    ${doc?.status === 'pending' ? 'bg-yellow-500 text-white' : ''}
+                    ${doc?.status === 'pending' ? 'bg-emerald-500 text-white' : ''}
                     ${!doc ? 'bg-muted' : ''}
                   `}>
                     {isUploading ? (
@@ -181,7 +181,7 @@ export function DriverLicenseUpload({ bookingId }: DriverLicenseUploadProps) {
                     ) : doc?.status === 'rejected' ? (
                       <XCircle className="h-6 w-6" />
                     ) : doc?.status === 'pending' ? (
-                      <Clock className="h-6 w-6" />
+                      <CheckCircle2 className="h-6 w-6" />
                     ) : (
                       <Upload className="h-6 w-6 text-muted-foreground" />
                     )}
@@ -196,14 +196,14 @@ export function DriverLicenseUpload({ bookingId }: DriverLicenseUploadProps) {
                       <p className="text-xs text-muted-foreground mt-1">Click to upload</p>
                     )}
                     {doc?.status === 'pending' && (
-                      <p className="text-xs text-yellow-600 mt-1">Awaiting review</p>
+                      <p className="text-xs text-emerald-600 mt-1">Received</p>
                     )}
                     {doc?.status === 'verified' && (
                       <p className="text-xs text-green-600 mt-1">Verified ✓</p>
                     )}
                     {doc?.status === 'rejected' && (
                       <div className="mt-1">
-                        <p className="text-xs text-destructive">Rejected</p>
+                        <p className="text-xs text-destructive">Action needed</p>
                         {doc.reviewer_notes && (
                           <p className="text-xs text-muted-foreground mt-1">{doc.reviewer_notes}</p>
                         )}
