@@ -1043,7 +1043,18 @@ export function useCreateCustomerTicketV2() {
         new_value: { status: ticket.status, category: ticket.category },
       });
 
+      // Alert the branch by text (never blocks ticket creation, always logged)
+      try {
+        const { error: smsError } = await supabase.functions.invoke("notify-branch-sms", {
+          body: { type: "ticket", ticketId: ticket.id },
+        });
+        if (smsError) console.error("[branch sms] ticket alert failed:", smsError);
+      } catch (smsError) {
+        console.error("[branch sms] ticket alert failed:", smsError);
+      }
+
       return ticket;
+
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer-tickets-v2"] });

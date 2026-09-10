@@ -258,25 +258,30 @@ serve(async (req) => {
       );
     }
 
-    // ---- Renter name (never a staff record) ----
+    // ---- Renter name + phone (never a staff record) ----
     let renter = "";
+    let renterPhone = "";
     if (booking.user_id) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, phone")
         .eq("id", booking.user_id)
         .maybeSingle();
       renter = profile?.full_name || "";
+      renterPhone = profile?.phone || "";
     }
-    if (!renter && booking.customer_id) {
+    if ((!renter || !renterPhone) && booking.customer_id) {
       const { data: customer } = await supabase
         .from("customers")
-        .select("full_name")
+        .select("full_name, phone")
         .eq("id", booking.customer_id)
         .maybeSingle();
-      renter = customer?.full_name || "";
+      renter = renter || customer?.full_name || "";
+      renterPhone = renterPhone || customer?.phone || "";
     }
     if (!renter) renter = booking.pickup_contact_name || ticket?.guest_name || "Customer";
+    if (!renterPhone) renterPhone = booking.pickup_contact_phone || "";
+
 
     let message = "";
 
@@ -311,7 +316,9 @@ serve(async (req) => {
         `New C2C ${branchName} support ticket`,
         `Ticket: ${ticket?.ticket_id}`,
         `Renter: ${renter}`,
+        `Phone: ${renterPhone || "not on file"}`,
         `Booking: ${booking.booking_code}`,
+
         `Issue: ${String(ticket?.subject || "").slice(0, 80)}`,
         String(ticket?.description || "").slice(0, 160),
       ].join("\n");
