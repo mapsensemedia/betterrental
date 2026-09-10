@@ -1051,9 +1051,9 @@ export function useCreateCustomerTicketV2() {
       queryClient.invalidateQueries({ queryKey: ["ticket-queue-counts-v2"] });
       toast.success("Support ticket created");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Failed to create ticket:", error);
-      toast.error("Failed to create ticket");
+      toast.error(error?.message ? `Failed to create ticket: ${error.message}` : "Failed to create ticket");
     },
   });
 }
