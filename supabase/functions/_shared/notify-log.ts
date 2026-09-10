@@ -50,9 +50,11 @@ export function failureKey(base: string): string {
 }
 
 /**
- * Resolve the renter's contact details for a booking from where they are
- * actually stored: the customer's profile (logged-in), otherwise the linked
- * customers record (guest / walk-in), otherwise the pickup contact fields.
+ * Resolve the renter's contact details for a booking.
+ *
+ * Order matters: the booking-level renter record (`customers`) wins over the
+ * signed-in account's `profiles` row. A shared counter login must never lend
+ * its stored name, email or phone to a customer's booking notifications.
  */
 export async function resolveBookingContact(
   supabase: Db,
@@ -67,29 +69,29 @@ export async function resolveBookingContact(
   let email: string | null = null;
   let phone: string | null = null;
 
-  if (booking.user_id) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, email, phone")
-      .eq("id", booking.user_id)
-      .maybeSingle();
-    if (profile) {
-      name = profile.full_name || name;
-      email = profile.email || email;
-      phone = profile.phone || phone;
-    }
-  }
-
-  if ((!email || !phone || !name) && booking.customer_id) {
+  if (booking.customer_id) {
     const { data: customer } = await supabase
       .from("customers")
       .select("full_name, email, phone")
       .eq("id", booking.customer_id)
       .maybeSingle();
     if (customer) {
-      name = name || customer.full_name || "";
-      email = email || customer.email || null;
-      phone = phone || customer.phone || null;
+      name = customer.full_name || name;
+      email = customer.email || email;
+      phone = customer.phone || phone;
+    }
+  }
+
+  if ((!email || !phone || !name) && booking.user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email, phone")
+      .eq("id", booking.user_id)
+      .maybeSingle();
+    if (profile) {
+      name = name || profile.full_name || "";
+      email = email || profile.email || null;
+      phone = phone || profile.phone || null;
     }
   }
 
