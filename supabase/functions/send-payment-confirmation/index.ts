@@ -22,7 +22,7 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
     const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const twilioFrom = Deno.env.get("TWILIO_FROM_NUMBER");
+    const twilioFrom = Deno.env.get("TWILIO_PHONE_NUMBER");
 
     const { bookingId }: PaymentConfirmationParams = await req.json();
 
@@ -40,7 +40,7 @@ serve(async (req) => {
       .from("bookings")
       .select(`
         id, booking_code, total_amount, deposit_amount, start_at, end_at, user_id,
-        locations!inner (name, address, phone),
+        locations!bookings_location_id_fkey (name, address, phone),
         vehicles!inner (make, model, year)
       `)
       .eq("id", bookingId)

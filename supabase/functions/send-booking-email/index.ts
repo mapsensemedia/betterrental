@@ -66,7 +66,7 @@ serve(async (req) => {
       .select(`
         id, booking_code, start_at, end_at, status, total_amount, user_id,
         daily_rate, total_days, subtotal, tax_amount, deposit_amount, vehicle_id,
-        locations!inner (name, address, phone, email)
+        locations!bookings_location_id_fkey (name, address, phone, email)
       `)
       .eq("id", bookingId)
       .single();

@@ -88,7 +88,7 @@ serve(async (req) => {
       .from("bookings")
       .select(`
         id, booking_code, start_at, end_at, status, total_amount, user_id,
-        locations!inner (name, address, phone),
+        locations!bookings_location_id_fkey (name, address, phone),
         vehicles!inner (make, model, year)
       `)
       .eq("id", bookingId)
