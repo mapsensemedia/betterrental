@@ -173,8 +173,10 @@ Deno.serve(async (req) => {
 
     const serverTotals = priceCheck.serverTotals;
 
-    // Validate and sanitize phone
-    if (userPhone) {
+    // Validate and sanitize phone. Never write a customer-supplied phone onto a
+    // staff/company login — that is how a shared counter account ended up
+    // carrying a customer's identity.
+    if (userPhone && !callerIsStaffAccount) {
       const sanitizedPhone = sanitizePhone(userPhone);
       if (sanitizedPhone && isValidPhone(sanitizedPhone)) {
         await supabaseAdmin
