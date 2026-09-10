@@ -12,6 +12,7 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /**
  * Debounced invalidation helper — batches rapid-fire Postgres events
@@ -119,13 +120,38 @@ export function useGlobalRealtime() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "support_tickets_v2" },
-        () =>
+        (payload) => {
           invalidate([
             ["support-tickets"],
             ["support-ticket"],
             ["ticket-queue-counts"],
             ["sidebar-counts"],
-          ])
+          ]);
+
+          // Floating alert whenever a brand new ticket lands, so staff never
+          // have to be on the support page to notice it.
+          if (payload.eventType === "INSERT") {
+            const t = payload.new as {
+              id?: string;
+              ticket_id?: string;
+              subject?: string;
+              is_urgent?: boolean;
+              priority?: string;
+            };
+            const label = `${t.ticket_id ?? "New ticket"}: ${t.subject ?? "Support request"}`;
+            const notify = t.is_urgent || t.priority === "high" ? toast.error : toast.info;
+            notify(label, {
+              description: "A customer just submitted a support ticket.",
+              duration: 12000,
+              action: {
+                label: "Open",
+                onClick: () => {
+                  window.location.assign(t.id ? `/support?ticket=${t.id}` : "/support");
+                },
+              },
+            });
+          }
+        }
       )
 
       // ─── Ticket Messages ───────────────────────────────────────

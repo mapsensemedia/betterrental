@@ -74,11 +74,11 @@ export function useSidebarCounts() {
           .select("*", { count: "exact", head: true })
           .not("status", "in", '("resolved","closed")'),
         
-        // Open support tickets
+        // Open support tickets (v2 queue: anything not resolved/closed)
         supabase
-          .from("tickets")
+          .from("support_tickets_v2")
           .select("*", { count: "exact", head: true })
-          .eq("status", "open"),
+          .in("status", ["new", "in_progress", "waiting_customer", "escalated"]),
         
         // Pending payments
         supabase
@@ -147,10 +147,15 @@ export function useSidebarCounts() {
         { event: "*", schema: "public", table: "incident_cases" },
         () => queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
       )
-      // Ticket changes
+      // Ticket changes (legacy + v2 support queue)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tickets" },
+        () => queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_tickets_v2" },
         () => queryClient.invalidateQueries({ queryKey: ["sidebar-counts"] })
       )
       // Payment changes

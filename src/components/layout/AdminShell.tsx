@@ -84,6 +84,13 @@ const navGroups: NavGroup[] = [
         badgeKey: "active",
         description: "Vehicles on road",
       },
+      {
+        href: "/support",
+        label: "Support",
+        icon: LifeBuoy,
+        badgeKey: "support",
+        description: "Customer tickets",
+      },
     ],
   },
   {
@@ -164,12 +171,6 @@ const navGroups: NavGroup[] = [
         label: "Vendors",
         icon: Building2,
         description: "Partner directory",
-      },
-      {
-        href: "/support",
-        label: "Support",
-        icon: LifeBuoy,
-        description: "Customer tickets",
       },
       {
         href: "/admin/staff",
