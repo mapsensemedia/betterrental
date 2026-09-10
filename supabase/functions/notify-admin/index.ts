@@ -114,6 +114,24 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Admin log rows must carry a booking_id whenever the event belongs to a
+    // booking: resolve it from the booking code when the caller only sent that.
+    let resolvedBookingId: string | null = bookingId || null;
+    if (!resolvedBookingId && bookingCode) {
+      const { data: bookingRow, error: lookupError } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("booking_code", bookingCode)
+        .maybeSingle();
+      if (lookupError) {
+        console.error(`[notify-admin] booking lookup by code ${bookingCode} failed:`, lookupError);
+      }
+      resolvedBookingId = bookingRow?.id ?? null;
+      if (!resolvedBookingId) {
+        console.warn(`[notify-admin] no booking found for code ${bookingCode} - logging without booking link`);
+      }
+    }
+
     // Lifecycle events (activation, handover, completion, cancellation) are
     // emailed but never written to admin_alerts: the alerts board is reserved
     // for issues that need action, not a status log.

@@ -1068,16 +1068,34 @@ export async function sendBookingNotifications(params: {
 }): Promise<void> {
   const supabase = getAdminClient();
   
+  // Failures are always written to notification_logs - never swallowed.
+  const logInvokeFailure = async (endpoint: string, detail: string) => {
+    try {
+      await supabase.from("notification_logs").insert({
+        channel: endpoint.includes("email") || endpoint === "notify-admin" ? "email" : "sms",
+        notification_type: `${endpoint}_invoke`,
+        booking_id: params.bookingId,
+        idempotency_key: `${endpoint}_invoke_fail_${params.bookingId}_${Date.now()}`,
+        status: "failed",
+        error_message: detail.slice(0, 2000),
+      });
+    } catch (logErr) {
+      console.error(`[booking-core] could not log ${endpoint} failure`, logErr);
+    }
+  };
+
   const sendNotification = async (endpoint: string, body: Record<string, unknown>) => {
     try {
-      const { error } = await supabase.functions.invoke(endpoint, { body });
+      const { data, error } = await supabase.functions.invoke(endpoint, { body });
       if (error) {
         console.error(`Notification ${endpoint} failed:`, error);
+        await logInvokeFailure(endpoint, String(error?.message || error));
       } else {
-        console.log(`Notification ${endpoint} sent successfully`);
+        console.log(`Notification ${endpoint} result:`, JSON.stringify(data));
       }
     } catch (err) {
       console.error(`Notification ${endpoint} failed:`, err);
+      await logInvokeFailure(endpoint, String(err));
     }
   };
   
