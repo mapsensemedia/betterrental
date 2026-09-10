@@ -3,7 +3,7 @@
  * Includes Mapbox-powered address autocomplete and route map
  */
 import { useState, useEffect, useCallback } from "react";
-import { formatLocalDate, parseLocalDate, addLocalDays, diffLocalDays } from "@/lib/date-utils";
+import { formatLocalDate, parseLocalDate, addLocalDays, diffLocalDays, todayLocalISO, clampToTodayISO, isPastLocalDate } from "@/lib/date-utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Calendar,
@@ -108,7 +108,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
   } | null>(null);
 
   // Get minimum date (today)
-  const today = formatLocalDate(new Date());
+  const today = todayLocalISO();
 
   // Pre-select location from prop (or force when locked)
   useEffect(() => {
@@ -140,10 +140,11 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
       setLocationId(searchData.pickupLocationId);
     }
     if (searchData.pickupDate) {
-      setPickupDate(formatLocalDate(searchData.pickupDate));
+      // Never restore a pickup date that has already passed (stale storage / shared link)
+      setPickupDate(clampToTodayISO(formatLocalDate(searchData.pickupDate)));
     }
     if (searchData.returnDate) {
-      setReturnDate(formatLocalDate(searchData.returnDate));
+      setReturnDate(clampToTodayISO(formatLocalDate(searchData.returnDate)));
     }
     setPickupTime(searchData.pickupTime);
     setReturnTime(searchData.returnTime);
@@ -289,6 +290,21 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
     if (!pickupDate || !returnDate) {
       toast({
         title: "Select pickup and return dates",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isPastLocalDate(pickupDate) || isPastLocalDate(returnDate)) {
+      const fixedPickup = clampToTodayISO(pickupDate);
+      const fixedReturn = isPastLocalDate(returnDate) || fixedPickup > returnDate
+        ? addLocalDays(fixedPickup, 1)
+        : returnDate;
+      setPickupDate(fixedPickup);
+      setReturnDate(fixedReturn);
+      toast({
+        title: "Pickup date cannot be in the past",
+        description: "We moved your dates to the earliest available day.",
         variant: "destructive",
       });
       return;
