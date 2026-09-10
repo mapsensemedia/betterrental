@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { toE164 } from "../_shared/phone.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { BRAND, formatPhoneForMessage } from "../_shared/sms-format.ts";
 
@@ -233,8 +234,12 @@ serve(async (req) => {
     }
 
     // Send SMS if configured
-    if (twilioSid && twilioToken && twilioFrom && userPhone) {
-      const smsResult = await sendSmsWithTwilio(twilioSid, twilioToken, twilioFrom, userPhone, smsMessage);
+    const smsTo = toE164(userPhone);
+    if (userPhone && !smsTo) {
+      console.error(`[send-agreement-notification] invalid_phone: ${userPhone}`);
+    }
+    if (twilioSid && twilioToken && twilioFrom && smsTo) {
+      const smsResult = await sendSmsWithTwilio(twilioSid, twilioToken, twilioFrom, smsTo, smsMessage);
       results.sms = smsResult;
       console.log("SMS result:", smsResult);
     }

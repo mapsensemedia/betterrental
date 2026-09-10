@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { BRAND, formatPhoneForMessage, fmtDateTimeVan } from "../_shared/sms-format.ts";
+import { toE164 } from "../_shared/phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -204,7 +205,21 @@ serve(async (req) => {
     }
 
     // Send SMS confirmation
-    if (twilioSid && twilioToken && twilioFrom && userPhone) {
+    const smsTo = toE164(userPhone);
+    if (userPhone && !smsTo) {
+      console.error(`[send-payment-confirmation] invalid_phone: ${userPhone}`);
+      await supabase.from("notification_logs").insert({
+        channel: "sms",
+        notification_type: "payment_confirmation",
+        booking_id: bookingId,
+        user_id: booking.user_id,
+        idempotency_key: `payment_confirmation_sms_invalid_${bookingId}_${Date.now()}`,
+        status: "failed",
+        error_message: `invalid_phone: ${userPhone}`,
+      });
+    }
+
+    if (twilioSid && twilioToken && twilioFrom && smsTo) {
       const idempotencyKey = `payment_confirmation_sms_${bookingId}_${new Date().toISOString().slice(0, 10)}`;
 
       const { data: existing } = await supabase
@@ -226,7 +241,7 @@ serve(async (req) => {
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: new URLSearchParams({
-            To: userPhone,
+            To: smsTo,
             From: twilioFrom,
             Body: smsMessage,
           }),
