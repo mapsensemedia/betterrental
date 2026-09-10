@@ -33,16 +33,18 @@ function useLockBodyScroll(active: boolean) {
 }
 
 export function SearchModifyBar({ className }: SearchModifyBarProps) {
-  const { searchData } = useRentalBooking();
+  const { searchData, setDeliveryMode } = useRentalBooking();
   const [showModifyDialog, setShowModifyDialog] = useState(false);
   const isMobile = useIsMobile();
 
   // Lock background scroll when the mobile panel is open
   useLockBodyScroll(showModifyDialog && isMobile);
 
-  const locationDisplay = searchData.deliveryMode === "delivery"
-    ? searchData.deliveryAddress
-    : searchData.pickupLocationAddress || searchData.pickupLocationName;
+  const isDelivery = searchData.deliveryMode === "delivery";
+
+  const branchDisplay = searchData.pickupLocationAddress || searchData.pickupLocationName;
+  const locationDisplay = isDelivery ? searchData.deliveryAddress : branchDisplay;
+  const returnLocationDisplay = branchDisplay;
 
   const pickupDateDisplay = searchData.pickupDate
     ? format(searchData.pickupDate, "d MMMM")
