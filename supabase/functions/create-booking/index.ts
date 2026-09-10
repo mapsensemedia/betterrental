@@ -415,16 +415,21 @@ Deno.serve(async (req) => {
     }
 
     // P0 FIX: Use supabase.functions.invoke instead of raw fetch with service_role Bearer token
-    let customerName = "";
+    // Renter name for the admin notification: the details typed at checkout win,
+    // and a staff/company account never lends its own name to the booking.
+    let customerName = renterName || "";
     let vehicleName = "";
-    
+
     try {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name")
-        .eq("id", auth.userId)
-        .single();
-      customerName = profile?.full_name || auth.email || "";
+      if (!customerName && !callerIsStaffAccount) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", auth.userId)
+          .single();
+        customerName = profile?.full_name || auth.email || "";
+      }
+      
       
       const { data: vehicle } = await supabaseAdmin
         .from("vehicles")
