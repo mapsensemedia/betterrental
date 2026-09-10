@@ -74,11 +74,11 @@ export function useSidebarCounts() {
           .select("*", { count: "exact", head: true })
           .not("status", "in", '("resolved","closed")'),
         
-        // Open support tickets
+        // Open support tickets (v2 queue: anything not resolved/closed)
         supabase
-          .from("tickets")
+          .from("support_tickets_v2")
           .select("*", { count: "exact", head: true })
-          .eq("status", "open"),
+          .in("status", ["new", "in_progress", "waiting_customer", "escalated"]),
         
         // Pending payments
         supabase
