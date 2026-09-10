@@ -1076,7 +1076,8 @@ export default function NewCheckout() {
                 )}
               </Card>
 
-              {/* Save Time at Counter */}
+              {/* Save Time at Counter — not applicable to delivery bookings */}
+              {!isDeliveryMode && (
               <SaveTimeAtCounter
                 saveTime={saveTimeAtCounter}
                 onSaveTimeChange={setSaveTimeAtCounter}
