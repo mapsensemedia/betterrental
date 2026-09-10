@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { failureKey, resolveBookingContact, writeNotificationLog } from "../_shared/notify-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,16 +67,26 @@ serve(async (req) => {
       .select(`
         id, booking_code, start_at, end_at, status, total_amount, user_id,
         daily_rate, total_days, subtotal, tax_amount, deposit_amount, vehicle_id,
+        customer_id, pickup_contact_name, pickup_contact_phone,
         locations!bookings_location_id_fkey (name, address, phone, email)
       `)
       .eq("id", bookingId)
-      .single();
+      .maybeSingle();
 
     if (bookingError || !booking) {
-      console.error("Booking not found:", bookingError);
+      const detail = bookingError?.message || "booking row not found";
+      console.error(`[send-booking-email] booking lookup failed for ${bookingId}: ${detail}`, bookingError);
+      await writeNotificationLog(supabase, {
+        channel: "email",
+        notificationType: templateType,
+        bookingId,
+        idempotencyKey: failureKey(`email_${bookingId}_${templateType}`),
+        status: "failed",
+        errorMessage: `booking_lookup_failed: ${detail}`,
+      });
       return new Response(
-        JSON.stringify({ error: "Booking not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "booking_lookup_failed", details: detail }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -86,29 +97,25 @@ serve(async (req) => {
       .eq("id", booking.vehicle_id)
       .maybeSingle();
 
-    // Fetch user profile
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email, full_name")
-      .eq("id", booking.user_id)
-      .single();
-
-    // If no profile email, try to get email from auth.users
-    let userEmail = profile?.email;
-    let userName = profile?.full_name;
-    
-    if (!userEmail) {
-      const { data: authUser } = await supabase.auth.admin.getUserById(booking.user_id);
-      userEmail = authUser?.user?.email;
-      userName = authUser?.user?.user_metadata?.full_name || userName;
-      console.log("Fetched email from auth.users:", userEmail);
-    }
+    // Contact details: profile, then the customers record (guest / walk-in).
+    const contact = await resolveBookingContact(supabase, booking);
+    const userEmail = contact.email;
+    const userName = contact.name;
 
     if (!userEmail) {
-      console.log("No email for user:", booking.user_id);
+      console.error(`[send-booking-email] no_email_on_file for booking ${booking.booking_code}`);
+      await writeNotificationLog(supabase, {
+        channel: "email",
+        notificationType: templateType,
+        bookingId,
+        userId: booking.user_id,
+        idempotencyKey: failureKey(`email_${bookingId}_${templateType}`),
+        status: "failed",
+        errorMessage: "no_email_on_file",
+      });
       return new Response(
-        JSON.stringify({ error: "No email on file" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "no_email_on_file" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
