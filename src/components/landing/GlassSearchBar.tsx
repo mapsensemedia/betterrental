@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PICKUP_TIME_SLOTS, DEFAULT_PICKUP_TIME } from "@/lib/rental-rules";
+import { todayLocalISO, clampToTodayISO, isPastLocalDate, addLocalDays } from "@/lib/date-utils";
 
 interface GlassSearchBarProps {
   className?: string;
@@ -39,7 +40,7 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
   const [showReturnDateError, setShowReturnDateError] = useState(false);
 
   // Get minimum date (today)
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayLocalISO();
 
   const handleAgeChange = (value: string) => {
     setAgeRange(value as "20-24" | "25-70");
