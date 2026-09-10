@@ -16,7 +16,9 @@ import {
   Eye,
   RefreshCw,
   Trash2,
+  MessageSquare,
 } from "lucide-react";
+import { usePendingTicketSummary } from "@/hooks/use-pending-ticket-notice";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
