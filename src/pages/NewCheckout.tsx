@@ -229,6 +229,17 @@ export default function NewCheckout() {
   const [pickupContactName, setPickupContactName] = useState("");
   const [pickupContactPhone, setPickupContactPhone] = useState("");
   const [specialInstructions, setSpecialInstructions] = useState("");
+
+  // Delivery bookings never visit the counter — drop any counter details
+  useEffect(() => {
+    if (searchData.deliveryMode === "delivery" && saveTimeAtCounter) {
+      setSaveTimeAtCounter(false);
+      setPickupContactName("");
+      setPickupContactPhone("");
+    }
+  }, [searchData.deliveryMode, saveTimeAtCounter]);
+
+  
   
   // Points redemption state
   const [pointsDiscount, setPointsDiscount] = useState(0);
