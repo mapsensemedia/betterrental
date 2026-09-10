@@ -251,6 +251,8 @@ export default function AdminAlerts() {
 
   const hasFilters = statusFilter || typeFilter;
 
+  const { data: pendingTickets } = usePendingTicketSummary();
+
   // Group alerts by priority. Lifecycle notices (activation, completion,
   // cancellation) are always informational — never Critical or Action Needed.
   const criticalAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "critical");
