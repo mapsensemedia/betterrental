@@ -3,7 +3,7 @@ import { MapPin, ArrowRight, ExternalLink, Phone } from "lucide-react";
 import { GBP_LINKS } from "@/constants/gbpLinks";
 
 const branches = [
-  { label: "Surrey Newton", address: "6786 King George Blvd", href: "/surrey", gbp: GBP_LINKS.surrey },
+  { label: "Surrey Newton", address: "6768 King George Blvd", href: "/surrey", gbp: GBP_LINKS.surrey },
   { label: "Langley Centre", address: "20178 96 Ave", href: "/langley", gbp: GBP_LINKS.langley },
   { label: "Abbotsford Centre", address: "32835 South Fraser Way", href: "/abbotsford", gbp: GBP_LINKS.abbotsford },
 ];

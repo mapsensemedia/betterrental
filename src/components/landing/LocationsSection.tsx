@@ -15,7 +15,7 @@ function getEmbedUrl(location: Location): string {
   if (location.lat && location.lng) {
     return `https://www.openstreetmap.org/export/embed.html?bbox=${location.lng - 0.01},${location.lat - 0.008},${location.lng + 0.01},${location.lat + 0.008}&layer=mapnik&marker=${location.lat},${location.lng}`;
   }
-  return "https://www.openstreetmap.org/export/embed.html?bbox=-122.85,49.12,-122.83,49.14&layer=mapnik&marker=49.130,-122.840";
+  return "https://www.openstreetmap.org/export/embed.html?bbox=-122.85437,49.11775,-122.83437,49.13375&layer=mapnik&marker=49.1257494,-122.8443676";
 }
 
 function formatHoursLines(hoursJson: Record<string, string> | null): { line1: string; line2: string } {
