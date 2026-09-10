@@ -19,8 +19,8 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
     name: "Surrey Newton",
     address: "6768 King George Blvd, Surrey, BC V3W 4Z9",
     city: "Surrey",
-    lat: 49.1280,
-    lng: -122.8465,
+    lat: 49.12574939,
+    lng: -122.84436761,
     isActive: true, // Toggle to true to re-enable this location
   },
   {
@@ -35,10 +35,10 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
   {
     id: "a1b2c3d4-3333-4000-8000-000000000003",
     name: "Abbotsford Centre",
-    address: "32835 South Fraser Way, Abbotsford, BC",
+    address: "32835 South Fraser Way, Abbotsford, BC V2S 2A6",
     city: "Abbotsford",
-    lat: 49.0504,
-    lng: -122.3045,
+    lat: 49.05139307,
+    lng: -122.31399712,
     isActive: true, // Toggle to true to re-enable this location
   },
 ];
