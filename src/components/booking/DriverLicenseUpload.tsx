@@ -99,18 +99,18 @@ export function DriverLicenseUpload({ bookingId }: DriverLicenseUploadProps) {
             }
             className={
               status === 'verified' ? 'bg-green-500' :
-              status === 'pending' ? 'bg-yellow-500' :
+              status === 'pending' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' :
               ''
             }
           >
             {status === 'verified' && <CheckCircle2 className="h-3 w-3 mr-1" />}
-            {status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+            {status === 'pending' && <CheckCircle2 className="h-3 w-3 mr-1" />}
             {status === 'required' && <AlertCircle className="h-3 w-3 mr-1" />}
             {status === 'incomplete' && <AlertCircle className="h-3 w-3 mr-1" />}
             {status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
             {status === 'verified' ? 'Verified' :
-             status === 'pending' ? 'Under Review' :
-             status === 'rejected' ? 'Rejected' :
+             status === 'pending' ? 'Received' :
+             status === 'rejected' ? 'Action needed' :
              status === 'incomplete' ? 'Incomplete' :
              'Required'}
           </Badge>
