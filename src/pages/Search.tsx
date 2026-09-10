@@ -216,7 +216,9 @@ export default function Search() {
       </div>
 
       {/* Search Modify Bar */}
-      {isSearchValid && <SearchModifyBar />}
+      {/* Keep the bar mounted while a delivery address is still being entered —
+          gating on isSearchValid unmounted the bar (and its panel) mid-switch. */}
+      {(isSearchValid || !!contextLocationId || (!!startDate && !!endDate)) && <SearchModifyBar />}
 
       <TripContextPrompt open={showContextPrompt} onOpenChange={setShowContextPrompt} />
 

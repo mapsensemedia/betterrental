@@ -111,7 +111,7 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => !isDelivery && setShowModifyDialog(true)}
+                    onClick={handleSelectDelivery}
                     aria-pressed={isDelivery}
                     className={cn(
                       "flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold transition-colors border-l-2 border-foreground",
