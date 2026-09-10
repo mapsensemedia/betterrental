@@ -1,5 +1,6 @@
 import { MapPin, Calendar, X } from "lucide-react";
 import { format } from "date-fns";
+import { startOfLocalToday } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {

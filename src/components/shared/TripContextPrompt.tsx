@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MapPin, Calendar, ChevronRight, User } from "lucide-react";
 import { format, addDays } from "date-fns";
+import { startOfLocalToday } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
