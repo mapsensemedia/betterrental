@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { getBookingRoute } from "@/lib/booking-routes";
+
 import { calculateLateFee, LATE_RETURN_GRACE_PERIOD_MINUTES, LATE_RETURN_SURCHARGE_HOURLY_PCT, LATE_RETURN_SURCHARGE_MAX_HOURS } from "@/lib/pricing";
 
 interface TicketBookingSummaryProps {
@@ -116,12 +118,17 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
     : Number(booking.late_return_fee) || lateFee;
 
   const handleOpenBooking = () => {
-    if (isActive || booking.status === "confirmed" || booking.status === "pending") {
-      navigate(`/ops/rental/${booking.id}`);
+    const isOpsContext = window.location.pathname.startsWith("/ops");
+    const status = booking.status as any;
+    if (status === "active") {
+      navigate(isOpsContext ? `/ops/rental/${booking.id}` : `/admin/active-rentals/${booking.id}`);
+    } else if (status === "pending" || status === "confirmed" || status === "draft") {
+      navigate(getBookingRoute(booking.id, status));
     } else {
       navigate(`/admin/bookings/${booking.id}`);
     }
   };
+
 
   return (
     <Card className="border-border/60">
