@@ -229,6 +229,17 @@ export default function NewCheckout() {
   const [pickupContactName, setPickupContactName] = useState("");
   const [pickupContactPhone, setPickupContactPhone] = useState("");
   const [specialInstructions, setSpecialInstructions] = useState("");
+
+  // Delivery bookings never visit the counter — drop any counter details
+  useEffect(() => {
+    if (searchData.deliveryMode === "delivery" && saveTimeAtCounter) {
+      setSaveTimeAtCounter(false);
+      setPickupContactName("");
+      setPickupContactPhone("");
+    }
+  }, [searchData.deliveryMode, saveTimeAtCounter]);
+
+  
   
   // Points redemption state
   const [pointsDiscount, setPointsDiscount] = useState(0);
@@ -1076,7 +1087,8 @@ export default function NewCheckout() {
                 )}
               </Card>
 
-              {/* Save Time at Counter */}
+              {/* Save Time at Counter — not applicable to delivery bookings */}
+              {!isDeliveryMode && (
               <SaveTimeAtCounter
                 saveTime={saveTimeAtCounter}
                 onSaveTimeChange={setSaveTimeAtCounter}
@@ -1088,6 +1100,7 @@ export default function NewCheckout() {
                 onSpecialInstructionsChange={setSpecialInstructions}
                 defaultName={formData.firstName && formData.lastName ? `${formData.firstName} ${formData.lastName}` : undefined}
               />
+              )}
 
               {/* Invoice Address (for pay now) */}
               {paymentMethod === "pay-now" && (
