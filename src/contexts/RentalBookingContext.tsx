@@ -204,6 +204,24 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
         }
       }
     }
+    // Never start a trip in the past: shift a stale pickup forward to today,
+    // keeping the original rental length.
+    if (stored.pickupDate && isPastLocalDate(stored.pickupDate)) {
+      const today = startOfLocalToday();
+      const days =
+        stored.returnDate
+          ? Math.max(
+              1,
+              Math.round(
+                (stored.returnDate.getTime() - stored.pickupDate.getTime()) / 86400000
+              )
+            )
+          : 1;
+      stored.pickupDate = today;
+      stored.returnDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
+    } else if (stored.returnDate && isPastLocalDate(stored.returnDate)) {
+      stored.returnDate = null;
+    }
     return stored;
   });
 
