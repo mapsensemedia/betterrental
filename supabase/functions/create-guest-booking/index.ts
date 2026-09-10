@@ -32,6 +32,7 @@ import {
   ACCESS_TOKEN_TTL_MS,
   type AdditionalDriverInput,
 } from "../_shared/booking-core.ts";
+import { isPastBusinessDay, PAST_START_MESSAGE } from "../_shared/booking-dates.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
