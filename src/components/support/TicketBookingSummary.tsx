@@ -123,7 +123,8 @@ export function TicketBookingSummary({ bookingId }: TicketBookingSummaryProps) {
     if (status === "active") {
       navigate(isOpsContext ? `/ops/rental/${booking.id}` : `/admin/active-rentals/${booking.id}`);
     } else if (status === "pending" || status === "confirmed" || status === "draft") {
-      navigate(getBookingRoute(booking.id, status));
+      navigate(isOpsContext ? `/ops/booking/${booking.id}/handover` : getBookingRoute(booking.id, status));
+
     } else {
       navigate(`/admin/bookings/${booking.id}`);
     }
