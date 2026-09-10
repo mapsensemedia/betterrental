@@ -1089,6 +1089,7 @@ export default function NewCheckout() {
                 onSpecialInstructionsChange={setSpecialInstructions}
                 defaultName={formData.firstName && formData.lastName ? `${formData.firstName} ${formData.lastName}` : undefined}
               />
+              )}
 
               {/* Invoice Address (for pay now) */}
               {paymentMethod === "pay-now" && (
