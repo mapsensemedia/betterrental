@@ -8,7 +8,7 @@
  */
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Calendar, Clock, Edit, X } from "lucide-react";
+import { Calendar, Clock, Edit, MapPin, Truck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
