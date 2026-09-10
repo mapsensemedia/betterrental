@@ -165,9 +165,10 @@ const abbotsfordLocalBusinessSchema = {
     streetAddress: "32835 South Fraser Way",
     addressLocality: "Abbotsford",
     addressRegion: "BC",
+    postalCode: "V2S 2A6",
     addressCountry: "CA",
   },
-  geo: { "@type": "GeoCoordinates", latitude: 49.0504, longitude: -122.3045 },
+  geo: { "@type": "GeoCoordinates", latitude: 49.0513931, longitude: -122.3139971 },
   areaServed: [
     { "@type": "City", name: "Abbotsford" },
     { "@type": "City", name: "Mission" },
@@ -348,7 +349,7 @@ const AbbotsfordPage = () => {
             <Card>
               <CardContent className="p-5 space-y-3">
                 <p className="font-semibold text-foreground">Abbotsford Centre</p>
-                <p className="text-sm text-muted-foreground">32835 South Fraser Way, Abbotsford, BC</p>
+                <p className="text-sm text-muted-foreground">32835 South Fraser Way, Abbotsford, BC V2S 2A6</p>
                 <p className="text-sm text-muted-foreground">+1 (604) 763-4242</p>
                 <p className="text-sm text-muted-foreground leading-relaxed pt-2">
                   Serving West Abbotsford, East Abbotsford, Clearbrook, and YXX Airport. Pickup from our local service point or limited delivery within the Abbotsford area (subject to availability and fee). We also coordinate insurance replacement rentals with local body shops.

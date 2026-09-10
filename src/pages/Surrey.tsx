@@ -185,7 +185,7 @@ const surreyLocalBusinessSchema = {
     postalCode: "V3W 4Z9",
     addressCountry: "CA",
   },
-  geo: { "@type": "GeoCoordinates", latitude: 49.1565, longitude: -122.8487 },
+  geo: { "@type": "GeoCoordinates", latitude: 49.1257494, longitude: -122.8443676 },
   areaServed: [
     { "@type": "City", name: "Surrey" },
     { "@type": "City", name: "Langley" },

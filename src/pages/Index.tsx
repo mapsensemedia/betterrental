@@ -102,13 +102,13 @@ const Index = () => {
         "streetAddress": "6768 King George Blvd",
         "addressLocality": "Surrey",
         "addressRegion": "BC",
-        "postalCode": "V3W 4Z1",
+        "postalCode": "V3W 4Z9",
         "addressCountry": "CA"
       },
       "geo": {
         "@type": "GeoCoordinates",
-        "latitude": 49.1565,
-        "longitude": -122.8487
+        "latitude": 49.1257494,
+        "longitude": -122.8443676
       },
       "areaServed": [
         { "@type": "City", "name": "Surrey" },
