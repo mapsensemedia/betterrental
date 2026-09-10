@@ -897,7 +897,7 @@ export default function BookingDetail() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Button variant="outline" className="w-full justify-start" asChild>
-                    <Link to={`/location/${booking.locations?.id}`}>
+                    <Link to={`/location/${booking.locations?.id}?from=${encodeURIComponent(`/booking/${booking.id}`)}`}>
                       <MapPin className="h-4 w-4 mr-2" />
                       View Location Details
                     </Link>
