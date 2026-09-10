@@ -278,6 +278,63 @@ Deno.serve(async (req) => {
       console.error("[create-booking] Duplicate check failed (non-fatal):", dupErr);
     }
 
+    // Renter identity. A staff/company login may only book on someone's behalf
+    // when the renter's own details are supplied; the booking is then attached to
+    // a separate customer record so notifications and admin screens show the
+    // renter, not the shared account.
+    let customerId: string | null = null;
+    const accountEmail = (auth.email || "").toLowerCase().trim();
+    const renterDiffersFromAccount = !!renterEmailClean && renterEmailClean !== accountEmail;
+
+    if (callerIsStaffAccount && (!renterEmailClean || !renterName)) {
+      return new Response(
+        JSON.stringify({
+          error: "renter_details_required",
+          message:
+            "You are signed in with a company/counter login. Enter the renter's name, email and phone — or use the walk-in booking screen instead.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (renterEmailClean && (callerIsStaffAccount || renterDiffersFromAccount)) {
+      try {
+        const { data: existingCustomer } = await supabaseAdmin
+          .from("customers")
+          .select("id, full_name")
+          .eq("email", renterEmailClean)
+          .maybeSingle();
+
+        if (
+          existingCustomer &&
+          (existingCustomer.full_name || "").toLowerCase().trim() === renterName.toLowerCase().trim()
+        ) {
+          customerId = existingCustomer.id;
+        } else {
+          const { data: newCustomer, error: custErr } = await supabaseAdmin
+            .from("customers")
+            .insert({ full_name: renterName, email: renterEmailClean, phone: renterPhoneClean })
+            .select("id")
+            .single();
+          if (custErr) console.error("[create-booking] customer insert failed", custErr);
+          if (newCustomer) customerId = newCustomer.id;
+        }
+      } catch (custErr) {
+        console.error("[create-booking] customer resolution failed", custErr);
+      }
+    }
+
+    if (callerIsStaffAccount && !customerId) {
+      return new Response(
+        JSON.stringify({
+          error: "renter_record_failed",
+          message:
+            "We couldn't save the renter's details. Please try again, or create this booking from the walk-in screen.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Determine initial status
     const initialStatus = paymentMethod === "pay-now" ? "draft" : (paymentMethod === "pay-later" ? "pending" : "confirmed");
 
