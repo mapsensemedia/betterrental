@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { MapPin, Clock, ArrowLeft, Navigation } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -18,7 +18,17 @@ const LOCATION_MAPS_LINKS: Record<string, string> = {
 
 export default function LocationDetail() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { data: location, isLoading: locationLoading } = useLocation(id || null);
+
+  // Where to send the user when they hit "back". If they arrived from a
+  // booking page, return them there instead of the full locations list.
+  const rawFrom = searchParams.get("from");
+  const isSafeInternalPath =
+    !!rawFrom && rawFrom.startsWith("/") && !rawFrom.startsWith("//") && !rawFrom.includes(":");
+  const backPath = isSafeInternalPath ? rawFrom! : "/locations";
+  const backLabel = isSafeInternalPath ? "Back to booking" : "Back to Locations";
+  
   
 
   useEffect(() => {
@@ -54,7 +64,7 @@ export default function LocationDetail() {
             <h2 className="text-xl font-semibold mb-2">Location Not Found</h2>
             <p className="text-muted-foreground mb-6">The location you're looking for doesn't exist.</p>
             <Button asChild>
-              <Link to="/locations">View All Locations</Link>
+              <Link to={backPath}>{isSafeInternalPath ? "Back to booking" : "View All Locations"}</Link>
             </Button>
           </div>
         </PageContainer>
@@ -89,11 +99,11 @@ export default function LocationDetail() {
       <PageContainer className="pt-28 pb-16">
         {/* Back Button */}
         <Link
-          to="/locations"
+          to={backPath}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Locations
+          {backLabel}
         </Link>
 
         <div className="grid lg:grid-cols-2 gap-8 mb-12">
