@@ -2,43 +2,25 @@
  * SearchModifyBar - Compact bar showing current search criteria with modify option
  * Displayed at top of browse cars page
  *
- * Mobile: renders a full-screen fixed panel with its own scroll container so the
- *         form is fully interactive (inputs, dropdowns, date pickers all work).
- * Desktop: renders the existing shadcn Dialog (unchanged behaviour).
+ * Uses a viewport-bounded dialog with an independent scroll area so the form
+ * and confirmation action remain reachable on every screen size.
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
-import { Calendar, Clock, Edit, MapPin, Truck, X } from "lucide-react";
+import { Calendar, Clock, Edit, MapPin, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
 import { useRentalBooking } from "@/contexts/RentalBookingContext";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SearchModifyBarProps {
   className?: string;
 }
 
-/** Lock body scroll (overflow:hidden) without position:fixed to avoid iOS scroll jump */
-function useLockBodyScroll(active: boolean) {
-  useEffect(() => {
-    if (!active) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [active]);
-}
-
 export function SearchModifyBar({ className }: SearchModifyBarProps) {
   const { searchData, setDeliveryMode } = useRentalBooking();
   const [showModifyDialog, setShowModifyDialog] = useState(false);
-  const isMobile = useIsMobile();
-
-  // Lock background scroll when the mobile panel is open
-  useLockBodyScroll(showModifyDialog && isMobile);
 
   const isDelivery = searchData.deliveryMode === "delivery";
 
@@ -203,71 +185,25 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
         </div>
       </div>
 
-      {/* ── MOBILE: full-screen fixed panel with its own scroll container ──
-          Key design decisions:
-          - backdrop sits at z-40, panel at z-50 → panel always above overlay
-          - panel uses flex column: fixed header + flex-1 scroll area
-          - overflow-y:auto + -webkit-overflow-scrolling:touch = smooth iOS scroll
-          - overscroll-behavior:contain prevents rubber-band bleed to background
-          - pointer-events:auto explicitly declared to prevent any parent interference
-      */}
-      {isMobile && showModifyDialog && (
-        <>
-          {/* Backdrop — tap outside to close */}
-          <div
-            className="fixed inset-0 bg-foreground/50 z-40"
-            onClick={handleClose}
-            aria-hidden="true"
-          />
-
-          {/* Panel */}
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Modify Your Search"
-            className="fixed inset-0 z-50 flex flex-col bg-background"
-            style={{ pointerEvents: "auto" }}
-          >
-            {/* Fixed header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-background">
-              <h2 className="text-base font-semibold">Modify Your Search</h2>
-              <button
-                type="button"
-                onClick={handleClose}
-                className="p-2 rounded-full hover:bg-muted transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Scrollable content — must NOT be overflow:hidden */}
-            <div
-              className="flex-1 min-h-0 overflow-y-auto"
-              style={{
-                WebkitOverflowScrolling: "touch",
-                overscrollBehavior: "contain",
-              }}
-            >
-              <div className="px-4 py-4 pb-10">
-                <RentalSearchCard onSearchComplete={handleClose} />
-              </div>
-            </div>
+      <Dialog
+        open={showModifyDialog}
+        onOpenChange={(open) => {
+          if (open) setShowModifyDialog(true);
+          else handleClose();
+        }}
+      >
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-h-[90dvh]">
+          <DialogHeader className="shrink-0 border-b border-border px-4 py-4 pr-12 sm:px-5">
+            <DialogTitle>Modify Your Search</DialogTitle>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 [-webkit-overflow-scrolling:touch]">
+            <RentalSearchCard
+              className="rounded-md p-3 shadow-none sm:p-4"
+              onSearchComplete={handleClose}
+            />
           </div>
-        </>
-      )}
-
-      {/* ── DESKTOP: existing Dialog — behaviour unchanged ── */}
-      {!isMobile && (
-        <Dialog open={showModifyDialog} onOpenChange={setShowModifyDialog}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Modify Your Search</DialogTitle>
-            </DialogHeader>
-            <RentalSearchCard onSearchComplete={() => setShowModifyDialog(false)} />
-          </DialogContent>
-        </Dialog>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
