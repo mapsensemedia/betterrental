@@ -447,7 +447,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                   min={today}
                   value={pickupDate}
                   onChange={(e) => {
-                    const newDate = e.target.value;
+                    const newDate = clampToTodayISO(e.target.value);
                     setPickupDate(newDate);
                     // Persist to context immediately
                     if (newDate) {
@@ -520,7 +520,8 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                   })() : undefined}
                   value={returnDate}
                   onChange={(e) => {
-                    const newDate = e.target.value;
+                    const raw = clampToTodayISO(e.target.value);
+                    const newDate = pickupDate && raw && raw < pickupDate ? pickupDate : raw;
                     setReturnDate(newDate);
                     if (newDate) {
                       setReturnDateTime(new Date(`${newDate}T${returnTime}`), returnTime);
@@ -630,7 +631,7 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                 min={today}
                 value={pickupDate}
                 onChange={(e) => {
-                  const newDate = e.target.value;
+                  const newDate = clampToTodayISO(e.target.value);
                   setPickupDate(newDate);
                   // Persist to context immediately
                   if (newDate) {
@@ -703,7 +704,8 @@ export function RentalSearchCard({ className, onSearchComplete, defaultLocationI
                 })() : undefined}
                 value={returnDate}
                 onChange={(e) => {
-                  const newDate = e.target.value;
+                  const raw = clampToTodayISO(e.target.value);
+                  const newDate = pickupDate && raw && raw < pickupDate ? pickupDate : raw;
                   setReturnDate(newDate);
                   if (newDate) {
                     setReturnDateTime(new Date(`${newDate}T${returnTime}`), returnTime);
