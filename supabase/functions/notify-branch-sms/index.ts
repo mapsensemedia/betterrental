@@ -120,13 +120,35 @@ serve(async (req) => {
       resolvedBookingId = t.booking_id;
     }
 
+    // A ticket raised outside any booking still needs a branch: fall back to the
+    // customer's most recent booking so the alert is routed instead of dropped.
+    if (!resolvedBookingId && type === "ticket" && (ticket as { customer_id?: string } | null)?.customer_id) {
+      const { data: recent } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("user_id", (ticket as unknown as { customer_id: string }).customer_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (recent?.id) resolvedBookingId = recent.id;
+    }
+
     if (!resolvedBookingId) {
       console.warn(`[notify-branch-sms] ${type} has no booking attached - nothing to route`);
+      await writeNotificationLog(supabase, {
+        channel: "sms",
+        notificationType,
+        bookingId: null,
+        idempotencyKey: failureKey(`branch_sms_${type}_no_booking_${ticketId ?? bookingId}`),
+        status: "failed",
+        errorMessage: "no_booking_to_route_branch_alert",
+      });
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "no_booking" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // bookings has TWO foreign keys to locations (pickup + return) — the pickup
     // relationship must be named explicitly or PostgREST refuses the embed.
