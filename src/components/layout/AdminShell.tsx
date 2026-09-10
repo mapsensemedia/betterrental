@@ -224,6 +224,7 @@ export function AdminShell({
   const { counts } = useSidebarCounts();
   const { data: caps } = useCapabilities("admin");
   useGlobalRealtime();
+  usePendingTicketNotice();
   const handleBookingSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (bookingCode.trim()) {
