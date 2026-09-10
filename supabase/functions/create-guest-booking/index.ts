@@ -221,13 +221,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     
     if (existingProfile) {
-      // Only reuse profile if the name actually matches (same person)
+      // An account already exists for this email — always reuse that login.
+      // A different name is handled at the `customers` level below (separate
+      // real-world identity), never by creating a second auth user, which the
+      // auth service refuses with `email_exists`.
       const profileName = existingProfile.full_name?.toLowerCase().trim();
       const guestName = guestFullName.toLowerCase().trim();
-      if (profileName === guestName) {
-        userId = existingProfile.id;
-      } else {
-        console.log(`[guest-booking] Profile name mismatch: profile="${existingProfile.full_name}" vs guest="${guestFullName}" — creating new auth user`);
+      userId = existingProfile.id;
+      if (profileName !== guestName) {
+        console.log(`[guest-booking] Profile name mismatch: profile="${existingProfile.full_name}" vs guest="${guestFullName}" — reusing existing login, separate customer record`);
       }
     }
     
@@ -246,12 +248,52 @@ Deno.serve(async (req) => {
       });
 
       if (createError) {
-        console.error("Error creating guest user:", createError);
-        return new Response(
-          JSON.stringify({ error: "Failed to process booking" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        // Safety net: the email exists in auth but had no matching profile row.
+        // Resolve the existing user and carry on instead of failing the booking.
+        const code = (createError as { code?: string }).code;
+        console.error(`[guest-booking] createUser failed (code=${code}): ${createError.message}`);
+
+        if (code === "email_exists" || /already been registered/i.test(createError.message || "")) {
+          let resolvedId: string | null = null;
+          try {
+            const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+            const match = list?.users?.find(
+              (u: { id: string; email?: string | null }) =>
+                (u.email || "").toLowerCase() === String(email).toLowerCase(),
+            );
+            resolvedId = match?.id ?? null;
+          } catch (lookupErr) {
+            console.error("[guest-booking] auth lookup after email_exists failed", lookupErr);
+          }
+
+          if (resolvedId) {
+            userId = resolvedId;
+            console.log(`[guest-booking] Reused existing auth user ${resolvedId} for ${email}`);
+            await supabaseAdmin.from("profiles").upsert({
+              id: resolvedId,
+              email,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "id" });
+          } else {
+            return new Response(
+              JSON.stringify({
+                error: "email_in_use",
+                message: "An account already exists for this email address. Please sign in and complete your booking, or use a different email.",
+              }),
+              { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        } else {
+          return new Response(
+            JSON.stringify({
+              error: "account_creation_failed",
+              message: "We couldn't set up your booking account. Please try again, or call us at +1 (604) 763-4242 and we'll finish it for you.",
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
+
 
       userId = newUser.user.id;
       isNewUser = true;
