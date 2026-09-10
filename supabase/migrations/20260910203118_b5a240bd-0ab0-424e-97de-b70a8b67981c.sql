@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.notify_branch_on_new_ticket() FROM anon, authenticated, PUBLIC;
