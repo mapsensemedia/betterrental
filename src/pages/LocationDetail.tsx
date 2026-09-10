@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { MapPin, Clock, ArrowLeft, Navigation } from "lucide-react";
 import { CustomerLayout } from "@/components/layout/CustomerLayout";
 import { PageContainer } from "@/components/layout/PageContainer";
