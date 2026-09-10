@@ -74,21 +74,23 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
               {/* Pick-up / Delivery switch — display only, dates & times untouched.
                   Switching to delivery opens the search panel because an address
                   is required; switching back to pick-up is instant. */}
-              <div className="col-span-2 sm:col-span-1 flex flex-col">
-                <span className="text-xs text-muted-foreground mb-1">How you get the car</span>
-                <div className="inline-flex rounded-full border border-border p-0.5 bg-muted/40 w-fit">
+              <div className="col-span-2 sm:col-span-1 flex flex-col w-full sm:w-auto">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                  How you get the car
+                </span>
+                <div className="grid grid-cols-2 sm:inline-flex rounded-md border-2 border-foreground overflow-hidden w-full sm:w-fit">
                   <button
                     type="button"
                     onClick={() => isDelivery && setDeliveryMode("pickup")}
                     aria-pressed={!isDelivery}
                     className={cn(
-                      "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                      "flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold transition-colors",
                       !isDelivery
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
+                        ? "bg-foreground text-background"
+                        : "bg-background text-foreground hover:bg-muted",
                     )}
                   >
-                    <MapPin className="w-3 h-3" />
+                    <MapPin className="w-4 h-4" />
                     Pick-up
                   </button>
                   <button
@@ -96,13 +98,13 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
                     onClick={() => !isDelivery && setShowModifyDialog(true)}
                     aria-pressed={isDelivery}
                     className={cn(
-                      "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                      "flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold transition-colors border-l-2 border-foreground",
                       isDelivery
-                        ? "bg-background shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
+                        ? "bg-foreground text-background"
+                        : "bg-background text-foreground hover:bg-muted",
                     )}
                   >
-                    <Truck className="w-3 h-3" />
+                    <Truck className="w-4 h-4" />
                     Deliver to me
                   </button>
                 </div>
