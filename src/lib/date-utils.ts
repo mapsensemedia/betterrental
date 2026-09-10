@@ -53,3 +53,35 @@ export function localDateTimeToISO(dateStr: string, time: string): string {
   d.setHours(h, m, 0, 0);
   return d.toISOString();
 }
+
+/** Today's date as YYYY-MM-DD in the local timezone */
+export function todayLocalISO(): string {
+  return formatLocalDate(new Date());
+}
+
+/** Local midnight of today — safe lower bound for calendar `disabled` checks */
+export function startOfLocalToday(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/** True when a YYYY-MM-DD string (or Date) falls before today */
+export function isPastLocalDate(value: string | Date | null | undefined): boolean {
+  if (!value) return false;
+  const d = typeof value === "string" ? parseLocalDate(value) : value;
+  if (!d || isNaN(d.getTime())) return false;
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return day.getTime() < startOfLocalToday().getTime();
+}
+
+/** Returns the value, or today when the value is in the past */
+export function clampToTodayISO(dateStr: string): string {
+  if (!dateStr) return dateStr;
+  return isPastLocalDate(dateStr) ? todayLocalISO() : dateStr;
+}
+
+/** Returns the date, or today's local midnight when the date is in the past */
+export function clampDateToToday(date: Date | null): Date | null {
+  if (!date) return date;
+  return isPastLocalDate(date) ? startOfLocalToday() : date;
+}

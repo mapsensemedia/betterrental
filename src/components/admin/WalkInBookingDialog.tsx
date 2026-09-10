@@ -545,6 +545,7 @@ export function WalkInBookingDialog({ open, onOpenChange }: WalkInBookingDialogP
                         startDate: date,
                         endDate: prev.endDate <= date ? addDays(date, 1) : prev.endDate
                       }))}
+                      disabled={(date) => date < startOfLocalToday()}
                       initialFocus
                     />
                   </PopoverContent>

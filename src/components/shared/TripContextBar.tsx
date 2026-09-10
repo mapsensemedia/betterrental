@@ -158,7 +158,7 @@ export function TripContextBar({
                   setReturnDateTime(range?.to || null, searchData.returnTime);
                 }}
                 numberOfMonths={2}
-                disabled={(date) => date < new Date()}
+                disabled={(date) => date < startOfLocalToday()}
                 className="pointer-events-auto"
               />
             </div>
