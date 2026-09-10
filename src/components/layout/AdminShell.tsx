@@ -47,6 +47,7 @@ import { useCapabilities } from "@/auth/capabilities";
 import { LocationScopeSwitcher } from "@/components/admin/LocationScopeSwitcher";
 import { LocationScopeProvider } from "@/context/LocationScopeProvider";
 import { useGlobalRealtime } from "@/hooks/use-global-realtime";
+import { usePendingTicketNotice } from "@/hooks/use-pending-ticket-notice";
 import { HelpGuideModal } from "./HelpGuideModal";
 
 type BadgeKey = keyof SidebarCounts;
@@ -223,6 +224,7 @@ export function AdminShell({
   const { counts } = useSidebarCounts();
   const { data: caps } = useCapabilities("admin");
   useGlobalRealtime();
+  usePendingTicketNotice();
   const handleBookingSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (bookingCode.trim()) {

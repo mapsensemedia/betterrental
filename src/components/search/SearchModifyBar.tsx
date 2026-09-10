@@ -8,7 +8,7 @@
  */
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Calendar, Clock, Edit, X } from "lucide-react";
+import { Calendar, Clock, Edit, MapPin, Truck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RentalSearchCard } from "@/components/rental/RentalSearchCard";
@@ -33,16 +33,18 @@ function useLockBodyScroll(active: boolean) {
 }
 
 export function SearchModifyBar({ className }: SearchModifyBarProps) {
-  const { searchData } = useRentalBooking();
+  const { searchData, setDeliveryMode } = useRentalBooking();
   const [showModifyDialog, setShowModifyDialog] = useState(false);
   const isMobile = useIsMobile();
 
   // Lock background scroll when the mobile panel is open
   useLockBodyScroll(showModifyDialog && isMobile);
 
-  const locationDisplay = searchData.deliveryMode === "delivery"
-    ? searchData.deliveryAddress
-    : searchData.pickupLocationAddress || searchData.pickupLocationName;
+  const isDelivery = searchData.deliveryMode === "delivery";
+
+  const branchDisplay = searchData.pickupLocationAddress || searchData.pickupLocationName;
+  const locationDisplay = isDelivery ? searchData.deliveryAddress : branchDisplay;
+  const returnLocationDisplay = branchDisplay;
 
   const pickupDateDisplay = searchData.pickupDate
     ? format(searchData.pickupDate, "d MMMM")
@@ -69,11 +71,50 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
 
             {/* Right: Search criteria display */}
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-start sm:items-center gap-3 sm:gap-4 lg:gap-6">
-              {/* Pick-up Location */}
+              {/* Pick-up / Delivery switch — display only, dates & times untouched.
+                  Switching to delivery opens the search panel because an address
+                  is required; switching back to pick-up is instant. */}
+              <div className="col-span-2 sm:col-span-1 flex flex-col">
+                <span className="text-xs text-muted-foreground mb-1">How you get the car</span>
+                <div className="inline-flex rounded-full border border-border p-0.5 bg-muted/40 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => isDelivery && setDeliveryMode("pickup")}
+                    aria-pressed={!isDelivery}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                      !isDelivery
+                        ? "bg-background shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <MapPin className="w-3 h-3" />
+                    Pick-up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => !isDelivery && setShowModifyDialog(true)}
+                    aria-pressed={isDelivery}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                      isDelivery
+                        ? "bg-background shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Truck className="w-3 h-3" />
+                    Deliver to me
+                  </button>
+                </div>
+              </div>
+
+              {/* Pick-up / delivery location */}
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-destructive shrink-0" />
-                  <span className="text-xs text-muted-foreground">Pick-up</span>
+                  <span className="text-xs text-muted-foreground">
+                    {isDelivery ? "Delivery to" : "Pick-up"}
+                  </span>
                 </div>
                 <span className="text-xs sm:text-sm font-medium truncate max-w-[120px] sm:max-w-[150px]">
                   {locationDisplay || "Not set"}
@@ -84,12 +125,15 @@ export function SearchModifyBar({ className }: SearchModifyBarProps) {
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                  <span className="text-xs text-muted-foreground">Drop-off</span>
+                  <span className="text-xs text-muted-foreground">
+                    {isDelivery ? "Return to" : "Drop-off"}
+                  </span>
                 </div>
                 <span className="text-xs sm:text-sm font-medium truncate max-w-[120px] sm:max-w-[150px]">
-                  {locationDisplay || "Not set"}
+                  {returnLocationDisplay || "Not set"}
                 </span>
               </div>
+
 
               {/* Pick-up Date */}
               <div className="flex flex-col">

@@ -16,7 +16,9 @@ import {
   Eye,
   RefreshCw,
   Trash2,
+  MessageSquare,
 } from "lucide-react";
+import { usePendingTicketSummary } from "@/hooks/use-pending-ticket-notice";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -249,6 +251,8 @@ export default function AdminAlerts() {
 
   const hasFilters = statusFilter || typeFilter;
 
+  const { data: pendingTickets } = usePendingTicketSummary();
+
   // Group alerts by priority. Lifecycle notices (activation, completion,
   // cancellation) are always informational — never Critical or Action Needed.
   const criticalAlerts = alerts.filter((a) => getAlertPriority(a.alertType, a) === "critical");
@@ -347,6 +351,28 @@ export default function AdminAlerts() {
           </div>
         </div>
 
+
+        {/* Waiting support tickets — separate from alerts so they can't get buried */}
+        {(pendingTickets?.count ?? 0) > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <MessageSquare className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {pendingTickets!.count === 1
+                    ? "1 support ticket is waiting for a response"
+                    : `${pendingTickets!.count} support tickets are waiting for a response`}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {pendingTickets!.latest.map((t) => `${t.ticket_id}: ${t.subject}`).join(" · ")}
+                </p>
+              </div>
+            </div>
+            <Button asChild size="sm" className="shrink-0">
+              <Link to="/support">View tickets</Link>
+            </Button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
