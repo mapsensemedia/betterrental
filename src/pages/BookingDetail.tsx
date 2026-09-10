@@ -62,6 +62,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DriverLicenseUpload } from "@/components/booking/DriverLicenseUpload";
+import { PayNowCard } from "@/components/booking/PayNowCard";
 import { VerificationModal } from "@/components/booking/VerificationModal";
 import { useBookingVerification } from "@/hooks/use-verification";
 import { RentalAgreementSign } from "@/components/booking/RentalAgreementSign";
