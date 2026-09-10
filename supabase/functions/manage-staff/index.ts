@@ -18,6 +18,7 @@ type Action =
   | "create"
   | "set_location"
   | "set_active"
+  | "set_sms_alerts"
   | "send_setup_link"
   | "update"
   | "delete";
@@ -44,11 +45,18 @@ Deno.serve(async (req) => {
     if (action === "list") {
       const { data: assignments, error } = await supabase
         .from("staff_assignments")
-        .select("id, user_id, location_id, display_name, employee_code, is_active, created_at")
+        .select("id, user_id, location_id, display_name, employee_code, is_active, sms_alerts_enabled, created_at")
         .order("created_at", { ascending: true });
       if (error) throw error;
 
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+      const staffIds = (assignments ?? []).map((a) => a.user_id).filter(Boolean);
+      const { data: staffProfiles } = staffIds.length
+        ? await supabase.from("profiles").select("id, phone").in("id", staffIds)
+        : { data: [] as { id: string; phone: string | null }[] };
+      const phoneMap = new Map<string, string | null>(
+        (staffProfiles ?? []).map((p) => [p.id, p.phone]),
+      );
       const { data: locations } = await supabase.from("locations").select("id, name");
 
       const roleMap = new Map<string, string[]>();
@@ -62,6 +70,7 @@ Deno.serve(async (req) => {
         staff.push({
           ...a,
           email: authUser?.user?.email ?? null,
+          phone: phoneMap.get(a.user_id) ?? null,
           roles: roleMap.get(a.user_id) ?? [],
         });
       }
@@ -195,6 +204,19 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+    if (action === "set_sms_alerts") {
+      const staffId = String(body.staffId ?? "");
+      const enabled = body.smsAlertsEnabled === true;
+      if (!staffId) return json({ error: "staffId is required" }, 400);
+
+      const { error } = await supabase
+        .from("staff_assignments")
+        .update({ sms_alerts_enabled: enabled })
+        .eq("id", staffId);
+      if (error) return json({ error: error.message }, 400);
+      return json({ success: true });
+    }
+
     if (action === "update") {
       const staffId = String(body.staffId ?? "");
       if (!staffId) return json({ error: "staffId is required" }, 400);
@@ -255,6 +277,9 @@ Deno.serve(async (req) => {
       }
       if (Object.prototype.hasOwnProperty.call(body, "isActive")) {
         patch.is_active = body.isActive === true;
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "smsAlertsEnabled")) {
+        patch.sms_alerts_enabled = body.smsAlertsEnabled === true;
       }
       // Super Admins are never branch-locked.
       if (role === "super_admin") patch.location_id = null;

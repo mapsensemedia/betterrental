@@ -114,6 +114,24 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Admin log rows must carry a booking_id whenever the event belongs to a
+    // booking: resolve it from the booking code when the caller only sent that.
+    let resolvedBookingId: string | null = bookingId || null;
+    if (!resolvedBookingId && bookingCode) {
+      const { data: bookingRow, error: lookupError } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("booking_code", bookingCode)
+        .maybeSingle();
+      if (lookupError) {
+        console.error(`[notify-admin] booking lookup by code ${bookingCode} failed:`, lookupError);
+      }
+      resolvedBookingId = bookingRow?.id ?? null;
+      if (!resolvedBookingId) {
+        console.warn(`[notify-admin] no booking found for code ${bookingCode} - logging without booking link`);
+      }
+    }
+
     // Lifecycle events (activation, handover, completion, cancellation) are
     // emailed but never written to admin_alerts: the alerts board is reserved
     // for issues that need action, not a status log.
@@ -142,7 +160,7 @@ serve(async (req) => {
           alert_type: alertType,
           title: alertTitle,
           message: alertMessage,
-          booking_id: bookingId || null,
+          booking_id: resolvedBookingId,
           status: "pending",
         })
         .select()
@@ -393,8 +411,8 @@ serve(async (req) => {
     await supabase.from("notification_logs").insert({
       channel: "email",
       notification_type: `admin_${eventType}`,
-      booking_id: bookingId || null,
-      idempotency_key: `admin_${eventType}_${bookingId || "system"}_${Date.now()}`,
+      booking_id: resolvedBookingId,
+      idempotency_key: `admin_${eventType}_${resolvedBookingId || "system"}_${Date.now()}`,
       status: result.ok ? "sent" : "failed",
       provider_id: result.data?.id || null,
       error_message: result.ok ? null : JSON.stringify(result.data),

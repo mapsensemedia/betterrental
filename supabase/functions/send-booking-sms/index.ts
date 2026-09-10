@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { BRAND, formatPhoneForMessage, fmtDateTimeVan } from "../_shared/sms-format.ts";
+import { toE164 } from "../_shared/phone.ts";
+import { failureKey, resolveBookingContact, writeNotificationLog } from "../_shared/notify-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,21 +45,32 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch booking details with single() for proper typing
+    // bookings has two FKs to locations (pickup + return) — name the pickup one
+    // explicitly, otherwise PostgREST rejects the embed as ambiguous.
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
         id, booking_code, start_at, end_at, status, total_amount, user_id, vehicle_id,
-        locations!inner (name, address, phone)
+        customer_id, pickup_contact_name, pickup_contact_phone,
+        locations!bookings_location_id_fkey (name, address, phone)
       `)
       .eq("id", bookingId)
-      .single();
+      .maybeSingle();
 
     if (bookingError || !booking) {
-      console.error("Booking not found:", bookingError);
+      const detail = bookingError?.message || "booking row not found";
+      console.error(`[send-booking-sms] booking lookup failed for ${bookingId}: ${detail}`, bookingError);
+      await writeNotificationLog(supabase, {
+        channel: "sms",
+        notificationType: templateType,
+        bookingId,
+        idempotencyKey: failureKey(`sms_${bookingId}_${templateType}`),
+        status: "failed",
+        errorMessage: `booking_lookup_failed: ${detail}`,
+      });
       return new Response(
-        JSON.stringify({ error: "Booking not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "booking_lookup_failed", details: detail }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -68,30 +81,26 @@ serve(async (req) => {
       .eq("id", booking.vehicle_id)
       .maybeSingle();
 
-    // Fetch user profile for phone number (fallback to auth user metadata)
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("phone, full_name")
-      .eq("id", booking.user_id)
-      .maybeSingle();
-
-    let toPhone = profile?.phone || "";
+    // Contact details come from the profile, the customers record (guest /
+    // walk-in) or the pickup contact fields — in that order.
+    const contact = await resolveBookingContact(supabase, booking);
+    const toPhone = toE164(contact.phone);
 
     if (!toPhone) {
-      const { data: authUser } = await supabase.auth.admin.getUserById(booking.user_id);
-      const metaPhone = authUser?.user?.user_metadata?.phone;
-
-      if (typeof metaPhone === "string" && metaPhone.trim()) {
-        toPhone = metaPhone.trim();
-        console.log("Fetched phone from auth.users metadata");
-      }
-    }
-
-    if (!toPhone) {
-      console.log("No phone number for user");
+      const reason = contact.phone ? `invalid_phone: ${contact.phone}` : "no_phone_on_file";
+      console.error(`[send-booking-sms] ${reason} for booking ${booking.booking_code}`);
+      await writeNotificationLog(supabase, {
+        channel: "sms",
+        notificationType: templateType,
+        bookingId,
+        userId: booking.user_id,
+        idempotencyKey: failureKey(`sms_${bookingId}_${templateType}`),
+        status: "failed",
+        errorMessage: reason,
+      });
       return new Response(
-        JSON.stringify({ error: "No phone number on file" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: reason }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

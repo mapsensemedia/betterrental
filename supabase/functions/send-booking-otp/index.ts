@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { toE164 } from "../_shared/phone.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { 
   getCorsHeaders, 
@@ -196,7 +197,7 @@ serve(async (req: Request): Promise<Response> => {
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: new URLSearchParams({
-            To: userPhone!,
+            To: toE164(userPhone) ?? userPhone!,
             From: twilioFrom,
             Body: message,
           }),

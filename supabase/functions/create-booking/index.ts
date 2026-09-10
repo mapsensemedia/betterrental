@@ -355,25 +355,62 @@ Deno.serve(async (req) => {
     }
 
     // Use admin client's functions.invoke — no service_role key in headers
+    // Every notification invoke is logged - success and failure. No silent catches.
+    const invokeNotification = async (
+      endpoint: string,
+      channel: "sms" | "email",
+      body: Record<string, unknown>,
+    ) => {
+      try {
+        const { data, error } = await supabaseAdmin.functions.invoke(endpoint, { body });
+        if (error) {
+          console.error(`[create-booking] ${endpoint} invoke failed:`, error);
+          await supabaseAdmin.from("notification_logs").insert({
+            channel,
+            notification_type: `${endpoint}_invoke`,
+            booking_id: booking.id,
+            user_id: auth.userId,
+            idempotency_key: `${endpoint}_invoke_fail_${booking.id}_${Date.now()}`,
+            status: "failed",
+            error_message: String(error?.message || error).slice(0, 2000),
+          });
+        } else {
+          console.log(`[create-booking] ${endpoint} result:`, JSON.stringify(data));
+        }
+      } catch (err) {
+        console.error(`[create-booking] ${endpoint} threw:`, err);
+        await supabaseAdmin.from("notification_logs").insert({
+          channel,
+          notification_type: `${endpoint}_invoke`,
+          booking_id: booking.id,
+          user_id: auth.userId,
+          idempotency_key: `${endpoint}_invoke_throw_${booking.id}_${Date.now()}`,
+          status: "failed",
+          error_message: String(err).slice(0, 2000),
+        });
+      }
+    };
+
     const notificationPromises = [
-      supabaseAdmin.functions.invoke("send-booking-sms", {
-        body: { bookingId: booking.id, templateType: "confirmation" },
-      }).catch((err: any) => console.error("SMS notification failed:", err)),
-      supabaseAdmin.functions.invoke("send-booking-email", {
-        body: { bookingId: booking.id, templateType: "confirmation" },
-      }).catch((err: any) => console.error("Email notification failed:", err)),
-      supabaseAdmin.functions.invoke("notify-branch-sms", {
-        body: { type: "booking", bookingId: booking.id },
-      }).catch((err: any) => console.error("Branch SMS failed:", err)),
-      supabaseAdmin.functions.invoke("notify-admin", {
-        body: {
-          eventType: "new_booking",
-          bookingId: booking.id,
-          bookingCode: booking.booking_code,
-          customerName,
-          vehicleName,
-        },
-      }).catch((err: any) => console.error("Admin notification failed:", err)),
+      invokeNotification("send-booking-sms", "sms", {
+        bookingId: booking.id,
+        templateType: "confirmation",
+      }),
+      invokeNotification("send-booking-email", "email", {
+        bookingId: booking.id,
+        templateType: "confirmation",
+      }),
+      invokeNotification("notify-branch-sms", "sms", {
+        type: "booking",
+        bookingId: booking.id,
+      }),
+      invokeNotification("notify-admin", "email", {
+        eventType: "new_booking",
+        bookingId: booking.id,
+        bookingCode: booking.booking_code,
+        customerName,
+        vehicleName,
+      }),
     ];
 
     await Promise.all(notificationPromises);
