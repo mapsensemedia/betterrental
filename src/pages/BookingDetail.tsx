@@ -20,6 +20,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -1053,6 +1054,9 @@ export default function BookingDetail() {
               <MessageCircle className="h-5 w-5" />
               Contact Support
             </DialogTitle>
+            <DialogDescription>
+              Send us a message about this booking and our team will get back to you.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

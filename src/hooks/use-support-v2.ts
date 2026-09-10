@@ -1006,21 +1006,10 @@ export function useCreateCustomerTicketV2() {
     }) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Generate ticket ID
-      const { data: existingTickets } = await (supabase
-        .from("support_tickets_v2") as any)
-        .select("id")
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      const lastNum = existingTickets?.[0] ? parseInt(existingTickets[0].ticket_id?.replace('TKT-', '') || '0') : 0;
-      const ticketNumber = `TKT-${String(lastNum + 1).padStart(6, '0')}`;
-
-      // Create ticket
+      // Ticket number is assigned by the database (set_ticket_id trigger)
       const { data: ticket, error } = await (supabase
         .from("support_tickets_v2") as any)
         .insert({
-          ticket_id: ticketNumber,
           subject,
           description: message,
           category,
