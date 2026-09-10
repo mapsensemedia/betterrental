@@ -6,7 +6,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { RENTAL_LOCATIONS, ACTIVE_RENTAL_LOCATIONS, getLocationById, RentalLocation } from "@/constants/rentalLocations";
 import { MAX_RENTAL_DAYS, MIN_RENTAL_DAYS, calculateDeliveryFee, MAX_DELIVERY_DISTANCE_KM } from "@/lib/rental-rules";
 import type { DriverAgeBand } from "@/lib/pricing";
-import { formatLocalDate, parseLocalDate } from "@/lib/date-utils";
+import { formatLocalDate, parseLocalDate, isPastLocalDate, startOfLocalToday } from "@/lib/date-utils";
 
 // Delivery mode types
 export type DeliveryMode = "pickup" | "delivery";
