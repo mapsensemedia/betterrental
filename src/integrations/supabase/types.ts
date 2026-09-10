@@ -2853,6 +2853,7 @@ export type Database = {
           id: string
           is_active: boolean
           location_id: string | null
+          sms_alerts_enabled: boolean
           updated_at: string
           user_id: string
         }
@@ -2864,6 +2865,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           location_id?: string | null
+          sms_alerts_enabled?: boolean
           updated_at?: string
           user_id: string
         }
@@ -2875,6 +2877,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           location_id?: string | null
+          sms_alerts_enabled?: boolean
           updated_at?: string
           user_id?: string
         }
