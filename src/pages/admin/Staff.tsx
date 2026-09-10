@@ -29,6 +29,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Plus, MapPin, ShieldCheck, UserCog, Mail, Eye, EyeOff, RefreshCw, Pencil, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useStaffLocation } from "@/hooks/use-staff-location";
@@ -40,7 +41,9 @@ interface StaffRow {
   display_name: string | null;
   employee_code: string | null;
   is_active: boolean;
+  sms_alerts_enabled: boolean;
   email: string | null;
+  phone: string | null;
   roles: string[];
 }
 
@@ -220,6 +223,17 @@ export default function StaffPage() {
       toast({ title: "Could not update status", description: err.message, variant: "destructive" }),
   });
 
+  const setSmsAlerts = useMutation({
+    mutationFn: (vars: { staffId: string; smsAlertsEnabled: boolean }) =>
+      callManageStaff({ action: "set_sms_alerts", ...vars }),
+    onSuccess: () => {
+      toast({ title: "Text alerts updated" });
+      invalidate();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Could not update text alerts", description: err.message, variant: "destructive" }),
+  });
+
   const updateStaff = useMutation({
     mutationFn: () =>
       callManageStaff<{ passwordSet: boolean }>({
@@ -321,6 +335,7 @@ export default function StaffPage() {
                       <TableHead>Role</TableHead>
                       <TableHead>Branch</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Text alerts</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -384,6 +399,29 @@ export default function StaffPage() {
                               </SelectContent>
                             </Select>
                           </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={!!s.sms_alerts_enabled}
+                                disabled={isSuper || !s.location_id}
+                                onCheckedChange={(checked) =>
+                                  setSmsAlerts.mutate({ staffId: s.id, smsAlertsEnabled: checked })
+                                }
+                                aria-label="Branch text alerts"
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {isSuper
+                                  ? "Branch only"
+                                  : !s.location_id
+                                    ? "Needs a branch"
+                                    : !s.phone
+                                      ? "No phone saved"
+                                      : s.sms_alerts_enabled
+                                        ? "On"
+                                        : "Off"}
+                              </span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right whitespace-nowrap">
                             <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
                               <Pencil className="w-4 h-4 mr-1" />
@@ -414,7 +452,7 @@ export default function StaffPage() {
                     })}
                     {staff.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-10">
+                        <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-10">
                           No staff accounts yet.
                         </TableCell>
                       </TableRow>
