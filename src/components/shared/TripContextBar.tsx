@@ -1,5 +1,6 @@
 import { MapPin, Calendar, X } from "lucide-react";
 import { format } from "date-fns";
+import { startOfLocalToday } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -158,7 +159,7 @@ export function TripContextBar({
                   setReturnDateTime(range?.to || null, searchData.returnTime);
                 }}
                 numberOfMonths={2}
-                disabled={(date) => date < new Date()}
+                disabled={(date) => date < startOfLocalToday()}
                 className="pointer-events-auto"
               />
             </div>

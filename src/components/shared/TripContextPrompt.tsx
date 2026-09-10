@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MapPin, Calendar, ChevronRight, User } from "lucide-react";
 import { format, addDays } from "date-fns";
+import { startOfLocalToday } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
@@ -187,7 +188,7 @@ export function TripContextPrompt({
                 }}
                 onSelect={handleDateSelect}
                 numberOfMonths={1}
-                disabled={(date) => date < new Date()}
+                disabled={(date) => date < startOfLocalToday()}
                 className="pointer-events-auto rounded-xl border"
               />
             </div>

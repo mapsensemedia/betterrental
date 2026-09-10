@@ -32,6 +32,7 @@ import {
   ACCESS_TOKEN_TTL_MS,
   type AdditionalDriverInput,
 } from "../_shared/booking-core.ts";
+import { isPastBusinessDay, PAST_START_MESSAGE } from "../_shared/booking-dates.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -133,6 +134,14 @@ Deno.serve(async (req) => {
     if (!vehicleId || !locationId || !startAt || !endAt) {
       return new Response(
         JSON.stringify({ error: "validation_failed", message: "Missing required booking information" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Pickup may never be in the past (business calendar; any time today is fine)
+    if (isPastBusinessDay(startAt)) {
+      return new Response(
+        JSON.stringify({ error: "validation_failed", message: PAST_START_MESSAGE }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

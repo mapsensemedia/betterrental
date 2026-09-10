@@ -24,6 +24,7 @@ import {
   isValidEmail,
   isValidPhone,
 } from "../_shared/cors.ts";
+import { isPastBusinessDay, PAST_START_MESSAGE } from "../_shared/booking-dates.ts";
 import {
   validateAuth,
   getAdminClient,
@@ -114,6 +115,14 @@ Deno.serve(async (req) => {
     if (!locationId || !categoryId || !startAt || !endAt || !customerName || !customerPhone || !customerEmail) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: locationId, categoryId, startAt, endAt, customerName, customerPhone, customerEmail. Walk-in bookings require customer email." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Pickup may never be in the past (business calendar; any time today is fine)
+    if (isPastBusinessDay(startAt)) {
+      return new Response(
+        JSON.stringify({ error: PAST_START_MESSAGE }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

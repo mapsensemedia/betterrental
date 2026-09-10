@@ -6,7 +6,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { RENTAL_LOCATIONS, ACTIVE_RENTAL_LOCATIONS, getLocationById, RentalLocation } from "@/constants/rentalLocations";
 import { MAX_RENTAL_DAYS, MIN_RENTAL_DAYS, calculateDeliveryFee, MAX_DELIVERY_DISTANCE_KM } from "@/lib/rental-rules";
 import type { DriverAgeBand } from "@/lib/pricing";
-import { formatLocalDate, parseLocalDate } from "@/lib/date-utils";
+import { formatLocalDate, parseLocalDate, isPastLocalDate, startOfLocalToday } from "@/lib/date-utils";
 
 // Delivery mode types
 export type DeliveryMode = "pickup" | "delivery";
@@ -203,6 +203,24 @@ export function RentalBookingProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+    }
+    // Never start a trip in the past: shift a stale pickup forward to today,
+    // keeping the original rental length.
+    if (stored.pickupDate && isPastLocalDate(stored.pickupDate)) {
+      const today = startOfLocalToday();
+      const days =
+        stored.returnDate
+          ? Math.max(
+              1,
+              Math.round(
+                (stored.returnDate.getTime() - stored.pickupDate.getTime()) / 86400000
+              )
+            )
+          : 1;
+      stored.pickupDate = today;
+      stored.returnDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
+    } else if (stored.returnDate && isPastLocalDate(stored.returnDate)) {
+      stored.returnDate = null;
     }
     return stored;
   });

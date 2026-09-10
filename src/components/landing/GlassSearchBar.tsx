@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PICKUP_TIME_SLOTS, DEFAULT_PICKUP_TIME } from "@/lib/rental-rules";
+import { todayLocalISO, clampToTodayISO, isPastLocalDate, addLocalDays } from "@/lib/date-utils";
 
 interface GlassSearchBarProps {
   className?: string;
@@ -39,7 +40,7 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
   const [showReturnDateError, setShowReturnDateError] = useState(false);
 
   // Get minimum date (today)
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayLocalISO();
 
   const handleAgeChange = (value: string) => {
     setAgeRange(value as "20-24" | "25-70");
@@ -70,6 +71,22 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
 
     if (hasErrors) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    if (isPastLocalDate(pickupDate) || isPastLocalDate(returnDate)) {
+      const fixedPickup = clampToTodayISO(pickupDate);
+      setPickupDate(fixedPickup);
+      setReturnDate(
+        isPastLocalDate(returnDate) || returnDate < fixedPickup
+          ? addLocalDays(fixedPickup, 1)
+          : returnDate
+      );
+      toast({
+        title: "Pickup date cannot be in the past",
+        description: "We moved your dates to the earliest available day.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -141,13 +158,12 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
               min={today}
               value={pickupDate}
               onChange={(e) => {
-                setPickupDate(e.target.value);
+                const newDate = clampToTodayISO(e.target.value);
+                setPickupDate(newDate);
                 setShowPickupDateError(false);
                 // Auto-set return date if empty or before pickup
-                if (!returnDate || e.target.value > returnDate) {
-                  const nextDay = new Date(e.target.value);
-                  nextDay.setDate(nextDay.getDate() + 1);
-                  setReturnDate(nextDay.toISOString().split("T")[0]);
+                if (newDate && (!returnDate || newDate > returnDate)) {
+                  setReturnDate(addLocalDays(newDate, 1));
                   setShowReturnDateError(false);
                 }
               }}
@@ -191,7 +207,11 @@ export function GlassSearchBar({ className }: GlassSearchBarProps) {
               type="date"
               min={pickupDate || today}
               value={returnDate}
-              onChange={(e) => { setReturnDate(e.target.value); setShowReturnDateError(false); }}
+              onChange={(e) => {
+                const raw = clampToTodayISO(e.target.value);
+                setReturnDate(pickupDate && raw && raw < pickupDate ? pickupDate : raw);
+                setShowReturnDateError(false);
+              }}
               className={cn(
                 "w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
                 showReturnDateError && "border-destructive ring-1 ring-destructive"
