@@ -137,6 +137,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Pickup may never be in the past (business calendar; any time today is fine)
+    if (isPastBusinessDay(startAt)) {
+      return new Response(
+        JSON.stringify({ error: "validation_failed", message: PAST_START_MESSAGE }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!isValidAgeBand(driverAgeBand)) {
       return new Response(
         JSON.stringify({ error: "age_validation_failed", message: "Driver age confirmation is required." }),
