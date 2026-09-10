@@ -579,11 +579,31 @@ Deno.serve(async (req) => {
 
     // 12. Send the same customer confirmation SMS/email as online bookings (non-fatal)
     try {
-      await supabaseAdmin.functions.invoke("send-booking-sms", {
+      const { data: smsData, error: smsError } = await supabaseAdmin.functions.invoke("send-booking-sms", {
         body: { bookingId: booking.id, templateType: "confirmation" },
       });
+      if (smsError) {
+        console.error("[create-walk-in-booking] Confirmation SMS invoke failed:", smsError);
+      } else {
+        console.log("[create-walk-in-booking] Confirmation SMS result:", JSON.stringify(smsData));
+      }
     } catch (notifyErr) {
       console.error("[create-walk-in-booking] Confirmation SMS failed (non-fatal):", notifyErr);
+    }
+
+    // 12b. Branch operations text — walk-ins now alert the branch like online bookings
+    try {
+      const { data: branchData, error: branchError } = await supabaseAdmin.functions.invoke(
+        "notify-branch-sms",
+        { body: { type: "booking", bookingId: booking.id } },
+      );
+      if (branchError) {
+        console.error("[create-walk-in-booking] Branch SMS invoke failed:", branchError);
+      } else {
+        console.log("[create-walk-in-booking] Branch SMS result:", JSON.stringify(branchData));
+      }
+    } catch (branchErr) {
+      console.error("[create-walk-in-booking] Branch SMS failed (non-fatal):", branchErr);
     }
 
     console.log(`[create-walk-in-booking] Created booking ${booking.id} (customer_id=${customerId}) by staff ${auth.userId}`);

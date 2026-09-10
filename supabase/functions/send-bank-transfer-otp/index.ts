@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { toE164 } from "../_shared/phone.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { getAdminClient, getUserOrThrow, requireRoleOrThrow, authErrorResponse } from "../_shared/auth.ts";
 import { checkDbRateLimit } from "../_shared/rate-limit-db.ts";
@@ -98,7 +99,7 @@ serve(async (req: Request): Promise<Response> => {
           "Authorization": `Basic ${btoa(`${twilioSid}:${twilioAuth}`)}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({ To: ADMIN_PHONE, From: twilioFrom, Body: message }),
+        body: new URLSearchParams({ To: toE164(ADMIN_PHONE) ?? ADMIN_PHONE, From: twilioFrom, Body: message }),
       }
     );
 
