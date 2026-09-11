@@ -180,6 +180,19 @@ export default function CheckIn() {
             </Card>
           )}
 
+          {isStaff && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-6 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  You are signed in as staff. Open this booking in the staff panel to continue.
+                </p>
+                <Button className="w-full" onClick={() => navigate(staffRoute)}>
+                  Open in staff panel
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
 
           {/* Pickup Details Card */}
