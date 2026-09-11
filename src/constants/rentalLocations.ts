@@ -33,6 +33,15 @@ export const RENTAL_LOCATIONS: RentalLocation[] = [
     isActive: true, // Toggle to true to re-enable this location
   },
   {
+    id: "a1b2c3d4-4444-4000-8000-000000000004",
+    name: "Langley 200th Street",
+    address: "5933 200 St, Langley, BC V3A 1N2",
+    city: "Langley",
+    lat: 49.11014733,
+    lng: -122.66884669,
+    isActive: true,
+  },
+  {
     id: "a1b2c3d4-3333-4000-8000-000000000003",
     name: "Abbotsford Centre",
     address: "32835 South Fraser Way, Abbotsford, BC V2S 2A6",

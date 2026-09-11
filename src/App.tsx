@@ -34,6 +34,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const CompleteSignup = lazy(() => import("./pages/CompleteSignup"));
 const Surrey = lazy(() => import("./pages/Surrey"));
 const Langley = lazy(() => import("./pages/Langley"));
+const Langley200Street = lazy(() => import("./pages/Langley200Street"));
 const Abbotsford = lazy(() => import("./pages/Abbotsford"));
 const Subscription = lazy(() => import("./pages/Subscription"));
 

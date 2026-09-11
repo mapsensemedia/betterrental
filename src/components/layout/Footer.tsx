@@ -22,6 +22,7 @@ const footerLinks = {
   serviceAreas: [
   { href: "/surrey", label: "Car Rental in Surrey, BC" },
   { href: "/langley", label: "Car Rental in Langley, BC" },
+  { href: "/langley-200-street", label: "Car Rental on 200th Street, Langley" },
   { href: "/abbotsford", label: "Car Rental in Abbotsford, BC" }],
 
   company: [
