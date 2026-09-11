@@ -45,8 +45,12 @@ export default function CheckIn() {
   
   const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
 
-  // Fetch booking by code
+  // Look the booking up through the public code-only lookup. The pass QR is
+  // scanned on staff phones and customer phones alike, usually with nobody
+  // signed in, so a browser query bound by row security cannot resolve it.
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchBooking() {
       if (!code) {
         setError("No booking code provided");
@@ -55,42 +59,49 @@ export default function CheckIn() {
       }
 
       try {
-        const { data, error: fetchError } = await supabase
-          .from("bookings")
-          .select(`
-            id,
-            booking_code,
-            start_at,
-            end_at,
-            status,
-            locations!location_id (id, name, address, city)
-          `)
-          .eq("booking_code", code.toUpperCase())
-          .maybeSingle();
+        const { data, error: fnError } = await supabase.functions.invoke("lookup-booking-pass", {
+          body: { code },
+        });
 
-        if (fetchError) {
-          console.error("Error fetching booking:", fetchError);
-          setError("Failed to look up booking");
-        } else if (!data) {
+        if (cancelled) return;
+
+        const payload = data as { booking?: BookingData; error?: string } | null;
+
+        if (payload?.booking) {
+          setBooking(payload.booking);
+        } else if (payload?.error === "not_found" || payload?.error === "invalid_code") {
           setError("Invalid or expired booking code");
+        } else if (payload?.error === "rate_limited") {
+          setError("Too many lookups. Please wait a moment and try again.");
         } else {
-          setBooking(data);
+          console.error("Error fetching booking:", fnError || payload?.error);
+          setError("Failed to look up booking");
         }
       } catch (err) {
+        if (cancelled) return;
         console.error("Unexpected error:", err);
         setError("An unexpected error occurred");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     fetchBooking();
+    return () => {
+      cancelled = true;
+    };
   }, [code]);
 
-  // Redirect admin/staff to booking ops view
+  // Signed-in staff go straight into the booking's own screen
   useEffect(() => {
     if (!isAdminLoading && isAdmin && booking) {
-      navigate(`/admin/bookings?code=${booking.booking_code}`);
+      if (booking.status === "active") {
+        navigate(`/admin/active-rentals/${booking.id}`, { replace: true });
+      } else if (["pending", "confirmed", "draft"].includes(booking.status)) {
+        navigate(`/admin/bookings/${booking.id}/ops`, { replace: true });
+      } else {
+        navigate(`/admin/bookings/${booking.id}`, { replace: true });
+      }
     }
   }, [isAdmin, isAdminLoading, booking, navigate]);
 
