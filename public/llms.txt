@@ -11,7 +11,8 @@ C2C Rental is a locally owned car rental company serving the Fraser Valley and L
 - [Compare vehicles](/compare): Side-by-side comparison of vehicles in the fleet.
 - [Locations](/locations): All C2C Rental pickup locations across the Fraser Valley.
 - [Car rental in Surrey, BC](/surrey): Vehicles, rates, and pickup details at our Surrey Newton location.
-- [Car rental in Langley, BC](/langley): Vehicles, rates, and pickup details at our Langley Centre location.
+- [Car rental in Langley, BC](/langley): Vehicles, rates, and pickup details at our Langley Centre location (20178 96 Ave, Langley Twp, BC V1M 0B2).
+- [Car rental on 200th Street, Langley](/langley-200-street): Vehicles, rates, and pickup details at C2C Rental Langley 200th Street, 5933 200 St, Langley, BC V3A 1N2 — open Mon–Sat 9am–6pm, Sun 11am–6pm, phone +1 (604) 763-4242.
 - [Car rental in Abbotsford, BC](/abbotsford): Vehicles, rates, and pickup details at our Abbotsford Centre location.
 - [About C2C Rental](/about): Company background, service area, and what makes us different.
 - [Contact](/contact): Phone, email, and location details — +1 (604) 763-4242.
