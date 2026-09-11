@@ -52,6 +52,7 @@ export function CancelBookingDialog({
   }
 
   const handleCancel = async () => {
+    if (isLoading) return; // single request in flight only
     setIsLoading(true);
     try {
       // Status changes are blocked in the browser by design — go through the
@@ -60,16 +61,14 @@ export function CancelBookingDialog({
         body: { bookingId, reason: reason.trim() || undefined },
       });
 
-      if (error) {
-        const detail = (data as { error?: string } | null)?.error;
-        throw new Error(detail || error.message || "Failed to cancel booking");
-      }
-      if ((data as { error?: string } | null)?.error) {
-        throw new Error((data as { error?: string }).error);
-      }
+      const detail = (data as { error?: string } | null)?.error;
+      if (detail) throw new Error(detail);
+      if (error) throw new Error(error.message || "Failed to cancel booking");
 
       toast.success("Booking cancelled successfully");
       setOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
       onCancelled?.();
     } catch (error) {
       console.error("Error cancelling booking:", error);
