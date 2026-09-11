@@ -241,6 +241,7 @@ Deno.serve(async (req) => {
     let notificationStage: string | null = null;
     if (newStatus === "active") notificationStage = "rental_activated";
     else if (newStatus === "completed") notificationStage = "return_completed";
+    else if (newStatus === "cancelled") notificationStage = "booking_cancelled";
 
     if (notificationStage && !shouldSkipNotifications) {
       try {
