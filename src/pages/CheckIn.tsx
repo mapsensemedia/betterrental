@@ -92,21 +92,10 @@ export default function CheckIn() {
     };
   }, [code]);
 
-  // Signed-in staff go straight into the booking's own screen
-  useEffect(() => {
-    if (!isAdminLoading && isAdmin && booking) {
-      if (booking.status === "active") {
-        navigate(`/admin/active-rentals/${booking.id}`, { replace: true });
-      } else if (["pending", "confirmed", "draft"].includes(booking.status)) {
-        navigate(`/admin/bookings/${booking.id}/ops`, { replace: true });
-      } else {
-        navigate(`/admin/bookings/${booking.id}`, { replace: true });
-      }
-    }
-  }, [isAdmin, isAdminLoading, booking, navigate]);
-
-  // Loading state
-  if (loading || isAdminLoading) {
+  // Loading state — only while the booking itself is being looked up. The
+  // staff check must never gate this screen: on a signed-out phone (the camera
+  // app's own browser) that query stays disabled and would spin forever.
+  if (loading) {
     return (
       <CustomerLayout>
         <PageContainer className="pt-28 flex items-center justify-center min-h-[60vh]">
@@ -146,16 +135,18 @@ export default function CheckIn() {
     );
   }
 
-  // If admin is still being checked but we have booking, wait
-  if (isAdmin === undefined) {
-    return (
-      <CustomerLayout>
-        <PageContainer className="pt-28 flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </PageContainer>
-      </CustomerLayout>
-    );
-  }
+  // Staff shortcut is an explicit action, never an automatic redirect: an
+  // auto-replace made Back bounce straight forward again, which looked like
+  // the scan repeating itself.
+  const staffRoute =
+    booking.status === "active"
+      ? `/admin/active-rentals/${booking.id}`
+      : ["pending", "confirmed", "draft"].includes(booking.status)
+        ? `/admin/bookings/${booking.id}/ops`
+        : `/admin/bookings/${booking.id}`;
+  const isStaff = Boolean(isAdmin) && !isAdminLoading;
+  const staffSignInUrl = `/auth?returnUrl=${encodeURIComponent(`/check-in?code=${booking.booking_code}`)}&forceLogin=1`;
+
 
   const isCancelled = booking.status === "cancelled";
 
