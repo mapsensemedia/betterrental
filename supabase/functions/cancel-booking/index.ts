@@ -11,6 +11,7 @@
  */
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserOrThrow, getAdminClient, authErrorResponse } from "../_shared/auth.ts";
+import { writeNotificationLog, failureKey } from "../_shared/notify-log.ts";
 
 const CANCELLABLE = ["pending", "confirmed"];
 
