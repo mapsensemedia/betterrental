@@ -37,6 +37,7 @@ export function CancelBookingDialog({
   status,
   onCancelled,
 }: CancelBookingDialogProps) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [isLoading, setIsLoading] = useState(false);
