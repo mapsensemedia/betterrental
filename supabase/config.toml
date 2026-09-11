@@ -119,3 +119,9 @@ verify_jwt = false
 
 [functions.check-booking-payment-integrity]
 verify_jwt = false
+
+[functions.lookup-booking-pass]
+verify_jwt = false
+
+[functions.cancel-booking]
+verify_jwt = false

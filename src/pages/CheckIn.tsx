@@ -295,10 +295,7 @@ export default function CheckIn() {
           {!isAdmin && (
             <p className="text-center text-sm text-muted-foreground">
               Staff member?{" "}
-              <Link
-                to={`/admin/login?redirect=${encodeURIComponent(`/check-in?code=${booking.booking_code}`)}`}
-                className="underline underline-offset-4"
-              >
+              <Link to="/admin/login" className="underline underline-offset-4">
                 Sign in to open this booking
               </Link>
             </p>
