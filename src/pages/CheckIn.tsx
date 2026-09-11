@@ -296,14 +296,15 @@ export default function CheckIn() {
             </Button>
           </div>
 
-          {!isAdmin && (
+          {!isStaff && (
             <p className="text-center text-sm text-muted-foreground">
               Staff member?{" "}
-              <Link to="/admin/login" className="underline underline-offset-4">
+              <a href={staffSignInUrl} className="underline underline-offset-4">
                 Sign in to open this booking
-              </Link>
+              </a>
             </p>
           )}
+
         </div>
       </PageContainer>
     </CustomerLayout>
