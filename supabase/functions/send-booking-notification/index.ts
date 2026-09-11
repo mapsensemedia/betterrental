@@ -20,7 +20,8 @@ type Stage =
   | "rental_activated"
   | "return_initiated"
   | "rental_completed"
-  | "deposit_released";
+  | "deposit_released"
+  | "booking_cancelled";
 
 interface NotificationRequest {
   bookingId: string;
@@ -255,6 +256,21 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
           <p>Thank you for choosing C2C Rental! We hope to see you again soon.</p>
         `,
       };
+
+    case "booking_cancelled":
+      return {
+        subject: `Booking ${code} Cancelled`,
+        sms: `${BRAND}: Booking ${code} has been cancelled. Pickup ${fmtDateTime(b.start_at)} is no longer reserved. Any hold on your card is released by your bank within 5-10 business days. ${ask}`,
+        emailBody: `
+          <h2>Booking Cancelled</h2>
+          <p>Your booking has been cancelled and the vehicle is no longer reserved.</p>
+          ${summary}
+          <p>If a deposit hold was placed on your card, your bank releases it within <strong>5-10 business days</strong>.</p>
+          <p>If this was not expected, please call us at ${phone} right away.</p>
+        `,
+      };
+
+
 
     default:
       return {
