@@ -157,6 +157,8 @@ export default function CheckIn() {
     );
   }
 
+  const isCancelled = booking.status === "cancelled";
+
   // Customer-safe check-in view
   return (
     <CustomerLayout>
@@ -172,6 +174,22 @@ export default function CheckIn() {
               Present this code to staff at the pickup location
             </p>
           </div>
+
+          {isCancelled && (
+            <Card className="border-destructive/40 bg-destructive/5">
+              <CardContent className="pt-6 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                <div>
+                  <p className="font-semibold">This booking was cancelled</p>
+                  <p className="text-sm text-muted-foreground">
+                    The vehicle is no longer reserved. Please call the branch if you need help.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+
 
           {/* Pickup Details Card */}
           <Card>
