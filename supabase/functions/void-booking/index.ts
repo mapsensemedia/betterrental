@@ -114,6 +114,21 @@ Deno.serve(async (req) => {
       status: "pending",
     }]);
 
+    // Tell the customer their booking is cancelled. One notice for this void;
+    // never a resend or backfill. A failure here must not fail the void.
+    try {
+      const { error: notifyErr } = await supabase.functions.invoke("send-booking-notification", {
+        body: { bookingId, stage: "booking_cancelled" },
+      });
+      if (notifyErr) {
+        console.error(`[void-booking] cancellation notice failed for ${booking.booking_code}`, notifyErr);
+      }
+    } catch (err) {
+      console.error(`[void-booking] cancellation notice threw for ${booking.booking_code}`, err);
+    }
+
+
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
