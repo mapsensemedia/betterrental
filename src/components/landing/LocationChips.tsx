@@ -5,6 +5,7 @@ import { GBP_LINKS } from "@/constants/gbpLinks";
 const branches = [
   { label: "Surrey Newton", address: "6768 King George Blvd", href: "/surrey", gbp: GBP_LINKS.surrey },
   { label: "Langley Centre", address: "20178 96 Ave", href: "/langley", gbp: GBP_LINKS.langley },
+  { label: "Langley 200th Street", address: "5933 200 St", href: "/langley-200-street", gbp: GBP_LINKS.langley200 },
   { label: "Abbotsford Centre", address: "32835 South Fraser Way", href: "/abbotsford", gbp: GBP_LINKS.abbotsford },
 ];
 

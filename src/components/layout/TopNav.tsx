@@ -23,6 +23,7 @@ const navLinks = [
 const locationLinks = [
   { href: "/surrey", label: "Car Rental in Surrey" },
   { href: "/langley", label: "Car Rental in Langley" },
+  { href: "/langley-200-street", label: "Car Rental on 200th Street, Langley" },
   { href: "/abbotsford", label: "Car Rental in Abbotsford" },
 ];
 
