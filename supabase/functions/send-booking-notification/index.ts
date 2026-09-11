@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveBookingContact } from "../_shared/notify-log.ts";
+import { toE164 } from "../_shared/phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +22,8 @@ type Stage =
   | "rental_activated"
   | "return_initiated"
   | "rental_completed"
-  | "deposit_released";
+  | "deposit_released"
+  | "booking_cancelled";
 
 interface NotificationRequest {
   bookingId: string;
@@ -256,6 +259,21 @@ function getStageContent(stage: Stage, d: TemplateData): { subject: string; sms:
         `,
       };
 
+    case "booking_cancelled":
+      return {
+        subject: `Booking ${code} Cancelled`,
+        sms: `${BRAND}: Booking ${code} has been cancelled. Pickup ${fmtDateTime(b.start_at)} is no longer reserved. Any hold on your card is released by your bank within 5-10 business days. ${ask}`,
+        emailBody: `
+          <h2>Booking Cancelled</h2>
+          <p>Your booking has been cancelled and the vehicle is no longer reserved.</p>
+          ${summary}
+          <p>If a deposit hold was placed on your card, your bank releases it within <strong>5-10 business days</strong>.</p>
+          <p>If this was not expected, please call us at ${phone} right away.</p>
+        `,
+      };
+
+
+
     default:
       return {
         subject: `Booking Update – ${code}`,
@@ -352,22 +370,13 @@ serve(async (req) => {
     const pickupLoc = locationStr(booking.pickup_location);
     const returnLoc = booking.return_location ? locationStr(booking.return_location) : pickupLoc;
 
-    // ── Fetch user profile ──────────────────────────────────────────
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email, phone, full_name")
-      .eq("id", booking.user_id)
-      .single();
-
-    let userEmail = profile?.email;
-    let userPhone = profile?.phone;
-    const userName = profile?.full_name || "Valued Customer";
-
-    if (!userEmail) {
-      const { data: authUser } = await supabase.auth.admin.getUserById(booking.user_id);
-      userEmail = authUser?.user?.email;
-      userPhone = userPhone || authUser?.user?.phone;
-    }
+    // ── Resolve renter contact ──────────────────────────────────────
+    // The booking-level renter record wins over the signed-in account, so a
+    // shared counter login never lends its name or phone to a customer notice.
+    const contact = await resolveBookingContact(supabase, booking);
+    const userEmail = contact.email;
+    const userPhone = toE164(contact.phone);
+    const userName = contact.name || "Valued Customer";
 
     // ── Build sign link ─────────────────────────────────────────────
     const appUrl = Deno.env.get("APP_URL") || "https://c2crental.ca";

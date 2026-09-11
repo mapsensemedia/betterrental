@@ -54,23 +54,26 @@ export function CancelBookingDialog({
   const handleCancel = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          notes: reason ? `Cancelled by customer: ${reason}` : "Cancelled by customer",
-          actual_return_at: new Date().toISOString(),
-        })
-        .eq("id", bookingId);
+      // Status changes are blocked in the browser by design — go through the
+      // server action, which also sends the cancellation text.
+      const { data, error } = await supabase.functions.invoke("cancel-booking", {
+        body: { bookingId, reason: reason.trim() || undefined },
+      });
 
-      if (error) throw error;
+      if (error) {
+        const detail = (data as { error?: string } | null)?.error;
+        throw new Error(detail || error.message || "Failed to cancel booking");
+      }
+      if ((data as { error?: string } | null)?.error) {
+        throw new Error((data as { error?: string }).error);
+      }
 
       toast.success("Booking cancelled successfully");
       setOpen(false);
       onCancelled?.();
     } catch (error) {
       console.error("Error cancelling booking:", error);
-      toast.error("Failed to cancel booking. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to cancel booking. Please try again.");
     } finally {
       setIsLoading(false);
     }
