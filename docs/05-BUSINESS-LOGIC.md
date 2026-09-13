@@ -401,10 +401,12 @@ const subtotal = roundCents(
 16. **Deposit** — line 781: `let depositAmount = MINIMUM_DEPOSIT_AMOUNT;`
     (`= 350`, line 30). Never derived from the total.
 
-17. **QA promo** — lines 783-794. A single secret code
-    (`TEST_PROMO_CODE`, 99% off, `TEST_PROMO_PERCENT_OFF = 37`… actually
-    line 37: `export const TEST_PROMO_PERCENT_OFF = 99;`) reduces both the
-    total and the deposit hold. Invalid/expired codes are silently ignored.
+17. **QA promo** — lines 783-794. A single secret code, validated against the
+    `TEST_PROMO_CODE` secret by `resolveTestPromoCode()` (lines 50-64), with
+    `export const TEST_PROMO_PERCENT_OFF = 99;` (line 37), reduces both the
+    total and the deposit hold by 99%. Invalid or expired codes are silently
+    ignored and never block a booking.
+
 
 ### 4.2 Client-sent totals
 
