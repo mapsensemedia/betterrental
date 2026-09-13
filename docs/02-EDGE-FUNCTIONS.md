@@ -590,7 +590,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 167: return json({ error: err instanceof Error ? err.message : "Unknown error" }, 500);
 ```
 
-**Status codes returned:** 200, 204
+**Status codes returned:** 200, 204, 400, 403, 404, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -2101,7 +2101,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 503: { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
 ```
 
-**Status codes returned:** 200, 400, 409, 429, 500
+**Status codes returned:** 100, 200, 400, 409, 429, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -2855,8 +2855,8 @@ Payloads are the `body:` objects visible in the logic steps above.
 
 ### Frontend call sites
 
-- `src/hooks/use-rental-agreement.ts:166:          const { data, error } = await supabase.functions.invoke("generate-agreement", {`
 - `src/pages/admin/BookingDetail.tsx:421:      const { data, error } = await supabase.functions.invoke("generate-agreement", {`
+- `src/hooks/use-rental-agreement.ts:166:          const { data, error } = await supabase.functions.invoke("generate-agreement", {`
 - `src/components/admin/ops/CounterUpsellPanel.tsx:170:      const { data, error } = await supabase.functions.invoke("generate-agreement", {`
 
 ### Failure behaviour / atomicity
@@ -3178,7 +3178,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 33: const body = await req.json();
 ```
 
-**Status codes returned:** 200
+**Status codes returned:** 200, 400, 404, 409, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -3324,7 +3324,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 90: return json({ error: "unexpected_error" }, 500);
 ```
 
-**Status codes returned:** 200, 204
+**Status codes returned:** 200, 204, 400, 404, 429, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -3641,7 +3641,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 348: return json({ error: "Unknown action" }, 400);
 ```
 
-**Status codes returned:** 200
+**Status codes returned:** 200, 400, 404
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -3849,7 +3849,7 @@ No request body is read — the function takes no input fields.
 430: { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
 ```
 
-**Status codes returned:** 200, 400, 500
+**Status codes returned:** 100, 200, 400, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -4065,7 +4065,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 441: status: 500,
 ```
 
-**Status codes returned:** 200, 400, 500
+**Status codes returned:** 160, 200, 400, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -4302,7 +4302,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 785: { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
 ```
 
-**Status codes returned:** 200, 400, 401, 403, 404, 409, 500
+**Status codes returned:** 100, 200, 400, 401, 403, 404, 409, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -4557,7 +4557,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 852: return new Response(JSON.stringify(body), {
 ```
 
-**Status codes returned:** 
+**Status codes returned:** 300, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -4705,13 +4705,13 @@ Payloads are the `body:` objects visible in the logic steps above.
 
 ### Frontend call sites
 
-- `src/components/admin/CategoryUpgradeDialog.tsx:117:      const { data, error } = await supabase.functions.invoke("reprice-booking", {`
-- `src/components/admin/UnifiedVehicleManager.tsx:259:        const { data, error } = await supabase.functions.invoke("reprice-booking", {`
 - `src/hooks/use-booking-modification.ts:181:      const { data, error } = await supabase.functions.invoke("reprice-booking", {`
 - `src/hooks/use-booking-edit.ts:117:      const { data, error } = await supabase.functions.invoke("reprice-booking", {`
+- `src/components/admin/CategoryUpgradeDialog.tsx:117:      const { data, error } = await supabase.functions.invoke("reprice-booking", {`
 - `src/components/admin/ops/ProtectionChangePanel.tsx:52:      const { data, error } = await supabase.functions.invoke("reprice-booking", {`
 - `src/components/admin/ops/VehicleUpgradePanel.tsx:145:      const { data, error } = await supabase.functions.invoke("reprice-booking", {`
 - `src/components/admin/ops/VehicleUpgradePanel.tsx:184:      const { data, error } = await supabase.functions.invoke("reprice-booking", {`
+- `src/components/admin/UnifiedVehicleManager.tsx:259:        const { data, error } = await supabase.functions.invoke("reprice-booking", {`
 
 ### Failure behaviour / atomicity
 
@@ -5291,7 +5291,7 @@ Payloads are the `body:` objects visible in the logic steps above.
 
 ### Frontend call sites
 
-**NOT CALLED BY ANY FRONTEND CODE.** Other textual references: `supabase/functions/verify-booking-otp/index.ts:66`, `supabase/functions/_shared/booking-core.ts:1103`, `supabase/functions/_shared/notifications.ts:124`, `supabase/functions/create-booking/index.ts:486`
+**NOT CALLED BY ANY FRONTEND CODE.** Other textual references: `supabase/functions/create-booking/index.ts:486`, `supabase/functions/verify-booking-otp/index.ts:66`, `supabase/functions/_shared/booking-core.ts:1103`, `supabase/functions/_shared/notifications.ts:124`
 
 ### Failure behaviour / atomicity
 
@@ -5462,12 +5462,12 @@ Payloads are the `body:` objects visible in the logic steps above.
 
 ### Frontend call sites
 
+- `src/lib/deposit-automation.ts:112:    await supabase.functions.invoke("send-booking-notification", {`
 - `src/hooks/use-walkaround.ts:281:        supabase.functions.invoke("send-booking-notification", {`
 - `src/domain/bookings/mutations.ts:288:    await supabase.functions.invoke("send-booking-notification", {`
-- `src/lib/deposit-automation.ts:112:    await supabase.functions.invoke("send-booking-notification", {`
+- `src/hooks/use-checkin.ts:252:        supabase.functions.invoke("send-booking-notification", {`
 - `src/hooks/use-rental-agreement.ts:186:              await supabase.functions.invoke("send-booking-notification", {`
 - `src/hooks/use-rental-agreement.ts:266:          await supabase.functions.invoke("send-booking-notification", {`
-- `src/hooks/use-checkin.ts:252:        supabase.functions.invoke("send-booking-notification", {`
 - `src/components/admin/ops/steps/StepAgreement.tsx:26:      await supabase.functions.invoke("send-booking-notification", {`
 - `src/hooks/use-verification.ts:188:          await supabase.functions.invoke('send-booking-notification', {`
 - `src/hooks/use-vehicle-assignment.ts:186:      supabase.functions.invoke('send-booking-notification', {`
@@ -5776,7 +5776,7 @@ Payloads are the `body:` objects visible in the logic steps above.
 
 ### Frontend call sites
 
-**NOT CALLED BY ANY FRONTEND CODE.** Other textual references: `supabase/functions/verify-booking-otp/index.ts:69`, `supabase/functions/create-walk-in-booking/index.ts:591`, `supabase/functions/create-booking/index.ts:482`, `supabase/functions/_shared/notifications.ts:125`, `supabase/functions/_shared/booking-core.ts:1107`
+**NOT CALLED BY ANY FRONTEND CODE.** Other textual references: `supabase/functions/verify-booking-otp/index.ts:69`, `supabase/functions/_shared/notifications.ts:125`, `supabase/functions/create-booking/index.ts:482`, `supabase/functions/create-walk-in-booking/index.ts:591`, `supabase/functions/_shared/booking-core.ts:1107`
 
 ### Failure behaviour / atomicity
 
@@ -5858,7 +5858,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 269: { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
 ```
 
-**Status codes returned:** 200, 400, 405, 500
+**Status codes returned:** 100, 200, 400, 405, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -6125,7 +6125,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 223: return json({ error: detail }, 500);
 ```
 
-**Status codes returned:** 200
+**Status codes returned:** 200, 400, 404, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -6618,7 +6618,7 @@ JSON), so column types in `docs/01-DATABASE.md` are the effective contract.
 60: return json({ valid: false, message: "Could not check that code right now." }, 500);
 ```
 
-**Status codes returned:** 200
+**Status codes returned:** 200, 429, 500
 
 ### Logic, in source order (numbered; every guard, early return and DB call)
 
@@ -7326,10 +7326,10 @@ None.
 
 - `src/components/admin/return-ops/steps/StepReturnDeposit.tsx:95:      const { data, error } = await supabase.functions.invoke("wl-capture", {`
 - `src/components/admin/return-ops/steps/StepReturnDeposit.tsx:168:      const { data, error } = await supabase.functions.invoke("wl-capture", {`
-- `src/components/admin/deposit/AccountCloseoutPanel.tsx:79:      const { data, error } = await supabase.functions.invoke("wl-capture", {`
 - `src/components/admin/ops/steps/StepPayment.tsx:81:      const { data, error } = await supabase.functions.invoke("wl-capture", {`
 - `src/components/admin/ops/steps/StepPayment.tsx:121:      const { data, error } = await supabase.functions.invoke("wl-capture", {`
 - `src/components/admin/ops/steps/StepPayment.tsx:156:      const { data, error } = await supabase.functions.invoke("wl-capture", {`
+- `src/components/admin/deposit/AccountCloseoutPanel.tsx:79:      const { data, error } = await supabase.functions.invoke("wl-capture", {`
 
 ### Failure behaviour / atomicity
 
