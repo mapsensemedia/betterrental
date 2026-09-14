@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { resolveBookingContact } from "../_shared/notify-log.ts";
+import { resolveBookingContact, writeNotificationLog, failureKey } from "../_shared/notify-log.ts";
 import { toE164 } from "../_shared/phone.ts";
 
 const corsHeaders = {
@@ -412,10 +412,27 @@ serve(async (req) => {
 
     const results = { email: false, sms: false };
 
+    const logEmailFailure = async (reason: string) => {
+      await writeNotificationLog(supabase, {
+        channel: "email",
+        notificationType: stage,
+        bookingId,
+        userId: booking.user_id,
+        idempotencyKey: failureKey(`${stage}_email_${bookingId}`),
+        status: "failed",
+        errorMessage: reason,
+      });
+    };
+
     // ── Send Email ──────────────────────────────────────────────────
-    if (resendApiKey && userEmail) {
+    if (!resendApiKey) {
+      console.error("RESEND_API_KEY not configured — email not sent");
+      await logEmailFailure("RESEND_API_KEY not configured");
+    } else if (!userEmail) {
+      console.error("No email address on file for booking", bookingId);
+      await logEmailFailure("No email address on file for this booking");
+    } else {
       try {
-        const smsText = customMessage || template.sms;
         const emailHtml = wrapEmail(userName, template.emailBody, contactPhone);
 
         const emailRes = await fetch("https://api.resend.com/emails", {
@@ -436,12 +453,14 @@ serve(async (req) => {
         results.email = emailRes.ok;
         if (!emailRes.ok) {
           const errBody = await emailRes.text();
-          console.error("Email API error:", errBody);
+          console.error("Email API error:", emailRes.status, errBody);
+          await logEmailFailure(`Resend ${emailRes.status}: ${errBody}`);
         } else {
           console.log("Email sent successfully");
         }
       } catch (e) {
         console.error("Email error:", e);
+        await logEmailFailure(`Email send threw: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
