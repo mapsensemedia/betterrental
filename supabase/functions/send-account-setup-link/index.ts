@@ -195,7 +195,17 @@ Deno.serve(async (req) => {
 
     const resendBody = await resendRes.json().catch(() => ({}));
     if (!resendRes.ok) {
-      console.error("[send-account-setup-link] Resend error:", resendBody);
+      console.error("[send-account-setup-link] Resend error:", resendRes.status, resendBody);
+      await admin.from("notification_logs").insert({
+        booking_id: booking.id,
+        user_id: booking.user_id,
+        channel: "email",
+        notification_type: "account_setup_invite",
+        status: "failed",
+        recipient: email,
+        idempotency_key: `account_setup_invite_${booking.id}_fail_${Date.now()}`,
+        error_message: `Resend ${resendRes.status}: ${JSON.stringify(resendBody).slice(0, 1500)}`,
+      });
       return new Response(
         JSON.stringify({ error: "Failed to send email", details: resendBody }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
