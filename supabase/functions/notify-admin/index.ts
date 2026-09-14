@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, checkRateLimit, rateLimitResponse, getClientIp } from "../_shared/cors.ts";
 import { validateAuth, isAdminOrStaff } from "../_shared/auth.ts";
+import { EMAIL_FROM_ALERTS, EMAIL_REPLY_TO } from "../_shared/email-sender.ts";
 
 const ADMIN_EMAIL = "it@cartok.ca";
 
@@ -40,7 +41,8 @@ async function sendWithResend(apiKey: string, subject: string, html: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "C2C Car Rental <alerts@c2crental.ca>",
+      from: EMAIL_FROM_ALERTS,
+      reply_to: [EMAIL_REPLY_TO],
       to: [ADMIN_EMAIL],
       subject,
       html,

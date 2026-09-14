@@ -8,6 +8,7 @@ import {
 } from "../_shared/cors.ts";
 import { getAdminClient } from "../_shared/auth.ts";
 import { checkDbRateLimit } from "../_shared/rate-limit-db.ts";
+import { EMAIL_FROM_SUPPORT, EMAIL_REPLY_TO } from "../_shared/email-sender.ts";
 
 interface SendOtpRequest {
   bookingId: string;
@@ -242,7 +243,8 @@ serve(async (req: Request): Promise<Response> => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "C2C Car Rental <support@c2crental.ca>",
+          from: EMAIL_FROM_SUPPORT,
+          reply_to: [EMAIL_REPLY_TO],
           to: [userEmail],
           subject: `Your verification code: ${otp}`,
           html: emailHtml,

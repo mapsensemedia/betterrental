@@ -9,6 +9,7 @@
  */
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, isAdminOrStaff } from "../_shared/auth.ts";
+import { EMAIL_FROM_CUSTOMER, EMAIL_REPLY_TO } from "../_shared/email-sender.ts";
 
 const FALLBACK_ORIGIN = "https://www.c2crental.ca";
 
@@ -184,7 +185,8 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "C2C Car Rental <bookings@c2crental.ca>",
+        from: EMAIL_FROM_CUSTOMER,
+        reply_to: [EMAIL_REPLY_TO],
         to: [email],
         subject,
         html,
@@ -193,7 +195,17 @@ Deno.serve(async (req) => {
 
     const resendBody = await resendRes.json().catch(() => ({}));
     if (!resendRes.ok) {
-      console.error("[send-account-setup-link] Resend error:", resendBody);
+      console.error("[send-account-setup-link] Resend error:", resendRes.status, resendBody);
+      await admin.from("notification_logs").insert({
+        booking_id: booking.id,
+        user_id: booking.user_id,
+        channel: "email",
+        notification_type: "account_setup_invite",
+        status: "failed",
+        recipient: email,
+        idempotency_key: `account_setup_invite_${booking.id}_fail_${Date.now()}`,
+        error_message: `Resend ${resendRes.status}: ${JSON.stringify(resendBody).slice(0, 1500)}`,
+      });
       return new Response(
         JSON.stringify({ error: "Failed to send email", details: resendBody }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
