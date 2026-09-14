@@ -10,6 +10,7 @@ import {
   isValidEmail,
   isValidPhone 
 } from "../_shared/cors.ts";
+import { EMAIL_FROM_SUPPORT, EMAIL_REPLY_TO } from "../_shared/email-sender.ts";
 
 /**
  * Contact Form Email Handler
