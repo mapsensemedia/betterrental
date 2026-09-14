@@ -9,6 +9,7 @@
  */
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { validateAuth, getAdminClient, isAdminOrStaff } from "../_shared/auth.ts";
+import { EMAIL_FROM_CUSTOMER, EMAIL_REPLY_TO } from "../_shared/email-sender.ts";
 
 const FALLBACK_ORIGIN = "https://www.c2crental.ca";
 
@@ -184,7 +185,8 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "C2C Car Rental <bookings@c2crental.ca>",
+        from: EMAIL_FROM_CUSTOMER,
+        reply_to: [EMAIL_REPLY_TO],
         to: [email],
         subject,
         html,

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { toE164 } from "../_shared/phone.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { BRAND, formatPhoneForMessage } from "../_shared/sms-format.ts";
+import { EMAIL_FROM_CUSTOMER, EMAIL_REPLY_TO } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,7 +22,8 @@ async function sendWithResend(apiKey: string, to: string, subject: string, html:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "C2C Car Rental <bookings@c2crental.ca>",
+      from: EMAIL_FROM_CUSTOMER,
+      reply_to: [EMAIL_REPLY_TO],
       to: [to],
       subject,
       html,

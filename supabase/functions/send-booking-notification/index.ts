@@ -39,6 +39,7 @@ import {
   fmtDateTimeVan,
   fmtMoney,
 } from "../_shared/sms-format.ts";
+import { EMAIL_FROM_CUSTOMER, EMAIL_REPLY_TO } from "../_shared/email-sender.ts";
 
 const fmtDate = fmtDateVan;
 const fmtDateTime = fmtDateTimeVan;
@@ -424,7 +425,8 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "C2C Rental <noreply@resend.dev>",
+            from: EMAIL_FROM_CUSTOMER,
+            reply_to: [EMAIL_REPLY_TO],
             to: [userEmail],
             subject: template.subject,
             html: emailHtml,

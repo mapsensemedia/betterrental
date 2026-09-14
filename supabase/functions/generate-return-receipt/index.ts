@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { EMAIL_FROM_CUSTOMER, EMAIL_REPLY_TO } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -488,7 +489,8 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "C2C Car Rental <bookings@c2crental.ca>",
+            from: EMAIL_FROM_CUSTOMER,
+            reply_to: [EMAIL_REPLY_TO],
             to: [userEmail],
             subject: `Your Receipt - Booking ${booking.booking_code}`,
             html: htmlContent,
